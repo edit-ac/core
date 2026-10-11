@@ -10,5 +10,9 @@ license = "Apache-2.0"
 repository = "https://github.com/edit-ac/core"
 publish = false
 
+[workspace.dependencies]
+yrs = { version = "=0.28.0", features = ["small-client"] }
+wasm-bindgen = "=0.2.129"
+
 [workspace.lints.rust]
 unsafe_code = "forbid"

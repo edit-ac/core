@@ -1,6 +1,6 @@
 [package]
 name = "editac-wasm"
-description = "Reserved edit.ac WASM binding boundary; no exported binding API yet"
+description = "Minimal edit.ac foundation WASM fixture bridge"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -13,6 +13,8 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 editac-core = { path = "../editac-core" }
+wasm-bindgen.workspace = true
+yrs.workspace = true
 
 [lints]
 workspace = true

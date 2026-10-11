@@ -1,0 +1,144 @@
+{
+  "seed": 1592594996,
+  "generator": "LCG u32 wrapping, a=1664525 c=1013904223; fixed Unicode suffix corpus",
+  "writers": [
+    11,
+    22,
+    33
+  ],
+  "observer_ids": [
+    100,
+    101,
+    102,
+    103,
+    104,
+    105
+  ],
+  "schedules": [
+    [
+      0,
+      1,
+      2
+    ],
+    [
+      0,
+      2,
+      1
+    ],
+    [
+      1,
+      0,
+      2
+    ],
+    [
+      1,
+      2,
+      0
+    ],
+    [
+      2,
+      0,
+      1
+    ],
+    [
+      2,
+      1,
+      0
+    ]
+  ],
+  "delivery": "twice each in permutation, then once in reverse",
+  "cases": [
+    {
+      "id": 0,
+      "text": "a😀bé-4acd9803",
+      "text_utf8_bytes": 18,
+      "text_sha256": "9004c0a4122bf37de3193960108f928574157893ce9bf961d35d3287bdd7575c",
+      "bold_utf16": [
+        1,
+        3
+      ],
+      "edit": {
+        "offset_utf16": 3,
+        "text": "!",
+        "italic": true
+      },
+      "move22": [
+        "right",
+        10
+      ],
+      "move33": [
+        "left",
+        31
+      ]
+    },
+    {
+      "id": 1,
+      "text": "a😀b👩‍💻-cbbbdd86",
+      "text_utf8_bytes": 26,
+      "text_sha256": "0e4b6d85ba7c4ea0ddf691cf4b34042cba16c337b13b208d1f5d3480a1313abe",
+      "bold_utf16": [
+        1,
+        3
+      ],
+      "edit": {
+        "offset_utf16": 3,
+        "text": "!",
+        "italic": true
+      },
+      "move22": [
+        "right",
+        15
+      ],
+      "move33": [
+        "left",
+        33
+      ]
+    },
+    {
+      "id": 2,
+      "text": "a😀b🇭🇺-1152972d",
+      "text_utf8_bytes": 23,
+      "text_sha256": "5c1152987f6edbf5e5888e2881df357dd49b2dfd34514ba4998bbd9fe7ca9c87",
+      "bold_utf16": [
+        1,
+        3
+      ],
+      "edit": {
+        "offset_utf16": 3,
+        "text": "!",
+        "italic": true
+      },
+      "move22": [
+        "right",
+        7
+      ],
+      "move33": [
+        "left",
+        46
+      ]
+    },
+    {
+      "id": 3,
+      "text": "a😀bאבג-c9418ea8",
+      "text_utf8_bytes": 21,
+      "text_sha256": "73e953328f961674040488c362fb8d6907311d771b4136b98493f020cb20a50c",
+      "bold_utf16": [
+        1,
+        3
+      ],
+      "edit": {
+        "offset_utf16": 3,
+        "text": "!",
+        "italic": true
+      },
+      "move22": [
+        "right",
+        16
+      ],
+      "move33": [
+        "left",
+        35
+      ]
+    }
+  ]
+}
