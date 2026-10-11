@@ -1,0 +1,1351 @@
+seed=1592594996
+race=move-edit
+writers=[11,22,33]
+case=0 input="a😀be\u{301}-4acd9803" bold_utf16=1..3 edit_utf16=3 first=(right,10) second=(!,italic)
+candidate=Xml
+original=[
+    Block {
+        id: "block-1",
+        parent: "left",
+        order: 0,
+        identity: "<11#6>",
+        runs: [
+            (
+                "a",
+                [],
+            ),
+            (
+                "😀",
+                [
+                    (
+                        "bold",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "be\u{301}-4acd9803",
+                [],
+            ),
+        ],
+        utf16_len: 15,
+    },
+]
+requests=[
+    [
+        Block {
+            id: "block-1",
+            parent: "right",
+            order: 10,
+            identity: "<22#2>",
+            runs: [
+                (
+                    "a",
+                    [],
+                ),
+                (
+                    "😀",
+                    [
+                        (
+                            "bold",
+                            "true",
+                        ),
+                    ],
+                ),
+                (
+                    "be\u{301}-4acd9803",
+                    [],
+                ),
+            ],
+            utf16_len: 15,
+        },
+    ],
+    [
+        Block {
+            id: "block-1",
+            parent: "left",
+            order: 0,
+            identity: "<11#6>",
+            runs: [
+                (
+                    "a",
+                    [],
+                ),
+                (
+                    "😀",
+                    [
+                        (
+                            "bold",
+                            "true",
+                        ),
+                    ],
+                ),
+                (
+                    "!",
+                    [
+                        (
+                            "italic",
+                            "true",
+                        ),
+                    ],
+                ),
+                (
+                    "be\u{301}-4acd9803",
+                    [],
+                ),
+            ],
+            utf16_len: 16,
+        },
+    ],
+]
+writer22=[
+    Block {
+        id: "block-1",
+        parent: "right",
+        order: 10,
+        identity: "<22#2>",
+        runs: [
+            (
+                "a",
+                [],
+            ),
+            (
+                "😀",
+                [
+                    (
+                        "bold",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "be\u{301}-4acd9803",
+                [],
+            ),
+        ],
+        utf16_len: 15,
+    },
+]
+writer33=[
+    Block {
+        id: "block-1",
+        parent: "right",
+        order: 10,
+        identity: "<22#2>",
+        runs: [
+            (
+                "a",
+                [],
+            ),
+            (
+                "😀",
+                [
+                    (
+                        "bold",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "be\u{301}-4acd9803",
+                [],
+            ),
+        ],
+        utf16_len: 15,
+    },
+]
+text_utf8_bytes=18 updates_v1_bytes=[157, 110, 46]
+order=[0, 1, 2]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[0, 2, 1]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[1, 0, 2]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[1, 2, 0]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[2, 0, 1]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[2, 1, 0]: exact semantic+identity projection matches, duplicate and reverse replay
+candidate=Registry
+original=[
+    Block {
+        id: "block-1",
+        parent: "left",
+        order: 0,
+        identity: "<11#2>",
+        runs: [
+            (
+                "a",
+                [],
+            ),
+            (
+                "😀",
+                [
+                    (
+                        "bold",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "be\u{301}-4acd9803",
+                [],
+            ),
+        ],
+        utf16_len: 15,
+    },
+]
+requests=[
+    [
+        Block {
+            id: "block-1",
+            parent: "right",
+            order: 10,
+            identity: "<11#2>",
+            runs: [
+                (
+                    "a",
+                    [],
+                ),
+                (
+                    "😀",
+                    [
+                        (
+                            "bold",
+                            "true",
+                        ),
+                    ],
+                ),
+                (
+                    "be\u{301}-4acd9803",
+                    [],
+                ),
+            ],
+            utf16_len: 15,
+        },
+    ],
+    [
+        Block {
+            id: "block-1",
+            parent: "left",
+            order: 0,
+            identity: "<11#2>",
+            runs: [
+                (
+                    "a",
+                    [],
+                ),
+                (
+                    "😀",
+                    [
+                        (
+                            "bold",
+                            "true",
+                        ),
+                    ],
+                ),
+                (
+                    "!",
+                    [
+                        (
+                            "italic",
+                            "true",
+                        ),
+                    ],
+                ),
+                (
+                    "be\u{301}-4acd9803",
+                    [],
+                ),
+            ],
+            utf16_len: 16,
+        },
+    ],
+]
+writer22=[
+    Block {
+        id: "block-1",
+        parent: "right",
+        order: 10,
+        identity: "<11#2>",
+        runs: [
+            (
+                "a",
+                [],
+            ),
+            (
+                "😀",
+                [
+                    (
+                        "bold",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "!",
+                [
+                    (
+                        "italic",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "be\u{301}-4acd9803",
+                [],
+            ),
+        ],
+        utf16_len: 16,
+    },
+]
+writer33=[
+    Block {
+        id: "block-1",
+        parent: "right",
+        order: 10,
+        identity: "<11#2>",
+        runs: [
+            (
+                "a",
+                [],
+            ),
+            (
+                "😀",
+                [
+                    (
+                        "bold",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "!",
+                [
+                    (
+                        "italic",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "be\u{301}-4acd9803",
+                [],
+            ),
+        ],
+        utf16_len: 16,
+    },
+]
+text_utf8_bytes=18 updates_v1_bytes=[202, 24, 46]
+order=[0, 1, 2]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[0, 2, 1]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[1, 0, 2]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[1, 2, 0]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[2, 0, 1]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[2, 1, 0]: exact semantic+identity projection matches, duplicate and reverse replay
+case=1 input="a😀b👩\u{200d}💻-cbbbdd86" bold_utf16=1..3 edit_utf16=3 first=(right,15) second=(!,italic)
+candidate=Xml
+original=[
+    Block {
+        id: "block-1",
+        parent: "left",
+        order: 0,
+        identity: "<11#6>",
+        runs: [
+            (
+                "a",
+                [],
+            ),
+            (
+                "😀",
+                [
+                    (
+                        "bold",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "b👩\u{200d}💻-cbbbdd86",
+                [],
+            ),
+        ],
+        utf16_len: 18,
+    },
+]
+requests=[
+    [
+        Block {
+            id: "block-1",
+            parent: "right",
+            order: 15,
+            identity: "<22#2>",
+            runs: [
+                (
+                    "a",
+                    [],
+                ),
+                (
+                    "😀",
+                    [
+                        (
+                            "bold",
+                            "true",
+                        ),
+                    ],
+                ),
+                (
+                    "b👩\u{200d}💻-cbbbdd86",
+                    [],
+                ),
+            ],
+            utf16_len: 18,
+        },
+    ],
+    [
+        Block {
+            id: "block-1",
+            parent: "left",
+            order: 0,
+            identity: "<11#6>",
+            runs: [
+                (
+                    "a",
+                    [],
+                ),
+                (
+                    "😀",
+                    [
+                        (
+                            "bold",
+                            "true",
+                        ),
+                    ],
+                ),
+                (
+                    "!",
+                    [
+                        (
+                            "italic",
+                            "true",
+                        ),
+                    ],
+                ),
+                (
+                    "b👩\u{200d}💻-cbbbdd86",
+                    [],
+                ),
+            ],
+            utf16_len: 19,
+        },
+    ],
+]
+writer22=[
+    Block {
+        id: "block-1",
+        parent: "right",
+        order: 15,
+        identity: "<22#2>",
+        runs: [
+            (
+                "a",
+                [],
+            ),
+            (
+                "😀",
+                [
+                    (
+                        "bold",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "b👩\u{200d}💻-cbbbdd86",
+                [],
+            ),
+        ],
+        utf16_len: 18,
+    },
+]
+writer33=[
+    Block {
+        id: "block-1",
+        parent: "right",
+        order: 15,
+        identity: "<22#2>",
+        runs: [
+            (
+                "a",
+                [],
+            ),
+            (
+                "😀",
+                [
+                    (
+                        "bold",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "b👩\u{200d}💻-cbbbdd86",
+                [],
+            ),
+        ],
+        utf16_len: 18,
+    },
+]
+text_utf8_bytes=26 updates_v1_bytes=[165, 118, 46]
+order=[0, 1, 2]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[0, 2, 1]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[1, 0, 2]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[1, 2, 0]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[2, 0, 1]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[2, 1, 0]: exact semantic+identity projection matches, duplicate and reverse replay
+candidate=Registry
+original=[
+    Block {
+        id: "block-1",
+        parent: "left",
+        order: 0,
+        identity: "<11#2>",
+        runs: [
+            (
+                "a",
+                [],
+            ),
+            (
+                "😀",
+                [
+                    (
+                        "bold",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "b👩\u{200d}💻-cbbbdd86",
+                [],
+            ),
+        ],
+        utf16_len: 18,
+    },
+]
+requests=[
+    [
+        Block {
+            id: "block-1",
+            parent: "right",
+            order: 15,
+            identity: "<11#2>",
+            runs: [
+                (
+                    "a",
+                    [],
+                ),
+                (
+                    "😀",
+                    [
+                        (
+                            "bold",
+                            "true",
+                        ),
+                    ],
+                ),
+                (
+                    "b👩\u{200d}💻-cbbbdd86",
+                    [],
+                ),
+            ],
+            utf16_len: 18,
+        },
+    ],
+    [
+        Block {
+            id: "block-1",
+            parent: "left",
+            order: 0,
+            identity: "<11#2>",
+            runs: [
+                (
+                    "a",
+                    [],
+                ),
+                (
+                    "😀",
+                    [
+                        (
+                            "bold",
+                            "true",
+                        ),
+                    ],
+                ),
+                (
+                    "!",
+                    [
+                        (
+                            "italic",
+                            "true",
+                        ),
+                    ],
+                ),
+                (
+                    "b👩\u{200d}💻-cbbbdd86",
+                    [],
+                ),
+            ],
+            utf16_len: 19,
+        },
+    ],
+]
+writer22=[
+    Block {
+        id: "block-1",
+        parent: "right",
+        order: 15,
+        identity: "<11#2>",
+        runs: [
+            (
+                "a",
+                [],
+            ),
+            (
+                "😀",
+                [
+                    (
+                        "bold",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "!",
+                [
+                    (
+                        "italic",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "b👩\u{200d}💻-cbbbdd86",
+                [],
+            ),
+        ],
+        utf16_len: 19,
+    },
+]
+writer33=[
+    Block {
+        id: "block-1",
+        parent: "right",
+        order: 15,
+        identity: "<11#2>",
+        runs: [
+            (
+                "a",
+                [],
+            ),
+            (
+                "😀",
+                [
+                    (
+                        "bold",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "!",
+                [
+                    (
+                        "italic",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "b👩\u{200d}💻-cbbbdd86",
+                [],
+            ),
+        ],
+        utf16_len: 19,
+    },
+]
+text_utf8_bytes=26 updates_v1_bytes=[210, 24, 46]
+order=[0, 1, 2]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[0, 2, 1]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[1, 0, 2]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[1, 2, 0]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[2, 0, 1]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[2, 1, 0]: exact semantic+identity projection matches, duplicate and reverse replay
+case=2 input="a😀b🇭🇺-1152972d" bold_utf16=1..3 edit_utf16=3 first=(right,7) second=(!,italic)
+candidate=Xml
+original=[
+    Block {
+        id: "block-1",
+        parent: "left",
+        order: 0,
+        identity: "<11#6>",
+        runs: [
+            (
+                "a",
+                [],
+            ),
+            (
+                "😀",
+                [
+                    (
+                        "bold",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "b🇭🇺-1152972d",
+                [],
+            ),
+        ],
+        utf16_len: 17,
+    },
+]
+requests=[
+    [
+        Block {
+            id: "block-1",
+            parent: "right",
+            order: 7,
+            identity: "<22#2>",
+            runs: [
+                (
+                    "a",
+                    [],
+                ),
+                (
+                    "😀",
+                    [
+                        (
+                            "bold",
+                            "true",
+                        ),
+                    ],
+                ),
+                (
+                    "b🇭🇺-1152972d",
+                    [],
+                ),
+            ],
+            utf16_len: 17,
+        },
+    ],
+    [
+        Block {
+            id: "block-1",
+            parent: "left",
+            order: 0,
+            identity: "<11#6>",
+            runs: [
+                (
+                    "a",
+                    [],
+                ),
+                (
+                    "😀",
+                    [
+                        (
+                            "bold",
+                            "true",
+                        ),
+                    ],
+                ),
+                (
+                    "!",
+                    [
+                        (
+                            "italic",
+                            "true",
+                        ),
+                    ],
+                ),
+                (
+                    "b🇭🇺-1152972d",
+                    [],
+                ),
+            ],
+            utf16_len: 18,
+        },
+    ],
+]
+writer22=[
+    Block {
+        id: "block-1",
+        parent: "right",
+        order: 7,
+        identity: "<22#2>",
+        runs: [
+            (
+                "a",
+                [],
+            ),
+            (
+                "😀",
+                [
+                    (
+                        "bold",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "b🇭🇺-1152972d",
+                [],
+            ),
+        ],
+        utf16_len: 17,
+    },
+]
+writer33=[
+    Block {
+        id: "block-1",
+        parent: "right",
+        order: 7,
+        identity: "<22#2>",
+        runs: [
+            (
+                "a",
+                [],
+            ),
+            (
+                "😀",
+                [
+                    (
+                        "bold",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "b🇭🇺-1152972d",
+                [],
+            ),
+        ],
+        utf16_len: 17,
+    },
+]
+text_utf8_bytes=23 updates_v1_bytes=[162, 114, 46]
+order=[0, 1, 2]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[0, 2, 1]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[1, 0, 2]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[1, 2, 0]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[2, 0, 1]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[2, 1, 0]: exact semantic+identity projection matches, duplicate and reverse replay
+candidate=Registry
+original=[
+    Block {
+        id: "block-1",
+        parent: "left",
+        order: 0,
+        identity: "<11#2>",
+        runs: [
+            (
+                "a",
+                [],
+            ),
+            (
+                "😀",
+                [
+                    (
+                        "bold",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "b🇭🇺-1152972d",
+                [],
+            ),
+        ],
+        utf16_len: 17,
+    },
+]
+requests=[
+    [
+        Block {
+            id: "block-1",
+            parent: "right",
+            order: 7,
+            identity: "<11#2>",
+            runs: [
+                (
+                    "a",
+                    [],
+                ),
+                (
+                    "😀",
+                    [
+                        (
+                            "bold",
+                            "true",
+                        ),
+                    ],
+                ),
+                (
+                    "b🇭🇺-1152972d",
+                    [],
+                ),
+            ],
+            utf16_len: 17,
+        },
+    ],
+    [
+        Block {
+            id: "block-1",
+            parent: "left",
+            order: 0,
+            identity: "<11#2>",
+            runs: [
+                (
+                    "a",
+                    [],
+                ),
+                (
+                    "😀",
+                    [
+                        (
+                            "bold",
+                            "true",
+                        ),
+                    ],
+                ),
+                (
+                    "!",
+                    [
+                        (
+                            "italic",
+                            "true",
+                        ),
+                    ],
+                ),
+                (
+                    "b🇭🇺-1152972d",
+                    [],
+                ),
+            ],
+            utf16_len: 18,
+        },
+    ],
+]
+writer22=[
+    Block {
+        id: "block-1",
+        parent: "right",
+        order: 7,
+        identity: "<11#2>",
+        runs: [
+            (
+                "a",
+                [],
+            ),
+            (
+                "😀",
+                [
+                    (
+                        "bold",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "!",
+                [
+                    (
+                        "italic",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "b🇭🇺-1152972d",
+                [],
+            ),
+        ],
+        utf16_len: 18,
+    },
+]
+writer33=[
+    Block {
+        id: "block-1",
+        parent: "right",
+        order: 7,
+        identity: "<11#2>",
+        runs: [
+            (
+                "a",
+                [],
+            ),
+            (
+                "😀",
+                [
+                    (
+                        "bold",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "!",
+                [
+                    (
+                        "italic",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "b🇭🇺-1152972d",
+                [],
+            ),
+        ],
+        utf16_len: 18,
+    },
+]
+text_utf8_bytes=23 updates_v1_bytes=[207, 24, 46]
+order=[0, 1, 2]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[0, 2, 1]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[1, 0, 2]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[1, 2, 0]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[2, 0, 1]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[2, 1, 0]: exact semantic+identity projection matches, duplicate and reverse replay
+case=3 input="a😀bאבג-c9418ea8" bold_utf16=1..3 edit_utf16=3 first=(right,16) second=(!,italic)
+candidate=Xml
+original=[
+    Block {
+        id: "block-1",
+        parent: "left",
+        order: 0,
+        identity: "<11#6>",
+        runs: [
+            (
+                "a",
+                [],
+            ),
+            (
+                "😀",
+                [
+                    (
+                        "bold",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "bאבג-c9418ea8",
+                [],
+            ),
+        ],
+        utf16_len: 16,
+    },
+]
+requests=[
+    [
+        Block {
+            id: "block-1",
+            parent: "right",
+            order: 16,
+            identity: "<22#2>",
+            runs: [
+                (
+                    "a",
+                    [],
+                ),
+                (
+                    "😀",
+                    [
+                        (
+                            "bold",
+                            "true",
+                        ),
+                    ],
+                ),
+                (
+                    "bאבג-c9418ea8",
+                    [],
+                ),
+            ],
+            utf16_len: 16,
+        },
+    ],
+    [
+        Block {
+            id: "block-1",
+            parent: "left",
+            order: 0,
+            identity: "<11#6>",
+            runs: [
+                (
+                    "a",
+                    [],
+                ),
+                (
+                    "😀",
+                    [
+                        (
+                            "bold",
+                            "true",
+                        ),
+                    ],
+                ),
+                (
+                    "!",
+                    [
+                        (
+                            "italic",
+                            "true",
+                        ),
+                    ],
+                ),
+                (
+                    "bאבג-c9418ea8",
+                    [],
+                ),
+            ],
+            utf16_len: 17,
+        },
+    ],
+]
+writer22=[
+    Block {
+        id: "block-1",
+        parent: "right",
+        order: 16,
+        identity: "<22#2>",
+        runs: [
+            (
+                "a",
+                [],
+            ),
+            (
+                "😀",
+                [
+                    (
+                        "bold",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "bאבג-c9418ea8",
+                [],
+            ),
+        ],
+        utf16_len: 16,
+    },
+]
+writer33=[
+    Block {
+        id: "block-1",
+        parent: "right",
+        order: 16,
+        identity: "<22#2>",
+        runs: [
+            (
+                "a",
+                [],
+            ),
+            (
+                "😀",
+                [
+                    (
+                        "bold",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "bאבג-c9418ea8",
+                [],
+            ),
+        ],
+        utf16_len: 16,
+    },
+]
+text_utf8_bytes=21 updates_v1_bytes=[160, 113, 46]
+order=[0, 1, 2]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[0, 2, 1]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[1, 0, 2]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[1, 2, 0]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[2, 0, 1]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[2, 1, 0]: exact semantic+identity projection matches, duplicate and reverse replay
+candidate=Registry
+original=[
+    Block {
+        id: "block-1",
+        parent: "left",
+        order: 0,
+        identity: "<11#2>",
+        runs: [
+            (
+                "a",
+                [],
+            ),
+            (
+                "😀",
+                [
+                    (
+                        "bold",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "bאבג-c9418ea8",
+                [],
+            ),
+        ],
+        utf16_len: 16,
+    },
+]
+requests=[
+    [
+        Block {
+            id: "block-1",
+            parent: "right",
+            order: 16,
+            identity: "<11#2>",
+            runs: [
+                (
+                    "a",
+                    [],
+                ),
+                (
+                    "😀",
+                    [
+                        (
+                            "bold",
+                            "true",
+                        ),
+                    ],
+                ),
+                (
+                    "bאבג-c9418ea8",
+                    [],
+                ),
+            ],
+            utf16_len: 16,
+        },
+    ],
+    [
+        Block {
+            id: "block-1",
+            parent: "left",
+            order: 0,
+            identity: "<11#2>",
+            runs: [
+                (
+                    "a",
+                    [],
+                ),
+                (
+                    "😀",
+                    [
+                        (
+                            "bold",
+                            "true",
+                        ),
+                    ],
+                ),
+                (
+                    "!",
+                    [
+                        (
+                            "italic",
+                            "true",
+                        ),
+                    ],
+                ),
+                (
+                    "bאבג-c9418ea8",
+                    [],
+                ),
+            ],
+            utf16_len: 17,
+        },
+    ],
+]
+writer22=[
+    Block {
+        id: "block-1",
+        parent: "right",
+        order: 16,
+        identity: "<11#2>",
+        runs: [
+            (
+                "a",
+                [],
+            ),
+            (
+                "😀",
+                [
+                    (
+                        "bold",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "!",
+                [
+                    (
+                        "italic",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "bאבג-c9418ea8",
+                [],
+            ),
+        ],
+        utf16_len: 17,
+    },
+]
+writer33=[
+    Block {
+        id: "block-1",
+        parent: "right",
+        order: 16,
+        identity: "<11#2>",
+        runs: [
+            (
+                "a",
+                [],
+            ),
+            (
+                "😀",
+                [
+                    (
+                        "bold",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "!",
+                [
+                    (
+                        "italic",
+                        "true",
+                    ),
+                ],
+            ),
+            (
+                "bאבג-c9418ea8",
+                [],
+            ),
+        ],
+        utf16_len: 17,
+    },
+]
+text_utf8_bytes=21 updates_v1_bytes=[205, 24, 46]
+order=[0, 1, 2]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[0, 2, 1]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[1, 0, 2]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[1, 2, 0]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[2, 0, 1]: exact semantic+identity projection matches, duplicate and reverse replay
+order=[2, 1, 0]: exact semantic+identity projection matches, duplicate and reverse replay

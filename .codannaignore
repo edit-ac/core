@@ -1,0 +1,13 @@
+# Codanna automatic setup (gitignore syntax)
+.codanna/
+.git/
+node_modules/
+vendor/
+target/
+build/
+dist/
+coverage/
+.venv/
+venv/
+__pycache__/
+.cargo/

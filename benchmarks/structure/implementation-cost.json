@@ -1,0 +1,42 @@
+{
+  "metric": "source size and observed update bytes, not runtime or memory benchmark",
+  "support_loc": {
+    "xml": 164,
+    "registry": 149
+  },
+  "xml_extension": "structure_probe.rs Candidate::move_to adds same-parent target support and order attribute; adapter source also hashed; LOC above excludes adapter, tests and reporting",
+  "move_update_bytes": {
+    "Xml": {
+      "move-edit": [
+        110,
+        118,
+        114,
+        113
+      ],
+      "move-move": [
+        110,
+        118,
+        114,
+        113
+      ]
+    },
+    "Registry": {
+      "move-edit": [
+        24,
+        24,
+        24,
+        24
+      ],
+      "move-move": [
+        24,
+        24,
+        24,
+        24
+      ]
+    }
+  },
+  "expected_algorithmic_cost": {
+    "xml": "clone full subtree+remove+insert+order attribute; copied content and marks scale with subtree size",
+    "registry": "validate parent+replace one atomic tuple; text unchanged; projection/hierarchy policy still required"
+  }
+}

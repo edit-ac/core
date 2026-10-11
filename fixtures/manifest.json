@@ -1,0 +1,190 @@
+{
+  "format": "editac-fixture-manifest-v1",
+  "seed": 1592594996,
+  "textEncoding": "UTF-8",
+  "publicOffsets": "UTF-16",
+  "textLayout": "depth-first leaf text concatenation without separators; tree boundaries live in recipes",
+  "crdtState": "not-generated; null is unmeasured, not zero bytes",
+  "corpora": {
+    "task": {
+      "file": "task.json",
+      "inputRecipeBytes": 12336,
+      "inputRecipeSha256": "354cdb8855ba19bbd2d52dbf3d50436040bb6128cfd12c14fce8d5636ccd93c2",
+      "textFile": "task.txt",
+      "textBytes": 10240,
+      "textSha256": "833044139048c4acbaa5b57cbad13dcc9357d8779a6b07baff28fe6d58588c89",
+      "serializedCrdtBytes": null,
+      "serializedCrdtSha256": null,
+      "expectedSemanticShape": {
+        "topLevelBlocks": 20,
+        "nodes": 20,
+        "types": {
+          "paragraph": 4,
+          "heading": 4,
+          "list-item": 3,
+          "code": 3,
+          "quote": 3,
+          "table": 3
+        },
+        "maxTreeDepth": 1,
+        "textLeaves": 23,
+        "utf16Units": 10177,
+        "marks": 17,
+        "tables": [
+          {
+            "rows": 1,
+            "columns": 2,
+            "count": 3
+          }
+        ]
+      }
+    },
+    "long": {
+      "file": "long.json",
+      "inputRecipeBytes": 1251408,
+      "inputRecipeSha256": "0c84ddc6767183b6c78db6b0945a53dbec2d606af1dc1a62cbf856a0d14e3303",
+      "textFile": "long.txt",
+      "textBytes": 1048576,
+      "textSha256": "35112c316e027c86cc5f2e24008658903af9d67793bcd9a50404701fd8c318cd",
+      "serializedCrdtBytes": null,
+      "serializedCrdtSha256": null,
+      "expectedSemanticShape": {
+        "topLevelBlocks": 2000,
+        "nodes": 2000,
+        "types": {
+          "paragraph": 334,
+          "heading": 334,
+          "list-item": 333,
+          "code": 333,
+          "quote": 333,
+          "table": 333
+        },
+        "maxTreeDepth": 1,
+        "textLeaves": 2333,
+        "utf16Units": 1042326,
+        "marks": 1667,
+        "tables": [
+          {
+            "rows": 1,
+            "columns": 2,
+            "count": 333
+          }
+        ]
+      }
+    },
+    "large": {
+      "file": "large.json",
+      "inputRecipeBytes": 6271052,
+      "inputRecipeSha256": "4c5acbec05275f6a3d26640b3c0e92fccb056a08ab63408d2703b8ea0be8a320",
+      "textFile": "large.txt",
+      "textBytes": 5242880,
+      "textSha256": "90ef266acdb5334f77f78ad8ccbc1a15a797e2d07198923f62b831a2dd99a0e9",
+      "serializedCrdtBytes": null,
+      "serializedCrdtSha256": null,
+      "expectedSemanticShape": {
+        "topLevelBlocks": 10000,
+        "nodes": 10000,
+        "types": {
+          "paragraph": 1667,
+          "heading": 1667,
+          "list-item": 1667,
+          "code": 1667,
+          "quote": 1666,
+          "table": 1666
+        },
+        "maxTreeDepth": 1,
+        "textLeaves": 11666,
+        "utf16Units": 5211630,
+        "marks": 8334,
+        "tables": [
+          {
+            "rows": 1,
+            "columns": 2,
+            "count": 1666
+          }
+        ]
+      }
+    },
+    "aged": {
+      "file": "aged.json",
+      "inputRecipeBytes": 7241310,
+      "inputRecipeSha256": "d45b49c6df2cc8ca40c28b7da8500dd161aac7cee1c54316b55ba02b24dd9c08",
+      "textFile": "long.txt",
+      "textBytes": 1048576,
+      "textSha256": "35112c316e027c86cc5f2e24008658903af9d67793bcd9a50404701fd8c318cd",
+      "serializedCrdtBytes": null,
+      "serializedCrdtSha256": null,
+      "expectedSemanticShape": {
+        "topLevelBlocks": 2000,
+        "nodes": 2000,
+        "types": {
+          "paragraph": 334,
+          "heading": 334,
+          "list-item": 333,
+          "code": 333,
+          "quote": 333,
+          "table": 333
+        },
+        "maxTreeDepth": 1,
+        "textLeaves": 2333,
+        "utf16Units": 1042326,
+        "marks": 1667,
+        "tables": [
+          {
+            "rows": 1,
+            "columns": 2,
+            "count": 333
+          }
+        ]
+      },
+      "state": "unapplied-recipe",
+      "expectedEdits": {
+        "edits": 100000,
+        "inserts": 50000,
+        "deletes": 50000,
+        "finalSemanticContent": "same-as-long",
+        "engineState": null,
+        "engineAnchorResults": null
+      }
+    },
+    "adversarial": {
+      "file": "adversarial.json",
+      "inputRecipeBytes": 330189,
+      "inputRecipeSha256": "533cdcdf30cc6988027a4e82eba36a6057b09a4c520ea41a1e31acfb0dfb8419",
+      "textFile": "adversarial.txt",
+      "textBytes": 259734,
+      "textSha256": "de7c1547119bb22c8228cf334e96e50672dff2b31da91ab6a15f223a709ed8dd",
+      "serializedCrdtBytes": null,
+      "serializedCrdtSha256": null,
+      "expectedSemanticShape": {
+        "topLevelBlocks": 14,
+        "nodes": 107,
+        "types": {
+          "paragraph": 13,
+          "list-item": 93,
+          "table": 1
+        },
+        "maxTreeDepth": 33,
+        "textLeaves": 525,
+        "utf16Units": 259709,
+        "marks": 1024,
+        "tables": [
+          {
+            "rows": 4,
+            "columns": 128,
+            "count": 1
+          }
+        ]
+      }
+    }
+  },
+  "multiEditor": {
+    "source": "task",
+    "staticPreviews": 50,
+    "activeEditors": [
+      1,
+      10
+    ],
+    "state": "scenario-recipe; no runtime or performance qualification"
+  }
+}

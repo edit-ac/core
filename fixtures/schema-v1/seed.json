@@ -1,0 +1,25 @@
+{
+  "metadata": {
+    "profile": "editac.yrs-yjs.v1",
+    "schema": "editac.registry.v1",
+    "protocolVersion": 1,
+    "updateEncoding": 1,
+    "offsets": "utf16",
+    "documentId": "00000000-0000-4000-8000-000000000001",
+    "epoch": "00000000-0000-4000-8000-000000000002"
+  },
+  "seedWriter": 11,
+  "roots": {
+    "registry-parents": "Y.Map<string>",
+    "registry-texts": "Y.Map<Y.XmlText>",
+    "registry-placements": "Y.Map<[string,number]>",
+    "delete-probe-tombstones": "Y.Map<true>",
+    "probe-split-join": "Y.Map<atomic-array>"
+  },
+  "nodes": [
+    { "id": "block-1", "kind": "list", "placement": ["@root", 0], "text": "a😀b", "format": { "offset": 1, "length": 2, "attributes": { "bold": true } } },
+    { "id": "block-2", "kind": "list", "placement": ["@root", 1], "text": "cאבd", "format": { "offset": 1, "length": 2, "attributes": { "code": true } } }
+  ],
+  "layout": ["original"],
+  "tombstones": {}
+}
