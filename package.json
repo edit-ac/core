@@ -1,0 +1,23 @@
+{
+  "name": "edit-ac-workspace",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "packageManager": "npm@11.17.0",
+  "engines": {
+    "node": "24.19.0",
+    "npm": "11.17.0"
+  },
+  "workspaces": ["packages/core", "packages/web", "packages/react"],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "typecheck": "npm run typecheck --workspaces",
+    "check:rust": "cargo fmt --all -- --check && cargo check --workspace --all-targets --locked --offline && cargo test --workspace --locked --offline",
+    "check:packages": "npm run typecheck && npm run build && node scripts/check-package-exports.mjs",
+    "check": "npm run check:rust && npm run check:packages"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2"
+  }
+}

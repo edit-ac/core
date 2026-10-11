@@ -1,0 +1,18 @@
+[package]
+name = "editac-wasm"
+description = "Reserved edit.ac WASM binding boundary; no exported binding API yet"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+editac-core = { path = "../editac-core" }
+
+[lints]
+workspace = true
