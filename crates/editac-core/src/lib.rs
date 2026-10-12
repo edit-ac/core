@@ -1,7 +1,25 @@
-//! Platform-independent contract scaffolding for edit.ac.
+//! Platform-independent edit.ac engine primitives.
 //!
-//! The protocol factory creates a single UTF-16 Yrs replica. There is no editor,
-//! schema, command execution or persistence implementation yet.
+//! The protocol factory creates a single UTF-16 Yrs replica. Document admission
+//! and initialization use the frozen registry schema; semantic commands and
+//! persistence ports are subsequent gates.
+
+pub mod anchors;
+pub mod commands;
+pub mod document;
+pub mod history;
+mod ownership;
+pub mod patches;
+// One faithful v4 replay implementation shared with the preserved qualification
+// fixtures. Production never uses its fixed seed/envelope or fixture admission.
+mod editor;
+#[path = "../../../fixtures/schema-v4/mapping.rs"]
+#[allow(dead_code)]
+mod editor_mapping;
+pub mod projection;
+#[path = "../../../fixtures/schema-v5/mapping.rs"]
+#[allow(dead_code)]
+mod stable_editor_mapping;
 
 /// Create a fresh, independently editing replica for the candidate Yjs 13 profile.
 ///

@@ -2,7 +2,7 @@
   "name": "@edit-ac/core",
   "version": "0.0.0",
   "private": true,
-  "description": "Private foundation WASM fixture loading boundary",
+  "description": "Private semantic engine WASM loading boundary",
   "license": "Apache-2.0",
   "type": "module",
   "repository": {
