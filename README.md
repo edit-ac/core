@@ -1,5 +1,9 @@
 # edit.ac core
 
+<p align="center"><img src="brand/editac-github-avatar.png" alt="edit.ac logo" width="120"></p>
+
+[Editor identity and artwork](brand/README.md)
+
 Rust engine and web SDK workspace for edit.ac, an embeddable collaborative editor.
 
 This repository is development scaffolding. It does not yet edit, synchronize,
