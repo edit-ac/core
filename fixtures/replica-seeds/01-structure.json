@@ -1,0 +1,14 @@
+{
+  "id": 1,
+  "seed": 17,
+  "family": "structure",
+  "generated_arrival_schedules": 12,
+  "expected_sources": {
+    "n:11:1": "a😀b",
+    "n:11:2": "cאבd[ack:17:B]",
+    "n:11:3": "éZ[ack:17:C]",
+    "n:11:4": ""
+  },
+  "expected_source_count_min": 4,
+  "oracle": "Exact authored source strings; original YXmlText identities and mark bytes retained; full retained/visible/recovery canonical agreement; tree is acyclic and every span is bounded; temporary undo text absent."
+}

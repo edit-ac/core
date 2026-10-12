@@ -1,4 +1,10 @@
-//! Disposable foundation fixture bridge, not a production editor API.
+//! Semantic engine handles and the preserved foundation fixture bridge.
+mod bridge;
+#[cfg(test)]
+mod cases;
+mod engine;
+#[cfg(test)]
+mod updates;
 use std::{cell::Cell, collections::HashMap};
 use wasm_bindgen::prelude::*;
 use yrs::{

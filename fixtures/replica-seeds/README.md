@@ -1,0 +1,9 @@
+# Seeded production replica fixtures
+
+ENG-1.13 uses all eight JSON seeds in `replica_properties.rs`. Each seed drives three disconnected production writers and twelve bounded shuffled incremental arrival schedules, six exhaustive writer-burst permutations, forward/reverse arrivals and live writer catch-up. Every arrival is duplicated. The bounded transport retains incomplete causal/schema candidates and merges the unadmitted queue for atomic production admission; no rejected bytes are acknowledged or dropped. Every final queue must drain. Mid-arrival checkpoint plus journal replay and final checkpoint restore use the real admission boundary.
+
+Expected source strings are authored independently here. Structural operations never delete these acknowledged strings; only a temporary local text edit is explicitly undone. Code hard-break insertion contributes one expected LF. Added typing paragraphs carry a separate acknowledged token. Original rich-text identities and marks must survive. Full retained intentions, visible hierarchy/runs and recovery are compared, in addition to the independent source oracle and schema/hierarchy/span checks.
+
+Production writer allocation is deliberately fresh, not seed-controlled. Each execution saves writer IDs, all exact update bytes/envelopes, operation trace, arrival schedules and final canonical projection under the selected evidence directory. Those bytes are the deterministic replay corpus; the integer seed controls operation variants and delivery order. No provider, recording transport, browser or external service is involved. A failure leaves the corpus and first differing projection intact.
+
+`causal-history/` freezes the complete journal that formerly returned `IncompleteRestore`; `list-arrival/` freezes deletion-before-replacement metadata delivery. Their binary updates, writer IDs, traces and full expected canonical projections are immutable regression fixtures.

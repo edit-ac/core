@@ -1,0 +1,13 @@
+{
+  "profile":"editac.yrs-yjs.blocks.v2",
+  "schema":"editac.registry.blocks.v2",
+  "protocolVersion":1,"updateEncoding":1,"offsets":"utf16",
+  "yrs":"0.28.0","yrsFeatures":["small-client"],"yjs":"13.6.33","yProtocols":"1.0.7",
+  "roots":{"registry-parents":"Map","registry-texts":"Map<XmlText>","registry-placements":"Map","delete-probe-tombstones":"Map","probe-split-join":"Map","registry-block-attributes":"Map<immutable JSON array>"},
+  "tuples":[["paragraph"],["heading","integer 1..6"]],
+  "unknownTuple":"retained opaque JSON array; safe paragraph fallback; not locally editable",
+  "ownership":"v1 fixed block-1/block-2 pair; original-only transformations; no general or repeated support",
+  "derivedOwner":"block-split: explicit override or live block-1 inheritance",
+  "migration":"none; explicit new lineage only",
+  "bounds":{"checkpointAndJournalBytes":16777216,"tupleJsonDepth":32}
+}

@@ -1,0 +1,6 @@
+{
+  "envelope": {"profile":"editac.yrs-yjs.blocks.v2","schema":"editac.registry.blocks.v2","protocolVersion":1,"updateEncoding":1,"offsets":"utf16","documentId":"33333333-3333-4333-8333-333333333333","epoch":"44444444-4444-4444-8444-444444444444"},
+  "clientId":11,
+  "nodes":[{"id":"block-1","kind":"block","text":"a😀b","attributes":["heading",1],"marks":{"bold":true,"ext:v1":{"retained":true}}},{"id":"block-2","kind":"block","text":"","attributes":["paragraph"]}],
+  "ownership":["original"]
+}

@@ -1,0 +1,1981 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "unicode-replace",
+      "create": {
+        "profile": "v5",
+        "documentId": "71000000-0000-4000-8000-000000000001",
+        "epoch": "72000000-0000-4000-8000-000000000001",
+        "nodes": [
+          {
+            "text": "a😀b é👩‍💻🇭🇺אב"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "action": "anchor",
+          "name": "a",
+          "node": "$0",
+          "offset": 1,
+          "bias": "left"
+        },
+        {
+          "action": "anchor",
+          "name": "b",
+          "node": "$0",
+          "offset": 3,
+          "bias": "right"
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "text",
+            "origin": "fixture:explicit",
+            "command": {
+              "type": "replace",
+              "range": {
+                "anchor": "$a",
+                "focus": "$b"
+              },
+              "text": "🦀"
+            }
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "a🦀b é👩‍💻🇭🇺אב"
+          ]
+        },
+        {
+          "action": "resolve",
+          "token": "$a",
+          "type": "position",
+          "offset": 1
+        },
+        {
+          "action": "resolve",
+          "token": "$b",
+          "type": "position",
+          "offset": 3
+        },
+        {
+          "action": "history",
+          "request": {
+            "type": "undo"
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "a😀b é👩‍💻🇭🇺אב"
+          ]
+        },
+        {
+          "action": "history",
+          "request": {
+            "type": "redo"
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "a🦀b é👩‍💻🇭🇺אב"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "text-insert-delete",
+      "create": {
+        "profile": "v5",
+        "documentId": "71000000-0000-4000-8000-000000000002",
+        "epoch": "72000000-0000-4000-8000-000000000002",
+        "nodes": [
+          {
+            "text": "abcd"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "action": "anchor",
+          "name": "a",
+          "node": "$0",
+          "offset": 1,
+          "bias": "left"
+        },
+        {
+          "action": "anchor",
+          "name": "b",
+          "node": "$0",
+          "offset": 3,
+          "bias": "right"
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "text",
+            "origin": "fixture:explicit",
+            "command": {
+              "type": "delete",
+              "range": {
+                "anchor": "$a",
+                "focus": "$b"
+              }
+            }
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "ad"
+          ]
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "text",
+            "origin": "fixture:explicit",
+            "command": {
+              "type": "insert",
+              "at": "$a",
+              "text": "X"
+            }
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "aXd"
+          ]
+        },
+        {
+          "action": "history",
+          "request": {
+            "type": "undo"
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "ad"
+          ]
+        },
+        {
+          "action": "history",
+          "request": {
+            "type": "undo"
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "abcd"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rich-marks",
+      "create": {
+        "profile": "v5",
+        "documentId": "71000000-0000-4000-8000-000000000003",
+        "epoch": "72000000-0000-4000-8000-000000000003",
+        "nodes": [
+          {
+            "text": "abc"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "action": "anchor",
+          "name": "a",
+          "node": "$0",
+          "offset": 0,
+          "bias": "left"
+        },
+        {
+          "action": "anchor",
+          "name": "b",
+          "node": "$0",
+          "offset": 3,
+          "bias": "right"
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "format",
+            "origin": "fixture:format",
+            "marks": [
+              {
+                "range": {
+                  "anchor": "$a",
+                  "focus": "$b"
+                },
+                "mark": "bold",
+                "action": "apply"
+              }
+            ],
+            "blocks": []
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "abc"
+          ],
+          "mark": "bold"
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "format",
+            "origin": "fixture:format",
+            "marks": [
+              {
+                "range": {
+                  "anchor": "$a",
+                  "focus": "$b"
+                },
+                "mark": "italic",
+                "action": "apply"
+              }
+            ],
+            "blocks": []
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "abc"
+          ],
+          "mark": "italic"
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "format",
+            "origin": "fixture:format",
+            "marks": [
+              {
+                "range": {
+                  "anchor": "$a",
+                  "focus": "$b"
+                },
+                "mark": "strike",
+                "action": "apply"
+              }
+            ],
+            "blocks": []
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "abc"
+          ],
+          "mark": "strike"
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "format",
+            "origin": "fixture:format",
+            "marks": [
+              {
+                "range": {
+                  "anchor": "$a",
+                  "focus": "$b"
+                },
+                "mark": "underline",
+                "action": "apply"
+              }
+            ],
+            "blocks": []
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "abc"
+          ],
+          "mark": "underline"
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "format",
+            "origin": "fixture:format",
+            "marks": [
+              {
+                "range": {
+                  "anchor": "$a",
+                  "focus": "$b"
+                },
+                "mark": "link",
+                "action": "apply",
+                "href": "https://example.com/x"
+              }
+            ],
+            "blocks": []
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "abc"
+          ],
+          "mark": "link"
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "format",
+            "origin": "fixture:format",
+            "marks": [
+              {
+                "range": {
+                  "anchor": "$a",
+                  "focus": "$b"
+                },
+                "mark": "bold",
+                "action": "toggle"
+              }
+            ],
+            "blocks": []
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "abc"
+          ],
+          "absentMark": "bold"
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "format",
+            "origin": "fixture:format",
+            "marks": [
+              {
+                "range": {
+                  "anchor": "$a",
+                  "focus": "$b"
+                },
+                "mark": "link",
+                "action": "remove"
+              }
+            ],
+            "blocks": []
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "abc"
+          ],
+          "absentMark": "link"
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "format",
+            "origin": "fixture:format",
+            "marks": [
+              {
+                "range": {
+                  "anchor": "$a",
+                  "focus": "$b"
+                },
+                "mark": "code",
+                "action": "apply"
+              }
+            ],
+            "blocks": []
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "abc"
+          ],
+          "mark": "code",
+          "absentMark": "italic"
+        }
+      ]
+    },
+    {
+      "id": "heading-levels",
+      "create": {
+        "profile": "v5",
+        "documentId": "71000000-0000-4000-8000-000000000004",
+        "epoch": "72000000-0000-4000-8000-000000000004",
+        "nodes": [
+          {
+            "text": ""
+          }
+        ]
+      },
+      "steps": [
+        {
+          "action": "commit",
+          "request": {
+            "kind": "format",
+            "origin": "fixture:format",
+            "marks": [],
+            "blocks": [
+              {
+                "targets": [
+                  "$0"
+                ],
+                "attributes": {
+                  "type": "heading",
+                  "level": 1
+                },
+                "action": "apply"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            ""
+          ],
+          "block": [
+            "heading",
+            1
+          ]
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "format",
+            "origin": "fixture:format",
+            "marks": [],
+            "blocks": [
+              {
+                "targets": [
+                  "$0"
+                ],
+                "attributes": {
+                  "type": "heading",
+                  "level": 2
+                },
+                "action": "apply"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            ""
+          ],
+          "block": [
+            "heading",
+            2
+          ]
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "format",
+            "origin": "fixture:format",
+            "marks": [],
+            "blocks": [
+              {
+                "targets": [
+                  "$0"
+                ],
+                "attributes": {
+                  "type": "heading",
+                  "level": 3
+                },
+                "action": "apply"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            ""
+          ],
+          "block": [
+            "heading",
+            3
+          ]
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "format",
+            "origin": "fixture:format",
+            "marks": [],
+            "blocks": [
+              {
+                "targets": [
+                  "$0"
+                ],
+                "attributes": {
+                  "type": "heading",
+                  "level": 4
+                },
+                "action": "apply"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            ""
+          ],
+          "block": [
+            "heading",
+            4
+          ]
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "format",
+            "origin": "fixture:format",
+            "marks": [],
+            "blocks": [
+              {
+                "targets": [
+                  "$0"
+                ],
+                "attributes": {
+                  "type": "heading",
+                  "level": 5
+                },
+                "action": "apply"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            ""
+          ],
+          "block": [
+            "heading",
+            5
+          ]
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "format",
+            "origin": "fixture:format",
+            "marks": [],
+            "blocks": [
+              {
+                "targets": [
+                  "$0"
+                ],
+                "attributes": {
+                  "type": "heading",
+                  "level": 6
+                },
+                "action": "apply"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            ""
+          ],
+          "block": [
+            "heading",
+            6
+          ]
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "format",
+            "origin": "fixture:format",
+            "marks": [],
+            "blocks": [
+              {
+                "targets": [
+                  "$0"
+                ],
+                "attributes": {
+                  "type": "paragraph"
+                },
+                "action": "apply"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            ""
+          ],
+          "block": [
+            "paragraph"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "split-start",
+      "create": {
+        "profile": "v5",
+        "documentId": "71000000-0000-4000-8000-000000000005",
+        "epoch": "72000000-0000-4000-8000-000000000005",
+        "nodes": [
+          {
+            "text": "ab"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "action": "anchor",
+          "name": "a",
+          "node": "$0",
+          "offset": 0,
+          "bias": "right"
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "split",
+                "owner": "$0",
+                "at": "$a"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "",
+            "ab"
+          ]
+        },
+        {
+          "action": "remember",
+          "name": "right",
+          "index": 1,
+          "kind": "block"
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "join",
+                "first": "$0",
+                "second": "$right"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "ab"
+          ]
+        },
+        {
+          "action": "history",
+          "request": {
+            "type": "undo"
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "",
+            "ab"
+          ]
+        },
+        {
+          "action": "history",
+          "request": {
+            "type": "redo"
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "ab"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "split-middle",
+      "create": {
+        "profile": "v5",
+        "documentId": "71000000-0000-4000-8000-000000000006",
+        "epoch": "72000000-0000-4000-8000-000000000006",
+        "nodes": [
+          {
+            "text": "a😀b"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "action": "anchor",
+          "name": "a",
+          "node": "$0",
+          "offset": 3,
+          "bias": "right"
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "split",
+                "owner": "$0",
+                "at": "$a"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "a😀",
+            "b"
+          ]
+        },
+        {
+          "action": "remember",
+          "name": "right",
+          "index": 1,
+          "kind": "block"
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "join",
+                "first": "$0",
+                "second": "$right"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "a😀b"
+          ]
+        },
+        {
+          "action": "history",
+          "request": {
+            "type": "undo"
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "a😀",
+            "b"
+          ]
+        },
+        {
+          "action": "history",
+          "request": {
+            "type": "redo"
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "a😀b"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "split-end",
+      "create": {
+        "profile": "v5",
+        "documentId": "71000000-0000-4000-8000-000000000007",
+        "epoch": "72000000-0000-4000-8000-000000000007",
+        "nodes": [
+          {
+            "text": "ab"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "action": "anchor",
+          "name": "a",
+          "node": "$0",
+          "offset": 2,
+          "bias": "right"
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "split",
+                "owner": "$0",
+                "at": "$a"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "ab",
+            ""
+          ]
+        },
+        {
+          "action": "remember",
+          "name": "right",
+          "index": 1,
+          "kind": "block"
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "join",
+                "first": "$0",
+                "second": "$right"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "ab"
+          ]
+        },
+        {
+          "action": "history",
+          "request": {
+            "type": "undo"
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "ab",
+            ""
+          ]
+        },
+        {
+          "action": "history",
+          "request": {
+            "type": "redo"
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "ab"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "split-empty",
+      "create": {
+        "profile": "v5",
+        "documentId": "71000000-0000-4000-8000-000000000008",
+        "epoch": "72000000-0000-4000-8000-000000000008",
+        "nodes": [
+          {
+            "text": ""
+          }
+        ]
+      },
+      "steps": [
+        {
+          "action": "anchor",
+          "name": "a",
+          "node": "$0",
+          "offset": 0,
+          "bias": "right"
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "split",
+                "owner": "$0",
+                "at": "$a"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "",
+            ""
+          ]
+        },
+        {
+          "action": "remember",
+          "name": "right",
+          "index": 1,
+          "kind": "block"
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "join",
+                "first": "$0",
+                "second": "$right"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            ""
+          ]
+        },
+        {
+          "action": "history",
+          "request": {
+            "type": "undo"
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "",
+            ""
+          ]
+        },
+        {
+          "action": "history",
+          "request": {
+            "type": "redo"
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            ""
+          ]
+        }
+      ]
+    },
+    {
+      "id": "retained-join",
+      "create": {
+        "profile": "v5",
+        "documentId": "71000000-0000-4000-8000-000000000009",
+        "epoch": "72000000-0000-4000-8000-000000000009",
+        "nodes": [
+          {
+            "text": "a"
+          },
+          {
+            "text": "b"
+          },
+          {
+            "text": "c"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "action": "anchor",
+          "name": "a",
+          "node": "$0",
+          "offset": 0,
+          "bias": "left"
+        },
+        {
+          "action": "anchor",
+          "name": "b",
+          "node": "$0",
+          "offset": 1,
+          "bias": "right"
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "format",
+            "origin": "fixture:format",
+            "marks": [
+              {
+                "range": {
+                  "anchor": "$a",
+                  "focus": "$b"
+                },
+                "mark": "bold",
+                "action": "apply"
+              }
+            ],
+            "blocks": []
+          }
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "join",
+                "first": "$0",
+                "second": "$1"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "ab",
+            "c"
+          ],
+          "spans": 2
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "join",
+                "first": "$0",
+                "second": "$2"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "abc"
+          ],
+          "spans": 3
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "setCode",
+                "owner": "$0",
+                "language": "Rust"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "abc"
+          ],
+          "block": [
+            "code",
+            "Rust"
+          ],
+          "mark": "bold"
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "setCode",
+                "owner": "$0",
+                "language": "custom-lang"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "abc"
+          ],
+          "block": [
+            "code",
+            "custom-lang"
+          ]
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "setParagraph",
+                "owner": "$0"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "abc"
+          ],
+          "mark": "bold"
+        },
+        {
+          "action": "resolve",
+          "token": "$b",
+          "type": "position",
+          "offset": 1
+        }
+      ]
+    },
+    {
+      "id": "literal-code",
+      "create": {
+        "profile": "v5",
+        "documentId": "71000000-0000-4000-8000-000000000010",
+        "epoch": "72000000-0000-4000-8000-000000000010",
+        "nodes": [
+          {
+            "text": "  a\n\n b\t"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "action": "anchor",
+          "name": "a",
+          "node": "$0",
+          "offset": 0,
+          "bias": "left"
+        },
+        {
+          "action": "anchor",
+          "name": "b",
+          "node": "$0",
+          "offset": 1,
+          "bias": "right"
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "format",
+            "origin": "fixture:format",
+            "marks": [
+              {
+                "range": {
+                  "anchor": "$a",
+                  "focus": "$b"
+                },
+                "mark": "bold",
+                "action": "apply"
+              }
+            ],
+            "blocks": []
+          }
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "setCode",
+                "owner": "$0",
+                "language": "mystery"
+              }
+            ]
+          }
+        },
+        {
+          "action": "anchor",
+          "name": "end",
+          "node": "$0",
+          "offset": 8,
+          "bias": "right"
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "hardBreak",
+                "at": "$end"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "  a\n\n b\t\n"
+          ],
+          "block": [
+            "code",
+            "mystery"
+          ],
+          "mark": "bold",
+          "unmarkedSuffix": "\n"
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "setParagraph",
+                "owner": "$0"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "  a\n\n b\t\n"
+          ],
+          "mark": "bold"
+        }
+      ]
+    },
+    {
+      "id": "list-quote-nesting",
+      "create": {
+        "profile": "v5",
+        "documentId": "71000000-0000-4000-8000-000000000011",
+        "epoch": "72000000-0000-4000-8000-000000000011",
+        "nodes": [
+          {
+            "text": "one"
+          },
+          {
+            "text": "two"
+          },
+          {
+            "text": "three"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "wrap",
+                "targets": [
+                  "$0",
+                  "$1",
+                  "$2"
+                ],
+                "style": {
+                  "type": "ordered",
+                  "start": 4
+                }
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "one",
+            "two",
+            "three"
+          ],
+          "numbers": [
+            4,
+            5,
+            6
+          ]
+        },
+        {
+          "action": "remember",
+          "name": "list",
+          "index": 0,
+          "kind": "list"
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "indent",
+                "owner": "$1"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "one",
+            "two",
+            "three"
+          ]
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "outdent",
+                "owner": "$1"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "one",
+            "two",
+            "three"
+          ]
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "setStyle",
+                "container": "$list",
+                "style": {
+                  "type": "checklist"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "setChecked",
+                "owner": "$0",
+                "checked": true
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "one",
+            "two",
+            "three"
+          ],
+          "checked": true
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "wrap",
+                "targets": [
+                  "$list"
+                ],
+                "style": {
+                  "type": "quote"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "one",
+            "two",
+            "three"
+          ]
+        },
+        {
+          "action": "history",
+          "request": {
+            "type": "undo"
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "one",
+            "two",
+            "three"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "list-enter-backspace",
+      "create": {
+        "profile": "v5",
+        "documentId": "71000000-0000-4000-8000-000000000012",
+        "epoch": "72000000-0000-4000-8000-000000000012",
+        "nodes": [
+          {
+            "text": "ab"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "wrap",
+                "targets": [
+                  "$0"
+                ],
+                "style": {
+                  "type": "unordered"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "action": "anchor",
+          "name": "a",
+          "node": "$0",
+          "offset": 1,
+          "bias": "right"
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "enter",
+                "owner": "$0",
+                "at": "$a"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "a",
+            "b"
+          ]
+        },
+        {
+          "action": "remember",
+          "name": "right",
+          "index": 1,
+          "kind": "block"
+        },
+        {
+          "action": "anchor",
+          "name": "start",
+          "node": "$right",
+          "offset": 0,
+          "bias": "right"
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "backspace",
+                "owner": "$right",
+                "at": "$start"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "ab"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "empty-item-exit",
+      "create": {
+        "profile": "v5",
+        "documentId": "71000000-0000-4000-8000-000000000013",
+        "epoch": "72000000-0000-4000-8000-000000000013",
+        "nodes": [
+          {
+            "text": ""
+          }
+        ]
+      },
+      "steps": [
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "wrap",
+                "targets": [
+                  "$0"
+                ],
+                "style": {
+                  "type": "checklist"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "action": "anchor",
+          "name": "a",
+          "node": "$0",
+          "offset": 0,
+          "bias": "right"
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "enter",
+                "owner": "$0",
+                "at": "$a"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            ""
+          ],
+          "rootBlock": true
+        }
+      ]
+    },
+    {
+      "id": "separator-access",
+      "create": {
+        "profile": "v5",
+        "documentId": "71000000-0000-4000-8000-000000000014",
+        "epoch": "72000000-0000-4000-8000-000000000014",
+        "nodes": [
+          {
+            "text": ""
+          }
+        ]
+      },
+      "steps": [
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "convertSeparator",
+                "owner": "$0"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            ""
+          ],
+          "separators": 1
+        },
+        {
+          "action": "remember",
+          "name": "paragraph",
+          "index": 0,
+          "kind": "block"
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "insertParagraph",
+                "separator": "$0",
+                "side": "after",
+                "text": "new"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "new",
+            ""
+          ],
+          "separators": 1
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "deleteSeparator",
+                "owner": "$0"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "new",
+            ""
+          ],
+          "separators": 0
+        }
+      ]
+    },
+    {
+      "id": "separator-insert",
+      "create": {
+        "profile": "v5",
+        "documentId": "71000000-0000-4000-8000-000000000015",
+        "epoch": "72000000-0000-4000-8000-000000000015",
+        "nodes": [
+          {
+            "text": "a"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "insertSeparator",
+                "beside": "$0",
+                "side": "after"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "a"
+          ],
+          "separators": 1
+        },
+        {
+          "action": "remember",
+          "name": "separator",
+          "index": 0,
+          "kind": "separator"
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "insertParagraph",
+                "separator": "$separator",
+                "side": "before",
+                "text": "b"
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "a",
+            "b"
+          ],
+          "separators": 1
+        }
+      ]
+    },
+    {
+      "id": "semantic-move",
+      "create": {
+        "profile": "v5",
+        "documentId": "71000000-0000-4000-8000-000000000016",
+        "epoch": "72000000-0000-4000-8000-000000000016",
+        "nodes": [
+          {
+            "text": "a"
+          },
+          {
+            "text": "b"
+          },
+          {
+            "text": "c"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "action": "commit",
+          "request": {
+            "kind": "editor",
+            "origin": "fixture:explicit",
+            "commands": [
+              {
+                "type": "move",
+                "target": {
+                  "id": "$2",
+                  "version": "base"
+                },
+                "parent": {
+                  "id": "@root",
+                  "version": "base"
+                },
+                "before": {
+                  "id": "$0",
+                  "version": "base"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "c",
+            "a",
+            "b"
+          ]
+        },
+        {
+          "action": "history",
+          "request": {
+            "type": "undo"
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "a",
+            "b",
+            "c"
+          ]
+        },
+        {
+          "action": "history",
+          "request": {
+            "type": "redo"
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "c",
+            "a",
+            "b"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "history-grouping",
+      "create": {
+        "profile": "v5",
+        "documentId": "71000000-0000-4000-8000-000000000017",
+        "epoch": "72000000-0000-4000-8000-000000000017",
+        "nodes": [
+          {
+            "text": ""
+          }
+        ]
+      },
+      "steps": [
+        {
+          "action": "history",
+          "request": {
+            "type": "typing",
+            "session": 1,
+            "time_ms": 0
+          }
+        },
+        {
+          "action": "anchor",
+          "name": "a",
+          "node": "$0",
+          "offset": 0,
+          "bias": "right"
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "text",
+            "origin": "fixture:explicit",
+            "command": {
+              "type": "insert",
+              "at": "$a",
+              "text": "a"
+            }
+          }
+        },
+        {
+          "action": "history",
+          "request": {
+            "type": "typing",
+            "session": 1,
+            "time_ms": 100
+          }
+        },
+        {
+          "action": "anchor",
+          "name": "b",
+          "node": "$0",
+          "offset": 1,
+          "bias": "right"
+        },
+        {
+          "action": "commit",
+          "request": {
+            "kind": "text",
+            "origin": "fixture:explicit",
+            "command": {
+              "type": "insert",
+              "at": "$b",
+              "text": "b"
+            }
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "ab"
+          ]
+        },
+        {
+          "action": "history",
+          "request": {
+            "type": "state"
+          }
+        },
+        {
+          "action": "history",
+          "request": {
+            "type": "undo"
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            ""
+          ]
+        },
+        {
+          "action": "history",
+          "request": {
+            "type": "redo"
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "ab"
+          ]
+        },
+        {
+          "action": "history",
+          "request": {
+            "type": "clear"
+          }
+        },
+        {
+          "action": "expect",
+          "texts": [
+            "ab"
+          ]
+        }
+      ]
+    }
+  ]
+}

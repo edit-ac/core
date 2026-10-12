@@ -79,7 +79,7 @@ test('built and packed SSR imports perform no browser access, fetch or WASM init
       globalThis.fetch = forbidden;
       globalThis.WebAssembly = new Proxy(WebAssembly, { get: forbidden });
       const runtime = await import(${JSON.stringify(mode === 'built' ? new URL('../packages/core/dist/index.js', import.meta.url).href : '@edit-ac/core')});
-      assert.deepEqual(Object.keys(runtime), ['init']);
+      assert.deepEqual(Object.keys(runtime), ['EngineError', 'init']);
       await assert.rejects(runtime.init(''), /nonempty/);
       ${mode === 'packed' ? "assert.ok(import.meta.resolve('@edit-ac/core/wasm').endsWith('/dist/wasm/editac_wasm_bg.wasm'));" : ''}
     `;
@@ -205,4 +205,37 @@ test('packed binary and glue bytes are measured and generated output does not re
   assert.ok(facts.pack.files.includes('dist/index.d.ts'));
   assert.ok(facts.pack.files.includes('dist/wasm/editac_wasm_bg.wasm'));
   assert.ok(!facts.pack.files.includes('dist/wasm/package.json'));
+});
+
+test('built and packed browser consumers own real engine plans, anchors and history', async () => {
+  for (const mode of ['built', 'packed']) {
+    const page = await browser.newPage();
+    try {
+      await page.goto(base);
+      const result = await page.evaluate(async mode => {
+        const { init, EngineError } = await import(`/${mode}/index.js`);
+        const runtime = await init('/assets/supplied.wasm');
+        const engine = runtime.createEngine({ profile: 'v5', documentId: '81000000-0000-4000-8000-000000000001', epoch: '82000000-0000-4000-8000-000000000001', nodes: [{ text: 'a😀b' }] });
+        try {
+          const node = engine.read().visible[0].id;
+          const a = engine.anchor(node, 1, 'left'), b = engine.anchor(node, 3, 'right');
+          const plan = engine.prepare({ kind: 'text', origin: 'browser:replace', command: { type: 'replace', range: { anchor: a, focus: b }, text: '🦀' } });
+          const before = engine.read().visible[0].runs.map(r => r.text).join('');
+          engine.commit(plan);
+          const after = engine.read().visible[0].runs.map(r => r.text).join('');
+          const anchor = engine.resolve(b);
+          engine.history({ type: 'undo' });
+          const undo = engine.read().visible[0].runs.map(r => r.text).join('');
+          engine.history({ type: 'redo' });
+          const redo = engine.read().visible[0].runs.map(r => r.text).join('');
+          engine.dispose(); engine.dispose();
+          let disposed = false;
+          try { engine.read(); } catch (e) { disposed = e instanceof EngineError && e.code === 'Disposed'; }
+          return { before, after, undo, redo, anchor: { type: anchor.type, offset: anchor.offset }, disposed };
+        } finally { engine.dispose(); }
+      }, mode);
+      assert.deepEqual(result, { before: 'a😀b', after: 'a🦀b', undo: 'a😀b', redo: 'a🦀b', anchor: { type: 'position', offset: 3 }, disposed: true });
+      facts.cases.push({ mode, semanticEngine: true, command: 'unicode replacement/undo/redo/disposal' });
+    } finally { await page.close(); }
+  }
 });
