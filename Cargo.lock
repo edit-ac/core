@@ -303,6 +303,8 @@ dependencies = [
 name = "editac-diff"
 version = "0.0.0"
 dependencies = [
+ "editac-core",
+ "yrs",
  "serde",
  "serde_json",
  "sha2",

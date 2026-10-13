@@ -479,3 +479,55 @@ fn handles_cannot_alias_a_recreated_store_even_with_identical_scope_and_content(
     assert_eq!(read(&old_store, &old).name(), "original name");
     assert_eq!(read(&recreated, &new).name(), "replacement name");
 }
+
+#[test]
+fn semantic_projection_adapter_captures_real_session_history_without_rewind() {
+    use editac_diff::semantic::{Facet, SemanticLimits, capture_projection, compare};
+    let mut session = session();
+    let mut store = HistoryStore::new("semantic-adapter", policy(3, 65536)).unwrap();
+    let capture = |store: &mut HistoryStore, session: &Session<Arc<MemoryStore>>, name| {
+        store
+            .capture_session(
+                session,
+                &session.observed_revision().unwrap(),
+                name,
+                None,
+                |doc, scope| {
+                    let snapshot = doc
+                        .snapshot()
+                        .map_err(|_| RepresentationError::InvalidSemantic)?;
+                    capture_projection(scope, &snapshot, RepresentationLimits::default())
+                },
+            )
+            .unwrap()
+    };
+    let old = capture(&mut store, &session, "before");
+    insert(&mut session);
+    let current = capture(&mut store, &session, "after");
+    let token = session.observed_revision().unwrap();
+    let checkpoint = session.document().checkpoint().bytes;
+    let model = compare(
+        read(&store, &old).revision(),
+        read(&store, &current).revision(),
+        SemanticLimits::default(),
+    )
+    .unwrap();
+    assert!(
+        model
+            .changes
+            .iter()
+            .any(|node| node.facets.contains(&Facet::Text))
+    );
+    assert!(
+        model
+            .changes
+            .iter()
+            .all(|node| !node.facets.contains(&Facet::Insert)
+                && !node.facets.contains(&Facet::Delete))
+    );
+    assert_eq!(model.attribution, "unknown");
+    assert_eq!(session.observed_revision().unwrap(), token);
+    assert_eq!(session.document().checkpoint().bytes, checkpoint);
+    assert_eq!(text(session.document()), "xabcdef");
+    assert_eq!(store.len(), 2);
+}
