@@ -363,7 +363,7 @@ impl<S: SessionStore> Session<S> {
             Ok(())
         }
     }
-    fn admit(&self, now: u64) -> Result<(), SessionError> {
+    pub(crate) fn admit(&self, now: u64) -> Result<(), SessionError> {
         self.ready()?;
         if self.next_sequence > MAX_SEQUENCE {
             return Err(PortError::Sequence.into());
@@ -380,7 +380,46 @@ impl<S: SessionStore> Session<S> {
         self.ready()?;
         Ok(crate::revision::ObservedRevision::observe(&self.document)?)
     }
-    fn compare_revision(
+    /// Exact local transaction lookup, never a remote durability receipt.
+    pub fn local_receipt(&self, update: &UpdateId) -> Result<Option<LocalCommit>, SessionError> {
+        self.ready()?;
+        if update.identity != *self.document.identity() {
+            return Err(SessionError::Incompatible);
+        }
+        let recovered = self.store.recover(self.document.identity())?;
+        let retained = recovered.journal.iter().any(|entry| entry.id() == update)
+            || recovered.checkpoint.coverage().contains(update);
+        Ok(retained.then(|| LocalCommit {
+            update: update.clone(),
+            durability: self.store.capabilities().durability,
+        }))
+    }
+    pub(crate) fn apply_prepared_service(
+        &mut self,
+        expected: &crate::revision::ObservedRevision,
+        plan: crate::edit_service::PreparedPlan,
+        now: u64,
+    ) -> Result<Option<LocalCommit>, crate::edit_service::ServiceError> {
+        self.admit(now)?;
+        self.compare_revision(expected)?;
+        let commit = match plan {
+            crate::edit_service::PreparedPlan::Commands(plan) => Some(
+                self.document
+                    .commit_editor(plan)
+                    .map_err(crate::edit_service::ServiceError::Engine)?,
+            ),
+            crate::edit_service::PreparedPlan::Source(plan) => {
+                plan.commit(&mut self.document)
+                    .map_err(crate::edit_service::ServiceError::Source)?
+                    .commit
+            }
+        };
+        match commit {
+            Some(commit) => Ok(self.capture(Some(commit.update), commit.origin.as_str())?),
+            None => Ok(None),
+        }
+    }
+    pub(crate) fn compare_revision(
         &self,
         expected: &crate::revision::ObservedRevision,
     ) -> Result<(), SessionError> {
@@ -448,7 +487,7 @@ impl<S: SessionStore> Session<S> {
         self.compare_revision(expected)?;
         self.redo(now)
     }
-    fn capture(
+    pub(crate) fn capture(
         &mut self,
         update: Option<ReplayUpdate>,
         origin: &str,

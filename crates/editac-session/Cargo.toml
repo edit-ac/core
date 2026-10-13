@@ -21,13 +21,11 @@ required-features = ["native-store"]
 
 [dependencies]
 editac-core = { path = "../editac-core" }
+editac-markdown = { path = "../editac-markdown" }
 sha2 = "=0.10.9"
 rusqlite = { version = "=0.40.2", features = ["bundled"], optional = true }
 serde = { version = "=1.0.229", features = ["derive"], optional = true }
 serde_json = { version = "=1.0.152", optional = true }
-
-[dev-dependencies]
-editac-markdown = { path = "../editac-markdown" }
 
 [[bin]]
 name = "editac-native-store-probe"

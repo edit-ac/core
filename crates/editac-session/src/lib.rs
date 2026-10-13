@@ -11,4 +11,5 @@ pub mod session;
 
 pub mod local_channel;
 
+pub mod edit_service;
 pub mod revision;
