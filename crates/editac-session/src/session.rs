@@ -501,6 +501,102 @@ impl<S: SessionStore> Session<S> {
         self.conflict = false;
         Ok(())
     }
+    /// Wake peers only after durable/volatile store admission, never from unjournaled edits.
+    pub fn notify_local(
+        &self,
+        channel: &mut impl crate::local_channel::LocalChannel,
+    ) -> Result<(), SessionError> {
+        self.ready()?;
+        channel.notify(self.document.writer_id())?;
+        Ok(())
+    }
+    /// Explicit catch-up is also required on startup/reconnect: sharing a store is not delivery.
+    pub fn catch_up_local(&mut self) -> Result<usize, SessionError> {
+        self.ready()?;
+        let recovery = match self.store.recover(self.document.identity()) {
+            Ok(recovery) => recovery,
+            Err(error) => {
+                self.freeze(error);
+                return Err(error.into());
+            }
+        };
+        // Qualify all entries before touching the live owner, preserving history and writer identity.
+        let checkpoint = self.document.checkpoint();
+        let updates: Vec<_> = recovery
+            .journal
+            .iter()
+            .map(|entry| ReplayUpdate {
+                identity: entry.id().identity.clone(),
+                bytes: entry.bytes().to_vec(),
+            })
+            .collect();
+        if let Err(error) = Document::restore(self.document.identity(), &checkpoint, &updates) {
+            self.freeze(PortError::Integrity);
+            return Err(error.into());
+        }
+        let before = self.document.revision();
+        for update in &updates {
+            self.document.apply_replay(update)?;
+        }
+        self.pending = recovery.pending;
+        if !recovery.journal.is_empty() {
+            self.local = LocalState::Committed(self.store.capabilities().durability);
+        }
+        if !self.pending.is_empty() {
+            self.remote = RemoteState::Unknown;
+        }
+        Ok((self.document.revision() - before) as usize)
+    }
+    pub fn receive_local(
+        &mut self,
+        channel: &mut impl crate::local_channel::LocalChannel,
+    ) -> Result<usize, SessionError> {
+        self.ready()?;
+        let writers = channel.receive()?;
+        if writers
+            .iter()
+            .any(|writer| *writer != self.document.writer_id())
+        {
+            self.catch_up_local()
+        } else {
+            Ok(0)
+        }
+    }
+    /// Trusted host transport supplies an exact scoped envelope. No remote receipt is inferred.
+    pub fn receive_peer(&mut self, entry: JournalEntry) -> Result<LocalCommit, SessionError> {
+        self.ready()?;
+        entry.verify(self.document.identity())?;
+        let update = ReplayUpdate {
+            identity: entry.id().identity.clone(),
+            bytes: entry.bytes().to_vec(),
+        };
+        Document::restore(
+            self.document.identity(),
+            &self.document.checkpoint(),
+            std::slice::from_ref(&update),
+        )?;
+        // Store first; failure cannot mutate the live replica. Lost ACK freezes admission.
+        let commit = match self.store.append(entry) {
+            Ok(commit) => commit,
+            Err(error) => {
+                self.freeze(error);
+                return Err(error.into());
+            }
+        };
+        let pending = match self.store.pending(self.document.identity()) {
+            Ok(pending) => pending,
+            Err(error) => {
+                self.freeze(error);
+                return Err(error.into());
+            }
+        };
+        self.document.apply_replay(&update)?;
+        self.pending = pending;
+        self.local = LocalState::Committed(commit.durability);
+        self.remote = RemoteState::Unknown;
+        Ok(commit)
+    }
+
     pub fn attach_transport(
         &mut self,
         transport: Box<dyn Transport>,

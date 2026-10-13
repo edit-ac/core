@@ -8,3 +8,5 @@ pub mod ports;
 pub mod store;
 
 pub mod session;
+
+pub mod local_channel;

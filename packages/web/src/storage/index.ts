@@ -1,4 +1,4 @@
-import type { Checkpoint, CommitResult, PatchSubscription, PrepareRequest } from "@edit-ac/core";
+import type { Checkpoint, CommitResult, EngineRuntime, PatchSubscription, PrepareRequest } from "@edit-ac/core";
 import type { JournalUpdate, LocalCommit } from "./journal.js";
 import { UpdateJournal } from "./journal.js";
 import { StorageWriter } from "./writer.js";
@@ -32,6 +32,8 @@ export class LocalStorageLifecycle {
   readonly observerErrors: unknown[] = [];
   private readonly updates = new Set<PendingUpdate>();
   private readonly subscription: PatchSubscription;
+  private replayingLocal = false;
+  private readonly committedListeners = new Set<(update: JournalUpdate, commit: LocalCommit) => void>();
   private latest: LocalCommit | null = null;
   private failure: unknown = null;
   private capability: StorageState["strictDurability"] = "unknown";
@@ -44,7 +46,7 @@ export class LocalStorageLifecycle {
     // Capture policy by value so host mutation cannot silently change it.
     this.policy = { ...policy };
     this.subscription = writer.engine.subscribe({ type: "updates" }, patch => {
-      if (!patch.update) return;
+      if (!patch.update || this.replayingLocal) return;
       const update: JournalUpdate = { identity: { ...patch.identity }, writerId: patch.writerId,
         sequence: patch.sequence, origin: patch.origin, bytes: new Uint8Array(patch.update.bytes) };
       const record: PendingUpdate = { update, completion: Promise.resolve().then(() => this.journal.append(update)), failed: false };
@@ -58,6 +60,10 @@ export class LocalStorageLifecycle {
         } else if (commit.durability !== "strict") this.capability = "unavailable";
         else if (this.capability === "unknown" && !this.observedUnknownDurability) this.capability = "supported";
         this.notify();
+        for (const listener of [...this.committedListeners]) {
+          try { listener({ ...update, identity: { ...update.identity }, bytes: new Uint8Array(update.bytes) }, { ...commit }); }
+          catch (error) { this.observerErrors.push(error); if (this.observerErrors.length > 32) this.observerErrors.shift(); }
+        }
         return commit;
       }, error => {
         record.failed = true;
@@ -69,6 +75,29 @@ export class LocalStorageLifecycle {
       void record.completion.catch(() => {});
       this.notify();
     });
+  }
+
+  /** Committed-only hook: local notifications cannot precede transaction completion. */
+  subscribeCommitted(listener: (update: JournalUpdate, commit: LocalCommit) => void): () => void {
+    this.requireLive(); this.committedListeners.add(listener);
+    return () => { this.committedListeners.delete(listener); };
+  }
+
+  /** Explicit shared-journal catch-up; replay creates neither local journal records nor echoes. */
+  async catchUpLocal(runtime: EngineRuntime, active: () => boolean = () => true): Promise<number> {
+    this.requireLive();
+    const expected = this.writer.engine.checkpoint().identity;
+    const entries = await this.journal.read(expected);
+    if (!active()) return 0;
+    this.requireLive();
+    const updates = entries.map(entry => ({ identity: entry.identity, bytes: entry.bytes }));
+    const candidate = runtime.restoreEngine(expected, this.writer.engine.checkpoint(), updates);
+    candidate.dispose();
+    const before = this.writer.engine.read().revision;
+    this.replayingLocal = true;
+    try { for (const update of updates) this.writer.engine.applyUpdate(update); }
+    finally { this.replayingLocal = false; }
+    return this.writer.engine.read().revision - before;
   }
 
   get state(): StorageState {
@@ -128,6 +157,7 @@ export class LocalStorageLifecycle {
       this.journal.close();
       this.destroyed = true;
       this.listeners.clear();
+      this.committedListeners.clear();
       return { unsaved, recovery };
     } finally { this.closing = false; }
   }
