@@ -1,0 +1,79 @@
+{
+  "gate": "SYN-1.7",
+  "state": "incomplete",
+  "date": "2026-10-13",
+  "loadedPromptRevision": "2e18a98412c7",
+  "source": "../architecture/progress/.roadmap-runner/06-synchronization-049784b4c224/source-63e8bc8b7f65.md",
+  "sourceRevision": "9fb151bc16cc567c2c66700209baff239d192e1893ab4746d98f4c8dc329a17d",
+  "implementationRevision": "6edb83432468e44083740b586f973fb44f623352",
+  "workingTree": "Pre-existing unrelated changes preserved; session source/build bytes archived in run-2/artifacts with 24 matching hashes.",
+  "checks": [
+    {
+      "command": "npm run build",
+      "exit": 0,
+      "log": "build.log"
+    },
+    {
+      "command": "npm run test:browser -- offline-collaboration",
+      "exit": 1,
+      "executed": 4,
+      "passed": 3,
+      "failed": 1,
+      "skipped": 0,
+      "cancelled": 0,
+      "log": "feature-1.log",
+      "harness": "run-1/harness.json",
+      "failure": "Fixture assumed row order implied writer chronology; stable update-ID selection repaired before run-2."
+    },
+    {
+      "command": "npm run test:browser -- offline-collaboration",
+      "exit": 1,
+      "executed": 4,
+      "passed": 3,
+      "failed": 1,
+      "skipped": 0,
+      "cancelled": 0,
+      "log": "feature-2.log",
+      "harness": "run-2/harness.json",
+      "failure": "Actual Rust receiver terminates on dependent update delivered before its predecessor (IncompleteRestore). No unchanged rerun."
+    },
+    {
+      "command": "git diff --check -- scripts/test-browser.mjs",
+      "exit": 0
+    }
+  ],
+  "verified": {
+    "serviceBoundaries": [
+      "before-commit",
+      "after-commit",
+      "before-receipt"
+    ],
+    "receiptAssertions": "No receipt before commit/response; crashed relay rolls back before-commit, persists after-commit/before-receipt; browser outbox retains lost-response entries; restart replay and duplicate retry yield one row; valid receipt acknowledges without deleting journal; subsequent browser SIGKILL restores acknowledged local content.",
+    "convergence": "Not passed. Browser local acknowledgment/crash/restoration assertions reached before the convergence failure, but no end-to-end convergence claim."
+  },
+  "failureEvidence": {
+    "artifact": "frame-dependencies.json",
+    "file": "run-2/frame-12.bin",
+    "source": "browser-B",
+    "writer": 3685986909,
+    "fromClock": 1,
+    "missingPredecessor": "run-2/frame-13.bin (same writer, from clock 0)",
+    "productionBoundary": "packages/web/src/sync/session.ts incoming adapter.receive failure invokes stop; packages/web/src/sync/protocol.ts receive applies isolated incomplete delta to strict Rust engine.",
+    "reopenedGate": "SYN-1.3",
+    "requiredRepair": "Bound incomplete dependency buffering/reconciliation without mutation, queue-budget bypass, idle spin, dropped local updates or echo; preserve malformed-frame rejection and detach editability."
+  },
+  "notRun": "Additional integration reruns deferred after canonical feature failure; previous unchanged passing evidence retained.",
+  "cleanup": {
+    "recordedProcesses": 44,
+    "liveRecordedPids": 0,
+    "remainingRecordedListeners": 0,
+    "scratchRemoved": [
+      "/var/folders/6z/mkvyjszn7hq7x9r0df5zfyw80000gn/T/editac-offline-scratch-8FDbGv",
+      "/var/folders/6z/mkvyjszn7hq7x9r0df5zfyw80000gn/T/editac-offline-scratch-axjWWg"
+    ],
+    "reclaimedScratchBytes": "Not measured before teardown; no reclamation estimate claimed.",
+    "evidenceBytes": 7782872,
+    "dataVolumeFreeGiB": 19,
+    "otherArtifactsRemoved": []
+  }
+}

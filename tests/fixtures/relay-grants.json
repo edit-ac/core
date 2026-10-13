@@ -1,0 +1,26 @@
+[
+  {
+    "token": "prepared-alpha-no-production-auth",
+    "identity": {
+      "profile": "editac.yrs-yjs.editor.v5",
+      "schema": "editac.registry.editor.v5",
+      "documentId": "12345678-1234-4234-8234-123456789abc",
+      "epoch": "23456789-2345-4345-8345-23456789abcd",
+      "protocolVersion": 1,
+      "updateEncoding": 1,
+      "offsets": "utf16"
+    }
+  },
+  {
+    "token": "prepared-beta-no-production-auth",
+    "identity": {
+      "profile": "editac.yrs-yjs.editor.v5",
+      "schema": "editac.registry.editor.v5",
+      "documentId": "34567890-3456-4456-8456-34567890abcd",
+      "epoch": "45678901-4567-4567-8567-45678901abcd",
+      "protocolVersion": 1,
+      "updateEncoding": 1,
+      "offsets": "utf16"
+    }
+  }
+]

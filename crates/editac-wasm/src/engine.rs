@@ -97,12 +97,52 @@ impl Engine {
                 .and_then(Bridge::read),
         )
     }
+    pub fn markdown_equivalent(&self, input: &str) -> Result<String, JsValue> {
+        output(
+            self.inner
+                .as_ref()
+                .ok_or_else(|| disposed("markdownEquivalent"))
+                .and_then(|b| b.markdown_equivalent(input)),
+        )
+    }
+    pub fn import_markdown(&self, input: &str) -> Result<String, JsValue> {
+        output(
+            self.inner
+                .as_ref()
+                .ok_or_else(|| disposed("importMarkdown"))
+                .and_then(|b| b.import_markdown(input)),
+        )
+    }
+    pub fn export_markdown(&self, input: &str) -> Result<String, JsValue> {
+        output(
+            self.inner
+                .as_ref()
+                .ok_or_else(|| disposed("exportMarkdown"))
+                .and_then(|b| b.export_markdown(input)),
+        )
+    }
     pub fn anchor(&mut self, input: &str) -> Result<String, JsValue> {
         output(
             self.inner
                 .as_mut()
                 .ok_or_else(|| disposed("anchor"))
                 .and_then(|b| b.capture(input)),
+        )
+    }
+    pub fn export_anchor(&self, token: &str) -> Result<String, JsValue> {
+        output(
+            self.inner
+                .as_ref()
+                .ok_or_else(|| disposed("exportAnchor"))
+                .and_then(|b| b.export_anchor(token)),
+        )
+    }
+    pub fn import_anchor(&mut self, input: &str) -> Result<String, JsValue> {
+        output(
+            self.inner
+                .as_mut()
+                .ok_or_else(|| disposed("importAnchor"))
+                .and_then(|b| b.import_anchor(input)),
         )
     }
     pub fn resolve(&self, token: &str) -> Result<String, JsValue> {
@@ -127,6 +167,14 @@ impl Engine {
                 .as_mut()
                 .ok_or_else(|| disposed("commit"))
                 .and_then(|b| b.commit(token)),
+        )
+    }
+    pub fn can(&self, input: &str) -> Result<String, JsValue> {
+        output(
+            self.inner
+                .as_ref()
+                .ok_or_else(|| disposed("can"))
+                .and_then(|b| b.can(input)),
         )
     }
     pub fn history(&mut self, input: &str) -> Result<String, JsValue> {

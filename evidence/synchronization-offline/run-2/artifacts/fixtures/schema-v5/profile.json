@@ -1,0 +1,42 @@
+{
+  "profile": "editac.yrs-yjs.editor.v5",
+  "schema": "editac.registry.editor.v5",
+  "protocolVersion": 1,
+  "updateEncoding": 1,
+  "offsets": "utf16",
+  "yrs": "0.28.0",
+  "yjs": "13.6.33",
+  "yProtocols": "1.0.7",
+  "roots": [
+    "registry-parents",
+    "registry-texts",
+    "registry-placements",
+    "delete-probe-tombstones",
+    "registry-block-attributes",
+    "registry-ownership-ops",
+    "registry-owner-origins",
+    "registry-container-attributes",
+    "registry-list-item-attributes",
+    "registry-entity-controls"
+  ],
+  "bounds": {
+    "bytes": 16777216,
+    "sources": 4096,
+    "operations": 4096,
+    "spans": 8192,
+    "textBytes": 1048576,
+    "sourceUtf16": 262144,
+    "depth": 128,
+    "jsonDepth": 32,
+    "cutBytes": 256,
+    "controls": 8192,
+    "hierarchyDepth": 128,
+    "registrations": 4096,
+    "edgeVisits": 16777216,
+    "idBytes": 96,
+    "anyValues": 262144,
+    "structs": 262144,
+    "containerEntries": 8192,
+    "allocationClock": 2097152
+  }
+}

@@ -1,0 +1,134 @@
+{
+  "known": [
+    {
+      "name": "image",
+      "options": {
+        "images": true
+      },
+      "source": "![alt 😀](https://example.com/image.png)",
+      "tuple": [
+        "module:editac.image",
+        1,
+        {
+          "url": "https://example.com/image.png",
+          "alt": "alt 😀",
+          "title": "",
+          "source": "![alt 😀](https://example.com/image.png)"
+        }
+      ],
+      "fallbackText": "alt 😀",
+      "disabledText": "![alt 😀](https://example.com/image.png)"
+    },
+    {
+      "name": "callout",
+      "options": {
+        "callouts": true
+      },
+      "source": "> [!NOTE]\n> hello 😀",
+      "tuple": [
+        "module:editac.callout",
+        1,
+        {
+          "kind": "NOTE",
+          "body": "hello 😀",
+          "source": "> [!NOTE]\n> hello 😀"
+        }
+      ],
+      "fallbackText": "NOTE\nhello 😀",
+      "disabledText": "[!NOTE]\nhello 😀",
+      "disabledContainer": "quote"
+    },
+    {
+      "name": "table",
+      "options": {
+        "tables": true
+      },
+      "source": "| A |\n| --- |\n| 😀 |",
+      "tuple": [
+        "module:editac.table",
+        1,
+        {
+          "alignments": [
+            "none"
+          ],
+          "rows": [
+            [
+              [
+                [
+                  "A",
+                  []
+                ]
+              ]
+            ],
+            [
+              [
+                [
+                  "😀",
+                  []
+                ]
+              ]
+            ]
+          ],
+          "source": "| A |\n| --- |\n| 😀 |"
+        }
+      ],
+      "fallbackText": "A\n😀",
+      "disabledText": "| A |\n| --- |\n| 😀 |"
+    }
+  ],
+  "unknown": {
+    "tuple": [
+      "module:example.badge",
+      7,
+      {
+        "label": "<img src=x onerror=alert(1)> 😀",
+        "nested": {
+          "color": "violet",
+          "enabled": true
+        },
+        "source": "[badge] 😀"
+      }
+    ],
+    "mark": "example.highlight",
+    "attributes": {
+      "color": "violet",
+      "level": 2
+    },
+    "text": "<img src=x onerror=alert(1)> 😀"
+  },
+  "invalid": [
+    [
+      "module:editac.image",
+      2,
+      {
+        "url": "https://example.com/i",
+        "alt": "a",
+        "title": "",
+        "source": "x"
+      }
+    ],
+    [
+      "module:editac.image",
+      1,
+      {
+        "url": "javascript:alert(1)",
+        "alt": "a",
+        "title": "",
+        "source": "x"
+      }
+    ],
+    [
+      "module:editac.table",
+      1,
+      {
+        "alignments": [
+          "none"
+        ],
+        "rows": [
+          []
+        ],
+        "source": "x"
+      }
+    ]
+  ]
+}

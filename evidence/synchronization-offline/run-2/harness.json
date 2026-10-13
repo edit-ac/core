@@ -1,0 +1,877 @@
+{
+  "gate": "SYN-1.7",
+  "fixture": {
+    "text": [
+      "a😀b",
+      "independent"
+    ],
+    "insertUTF16": 3,
+    "commands": [
+      "A",
+      "B",
+      "X",
+      "Y",
+      "J"
+    ],
+    "checkpointSha256": "a8d3ea30e00352c15110d791013e8fb16fc05d4099f1617c9df243145cbfc60c",
+    "wasmSha256": "c16438269e3b69d53da19969fdff6dfb7d1531c9a7e5eb4e6244e617ed52704d"
+  },
+  "boundary": "Two headless Chromium OS processes / actual Rust WASM and IndexedDB / pinned Yjs baseline messages; separate child-process loopback HTTP SQLite receipts with prepared grants",
+  "cases": [
+    {
+      "name": "two browser processes recover acknowledged offline edits and converge with reordered duplicate Yjs messages",
+      "passed": false,
+      "quiescence": {
+        "rounds": 3,
+        "deliveries": 12
+      },
+      "failure": "page.evaluate: EngineError: IncompleteRestore\n    at invoke (http://127.0.0.1:63845/core/engine.js:22:27)\n    at use (http://127.0.0.1:63845/core/engine.js:132:40)\n    at mutate (http://127.0.0.1:63845/core/engine.js:185:24)\n    at Object.applyUpdate (http://127.0.0.1:63845/core/engine.js:281:34)\n    at DirectSyncAdapter.receive (http://127.0.0.1:63845/web/sync/protocol.js:134:36)\n    at SyncSession.run (http://127.0.0.1:63845/web/sync/session.js:164:49)\n    at SyncSession.pump (http://127.0.0.1:63845/web/sync/session.js:135:29)\n    at Object.drain (http://127.0.0.1:63845/fixture/session.mjs:67:52)\n    at async <anonymous>:396:30\n    at /Users/bpstr/Github/edit-ac/core/tests/browser/offline-collaboration.spec.ts:107:62\n    at exchange (/Users/bpstr/Github/edit-ac/core/tests/browser/offline-collaboration.spec.ts:107:46)\n    at async file:///Users/bpstr/Github/edit-ac/core/tests/browser/offline-collaboration.spec.ts:156:5\n    at async TestContext.<anonymous> (/Users/bpstr/Github/edit-ac/core/tests/browser/offline-collaboration.spec.ts:70:11)"
+    },
+    {
+      "name": "before-commit: lost relay response retains browser outbox, restart replay and duplicate receipt preserve local recovery",
+      "passed": true,
+      "commitFault": {
+        "boundary": "before-commit",
+        "committedRowsBeforeRetry": 0,
+        "replayBefore": {
+          "entries": [],
+          "after": 0,
+          "done": true
+        },
+        "replayAfter": {
+          "entries": [
+            {
+              "cursor": 1,
+              "identity": {
+                "profile": "editac.yrs-yjs.editor.v5",
+                "schema": "editac.registry.editor.v5",
+                "documentId": "12345678-1234-4234-8234-123456789abc",
+                "epoch": "23456789-2345-4345-8345-23456789abcd",
+                "protocolVersion": 1,
+                "updateEncoding": 1,
+                "offsets": "utf16"
+              },
+              "writerId": 1325324159,
+              "sequence": 1,
+              "origin": "editac:local:local:offline-fixture",
+              "bytes": "AQH/rvv3BADE6d+16gwF6d+16gwGAUEA",
+              "checksum": "593094481932b0519934005db85b168f5648425e07de0249ddbb53823d2cd792",
+              "updateId": "[\"[\\\"editac.yrs-yjs.editor.v5\\\",\\\"editac.registry.editor.v5\\\",\\\"12345678-1234-4234-8234-123456789abc\\\",\\\"23456789-2345-4345-8345-23456789abcd\\\",1,1,\\\"utf16\\\"]\",1325324159,1,\"593094481932b0519934005db85b168f5648425e07de0249ddbb53823d2cd792\"]"
+            }
+          ],
+          "after": 1,
+          "done": true
+        },
+        "failedReceipt": {
+          "authorization": "authorized",
+          "receiptProtocol": "editac-durable-receipt-v1",
+          "remoteDurability": "unknown",
+          "remoteCommitted": null,
+          "replayPending": true
+        },
+        "ackedReceipt": {
+          "authorization": "authorized",
+          "receiptProtocol": "editac-durable-receipt-v1",
+          "remoteDurability": "durable",
+          "remoteCommitted": "[\"[\\\"editac.yrs-yjs.editor.v5\\\",\\\"editac.registry.editor.v5\\\",\\\"12345678-1234-4234-8234-123456789abc\\\",\\\"23456789-2345-4345-8345-23456789abcd\\\",1,1,\\\"utf16\\\"]\",1325324159,1,\"593094481932b0519934005db85b168f5648425e07de0249ddbb53823d2cd792\"]",
+          "replayPending": false
+        },
+        "localUpdateIds": [
+          "[\"[\\\"editac.yrs-yjs.editor.v5\\\",\\\"editac.registry.editor.v5\\\",\\\"12345678-1234-4234-8234-123456789abc\\\",\\\"23456789-2345-4345-8345-23456789abcd\\\",1,1,\\\"utf16\\\"]\",1325324159,1,\"593094481932b0519934005db85b168f5648425e07de0249ddbb53823d2cd792\"]"
+        ],
+        "recoveryText": [
+          "a😀Ab",
+          "independent"
+        ]
+      }
+    },
+    {
+      "name": "after-commit: lost relay response retains browser outbox, restart replay and duplicate receipt preserve local recovery",
+      "passed": true,
+      "commitFault": {
+        "boundary": "after-commit",
+        "committedRowsBeforeRetry": 1,
+        "replayBefore": {
+          "entries": [
+            {
+              "cursor": 1,
+              "identity": {
+                "profile": "editac.yrs-yjs.editor.v5",
+                "schema": "editac.registry.editor.v5",
+                "documentId": "12345678-1234-4234-8234-123456789abc",
+                "epoch": "23456789-2345-4345-8345-23456789abcd",
+                "protocolVersion": 1,
+                "updateEncoding": 1,
+                "offsets": "utf16"
+              },
+              "writerId": 844203705,
+              "sequence": 1,
+              "origin": "editac:local:local:offline-fixture",
+              "bytes": "AQG5jcaSAwDE6d+16gwF6d+16gwGAUEA",
+              "checksum": "c05c16e97b05cf8a7cd444b993589a9a2ac3356fbfe06e32fd9b99dda4a3333e",
+              "updateId": "[\"[\\\"editac.yrs-yjs.editor.v5\\\",\\\"editac.registry.editor.v5\\\",\\\"12345678-1234-4234-8234-123456789abc\\\",\\\"23456789-2345-4345-8345-23456789abcd\\\",1,1,\\\"utf16\\\"]\",844203705,1,\"c05c16e97b05cf8a7cd444b993589a9a2ac3356fbfe06e32fd9b99dda4a3333e\"]"
+            }
+          ],
+          "after": 1,
+          "done": true
+        },
+        "replayAfter": {
+          "entries": [
+            {
+              "cursor": 1,
+              "identity": {
+                "profile": "editac.yrs-yjs.editor.v5",
+                "schema": "editac.registry.editor.v5",
+                "documentId": "12345678-1234-4234-8234-123456789abc",
+                "epoch": "23456789-2345-4345-8345-23456789abcd",
+                "protocolVersion": 1,
+                "updateEncoding": 1,
+                "offsets": "utf16"
+              },
+              "writerId": 844203705,
+              "sequence": 1,
+              "origin": "editac:local:local:offline-fixture",
+              "bytes": "AQG5jcaSAwDE6d+16gwF6d+16gwGAUEA",
+              "checksum": "c05c16e97b05cf8a7cd444b993589a9a2ac3356fbfe06e32fd9b99dda4a3333e",
+              "updateId": "[\"[\\\"editac.yrs-yjs.editor.v5\\\",\\\"editac.registry.editor.v5\\\",\\\"12345678-1234-4234-8234-123456789abc\\\",\\\"23456789-2345-4345-8345-23456789abcd\\\",1,1,\\\"utf16\\\"]\",844203705,1,\"c05c16e97b05cf8a7cd444b993589a9a2ac3356fbfe06e32fd9b99dda4a3333e\"]"
+            }
+          ],
+          "after": 1,
+          "done": true
+        },
+        "failedReceipt": {
+          "authorization": "authorized",
+          "receiptProtocol": "editac-durable-receipt-v1",
+          "remoteDurability": "unknown",
+          "remoteCommitted": null,
+          "replayPending": true
+        },
+        "ackedReceipt": {
+          "authorization": "authorized",
+          "receiptProtocol": "editac-durable-receipt-v1",
+          "remoteDurability": "durable",
+          "remoteCommitted": "[\"[\\\"editac.yrs-yjs.editor.v5\\\",\\\"editac.registry.editor.v5\\\",\\\"12345678-1234-4234-8234-123456789abc\\\",\\\"23456789-2345-4345-8345-23456789abcd\\\",1,1,\\\"utf16\\\"]\",844203705,1,\"c05c16e97b05cf8a7cd444b993589a9a2ac3356fbfe06e32fd9b99dda4a3333e\"]",
+          "replayPending": false
+        },
+        "localUpdateIds": [
+          "[\"[\\\"editac.yrs-yjs.editor.v5\\\",\\\"editac.registry.editor.v5\\\",\\\"12345678-1234-4234-8234-123456789abc\\\",\\\"23456789-2345-4345-8345-23456789abcd\\\",1,1,\\\"utf16\\\"]\",844203705,1,\"c05c16e97b05cf8a7cd444b993589a9a2ac3356fbfe06e32fd9b99dda4a3333e\"]"
+        ],
+        "recoveryText": [
+          "a😀Ab",
+          "independent"
+        ]
+      }
+    },
+    {
+      "name": "before-receipt: lost relay response retains browser outbox, restart replay and duplicate receipt preserve local recovery",
+      "passed": true,
+      "commitFault": {
+        "boundary": "before-receipt",
+        "committedRowsBeforeRetry": 1,
+        "replayBefore": {
+          "entries": [
+            {
+              "cursor": 1,
+              "identity": {
+                "profile": "editac.yrs-yjs.editor.v5",
+                "schema": "editac.registry.editor.v5",
+                "documentId": "12345678-1234-4234-8234-123456789abc",
+                "epoch": "23456789-2345-4345-8345-23456789abcd",
+                "protocolVersion": 1,
+                "updateEncoding": 1,
+                "offsets": "utf16"
+              },
+              "writerId": 3935291072,
+              "sequence": 1,
+              "origin": "editac:local:local:offline-fixture",
+              "bytes": "AQHAjb/UDgDE6d+16gwF6d+16gwGAUEA",
+              "checksum": "41f2df50a3433696d7b58aa096fa700c8beb44ffc762c4567c3b5bc31ef25006",
+              "updateId": "[\"[\\\"editac.yrs-yjs.editor.v5\\\",\\\"editac.registry.editor.v5\\\",\\\"12345678-1234-4234-8234-123456789abc\\\",\\\"23456789-2345-4345-8345-23456789abcd\\\",1,1,\\\"utf16\\\"]\",3935291072,1,\"41f2df50a3433696d7b58aa096fa700c8beb44ffc762c4567c3b5bc31ef25006\"]"
+            }
+          ],
+          "after": 1,
+          "done": true
+        },
+        "replayAfter": {
+          "entries": [
+            {
+              "cursor": 1,
+              "identity": {
+                "profile": "editac.yrs-yjs.editor.v5",
+                "schema": "editac.registry.editor.v5",
+                "documentId": "12345678-1234-4234-8234-123456789abc",
+                "epoch": "23456789-2345-4345-8345-23456789abcd",
+                "protocolVersion": 1,
+                "updateEncoding": 1,
+                "offsets": "utf16"
+              },
+              "writerId": 3935291072,
+              "sequence": 1,
+              "origin": "editac:local:local:offline-fixture",
+              "bytes": "AQHAjb/UDgDE6d+16gwF6d+16gwGAUEA",
+              "checksum": "41f2df50a3433696d7b58aa096fa700c8beb44ffc762c4567c3b5bc31ef25006",
+              "updateId": "[\"[\\\"editac.yrs-yjs.editor.v5\\\",\\\"editac.registry.editor.v5\\\",\\\"12345678-1234-4234-8234-123456789abc\\\",\\\"23456789-2345-4345-8345-23456789abcd\\\",1,1,\\\"utf16\\\"]\",3935291072,1,\"41f2df50a3433696d7b58aa096fa700c8beb44ffc762c4567c3b5bc31ef25006\"]"
+            }
+          ],
+          "after": 1,
+          "done": true
+        },
+        "failedReceipt": {
+          "authorization": "authorized",
+          "receiptProtocol": "editac-durable-receipt-v1",
+          "remoteDurability": "unknown",
+          "remoteCommitted": null,
+          "replayPending": true
+        },
+        "ackedReceipt": {
+          "authorization": "authorized",
+          "receiptProtocol": "editac-durable-receipt-v1",
+          "remoteDurability": "durable",
+          "remoteCommitted": "[\"[\\\"editac.yrs-yjs.editor.v5\\\",\\\"editac.registry.editor.v5\\\",\\\"12345678-1234-4234-8234-123456789abc\\\",\\\"23456789-2345-4345-8345-23456789abcd\\\",1,1,\\\"utf16\\\"]\",3935291072,1,\"41f2df50a3433696d7b58aa096fa700c8beb44ffc762c4567c3b5bc31ef25006\"]",
+          "replayPending": false
+        },
+        "localUpdateIds": [
+          "[\"[\\\"editac.yrs-yjs.editor.v5\\\",\\\"editac.registry.editor.v5\\\",\\\"12345678-1234-4234-8234-123456789abc\\\",\\\"23456789-2345-4345-8345-23456789abcd\\\",1,1,\\\"utf16\\\"]\",3935291072,1,\"41f2df50a3433696d7b58aa096fa700c8beb44ffc762c4567c3b5bc31ef25006\"]"
+        ],
+        "recoveryText": [
+          "a😀Ab",
+          "independent"
+        ]
+      }
+    }
+  ],
+  "processes": [
+    {
+      "pid": 80956,
+      "launcher": "/Users/bpstr/Library/Caches/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-mac-arm64/chrome-headless-shell",
+      "workspace": "/Users/bpstr/Github/edit-ac/core",
+      "purpose": "pinned Chromium executable discovery",
+      "port": null,
+      "log": "feature.log",
+      "exited": true,
+      "helpersExited": true
+    },
+    {
+      "pid": 80968,
+      "launcher": "/Users/bpstr/Library/Caches/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-mac-arm64/chrome-headless-shell",
+      "workspace": "/Users/bpstr/Github/edit-ac/core",
+      "profile": "/var/folders/6z/mkvyjszn7hq7x9r0df5zfyw80000gn/T/editac-offline-scratch-8FDbGv/writer-A",
+      "port": 63846,
+      "purpose": "SYN-1.7 writer-A",
+      "log": "/Users/bpstr/Github/edit-ac/core/evidence/synchronization-offline/run-2/writer-A-browser.log",
+      "exited": true,
+      "exit": {
+        "code": null,
+        "signal": "SIGKILL"
+      },
+      "helpersExited": true,
+      "listenerRemoved": true
+    },
+    {
+      "pid": 81000,
+      "launcher": "/Users/bpstr/Library/Caches/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-mac-arm64/chrome-headless-shell",
+      "workspace": "/Users/bpstr/Github/edit-ac/core",
+      "profile": "/var/folders/6z/mkvyjszn7hq7x9r0df5zfyw80000gn/T/editac-offline-scratch-8FDbGv/writer-B",
+      "port": 63856,
+      "purpose": "SYN-1.7 writer-B",
+      "log": "/Users/bpstr/Github/edit-ac/core/evidence/synchronization-offline/run-2/writer-B-browser.log",
+      "exited": true,
+      "exit": {
+        "code": 143,
+        "signal": null
+      },
+      "helpersExited": true,
+      "listenerRemoved": true
+    },
+    {
+      "pid": 81094,
+      "launcher": "/Users/bpstr/Library/Caches/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-mac-arm64/chrome-headless-shell",
+      "workspace": "/Users/bpstr/Github/edit-ac/core",
+      "profile": "/var/folders/6z/mkvyjszn7hq7x9r0df5zfyw80000gn/T/editac-offline-scratch-8FDbGv/writer-A",
+      "port": 63865,
+      "purpose": "SYN-1.7 writer-A-restored",
+      "log": "/Users/bpstr/Github/edit-ac/core/evidence/synchronization-offline/run-2/writer-A-restored-browser.log",
+      "exited": true,
+      "exit": {
+        "code": 143,
+        "signal": null
+      },
+      "helpersExited": true,
+      "listenerRemoved": true
+    },
+    {
+      "pid": 81357,
+      "launcher": "/Users/bpstr/.nvm/versions/node/v24.19.0/bin/node",
+      "workspace": "/Users/bpstr/Github/edit-ac/core",
+      "purpose": "SYN-1.7 before-commit",
+      "databasePath": "/var/folders/6z/mkvyjszn7hq7x9r0df5zfyw80000gn/T/editac-offline-scratch-8FDbGv/before-commit.sqlite",
+      "log": "/Users/bpstr/Github/edit-ac/core/evidence/synchronization-offline/run-2/before-commit-relay.log",
+      "exited": true,
+      "port": "63874",
+      "exit": {
+        "code": null,
+        "signal": "SIGKILL"
+      },
+      "listenerRemoved": true
+    },
+    {
+      "pid": 81361,
+      "launcher": "/Users/bpstr/Library/Caches/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-mac-arm64/chrome-headless-shell",
+      "workspace": "/Users/bpstr/Github/edit-ac/core",
+      "profile": "/var/folders/6z/mkvyjszn7hq7x9r0df5zfyw80000gn/T/editac-offline-scratch-8FDbGv/before-commit-client",
+      "port": 63875,
+      "purpose": "SYN-1.7 before-commit-client",
+      "log": "/Users/bpstr/Github/edit-ac/core/evidence/synchronization-offline/run-2/before-commit-client-browser.log",
+      "exited": true,
+      "exit": {
+        "code": null,
+        "signal": "SIGKILL"
+      },
+      "helpersExited": true,
+      "listenerRemoved": true
+    },
+    {
+      "pid": 81479,
+      "launcher": "/Users/bpstr/.nvm/versions/node/v24.19.0/bin/node",
+      "workspace": "/Users/bpstr/Github/edit-ac/core",
+      "purpose": "SYN-1.7 before-commit-restarted",
+      "databasePath": "/var/folders/6z/mkvyjszn7hq7x9r0df5zfyw80000gn/T/editac-offline-scratch-8FDbGv/before-commit.sqlite",
+      "log": "/Users/bpstr/Github/edit-ac/core/evidence/synchronization-offline/run-2/before-commit-restarted-relay.log",
+      "exited": true,
+      "port": "63884",
+      "exit": {
+        "code": 0,
+        "signal": null
+      },
+      "listenerRemoved": true
+    },
+    {
+      "pid": 81480,
+      "launcher": "/Users/bpstr/Library/Caches/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-mac-arm64/chrome-headless-shell",
+      "workspace": "/Users/bpstr/Github/edit-ac/core",
+      "profile": "/var/folders/6z/mkvyjszn7hq7x9r0df5zfyw80000gn/T/editac-offline-scratch-8FDbGv/before-commit-client",
+      "port": 63885,
+      "purpose": "SYN-1.7 before-commit-restored",
+      "log": "/Users/bpstr/Github/edit-ac/core/evidence/synchronization-offline/run-2/before-commit-restored-browser.log",
+      "exited": true,
+      "exit": {
+        "code": null,
+        "signal": "SIGKILL"
+      },
+      "helpersExited": true,
+      "listenerRemoved": true
+    },
+    {
+      "pid": 81488,
+      "launcher": "/Users/bpstr/Library/Caches/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-mac-arm64/chrome-headless-shell",
+      "workspace": "/Users/bpstr/Github/edit-ac/core",
+      "profile": "/var/folders/6z/mkvyjszn7hq7x9r0df5zfyw80000gn/T/editac-offline-scratch-8FDbGv/before-commit-observer",
+      "port": 63891,
+      "purpose": "SYN-1.7 before-commit-observer",
+      "log": "/Users/bpstr/Github/edit-ac/core/evidence/synchronization-offline/run-2/before-commit-observer-browser.log",
+      "exited": true,
+      "exit": {
+        "code": 143,
+        "signal": null
+      },
+      "helpersExited": true,
+      "listenerRemoved": true
+    },
+    {
+      "pid": 81583,
+      "launcher": "/Users/bpstr/Library/Caches/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-mac-arm64/chrome-headless-shell",
+      "workspace": "/Users/bpstr/Github/edit-ac/core",
+      "profile": "/var/folders/6z/mkvyjszn7hq7x9r0df5zfyw80000gn/T/editac-offline-scratch-8FDbGv/before-commit-client",
+      "port": 63901,
+      "purpose": "SYN-1.7 before-commit-acknowledged-restored",
+      "log": "/Users/bpstr/Github/edit-ac/core/evidence/synchronization-offline/run-2/before-commit-acknowledged-restored-browser.log",
+      "exited": true,
+      "exit": {
+        "code": 143,
+        "signal": null
+      },
+      "helpersExited": true,
+      "listenerRemoved": true
+    },
+    {
+      "pid": 81794,
+      "launcher": "/Users/bpstr/.nvm/versions/node/v24.19.0/bin/node",
+      "workspace": "/Users/bpstr/Github/edit-ac/core",
+      "purpose": "SYN-1.7 after-commit",
+      "databasePath": "/var/folders/6z/mkvyjszn7hq7x9r0df5zfyw80000gn/T/editac-offline-scratch-8FDbGv/after-commit.sqlite",
+      "log": "/Users/bpstr/Github/edit-ac/core/evidence/synchronization-offline/run-2/after-commit-relay.log",
+      "exited": true,
+      "port": "63910",
+      "exit": {
+        "code": null,
+        "signal": "SIGKILL"
+      },
+      "listenerRemoved": true
+    },
+    {
+      "pid": 81795,
+      "launcher": "/Users/bpstr/Library/Caches/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-mac-arm64/chrome-headless-shell",
+      "workspace": "/Users/bpstr/Github/edit-ac/core",
+      "profile": "/var/folders/6z/mkvyjszn7hq7x9r0df5zfyw80000gn/T/editac-offline-scratch-8FDbGv/after-commit-client",
+      "port": 63911,
+      "purpose": "SYN-1.7 after-commit-client",
+      "log": "/Users/bpstr/Github/edit-ac/core/evidence/synchronization-offline/run-2/after-commit-client-browser.log",
+      "exited": true,
+      "exit": {
+        "code": null,
+        "signal": "SIGKILL"
+      },
+      "helpersExited": true,
+      "listenerRemoved": true
+    },
+    {
+      "pid": 81912,
+      "launcher": "/Users/bpstr/.nvm/versions/node/v24.19.0/bin/node",
+      "workspace": "/Users/bpstr/Github/edit-ac/core",
+      "purpose": "SYN-1.7 after-commit-restarted",
+      "databasePath": "/var/folders/6z/mkvyjszn7hq7x9r0df5zfyw80000gn/T/editac-offline-scratch-8FDbGv/after-commit.sqlite",
+      "log": "/Users/bpstr/Github/edit-ac/core/evidence/synchronization-offline/run-2/after-commit-restarted-relay.log",
+      "exited": true,
+      "port": "63921",
+      "exit": {
+        "code": 0,
+        "signal": null
+      },
+      "listenerRemoved": true
+    },
+    {
+      "pid": 81914,
+      "launcher": "/Users/bpstr/Library/Caches/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-mac-arm64/chrome-headless-shell",
+      "workspace": "/Users/bpstr/Github/edit-ac/core",
+      "profile": "/var/folders/6z/mkvyjszn7hq7x9r0df5zfyw80000gn/T/editac-offline-scratch-8FDbGv/after-commit-client",
+      "port": 63922,
+      "purpose": "SYN-1.7 after-commit-restored",
+      "log": "/Users/bpstr/Github/edit-ac/core/evidence/synchronization-offline/run-2/after-commit-restored-browser.log",
+      "exited": true,
+      "exit": {
+        "code": null,
+        "signal": "SIGKILL"
+      },
+      "helpersExited": true,
+      "listenerRemoved": true
+    },
+    {
+      "pid": 81919,
+      "launcher": "/Users/bpstr/Library/Caches/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-mac-arm64/chrome-headless-shell",
+      "workspace": "/Users/bpstr/Github/edit-ac/core",
+      "profile": "/var/folders/6z/mkvyjszn7hq7x9r0df5zfyw80000gn/T/editac-offline-scratch-8FDbGv/after-commit-observer",
+      "port": 63928,
+      "purpose": "SYN-1.7 after-commit-observer",
+      "log": "/Users/bpstr/Github/edit-ac/core/evidence/synchronization-offline/run-2/after-commit-observer-browser.log",
+      "exited": true,
+      "exit": {
+        "code": 143,
+        "signal": null
+      },
+      "helpersExited": true,
+      "listenerRemoved": true
+    },
+    {
+      "pid": 82018,
+      "launcher": "/Users/bpstr/Library/Caches/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-mac-arm64/chrome-headless-shell",
+      "workspace": "/Users/bpstr/Github/edit-ac/core",
+      "profile": "/var/folders/6z/mkvyjszn7hq7x9r0df5zfyw80000gn/T/editac-offline-scratch-8FDbGv/after-commit-client",
+      "port": 63937,
+      "purpose": "SYN-1.7 after-commit-acknowledged-restored",
+      "log": "/Users/bpstr/Github/edit-ac/core/evidence/synchronization-offline/run-2/after-commit-acknowledged-restored-browser.log",
+      "exited": true,
+      "exit": {
+        "code": 143,
+        "signal": null
+      },
+      "helpersExited": true,
+      "listenerRemoved": true
+    },
+    {
+      "pid": 82220,
+      "launcher": "/Users/bpstr/.nvm/versions/node/v24.19.0/bin/node",
+      "workspace": "/Users/bpstr/Github/edit-ac/core",
+      "purpose": "SYN-1.7 before-receipt",
+      "databasePath": "/var/folders/6z/mkvyjszn7hq7x9r0df5zfyw80000gn/T/editac-offline-scratch-8FDbGv/before-receipt.sqlite",
+      "log": "/Users/bpstr/Github/edit-ac/core/evidence/synchronization-offline/run-2/before-receipt-relay.log",
+      "exited": true,
+      "port": "63947",
+      "exit": {
+        "code": null,
+        "signal": "SIGKILL"
+      },
+      "listenerRemoved": true
+    },
+    {
+      "pid": 82221,
+      "launcher": "/Users/bpstr/Library/Caches/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-mac-arm64/chrome-headless-shell",
+      "workspace": "/Users/bpstr/Github/edit-ac/core",
+      "profile": "/var/folders/6z/mkvyjszn7hq7x9r0df5zfyw80000gn/T/editac-offline-scratch-8FDbGv/before-receipt-client",
+      "port": 63948,
+      "purpose": "SYN-1.7 before-receipt-client",
+      "log": "/Users/bpstr/Github/edit-ac/core/evidence/synchronization-offline/run-2/before-receipt-client-browser.log",
+      "exited": true,
+      "exit": {
+        "code": null,
+        "signal": "SIGKILL"
+      },
+      "helpersExited": true,
+      "listenerRemoved": true
+    },
+    {
+      "pid": 82344,
+      "launcher": "/Users/bpstr/.nvm/versions/node/v24.19.0/bin/node",
+      "workspace": "/Users/bpstr/Github/edit-ac/core",
+      "purpose": "SYN-1.7 before-receipt-restarted",
+      "databasePath": "/var/folders/6z/mkvyjszn7hq7x9r0df5zfyw80000gn/T/editac-offline-scratch-8FDbGv/before-receipt.sqlite",
+      "log": "/Users/bpstr/Github/edit-ac/core/evidence/synchronization-offline/run-2/before-receipt-restarted-relay.log",
+      "exited": true,
+      "port": "63957",
+      "exit": {
+        "code": 0,
+        "signal": null
+      },
+      "listenerRemoved": true
+    },
+    {
+      "pid": 82345,
+      "launcher": "/Users/bpstr/Library/Caches/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-mac-arm64/chrome-headless-shell",
+      "workspace": "/Users/bpstr/Github/edit-ac/core",
+      "profile": "/var/folders/6z/mkvyjszn7hq7x9r0df5zfyw80000gn/T/editac-offline-scratch-8FDbGv/before-receipt-client",
+      "port": 63958,
+      "purpose": "SYN-1.7 before-receipt-restored",
+      "log": "/Users/bpstr/Github/edit-ac/core/evidence/synchronization-offline/run-2/before-receipt-restored-browser.log",
+      "exited": true,
+      "exit": {
+        "code": null,
+        "signal": "SIGKILL"
+      },
+      "helpersExited": true,
+      "listenerRemoved": true
+    },
+    {
+      "pid": 82350,
+      "launcher": "/Users/bpstr/Library/Caches/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-mac-arm64/chrome-headless-shell",
+      "workspace": "/Users/bpstr/Github/edit-ac/core",
+      "profile": "/var/folders/6z/mkvyjszn7hq7x9r0df5zfyw80000gn/T/editac-offline-scratch-8FDbGv/before-receipt-observer",
+      "port": 63964,
+      "purpose": "SYN-1.7 before-receipt-observer",
+      "log": "/Users/bpstr/Github/edit-ac/core/evidence/synchronization-offline/run-2/before-receipt-observer-browser.log",
+      "exited": true,
+      "exit": {
+        "code": 143,
+        "signal": null
+      },
+      "helpersExited": true,
+      "listenerRemoved": true
+    },
+    {
+      "pid": 82446,
+      "launcher": "/Users/bpstr/Library/Caches/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-mac-arm64/chrome-headless-shell",
+      "workspace": "/Users/bpstr/Github/edit-ac/core",
+      "profile": "/var/folders/6z/mkvyjszn7hq7x9r0df5zfyw80000gn/T/editac-offline-scratch-8FDbGv/before-receipt-client",
+      "port": 63974,
+      "purpose": "SYN-1.7 before-receipt-acknowledged-restored",
+      "log": "/Users/bpstr/Github/edit-ac/core/evidence/synchronization-offline/run-2/before-receipt-acknowledged-restored-browser.log",
+      "exited": true,
+      "exit": {
+        "code": 143,
+        "signal": null
+      },
+      "helpersExited": true,
+      "listenerRemoved": true
+    }
+  ],
+  "frames": [
+    {
+      "file": "frame-0.bin",
+      "source": "browser-A",
+      "bytes": 9,
+      "sha256": "0baf3925b75e51d1209593ef0f375e66b069ed2a9065bd51d02af285c7d547c4",
+      "type": 0
+    },
+    {
+      "file": "frame-1.bin",
+      "source": "Yjs-reply",
+      "bytes": 4,
+      "sha256": "d81fe96dc500bc43e1cd5800bef9d72b3d030bdb7e860e10c522e4246b30bd93",
+      "type": 1
+    },
+    {
+      "file": "frame-2.bin",
+      "source": "browser-B",
+      "bytes": 9,
+      "sha256": "0baf3925b75e51d1209593ef0f375e66b069ed2a9065bd51d02af285c7d547c4",
+      "type": 0
+    },
+    {
+      "file": "frame-3.bin",
+      "source": "Yjs-reply",
+      "bytes": 4,
+      "sha256": "d81fe96dc500bc43e1cd5800bef9d72b3d030bdb7e860e10c522e4246b30bd93",
+      "type": 1
+    },
+    {
+      "file": "frame-4.bin",
+      "source": "browser-A",
+      "bytes": 4,
+      "sha256": "d81fe96dc500bc43e1cd5800bef9d72b3d030bdb7e860e10c522e4246b30bd93",
+      "type": 1
+    },
+    {
+      "file": "frame-5.bin",
+      "source": "browser-A",
+      "bytes": 4,
+      "sha256": "d81fe96dc500bc43e1cd5800bef9d72b3d030bdb7e860e10c522e4246b30bd93",
+      "type": 1
+    },
+    {
+      "file": "frame-6.bin",
+      "source": "browser-B",
+      "bytes": 4,
+      "sha256": "d81fe96dc500bc43e1cd5800bef9d72b3d030bdb7e860e10c522e4246b30bd93",
+      "type": 1
+    },
+    {
+      "file": "frame-7.bin",
+      "source": "browser-B",
+      "bytes": 4,
+      "sha256": "d81fe96dc500bc43e1cd5800bef9d72b3d030bdb7e860e10c522e4246b30bd93",
+      "type": 1
+    },
+    {
+      "file": "frame-8.bin",
+      "source": "browser-A",
+      "bytes": 25,
+      "sha256": "624f07ef5da4ee90a5e2966951765659bea5985706adad0975118a91f67752bd",
+      "type": 2
+    },
+    {
+      "file": "frame-9.bin",
+      "source": "browser-A",
+      "bytes": 25,
+      "sha256": "22c416fb0d2f6aec6ca8bfd9387790bfa400db292763568f0105a9b6d09cbcf5",
+      "type": 2
+    },
+    {
+      "file": "frame-10.bin",
+      "source": "browser-A",
+      "bytes": 20,
+      "sha256": "e15ba083ae1fe416a85f169ab8a34f72b3dbabd8182d80373debd9e9cd83cce0",
+      "type": 0
+    },
+    {
+      "file": "frame-11.bin",
+      "source": "Yjs-reply",
+      "bytes": 23,
+      "sha256": "036605bdf0029a7e93266abcfc038a292b5184d1735014cd98b365a33d604952",
+      "type": 1
+    },
+    {
+      "file": "frame-12.bin",
+      "source": "browser-B",
+      "bytes": 26,
+      "sha256": "d6e56e8522e415fd8dc0816fd5335609fdfe26a8d00bb10959bb5b631f95cb5e",
+      "type": 2
+    },
+    {
+      "file": "frame-13.bin",
+      "source": "browser-B",
+      "bytes": 26,
+      "sha256": "7a10358c07732ef3046c49902a80c3ecaa55b6165be21082c5009794a047d445",
+      "type": 2
+    },
+    {
+      "file": "frame-14.bin",
+      "source": "browser-B",
+      "bytes": 15,
+      "sha256": "0741d3ed737685a2fdfc5d3f8fbdc8bf8d482f397b09feaf080f3033522dc36a",
+      "type": 0
+    },
+    {
+      "file": "frame-15.bin",
+      "source": "Yjs-reply",
+      "bytes": 65,
+      "sha256": "aed4fa195509edb8c60a59e3bcc6e0bed8ad5f1201be09f4d52707cc6815dae7",
+      "type": 1
+    }
+  ],
+  "cleanup": {
+    "allOwnedProcessesExited": true,
+    "scratchRemoved": true
+  },
+  "artifacts": [
+    {
+      "path": "tests/browser/offline-collaboration.spec.ts",
+      "file": "artifacts/tests/browser/offline-collaboration.spec.ts",
+      "bytes": 15895,
+      "sha256": "2eadca03d52bb40b3d2c5bd10c88708a64994ab329cc1a5384f1d95ea2231e53"
+    },
+    {
+      "path": "tests/helpers/offline-processes.mjs",
+      "file": "artifacts/tests/helpers/offline-processes.mjs",
+      "bytes": 8163,
+      "sha256": "20f0ea04fda8a9dfcb48bff35286327a3491e025a7b56fcfafb10f84fab234f2"
+    },
+    {
+      "path": "tests/browser/fixtures/offline-collaboration/index.html",
+      "file": "artifacts/tests/browser/fixtures/offline-collaboration/index.html",
+      "bytes": 150,
+      "sha256": "a71ff4e126633a15bec8c80d7e9581d02bf3a2b965866e2fd9a74e1e3dfb957b"
+    },
+    {
+      "path": "tests/browser/fixtures/offline-collaboration/session.mjs",
+      "file": "artifacts/tests/browser/fixtures/offline-collaboration/session.mjs",
+      "bytes": 4866,
+      "sha256": "5e6c900a02d2e42bfc5f45a6811f357153efa84a1c21133223057de1ece730da"
+    },
+    {
+      "path": "scripts/test-browser.mjs",
+      "file": "artifacts/scripts/test-browser.mjs",
+      "bytes": 2967,
+      "sha256": "a991b7130eb8c89fbf0404189fad3f8fac09a3ca7989f92ceb5121424c826fd2"
+    },
+    {
+      "path": "fixtures/schema-v5/mapping.mjs",
+      "file": "artifacts/fixtures/schema-v5/mapping.mjs",
+      "bytes": 21083,
+      "sha256": "54617d4cebf52f60dea937c41f4aa53c2f143ef9bce033390c2ee9820bef9f33"
+    },
+    {
+      "path": "fixtures/schema-v5/profile.json",
+      "file": "artifacts/fixtures/schema-v5/profile.json",
+      "bytes": 989,
+      "sha256": "d0a68db300d2953de29ff8208a4d1208d6ec13cba0544cbf7302ee24acd6b5f9"
+    },
+    {
+      "path": "tests/fixtures/relay-grants.json",
+      "file": "artifacts/tests/fixtures/relay-grants.json",
+      "bytes": 738,
+      "sha256": "551418ecbfb0cc1c912a40e74c028f6756568e4a4d8276d5f4a46aeffb307fdf"
+    },
+    {
+      "path": "tests/helpers/relay-worker.mjs",
+      "file": "artifacts/tests/helpers/relay-worker.mjs",
+      "bytes": 1420,
+      "sha256": "7a4dc4ce1a3b45902780d81fe11d12ac8eef6a22bad779220c40f9cc2333f0b3"
+    },
+    {
+      "path": "examples/sync-server/relay.mjs",
+      "file": "artifacts/examples/sync-server/relay.mjs",
+      "bytes": 12253,
+      "sha256": "c118eb199edade097ca9f79c599bd21406b7d5d63fb37c53af4105e98669d377"
+    },
+    {
+      "path": "packages/web/src/sync/protocol.ts",
+      "file": "artifacts/packages/web/src/sync/protocol.ts",
+      "bytes": 6662,
+      "sha256": "13246ca889ac65a2d774bbfdd1e2c40db84f3bf70ec7b5f4a869617118141563"
+    },
+    {
+      "path": "packages/web/src/sync/session.ts",
+      "file": "artifacts/packages/web/src/sync/session.ts",
+      "bytes": 9010,
+      "sha256": "5a39c16cdb2ca909b378ce5c772025435058677763396b8b45f9bb4773c0bac6"
+    },
+    {
+      "path": "packages/web/src/sync/receipts.ts",
+      "file": "artifacts/packages/web/src/sync/receipts.ts",
+      "bytes": 6623,
+      "sha256": "b70944bac9704168ec7b75435ca7e9f8e2cde607c70fc5877174eee9bf701714"
+    },
+    {
+      "path": "packages/web/src/storage/journal.ts",
+      "file": "artifacts/packages/web/src/storage/journal.ts",
+      "bytes": 8824,
+      "sha256": "53d45abc5c323683512470d41ada3941edfb4c249bd84a6dfca6d892b867c2a1"
+    },
+    {
+      "path": "packages/web/src/storage/outbox.ts",
+      "file": "artifacts/packages/web/src/storage/outbox.ts",
+      "bytes": 9832,
+      "sha256": "c743105f738f459c584ce70f62ed0abaea50684060d1954f245c24198061f0e4"
+    },
+    {
+      "path": "packages/core/dist/index.js",
+      "file": "artifacts/packages/core/dist/index.js",
+      "bytes": 1624,
+      "sha256": "db9945040f82be675b6b2626158b44db26c9fb704b42bfa5929077819a90bf1e"
+    },
+    {
+      "path": "packages/core/dist/engine.js",
+      "file": "artifacts/packages/core/dist/engine.js",
+      "bytes": 16202,
+      "sha256": "72df078844fb8ee441e0f58220fba02c51e1b647105cf4ac7a8bf9530c9c586b"
+    },
+    {
+      "path": "packages/core/dist/wasm/editac_wasm.js",
+      "file": "artifacts/packages/core/dist/wasm/editac_wasm.js",
+      "bytes": 25241,
+      "sha256": "ef26054ec4c44c92160bad2f4b3fc29507a3f7db88142c62bceba39a93c57e74"
+    },
+    {
+      "path": "packages/core/dist/wasm/editac_wasm_bg.wasm",
+      "file": "artifacts/packages/core/dist/wasm/editac_wasm_bg.wasm",
+      "bytes": 3652505,
+      "sha256": "c16438269e3b69d53da19969fdff6dfb7d1531c9a7e5eb4e6244e617ed52704d"
+    },
+    {
+      "path": "packages/web/dist/sync/protocol.js",
+      "file": "artifacts/packages/web/dist/sync/protocol.js",
+      "bytes": 6356,
+      "sha256": "cac453293d7ce6a2a9cbad1592f6dac6033f2f28b6d9c6e0fc4f394ca320a09e"
+    },
+    {
+      "path": "packages/web/dist/sync/session.js",
+      "file": "artifacts/packages/web/dist/sync/session.js",
+      "bytes": 9136,
+      "sha256": "2b411dea083d3b55e0cba3966b2e1c15abcd9e27ce077c478b20630cb64ecb0f"
+    },
+    {
+      "path": "packages/web/dist/sync/receipts.js",
+      "file": "artifacts/packages/web/dist/sync/receipts.js",
+      "bytes": 5729,
+      "sha256": "72d0e3c154e7e18971e6e41b8036db7f507bff4bd939c0dff5f6008a67bc9acc"
+    },
+    {
+      "path": "packages/web/dist/storage/journal.js",
+      "file": "artifacts/packages/web/dist/storage/journal.js",
+      "bytes": 8421,
+      "sha256": "d4fe1e43fbb1861e385d4ec33466d897b8882c50f2bdaea0b7356a0d3fb92192"
+    },
+    {
+      "path": "packages/web/dist/storage/outbox.js",
+      "file": "artifacts/packages/web/dist/storage/outbox.js",
+      "bytes": 9962,
+      "sha256": "ddecd3f7a3950be340a081a6a5cf5f4519f378e8ec85dfa5705f1999e261773c"
+    }
+  ],
+  "revision": "6edb83432468e44083740b586f973fb44f623352",
+  "server": {
+    "pid": 80924,
+    "port": 63845,
+    "workspace": "/Users/bpstr/Github/edit-ac/core/",
+    "launcher": "node --test tests/browser/offline-collaboration.spec.ts",
+    "purpose": "SYN-1.7 fixture modules",
+    "log": "feature.log",
+    "listenerRemoved": true
+  },
+  "browser": {
+    "engine": "Chromium",
+    "version": "156.0.8078.4",
+    "playwright": "1.64.0",
+    "executable": "/Users/bpstr/Library/Caches/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-mac-arm64/chrome-headless-shell",
+    "platform": "darwin",
+    "architecture": "arm64",
+    "qualifiedMechanisms": [
+      "CDP Page.crash",
+      "browser PID SIGKILL"
+    ],
+    "exclusions": [
+      "Firefox/WebKit",
+      "mobile devices",
+      "eviction/user deletion",
+      "power/hardware failure"
+    ]
+  }
+}

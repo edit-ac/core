@@ -1,0 +1,37 @@
+
+> edit-ac-workspace@0.0.0 test:browser
+> node scripts/test-browser.mjs offline-collaboration
+
+✖ two browser processes recover acknowledged offline edits and converge with reordered duplicate Yjs messages (2588.725666ms)
+✔ before-commit: lost relay response retains browser outbox, restart replay and duplicate receipt preserve local recovery (2129.222125ms)
+✔ after-commit: lost relay response retains browser outbox, restart replay and duplicate receipt preserve local recovery (1847.003583ms)
+✔ before-receipt: lost relay response retains browser outbox, restart replay and duplicate receipt preserve local recovery (2098.865959ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 3
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9296.112875
+
+✖ failing tests:
+
+test at tests/browser/offline-collaboration.spec.ts:68:3
+✖ two browser processes recover acknowledged offline edits and converge with reordered duplicate Yjs messages (2588.725666ms)
+  page.evaluate: EngineError: IncompleteRestore
+      at invoke (http://127.0.0.1:63845/core/engine.js:22:27)
+      at use (http://127.0.0.1:63845/core/engine.js:132:40)
+      at mutate (http://127.0.0.1:63845/core/engine.js:185:24)
+      at Object.applyUpdate (http://127.0.0.1:63845/core/engine.js:281:34)
+      at DirectSyncAdapter.receive (http://127.0.0.1:63845/web/sync/protocol.js:134:36)
+      at SyncSession.run (http://127.0.0.1:63845/web/sync/session.js:164:49)
+      at SyncSession.pump (http://127.0.0.1:63845/web/sync/session.js:135:29)
+      at Object.drain (http://127.0.0.1:63845/fixture/session.mjs:67:52)
+      at async <anonymous>:396:30
+      at /Users/bpstr/Github/edit-ac/core/tests/browser/offline-collaboration.spec.ts:107:62
+      at exchange (/Users/bpstr/Github/edit-ac/core/tests/browser/offline-collaboration.spec.ts:107:46)
+      at async file:///Users/bpstr/Github/edit-ac/core/tests/browser/offline-collaboration.spec.ts:156:5
+      at async TestContext.<anonymous> (/Users/bpstr/Github/edit-ac/core/tests/browser/offline-collaboration.spec.ts:70:11) {
+    log: []
+  }

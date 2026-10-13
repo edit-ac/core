@@ -1,0 +1,15 @@
+{
+  "scope": "Prepared entry fixtures only; no production socket, auth, relay or durable commit claim",
+  "update": { "profile": "editac.yrs-yjs.v1", "schema": "editac.registry.v1", "protocolVersion": 1, "updateEncoding": 1, "offsets": "utf16" },
+  "sync": { "package": "y-protocols", "version": "1.0.7", "step1": 0, "step2": 1, "update": 2 },
+  "awareness": { "package": "y-protocols", "version": "1.0.7", "durable": false },
+  "dependencies": { "yrs": "0.28.0", "yjs": "13.6.33" },
+  "receipt": {
+    "protocol": "editac-durable-receipt-v1", "state": "durable",
+    "identityFields": ["profile", "schema", "documentId", "epoch", "protocolVersion", "updateEncoding", "offsets"],
+    "updateFields": ["writerId", "sequence", "checksum", "updateId"],
+    "requiresNegotiatedCapability": true,
+    "requiresServiceStorageCommit": true
+  },
+  "outboxEngineFixture": { "profile": "editac.yrs-yjs.editor.v5", "schema": "editac.registry.editor.v5", "protocolVersion": 1, "updateEncoding": 1, "offsets": "utf16" }
+}

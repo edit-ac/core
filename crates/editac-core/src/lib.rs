@@ -8,6 +8,7 @@ pub mod anchors;
 pub mod commands;
 pub mod document;
 pub mod history;
+pub mod modules;
 mod ownership;
 pub mod patches;
 // One faithful v4 replay implementation shared with the preserved qualification

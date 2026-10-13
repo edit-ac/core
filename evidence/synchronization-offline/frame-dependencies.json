@@ -1,0 +1,282 @@
+[
+  {
+    "file": "frame-0.bin",
+    "source": "browser-A",
+    "bytes": 9,
+    "sha256": "0baf3925b75e51d1209593ef0f375e66b069ed2a9065bd51d02af285c7d547c4",
+    "type": 0,
+    "meta": {
+      "vector": [
+        [
+          3444404201,
+          25
+        ]
+      ]
+    }
+  },
+  {
+    "file": "frame-1.bin",
+    "source": "Yjs-reply",
+    "bytes": 4,
+    "sha256": "d81fe96dc500bc43e1cd5800bef9d72b3d030bdb7e860e10c522e4246b30bd93",
+    "type": 1,
+    "meta": {
+      "from": [],
+      "to": []
+    }
+  },
+  {
+    "file": "frame-2.bin",
+    "source": "browser-B",
+    "bytes": 9,
+    "sha256": "0baf3925b75e51d1209593ef0f375e66b069ed2a9065bd51d02af285c7d547c4",
+    "type": 0,
+    "meta": {
+      "vector": [
+        [
+          3444404201,
+          25
+        ]
+      ]
+    }
+  },
+  {
+    "file": "frame-3.bin",
+    "source": "Yjs-reply",
+    "bytes": 4,
+    "sha256": "d81fe96dc500bc43e1cd5800bef9d72b3d030bdb7e860e10c522e4246b30bd93",
+    "type": 1,
+    "meta": {
+      "from": [],
+      "to": []
+    }
+  },
+  {
+    "file": "frame-4.bin",
+    "source": "browser-A",
+    "bytes": 4,
+    "sha256": "d81fe96dc500bc43e1cd5800bef9d72b3d030bdb7e860e10c522e4246b30bd93",
+    "type": 1,
+    "meta": {
+      "from": [],
+      "to": []
+    }
+  },
+  {
+    "file": "frame-5.bin",
+    "source": "browser-A",
+    "bytes": 4,
+    "sha256": "d81fe96dc500bc43e1cd5800bef9d72b3d030bdb7e860e10c522e4246b30bd93",
+    "type": 1,
+    "meta": {
+      "from": [],
+      "to": []
+    }
+  },
+  {
+    "file": "frame-6.bin",
+    "source": "browser-B",
+    "bytes": 4,
+    "sha256": "d81fe96dc500bc43e1cd5800bef9d72b3d030bdb7e860e10c522e4246b30bd93",
+    "type": 1,
+    "meta": {
+      "from": [],
+      "to": []
+    }
+  },
+  {
+    "file": "frame-7.bin",
+    "source": "browser-B",
+    "bytes": 4,
+    "sha256": "d81fe96dc500bc43e1cd5800bef9d72b3d030bdb7e860e10c522e4246b30bd93",
+    "type": 1,
+    "meta": {
+      "from": [],
+      "to": []
+    }
+  },
+  {
+    "file": "frame-8.bin",
+    "source": "browser-A",
+    "bytes": 25,
+    "sha256": "624f07ef5da4ee90a5e2966951765659bea5985706adad0975118a91f67752bd",
+    "type": 2,
+    "meta": {
+      "from": [
+        [
+          2105079383,
+          0
+        ]
+      ],
+      "to": [
+        [
+          2105079383,
+          1
+        ]
+      ]
+    }
+  },
+  {
+    "file": "frame-9.bin",
+    "source": "browser-A",
+    "bytes": 25,
+    "sha256": "22c416fb0d2f6aec6ca8bfd9387790bfa400db292763568f0105a9b6d09cbcf5",
+    "type": 2,
+    "meta": {
+      "from": [
+        [
+          190241625,
+          0
+        ]
+      ],
+      "to": [
+        [
+          190241625,
+          1
+        ]
+      ]
+    }
+  },
+  {
+    "file": "frame-10.bin",
+    "source": "browser-A",
+    "bytes": 20,
+    "sha256": "e15ba083ae1fe416a85f169ab8a34f72b3dbabd8182d80373debd9e9cd83cce0",
+    "type": 0,
+    "meta": {
+      "vector": [
+        [
+          3444404201,
+          25
+        ],
+        [
+          190241625,
+          1
+        ],
+        [
+          2105079383,
+          1
+        ]
+      ]
+    }
+  },
+  {
+    "file": "frame-11.bin",
+    "source": "Yjs-reply",
+    "bytes": 23,
+    "sha256": "036605bdf0029a7e93266abcfc038a292b5184d1735014cd98b365a33d604952",
+    "type": 1,
+    "meta": {
+      "from": [
+        [
+          404,
+          0
+        ]
+      ],
+      "to": [
+        [
+          404,
+          1
+        ]
+      ]
+    }
+  },
+  {
+    "file": "frame-12.bin",
+    "source": "browser-B",
+    "bytes": 26,
+    "sha256": "d6e56e8522e415fd8dc0816fd5335609fdfe26a8d00bb10959bb5b631f95cb5e",
+    "type": 2,
+    "meta": {
+      "from": [
+        [
+          3685986909,
+          1
+        ]
+      ],
+      "to": [
+        [
+          3685986909,
+          2
+        ]
+      ]
+    }
+  },
+  {
+    "file": "frame-13.bin",
+    "source": "browser-B",
+    "bytes": 26,
+    "sha256": "7a10358c07732ef3046c49902a80c3ecaa55b6165be21082c5009794a047d445",
+    "type": 2,
+    "meta": {
+      "from": [
+        [
+          3685986909,
+          0
+        ]
+      ],
+      "to": [
+        [
+          3685986909,
+          1
+        ]
+      ]
+    }
+  },
+  {
+    "file": "frame-14.bin",
+    "source": "browser-B",
+    "bytes": 15,
+    "sha256": "0741d3ed737685a2fdfc5d3f8fbdc8bf8d482f397b09feaf080f3033522dc36a",
+    "type": 0,
+    "meta": {
+      "vector": [
+        [
+          3444404201,
+          25
+        ],
+        [
+          3685986909,
+          2
+        ]
+      ]
+    }
+  },
+  {
+    "file": "frame-15.bin",
+    "source": "Yjs-reply",
+    "bytes": 65,
+    "sha256": "aed4fa195509edb8c60a59e3bcc6e0bed8ad5f1201be09f4d52707cc6815dae7",
+    "type": 1,
+    "meta": {
+      "from": [
+        [
+          2105079383,
+          0
+        ],
+        [
+          190241625,
+          0
+        ],
+        [
+          404,
+          0
+        ]
+      ],
+      "to": [
+        [
+          2105079383,
+          1
+        ],
+        [
+          190241625,
+          1
+        ],
+        [
+          404,
+          1
+        ]
+      ]
+    }
+  }
+]

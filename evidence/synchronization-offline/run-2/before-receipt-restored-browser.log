@@ -1,0 +1,5 @@
+
+DevTools listening on ws://127.0.0.1:63958/devtools/browser/c91428ff-78b8-4879-a156-310c2b8a3c3d
+[1013/033614.243168:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[1013/033614.246527:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670
+[1013/033614.282960:ERROR:ui/display/mac/cv_display_link_mac.mm:188] CVDisplayLinkCreateWithCGDisplay failed. CVReturn: -6670

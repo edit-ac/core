@@ -1,0 +1,9 @@
+# Real engine rendering fixture
+
+Internal WEB-1.2 integration harness. It loads an independent packed `@edit-ac/core` browser WASM build, prepares deterministic semantic content, checkpoints it to IndexedDB, recovers through the production local-storage adapter and attaches `DOMRenderer` to the recovered engine. Edits use production semantic commands and local flush; DOM input/selection handlers are later roadmap work.
+
+After building core/WASM and web, run `npm run test:browser -- render`. The named suite runs the same seven checks in Playwright 1.64.0 Chromium, Firefox and WebKit, failing on missing browser binaries. Install the pinned browsers with `npx playwright install chromium-headless-shell firefox webkit`. For the narrow check, use `node --test --test-name-pattern='one-character patch' tests/browser/render.spec.ts` (Chromium by default). `EDITAC_RENDER_OUTPUT` selects durable evidence output; the matrix writes one subdirectory per engine.
+
+Coverage: text/headings through validated engine tuples, five supported mark types and safe links, ordered/nested/check lists, quotes, code, hard breaks, empty paragraphs and noneditable separators; incremental text/run/node identity, UTF-16 text/break maps, structural patches, read-only literal text and hostile attributes, disposable cache reconstruction. Unknown extension tuples fall back to inert paragraph presentation; attributes are never spread onto DOM. The hostile-attribute case uses a prepared projection boundary; other cases use real packed WASM plus IndexedDB persistence. Heading levels 2 and 3 are executed; the other valid levels share the renderer path and are not separate qualification cases.
+
+These are desktop automated mechanics, not actual keyboard/IME/mobile/accessibility support or publication evidence. Each test context closes; the harness closes its browser controller and loopback fixture server, checks process/listener teardown and removes its temporary packed consumer.

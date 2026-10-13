@@ -1,0 +1,17 @@
+{
+  "origin": "SYN-1.7 run-2 frozen Rust receiver failure; dependent clock 1\u21922 precedes clock 0\u21921",
+  "identity": {
+    "profile": "editac.yrs-yjs.editor.v5",
+    "schema": "editac.registry.editor.v5",
+    "documentId": "12345678-1234-4234-8234-123456789abc",
+    "epoch": "23456789-2345-4345-8345-23456789abcd",
+    "protocolVersion": 1,
+    "updateEncoding": 1,
+    "offsets": "utf16"
+  },
+  "hashes": {
+    "initial.bin": "a8d3ea30e00352c15110d791013e8fb16fc05d4099f1617c9df243145cbfc60c",
+    "frame-12.bin": "d6e56e8522e415fd8dc0816fd5335609fdfe26a8d00bb10959bb5b631f95cb5e",
+    "frame-13.bin": "7a10358c07732ef3046c49902a80c3ecaa55b6165be21082c5009794a047d445"
+  }
+}

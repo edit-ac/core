@@ -1,0 +1,15 @@
+import { readFile, mkdir, copyFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
+import { createHash } from 'node:crypto';
+const require = createRequire(import.meta.url);
+const entry = require.resolve('katex');
+const root = dirname(dirname(entry));
+const metadata = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
+const source = join(root, 'dist/katex.mjs');
+const sha256 = createHash('sha256').update(await readFile(source)).digest('hex');
+if (metadata.version !== '0.19.0' || sha256 !== 'e5bc26598084ad869939ecaa262673814f26ed586312a409b5f8427c01e4f681') throw Error('Unverified math renderer');
+const destination = new URL('../packages/web/dist/modules/vendor/', import.meta.url);
+await mkdir(destination, { recursive: true });
+await copyFile(source, new URL('katex.mjs', destination));
+await copyFile(join(root, 'LICENSE'), new URL('LICENSE.katex', destination));
