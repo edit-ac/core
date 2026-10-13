@@ -18,6 +18,9 @@ export interface StableRange { anchor: AnchorToken; focus: AnchorToken }
 export type ContainerStyle = { type: "unordered" | "checklist" | "quote" } | { type: "ordered"; start: number };
 export interface MoveTarget { id: string; version: string }
 export type EditorCommand =
+  | { type: "replaceAt"; owner: string; from: number; to: number; text: string }
+  | { type: "markAt"; owner: string; from: number; to: number; mark: MarkCommand["mark"]; action: FormatAction; href?: string | null }
+  | { type: "selectionAt"; anchor: EditorPosition; focus: EditorPosition }
   | { type: "tableCell"; owner: string; expected: Json; row: number; column: number; text: string }
   | { type: "insert"; at: AnchorToken; text: string }
   | { type: "delete"; range: StableRange }
@@ -33,6 +36,8 @@ export type EditorCommand =
   | { type: "hardBreak"; at: AnchorToken }
   | { type: "insertSeparator"; beside: string; side: "before" | "after" }
   | { type: "insertParagraph"; separator: string; side: "before" | "after"; text: string };
+/** Synchronous UTF-16 coordinates in the batch state after preceding commands. */
+export interface EditorPosition { owner: string; offset: number; bias: Bias }
 export type TextCommand = Extract<EditorCommand, { type: "insert" | "delete" | "replace" }>;
 export type FormatAction = "apply" | "remove" | "toggle";
 export interface MarkCommand {
@@ -99,7 +104,7 @@ export interface Patch {
 /** Callback capture is released on disposal; active becomes false on engine disposal too. */
 export interface PatchSubscription { readonly active: boolean; dispose(): void }
 export interface ObserverError { subscriptionId: number; message: string }
-export interface CommitResult { readonly revision: number; readonly caret?: AnchorToken }
+export interface CommitResult { readonly revision: number; readonly caret?: AnchorToken; readonly selection?: StableRange }
 /** Trusted pure hooks, called in declaration order after portable parsing. */
 export interface MarkdownExtension {
   readonly name: string;

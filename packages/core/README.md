@@ -112,3 +112,7 @@ tarball offline into a temporary consumer and shuts down its server/browser.
 Publishing is disabled until the implementation and release gates in
 [edit-ac/architecture](https://github.com/edit-ac/architecture) pass.
 License: Apache-2.0.
+
+### Ordered atomic text and mark batches
+
+Use `prepare({ kind: "editor", origin, commands })` with `replaceAt` and `markAt` for synchronous offsets in the staged document after preceding commands. A final `selectionAt` returns `commit(plan).selection` as two stable anchor tokens; release both when finished. Invalid later commands and invalid selection endpoints reject the entire preparation without live changes. Commit rejects stale plans. Keep asynchronous targets as stable anchors; do not reuse integer offsets after awaiting unrelated work. Existing anchored commands and caret results retain their behavior.

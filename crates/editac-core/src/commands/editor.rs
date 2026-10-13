@@ -8,8 +8,36 @@ use crate::{
 use std::collections::VecDeque;
 use yrs::{Any, Map, ReadTxn, Transact, XmlTextPrelim};
 
+/// A synchronous UTF-16 cut in the disposable batch state, not a live anchor.
+#[derive(Clone, Debug)]
+pub struct EditorPosition {
+    pub owner: String,
+    pub offset: crate::Utf16Offset,
+    pub bias: crate::anchors::Bias,
+}
+
 #[derive(Clone, Debug)]
 pub enum EditorCommand {
+    /// Resolve the range after all preceding commands on the disposable replica.
+    ReplaceAt {
+        owner: String,
+        from: crate::Utf16Offset,
+        to: crate::Utf16Offset,
+        text: String,
+    },
+    MarkAt {
+        owner: String,
+        from: crate::Utf16Offset,
+        to: crate::Utf16Offset,
+        mark: super::format::Mark,
+        action: super::format::FormatAction,
+        href: Option<String>,
+    },
+    /// Must be the last command. Both cuts are validated before live mutation.
+    SelectionAt {
+        anchor: EditorPosition,
+        focus: EditorPosition,
+    },
     /// Higher-level list policy expands only on the disposable prepared replica.
     List(super::lists::ListCommand),
     BlockCommand(super::blocks::BlockCommand),
@@ -79,6 +107,7 @@ pub enum EditorError {
     ResourceLimit,
     Move(super::r#move::MoveRejection),
     Text(TextError),
+    Format(super::format::FormatError),
     Admission(DocumentError),
 }
 pub struct PreparedEditorEdit {
@@ -90,14 +119,19 @@ pub struct PreparedEditorEdit {
     origin: TextOrigin,
     next_operation: u32,
     result_caret: Option<crate::anchors::Anchor>,
+    result_selection: Option<crate::anchors::Selection>,
 }
 impl PreparedEditorEdit {
     pub fn result_caret(&self) -> Option<&crate::anchors::Anchor> {
         self.result_caret.as_ref()
     }
+    pub fn result_selection(&self) -> Option<&crate::anchors::Selection> {
+        self.result_selection.as_ref()
+    }
 }
 pub struct EditorCommit {
     pub result_caret: Option<crate::anchors::Anchor>,
+    pub result_selection: Option<crate::anchors::Selection>,
     pub revision: u64,
     pub origin: TextOrigin,
     pub update: ReplayUpdate,
@@ -656,6 +690,7 @@ impl Document {
             origin: origin.clone(),
             next_operation: self.next_structure_counter,
             result_caret: Some(result),
+            result_selection: None,
         })
     }
 }
@@ -1056,6 +1091,7 @@ impl Document {
             origin: origin.clone(),
             next_operation: self.next_structure_counter,
             result_caret: None,
+            result_selection: None,
         })
     }
 
@@ -1106,6 +1142,7 @@ impl Document {
         let mut counter = self.next_structure_counter;
         let mut last_separator = None;
         let mut result_caret = None;
+        let mut result_selection = None;
         let mut result_owner = None;
         let mut pending: VecDeque<_> = commands.to_vec().into();
         let mut expanded = 0usize;
@@ -1115,6 +1152,74 @@ impl Document {
                 return Err(EditorError::ResourceLimit);
             }
             match &c {
+                EditorCommand::ReplaceAt {
+                    owner,
+                    from,
+                    to,
+                    text,
+                } => {
+                    let d = self.virtual_document(&stage)?;
+                    let selection = d
+                        .selection(
+                            (owner, *from, crate::anchors::Bias::Right),
+                            (owner, *to, crate::anchors::Bias::Left),
+                        )
+                        .map_err(|_| EditorError::InvalidCommand)?;
+                    let plan = d
+                        .prepare_text(
+                            &super::text::TextCommand::Replace {
+                                selection,
+                                text: text.clone(),
+                            },
+                            origin,
+                        )
+                        .map_err(EditorError::Text)?;
+                    super::text::apply_prepared_to_stage(&stage, plan);
+                }
+                EditorCommand::MarkAt {
+                    owner,
+                    from,
+                    to,
+                    mark,
+                    action,
+                    href,
+                } => {
+                    let mut d = self.virtual_document(&stage)?;
+                    let selection = d
+                        .selection(
+                            (owner, *from, crate::anchors::Bias::Right),
+                            (owner, *to, crate::anchors::Bias::Left),
+                        )
+                        .map_err(|_| EditorError::InvalidCommand)?;
+                    let plan = d
+                        .prepare_format(
+                            &[super::format::FormatCommand {
+                                selection,
+                                mark: *mark,
+                                action: *action,
+                                href: href.clone(),
+                            }],
+                            origin,
+                        )
+                        .map_err(EditorError::Format)?;
+                    let commit = d.commit_format(plan).map_err(EditorError::Format)?;
+                    if let Some(update) = commit.update {
+                        m::apply(&stage, &update.bytes).map_err(error)?;
+                    }
+                }
+                EditorCommand::SelectionAt { anchor, focus } => {
+                    if !pending.is_empty() {
+                        return Err(EditorError::InvalidCommand);
+                    }
+                    let d = self.virtual_document(&stage)?;
+                    result_selection = Some(
+                        d.selection(
+                            (&anchor.owner, anchor.offset, anchor.bias),
+                            (&focus.owner, focus.offset, focus.bias),
+                        )
+                        .map_err(|_| EditorError::InvalidCommand)?,
+                    );
+                }
                 EditorCommand::Move(command) => {
                     let step = super::r#move::expand(&stage, stable, command)?;
                     pending.push_front(step);
@@ -1706,6 +1811,21 @@ impl Document {
                 _ => return Err(EditorError::InvalidCommand),
             }
         }
+        if let Some(selection) = &result_selection {
+            for endpoint in [&selection.anchor, &selection.focus] {
+                if !matches!(
+                    crate::anchors::resolve(
+                        &stage.transact(),
+                        self.identity(),
+                        &hierarchy,
+                        endpoint
+                    ),
+                    crate::anchors::Resolution::Position(_)
+                ) {
+                    return Err(EditorError::InvalidCommand);
+                }
+            }
+        }
         super::lists::validate_editor_hierarchy(&hierarchy, &[]).map_err(|e| {
             if matches!(
                 e,
@@ -1732,7 +1852,21 @@ impl Document {
             origin: origin.clone(),
             next_operation: counter,
             result_caret,
+            result_selection,
         })
+    }
+    fn virtual_document(&self, stage: &yrs::Doc) -> Result<Document, EditorError> {
+        Document::restore(
+            self.identity(),
+            &crate::document::InitializedCheckpoint {
+                identity: self.identity().clone(),
+                initialized: true,
+                writer_id: self.writer_id(),
+                bytes: m::bytes(stage),
+            },
+            &[],
+        )
+        .map_err(EditorError::Admission)
     }
     pub fn commit_editor(&mut self, plan: PreparedEditorEdit) -> Result<EditorCommit, EditorError> {
         if self.identity() != &plan.identity || self.writer_id() != plan.writer {
@@ -1759,6 +1893,7 @@ impl Document {
         self.revision = revision;
         let commit = EditorCommit {
             result_caret: plan.result_caret,
+            result_selection: plan.result_selection,
             revision,
             origin: plan.origin,
             update: ReplayUpdate {

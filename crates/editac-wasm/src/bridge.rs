@@ -10,7 +10,7 @@ use editac_core::{
     anchors::{Anchor, Bias, Resolution, Selection},
     commands::{
         blocks::{BlockCommand, Side},
-        editor::{EditorCommand, PreparedEditorEdit},
+        editor::{EditorCommand, EditorPosition, PreparedEditorEdit},
         format::{BlockFormatCommand, FormatAction, FormatCommand, PreparedFormatBatch},
         lists::ListCommand,
         r#move::{MoveCommand, MoveTarget},
@@ -158,6 +158,24 @@ enum TextRequest {
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
 enum Command {
+    ReplaceAt {
+        owner: String,
+        from: u32,
+        to: u32,
+        text: String,
+    },
+    MarkAt {
+        owner: String,
+        from: u32,
+        to: u32,
+        mark: MarkName,
+        action: Action,
+        href: Option<String>,
+    },
+    SelectionAt {
+        anchor: Position,
+        focus: Position,
+    },
     TableCell {
         owner: String,
         expected: Value,
@@ -247,6 +265,22 @@ enum Command {
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+struct Position {
+    owner: String,
+    offset: u32,
+    bias: Affinity,
+}
+impl Position {
+    fn native(self) -> EditorPosition {
+        EditorPosition {
+            owner: self.owner,
+            offset: Utf16Offset(self.offset),
+            bias: self.bias.bias(),
+        }
+    }
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Target {
     id: String,
     version: String,
@@ -322,9 +356,19 @@ enum HistoryRequest {
     Typing { session: u32, time_ms: u32 },
     Composition { session: u32 },
 }
+#[derive(Default)]
+struct ResultTokens {
+    caret: Option<String>,
+    selection: Option<(String, String)>,
+}
+impl ResultTokens {
+    fn slots(&self) -> usize {
+        usize::from(self.caret.is_some()) + 2 * usize::from(self.selection.is_some())
+    }
+}
 enum Plan {
     Text(PreparedTextEdit),
-    Editor(PreparedEditorEdit, Option<String>),
+    Editor(PreparedEditorEdit, ResultTokens),
     Format(PreparedFormatBatch),
 }
 
@@ -499,8 +543,11 @@ impl Bridge {
             + self
                 .plans
                 .values()
-                .filter(|p| matches!(p, Plan::Editor(_, Some(_))))
-                .count()
+                .map(|p| match p {
+                    Plan::Editor(_, tokens) => tokens.slots(),
+                    _ => 0,
+                })
+                .sum::<usize>()
     }
     pub fn capture(&mut self, input: &str) -> Result<Value> {
         if self.anchor_slots() >= MAX_ANCHORS {
@@ -595,6 +642,36 @@ impl Bridge {
     }
     fn command(&self, c: Command) -> Result<EditorCommand> {
         Ok(match c {
+            Command::ReplaceAt {
+                owner,
+                from,
+                to,
+                text,
+            } => EditorCommand::ReplaceAt {
+                owner,
+                from: Utf16Offset(from),
+                to: Utf16Offset(to),
+                text,
+            },
+            Command::MarkAt {
+                owner,
+                from,
+                to,
+                mark,
+                action,
+                href,
+            } => EditorCommand::MarkAt {
+                owner,
+                from: Utf16Offset(from),
+                to: Utf16Offset(to),
+                mark: mark.native(),
+                action: action.native(),
+                href,
+            },
+            Command::SelectionAt { anchor, focus } => EditorCommand::SelectionAt {
+                anchor: anchor.native(),
+                focus: focus.native(),
+            },
             Command::TableCell {
                 owner,
                 expected,
@@ -706,7 +783,7 @@ impl Bridge {
                     self.doc
                         .prepare_fragment(&selection, &blocks, &origin)
                         .map_err(|e| kernel("prepare", e))?,
-                    None,
+                    ResultTokens::default(),
                 )
             }
             Prepare::Text { origin, command } => {
@@ -743,7 +820,7 @@ impl Bridge {
                     self.doc
                         .prepare_editor(&commands, &origin)
                         .map_err(|e| kernel("prepare", e))?,
-                    None,
+                    ResultTokens::default(),
                 )
             }
             Prepare::Format {
@@ -790,12 +867,18 @@ impl Bridge {
         if self.plans.len() >= MAX_PLANS {
             return Err(err("ResourceLimit", "prepare", "release unused plans"));
         }
-        let needs_caret = matches!(plan, Plan::Editor(p, _) if p.result_caret().is_some());
-        if needs_caret && self.anchor_slots() >= MAX_ANCHORS {
+        let needed = match plan {
+            Plan::Editor(p, _) => {
+                usize::from(p.result_caret().is_some())
+                    + 2 * usize::from(p.result_selection().is_some())
+            }
+            _ => 0,
+        };
+        if self.anchor_slots().saturating_add(needed) > MAX_ANCHORS {
             return Err(err("ResourceLimit", "prepare", "release unused anchors"));
         }
         self.counter
-            .checked_add(if needs_caret { 2 } else { 1 })
+            .checked_add(1 + needed as u32)
             .ok_or_else(|| err("ResourceLimit", "prepare", "token counter exhausted"))?;
         Ok(())
     }
@@ -811,7 +894,10 @@ impl Bridge {
         let token = self.token("plan")?;
         if let Plan::Editor(p, reservation) = &mut plan {
             if p.result_caret().is_some() {
-                *reservation = Some(self.token("anchor")?);
+                reservation.caret = Some(self.token("anchor")?);
+            }
+            if p.result_selection().is_some() {
+                reservation.selection = Some((self.token("anchor")?, self.token("anchor")?));
             }
         }
         self.plans.insert(token.clone(), plan);
@@ -835,9 +921,16 @@ impl Bridge {
             }
             Plan::Editor(p, reservation) => {
                 let commit = self.doc.commit_editor(p).map_err(|e| kernel("commit", e))?;
-                if let (Some(caret), Some(token)) = (commit.result_caret, reservation) {
+                if let (Some(caret), Some(token)) = (commit.result_caret, reservation.caret) {
                     self.anchors.insert(token.clone(), caret);
                     result["caret"] = json!(token);
+                }
+                if let (Some(selection), Some((anchor, focus))) =
+                    (commit.result_selection, reservation.selection)
+                {
+                    self.anchors.insert(anchor.clone(), selection.anchor);
+                    self.anchors.insert(focus.clone(), selection.focus);
+                    result["selection"] = json!({"anchor":anchor, "focus":focus});
                 }
             }
             Plan::Format(p) => {
@@ -1061,5 +1154,72 @@ mod result_caret_tests {
             failure.message
         );
         assert_eq!(b.doc_state(), state);
+    }
+}
+
+#[cfg(test)]
+mod atomic_selection_tests {
+    use super::*;
+    fn fixture(serial: u32) -> (Bridge, String, String) {
+        let b=Bridge::create(&json!({"profile":"v5","documentId":format!("42200000-0000-4000-8000-{serial:012}"),"epoch":format!("42200000-0000-4000-9000-{serial:012}"),"nodes":[{"text":"abc"}]}).to_string()).unwrap();
+        let node = b.doc.snapshot().unwrap().visible[0].id.clone();
+        let request=json!({"kind":"editor","origin":"atomic:fixture","commands":[{"type":"replaceAt","owner":node,"from":1,"to":1,"text":"X"},{"type":"markAt","owner":node,"from":1,"to":2,"mark":"bold","action":"apply"},{"type":"selectionAt","anchor":{"owner":node,"offset":2,"bias":"left"},"focus":{"owner":node,"offset":2,"bias":"right"}}]}).to_string();
+        (b, node, request)
+    }
+    #[test]
+    fn result_selection_tokens_are_reserved_before_mutation_and_released() {
+        let (mut b, node, request) = fixture(1);
+        for _ in 0..MAX_ANCHORS - 1 {
+            b.capture(&json!({"node":node,"offset":0,"bias":"left"}).to_string())
+                .unwrap();
+        }
+        let old = b.doc_state();
+        let counter = b.counter;
+        assert!(b.can(&request).is_err());
+        assert!(b.prepare(&request).is_err());
+        assert_eq!(b.doc_state(), old);
+        assert_eq!(b.counter, counter);
+        let token = b.anchors.keys().next().unwrap().clone();
+        b.release_anchor(&token);
+        let plan = b.prepare(&request).unwrap();
+        assert_eq!(b.anchor_slots(), MAX_ANCHORS);
+        assert!(
+            b.capture(&json!({"node":node,"offset":0,"bias":"left"}).to_string())
+                .is_err()
+        );
+        b.release_plan(plan["token"].as_str().unwrap());
+        assert_eq!(b.anchor_slots(), MAX_ANCHORS - 2);
+        assert_eq!(b.doc_state(), old);
+    }
+    #[test]
+    fn selection_token_overflow_and_invalid_final_cut_are_pre_mutation() {
+        let (mut b, node, request) = fixture(2);
+        b.counter = u32::MAX - 2;
+        let old = b.doc_state();
+        assert!(b.can(&request).is_err());
+        assert!(b.prepare(&request).is_err());
+        assert_eq!(b.doc_state(), old);
+        assert_eq!(b.counter, u32::MAX - 2);
+        let (mut b, _, request) = fixture(3);
+        let mut invalid: Value = serde_json::from_str(&request).unwrap();
+        invalid["commands"][2]["focus"]["offset"] = json!(99);
+        let old = b.doc_state();
+        assert!(b.prepare(&invalid.to_string()).is_err());
+        assert_eq!(b.doc_state(), old);
+        assert!(b.anchors.is_empty());
+        assert!(b.plans.is_empty());
+        let _ = node;
+    }
+    #[test]
+    fn stale_selection_plan_consumes_reservations_and_never_exposes_results() {
+        let (mut b, node, request) = fixture(4);
+        let plan = b.prepare(&request).unwrap();
+        assert_eq!(b.anchor_slots(), 2);
+        let other=b.prepare(&json!({"kind":"editor","origin":"other","commands":[{"type":"replaceAt","owner":node,"from":0,"to":0,"text":"Z"}]}).to_string()).unwrap();
+        b.commit(other["token"].as_str().unwrap()).unwrap();
+        let old = b.doc_state();
+        assert!(b.commit(plan["token"].as_str().unwrap()).is_err());
+        assert_eq!(b.doc_state(), old);
+        assert_eq!(b.anchor_slots(), 0);
     }
 }
