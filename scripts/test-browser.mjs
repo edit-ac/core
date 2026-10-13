@@ -30,6 +30,7 @@ suites.dispose = ['tests/browser/dispose.spec.ts'];
 suites.accessibility = ['tests/browser/accessibility.spec.ts'];
 suites.example = ['tests/browser/web-example.test.mjs'];
 suites.review = ['tests/browser/review.spec.ts'];
+suites['review-concurrent'] = ['tests/browser/review-concurrent.spec.ts'];
 suites['history-review'] = ['tests/browser/history-review.spec.ts'];
 suites['history-selection'] = ['tests/browser/history-selection.spec.ts'];
 suites.baseline = [...suites.render, ...suites.keyboard, ...suites.example];

@@ -39,7 +39,7 @@ export function prepareReview(input: ReviewInput, suppliedLimits: Partial<Review
     if (m.retained_structure !== null && (!Array.isArray(m.retained_structure) || m.retained_structure.length !== 2)) throw Error('Invalid retained structure');
     const ids = new Set<string>();
     const changes = m.changes.map((c: ReviewChange) => {
-      if (!c || typeof c.id !== 'string' || !c.id || ids.has(c.id) || !Array.isArray(c.facets) || !c.facets.length || c.facets.some(f => !facets.includes(f))) throw Error('Invalid semantic change');
+      if (!c || typeof c.id !== 'string' || !c.id || ids.has(c.id) || !Array.isArray(c.facets) || !c.facets.length || c.facets.some((f, i) => !facets.includes(f) || (i > 0 && facets.indexOf(c.facets[i-1]!) >= facets.indexOf(f))) || (c.before === null && c.after === null)) throw Error('Invalid semantic change');
       for (const node of [c.before, c.after]) if (node !== null && (!node || typeof node !== 'object' || Array.isArray(node) || (node as Record<string, unknown>).id !== c.id)) throw Error('Invalid semantic node');
       ids.add(c.id); return c;
     });
@@ -86,4 +86,29 @@ export function prepareReview(input: ReviewInput, suppliedLimits: Partial<Review
   }
   const projected = frozen.representation === 'projected-markdown';
   return { representation: frozen.representation, label: projected ? 'Projected Markdown changes' : 'Exact source changes', explanation: projected ? `Serialized Markdown (${frozen.serializer}; ${frozen.dialect}). Serialization may normalize source spelling; this is not original source.` : 'Original UTF-8 source spelling, CRLF and final newline. CRDT updates are not source diffs.', beforeHash, afterHash, key: `${frozen.representation}:${projected ? frozen.serializer + ':' + frozen.dialect : ''}:${beforeHash}:${afterHash}`, hunks, changes: [], retainedStructure: null, attribution: 'Unknown / unverified' };
+}
+
+/** Portable terminal/native/web companion input; contains no apply authority. */
+export interface PortableChangeModel { version: 'editac-change-model-v1'; input: ReviewInput }
+export function exportChangeModel(input: ReviewInput, limits: Partial<ReviewLimits> = {}): string {
+  prepareReview(input, limits);
+  const wire = JSON.stringify({ version: 'editac-change-model-v1', input });
+  if (new TextEncoder().encode(wire).length > reviewLimits(limits).maxInputBytes) throw Error('Portable model exceeds byte limit');
+  importChangeModel(wire, limits);
+  return wire;
+}
+export function importChangeModel(wire: string, limits: Partial<ReviewLimits> = {}): ReviewInput {
+  if (new TextEncoder().encode(wire).length > reviewLimits(limits).maxInputBytes) throw Error('Portable model exceeds byte limit');
+  const model = JSON.parse(wire) as PortableChangeModel;
+  if (!model || model.version !== 'editac-change-model-v1' || Object.keys(model).sort().join(',') !== 'input,version') throw Error('Unsupported portable model');
+  const keys = Object.keys(model.input ?? {}).sort().join(',');
+  const expected = model.input?.representation === 'semantic' ? 'model,representation' : model.input?.representation === 'projected-markdown' ? 'dialect,representation,serializer,wire' : 'representation,wire';
+  if (keys !== expected) throw Error('Invalid portable input');
+  if (model.input.representation === 'semantic') {
+    const semantic = model.input.model as Record<string, unknown>;
+    const exactKeys = (value: unknown, expected: string) => value !== null && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).sort().join(',') === expected;
+    if (!exactKeys(semantic, 'after_hash,attribution,before_hash,changes,retained_structure,version') || !Array.isArray(semantic.changes) || semantic.changes.some(change => !exactKeys(change, 'after,before,facets,id'))) throw Error('Unsupported portable semantic fields');
+  }
+  prepareReview(model.input, limits);
+  return model.input;
 }

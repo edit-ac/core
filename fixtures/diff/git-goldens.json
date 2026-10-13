@@ -1,0 +1,102 @@
+{
+  "git": "git version 2.53.0",
+  "args": [
+    "-c",
+    "core.autocrlf=false",
+    "-c",
+    "core.safecrlf=false",
+    "diff",
+    "--no-index",
+    "--no-color",
+    "--no-ext-diff",
+    "--no-textconv",
+    "--diff-algorithm=myers",
+    "--no-indent-heuristic",
+    "--unified=3",
+    "--",
+    "before",
+    "after"
+  ],
+  "cases": [
+    {
+      "id": "equal",
+      "before": "alpha\n",
+      "after": "alpha\n",
+      "identical": true,
+      "git_exit": 0,
+      "git_output": ""
+    },
+    {
+      "id": "replace",
+      "before": "alpha\nbeta\n",
+      "after": "alpha\ngamma\n",
+      "identical": true,
+      "git_exit": 1,
+      "git_output": "diff --git a/before b/after\nindex fbbee86..7819bf7 100644\n--- a/before\n+++ b/after\n@@ -1,2 +1,2 @@\n alpha\n-beta\n+gamma\n"
+    },
+    {
+      "id": "insert",
+      "before": "",
+      "after": "🙂 é\n",
+      "identical": true,
+      "git_exit": 1,
+      "git_output": "diff --git a/before b/after\nindex e69de29..4b3f1ff 100644\n--- a/before\n+++ b/after\n@@ -0,0 +1 @@\n+🙂 é\n"
+    },
+    {
+      "id": "delete",
+      "before": "alpha\nbeta\n",
+      "after": "",
+      "identical": true,
+      "git_exit": 1,
+      "git_output": "diff --git a/before b/after\nindex fbbee86..e69de29 100644\n--- a/before\n+++ b/after\n@@ -1,2 +0,0 @@\n-alpha\n-beta\n"
+    },
+    {
+      "id": "crlf",
+      "before": "alpha\r\nbeta\r\n",
+      "after": "alpha\r\ngamma\r\n",
+      "identical": true,
+      "git_exit": 1,
+      "git_output": "diff --git a/before b/after\nindex 17f2fc0..21643d9 100644\n--- a/before\n+++ b/after\n@@ -1,2 +1,2 @@\n alpha\r\n-beta\r\n+gamma\r\n"
+    },
+    {
+      "id": "no-final-newline",
+      "before": "alpha\nbeta",
+      "after": "alpha\ngamma",
+      "identical": true,
+      "git_exit": 1,
+      "git_output": "diff --git a/before b/after\nindex 91896af..febb53a 100644\n--- a/before\n+++ b/after\n@@ -1,2 +1,2 @@\n alpha\n-beta\n\\ No newline at end of file\n+gamma\n\\ No newline at end of file\n"
+    },
+    {
+      "id": "newline-only",
+      "before": "alpha",
+      "after": "alpha\n",
+      "identical": true,
+      "git_exit": 1,
+      "git_output": "diff --git a/before b/after\nindex 7e74e68..4a58007 100644\n--- a/before\n+++ b/after\n@@ -1 +1 @@\n-alpha\n\\ No newline at end of file\n+alpha\n"
+    },
+    {
+      "id": "repeat",
+      "before": "a\nx\na\nx\n",
+      "after": "a\na\nx\nx\n",
+      "identical": false,
+      "git_exit": 1,
+      "git_output": "diff --git a/before b/after\nindex 934922b..9d15432 100644\n--- a/before\n+++ b/after\n@@ -1,4 +1,4 @@\n a\n-x\n a\n x\n+x\n"
+    },
+    {
+      "id": "move",
+      "before": "first\nsecond\nthird\n",
+      "after": "third\nfirst\nsecond\n",
+      "identical": false,
+      "git_exit": 1,
+      "git_output": "diff --git a/before b/after\nindex ff6e6b1..8626715 100644\n--- a/before\n+++ b/after\n@@ -1,3 +1,3 @@\n+third\n first\n second\n-third\n"
+    },
+    {
+      "id": "unicode",
+      "before": "🙂 é שלום\n",
+      "after": "👩‍💻 é مرحبا\n",
+      "identical": true,
+      "git_exit": 1,
+      "git_output": "diff --git a/before b/after\nindex eec6a50..d9aac9f 100644\n--- a/before\n+++ b/after\n@@ -1 +1 @@\n-🙂 é שלום\n+👩‍💻 é مرحبا\n"
+    }
+  ]
+}

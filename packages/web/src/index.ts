@@ -29,8 +29,8 @@ export type { ContentFactory, ContentView, ContentContext, ImageMetadata, Conten
 export type { MarkdownAdapter, TypingShortcutAdapter } from './input/shortcuts.js';
 
 export { ChangeReview } from './review/view.js';
-export { prepareReview, DEFAULT_REVIEW_LIMITS } from './review/model.js';
+export { prepareReview, exportChangeModel, importChangeModel, DEFAULT_REVIEW_LIMITS } from './review/model.js';
 export type { ChangeReviewOptions, ReviewSelection } from './review/view.js';
-export type { ReviewInput, ReviewLayout, ReviewMode, ReviewLimits, ReviewModel } from './review/model.js';
+export type { ReviewInput, ReviewLayout, ReviewMode, ReviewLimits, ReviewModel, PortableChangeModel } from './review/model.js';
 export { WebHistoryStore, HistoryRestorer, HistoryReview } from './review/history.js';
 export type { HistoryScope, RevisionProvenance, HistoricalRevision, HistoryRead, HistoryAccess, HistoryLimits, HistoryHost, RestoreResult, RestorePreview, HistoryReviewOptions } from './review/history.js';

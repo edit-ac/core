@@ -1,8 +1,9 @@
 # Immutable review representations
 
-This optional, unpublished companion freezes the DIF-1.1 input contract. It does
-not attach to keystrokes, read a live replica, compute a patch or implement a
-history store. Named captures are owned copies; callers retain their provenance.
+This optional, unpublished companion captures immutable representations, computes
+bounded exact/semantic diffs and exports presentation models. It installs no
+typing hook or history store. Named captures are owned copies; callers retain
+their provenance.
 
 `ImmutableRevision::capture` takes a `RevisionScope`, a typed `RevisionInput` and
 explicit limits. Exact source retains valid UTF-8 bytes without newline, BOM or
@@ -16,8 +17,8 @@ Semantic v1 is `editac-semantic-json-v1\n` plus compact JSON with recursively so
 object keys. Array order is significant. Stable IDs, placement, attributed runs,
 UTF-16 source spans/integrated identities, block attributes, editor metadata,
 opaque JSON tuples, recovery nodes and retained structure are explicit. The
-engine-to-model adapter belongs to DIF-1.4; prepared snapshots here are fixtures,
-not an implemented engine diff. Non-JSON extension values need an explicit
+on-demand `semantic::capture_projection` adapter reads the engine projection
+without changing the live replica. Non-JSON extension values need an explicit
 lossless tagged encoding before crossing this JSON contract, never silent drops.
 
 Hashes are SHA-256 of retained representation bytes (including the semantic
@@ -36,3 +37,21 @@ incompatible-schema revisions, with no fallback to a live document.
 
 Check: `cargo test -p editac-diff --test representation --locked`.
 Goldens: `../../fixtures/diff/` (independently recorded SHA-256 values).
+
+`portable::ChangeModel::new(ChangeInput)` plus `encode(max_bytes)` exports
+`editac-change-model-v1`. Native/terminal consumers use `decode(bytes,max_bytes)`
+and choose presentation/column conversion themselves. Source and projected
+Markdown preserve unified wire and hashes; projected metadata warns about
+normalization. Semantic input retains independent move/content/formatting/link/
+opaque facets and unknown attribution. This data is not permission to apply an
+edit, an authenticated author claim or a causal timeline. `MAX_BYTES` is an
+upper bound; callers should set their own smaller display budget.
+
+The optional web companion exposes `exportChangeModel(input,limits)` and
+`importChangeModel(wire,limits)` for the same envelope before `ChangeReview`.
+Checks: `cargo test -p editac-diff --locked` and
+`npm run test:browser -- review-concurrent`. Git interoperability goldens pin
+Git 2.53.0 and profile options in `fixtures/diff/git-goldens.json`; they distinguish
+real differences from Git error diagnostics and independently apply patches.
+Terminal/native presenter implementations, device and release performance are
+outside this exported-model qualification.
