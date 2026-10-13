@@ -87,3 +87,49 @@ export function prepareExtensionSource(
   if (!literal) return codec.importMarkdown(source, options);
   return { source, blocks: [{attributes:{type:'paragraph'},runs:[{text:source,marks:[]}],containers:[],checked:null}], ranges:[[0,length]],diagnostics:[] };
 }
+
+/** The host's existing shared command boundary (for example BrowserEditor).
+ * revision must identify the current document/epoch and observed content, including
+ * deletes. can/commit recheck current permissions; plans confer no authority.
+ * The host owns atomic commit, journaling and one-intent history grouping. */
+export interface ExtensionCommandHost {
+  readonly active: boolean;
+  revision(): string;
+  can(request: import('@edit-ac/core').PrepareRequest): boolean;
+  commit(request: import('@edit-ac/core').PrepareRequest): import('@edit-ac/core').CommitResult;
+}
+export type ExtensionCommandResult =
+  | { status: 'committed'; result: import('@edit-ac/core').CommitResult }
+  | { status: 'cancelled' | 'stale' | 'unavailable' | 'failed' };
+
+/** One pending trusted-host preparation; no document mutation or observer bus.
+ * Superseding, cancellation and disposal abort the signal and reject late results.
+ * Use from host actions/ModuleRuntime callbacks, after engine transactions return.
+ * This isolates exceptions, not unbounded or hostile in-process execution. */
+export class ExtensionCommandSession {
+  #pending: AbortController | undefined;
+  #disposed = false;
+  constructor(private readonly host: ExtensionCommandHost) {}
+  get active(): boolean { return !this.#disposed && this.host.active; }
+  cancel(): void { this.#pending?.abort(); this.#pending = undefined; }
+  dispose(): void { if (this.#disposed) return; this.#disposed = true; this.cancel(); }
+  async run(prepare: (signal: AbortSignal) => import('@edit-ac/core').PrepareRequest | undefined |
+    Promise<import('@edit-ac/core').PrepareRequest | undefined>): Promise<ExtensionCommandResult> {
+    this.cancel();
+    if (!this.active) return { status: 'cancelled' };
+    const controller = new AbortController(); this.#pending = controller;
+    try {
+      const revision = this.host.revision();
+      const request = await prepare(controller.signal);
+      if (controller.signal.aborted || !this.active || this.#pending !== controller) return { status: 'cancelled' };
+      if (this.host.revision() !== revision) return { status: 'stale' };
+      if (!request || !this.host.can(request)) return { status: 'unavailable' };
+      // Capability callbacks may re-enter the host. Recheck after applicability.
+      if (controller.signal.aborted || !this.active || this.#pending !== controller) return { status: 'cancelled' };
+      if (this.host.revision() !== revision) return { status: 'stale' };
+      return { status: 'committed', result: this.host.commit(request) };
+    } catch {
+      return { status: controller.signal.aborted || !this.active ? 'cancelled' : 'failed' };
+    } finally { if (this.#pending === controller) this.#pending = undefined; }
+  }
+}
