@@ -118,3 +118,26 @@ view.destroy();
 Modes are `readonly` (the default), `history`, and `writable`. Only writable source/projected views with an `onAccept` callback expose hunk selection and acceptance. The callback receives representation, before/after hashes and ordered zero-based hunk indexes. The host must prepare/apply through the session's revision-checked review service; the presenter never applies edits or rewinds a replica. A changed revision/profile or hunk mapping clears selection; display controls and pagination preserve it.
 
 Default admitted input is 2 MiB, pages contain at most 100 difference rows, and displayed values/labels are clipped at 4,096 UTF-16 units with an explicit notice. Host limits have hard ceilings of 16 MiB input, 200 rows/page and 16,384 UTF-16 units/value. Pagination retains all admitted rows; clipping never claims that the displayed value is complete. Inputs are copied on explicit construction/update, outside typing. Content is rendered as inert text. Dispose removes only the presenter's owned region.
+
+### Historical inspection and restoration
+
+`WebHistoryStore` is an optional, host-owned memory store for explicit named semantic captures. It bounds revision count and encoded bytes; history is not captured on each edit. `read(handle, access)` returns an immutable available revision or an explicit missing, pruned, incompatible or key-unavailable result. The host supplies the complete identity/module scope, access policy and any authenticated provenance. Labels alone never prove authorship. The store is decrypted memory, not an encrypted archive; recreate it only with an explicit host archival policy.
+
+```ts
+import { WebHistoryStore, HistoryRestorer, HistoryReview } from '@edit-ac/web';
+
+const store = new WebHistoryStore({ maxRevisions: 32 });
+const access = () => ({ scope: { identity: engine.read().identity, moduleProfile } });
+const revision = await store.capture(engine, access(), 'Before revision', { origin: 'unknown' });
+const restorer = new HistoryRestorer(store, {
+  engine,
+  writable: () => hostWritable,
+  // Route the opaque Rust plan through ordinary storage/policy admission.
+  commit: plan => storage.commitPrepared(plan),
+}, access);
+const history = new HistoryReview(container, store, access, { restorer });
+history.inspect(revision); // Reads an immutable projection; never checks out a replica.
+// Call refresh() after new captures; destroy() removes the owned controller/DOM.
+```
+
+Historical inspection has no mutation controls. A separate writable section previews and applies restoration as a new semantic edit. The preview is single-use and bound to the current engine state; a peer edit, deletion, unavailable revision or changed policy yields visible conflict/recovery. The initial adapter restores same-identity, same-structure unmarked text through existing Rust commands. It retains unchanged marks/opaque nodes and rejects unsupported structural or mark changes without normalization or document reimport. Accepted restores retain node/source identities, use an isolated undo group and generate ordinary local journal updates. Flush through the storage lifecycle before claiming local durability. The view labels semantic projections and unknown attribution explicitly, paginates revision lists and clips values with a notice. It does not retain or claim original source spelling, global revision order, per-character authorship or durable archival history.

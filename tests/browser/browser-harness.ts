@@ -34,6 +34,7 @@ export function browserHarness(suite, fixtureDirectory = 'fixtures/browser-input
     if (suite === 'references') paths.push('packages/web/src/modules/references.ts', 'crates/editac-core/src/modules/content.rs', 'crates/editac-markdown/src/export.rs', 'crates/editac-markdown/src/optional.rs', 'packages/web/src/surface.ts', 'packages/web/src/editor.ts', 'packages/web/src/index.ts', 'fixtures/browser-references/session.mjs', 'fixtures/browser-references/index.html');
     if (suite === 'react') paths.push('packages/react/src/index.ts', 'packages/react/package.json', 'fixtures/browser-react/client.mjs', 'fixtures/browser-react/index.html', 'tests/react-ssr.test.mjs');
     if (suite === 'review') paths.push('packages/web/src/review/model.ts', 'packages/web/src/review/view.ts', 'packages/web/src/index.ts', 'fixtures/browser-review/index.html', 'fixtures/browser-review/session.mjs', 'fixtures/browser-review/model.json', 'crates/editac-diff/tests/web_review_fixture.rs');
+    if (suite === 'history-review') paths.push('packages/web/src/review/history.ts', 'packages/web/src/index.ts', 'packages/web/src/storage/index.ts', 'packages/web/src/entry.ts', 'packages/web/src/sync/session.ts', 'packages/web/src/sync/protocol.ts', 'fixtures/browser-history-review/session.mjs', 'fixtures/browser-history-review/index.html');
     facts.sources = Object.fromEntries(await Promise.all(paths.map(async path => [path, createHash('sha256').update(await readFile(path)).digest('hex')])));
     consumer = await mkdtemp(join(tmpdir(), `editac-${suite}-consumer-`));
     for (const name of [...new Set([...(options.packages ?? ['core', 'web']), ...(markdownEnabled ? ['markdown'] : [])])]) {
@@ -67,7 +68,7 @@ export function browserHarness(suite, fixtureDirectory = 'fixtures/browser-input
     const context = await browser.newContext();
     const fact = { name, passed: false, provenance: 'deterministic browser fixture; no physical device or OS clipboard claim', snapshots: [], errors: [], requests: [] };
     facts.cases.push(fact);
-    const page = await context.newPage(); page.on('pageerror', e => fact.errors.push(e.message)); page.on('request', r=>fact.requests.push(r.url()));
+    const page = await context.newPage(); if (suite === 'history-review') page.setDefaultTimeout(5000); page.on('pageerror', e => fact.errors.push(e.message)); page.on('request', r=>fact.requests.push(r.url()));
     try {
       await page.addInitScript(enabled => { window.markdownEnabled = enabled; }, markdownEnabled);
       await page.goto(server.url);

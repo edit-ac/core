@@ -150,6 +150,10 @@ check('deterministic explicit reject policy prevents Rust mutation after failure
     await assert.rejects(f.lifecycle.flush({ target: 'local' }), { name: 'AbortError' });
     const before = f.writer.engine.read(), checkpoint = f.writer.engine.checkpoint();
     assert.throws(() => edit(f, 'B'), /Host policy rejects edits/);
+    const at = f.writer.engine.anchor(before.visible[0].id, 0, 'right');
+    const prepared = f.writer.engine.prepare({ kind: 'text', origin: 'history-restore', command: { type: 'insert', at, text: 'forbidden' } });
+    try { assert.throws(() => f.lifecycle.commitPrepared(prepared), /Host policy rejects edits/); }
+    finally { f.writer.engine.releasePlan(prepared); f.writer.engine.releaseAnchor(at); }
     const after = f.writer.engine.read();
     assert.equal(after.revision, before.revision);
     assert.deepEqual(after.visible, before.visible);
