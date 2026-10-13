@@ -1,0 +1,423 @@
+{
+  "schemaVersion": 1,
+  "authority": "Independent RGS-1.2 regression inputs and expected values; never recorded from an engine",
+  "atomic": [
+    {
+      "id": "REG-13-valid",
+      "text": "abc",
+      "commands": [
+        {
+          "type": "replaceAt",
+          "from": 1,
+          "to": 1,
+          "text": "X"
+        },
+        {
+          "type": "markAt",
+          "from": 1,
+          "to": 2,
+          "mark": "bold"
+        },
+        {
+          "type": "selectionAt",
+          "anchor": 2,
+          "focus": 2
+        }
+      ],
+      "expectedText": "aXbc",
+      "expectedMarks": [
+        [
+          1,
+          2,
+          "bold"
+        ]
+      ],
+      "selection": [
+        2,
+        2
+      ],
+      "rejected": false
+    },
+    {
+      "id": "REG-13-invalid-final-owner",
+      "text": "abc",
+      "commands": [
+        {
+          "type": "replaceAt",
+          "from": 1,
+          "to": 1,
+          "text": "X"
+        },
+        {
+          "type": "markAt",
+          "owner": "missing",
+          "from": 1,
+          "to": 2,
+          "mark": "bold"
+        }
+      ],
+      "rejected": true
+    },
+    {
+      "id": "REG-13-invalid-final-surrogate",
+      "text": "a😀b",
+      "commands": [
+        {
+          "type": "replaceAt",
+          "from": 1,
+          "to": 1,
+          "text": "X"
+        },
+        {
+          "type": "markAt",
+          "from": 3,
+          "to": 4,
+          "mark": "bold"
+        }
+      ],
+      "rejected": true
+    },
+    {
+      "id": "REG-13-invalid-final-selection",
+      "text": "abc",
+      "commands": [
+        {
+          "type": "replaceAt",
+          "from": 1,
+          "to": 1,
+          "text": "X"
+        },
+        {
+          "type": "selectionAt",
+          "anchor": 2,
+          "focus": 99
+        }
+      ],
+      "rejected": true
+    },
+    {
+      "id": "REG-13-invalid-mark-policy",
+      "text": "abc",
+      "commands": [
+        {
+          "type": "replaceAt",
+          "from": 1,
+          "to": 1,
+          "text": "X"
+        },
+        {
+          "type": "markAt",
+          "from": 1,
+          "to": 2,
+          "mark": "code"
+        },
+        {
+          "type": "markAt",
+          "from": 1,
+          "to": 2,
+          "mark": "bold"
+        }
+      ],
+      "rejected": true
+    },
+    {
+      "id": "REG-13-staged-offsets",
+      "text": "abc",
+      "commands": [
+        {
+          "type": "replaceAt",
+          "from": 1,
+          "to": 1,
+          "text": "XY"
+        },
+        {
+          "type": "replaceAt",
+          "from": 2,
+          "to": 3,
+          "text": "Z"
+        },
+        {
+          "type": "markAt",
+          "from": 1,
+          "to": 3,
+          "mark": "bold"
+        },
+        {
+          "type": "selectionAt",
+          "anchor": 3,
+          "focus": 3
+        }
+      ],
+      "expectedText": "aXZbc",
+      "expectedMarks": [
+        [
+          1,
+          3,
+          "bold"
+        ]
+      ],
+      "selection": [
+        3,
+        3
+      ],
+      "rejected": false
+    },
+    {
+      "id": "G03-backward-selection",
+      "text": "abc",
+      "commands": [
+        {
+          "type": "replaceAt",
+          "from": 1,
+          "to": 1,
+          "text": "X"
+        },
+        {
+          "type": "selectionAt",
+          "anchor": 4,
+          "focus": 1
+        }
+      ],
+      "expectedText": "aXbc",
+      "expectedMarks": [],
+      "selection": [
+        4,
+        1
+      ],
+      "rejected": false
+    },
+    {
+      "id": "G06-astral-staged-utf16",
+      "text": "ab",
+      "commands": [
+        {
+          "type": "replaceAt",
+          "from": 1,
+          "to": 1,
+          "text": "😀"
+        },
+        {
+          "type": "markAt",
+          "from": 1,
+          "to": 3,
+          "mark": "italic"
+        },
+        {
+          "type": "selectionAt",
+          "anchor": 3,
+          "focus": 3
+        }
+      ],
+      "expectedText": "a😀b",
+      "expectedMarks": [
+        [
+          1,
+          3,
+          "italic"
+        ]
+      ],
+      "selection": [
+        3,
+        3
+      ],
+      "rejected": false
+    },
+    {
+      "id": "G06-invalid-first-surrogate",
+      "text": "a😀b",
+      "commands": [
+        {
+          "type": "replaceAt",
+          "from": 2,
+          "to": 3,
+          "text": "X"
+        },
+        {
+          "type": "selectionAt",
+          "anchor": 2,
+          "focus": 2
+        }
+      ],
+      "rejected": true
+    },
+    {
+      "id": "REG-13-text-mark-structure-invalid-final",
+      "text": "abc",
+      "commands": [
+        {
+          "type": "replaceAt",
+          "from": 1,
+          "to": 1,
+          "text": "X"
+        },
+        {
+          "type": "markAt",
+          "from": 1,
+          "to": 2,
+          "mark": "bold"
+        },
+        {
+          "type": "insertSeparator",
+          "side": "after"
+        },
+        {
+          "type": "selectionAt",
+          "anchor": 2,
+          "focus": 99
+        }
+      ],
+      "expectedText": "aXbc",
+      "expectedMarks": [
+        [
+          1,
+          2,
+          "bold"
+        ]
+      ],
+      "selection": [
+        2,
+        2
+      ],
+      "visibleKinds": [
+        "paragraph",
+        "separator"
+      ],
+      "rejected": true
+    },
+    {
+      "id": "REG-13-text-mark-structure-valid-retry",
+      "text": "abc",
+      "commands": [
+        {
+          "type": "replaceAt",
+          "from": 1,
+          "to": 1,
+          "text": "X"
+        },
+        {
+          "type": "markAt",
+          "from": 1,
+          "to": 2,
+          "mark": "bold"
+        },
+        {
+          "type": "insertSeparator",
+          "side": "after"
+        },
+        {
+          "type": "selectionAt",
+          "anchor": 2,
+          "focus": 2
+        }
+      ],
+      "expectedText": "aXbc",
+      "expectedMarks": [
+        [
+          1,
+          2,
+          "bold"
+        ]
+      ],
+      "selection": [
+        2,
+        2
+      ],
+      "visibleKinds": [
+        "paragraph",
+        "separator"
+      ],
+      "rejected": false
+    }
+  ],
+  "graphemes": [
+    {
+      "id": "nfc",
+      "text": "AéZ",
+      "offset": 2,
+      "range": [
+        1,
+        2
+      ],
+      "expectedText": "AZ"
+    },
+    {
+      "id": "nfd",
+      "text": "AéZ",
+      "offset": 3,
+      "range": [
+        1,
+        3
+      ],
+      "expectedText": "AZ"
+    },
+    {
+      "id": "family-zwj",
+      "text": "A👨‍👩‍👧‍👦Z",
+      "offset": 12,
+      "range": [
+        1,
+        12
+      ],
+      "expectedText": "AZ"
+    },
+    {
+      "id": "flag",
+      "text": "A🇭🇺Z",
+      "offset": 5,
+      "range": [
+        1,
+        5
+      ],
+      "expectedText": "AZ"
+    },
+    {
+      "id": "indic",
+      "text": "Aक्षZ",
+      "offset": 4,
+      "range": [
+        1,
+        4
+      ],
+      "expectedText": "AZ"
+    },
+    {
+      "id": "bidi",
+      "text": "AשָZ",
+      "offset": 3,
+      "range": [
+        1,
+        3
+      ],
+      "expectedText": "AZ"
+    },
+    {
+      "id": "authored-space",
+      "text": "a  b",
+      "offset": 3,
+      "range": [
+        2,
+        3
+      ],
+      "expectedText": "a b"
+    },
+    {
+      "id": "surrogate-interior",
+      "text": "A😀Z",
+      "offset": 2,
+      "rejected": true
+    },
+    {
+      "id": "combining-interior",
+      "text": "AéZ",
+      "offset": 2,
+      "rejected": true
+    },
+    {
+      "id": "boundary",
+      "text": "abc",
+      "offset": 0,
+      "range": null,
+      "expectedText": "abc"
+    }
+  ]
+}

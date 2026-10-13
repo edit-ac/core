@@ -18,9 +18,9 @@ export class EditingDriver {
   readonly engine: EngineHandle;
   readonly clock = new FixedClock();
   readonly ids = new Map<string, string>();
-  private selection: Selection;
-  private pendingMarks: null | string[];
-  private disposed = false;
+  protected selection: Selection;
+  protected pendingMarks: null | string[];
+  protected disposed = false;
   constructor(runtime: EngineRuntime, initial: State) {
     if (initial.blocks.some(b => b.kind !== 'paragraph' || b.marks.length || b.hardBreaks.length) || initial.pendingMarks !== null)
       throw new Error('Unsupported initial profile: requires unmarked paragraphs and context-derived marks');
@@ -30,10 +30,10 @@ export class EditingDriver {
     this.selection = structuredClone(initial.selection); this.pendingMarks = initial.pendingMarks;
     try { this.assertSelection(this.selection); } catch (error) { this.engine.dispose(); throw error; }
   }
-  private id(alias: string): string {
+  protected id(alias: string): string {
     const id = this.ids.get(alias); if (!id) throw new Error(`Unbound logical ID: ${alias}`); return id;
   }
-  private assertSelection(selection: Selection) {
+  protected assertSelection(selection: Selection) {
     const anchors: ReturnType<EngineHandle['anchor']>[] = [];
     try { for (const p of [selection.anchor, selection.focus]) anchors.push(this.engine.anchor(this.id(p.block), p.offset, 'right')); }
     finally { anchors.forEach(a => this.engine.releaseAnchor(a)); }
