@@ -9,7 +9,7 @@
     "publicLibrary": "exports, conformance, codecs/lifecycle adapters, capability records and consumers; reuse qualified modules"
   },
   "contracts": {
-    "specs/extension-library.md": "ef4c882bce0c15ae698837a384ddd098eb0e9dd8ded0a719e65d3b66a10f1e2e",
+    "specs/extension-library.md": "7f65fec868b90af6748ec51e99a24859baa9a82fc8b3e703c3d9ac4e43d9c6cf",
     "specs/client-contracts.md": "d8ec945d449cb3821805c971a3ae24f1ca6cf37251933edc39eb3538d823333a",
     "specs/schema-v1.md": "9c9dcdb3e9edad74d841c55ec11a99962f3e002b823758e88e531291b6d82d23",
     "specs/modules-native.md": "01f2c31d2087642b1bf146cbdc90512b273bbd630902b6f7ba25a61be040aec7"
@@ -124,7 +124,7 @@
   "sourceHashes": {
     "crates/editac-core/src/commands/editor.rs": "81c6d96e2384ddf1a965b7065c4ffdd328485a81fbf435f6299ac5b86c302076",
     "crates/editac-core/src/modules/content.rs": "216e1c7fa3971b0f287374199c890ccf999d85c6311e4d839d0f600c8e7c2859",
-    "crates/editac-core/src/modules/mod.rs": "a16a5fea699a1836ef162055fe32f81239a044431ef57a4d7e8a29c12cec5d6f",
+    "crates/editac-core/src/modules/mod.rs": "b021b3490bb8b8c389e01accf0b4341f5d33158d5d4dcd30ec642f2ef59c15f9",
     "crates/editac-core/src/modules/registry.rs": "906dc43aaca9d3c49aeda42b220e6e096db942819d7b584e3b86f2cc21f04254",
     "crates/editac-markdown/src/export.rs": "51d3e731ff4abaf7d3a8dce86e288397e017220b1d721ae5e4980d4c96087658",
     "crates/editac-markdown/src/optional.rs": "75d4cfe43ec524b0531a500116ef0c30ebb5cfa0c9b5e54a32b7b78b8ce9ed1c",
@@ -132,9 +132,12 @@
     "packages/web/src/modules/content.ts": "270980980d8040d1501eb216cfcfa3d2640f64e1df20e8733082b92e79e93553",
     "packages/web/src/modules/math.ts": "3acd59796c36f36a2c248561ad08a047e067cc65f22bac2372e2f6c0bf50eb48",
     "packages/web/src/modules/references.ts": "3603c9d59e0319294c16a46e47d29e040866657a724afa93bb2809038e3ab8bd",
-    "packages/web/src/modules/registry.ts": "385461654fd8edf32e072dc443a54c63c42886e91f904b98c13e344b12f801b1",
+    "packages/web/src/modules/registry.ts": "54458a29b7bafe5b672cd605c394b5e28f8851102af449b5193b5b222fc032f3",
     "packages/web/src/modules/reorder.ts": "2de953d37f1192b1825ae1e952ab0f84a87787c041d6088ce83c43a622c0d927",
     "packages/web/src/modules/runtime.ts": "faa804a3c5666471e544626d99dd078cb25a2c0ab3ea5de9c85c1941e399794f",
-    "packages/web/src/modules/slash.ts": "8f116c22e247cfca693d2a4bc950ed100065debfd85b09f37d223540a52c36e6"
+    "packages/web/src/modules/slash.ts": "8f116c22e247cfca693d2a4bc950ed100065debfd85b09f37d223540a52c36e6",
+    "packages/core/src/extensions/registry.ts": "bc6e7db9e7990974b0025140c2f513a822c0c5061987ac3911337a920aff17c5",
+    "packages/core/src/extensions/index.ts": "a60f4f8dc3e08d0a695c13f7058d5c77ab74ffddd99ef0f8f133cd9512ecabc1",
+    "packages/web/src/modules/index.ts": "ed27810876df6453ac604252084eff2bb8be6389d7c80b264f130c7276b611f8"
   }
 }

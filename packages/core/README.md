@@ -112,3 +112,36 @@ tarball offline into a temporary consumer and shuts down its server/browser.
 Publishing is disabled until the implementation and release gates in
 [edit-ac/architecture](https://github.com/edit-ac/architecture) pass.
 License: Apache-2.0.
+
+## Public extension contract v1
+
+Use `@edit-ac/core/extensions` for `ModuleRegistry`, `ModuleContractError`,
+`ModuleDefinitionV1`, `ExtensionCommandV1`, `MarkdownCodecV1` and
+`MarkdownExtensionV1`. `EXTENSION_API_VERSION` is the literal `1`; a descriptor's
+`version` instead identifies that module's stored data, and is a positive u32.
+The versioned types alias the existing descriptor, engine commands and trusted
+codec hooks. They do not introduce another document model or mutation path.
+
+Register all bounded data-only descriptors before attaching a document and call
+`freeze()` (browser mounting freezes automatically). Registration snapshots its
+input and validates before insertion. Invalid, duplicate or incompatible entries
+throw `ModuleContractError` without replacing existing entries. Known content is
+validated with `validate()`/`resolve()`; unknown types/versions keep inert fallback
+text and original attributes. Registration neither changes nor migrates a document.
+
+Data-defined marks and inline atoms use the existing attributed-text profile and
+can be admitted/read with unchanged engine, WASM and native artifacts. This does
+not add an arbitrary-attribute authoring command: use qualified schema admission
+and prepared engine primitives. New editing semantics, new content shapes and
+schema/epoch migrations require owning core work. Executable renderers and codec
+hooks remain trusted host objects, outside descriptor/document data.
+
+Rust consumers use `editac_core::modules::{EXTENSION_API_VERSION, v1}` for
+`Definition`, `Registry`, `FrozenRegistry`, `ModuleKind`, `RegistryError`,
+`EditorCommand`, `PreparedEditorEdit`, `EditorCommit`, `EditorError`,
+`FragmentBlock` and `FragmentRun`. Codec consumers use `editac_markdown::v1`
+(`Extension`, `Codecs`, `PreparedContent`, `ImportError`, `ExportResult`,
+`import_with_codecs`, `import_with_extensions`, `export`,
+`export_with_extensions`). These are re-exports of the owning implementations.
+A source-only facade change does not require rebuilding runtime artifacts for
+registration. Package publication remains a separate release gate.

@@ -1,7 +1,7 @@
 //! MOD-1.2 shared data-only corpus and genuine retained Yrs text fixture.
 use editac_core::{
     document::{Document, DocumentIdentity, InitializedCheckpoint},
-    modules::registry::{ModuleKind, Registry, RegistryError},
+    modules::v1::{ModuleKind, Registry, RegistryError},
 };
 use yrs::{Any, Text, Transact};
 #[path = "../../../fixtures/schema-v5/mapping.rs"]

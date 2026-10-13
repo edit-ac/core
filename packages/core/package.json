@@ -29,7 +29,12 @@
       "import": "./dist/fixture.js",
       "default": "./dist/fixture.js"
     },
-    "./fixture/wasm": "./dist/wasm-fixture/editac_wasm_bg.wasm"
+    "./fixture/wasm": "./dist/wasm-fixture/editac_wasm_bg.wasm",
+    "./extensions": {
+      "types": "./dist/extensions/index.d.ts",
+      "import": "./dist/extensions/index.js",
+      "default": "./dist/extensions/index.js"
+    }
   },
   "scripts": {
     "build": "tsc --project tsconfig.json",
