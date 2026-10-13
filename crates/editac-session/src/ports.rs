@@ -136,9 +136,9 @@ impl JournalEntry {
 /// Engine-supplied coverage is bookkeeping, not a proof of semantic inclusion.
 #[derive(Clone, Debug)]
 pub struct CheckpointRecord {
-    checkpoint: InitializedCheckpoint,
-    coverage: Vec<UpdateId>,
-    manifest: [u8; 32],
+    pub(crate) checkpoint: InitializedCheckpoint,
+    pub(crate) coverage: Vec<UpdateId>,
+    pub(crate) manifest: [u8; 32],
 }
 impl CheckpointRecord {
     pub fn new(

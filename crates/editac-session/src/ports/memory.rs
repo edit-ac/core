@@ -6,12 +6,12 @@ use std::{
 };
 
 #[derive(Clone, Debug)]
-struct State {
-    journal: Vec<JournalEntry>,
-    receipted: Vec<UpdateId>,
-    latest: Option<CheckpointRecord>,
-    previous: Option<CheckpointRecord>,
-    generation: u64,
+pub(crate) struct State {
+    pub(crate) journal: Vec<JournalEntry>,
+    pub(crate) receipted: Vec<UpdateId>,
+    pub(crate) latest: Option<CheckpointRecord>,
+    pub(crate) previous: Option<CheckpointRecord>,
+    pub(crate) generation: u64,
 }
 struct Inner {
     state: State,
@@ -54,6 +54,31 @@ impl MemoryStore {
                 fault: None,
             })),
         })
+    }
+    /// Native transactions reuse the prepared policy over a detached verified snapshot.
+    #[cfg(feature = "native-store")]
+    pub(crate) fn from_state(
+        identity: DocumentIdentity,
+        limits: StoreLimits,
+        state: State,
+    ) -> Result<Self, PortError> {
+        let store = Self::new(identity, limits)?;
+        store.limits(&state)?;
+        store
+            .inner
+            .lock()
+            .map_err(|_| PortError::Unavailable)?
+            .state = state;
+        Ok(store)
+    }
+    #[cfg(feature = "native-store")]
+    pub(crate) fn snapshot(&self) -> Result<State, PortError> {
+        Ok(self
+            .inner
+            .lock()
+            .map_err(|_| PortError::Unavailable)?
+            .state
+            .clone())
     }
     fn matches(&self, identity: &DocumentIdentity) -> Result<(), PortError> {
         if identity != &self.identity {
