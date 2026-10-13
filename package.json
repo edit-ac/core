@@ -22,6 +22,7 @@
     "test:example:web": "node --test tests/browser/web-example.test.mjs",
     "build": "npm run build --workspaces",
     "test:browser": "node scripts/test-browser.mjs",
+    "test:editing": "node scripts/test-editing.mjs",
     "check:browser-baseline": "npm run build:wasm && npm run build && node --test tests/browser/baseline-runner.test.mjs && npm run test:browser -- baseline",
     "typecheck": "npm run typecheck --workspaces",
     "check:rust": "cargo fmt --all -- --check && cargo check --workspace --all-targets --locked --offline && node scripts/test-rust.mjs",
@@ -46,6 +47,7 @@
   },
   "devDependencies": {
     "@astrojs/node": "11.1.7",
+    "@types/node": "24.13.3",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "astro": "7.3.8",
