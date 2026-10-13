@@ -760,3 +760,233 @@ fn reg05_trigger_delete_explicit_empty_marks() {
 fn reg05_trigger_delete_explicit_bold_marks() {
     delete_trigger_and_type(true);
 }
+
+// G03: retain the actual result tokens through a real unrelated replica delta.
+// Authored oracles are shared with packed WASM, never recorded from execution.
+fn g03_remote_result(id: &str) {
+    let all: Value = serde_json::from_str(include_str!(
+        "../../../fixtures/editing-failures/selection-vectors.json"
+    ))
+    .unwrap();
+    let v = all["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|v| v["id"] == id)
+        .unwrap();
+    let mut d = documents(&[
+        v["text"].as_str().unwrap(),
+        v["remoteText"].as_str().unwrap(),
+    ]);
+    let originals = d.snapshot().unwrap().visible;
+    let owner = originals[0].id.clone();
+    let neighbor = originals[1].id.clone();
+    let bias = if v["bias"] == "left" {
+        Bias::Left
+    } else {
+        Bias::Right
+    };
+    let origin = TextOrigin::new("local:rgs:selection").unwrap();
+    let count = Rc::new(Cell::new(0));
+    let seen = count.clone();
+    let _subscription = d
+        .subscribe(PatchScope::All, move |_, _| {
+            seen.set(seen.get() + 1);
+            Ok(())
+        })
+        .unwrap();
+    let pos = |offset| EditorPosition {
+        owner: owner.clone(),
+        offset: U(offset),
+        bias,
+    };
+    let action = if v["kind"] == "replace" {
+        EditorCommand::ReplaceAt {
+            owner: owner.clone(),
+            from: U(1),
+            to: U(4),
+            text: "XY".into(),
+        }
+    } else {
+        EditorCommand::MarkAt {
+            owner: owner.clone(),
+            from: U(1),
+            to: U(4),
+            mark: Mark::Bold,
+            action: FormatAction::Apply,
+            href: None,
+        }
+    };
+    let before = frozen(&d);
+    let plan = d
+        .prepare_editor(
+            &[
+                action,
+                EditorCommand::SelectionAt {
+                    anchor: pos(number(&v["selection"][0])),
+                    focus: pos(number(&v["selection"][1])),
+                },
+            ],
+            &origin,
+        )
+        .unwrap();
+    assert_eq!(frozen(&d), before);
+    assert_eq!(count.get(), 0);
+    let result = d.commit_editor(plan).unwrap();
+    assert_eq!(result.revision, before.2 + 1);
+    assert_eq!(count.get(), 1);
+    let selection = result.result_selection.unwrap();
+    let endpoints = |doc: &Document| {
+        [&selection.anchor, &selection.focus].map(|a| match doc.resolve_anchor(a).unwrap() {
+            Resolution::Position(p) => (p.node, p.offset.0, p.bias),
+            _ => panic!("unresolved returned selection"),
+        })
+    };
+    let expected = [
+        (owner.clone(), number(&v["selection"][0]), bias),
+        (owner.clone(), number(&v["selection"][1]), bias),
+    ];
+    assert_eq!(endpoints(&d), expected);
+    let node = d.snapshot().unwrap().visible[0].clone();
+    let content = |n: &editac_core::projection::ProjectedNode| {
+        n.runs.iter().map(|r| r.text.as_str()).collect::<String>()
+    };
+    assert_eq!(content(&node), v["expectedText"].as_str().unwrap());
+    let mut offset = 0;
+    for run in &node.runs {
+        for _ in run.text.encode_utf16() {
+            let bold = v["expectedMarks"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|m| number(&m[0]) <= offset && offset < number(&m[1]));
+            assert_eq!(run.attributes.len(), usize::from(bold));
+            if bold {
+                assert_eq!(run.attributes.get("bold"), Some(&Any::Bool(true)));
+            }
+            offset += 1;
+        }
+    }
+    let checkpoint = d.checkpoint();
+    let mut remote = Document::restore(d.identity(), &checkpoint, &[]).unwrap();
+    let vector = d.state_vector_v1();
+    let plan = remote
+        .prepare_editor(
+            &[EditorCommand::ReplaceAt {
+                owner: neighbor.clone(),
+                from: U(6),
+                to: U(6),
+                text: "R".into(),
+            }],
+            &origin,
+        )
+        .unwrap();
+    remote.commit_editor(plan).unwrap();
+    let delta = editac_core::document::ReplayUpdate {
+        identity: d.identity().clone(),
+        bytes: remote.update_v1(&vector).unwrap(),
+    };
+    d.apply_replay(&delta).unwrap();
+    assert_eq!(count.get(), 2);
+    assert_eq!(endpoints(&d), expected);
+    assert_eq!(
+        content(&d.snapshot().unwrap().visible[1]),
+        v["expectedRemote"].as_str().unwrap()
+    );
+    let actual = endpoints(&d);
+    // Negative controls use the same owning assertion and must panic.
+    for mutation in 0..5 {
+        let mut wrong = expected.clone();
+        match mutation {
+            0 => wrong[0].1 += 1,
+            1 => wrong[1].1 += 1,
+            2 => wrong.reverse(),
+            3 => {
+                wrong[0].2 = if bias == Bias::Left {
+                    Bias::Right
+                } else {
+                    Bias::Left
+                }
+            }
+            _ => wrong[1].0 = neighbor.clone(),
+        }
+        assert!(std::panic::catch_unwind(|| assert_eq!(actual, wrong)).is_err());
+    }
+    let from = actual[0].1.min(actual[1].1);
+    let to = actual[0].1.max(actual[1].1);
+    let plan = d
+        .prepare_editor(
+            &[
+                EditorCommand::ReplaceAt {
+                    owner: actual[0].0.clone(),
+                    from: U(from),
+                    to: U(to),
+                    text: "!".into(),
+                },
+                EditorCommand::MarkAt {
+                    owner: owner.clone(),
+                    from: U(from),
+                    to: U(from + 1),
+                    mark: Mark::Bold,
+                    action: FormatAction::Remove,
+                    href: None,
+                },
+                EditorCommand::SelectionAt {
+                    anchor: pos(2),
+                    focus: pos(2),
+                },
+            ],
+            &origin,
+        )
+        .unwrap();
+    let result = d.commit_editor(plan).unwrap();
+    let caret = result.result_selection.unwrap();
+    for token in [&caret.anchor, &caret.focus] {
+        match d.resolve_anchor(token).unwrap() {
+            Resolution::Position(p) => {
+                assert_eq!(p.node, owner);
+                assert_eq!(p.offset, U(2));
+                assert_eq!(p.bias, bias);
+            }
+            _ => panic!("unresolved sentinel selection"),
+        }
+    }
+    let nodes = d.snapshot().unwrap().visible;
+    assert_eq!(content(&nodes[0]), v["expectedSentinel"].as_str().unwrap());
+    assert!(nodes[0].runs.iter().all(|r| r.attributes.is_empty()));
+    assert_eq!(content(&nodes[1]), v["expectedRemote"].as_str().unwrap());
+    assert_eq!(count.get(), 3);
+    for (node, old) in nodes.iter().zip(&originals) {
+        assert_eq!(node.id, old.id);
+        assert_eq!(node.spans[0].source, old.spans[0].source);
+        assert_eq!(node.spans[0].identity, old.spans[0].identity);
+    }
+}
+macro_rules! remote_selection_case {
+    ($name:ident, $id:literal) => {
+        #[test]
+        fn $name() {
+            g03_remote_result($id);
+        }
+    };
+}
+remote_selection_case!(g03_remote_replace_forward_left, "G03-replace-forward-left");
+remote_selection_case!(
+    g03_remote_replace_forward_right,
+    "G03-replace-forward-right"
+);
+remote_selection_case!(
+    g03_remote_replace_backward_left,
+    "G03-replace-backward-left"
+);
+remote_selection_case!(
+    g03_remote_replace_backward_right,
+    "G03-replace-backward-right"
+);
+remote_selection_case!(g03_remote_format_forward_left, "G03-format-forward-left");
+remote_selection_case!(g03_remote_format_forward_right, "G03-format-forward-right");
+remote_selection_case!(g03_remote_format_backward_left, "G03-format-backward-left");
+remote_selection_case!(
+    g03_remote_format_backward_right,
+    "G03-format-backward-right"
+);

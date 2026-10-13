@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process';
 // an accidental successful zero-test qualification of a misspelled case group.
 for (const [name, args] of [
   ['unknown selector', ['--group', 'semantic', '--cases', 'missing']],
+  ['selection selector on fixtures', ['--group', 'fixtures', '--cases', 'selection-results']],
   ['selector on fixtures', ['--group', 'fixtures', '--cases', 'regression-variants']],
   ['trailing selector arguments', ['--group', 'semantic', '--cases', 'regression-variants', 'extra']],
   ['missing selector', ['--group', 'semantic', '--cases']],
