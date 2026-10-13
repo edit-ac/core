@@ -100,3 +100,21 @@ one history group. Composition stays in the native control until completion;
 stale edits preserve newer data. Read-only controls retain selection/copy.
 Disabling `content` preserves descriptors and fallback text through recovery.
 Merged cells, nested cell blocks, spreadsheets and upload controls are excluded.
+
+### Change review
+
+`ChangeReview` is an optional presenter for the diff companion's `editac-exact-patch-v1` wire and `editac-semantic-diff-v1` JSON. It renders unified, inline and side-by-side views with native keyboard controls, explicit representation labels and paged difference rows. Projected Markdown requires a serializer and dialect label; semantic facets preserve moves alongside content, formatting, links and opaque data. Attribution remains unknown/unverified.
+
+```js
+import { ChangeReview } from '@edit-ac/web';
+const view = new ChangeReview(container, {
+  representation: 'exact-source', wire: encodedPatch,
+}, { mode: 'readonly', layout: 'side-by-side' });
+// Later, replace the immutable review input or dispose the owned DOM.
+view.update(nextReviewInput);
+view.destroy();
+```
+
+Modes are `readonly` (the default), `history`, and `writable`. Only writable source/projected views with an `onAccept` callback expose hunk selection and acceptance. The callback receives representation, before/after hashes and ordered zero-based hunk indexes. The host must prepare/apply through the session's revision-checked review service; the presenter never applies edits or rewinds a replica. A changed revision/profile or hunk mapping clears selection; display controls and pagination preserve it.
+
+Default admitted input is 2 MiB, pages contain at most 100 difference rows, and displayed values/labels are clipped at 4,096 UTF-16 units with an explicit notice. Host limits have hard ceilings of 16 MiB input, 200 rows/page and 16,384 UTF-16 units/value. Pagination retains all admitted rows; clipping never claims that the displayed value is complete. Inputs are copied on explicit construction/update, outside typing. Content is rendered as inert text. Dispose removes only the presenter's owned region.

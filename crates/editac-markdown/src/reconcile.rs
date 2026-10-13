@@ -432,3 +432,43 @@ impl SourceBaseline {
         })
     }
 }
+
+/// Review fragments must explicitly close fenced code, even though CommonMark
+/// permits an implicit EOF close. Use grammar events so indented code and nested
+/// quote/list fences retain their actual interpretation. This validates syntax
+/// only; source reconciliation still proves semantic mapping and identity.
+pub fn review_syntax_is_complete(source: &str) -> bool {
+    use pulldown_cmark::{CodeBlockKind, Event, Tag, TagEnd};
+    if source.len() > 1_048_576 {
+        return false;
+    }
+    let mut fenced: Option<(std::ops::Range<usize>, usize)> = None;
+    for (event, span) in crate::profile::events(source) {
+        match event {
+            Event::Start(Tag::CodeBlock(CodeBlockKind::Fenced(_))) => {
+                fenced = Some((span.clone(), span.start));
+            }
+            Event::Text(_) if fenced.is_some() => {
+                if let Some((_, end)) = &mut fenced {
+                    *end = (*end).max(span.end);
+                }
+            }
+            Event::End(TagEnd::CodeBlock) => {
+                if let Some((range, content_end)) = fenced.take() {
+                    let raw = &source[range.clone()];
+                    let trimmed = raw.trim_end_matches(['\n', '\r']);
+                    let Some(last_start) = trimmed.rfind('\n').map(|i| range.start + i + 1) else {
+                        return false;
+                    };
+                    // An actual closing delimiter is excluded from code text.
+                    // EOF and a merely fence-like literal final line are not.
+                    if content_end > last_start {
+                        return false;
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    fenced.is_none()
+}

@@ -17,3 +17,5 @@ pub mod revision;
 pub mod operations;
 
 pub mod history_store;
+
+pub mod review_apply;

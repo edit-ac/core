@@ -33,6 +33,7 @@ export function browserHarness(suite, fixtureDirectory = 'fixtures/browser-input
     if (suite === 'slash') paths.push('packages/web/src/modules/slash.ts', 'packages/web/src/surface.ts', 'packages/web/src/editor.ts', 'packages/web/src/index.ts', 'fixtures/browser-slash/session.mjs', 'fixtures/browser-slash/index.html');
     if (suite === 'references') paths.push('packages/web/src/modules/references.ts', 'crates/editac-core/src/modules/content.rs', 'crates/editac-markdown/src/export.rs', 'crates/editac-markdown/src/optional.rs', 'packages/web/src/surface.ts', 'packages/web/src/editor.ts', 'packages/web/src/index.ts', 'fixtures/browser-references/session.mjs', 'fixtures/browser-references/index.html');
     if (suite === 'react') paths.push('packages/react/src/index.ts', 'packages/react/package.json', 'fixtures/browser-react/client.mjs', 'fixtures/browser-react/index.html', 'tests/react-ssr.test.mjs');
+    if (suite === 'review') paths.push('packages/web/src/review/model.ts', 'packages/web/src/review/view.ts', 'packages/web/src/index.ts', 'fixtures/browser-review/index.html', 'fixtures/browser-review/session.mjs', 'fixtures/browser-review/model.json', 'crates/editac-diff/tests/web_review_fixture.rs');
     facts.sources = Object.fromEntries(await Promise.all(paths.map(async path => [path, createHash('sha256').update(await readFile(path)).digest('hex')])));
     consumer = await mkdtemp(join(tmpdir(), `editac-${suite}-consumer-`));
     for (const name of [...new Set([...(options.packages ?? ['core', 'web']), ...(markdownEnabled ? ['markdown'] : [])])]) {

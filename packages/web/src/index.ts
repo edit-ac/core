@@ -27,3 +27,8 @@ export { contentModules } from './modules/content.js';
 export type { ContentFactory, ContentView, ContentContext, ImageMetadata, ContentOptions } from './modules/content.js';
 
 export type { MarkdownAdapter, TypingShortcutAdapter } from './input/shortcuts.js';
+
+export { ChangeReview } from './review/view.js';
+export { prepareReview, DEFAULT_REVIEW_LIMITS } from './review/model.js';
+export type { ChangeReviewOptions, ReviewSelection } from './review/view.js';
+export type { ReviewInput, ReviewLayout, ReviewMode, ReviewLimits, ReviewModel } from './review/model.js';
