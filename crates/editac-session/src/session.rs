@@ -142,6 +142,7 @@ pub enum SessionError {
     Document(DocumentError),
     Text(TextError),
     History(HistoryError),
+    Revision(crate::revision::RevisionError),
     Locator(LocatorError),
     Unavailable,
     Locked,
@@ -157,6 +158,11 @@ impl std::fmt::Display for SessionError {
     }
 }
 impl std::error::Error for SessionError {}
+impl From<crate::revision::RevisionError> for SessionError {
+    fn from(error: crate::revision::RevisionError) -> Self {
+        Self::Revision(error)
+    }
+}
 impl From<PortError> for SessionError {
     fn from(e: PortError) -> Self {
         Self::Store(e)
@@ -368,6 +374,33 @@ impl<S: SessionStore> Session<S> {
             PermissionState::Expired => Err(SessionError::PermissionExpired),
         }
     }
+    /// Exact endpoint-observed state, reconstructed from committed CRDT clocks and deletions.
+    /// Recovery exports may be read while frozen, but cannot mint an acknowledged revision.
+    pub fn observed_revision(&self) -> Result<crate::revision::ObservedRevision, SessionError> {
+        self.ready()?;
+        Ok(crate::revision::ObservedRevision::observe(&self.document)?)
+    }
+    fn compare_revision(
+        &self,
+        expected: &crate::revision::ObservedRevision,
+    ) -> Result<(), SessionError> {
+        expected.compare(&self.observed_revision()?)?;
+        Ok(())
+    }
+    /// Compare and prepare/commit under this replica's exclusive mutable owner. No callback,
+    /// await or separately mutable engine escapes between the comparison and mutation.
+    /// This does not lock an offline peer or implicitly catch up from shared storage.
+    pub fn edit_text_if_revision(
+        &mut self,
+        expected: &crate::revision::ObservedRevision,
+        command: &TextCommand,
+        origin: &TextOrigin,
+        now: u64,
+    ) -> Result<Option<LocalCommit>, SessionError> {
+        self.admit(now)?;
+        self.compare_revision(expected)?;
+        self.commit_text(command, origin)
+    }
     /// Text semantics are the existing engine commands; full edit-service prepare is CAP-1.8.
     pub fn edit_text(
         &mut self,
@@ -376,6 +409,13 @@ impl<S: SessionStore> Session<S> {
         now: u64,
     ) -> Result<Option<LocalCommit>, SessionError> {
         self.admit(now)?;
+        self.commit_text(command, origin)
+    }
+    fn commit_text(
+        &mut self,
+        command: &TextCommand,
+        origin: &TextOrigin,
+    ) -> Result<Option<LocalCommit>, SessionError> {
         let plan = self.document.prepare_text(command, origin)?;
         let commit = self.document.commit_text(plan)?;
         self.capture(commit.update, origin.as_str())
@@ -385,10 +425,28 @@ impl<S: SessionStore> Session<S> {
         let update = self.document.undo()?.and_then(|c| c.update);
         self.capture(update, "session:undo")
     }
+    pub fn undo_if_revision(
+        &mut self,
+        expected: &crate::revision::ObservedRevision,
+        now: u64,
+    ) -> Result<Option<LocalCommit>, SessionError> {
+        self.admit(now)?;
+        self.compare_revision(expected)?;
+        self.undo(now)
+    }
     pub fn redo(&mut self, now: u64) -> Result<Option<LocalCommit>, SessionError> {
         self.admit(now)?;
         let update = self.document.redo()?.and_then(|c| c.update);
         self.capture(update, "session:redo")
+    }
+    pub fn redo_if_revision(
+        &mut self,
+        expected: &crate::revision::ObservedRevision,
+        now: u64,
+    ) -> Result<Option<LocalCommit>, SessionError> {
+        self.admit(now)?;
+        self.compare_revision(expected)?;
+        self.redo(now)
     }
     fn capture(
         &mut self,

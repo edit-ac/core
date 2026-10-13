@@ -41,7 +41,7 @@ fn part(hash: &mut Sha256, bytes: &[u8]) {
     hash.update((bytes.len() as u64).to_be_bytes());
     hash.update(bytes);
 }
-fn hash_scope(hash: &mut Sha256, identity: &DocumentIdentity) {
+pub(crate) fn hash_scope(hash: &mut Sha256, identity: &DocumentIdentity) {
     for field in [
         &identity.document_id,
         &identity.epoch,
