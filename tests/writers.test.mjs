@@ -47,8 +47,18 @@ check('deterministic simultaneous publication rejects stale fallback; retry, cor
   await commit(db,()=>points.publish(initial,[]));const ua=edit(a.engine,'A'),ub=edit(b.engine,'B');
   await commit(db,()=>journal.append(ua));await commit(db,()=>journal.append(ub));
   const entries=await journal.read(initial.identity);assert.equal(entries.length,2);assert.deepEqual(entries.map(e=>e.sequence),[1,1]);assert.notEqual(entries[0].writerId,entries[1].writerId);
-  const p=points.publish(a.engine.checkpoint(),[entries.find(e=>e.writerId===a.writerId).updateId]);const q=points.publish(b.engine.checkpoint(),[entries.find(e=>e.writerId===b.writerId).updateId]);
-  const rejected=assert.rejects(q,CheckpointConflictError);const ta=await db.nextWrite(),tb=await db.nextWrite();await tick();ta.complete();await tick();assert.equal(tb.aborted,true);await p;await rejected;
+  // Async checksum/preflight work can reorder requests. Admit A's transaction
+  // first, then let B capture the still-uncommitted publication and queue its
+  // write. Both preflights finish before A commits; B must lose the stale CAS.
+  const p=points.publish(a.engine.checkpoint(),[entries.find(e=>e.writerId===a.writerId).updateId]);
+  const ta=await db.nextWrite();
+  const q=points.publish(b.engine.checkpoint(),[entries.find(e=>e.writerId===b.writerId).updateId]);
+  const rejected=assert.rejects(q,CheckpointConflictError),tb=await db.nextWrite();
+  await tick();assert.equal(db.activeWrite,ta);assert.deepEqual(db.queuedWrites,[tb]);
+  assert.equal(ta.staged[0][2].latest.checkpoint.writerId,a.writerId);assert.equal(tb.staged.length,0);
+  assert.equal([...db.stores.checkpoints.values()][0].latest.checkpoint.writerId,initial.writerId);
+  ta.complete();await tick();assert.equal(tb.aborted,true);assert.equal(tb.staged.length,0);await p;await rejected;
+  assert.equal([...db.stores.checkpoints.values()][0].latest.checkpoint.writerId,a.writerId);
   await commit(db,()=>points.publish(b.engine.checkpoint(),[entries.find(e=>e.writerId===b.writerId).updateId]));
   const row=[...db.stores.checkpoints.values()][0];assert.equal(row.previous.checkpoint.writerId,a.writerId);
   const expected='a😀'+(a.writerId<b.writerId?'AB':'BA')+'b';assert.equal((await points.restore(initial.identity,replay)).value,expected);assert.deepEqual(await outbox.pending(initial.identity),entries);
