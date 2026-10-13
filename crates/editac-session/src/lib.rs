@@ -1,5 +1,7 @@
 //! Portable local-first companion to the semantic engine.
 //!
-//! This crate currently establishes the compatibility harness only. Locator,
-//! storage, transport, authorization and edit-service APIs remain subsequent
-//! delivery gates; no database, browser runtime or implicit migration is selected.
+//! Strict locator/catalog resolution and the compatibility harness are available.
+//! Storage, transport, authorization enforcement and edit-service lifecycle remain
+//! subsequent gates; resolving a locator never fetches or initializes a document.
+
+pub mod locator;
