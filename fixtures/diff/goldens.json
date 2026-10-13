@@ -1,0 +1,50 @@
+{
+  "format-before.md": {
+    "bytes": 9,
+    "sha256": "dadde03225e23d9b3db1a3a87a3b04d3f8d6fdf10ce82cd299e8e95ebeaa75fe"
+  },
+  "format-after.md": {
+    "bytes": 9,
+    "sha256": "21f35bce44df3251b5e772901a992a81058b52508d79c3dafffc0be3ca1c6b60"
+  },
+  "delete-before.md": {
+    "bytes": 8,
+    "sha256": "c3f9c8c283a2b1f2f1896f27a01cbe3cddc0c9d93f752e4639035a0f5b36f6e8"
+  },
+  "delete-after.md": {
+    "bytes": 4,
+    "sha256": "2c8b08da5ce60398e1f19af0e5dccc744df274b826abe585eaba68c525434806"
+  },
+  "crlf.md": {
+    "bytes": 10,
+    "sha256": "6f4792b265fe72790b344fd3ef5294701d9d087bed9fce815c0f4bbad6d2ed87"
+  },
+  "lf.md": {
+    "bytes": 8,
+    "sha256": "c3f9c8c283a2b1f2f1896f27a01cbe3cddc0c9d93f752e4639035a0f5b36f6e8"
+  },
+  "no-final-newline.md": {
+    "bytes": 7,
+    "sha256": "21066d108d5319ecb5a1fc4454f42ef22fc5f1c7df49c31d90294950e0ea8b2c"
+  },
+  "unicode.md": {
+    "bytes": 29,
+    "sha256": "c38ef2d0840a9dcbe78343704906f8b940b5b69a5449992bc5c6cc025a08beb3"
+  },
+  "semantic-before.json": {
+    "bytes": 514,
+    "sha256": "f40a2ad79551b2831efe7c71c255ab1a19ebec84d16263a76f04ca2460a31ffa"
+  },
+  "semantic-format.json": {
+    "bytes": 525,
+    "sha256": "89166f6d8b1e90c53e1adb44f9c370928195438706546f63980bebf86703d121"
+  },
+  "semantic-move.json": {
+    "bytes": 514,
+    "sha256": "51cbe56d84e648290ef1cdbfb6e0ebd6b6b74ac98c8af26b7b386f7a48445bb4"
+  },
+  "semantic-delete.json": {
+    "bytes": 296,
+    "sha256": "742a7fa7ecf060fa70781467c294b60550aafcfb9cc3038c3f52d1bc6834a3a5"
+  }
+}
