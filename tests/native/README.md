@@ -33,3 +33,11 @@ After the harness exits, its reproducible `build/` may be removed under the
 workspace disk-hygiene rules. Preserve the receipt, logs and fixture bytes, and
 record cleanup separately. Use a new evidence directory after a relevant repair
 so previous failed logs survive.
+
+## Swift headless host
+
+NAT-1.3's canonical executed-host check is `bash tests/native/swift-fixture.sh`.
+See `native/ios/probe/README.md` for qualified versions, build/link commands,
+case inventory, lifecycle rules and observed copy-count scope. The script reuses
+hash-qualified NAT-1.2 artifacts, records nonzero case counts and exact commands,
+and removes its temporary executables. It does not qualify UIKit or device input.
