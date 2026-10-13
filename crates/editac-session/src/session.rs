@@ -402,6 +402,9 @@ impl<S: SessionStore> Session<S> {
     ) -> Result<Option<LocalCommit>, crate::edit_service::ServiceError> {
         self.admit(now)?;
         self.compare_revision(expected)?;
+        // Every service operation is a conservative gesture boundary. Untrusted
+        // equal origin strings cannot merge agent/import/replay into human typing.
+        self.document.reset_history_group();
         let commit = match plan {
             crate::edit_service::PreparedPlan::Commands(plan) => Some(
                 self.document

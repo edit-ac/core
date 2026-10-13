@@ -1,6 +1,6 @@
 //! Owned preparation/admission boundary shared by human, script and adapter callers.
 //! Plans and previews grant no authority: current host policy is checked again at apply.
-use crate::{ports::LocalCommit, revision::ObservedRevision, session::*};
+use crate::{operations::*, ports::LocalCommit, revision::ObservedRevision, session::*};
 use editac_core::{
     commands::{
         editor::{EditorCommand, EditorError, PreparedEditorEdit},
@@ -61,6 +61,7 @@ pub enum ServiceError {
     UnqualifiedHistory,
     UnsupportedModule,
     ResourceLimit,
+    Operation(OperationError),
     /// Recoverable exact source inputs and the current semantic snapshot.
     SourceConflict {
         conflict: Conflict,
@@ -119,6 +120,7 @@ pub struct PreparedEdit {
     plan: PreparedPlan,
     requirements: Requirements,
     preview: Snapshot,
+    engine_origin: String,
 }
 impl PreparedEdit {
     pub fn preview(&self) -> &Snapshot {
@@ -134,6 +136,7 @@ pub struct EditService<S: SessionStore> {
     policy: HostPolicy,
     history_requirements: Requirements,
     history_qualified: bool,
+    operations: OperationLog,
 }
 impl<S: SessionStore> EditService<S> {
     pub fn new(session: Session<S>, policy: HostPolicy) -> Self {
@@ -144,6 +147,7 @@ impl<S: SessionStore> EditService<S> {
             policy,
             history_requirements: Requirements::default(),
             history_qualified,
+            operations: OperationLog::default(),
         }
     }
     /// Read-only access permits anchors, observations and labeled recovery exports.
@@ -291,6 +295,7 @@ impl<S: SessionStore> EditService<S> {
             plan: PreparedPlan::Commands(plan),
             requirements,
             preview,
+            engine_origin: origin.as_str().into(),
         })
     }
     /// Capture exact source-to-owner mapping. URI text or whole-document Markdown is never an identity map.
@@ -358,6 +363,7 @@ impl<S: SessionStore> EditService<S> {
             plan: PreparedPlan::Source(plan),
             requirements,
             preview,
+            engine_origin: origin.as_str().into(),
         })
     }
     /// Current policy and expected state are checked under the exclusive endpoint owner.
@@ -366,19 +372,108 @@ impl<S: SessionStore> EditService<S> {
         prepared: PreparedEdit,
         now: u64,
     ) -> Result<Option<LocalCommit>, ServiceError> {
+        let operation_id = self.operations.next().map_err(ServiceError::Operation)?;
+        self.apply_as(
+            prepared,
+            HostOperation {
+                actor: None,
+                origin: OperationOrigin::Unattributed,
+                request_id: format!("endpoint-{operation_id}"),
+            },
+            now,
+        )
+    }
+    /// Trusted host metadata is supplied at admission, never inferred from a plan.
+    pub fn apply_as(
+        &mut self,
+        prepared: PreparedEdit,
+        host: HostOperation,
+        now: u64,
+    ) -> Result<Option<LocalCommit>, ServiceError> {
         self.admit(now)?;
         self.requirements(prepared.requirements)?;
+        self.session.compare_revision(&prepared.expected)?;
+        host.validate().map_err(ServiceError::Operation)?;
+        let operation_id = self.operations.next().map_err(ServiceError::Operation)?;
+        let before = prepared.expected;
         let result = self
             .session
-            .apply_prepared_service(&prepared.expected, prepared.plan, now);
-        // A persistence error follows semantic commit: retain its guard through recovery.
+            .apply_prepared_service(&before, prepared.plan, now);
         if matches!(
             &result,
             Ok(Some(_)) | Err(ServiceError::Session(SessionError::Store(_)))
         ) {
             self.history_requirements.include(prepared.requirements);
         }
+        self.record(operation_id, host, prepared.engine_origin, before, &result)?;
         result
+    }
+    /// Transport/journal origins remain untrusted. Remote integration never joins typing.
+    pub fn receive_peer(
+        &mut self,
+        entry: crate::ports::JournalEntry,
+    ) -> Result<LocalCommit, ServiceError> {
+        let before = self.session.observed_revision()?;
+        let id = self.operations.next().map_err(ServiceError::Operation)?;
+        let engine_origin = entry.origin().to_owned();
+        let result = self
+            .session
+            .receive_peer(entry)
+            .map(Some)
+            .map_err(ServiceError::Session);
+        self.record(
+            id,
+            HostOperation {
+                actor: None,
+                origin: OperationOrigin::Replay,
+                request_id: format!("endpoint-{id}"),
+            },
+            engine_origin,
+            before,
+            &result,
+        )?;
+        result.map(|commit| commit.unwrap())
+    }
+    /// Oldest-first bounded records. Eviction/reopen loses provenance, never edits.
+    pub fn operations(&self) -> &std::collections::VecDeque<OperationRecord> {
+        self.operations.records()
+    }
+    pub fn operation_bytes(&self) -> usize {
+        self.operations.bytes()
+    }
+    fn record(
+        &mut self,
+        operation_id: u64,
+        host: HostOperation,
+        engine_origin: String,
+        before: ObservedRevision,
+        result: &Result<Option<LocalCommit>, ServiceError>,
+    ) -> Result<(), ServiceError> {
+        if !matches!(
+            result,
+            Ok(Some(_)) | Err(ServiceError::Session(SessionError::Store(_)))
+        ) {
+            return Ok(());
+        }
+        let after = ObservedRevision::observe(self.session.document())
+            .map_err(|e| ServiceError::Session(SessionError::Revision(e)))?;
+        if before != after {
+            let outcome = match result {
+                Ok(Some(commit)) => OperationOutcome::LocalCommit(commit.clone()),
+                _ => OperationOutcome::RecoveryRequired,
+            };
+            self.operations.push(OperationRecord {
+                operation_id,
+                request_id: host.request_id.into_boxed_str().into_string(),
+                actor: host.actor,
+                origin: host.origin,
+                engine_origin,
+                before,
+                after,
+                outcome,
+            });
+        }
+        Ok(())
     }
     pub fn undo(
         &mut self,
@@ -387,7 +482,7 @@ impl<S: SessionStore> EditService<S> {
     ) -> Result<Option<LocalCommit>, ServiceError> {
         self.admit(now)?;
         self.history_admit()?;
-        Ok(self.session.undo_if_revision(expected, now)?)
+        self.history_operation(expected, now, false)
     }
     pub fn redo(
         &mut self,
@@ -396,7 +491,37 @@ impl<S: SessionStore> EditService<S> {
     ) -> Result<Option<LocalCommit>, ServiceError> {
         self.admit(now)?;
         self.history_admit()?;
-        Ok(self.session.redo_if_revision(expected, now)?)
+        self.history_operation(expected, now, true)
+    }
+    fn history_operation(
+        &mut self,
+        expected: &ObservedRevision,
+        now: u64,
+        redo: bool,
+    ) -> Result<Option<LocalCommit>, ServiceError> {
+        let id = self.operations.next().map_err(ServiceError::Operation)?;
+        let result = if redo {
+            self.session.redo_if_revision(expected, now)
+        } else {
+            self.session.undo_if_revision(expected, now)
+        }
+        .map_err(ServiceError::Session);
+        self.record(
+            id,
+            HostOperation {
+                actor: None,
+                origin: if redo {
+                    OperationOrigin::Redo
+                } else {
+                    OperationOrigin::Undo
+                },
+                request_id: format!("endpoint-{id}"),
+            },
+            if redo { "session:redo" } else { "session:undo" }.into(),
+            expected.clone(),
+            &result,
+        )?;
+        result
     }
 }
 fn source_requirements(mode: SourceMode, bytes: usize) -> Requirements {
