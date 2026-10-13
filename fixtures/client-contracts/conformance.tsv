@@ -1,0 +1,22 @@
+# case	action	argument	text	pending	result
+Offline	insert	a😀b	a😀b	1	committed
+Offline	undo	-	~	2	committed
+Offline	redo	-	a😀b	3	committed
+Offline	reopen	-	a😀b	3	ready
+Recovery	insert	base	base	1	committed
+Recovery	fail-insert	X	Xbase	1	recovery-required
+Recovery	recover	-	Xbase	2	ready
+Recovery	reopen	-	Xbase	2	ready
+Readonly	insert	base	base	1	committed
+Readonly	readonly	-	base	1	ready
+Readonly	insert	X	base	1	rejected
+Readonly	undo	-	base	1	rejected
+Readonly	redo	-	base	1	rejected
+Readonly	writable	-	base	1	ready
+Readonly	insert	Y	Ybase	2	committed
+Reconnect	insert	A	A	1	committed
+Reconnect	peer-insert	H	A	2	detached
+Reconnect	catch-up	-	HA	2	ready
+Reconnect	catch-up	-	HA	2	ready
+Reconnect	upload	-	HA	2	sent-unknown
+Reconnect	reopen	-	HA	2	ready

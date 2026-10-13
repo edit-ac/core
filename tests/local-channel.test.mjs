@@ -114,10 +114,12 @@ check('actual offline tabs deliver committed edits, concurrent checkpoints, rest
  facts.concurrent = { expected, checkpoints, pending: 3 };
  // A hosted peer remains prepared, using the actual independent Rust engine and replay boundary.
  const peerResult = await pages[0].evaluate(async () => {
-  const f=window.fixture; const peer=f.runtime.restoreEngine(f.point.identity,f.point); let incoming;
+  const f=window.fixture;
+  // Qualify the complete retained tail together: per-writer journal order is not causal order.
+  const entries=await f.journal.read(f.point.identity);
+  const peer=f.runtime.restoreEngine(f.point.identity,f.point,entries.map(entry=>({identity:entry.identity,bytes:entry.bytes}))); let incoming;
   const sub=peer.subscribe({type:'updates'},p=>{if(p.update)incoming={identity:p.identity,writerId:p.writerId,sequence:p.sequence,origin:p.origin,bytes:p.update.bytes};});
   const at=peer.anchor(peer.read().visible[0].id,0,'right');const plan=peer.prepare({kind:'text',origin:'local-channel:hosted',command:{type:'insert',at,text:'H'}});peer.commit(plan);peer.releasePlan(plan);peer.releaseAnchor(at);sub.dispose();
-  for(const entry of await f.journal.read(f.point.identity))peer.applyUpdate({identity:entry.identity,bytes:entry.bytes});
   await f.journal.append(incoming);f.channel.notify();await f.channel.catchUp();
   const result=peer.read().visible[0].runs.map(r=>r.text).join('');peer.dispose();return result;
  });
