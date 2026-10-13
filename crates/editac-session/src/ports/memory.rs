@@ -16,6 +16,7 @@ pub(crate) struct State {
 struct Inner {
     state: State,
     fault: Option<InjectedFault>,
+    writers: Vec<u32>,
 }
 #[derive(Clone)]
 pub struct MemoryStore {
@@ -51,9 +52,27 @@ impl MemoryStore {
                     previous: None,
                     generation: 0,
                 },
+                writers: vec![],
                 fault: None,
             })),
         })
+    }
+    /// Volatile reservations shared by clones; native persistence keeps its own SQL table.
+    pub fn claim_writer(&self, writer: u32) -> Result<(), PortError> {
+        let mut inner = self.inner.lock().map_err(|_| PortError::Unavailable)?;
+        if writer == 0 {
+            return Err(PortError::InvalidRecord);
+        }
+        if inner.writers.contains(&writer)
+            || inner.state.journal.iter().any(|e| e.id().writer == writer)
+        {
+            return Err(PortError::Conflict);
+        }
+        if inner.writers.len() >= self.limits.max_records {
+            return Err(PortError::ResourceLimit);
+        }
+        inner.writers.push(writer);
+        Ok(())
     }
     /// Native transactions reuse the prepared policy over a detached verified snapshot.
     #[cfg(feature = "native-store")]
@@ -303,6 +322,9 @@ pub struct FaultInjectedStore(MemoryStore);
 impl FaultInjectedStore {
     pub fn new(identity: DocumentIdentity, limits: StoreLimits) -> Result<Self, PortError> {
         MemoryStore::new(identity, limits).map(Self)
+    }
+    pub fn claim_writer(&self, writer: u32) -> Result<(), PortError> {
+        self.0.claim_writer(writer)
     }
     pub fn inject(&self, fault: InjectedFault) -> Result<(), PortError> {
         let mut inner = self.0.inner.lock().map_err(|_| PortError::Unavailable)?;
