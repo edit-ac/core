@@ -1,0 +1,4 @@
+# Preserve the pinned generator's exact source bytes, including template spaces.
+*.swift -text whitespace=-blank-at-eol,-blank-at-eof
+*.kt -text whitespace=-blank-at-eol,-blank-at-eof
+*.h -text whitespace=-blank-at-eol,-blank-at-eof

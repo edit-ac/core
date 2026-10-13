@@ -1,0 +1,14 @@
+{
+  "fixtureVersion": 1,
+  "profile": "v5",
+  "epoch": "a9000000-0000-4000-8000-000000000001",
+  "initialText": "A😀éZ",
+  "initialUtf16Units": 6,
+  "insertOffsetUtf16": 3,
+  "suffixOffsetUtf16": 6,
+  "insertText": "Ω",
+  "suffixText": "!",
+  "expectedText": "A😀ΩéZ!",
+  "expectedUtf16Units": 8,
+  "invalidSurrogateOffsetUtf16": 2
+}
