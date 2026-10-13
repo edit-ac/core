@@ -219,8 +219,11 @@ impl Document {
             .iter()
             .filter(|n| n.kind == "block")
             .collect();
-        let a = position(&stage, &selection.anchor)?;
-        let b = position(&stage, &selection.focus)?;
+        // Resolve the caller's stable targets against the live immutable
+        // baseline, before staging. Recovery-only aliases of an empty source
+        // must not replace a visible destination while cloning for preparation.
+        let a = position(self, &selection.anchor)?;
+        let b = position(self, &selection.focus)?;
         let ai = nodes
             .iter()
             .position(|n| n.id == a.node)
@@ -235,7 +238,15 @@ impl Document {
             (b, a, bi, ai)
         };
         let insertion = stage
-            .anchor(&start.node, start.offset, Bias::Left)
+            .anchor(
+                &start.node,
+                start.offset,
+                if nodes[first].runs.iter().all(|run| run.text.is_empty()) {
+                    Bias::Right
+                } else {
+                    Bias::Left
+                },
+            )
             .map_err(|_| EditorError::InvalidCommand)?;
         let mut deletes = Vec::new();
         for (index, node) in nodes.iter().enumerate().take(last + 1).skip(first) {
@@ -271,7 +282,13 @@ impl Document {
             let plan = stage.prepare_editor(&deletes, origin)?;
             stage.commit_editor(plan)?;
         }
-        let cursor = position(&stage, &insertion)?;
+        let cursor = if nodes[first].runs.iter().all(|run| run.text.is_empty()) {
+            // Deleting/joining the selected tail preserves this empty first
+            // owner. Its source cut can also occur in a preceding owner.
+            start.clone()
+        } else {
+            position(&stage, &insertion)?
+        };
         let mut result = insertion;
         let mut imported = Vec::new();
         // Split only existing text. Incoming payloads are independent immutable
@@ -299,13 +316,6 @@ impl Document {
             // Create its empty suffix explicitly instead of accepting a dormant
             // split and guessing an owner that was never produced.
             let suffix = stage.next_editor_id(false)?;
-            let at = before.visible.iter().position(|n| n.id == owner).unwrap();
-            let next = before
-                .visible
-                .iter()
-                .skip(at + 1)
-                .find(|n| n.parent == parent)
-                .map(|n| n.id.clone());
             let plan = stage.prepare_editor(
                 &[
                     EditorCommand::Create {
@@ -317,7 +327,10 @@ impl Document {
                     EditorCommand::Place {
                         target: suffix.clone(),
                         parent: parent.clone(),
-                        before: next,
+                        // Depend on the destination's structural version. Placing
+                        // before its original next sibling could replay before
+                        // the join/split which created this empty destination.
+                        before: Some(owner.clone()),
                     },
                 ],
                 origin,
@@ -426,6 +439,20 @@ impl Document {
             imported.push(fresh);
         }
         let first_import = imported[0].clone();
+        if original.runs.iter().all(|r| r.text.is_empty()) {
+            // The suffix and payload now depend on the existing destination.
+            // Move that destination in front only after all payload placement;
+            // the resulting join cannot race its own placement predecessors.
+            let plan = stage.prepare_editor(
+                &[EditorCommand::Place {
+                    target: owner.clone(),
+                    parent: parent.clone(),
+                    before: Some(first_import.clone()),
+                }],
+                origin,
+            )?;
+            stage.commit_editor(plan)?;
+        }
         let plan = stage.prepare_editor(
             &[EditorCommand::Join {
                 first: owner.clone(),
@@ -1142,7 +1169,20 @@ impl Document {
                             return Err(EditorError::UnsupportedTarget);
                         }
                     }
-                    if heading_end {
+                    // Contextual list/quote Enter expands through Split too; keep
+                    // those source-preserving policies unchanged.
+                    let terminal_paragraph = node.parent == "@root"
+                        && matches!(
+                            node.block_attributes,
+                            Some(crate::document::BlockAttributes::Paragraph)
+                        )
+                        && p.offset.0 as usize
+                            == node
+                                .runs
+                                .iter()
+                                .map(|r| r.text.encode_utf16().count())
+                                .sum::<usize>();
+                    if heading_end || terminal_paragraph {
                         // A fresh source prevents collisions with existing source cuts.
                         // Every structural step is confined to the disposable replica.
                         let o = target(&stage, stable, owner)?;
@@ -1223,15 +1263,20 @@ impl Document {
                             counter = counter.checked_add(1).ok_or(EditorError::ResourceLimit)?;
                             Ok(op)
                         };
-                        crate::editor::place(
-                            &stage,
-                            stable,
-                            &operation()?,
-                            &fresh,
-                            &o.parent,
-                            before.as_deref(),
-                        )
-                        .map_err(error)?;
+                        // Registration already appends a root block. A redundant
+                        // append intention would move this source behind future
+                        // registrations during replay and invalidate its join.
+                        if o.parent != "@root" || before.is_some() {
+                            crate::editor::place(
+                                &stage,
+                                stable,
+                                &operation()?,
+                                &fresh,
+                                &o.parent,
+                                before.as_deref(),
+                            )
+                            .map_err(error)?;
+                        }
                         let snapshot = crate::projection::ProjectionIndex::with_identity(
                             &stage,
                             self.identity(),

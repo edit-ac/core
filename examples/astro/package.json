@@ -1,0 +1,7 @@
+{
+  "name": "editac-astro-example",
+  "private": true,
+  "type": "module",
+  "scripts": { "check": "node ../../scripts/check-astro-types.mjs", "build": "astro build" },
+  "devDependencies": { "@astrojs/check": "0.9.10", "typescript": "6.0.3" }
+}

@@ -1,4 +1,6 @@
-import type { CommitResult, PrepareRequest, Snapshot } from '@edit-ac/core';
+import type { AnchorToken, Bias, CommitResult, DocumentIdentity, EditorCommand, Patch, PatchScope, PrepareRequest, Snapshot } from '@edit-ac/core';
+import { SyncSession, type SyncSessionOptions, type SyncTransport } from './sync/session.js';
+import { UpdateOutbox } from './storage/outbox.js';
 import { recoverLocalDocument } from './entry.js';
 import type { DOMRenderer } from './dom/render.js';
 import type { DOMSelection } from './dom/selection.js';
@@ -31,6 +33,37 @@ export interface EditorOptions extends RecoveryOptions {
   recover?: typeof recoverLocalDocument;
 }
 export interface DestroyResult { unsaved: boolean; recovery: RecoveryExport | null; provisional: readonly { text?: string; reason: string }[]; clipboard: readonly { mime: string; raw: string; reason: string }[] }
+export interface SyncAttachment {
+  readonly state: SyncSession['state'];
+  receive(frame: Uint8Array): void;
+  pump(now: number): Promise<void>;
+  detach(): void;
+}
+export interface AttachSyncOptions extends SyncSessionOptions {
+  transport: SyncTransport;
+  peerIdentity: DocumentIdentity;
+  authorized: boolean;
+}
+/** A chain is one Rust prepare/commit, never a loop of partially applied commands. */
+export class CommandChain {
+  private readonly commands: EditorCommand[] = [];
+  private consumed = false;
+  constructor(private readonly editor: BrowserEditor, private readonly origin: string) {}
+  command(command: EditorCommand): this {
+    if (this.consumed) throw Error('Command chain consumed');
+    this.commands.push(structuredClone(command)); return this;
+  }
+  private request(): PrepareRequest {
+    if (this.consumed) throw Error('Command chain consumed');
+    return { kind: 'editor', origin: this.origin, commands: structuredClone(this.commands) };
+  }
+  can(): boolean { return this.editor.can(this.request()); }
+  /** A returned caret token is caller-owned; release it after applying selection. */
+  run(): CommitResult {
+    const request = this.request(); this.consumed = true;
+    return this.editor.commit(request);
+  }
+}
 const mounts = new WeakMap<HTMLElement, BrowserEditor>();
 let editorSequence = 0;
 
@@ -52,6 +85,10 @@ export class BrowserEditor {
     void this.plainPaste(undefined, target).catch(() => {});
   };
   private session: LocalSession | undefined;
+  private readonly recoveryOptions: RecoveryOptions;
+  private sync: SyncAttachment | undefined;
+  private syncGeneration = 0;
+  private readonly patchObservers = new Set<() => void>();
   private renderer: DOMRenderer | undefined;
   private selection: DOMSelection | undefined;
   private input: TextInput | undefined;
@@ -71,6 +108,7 @@ export class BrowserEditor {
     mounts.set(root, this);
     const captured: EditorOptions = { ...options, identity: { ...options.identity },
       ...(options.preview ? { preview: { identity: { ...options.preview.identity }, revision: options.preview.revision } } : {}) };
+    this.recoveryOptions = captured;
     this.readOnly = options.readOnly ?? false;
     this.lifecycle = new BrowserLifecycle(!!root.childNodes.length, this.readOnly);
     root.contentEditable = 'false'; root.setAttribute('role', 'textbox'); root.setAttribute('aria-multiline', 'true');
@@ -91,7 +129,15 @@ export class BrowserEditor {
   }
   get state() { return this.lifecycle.state; }
   get clipboardRecovery() { return this.input?.clipboard.recovery.map(record => ({ ...record })) ?? []; }
-  subscribe(listener: Parameters<BrowserLifecycle['subscribe']>[0]): () => void { return this.lifecycle.subscribe(listener); }
+  subscribe(listener: Parameters<BrowserLifecycle['subscribe']>[0]): () => void;
+  subscribe(scope: PatchScope, listener: (patch: Patch) => void): () => void;
+  subscribe(scope: PatchScope | Parameters<BrowserLifecycle['subscribe']>[0], listener?: (patch: Patch) => void): () => void {
+    if (typeof scope === 'function') return this.lifecycle.subscribe(scope);
+    if (!listener) throw TypeError('Patch listener required');
+    const subscription = this.requireReady().writer.engine.subscribe(scope, listener);
+    const dispose = () => { subscription.dispose(); this.patchObservers.delete(dispose); };
+    this.patchObservers.add(dispose); return dispose;
+  }
   private async activate(options: EditorOptions): Promise<void> {
     try {
       const cancellation = new Promise<never>((_, reject) => { this.cancelActivation = () => reject(Error('Editor initialization canceled')); });
@@ -152,6 +198,46 @@ export class BrowserEditor {
   get slash(): import('./modules/slash.js').SlashPresenter | undefined { return this.input?.slash; }
   get moduleRuntime(): import('./modules/runtime.js').ModuleRuntime | undefined { return this.renderer?.moduleRuntime; }
   read(): Snapshot { return this.requireReady().writer.engine.read(); }
+  anchor(node: string, offset: number, bias: Bias = 'right'): AnchorToken { return this.requireReady().writer.engine.anchor(node, offset, bias); }
+  releaseAnchor(anchor: AnchorToken): void { this.requireReady().writer.engine.releaseAnchor(anchor); }
+  can(request: PrepareRequest): boolean {
+    const session = this.requireReady();
+    return !this.readOnly && session.storage.state.phase !== 'error' && session.writer.engine.can(request);
+  }
+  chain(origin = 'local:sdk'): CommandChain { this.requireReady(); return new CommandChain(this, origin); }
+  /** Host drives receive/pump on transport events and retry deadlines. Sending
+   * frames establishes no durable remote-save claim. Attachment never restores a replica. */
+  async attachSync(options: AttachSyncOptions): Promise<SyncAttachment> {
+    const session = this.requireReady(), generation = ++this.syncGeneration;
+    const { transport, authorized, peerIdentity, ...limits } = options;
+    const identity = { ...peerIdentity };
+    const outbox = await UpdateOutbox.open(this.recoveryOptions.indexedDB, this.recoveryOptions.databaseName);
+    let sync: SyncSession | undefined;
+    try {
+      if (this.requireReady() !== session || generation !== this.syncGeneration) throw Error('Sync attachment superseded');
+      sync = new SyncSession(session.writer.engine, outbox, limits);
+      sync.attach(transport, identity, authorized);
+      const owned = sync;
+      let latest = session.storage.state.localCommitted?.updateId, detached = false;
+      const unsubscribe = session.storage.subscribe(state => {
+        if (state.localCommitted && state.localCommitted.updateId !== latest) {
+          latest = state.localCommitted.updateId;
+          // Re-read the durable outbox; SyncSession filters remote/restore origins.
+          owned.localCommitted('local:sdk');
+        }
+      });
+      const attachment: SyncAttachment = {
+        get state() { return owned.state; },
+        receive: frame => owned.receive(frame), pump: now => owned.pump(now),
+        detach: () => {
+          if (detached) return; detached = true;
+          unsubscribe(); owned.dispose(); outbox.close();
+          if (this.sync === attachment) this.sync = undefined;
+        }
+      };
+      this.sync?.detach(); this.sync = attachment; return attachment;
+    } catch (error) { sync?.dispose(); outbox.close(); throw error; }
+  }
   commit(request: PrepareRequest): CommitResult {
     const session = this.requireReady(); if (this.readOnly) throw Error('Editor is read-only'); return session.storage.commit(request);
   }
@@ -189,6 +275,8 @@ export class BrowserEditor {
     if (this.destroyPromise) return this.destroyPromise;
     if (options.policy !== 'flush' && options.policy !== 'report') return Promise.reject(Error('Explicit destroy policy required'));
     this.closing = true;
+    this.syncGeneration++; this.sync?.detach();
+    for (const dispose of this.patchObservers) dispose();
     this.root.contentEditable = 'false'; this.root.setAttribute('aria-readonly', 'true');
     // Publish the shared teardown promise before notifying reentrant subscribers.
     this.destroyPromise = Promise.resolve().then(async () => {

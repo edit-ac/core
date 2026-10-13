@@ -1,0 +1,14 @@
+---
+import { ClientRouter } from 'astro:transitions';
+import Editor from '@edit-ac/astro/Editor.astro';
+---
+<html lang="en"><head><title>edit.ac Astro task editor</title><ClientRouter /></head>
+<body><h1>Task editor</h1><a href="/away">Navigate away</a>
+<Editor name="task" label="Task editor" /><Editor name="notes" label="Notes editor" readOnly />
+<button id="save">Save locally</button><button id="export-recovery">Export recovery</button>
+<p id="save-status" role="status">Opening local document…</p>
+<p>Simple Markdown task content; native/mobile input and performance remain unqualified. No host authentication or uploads are included.</p>
+<script>
+  import '../client.js';
+</script>
+</body></html>

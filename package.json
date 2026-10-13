@@ -12,28 +12,44 @@
   "workspaces": [
     "packages/core",
     "packages/web",
-    "packages/react"
+    "packages/react",
+    "packages/astro"
   ],
   "scripts": {
     "example:web": "node examples/web/serve.mjs",
+    "example:task": "node examples/task-editor/serve.mjs",
     "test:example:web": "node --test tests/browser/web-example.test.mjs",
     "build": "npm run build --workspaces",
     "test:browser": "node scripts/test-browser.mjs",
     "check:browser-baseline": "npm run build:wasm && npm run build && node --test tests/browser/baseline-runner.test.mjs && npm run test:browser -- baseline",
     "typecheck": "npm run typecheck --workspaces",
-    "check:rust": "cargo fmt --all -- --check && cargo check --workspace --all-targets --locked --offline && cargo test --workspace --locked --offline",
-    "check:packages": "npm run typecheck && npm run build && node scripts/check-package-exports.mjs",
+    "check:rust": "cargo fmt --all -- --check && cargo check --workspace --all-targets --locked --offline && node scripts/test-rust.mjs",
+    "check:packages": "npm run typecheck && npm run build && node scripts/check-package-exports.mjs && node --test tests/sdk-prerequisites.test.mjs",
     "check:protocol": "cargo check -p editac-wasm --target wasm32-unknown-unknown --locked --offline && node --test tests/protocol-toolchain.test.mjs",
     "check:interop": "node --test tests/interop.test.mjs",
     "check:fixtures": "node --test tests/fixtures.test.mjs",
     "check:schema": "node --test tests/schema-profile.test.mjs tests/schema-interop.test.mjs",
     "check": "npm run check:rust && npm run check:packages && npm run check:protocol && npm run check:fixtures && npm run check:interop && npm run check:schema && npm run check:browser-baseline",
     "build:wasm": "node scripts/build-wasm.mjs",
-    "check:wasm": "npm run build:wasm && node --test tests/wasm-load.test.mjs"
+    "check:wasm": "npm run build:wasm && npm run build:wasm:fixture && node --test tests/wasm-load.test.mjs",
+    "bench": "node scripts/bench.mjs",
+    "bench:quick": "node scripts/bench.mjs --quick",
+    "bench:watch": "node scripts/bench-watch.mjs",
+    "test:bench": "node --test tests/benchmarks.test.mjs",
+    "test:regression": "node scripts/test-regression.mjs",
+    "check:astro": "npm run build && node --test tests/astro-build.test.mjs",
+    "check:browser-size": "node scripts/check-browser-size.mjs",
+    "build:wasm:fixture": "node scripts/build-wasm.mjs --fixture"
   },
   "devDependencies": {
+    "@astrojs/node": "11.1.7",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "astro": "7.3.8",
     "esbuild": "0.25.12",
     "playwright": "1.64.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "typescript": "7.0.2",
     "y-protocols": "1.0.7",
     "yjs": "13.6.33"

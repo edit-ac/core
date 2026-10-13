@@ -833,3 +833,141 @@ fn heading_end_batch_last_heading_owns_result() {
         matches!(d.resolve_anchor(commit.result_caret.as_ref().unwrap()).unwrap(), Resolution::Position(p) if p.node == after[3].id && p.offset == U(0))
     );
 }
+
+#[test]
+fn paragraph_end_split_returns_a_fresh_caret_without_rerouting_the_input_cut() {
+    for value in ["A😀Z", ""] {
+        let mut d = engine(&[value, "untouched"]);
+        let id = blocks(&d)[0].id.clone();
+        edit(
+            &mut d,
+            &[EditorCommand::Block {
+                target: id.clone(),
+                tuple: Any::Array(vec![Any::from("paragraph")].into()),
+            }],
+        );
+        d.clear_history();
+        let at = d
+            .anchor(&id, U(value.encode_utf16().count() as u32), Bias::Right)
+            .unwrap();
+        let before = frozen(&d);
+        let command = EditorCommand::Split {
+            owner: id.clone(),
+            at: at.clone(),
+        };
+        d.can_editor(&[command.clone()], &origin()).unwrap();
+        assert_eq!(frozen(&d), before);
+        let result = edit(&mut d, &[command]);
+        let nodes = blocks(&d);
+        assert_eq!(
+            nodes.iter().map(text).collect::<Vec<_>>(),
+            vec![value, "", "untouched"]
+        );
+        assert_eq!(nodes[0].id, id);
+        let caret = result
+            .result_caret
+            .expect("terminal split must author its empty destination caret");
+        let Resolution::Position(position) = d.resolve_anchor(&caret).unwrap() else {
+            panic!("result caret must resolve");
+        };
+        assert_eq!(position.node, nodes[1].id);
+        assert_eq!(position.offset, U(0));
+        // The existing caller's source cut remains attached to its old paragraph.
+        let Resolution::Position(input) = d.resolve_anchor(&at).unwrap() else {
+            panic!("input cut must resolve");
+        };
+        assert_eq!(input.node, id);
+        edit(
+            &mut d,
+            &[EditorCommand::Text(TextCommand::Insert {
+                at: caret,
+                text: "next".into(),
+            })],
+        );
+        assert_eq!(
+            blocks(&d).iter().map(text).collect::<Vec<_>>(),
+            vec![value, "next", "untouched"]
+        );
+    }
+}
+
+#[test]
+fn paragraph_end_destination_accepts_a_formatted_fragment() {
+    // Exercise both relative writer orderings used by disposable staging replicas.
+    for case in 0..64 {
+        let tail = case % 2 == 0;
+        let mut d = engine(if tail {
+            &["task", "untouched"]
+        } else {
+            &["task"]
+        });
+        let id = blocks(&d)[0].id.clone();
+        edit(
+            &mut d,
+            &[EditorCommand::Block {
+                target: id.clone(),
+                tuple: Any::Array(vec![Any::from("paragraph")].into()),
+            }],
+        );
+        let at = d.anchor(&id, U(4), Bias::Right).unwrap();
+        let result = edit(&mut d, &[EditorCommand::Split { owner: id, at }]);
+        let caret = result.result_caret.unwrap();
+        let selection = editac_core::anchors::Selection {
+            anchor: caret.clone(),
+            focus: caret,
+        };
+        let fragment = vec![
+            FragmentBlock {
+                runs: vec![FragmentRun {
+                    text: "Offline heading".into(),
+                    marks: vec![],
+                }],
+                attributes: Some(BlockAttributes::Heading(1)),
+                containers: vec![],
+                checked: None,
+            },
+            FragmentBlock {
+                runs: vec![FragmentRun {
+                    text: "Saved".into(),
+                    marks: vec![(Mark::Bold, None)],
+                }],
+                attributes: Some(BlockAttributes::Paragraph),
+                containers: vec![],
+                checked: None,
+            },
+        ];
+        let before = d.checkpoint();
+        let plan = d
+            .prepare_fragment(&selection, &fragment, &origin())
+            .unwrap();
+        assert_eq!(
+            d.checkpoint().bytes,
+            before.bytes,
+            "preparation mutated the live replica"
+        );
+        d.commit_editor(plan).unwrap();
+        assert_eq!(
+            blocks(&d).iter().map(text).collect::<Vec<_>>(),
+            if tail {
+                vec!["task", "Offline heading", "Saved", "untouched"]
+            } else {
+                vec!["task", "Offline heading", "Saved"]
+            }
+        );
+        let expected = blocks(&d);
+        assert_eq!(
+            expected[1].block_attributes,
+            Some(BlockAttributes::Heading(1))
+        );
+        assert_eq!(
+            expected[2].runs[0].attributes.get("bold"),
+            Some(&Any::Bool(true))
+        );
+        let restored = Document::restore(d.identity(), &d.checkpoint(), &[]).unwrap();
+        assert_eq!(
+            blocks(&restored),
+            expected,
+            "checkpoint lost fragment identity or presentation"
+        );
+    }
+}

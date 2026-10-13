@@ -7,6 +7,8 @@ Build from the repository root with `npm run build` before importing `dist/`.
 ```ts
 import { mountEditor } from '@edit-ac/web';
 
+// root, assetUrl, databaseName and identity are supplied by the host.
+
 const editor = mountEditor(root, {
   assetUrl, databaseName, identity, indexedDB, locks: navigator.locks,
   label: 'Document editor',
@@ -19,6 +21,17 @@ await editor.flush({ target: 'local' });
 unsubscribe();
 await editor.destroy({ policy: 'flush' });
 ```
+
+`flush({ target: 'local' })` waits for local journal commits; it does not report
+remote settlement. Other flush targets reject. Commands reject while loading,
+closing or read-only; recovery failures reject `ready` and remain observable in
+state. `createEditor` returns the same lifecycle handle as `mountEditor`;
+await `ready` before using it. `taskPreset()` supplies explicit Markdown paste
+and typing-shortcut defaults. `chain()` collects commands for a single Rust
+prepare/commit; `can()` validates them without mutation. `attachSync()` attaches
+a host-supplied transport to the existing document and requires the peer identity
+and authorization decision. Hosts drive its `receive()` and `pump()` methods;
+attachment and sending frames do not establish durable remote settlement.
 
 The host supplies an initialized document identity and local checkpoint through
 the core/storage contracts. Mounting recovers that document before accepting

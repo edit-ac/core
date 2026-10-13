@@ -1,6 +1,5 @@
-// Exercise the actual compiled workspace exports. This is a packaging smoke
-// check, not evidence that an editor or WASM runtime has been implemented.
-for (const name of ["@edit-ac/core", "@edit-ac/web", "@edit-ac/react"]) {
+// Import smoke only; sdk-prerequisites.test.mjs exercises the implemented API.
+for (const name of ["@edit-ac/core", "@edit-ac/web", "@edit-ac/react", "@edit-ac/astro"]) {
   await import(name);
-  console.log(`Imported compiled scaffold: ${name}`);
+  console.log(`Imported compiled package: ${name}`);
 }

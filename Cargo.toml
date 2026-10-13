@@ -16,3 +16,12 @@ wasm-bindgen = "=0.2.129"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
+
+# Browser production only; native/release policy is unchanged.
+[profile.browser]
+inherits = "release"
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = "symbols"
+panic = "abort"

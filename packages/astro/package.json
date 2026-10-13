@@ -1,0 +1,33 @@
+{
+  "name": "@edit-ac/astro",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Optional Astro lifecycle host for the edit.ac browser SDK",
+  "license": "Apache-2.0",
+  "type": "module",
+  "files": [
+    "dist",
+    "src/Editor.astro",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./Editor.astro": "./src/Editor.astro"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "typecheck": "tsc --project tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@edit-ac/web": "0.0.0"
+  },
+  "peerDependencies": {
+    "astro": "7.3.x"
+  }
+}

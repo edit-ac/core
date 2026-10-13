@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>React task editor</title>
+
+<style>
+body { max-width: 48rem; margin: 3rem auto; padding: 0 1rem; font: 18px/1.5 system-ui; }
+#editor { min-height: 8rem; padding: 1rem; border: 1px solid #888; }
+button { font: inherit; margin: .5rem .5rem .5rem 0; }
+</style>
+<h1>React task editor</h1>
+<p>Edit this task or paste Markdown. Your document stays in this browser. Sync requires an authorized transport supplied by the host.</p>
+<div id="editor" aria-label="Task document"></div>
+<button id="save">Save locally</button>
+
+<button id="export-recovery">Export recovery</button>
+<p>Simple Markdown task content. Native/mobile input and release performance remain unqualified. The host owns authentication and uploads.</p>
+<p id="message" role="status">Opening task…</p>
+<script type="module" src="/fixture/react-built.mjs"></script>
+</html>

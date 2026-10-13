@@ -1,7 +1,9 @@
 # @edit-ac/core
 
-Private foundation fixture loading boundary. This is a disposable XML/text
-interop bridge, not the frozen structural schema or an editor API.
+Private development package for the v5 semantic engine. The engine owns one Yrs
+replica per handle; the browser adapter renders and edits that replica. Public
+types describe implemented commands, anchors, patches, Markdown and checkpoint
+operations. Registry release remains pending. Local tarball qualification is recorded by `tests/packed-consumers.test.mjs`.
 
 Use the pinned Rust 1.97.1 toolchain and wasm32-unknown-unknown target. Install
 `cargo install wasm-bindgen-cli --version 0.2.129 --locked`, then run
@@ -15,12 +17,26 @@ when preparing a new machine. Generated web-target bindings live only in
 import { init } from '@edit-ac/core';
 
 const runtime = await init('/assets/editac_wasm_bg.wasm');
-const fixture = runtime.createFixture();
+const engine = runtime.createEngine({
+  profile: 'v5',
+  documentId: '81000000-0000-4000-8000-000000000100',
+  epoch: '82000000-0000-4000-8000-000000000100',
+  nodes: [{ text: 'Hello' }],
+});
 try {
-  console.log(fixture.text(), fixture.utf16_length());
-  const bytes = fixture.update_v1(); // receipt of bytes is not durable storage
+  const node = engine.read().visible[0];
+  const at = engine.anchor(node.id, 5, 'right'); // offsets are UTF-16
+  try {
+    const plan = engine.prepare({
+      kind: 'text', origin: 'local:example',
+      command: { type: 'insert', at, text: ' world' },
+    });
+    try { engine.commit(plan); } finally { engine.releasePlan(plan); }
+  } finally { engine.releaseAnchor(at); }
+  const checkpoint = engine.checkpoint(); // persist envelope and bytes atomically
+  console.log(engine.read().visible[0].runs.map(run => run.text).join(''));
 } finally {
-  fixture.free();
+  engine.dispose();
 }
 ```
 
@@ -29,18 +45,64 @@ The package export `@edit-ac/core/wasm` identifies the packed binary for a host'
 asset pipeline; browsers cannot import that binary directly as JavaScript.
 The tested loading mode is native browser ESM. Serve `dist/index.js` with its
 relative `dist/wasm/editac_wasm.js` dependency, or copy the whole `dist` tree.
-Bundler-specific asset rewriting is not qualified here.
+The packed-consumer harness also builds React 19.3.0 with esbuild 0.25.12 and
+Astro 7.3.8 static/SSR with Node adapter 11.1.7. For a single esbuild output
+`/app.js`, copy the packed `dist/wasm/` directory to `/wasm/`: the runtime glue
+URL remains relative to the output module. Astro's asset pipeline emits that
+glue automatically. In both cases, copy the exported binary into a public asset
+location and pass its URL explicitly to `init` and the editor options.
+
+The native ESM fixture loads the core distribution and binary from a separate
+HTTP asset origin. That origin must return CORS headers for the consumer.
+CSP must permit the module origins in `script-src`, the WASM origin in
+`connect-src`, and WebAssembly compilation with `'wasm-unsafe-eval'` in
+`script-src`; general `'unsafe-eval'` is unnecessary. Resolve bare SDK imports
+through a host import map or a qualified bundler. SSR must not invoke `init`.
+These loading checks establish browser mechanics, not CDN deployment or release
+performance. Packages remain private and include Apache and third-party notices.
 
 SSR import performs no fetch, browser-global access, instantiation or document
-creation. Only `init(assetUrl)` loads the runtime, and only `createFixture()`
-creates a Yrs replica. Concurrent calls with the same URL share initialization;
+creation. Only `init(assetUrl)` loads the runtime. `createEngine()` creates an
+explicit new document with UUID document and epoch identifiers; `restoreEngine(identity, checkpoint, journal)` recovers an
+existing document with identity validation. Concurrent calls with the same URL share initialization;
 a different URL is rejected after loading starts. A failed load rejects and
-allows retry. `createdDocumentCount()` is a cumulative fixture diagnostic.
+allows retry. The production runtime contains no foundation fixture exports.
 
-`apply_v1(bytes)` accepts trusted fixture updates and decodes before mutation.
-It is not an untrusted-update admission port. The bridge uses the core UTF-16
-factory, Yrs 0.28.0 with small-client, v1 updates and the earlier `interop` XML
-root. Production schema commands, resource limits and persistence are later work.
+`prepare()` validates a command before mutation; `can()` checks admissibility.
+Plans are scoped to a handle and single use, including failed stale commits.
+Anchors survive intervening edits and must be released. `subscribe(scope, callback)`
+returns a disposable subscription; observer failures are available through
+`takeObserverErrors()` without changing an already committed result.
+
+`EngineError` exposes `code`, `operation` and `message`. Current codes are
+`InvalidInput`, `InvalidHandle`, `EngineRejected`, `ResourceLimit` and `Disposed`.
+The exported `EngineErrorCode` type also permits future codes; handle unknown
+codes explicitly. `can()` returns false for inadmissible requests, while methods
+requiring a live handle throw `Disposed` after disposal. Repeated disposal is safe.
+
+`importMarkdown()` prepares supported content and diagnostics without changing the
+document. `exportMarkdown()` reports unsupported representations and retains
+recovery content. Neither operation implies a live document edit. Apply prepared
+blocks through a validated fragment command. Optional codecs are explicit.
+
+`checkpoint()`, `stateVector()`, `encodeUpdate()` and `applyUpdate()` expose the
+v5 recovery/synchronization boundary with copied bytes and identity envelopes.
+Obtaining bytes or applying a peer update does not establish local durability or
+remote settlement. Identity/epoch mismatches reject before mutation. Storage and
+transport remain host responsibilities.
+
+The optional qualification entry `@edit-ac/core/fixture` exports `initFixture(assetUrl)`
+and `FixtureRuntime`, retaining `createFixture()` and the cumulative fixture-only
+`createdDocumentCount()` diagnostic. It requires `npm run build:wasm:fixture`
+and the separate `@edit-ac/core/fixture/wasm` asset. These methods moved out of
+the private production entry; consumers of the old scaffold probe must explicitly
+select this qualification entry. It is not part of the default editor runtime.
+
+`createFixture()` retains the earlier disposable XML/text interoperability probe.
+Its `apply_v1(bytes)` accepts trusted fixture updates only; use the production
+engine identity boundary for editor updates. The bridge uses Yrs 0.28.0 with
+small-client and v1 updates. Neither fixture nor engine import qualifies native
+input, OS clipboard or physical-device behavior.
 
 For the actual browser and installed-tarball smoke checks, run
 `npx playwright install chromium --only-shell`, then `npm run check:wasm`.

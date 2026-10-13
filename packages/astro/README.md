@@ -1,0 +1,11 @@
+# @edit-ac/astro
+
+Optional first-party Astro host over `@edit-ac/web`. This private package is not a registry release. The qualification candidate is Astro **7.3.8** (peer `7.3.x`), with Node adapter **11.1.7** for standalone SSR. React is not required.
+
+Use `Editor` from `@edit-ac/astro/Editor.astro` to render an empty host with a stable `name`, optional `label` and `readOnly`. In an Astro processed browser script, call `installEditorHosts(document, async (name, host) => options, events)` once. The resolver supplies the web SDK's explicit existing identity, database, WASM asset URL and host ports; it may load asynchronously. Server rendering does not initialize the engine. The returned async cleanup function releases the installation and its editors.
+
+`onReady(editor, host)` exposes the shared imperative handle: editing/selection, read-only, subscriptions, local flush and synchronization use the existing web contracts. No document state is copied into Astro. `mountEditorHost` is available for explicit browser mounting; repeat mounting of the same host returns its existing handle. Dispose before replacing options. `setReadOnly` changes authority without replacing the document.
+
+The custom element handles disconnection/remount. ClientRouter's preparation loader waits for flush/disposal before its synchronous page swap. Same-document remount waits for pending teardown. On save failure, `onError` fires and `onDispose` receives an explicit `unsaved` recovery report before navigation continues. Retain/export that report in the host application. Without callbacks, `editac:error` is emitted on the host and `editac:dispose` on its document; listen before mounting. Full page exit cannot guarantee an async flush. Keep normal persistence active and implement host recovery policy.
+
+The local example is in `examples/astro`; its resolver creates the initial local checkpoint explicitly. Static and standalone SSR exercise the same client bridge and ClientRouter. Installed-tarball consumers and executable guidance are checked by `tests/packed-consumers.test.mjs` and `tests/docs-examples.test.mjs`. See [integration and recovery](../../docs/integration.md). Browser automation establishes mechanics, not native/mobile parity or release performance.

@@ -58,6 +58,12 @@ export class DOMRenderer {
   positions(id: string): readonly DOMPosition[] {
     const entry = this.entries.get(id);
     if (!entry) return [];
+    // A freshly authored empty source can project zero runs. Its placeholder
+    // still owns an editable UTF-16 boundary for selection and the next input.
+    const placeholder = entry.content.lastElementChild;
+    if (!entry.runs.length && placeholder?.matches('br[data-placeholder]')) {
+      return [{ node: placeholder, start: 0, length: 0 }];
+    }
     let offset = 0;
     return entry.runs.flatMap(run => run.positions.map(position => {
       const result = { ...position, start: offset }; offset += position.length; return result;
@@ -65,7 +71,7 @@ export class DOMRenderer {
   }
   /** Document-ordered editable blocks, excluding containers and noneditable atoms. */
   textBlockIds(): string[] {
-    return [...this.entries.values()].filter(entry => entry.runs.length > 0 && entry.content.contentEditable !== "false")
+    return [...this.entries.values()].filter(entry => (entry.runs.length > 0 || entry.content.lastElementChild?.matches('br[data-placeholder]')) && entry.content.contentEditable !== "false")
       .sort((a, b) => a.node.order - b.node.order).map(entry => entry.node.id);
   }
   setReadOnly(value: boolean): void { if (!this.disposed) { this.root.contentEditable = value ? "false" : "true"; for (const entry of this.entries.values()) entry.contentView?.setReadOnly(value); } }

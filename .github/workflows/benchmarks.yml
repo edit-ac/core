@@ -1,0 +1,128 @@
+name: Editor regressions and benchmarks
+
+on:
+  pull_request:
+    paths: ['crates/**', 'packages/**', 'benchmarks/**', 'scripts/**', 'tests/**', 'fixtures/**', 'package*.json', 'Cargo.*', 'rust-toolchain.toml', '.node-version', '.github/workflows/benchmarks.yml']
+  push:
+    branches: [main]
+    paths: ['crates/**', 'packages/**', 'benchmarks/**', 'scripts/**', 'tests/**', 'fixtures/**', 'package*.json', 'Cargo.*', 'rust-toolchain.toml', '.node-version', '.github/workflows/benchmarks.yml']
+  schedule:
+    - cron: '15 2 * * *'
+  workflow_dispatch:
+    inputs:
+      enforce:
+        description: Fail on every performance budget or regression (large typing >25 ms always fails)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: editor-benchmarks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regressions:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Select toolchains
+        run: |
+          npm install --global npm@11.17.0 --ignore-scripts
+          rustup toolchain install 1.97.1 --profile minimal --component rustfmt --target wasm32-unknown-unknown
+      - run: npm ci --ignore-scripts
+      - run: cargo fetch --locked
+      - run: cargo install wasm-bindgen-cli --version 0.2.129 --locked
+      - run: npx --no-install playwright install --with-deps chromium firefox webkit
+      - name: Run deterministic regression suite
+        run: npm run test:regression
+      - name: Preserve regression evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: editor-regressions
+          path: regression-results/
+          if-no-files-found: error
+          retention-days: 30
+
+  benchmarks:
+    needs: regressions
+    # Preserve performance evidence even if an unrelated functional case fails.
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      EDITAC_BENCH_RUNNER_CLASS: github-ubuntu-24.04
+      EDITAC_REGRESSION_GATE: ${{ needs.regressions.result }}
+      # Stabilization period: change to true in a reviewed PR to enforce all budgets.
+      ENFORCE_BUDGETS: 'false'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Select toolchains
+        run: |
+          npm install --global npm@11.17.0 --ignore-scripts
+          rustup toolchain install 1.97.1 --profile minimal --component rustfmt --target wasm32-unknown-unknown
+      - run: npm ci --ignore-scripts
+      - run: cargo fetch --locked
+      - run: cargo install wasm-bindgen-cli --version 0.2.129 --locked
+      - run: npx --no-install playwright install --with-deps --only-shell chromium
+      - name: Restore last completed main measurement
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p previous-benchmark
+          if ! previous=$(gh run list --workflow benchmarks.yml --branch main --status completed --limit 1 --json databaseId --jq '.[0].databaseId // empty'); then
+            echo '::warning::No previous main workflow available; report will have no baseline.'
+            previous=''
+          fi
+          if [ -n "$previous" ]; then
+            if ! gh run download "$previous" --name benchmarks --dir previous-benchmark; then
+              echo '::warning::Previous main benchmark artifact unavailable; report will have no baseline.'
+            fi
+          fi
+      - name: Measure production editor (retry once, preserve both attempts)
+        env:
+          REQUEST_ENFORCEMENT: ${{ inputs.enforce || false }}
+        run: |
+          args=()
+          if [ "$ENFORCE_BUDGETS" = true ] || [ "$REQUEST_ENFORCEMENT" = true ]; then args+=(--enforce); fi
+          # A complete second attempt supersedes the first for baseline comparison;
+          # the failed attempt remains in the uploaded evidence.
+          if [ -f previous-benchmark/attempt-2/results.json ]; then
+            candidate=previous-benchmark/attempt-2/results.json
+          elif [ -f previous-benchmark/attempt-1/results.json ]; then
+            candidate=previous-benchmark/attempt-1/results.json
+          else
+            candidate=''
+          fi
+          if [ -n "$candidate" ]; then
+            if node -e 'const r=require("./"+process.argv[1]);process.exit(r.version===1 && r.mode==="full" && r.errors?.length===0 && r.metrics && r.signature ? 0 : 1)' "$candidate"; then
+              args+=(--baseline "$candidate")
+            else
+              echo '::warning::Previous main measurement incomplete; comparison omitted.'
+            fi
+          fi
+          npm run bench -- --output benchmark-results/attempt-1 "${args[@]}" || npm run bench -- --output benchmark-results/attempt-2 "${args[@]}"
+      - name: Preserve samples, failures, summaries and bundle analysis
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: benchmarks
+          path: benchmark-results/
+          if-no-files-found: error
+          retention-days: 90

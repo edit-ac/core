@@ -3,6 +3,33 @@ import { test } from 'node:test';
 import { browserHarness } from './browser-harness.ts';
 import { prepareEditor } from './editor-test-utils.ts';
 const {probe}=browserHarness('lifecycle');
+test('public SDK methods reject unsupported targets and commands without fake success',()=>probe('sdk-errors',async(page,fact)=>{
+  await prepareEditor(page);
+  const result=await page.evaluate(async()=>{
+    const editor=window.activeEditor=window.mountBrowserEditor(window.inputFixture.root,window.editorOptions);
+    await editor.ready;
+    const before=editor.read(), failures={};
+    try { await editor.flush({target:'remote'}); } catch(error) { failures.flush=error.message; }
+    try { editor.commit({kind:'editor',origin:'local:sdk',commands:[{type:'unsupported'}]}); } catch(error) { failures.command={code:error.code,operation:error.operation}; }
+    try { await editor.destroy({policy:'unsupported'}); } catch(error) { failures.destroy=error.message; }
+    const readyAfterInvalidDestroy=editor.state.ready;
+    editor.setReadOnly(true);
+    try { editor.commit({kind:'editor',origin:'local:sdk',commands:[]}); } catch(error) { failures.readOnly=error.message; }
+    const after=editor.read();
+    await editor.flush({target:'local'});
+    let notifications=0;const unsubscribe=editor.subscribe(()=>notifications++);unsubscribe();
+    const count=notifications;
+    await editor.destroy({policy:'flush'});
+    return {before,after,failures,readyAfterInvalidDestroy,unsubscribed:notifications===count};
+  });
+  fact.snapshots.push(result);
+  assert.deepEqual(result.after,result.before);
+  assert.equal(result.failures.flush,'Unsupported flush target');
+  assert.deepEqual(result.failures.command,{code:'InvalidInput',operation:'prepare'});
+  assert.equal(result.failures.destroy,'Explicit destroy policy required');
+  assert.equal(result.failures.readOnly,'Editor is read-only');
+  assert.equal(result.readyAfterInvalidDestroy,true);assert.equal(result.unsubscribed,true);
+}));
 test('stale preview is never editable and recovered content replaces it before ready',()=>probe('stale-preview',async(page,fact)=>{
   await prepareEditor(page);
   const s=await page.evaluate(async()=>{const root=window.inputFixture.root;root.textContent='stale preview';const e=window.activeEditor=window.mountBrowserEditor(root,{...window.editorOptions,preview:{identity:{...window.editorOptions.identity},revision:999}});const before={...e.state,editable:root.contentEditable};window.states=[];e.subscribe(s=>window.states.push({...s,error:!!s.error}));await e.ready;return {before,after:e.state,editable:root.contentEditable,text:root.textContent,states:window.states};});
