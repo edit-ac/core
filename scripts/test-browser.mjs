@@ -29,6 +29,7 @@ suites.react = ['tests/browser/react.spec.ts', 'tests/react-ssr.test.mjs'];
 suites.dispose = ['tests/browser/dispose.spec.ts'];
 suites.accessibility = ['tests/browser/accessibility.spec.ts'];
 suites.example = ['tests/browser/web-example.test.mjs'];
+suites.review = ['tests/browser/review.spec.ts'];
 suites['history-selection'] = ['tests/browser/history-selection.spec.ts'];
 suites.baseline = [...suites.render, ...suites.keyboard, ...suites.example];
 if (!suites[suite]) throw new Error(`Expected browser suite: ${Object.keys(suites).join(', ')}`);
