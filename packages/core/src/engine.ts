@@ -110,10 +110,19 @@ export interface MarkdownOptions { images?: boolean; tables?: boolean; callouts?
 export interface MarkdownDiagnostic { code: string; range: readonly [number, number] }
 export interface PreparedMarkdown { source: string; blocks: readonly FragmentBlock[]; ranges: readonly (readonly [number, number])[]; diagnostics: readonly MarkdownDiagnostic[] }
 export interface MarkdownExport { markdown: string; diagnostics: readonly MarkdownDiagnostic[]; recovery: readonly FragmentBlock[] }
+export interface MarkdownCodec {
+  importMarkdown(source: string, options?: MarkdownOptions): PreparedMarkdown;
+  exportMarkdown(blocks: readonly FragmentBlock[], options?: MarkdownOptions): MarkdownExport;
+}
 export interface EngineHandle {
+  readonly markdownAvailable: boolean;
+  /** Explicit per-document opt-in; disposal removes only this registration. */
+  registerMarkdown(codec: MarkdownCodec): PatchSubscription;
   importMarkdown(source: string, codecs?: MarkdownOptions): PreparedMarkdown;
   exportMarkdown(blocks: readonly FragmentBlock[], options?: MarkdownOptions): MarkdownExport;
   read(): Snapshot;
+  /** Pure bounded clipboard shape check; semantic/target admission is separate. */
+  validateFragment(raw: string): void;
   anchor(node: string, offset: number, bias: Bias): AnchorToken;
   exportAnchor(anchor: AnchorToken): PortableAnchor;
   importAnchor(anchor: PortableAnchor): AnchorToken;
@@ -144,7 +153,7 @@ export class EngineError extends Error {
 }
 /** Internal compiled boundary; application clients use EngineHandle. */
 export interface RawEngine {
-  markdown_equivalent(input: string): string; import_markdown(input: string): string; export_markdown(input: string): string;
+  validate_fragment(input: string): string;
   read(): string; anchor(input: string): string; resolve(token: string): string;
   export_anchor(token: string): string; import_anchor(input: string): string;
   prepare(input: string): string; can(input: string): string; commit(token: string): string; history(input: string): string;
@@ -160,8 +169,8 @@ function invoke<T>(operation: string, action: () => T): T {
     if (error instanceof EngineError) throw error;
     if (typeof error === "string") {
       try {
-        const e: unknown = JSON.parse(error);
-        if (e && typeof e === "object" && "code" in e && "operation" in e && "message" in e && typeof e.code === "string" && typeof e.operation === "string" && typeof e.message === "string") {
+        const e: { code?: unknown; operation?: unknown; message?: unknown } | null = JSON.parse(error);
+        if (e && typeof e === "object" && typeof e.code === "string" && typeof e.operation === "string" && typeof e.message === "string") {
           throw new EngineError(e.code, e.operation, e.message);
         }
       } catch (parsed) { if (parsed instanceof EngineError) throw parsed; }
@@ -203,9 +212,7 @@ function encode(value: unknown, operation: string, ownedByteArrays?: WeakSet<obj
   visit(value, 0);
   return JSON.stringify(value);
 }
-function utf8Length(text: string): number {
-  let size = 0; for (const char of text) { const code = char.codePointAt(0)!; size += code < 128 ? 1 : code < 2048 ? 2 : code < 65536 ? 3 : 4; } return size;
-}
+function utf8Length(text: string): number { return new TextEncoder().encode(text).length; }
 function token(value: unknown, operation: string): string {
   if (typeof value !== "string" || value.length > 128) throw new EngineError("InvalidInput", operation, "invalid opaque token");
   return value;
@@ -255,6 +262,7 @@ export function restoreHandle(construct: (json: string, bytes: Uint8Array) => Ra
 }
 function ownHandle(allocation: RawEngine): EngineHandle {
   let raw: RawEngine | undefined = allocation;
+  let markdown: MarkdownCodec | undefined;
   type RawPatch = Omit<Patch, "update"> & { update: null | {identity:DocumentIdentity; bytes:number[]} };
   type Listener = { scope: PatchScope; callback: (patch: Patch) => void };
   let nextId = 0, dispatching = false;
@@ -265,6 +273,14 @@ function ownHandle(allocation: RawEngine): EngineHandle {
     if (!raw) throw new EngineError("Disposed", operation, "engine has been disposed");
     return action(raw);
   });
+  // Share JSON marshalling only; each public operation keeps its own diagnostic
+  // name and validates inside the live-handle guard before entering WASM.
+  const query = <T>(operation: string,
+    method: "anchor" | "export_anchor" | "resolve", value: unknown, opaque = false): T =>
+    use(operation, e => {
+      const result = JSON.parse(e[method](opaque ? token(value, operation) : encode(value, operation)));
+      return (method === "anchor" ? result.token : result) as T;
+    });
   const matches = (scope: PatchScope, p: RawPatch): boolean => {
     switch (scope.type) {
       case "all": return true;
@@ -297,10 +313,7 @@ function ownHandle(allocation: RawEngine): EngineHandle {
       }
     } finally { dispatching = false; }
   };
-  let fragmentPreflight: {input:string;plan:PlanToken}|undefined;
-  const clearPreflight=():void=>{const cached=fragmentPreflight;fragmentPreflight=undefined;if(cached)use('releasePlan',e=>e.release_plan(cached.plan));};
-  const mutate = <T>(operation: string, action: (engine: RawEngine) => T, invalidates=true): T => {
-    if(invalidates)clearPreflight();
+  const mutate = <T>(operation: string, action: (engine: RawEngine) => T): T => {
     const result = use(operation, action);
     const patch = use("patch", e => JSON.parse(e.take_patch()) as RawPatch | null);
     if (patch && listeners.size) queue.push({patch, listeners:[...listeners.entries()]});
@@ -309,67 +322,51 @@ function ownHandle(allocation: RawEngine): EngineHandle {
   };
   const prepare = (request: PrepareRequest): PlanToken => {
     const input=encode(request,'prepare');
-    if(fragmentPreflight?.input===input){const plan=fragmentPreflight.plan;fragmentPreflight=undefined;return plan;}
-    clearPreflight();return use('prepare',e=>JSON.parse(e.prepare(input)).token as PlanToken);
+    return use('prepare',e=>JSON.parse(e.prepare(input)).token as PlanToken);
   };
   const releasePlan = (plan: PlanToken): void => use("releasePlan", e => e.release_plan(token(plan, "releasePlan")));
-  const extensions = (options: MarkdownOptions): readonly MarkdownExtension[] => {
-    const list = options.extensions ?? [], names = new Set<string>();
-    if (list.length > 32) throw new EngineError("ResourceLimit", "markdown", "too many extensions");
-    for (const e of list) { if (!/^[a-z][a-z0-9-]{0,63}$/.test(e.name) || names.has(e.name)) throw new EngineError("InvalidInput", "markdown", "invalid or duplicate extension name"); names.add(e.name); }
-    return list;
+  const codec = (operation: string): MarkdownCodec => {
+    if (!markdown) throw new EngineError("CapabilityUnavailable", operation, "markdown-codec-unavailable");
+    return markdown;
   };
-  const importMarkdown = (source: string, options: MarkdownOptions = {}): PreparedMarkdown => use("importMarkdown", e => {
-    const hooks = extensions(options);
-    let p = JSON.parse(e.import_markdown(encode({ source, images: options.images ?? false, tables: options.tables ?? false, callouts: options.callouts ?? false }, "importMarkdown"))) as PreparedMarkdown;
-    for (const extension of hooks) {
-      const blocks = extension.prepare?.(JSON.parse(JSON.stringify(p)) as PreparedMarkdown); if (blocks === undefined) continue;
-      const serialized = encode(blocks, "importMarkdown");
-      // Native bounded transfer admission, without any live transaction.
-      e.export_markdown(serialized);
-      const owned = JSON.parse(serialized) as FragmentBlock[];
-      p = { ...p, blocks: owned, ranges: owned.map(() => [0, utf8Length(source)] as const) };
-    }
-    return p;
-  });
-  const exportMarkdown = (blocks: readonly FragmentBlock[], options: MarkdownOptions = {}): MarkdownExport => use("exportMarkdown", e => {
-    const encoded = encode(blocks, "exportMarkdown"), fallback = JSON.parse(e.export_markdown(encoded)) as MarkdownExport;
-    for (const extension of extensions(options)) {
-      const markdown = extension.serialize?.(JSON.parse(encoded)); if (markdown === undefined) continue;
-      if (typeof markdown !== "string" || utf8Length(markdown) > 1048576) throw new EngineError("ResourceLimit", "exportMarkdown", "extension output exceeds limit");
-      const parsed = importMarkdown(markdown, options);
-      const lossless = JSON.parse(e.markdown_equivalent(encode([JSON.parse(encoded), parsed.blocks], "markdownEquivalent"))) as boolean;
-      return { markdown, diagnostics: lossless ? [] : [{code:"extension-unrepresentable",range:[0,0]}], recovery: lossless ? [] : JSON.parse(encoded) };
-    }
-    return fallback;
-  });
+  const importMarkdown = (source: string, options: MarkdownOptions = {}): PreparedMarkdown => use("importMarkdown", () => codec("importMarkdown").importMarkdown(source, options));
+  const exportMarkdown = (blocks: readonly FragmentBlock[], options: MarkdownOptions = {}): MarkdownExport => use("exportMarkdown", () => codec("exportMarkdown").exportMarkdown(blocks, options));
   return Object.freeze({
     read: () => use("read", e => JSON.parse(e.read()) as Snapshot),
+    validateFragment: (input: string) => use("validateFragment", e => {
+      if (typeof input !== "string") throw new EngineError("InvalidInput", "validateFragment", "expected fragment JSON");
+      if (utf8Length(input) > 1048576) throw new EngineError("ResourceLimit", "validateFragment", "fragment-limit");
+      e.validate_fragment(input);
+    }),
     importMarkdown, exportMarkdown,
-    anchor: (node: string, offset: number, bias: Bias) => use("anchor", e => JSON.parse(e.anchor(encode({ node, offset, bias }, "anchor"))).token as AnchorToken),
-    exportAnchor: (anchor: AnchorToken) => use("exportAnchor", e => JSON.parse(e.export_anchor(token(anchor, "exportAnchor"))) as PortableAnchor),
+    get markdownAvailable() { return !!raw && !!markdown; },
+    registerMarkdown: (candidate: MarkdownCodec): PatchSubscription => use("registerMarkdown", () => {
+      if (!candidate || typeof candidate.importMarkdown !== "function" || typeof candidate.exportMarkdown !== "function") throw new EngineError("InvalidInput", "registerMarkdown", "invalid Markdown codec");
+      if (markdown) throw new EngineError("InvalidInput", "registerMarkdown", "Markdown already registered");
+      markdown = candidate;
+      let active = true;
+      return Object.freeze({ get active() { return active && !!raw && markdown === candidate; }, dispose() { if (active && markdown === candidate) markdown = undefined; active = false; } });
+    }),
+    anchor: (node: string, offset: number, bias: Bias) => query<AnchorToken>("anchor", "anchor", { node, offset, bias }),
+    exportAnchor: (anchor: AnchorToken) => query<PortableAnchor>("exportAnchor", "export_anchor", anchor, true),
     importAnchor: (anchor: PortableAnchor) => use("importAnchor", e => {
       const input = encode(anchor, "importAnchor");
       if (utf8Length(input) > 4096) throw new EngineError("ResourceLimit", "importAnchor", "presence anchor limit");
       return JSON.parse(e.import_anchor(input)).token as AnchorToken;
     }),
-    resolve: (anchor: AnchorToken) => use("resolve", e => JSON.parse(e.resolve(token(anchor, "resolve"))) as AnchorResolution),
+    resolve: (anchor: AnchorToken) => query<AnchorResolution>("resolve", "resolve", anchor, true),
     releaseAnchor: (anchor: AnchorToken) => use("releaseAnchor", e => e.release_anchor(token(anchor, "releaseAnchor"))),
     prepare,
     can: (request: PrepareRequest) => {
       try {
         const input=encode(request,'can');
-        if(request.kind==='fragment'){
-          if(fragmentPreflight?.input!==input){clearPreflight();fragmentPreflight={input,plan:use('can',e=>JSON.parse(e.prepare(input)).token as PlanToken)};}
-          return true;
-        }
         return use('can',e=>JSON.parse(e.can(input)) as boolean);
       }
       catch (e) { if (e instanceof EngineError && ["EngineRejected", "InvalidInput", "InvalidHandle", "ResourceLimit"].includes(e.code)) return false; throw e; }
     },
     commit: (plan: PlanToken) => mutate("commit", e => JSON.parse(e.commit(token(plan, "commit"))) as CommitResult),
     releasePlan,
-    history: (request: HistoryRequest) => mutate("history", e => JSON.parse(e.history(encode(request, "history"))) as HistoryState,request.type==='undo'||request.type==='redo'),
+    history: (request: HistoryRequest) => mutate("history", e => JSON.parse(e.history(encode(request, "history"))) as HistoryState),
     checkpoint: () => use("checkpoint", e => ({...JSON.parse(e.checkpoint_metadata()), bytes:bytes(e.checkpoint_bytes(), "checkpoint")} as Checkpoint)),
     stateVector: () => use("stateVector", e => bytes(e.state_vector(), "stateVector")),
     encodeUpdate: (vector: Uint8Array = Uint8Array.of(0)) => use("encodeUpdate", e => ({identity:JSON.parse(e.checkpoint_metadata()).identity as DocumentIdentity, bytes:bytes(e.encode_update(bytes(vector, "encodeUpdate")), "encodeUpdate")})),
@@ -390,6 +387,6 @@ function ownHandle(allocation: RawEngine): EngineHandle {
       return Object.freeze({get active() {return !!raw && listeners.has(id);}, dispose() {listeners.delete(id);} });
     }),
     takeObserverErrors: () => use("takeObserverErrors", () => failures.splice(0)),
-    dispose: () => { if (raw) { clearPreflight(); const owned = raw; raw = undefined; listeners.clear(); queue.length = 0; failures.length = 0; try { owned.dispose(); } finally { owned.free(); } } },
+    dispose: () => { if (raw) { const owned = raw; raw = undefined; markdown = undefined; listeners.clear(); queue.length = 0; failures.length = 0; try { owned.dispose(); } finally { owned.free(); } } },
   });
 }

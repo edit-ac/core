@@ -1,16 +1,17 @@
+import {markdownOptions} from './markdown.mjs';
 import {retainRecovery,recoveryReports,downloadRecovery} from './recovery.mjs';
 import { init } from '@edit-ac/core';
 import { CheckpointStorage, createEditor, taskPreset } from '@edit-ac/web';
 
 // This example owns one explicit local document. Recovery never seeds content.
 const identity = { documentId: '', epoch: '', schema: 'editac.registry.editor.v5', offsets: 'utf16', profile: 'editac.yrs-yjs.editor.v5', protocolVersion: 1, updateEncoding: 1 };
-const options = { assetUrl: '/core/wasm/editac_wasm_bg.wasm', databaseName: 'standalone-task', identity, indexedDB, locks: navigator.locks, ...taskPreset({ plainTextPolicy: 'markdown', typingShortcuts: true }) };
+const options = { assetUrl: '/core/wasm/editac_wasm_bg.wasm', databaseName: 'standalone-task', identity, indexedDB, locks: navigator.locks, ...taskPreset() };
 const root = document.querySelector('#editor'), message = document.querySelector('#message');
 const save = document.querySelector('#save'), reopen = document.querySelector('#reopen');
 let unsubscribe;
 export let editor;
 async function open() {
-  editor = createEditor(root, options);
+  editor = createEditor(root, {...options, ...await markdownOptions()});
   unsubscribe = editor.subscribe(state => {
     if (state.error) message.textContent = 'Local save failed. Keep this tab open and export recovery content.';
     else if (state.localCommitted) message.textContent = 'Saved locally. Remote durability is not confirmed.';

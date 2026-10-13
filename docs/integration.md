@@ -75,7 +75,7 @@ qualifies explicit asset URLs and CSP/CORS loading; it does not qualify your hos
 
 ## Editing and literal paste
 
-`taskPreset()` enables Markdown plain-text paste and typing shortcuts.
+`taskPreset()` keeps text literal. Explicit `markdown` registration enables Markdown plain-text paste and typing shortcuts.
 `plainTextPolicy: 'literal'` selects literal paste by default. Explicit
 `editor.paste(data, { literal: true })` and `editor.pastePlainText()` keep source
 characters without incoming formatting or Markdown parsing. Native paste remains
@@ -156,7 +156,7 @@ packed-consumer and executable-example qualification.
 
 ## Supported content and remaining limits
 
-The task preset covers the implemented Markdown editing subset: paragraphs,
+The optional Markdown extension covers the implemented Markdown subset: paragraphs,
 headings, lists, quotes, fenced code and common inline marks. Safe clipboard HTML
 is constrained to supported structures. Rich-format fidelity beyond that subset
 is not promised. Optional image, simple-table, math, reference and slash presenters
@@ -167,3 +167,7 @@ Uploads, arbitrary HTML execution, full office-format fidelity and PDF import ar
 unsupported here. User-content/editor migration features are deferred until the
 application is completed and qualified. No native UI, Swift/Kotlin adapter, mobile
 keyboard parity, performance budget or registry release is established by this guide.
+
+Markdown is optional. Default Task mounts paste and type Markdown-looking text literally. To opt in, initialize `initMarkdown(parserAssetUrl)` from `@edit-ac/markdown`, then pass `markdown: markdownExtension(codec)` from `@edit-ac/markdown/web` to the same editor options (plain, React or Astro). The engine retains its single document owner. Direct engine consumers call `engine.registerMarkdown(codec)`; the returned registration can be disposed. Unavailable import/export throws `CapabilityUnavailable` / `markdown-codec-unavailable` without changing content; unavailable named Markdown clipboard sources retain diagnostics and exact recovery text.
+
+The executable Task and React examples enable Markdown with `?markdown`; the Astro client uses the same explicit option and a separately hosted `/markdown.wasm`. Serve the optional package and parser only for enabled consumers. Cleanup detaches registration with the surface and preserves existing pending-save recovery.

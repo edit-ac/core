@@ -205,6 +205,38 @@ impl Document {
                 }
             }
         }
+        // A literal single-block replacement needs no structural cuts or new
+        // source owners. Reuse the prepared text path, retaining admitted
+        // destination character attributes and presentation.
+        if blocks.len() == 1
+            && blocks[0].attributes.is_none()
+            && blocks[0].containers.is_empty()
+            && blocks[0].checked.is_none()
+            && blocks[0].runs.iter().all(|run| run.marks.is_empty())
+        {
+            if let (Ok(Resolution::Position(a)), Ok(Resolution::Position(b))) = (
+                self.resolve_anchor(&selection.anchor),
+                self.resolve_anchor(&selection.focus),
+            ) {
+                if a.node == b.node {
+                    let range = if a.offset.0 <= b.offset.0 {
+                        selection.clone()
+                    } else {
+                        Selection {
+                            anchor: selection.focus.clone(),
+                            focus: selection.anchor.clone(),
+                        }
+                    };
+                    return self.prepare_editor(
+                        &[EditorCommand::Text(TextCommand::Replace {
+                            selection: range,
+                            text: blocks[0].runs.iter().map(|run| run.text.as_str()).collect(),
+                        })],
+                        origin,
+                    );
+                }
+            }
+        }
         let baseline = self.checkpoint();
         let mut stage =
             Document::restore(self.identity(), &baseline, &[]).map_err(EditorError::Admission)?;
@@ -1263,10 +1295,31 @@ impl Document {
                             counter = counter.checked_add(1).ok_or(EditorError::ResourceLimit)?;
                             Ok(op)
                         };
-                        // Registration already appends a root block. A redundant
-                        // append intention would move this source behind future
-                        // registrations during replay and invalidate its join.
-                        if o.parent != "@root" || before.is_some() {
+                        // In v5, placing before the old next sibling only witnesses
+                        // that sibling. It can replay ahead of the owner's earlier
+                        // fragment joins and obstruct their adjacency. Witness the
+                        // current owner first, then move it before the fresh source:
+                        // both placements now follow its complete operation lineage.
+                        if stable {
+                            crate::editor::place(
+                                &stage,
+                                stable,
+                                &operation()?,
+                                &fresh,
+                                &o.parent,
+                                Some(owner),
+                            )
+                            .map_err(error)?;
+                            crate::editor::place(
+                                &stage,
+                                stable,
+                                &operation()?,
+                                owner,
+                                &o.parent,
+                                Some(&fresh),
+                            )
+                            .map_err(error)?;
+                        } else if o.parent != "@root" || before.is_some() {
                             crate::editor::place(
                                 &stage,
                                 stable,

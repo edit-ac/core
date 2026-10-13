@@ -25,3 +25,5 @@ export type { ReorderContext, ReorderFactory } from './modules/reorder.js';
 
 export { contentModules } from './modules/content.js';
 export type { ContentFactory, ContentView, ContentContext, ImageMetadata, ContentOptions } from './modules/content.js';
+
+export type { MarkdownAdapter, TypingShortcutAdapter } from './input/shortcuts.js';

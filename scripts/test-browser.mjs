@@ -19,6 +19,7 @@ suites['slash'] = ['tests/browser/slash.spec.ts'];
 suites['module-runtime'] = ['tests/browser/module-runtime.spec.ts'];
 suites['module-contract'] = ['tests/browser/module-contract.spec.ts'];
 suites['extension-entry'] = ['tests/browser/extension-entry.spec.ts'];
+suites['optional-markdown'] = ['tests/browser/optional-markdown.spec.ts'];
 suites['markdown-paste'] = ['tests/browser/markdown-paste.spec.ts'];
 suites.clipboard = ['tests/browser/clipboard.spec.ts'];
 suites.lifecycle = ['tests/browser/lifecycle.spec.ts'];

@@ -6,6 +6,7 @@ import { resolve, sep } from 'node:path';
 export async function startFixtureServer(options = {}) {
   const root = fileURLToPath(new URL('../../', import.meta.url));
   const mounts = { fixture: options.fixtureDirectory ?? 'fixtures/crash-boundaries',
+    markdown: options.markdownDirectory ?? 'packages/markdown/dist',
     core: options.coreDirectory ?? 'packages/core/dist', web: options.webDirectory ?? 'packages/web/dist' };
   const server = createServer(async (request, response) => {
     try {

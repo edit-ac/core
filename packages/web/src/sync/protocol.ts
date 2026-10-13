@@ -66,31 +66,33 @@ export type SyncResult = { type: "step1"; reply: Uint8Array } | { type: "step2" 
  */
 export class DirectSyncAdapter {
   readonly identity: Readonly<DocumentIdentity>;
-  private readonly maxFrameBytes: number;
-  constructor(private readonly engine: Pick<EngineHandle, "read" | "stateVector" | "encodeUpdate" | "applyUpdate">,
+  readonly #maxFrameBytes: number;
+  readonly #engine: Pick<EngineHandle, "read" | "stateVector" | "encodeUpdate" | "applyUpdate">;
+  constructor(engine: Pick<EngineHandle, "read" | "stateVector" | "encodeUpdate" | "applyUpdate">,
     peerIdentity: DocumentIdentity, options: SyncProtocolOptions = {}) {
+    this.#engine = engine;
     const max = options.maxFrameBytes ?? hardFrameLimit;
     if (!Number.isSafeInteger(max) || max < 3 || max > hardFrameLimit) fail("resource-limit", "Invalid frame limit");
-    this.maxFrameBytes = max;
+    this.#maxFrameBytes = max;
     const local = identity(engine.read().identity); match(local, identity(peerIdentity));
     this.identity = Object.freeze(local);
   }
-  private frame(type: number, payload: Uint8Array): Uint8Array {
+  #frame(type: number, payload: Uint8Array): Uint8Array {
     if (!(payload instanceof Uint8Array) || !payload.length) fail("invalid-frame", "Nonempty binary payload required");
     const header = [...writeUint(type), ...writeUint(payload.length)];
-    if (header.length + payload.length > this.maxFrameBytes) fail("resource-limit", "Frame exceeds byte limit");
+    if (header.length + payload.length > this.#maxFrameBytes) fail("resource-limit", "Frame exceeds byte limit");
     const result = new Uint8Array(header.length + payload.length); result.set(header); result.set(payload, header.length); return result;
   }
   step1(): Uint8Array {
-    const vector = this.engine.stateVector(); validateVector(vector); return this.frame(syncMessage.step1, vector);
+    const vector = this.#engine.stateVector(); validateVector(vector); return this.#frame(syncMessage.step1, vector);
   }
   /** Encode an engine-emitted local update; never re-send remote/replay patches. */
   update(update: ReplayUpdate): Uint8Array {
-    match(this.identity, identity(update.identity)); return this.frame(syncMessage.update, update.bytes);
+    match(this.identity, identity(update.identity)); return this.#frame(syncMessage.update, update.bytes);
   }
   receive(frame: Uint8Array): SyncResult {
     if (!(frame instanceof Uint8Array) || !frame.length) fail("invalid-frame", "Nonempty binary frame required");
-    if (frame.length > this.maxFrameBytes) fail("resource-limit", "Frame exceeds byte limit");
+    if (frame.length > this.#maxFrameBytes) fail("resource-limit", "Frame exceeds byte limit");
     const cursor = { offset: 0 }, type = readUint(frame, cursor);
     if (type > syncMessage.update) fail("invalid-frame", "Unknown baseline sync message");
     const length = readUint(frame, cursor);
@@ -98,10 +100,10 @@ export class DirectSyncAdapter {
     const payload = frame.slice(cursor.offset);
     if (type === syncMessage.step1) {
       validateVector(payload);
-      return { type: "step1", reply: this.frame(syncMessage.step2, this.engine.encodeUpdate(payload).bytes) };
+      return { type: "step1", reply: this.#frame(syncMessage.step2, this.#engine.encodeUpdate(payload).bytes) };
     }
     // Rust stages bounded binary/schema admission on a disposable replica first.
-    const result = this.engine.applyUpdate({ identity: { ...this.identity }, bytes: payload });
+    const result = this.#engine.applyUpdate({ identity: { ...this.identity }, bytes: payload });
     return { type: type === syncMessage.step2 ? "step2" : "update", reply: null, revision: result.revision };
   }
 }

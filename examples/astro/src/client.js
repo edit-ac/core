@@ -1,3 +1,4 @@
+import {markdownOptions} from './markdown.js';
 import { init } from '@edit-ac/core';
 import { CheckpointStorage } from '@edit-ac/web';
 import { installEditorHosts } from '@edit-ac/astro';
@@ -26,7 +27,7 @@ async function options(name) {
       await storage.publish(engine.checkpoint(), []);
     } finally { storage?.close(); engine.dispose(); }
   });
-  return { identity, databaseName, assetUrl, indexedDB, locks:navigator.locks, plainPasteControl:false };
+  return { ...await markdownOptions('/markdown.wasm'), identity, databaseName, assetUrl, indexedDB, locks:navigator.locks, plainPasteControl:false };
 }
 export const editors = new Map();
 const recoveryReports = [];

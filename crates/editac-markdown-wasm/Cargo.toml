@@ -1,0 +1,22 @@
+[package]
+name = "editac-markdown-wasm"
+description = "Stateless optional Markdown interchange WASM for edit.ac"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+editac-core = { path = "../editac-core" }
+editac-markdown = { path = "../editac-markdown" }
+wasm-bindgen.workspace = true
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.152"
+
+[lints]
+workspace = true

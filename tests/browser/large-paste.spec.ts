@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {browserHarness} from './browser-harness.ts';
 import {state} from './format-helpers.ts';
-const {probe}=browserHarness('large-paste');
+const {probe}=browserHarness('large-paste', 'fixtures/browser-input', { markdown: true });
 async function start(page,raw='**large** '+ 'x'.repeat(102400),target=0){
   await page.evaluate(({raw,target})=>{
     const f=window.inputFixture,n=f.engine.read().visible.filter(n=>n.kind==='block')[target];f.select(n.id,n.runs.map(r=>r.text).join('').length);

@@ -1,13 +1,14 @@
+import { errorMessage } from '../errors.js';
 import type { CommitResult, EngineHandle, FragmentBlock, FragmentRun, PrepareRequest, ProjectedNode } from '@edit-ac/core';
 import { PendingPaste } from './pending.js';
-import { importMarkdown } from './markdown.js';
 import type { DOMRenderer } from '../dom/render.js';
 import type { DOMSelection, RetainedSelection } from '../dom/selection.js';
 import { importHTML, exportHTML } from './html.js';
+import { inlineMarks } from '../dom/marks.js';
 
 export const FRAGMENT_MIME = 'application/x-edit-ac-fragment+json';
 const LIMIT = 1024 * 1024;
-const names = new Set(['bold', 'italic', 'strike', 'underline', 'code', 'link']);
+const names = new Set<string>([...inlineMarks, 'link']);
 export interface Fragment { version: 1; schema: string; blocks: readonly FragmentBlock[] }
 export interface ClipboardData { getData(type: string): string; setData(type: string, value: string): void }
 export interface ClipboardOutcome { disposition: 'committed' | 'handled' | 'rejected'; reason?: string }
@@ -17,57 +18,20 @@ export function validateClipboardCodecs(codecs:readonly ClipboardCodec[]):void {
       for(const codec of codecs){if(!/^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/.test(codec.mime)||mimes.has(codec.mime)||[FRAGMENT_MIME,'text/plain','text/html','text/markdown','text/x-markdown'].includes(codec.mime))throw Error('clipboard-codec-mime');mimes.add(codec.mime);}
       if(codecs.length>16)throw Error('clipboard-codec-limit');
 }
-const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
-function keys(value: Record<string, unknown>, allowed: readonly string[]): boolean { return Object.keys(value).every(key => allowed.includes(key)); }
-export function decodeFragment(raw: string, schema: string): Fragment {
+export function decodeFragment(raw: string, engine: EngineHandle): Fragment {
   if (new TextEncoder().encode(raw).length > LIMIT) throw Error('fragment-limit');
+  // Preserve browser JSON syntax diagnostics; Rust owns the bounded shape check.
   const value: unknown = JSON.parse(raw);
-  if (!object(value) || !keys(value, ['version', 'schema', 'blocks']) || value.version !== 1 || value.schema !== schema
-    || !Array.isArray(value.blocks) || !value.blocks.length || value.blocks.length > 128) throw Error('fragment-schema');
-  let runs = 0, size = 0;
-  for (const block of value.blocks) {
-    if (!object(block) || !keys(block, ['runs', 'attributes', 'containers', 'checked']) || !Array.isArray(block.runs) || block.runs.length > 1024) throw Error('fragment-block');
-    if (block.checked !== undefined && block.checked !== null && typeof block.checked !== 'boolean') throw Error('fragment-check');
-    if (block.containers !== undefined) {
-      if (!Array.isArray(block.containers) || block.containers.length > 16) throw Error('fragment-container');
-      for (const container of block.containers) {
-        if (!object(container) || !keys(container, ['key', 'style']) || typeof container.key !== 'string' || !container.key || container.key.length > 128
-          || !object(container.style) || !['unordered', 'ordered', 'checklist', 'quote'].includes(String(container.style.type))) throw Error('fragment-container');
-        if (container.style.type === 'ordered') {
-          if (!keys(container.style, ['type', 'start']) || !Number.isSafeInteger(container.style.start) || Number(container.style.start) < 1 || Number(container.style.start) > 2147483647) throw Error('fragment-container');
-        } else if (!keys(container.style, ['type'])) throw Error('fragment-container');
-      }
-    }
-    const attributes = block.attributes;
-    if (!object(attributes) || !['paragraph', 'heading', 'code', 'separator', 'content'].includes(String(attributes.type))) throw Error('fragment-style');
-    if (attributes.type === 'separator' && !keys(attributes, ['type'])) throw Error('fragment-style');
-    if (attributes.type === 'content' && (!keys(attributes, ['type', 'tuple']) || !Array.isArray(attributes.tuple) || !['module:editac.image','module:editac.table','module:editac.callout','module:editac.reference'].includes(String(attributes.tuple[0])))) throw Error('fragment-content');
-    if (attributes.type === 'paragraph' && !keys(attributes, ['type'])) throw Error('fragment-style');
-    if (attributes.type === 'heading' && (!keys(attributes, ['type', 'level']) || !Number.isInteger(attributes.level) || Number(attributes.level) < 1 || Number(attributes.level) > 6)) throw Error('fragment-heading');
-    if (attributes.type === 'code' && (!keys(attributes, ['type', 'language']) || typeof attributes.language !== 'string' || attributes.language.length > 128)) throw Error('fragment-code');
-    for (const run of block.runs) {
-      if (++runs > 1024 || !object(run) || !keys(run, ['text', 'marks']) || typeof run.text !== 'string' || !Array.isArray(run.marks) || run.marks.length > 6) throw Error('fragment-run');
-      size += new TextEncoder().encode(run.text).length;
-      const seen = new Set<string>();
-      for (const mark of run.marks) {
-        if (!object(mark) || !keys(mark, ['mark', 'href']) || typeof mark.mark !== 'string' || !names.has(mark.mark) || seen.has(mark.mark)) throw Error('fragment-mark');
-        seen.add(mark.mark);
-        if (mark.mark === 'link') {
-          if (typeof mark.href !== 'string' || mark.href.length > 4096 || !/^(https?:|mailto:|#)/i.test(mark.href) || /[\x00-\x20\x7f]/.test(mark.href)) throw Error('fragment-url');
-        } else if (mark.href !== undefined && mark.href !== null) throw Error('fragment-mark');
-      }
-    }
-  }
-  if (size > LIMIT) throw Error('fragment-limit');
-  return value as unknown as Fragment;
+  engine.validateFragment(raw);
+  return value as Fragment;
 }
 function blockStyle(node: ProjectedNode): FragmentBlock['attributes'] {
   const tuple = node.blockAttributes;
   if (!Array.isArray(tuple)) throw Error('unsupported-fragment-style');
-  if (tuple[0] === 'paragraph') return { type: 'paragraph' };
-  if (tuple[0] === 'heading' && typeof tuple[1] === 'number') return { type: 'heading', level: tuple[1] };
-  if (tuple[0] === 'code' && typeof tuple[1] === 'string') return { type: 'code', language: tuple[1] };
-  if (tuple[0] === 'separator') return { type: 'separator' };
+  const type = tuple[0];
+  if (type === 'paragraph' || type === 'separator') return { type };
+  if (type === 'heading' && typeof tuple[1] === 'number') return { type, level: tuple[1] };
+  if (type === 'code' && typeof tuple[1] === 'string') return { type, language: tuple[1] };
   if (['module:editac.image','module:editac.table','module:editac.callout','module:editac.reference'].includes(String(tuple[0]))) return { type: 'content', tuple };
   throw Error('unsupported-fragment-style');
 }
@@ -95,87 +59,95 @@ export class ClipboardInput {
   readonly diagnostics: string[] = [];
   readonly recovery: { mime: string; raw: string; reason: string }[] = [];
   last: ClipboardOutcome = { disposition: 'handled' };
-  private disposed = false;
-  private pending: { type: 'paste' | 'cut'; phase: 'event' | 'beforeinput'; target?: RetainedSelection; text?: string; nodes: string[] } | undefined;
-  private sequence = 0;
-  private literalNext = false;
-  private generation = 0;
-  private readonly reads = new Set<() => void>();
+  #disposed = false;
+  #pending: { type: 'paste' | 'cut'; phase: 'event' | 'beforeinput'; target?: RetainedSelection; text?: string; nodes: string[] } | undefined;
+  #sequence = 0;
+  #literalNext = false;
+  #generation = 0;
+  readonly #reads = new Set<() => void>();
   pendingPaste: PendingPaste | undefined;
   plainTextPolicy: 'literal' | 'markdown' = 'literal';
   contentCodecs: import('@edit-ac/core').MarkdownOptions = {};
-  constructor(private readonly renderer: DOMRenderer, private readonly selection: DOMSelection, private readonly engine: EngineHandle,
-    private readonly commit: (request: PrepareRequest) => CommitResult, private readonly blocked: () => boolean,
-    private readonly codecs: readonly ClipboardCodec[] = []) {
+  readonly #renderer: DOMRenderer;
+  readonly #selection: DOMSelection;
+  readonly #engine: EngineHandle;
+  readonly #commit: (request: PrepareRequest) => CommitResult;
+  readonly #blocked: () => boolean;
+  readonly #codecs: readonly ClipboardCodec[];
+  constructor(renderer: DOMRenderer, selection: DOMSelection, engine: EngineHandle,
+    commit: (request: PrepareRequest) => CommitResult, blocked: () => boolean,
+    codecs: readonly ClipboardCodec[] = []) {
+    this.#renderer = renderer;
+    this.#selection = selection;
+    this.#engine = engine;
+    this.#commit = commit;
+    this.#blocked = blocked;
+    this.#codecs = codecs;
       validateClipboardCodecs(codecs);
     }
-  get ownsMutations(): boolean { return !!this.pending; }
-  private diagnose(reason: string): void { this.diagnostics.push(reason); if (this.diagnostics.length > 32) this.diagnostics.shift(); }
-  private move(result: CommitResult): void {
-    if (!result.caret) { this.selection.restore(); return; }
-    try {
-      const at = this.engine.resolve(result.caret); if (at.type !== 'position') return;
-      const point = this.selection.toDOM(at); if (!point) return;
-      this.renderer.root.ownerDocument.getSelection()?.setBaseAndExtent(point.node, point.offset, point.node, point.offset);
-      this.selection.capture({ anchor: at.bias, focus: at.bias });
-    } finally { this.engine.releaseAnchor(result.caret); }
+  get ownsMutations(): boolean { return !!this.#pending; }
+  #diagnose(reason: string): void { this.diagnostics.push(reason); if (this.diagnostics.length > 32) this.diagnostics.shift(); }
+  #move(result: CommitResult): void {
+    if (!result.caret) { this.#selection.restore(); return; }
+    try { this.#selection.move(result.caret);
+    } finally { this.#engine.releaseAnchor(result.caret); }
   }
-  private apply(target: RetainedSelection, blocks: readonly FragmentBlock[]): ClipboardOutcome {
-    if (this.disposed || this.blocked() || !target.active) return { disposition: 'rejected', reason: 'clipboard-unavailable' };
-    const request: PrepareRequest = { kind: 'fragment', origin: `clipboard:${++this.sequence}`, range: target.range, blocks };
+  #apply(target: RetainedSelection, blocks: readonly FragmentBlock[]): ClipboardOutcome {
+    if (this.#disposed || this.#blocked() || !target.active) return { disposition: 'rejected', reason: 'clipboard-unavailable' };
+    const request: PrepareRequest = { kind: 'fragment', origin: `clipboard:${++this.#sequence}`, range: target.range, blocks };
     try {
       // Preparation/capability failure has no history or journal effects.
-      if (!this.engine.can(request)) return { disposition: 'rejected', reason: 'clipboard-target' };
-      this.engine.history({ type: 'explicit' });
-      try { this.move(this.commit(request)); } finally { this.engine.history({ type: 'boundary' }); }
+      if (!this.#engine.can(request)) return { disposition: 'rejected', reason: 'clipboard-target' };
+      this.#engine.history({ type: 'explicit' });
+      try { this.#move(this.#commit(request)); } finally { this.#engine.history({ type: 'boundary' }); }
       return { disposition: 'committed' };
-    } catch (error) { return { disposition: 'rejected', reason: error instanceof Error ? error.message : String(error) }; }
+    } catch (error) { return { disposition: 'rejected', reason: errorMessage(error) }; }
   }
   paste(data: Pick<ClipboardData, 'getData'>, options: { literal?: boolean } = {}): ClipboardOutcome {
-    if (this.disposed || this.blocked()) return this.last = {disposition:'rejected',reason:'clipboard-unavailable'};
-    const target=this.selection.retain();
+    if (this.#disposed || this.#blocked()) return this.last = {disposition:'rejected',reason:'clipboard-unavailable'};
+    const target=this.#selection.retain();
     if (!target) return this.last={disposition:'rejected',reason:'clipboard-selection'};
-    try { return this.last=this.apply(target,this.prepareData(target,data,options)); }
-    catch(error) { return this.last={disposition:'rejected',reason:error instanceof Error?error.message:String(error)}; }
+    try { return this.last=this.#apply(target,this.#prepareData(target,data,options)); }
+    catch(error) { return this.last={disposition:'rejected',reason:errorMessage(error)}; }
     finally {target.dispose();}
   }
-  private prepareData(target: RetainedSelection, data: Pick<ClipboardData,'getData'>, options: {literal?:boolean}): readonly FragmentBlock[] {
-      const a = this.engine.resolve(target.range.anchor), b = this.engine.resolve(target.range.focus);
+  #prepareData(target: RetainedSelection, data: Pick<ClipboardData,'getData'>, options: {literal?:boolean}): readonly FragmentBlock[] {
+      const a = this.#engine.resolve(target.range.anchor), b = this.#engine.resolve(target.range.focus);
       if (a.type !== 'position' || b.type !== 'position') throw Error('clipboard-target');
-      const nodes = this.engine.read().visible;
+      const nodes = this.#engine.read().visible;
       const node = nodes.find(n => n.id === a.node);
       let runOffset = 0;
       const inlineCode = node?.runs.some(run => { const start = runOffset; runOffset += run.text.length; return run.attributes.code === true && a.offset >= start && a.offset < runOffset; });
       const literal = options.literal || (Array.isArray(node?.blockAttributes) && node.blockAttributes[0] === 'code') || inlineCode;
       let blocks: readonly FragmentBlock[] | undefined;
       if(!literal)for(const mime of ['text/rtf','application/rtf','text/tab-separated-values']){
-        const raw=data.getData(mime);if(raw&&!this.codecs.some(c=>c.mime===mime)&&new TextEncoder().encode(raw).length<=LIMIT){this.diagnose(`${mime}-codec-unavailable`);this.recoverSource(mime,raw,`${mime}-codec-unavailable`);}
+        const raw=data.getData(mime);if(raw&&!this.#codecs.some(c=>c.mime===mime)&&new TextEncoder().encode(raw).length<=LIMIT){this.#diagnose(`${mime}-codec-unavailable`);this.#recoverSource(mime,raw,`${mime}-codec-unavailable`);}
       }
       if (!literal) {
         const raw = data.getData(FRAGMENT_MIME);
         if (raw) try {
-          const candidate = decodeFragment(raw, this.engine.read().identity.schema).blocks;
-          if (!this.engine.can({ kind: 'fragment', origin: `clipboard:${this.sequence+1}`, range: target.range, blocks: candidate })) throw Error('fragment-semantics');
+          const candidate = decodeFragment(raw, this.#engine).blocks;
+          if (!this.#engine.can({ kind: 'fragment', origin: `clipboard:${this.#sequence+1}`, range: target.range, blocks: candidate })) throw Error('fragment-semantics');
           blocks = candidate;
         }
-        catch (error) { const reason=error instanceof Error?error.message:String(error);this.diagnose(reason);if(new TextEncoder().encode(raw).length<=LIMIT)this.recoverSource(FRAGMENT_MIME,raw,reason); }
+        catch (error) { const reason=errorMessage(error);this.#diagnose(reason);if(new TextEncoder().encode(raw).length<=LIMIT)this.#recoverSource(FRAGMENT_MIME,raw,reason); }
       }
       if (!blocks && !literal) {
-        for (const mime of ['text/markdown', 'text/x-markdown', 'text/html', ...this.codecs.map(c => c.mime)]) {
+        for (const mime of ['text/markdown', 'text/x-markdown', 'text/html', ...this.#codecs.map(c => c.mime)]) {
           const raw = data.getData(mime); if (!raw) continue;
           try {
             if (new TextEncoder().encode(raw).length > LIMIT) throw Error('clipboard-limit');
-            const codec = this.codecs.find(c => c.mime === mime);
+            const codec = this.#codecs.find(c => c.mime === mime);
             if (codec) blocks = codec.prepare(raw);
-            else if (mime === 'text/html') blocks = importHTML(this.renderer.root.ownerDocument, raw, code => { this.diagnose(code); this.recoverSource(mime, raw, code); });
-            else if (mime === 'text/markdown' || mime === 'text/x-markdown') blocks = this.markdown(raw, mime);
+            else if (mime === 'text/html') blocks = importHTML(this.#renderer.root.ownerDocument, raw, code => { this.#diagnose(code); this.#recoverSource(mime, raw, code); });
+            else if (mime === 'text/markdown' || mime === 'text/x-markdown') blocks = this.#markdown(raw, mime);
             else throw Error(`${mime}-importer-unavailable`);
-            blocks = decodeFragment(JSON.stringify({ version: 1, schema: this.engine.read().identity.schema, blocks }), this.engine.read().identity.schema).blocks;
-            if (!this.engine.can({ kind: 'fragment', origin: `clipboard:${this.sequence+1}`, range: target.range, blocks })) throw Error(`${mime}-semantics`);
+            blocks = decodeFragment(JSON.stringify({ version: 1, schema: this.#engine.read().identity.schema, blocks }), this.#engine).blocks;
+            if (!this.#engine.can({ kind: 'fragment', origin: `clipboard:${this.#sequence+1}`, range: target.range, blocks })) throw Error(`${mime}-semantics`);
             break;
           } catch (error) {
             blocks = undefined;
-            const reason = error instanceof Error ? error.message : String(error); this.diagnose(reason);
+            const reason = errorMessage(error); this.#diagnose(reason);
             if (new TextEncoder().encode(raw).length <= LIMIT) {
               this.recovery.push({ mime, raw, reason }); if (this.recovery.length > 4) this.recovery.shift();
             }
@@ -186,7 +158,10 @@ export class ClipboardInput {
         const text = data.getData('text/plain');
         if (!text) throw Error('clipboard-empty');
         if (new TextEncoder().encode(text).length > LIMIT) throw Error('clipboard-limit');
-        blocks = !literal && this.plainTextPolicy === 'markdown' ? this.markdown(text, 'text/plain') : [{ runs: [{ text, marks: [] }], attributes: null }];
+        if (!literal && this.plainTextPolicy === 'markdown' && !this.#engine.markdownAvailable) {
+          this.#diagnose('markdown-codec-unavailable'); this.#recoverSource('text/plain', text, 'markdown-codec-unavailable');
+        }
+        blocks = !literal && this.plainTextPolicy === 'markdown' && this.#engine.markdownAvailable ? this.#markdown(text, 'text/plain') : [{ runs: [{ text, marks: [] }], attributes: null }];
       }
       return blocks;
   }
@@ -195,36 +170,36 @@ export class ClipboardInput {
   pasteDeferred(data: Pick<ClipboardData,'getData'>, options: {literal?:boolean; schedule?:()=>Promise<void>} = {}): PendingPaste {
     this.pendingPaste?.cancel();
     const source: Record<string,string>={};
-    const mimes=[FRAGMENT_MIME,'text/markdown','text/x-markdown','text/html',...this.codecs.map(c=>c.mime),'text/plain'];
+    const mimes=[FRAGMENT_MIME,'text/markdown','text/x-markdown','text/html',...this.#codecs.map(c=>c.mime),'text/plain'];
     if(mimes.length>32) throw Error('clipboard-codec-limit');
     for(const mime of new Set(mimes)) {const raw=data.getData(mime);if(raw) {if(new TextEncoder().encode(raw).length>LIMIT) throw Error('clipboard-limit');source[mime]=raw;}}
-    const target=this.selection.retain(), generation=this.generation;
-    const opening=target?[target.range.anchor,target.range.focus].map(anchor=>{const at=this.engine.resolve(anchor);if(at.type!=='position')throw Error('clipboard-target');return {node:at.node,parent:this.engine.read().visible.find(n=>n.id===at.node)?.parent,version:this.engine.read().visible.find(n=>n.id===at.node)?.editor?.version};}):[];
-    const job=new PendingPaste(this.renderer.root.ownerDocument,source,async job=>{
+    const target=this.#selection.retain(), generation=this.#generation;
+    const opening=target?[target.range.anchor,target.range.focus].map(anchor=>{const at=this.#engine.resolve(anchor);if(at.type!=='position')throw Error('clipboard-target');return {node:at.node,parent:this.#engine.read().visible.find(n=>n.id===at.node)?.parent,version:this.#engine.read().visible.find(n=>n.id===at.node)?.editor?.version};}):[];
+    const job=new PendingPaste(this.#renderer.root.ownerDocument,source,async job=>{
       await (options.schedule?.()??new Promise<void>(resolve=>setTimeout(resolve,0)));
-      if(!job.active||generation!==this.generation||this.disposed||this.blocked()||!target?.active) return {disposition:'rejected',reason:'clipboard-canceled'};
+      if(!job.active||generation!==this.#generation||this.#disposed||this.#blocked()||!target?.active) return {disposition:'rejected',reason:'clipboard-canceled'};
       for(const [i,anchor] of [target.range.anchor,target.range.focus].entries()) {
-        const at=this.engine.resolve(anchor);
-        if(at.type!=='position'||at.node!==opening[i]?.node||this.engine.read().visible.find(n=>n.id===at.node)?.parent!==opening[i]?.parent||this.engine.read().visible.find(n=>n.id===at.node)?.editor?.version!==opening[i]?.version) return {disposition:'rejected',reason:'clipboard-target-changed'};
+        const at=this.#engine.resolve(anchor);
+        if(at.type!=='position'||at.node!==opening[i]?.node||this.#engine.read().visible.find(n=>n.id===at.node)?.parent!==opening[i]?.parent||this.#engine.read().visible.find(n=>n.id===at.node)?.editor?.version!==opening[i]?.version) return {disposition:'rejected',reason:'clipboard-target-changed'};
       }
-      const start=performance.now(), blocks=this.prepareData(target,{getData:m=>source[m]??''},options);job.timings.preparationMs=performance.now()-start;
-      if(!job.active||generation!==this.generation||this.disposed||this.blocked()||!target.active||!job.beginApply()) return {disposition:'rejected',reason:'clipboard-canceled'};
-      const current=this.selection.retain(), applying=performance.now();
-      try {return this.last=this.apply(target,blocks);}
-      finally {job.timings.applyMs=performance.now()-applying;if(current){this.restore(current);current.dispose();}}
+      const start=performance.now(), blocks=this.#prepareData(target,{getData:m=>source[m]??''},options);job.timings.preparationMs=performance.now()-start;
+      if(!job.active||generation!==this.#generation||this.#disposed||this.#blocked()||!target.active||!job.beginApply()) return {disposition:'rejected',reason:'clipboard-canceled'};
+      const current=this.#selection.retain(), applying=performance.now();
+      try {return this.last=this.#apply(target,blocks);}
+      finally {job.timings.applyMs=performance.now()-applying;if(current){this.#restore(current);current.dispose();}}
     },()=>target?.dispose());
     this.pendingPaste=job;
-    void job.result.then(outcome=>{this.last=outcome;if(outcome.disposition!=='committed')for(const [mime,raw]of Object.entries(source))this.recoverSource(mime,raw,outcome.reason??'clipboard-rejected');});
+    void job.result.then(outcome=>{this.last=outcome;if(outcome.disposition!=='committed')for(const [mime,raw]of Object.entries(source))this.#recoverSource(mime,raw,outcome.reason??'clipboard-rejected');});
     return job;
   }
-  private recoverSource(mime: string, raw: string, reason: string): void {
+  #recoverSource(mime: string, raw: string, reason: string): void {
     if (!this.recovery.some(r => r.mime === mime && r.raw === raw)) {
       this.recovery.push({ mime, raw, reason }); if (this.recovery.length > 4) this.recovery.shift();
     }
   }
-  private markdown(raw: string, mime: string): readonly FragmentBlock[] {
-    const prepared = importMarkdown(this.engine, raw, this.contentCodecs);
-    for (const diagnostic of prepared.diagnostics) this.diagnose(diagnostic.code);
+  #markdown(raw: string, mime: string): readonly FragmentBlock[] {
+    const prepared = this.#engine.importMarkdown(raw, this.contentCodecs);
+    for (const diagnostic of prepared.diagnostics) this.#diagnose(diagnostic.code);
     if (prepared.diagnostics.length) {
       this.recovery.push({ mime, raw: prepared.source, reason: prepared.diagnostics.map(d => d.code).join(',') });
       if (this.recovery.length > 4) this.recovery.shift();
@@ -234,46 +209,41 @@ export class ClipboardInput {
   /** Explicit activated plain-paste command. Stable target is captured before
    * permission/OS work; late results cannot follow navigation or a new session. */
   async pastePlainText(read: () => Promise<string>, captured?: RetainedSelection): Promise<ClipboardOutcome> {
-    if (this.disposed || this.blocked()) { captured?.dispose(); return this.last = { disposition: 'rejected', reason: 'clipboard-unavailable' }; }
-    const target = captured ?? this.selection.retain(), generation = this.generation;
+    if (this.#disposed || this.#blocked()) { captured?.dispose(); return this.last = { disposition: 'rejected', reason: 'clipboard-unavailable' }; }
+    const target = captured ?? this.#selection.retain(), generation = this.#generation;
     if (!target) return this.last = { disposition: 'rejected', reason: 'clipboard-selection' };
     let cancel!: () => void;
     const cancellation = new Promise<never>((_, reject) => { cancel = () => reject(Error('clipboard-canceled')); });
-    this.reads.add(cancel);
+    this.#reads.add(cancel);
     try {
       const text = await Promise.race([Promise.resolve().then(() => {
-        if (generation !== this.generation || this.disposed) throw Error('clipboard-canceled'); return read();
+        if (generation !== this.#generation || this.#disposed) throw Error('clipboard-canceled'); return read();
       }), cancellation]);
-      if (generation !== this.generation || this.disposed || this.blocked() || !target.active) return this.last = { disposition: 'rejected', reason: 'clipboard-canceled' };
+      if (generation !== this.#generation || this.#disposed || this.#blocked() || !target.active) return this.last = { disposition: 'rejected', reason: 'clipboard-canceled' };
       if (!text || new TextEncoder().encode(text).length > LIMIT) return this.last = { disposition: 'rejected', reason: text ? 'clipboard-limit' : 'clipboard-empty' };
       // Preserve a user's later selection for an asynchronous result.
-      const current = this.selection.retain();
-      try { return this.last = this.apply(target, [{ runs: [{ text, marks: [] }], attributes: null }]); }
-      finally { if (current) { this.restore(current); current.dispose(); } }
-    } catch (error) { return this.last = { disposition: 'rejected', reason: error instanceof Error ? error.message : String(error) }; }
-    finally { this.reads.delete(cancel); target.dispose(); }
+      const current = this.#selection.retain();
+      try { return this.last = this.#apply(target, [{ runs: [{ text, marks: [] }], attributes: null }]); }
+      finally { if (current) { this.#restore(current); current.dispose(); } }
+    } catch (error) { return this.last = { disposition: 'rejected', reason: errorMessage(error) }; }
+    finally { this.#reads.delete(cancel); target.dispose(); }
   }
-  private restore(target: RetainedSelection): void {
-    const a = this.engine.resolve(target.range.anchor), b = this.engine.resolve(target.range.focus);
-    if (a.type !== 'position' || b.type !== 'position') return;
-    const ap = this.selection.toDOM(a), bp = this.selection.toDOM(b); if (!ap || !bp) return;
-    this.renderer.root.ownerDocument.getSelection()?.setBaseAndExtent(ap.node, ap.offset, bp.node, bp.offset); this.selection.capture();
-  }
-  cancel(): void { this.pendingPaste?.cancel(); this.generation++; for (const cancel of this.reads) cancel(); this.reads.clear(); this.finish(); this.literalNext = false; }
+  #restore(target: RetainedSelection): void { this.#selection.restoreRetained(target); }
+  cancel(): void { this.pendingPaste?.cancel(); this.#generation++; for (const cancel of this.#reads) cancel(); this.#reads.clear(); this.finish(); this.#literalNext = false; }
   copy(data: ClipboardData, cut = false): ClipboardOutcome {
-    if (this.disposed || (cut && this.blocked())) return this.last = { disposition: 'rejected', reason: 'clipboard-unavailable' };
-    const target = this.selection.retain(); if (!target) return this.last = { disposition: 'rejected', reason: 'clipboard-selection' };
+    if (this.#disposed || (cut && this.#blocked())) return this.last = { disposition: 'rejected', reason: 'clipboard-unavailable' };
+    const target = this.#selection.retain(); if (!target) return this.last = { disposition: 'rejected', reason: 'clipboard-selection' };
     try {
-      const a = this.engine.resolve(target.range.anchor), b = this.engine.resolve(target.range.focus);
+      const a = this.#engine.resolve(target.range.anchor), b = this.#engine.resolve(target.range.focus);
       if (a.type !== 'position' || b.type !== 'position') throw Error('clipboard-target');
-      const snapshot = this.engine.read(), nodes = snapshot.visible.filter(n => n.kind === 'block');
+      const snapshot = this.#engine.read(), nodes = snapshot.visible.filter(n => n.kind === 'block');
       const ai = nodes.findIndex(n => n.id === a.node), bi = nodes.findIndex(n => n.id === b.node);
       if (ai < 0 || bi < 0) throw Error('clipboard-target');
       const [first, last, from, to] = (ai < bi || ai === bi && a.offset <= b.offset) ? [ai, bi, a.offset, b.offset] : [bi, ai, b.offset, a.offset];
       if (first === last && from === to) return this.last = { disposition: 'handled' };
       const selected = nodes.slice(first, last + 1);
       const clipped = selected.map((node, index) => ({ node, start: index === 0 ? from : 0, end: index === selected.length - 1 ? to : node.runs.reduce((n, r) => n + r.text.length, 0) }));
-      const plain = clipped.map(({node, start, end}) => node.runs.map(r => r.text).join('').slice(start, end)).join('\n');
+      const plain = clipped.map(({node, start, end}) => node.runs.map(run => run.text).join('').slice(start, end)).join('\n');
       if (new TextEncoder().encode(plain).length > LIMIT) throw Error('clipboard-limit');
       data.setData('text/plain', plain);
       if (cut && data.getData('text/plain') !== plain) throw Error('clipboard-write-failed');
@@ -294,21 +264,21 @@ export class ClipboardInput {
             }
             return { runs: clipRuns(node, start, end), attributes: blockStyle(node), containers, checked: node.editor?.checked ?? null };
           }) };
-        const raw = JSON.stringify(fragment); decodeFragment(raw, snapshot.identity.schema); data.setData(FRAGMENT_MIME, raw); data.setData('text/html', exportHTML(fragment.blocks));
-      } catch (error) { this.diagnose(error instanceof Error ? error.message : String(error)); }
+        const raw = JSON.stringify(fragment); decodeFragment(raw, this.#engine); data.setData(FRAGMENT_MIME, raw); data.setData('text/html', exportHTML(fragment.blocks));
+      } catch (error) { this.#diagnose(errorMessage(error)); }
       // Never delete until the required interoperable text flavor was written.
-      return this.last = cut ? this.apply(target, [{ runs: [], attributes: null }]) : { disposition: 'handled' };
-    } catch (error) { return this.last = { disposition: 'rejected', reason: error instanceof Error ? error.message : String(error) }; }
+      return this.last = cut ? this.#apply(target, [{ runs: [], attributes: null }]) : { disposition: 'handled' };
+    } catch (error) { return this.last = { disposition: 'rejected', reason: errorMessage(error) }; }
     finally { target.dispose(); }
   }
   handle(event: Event): boolean {
     if (event.type === 'keydown') {
       this.finish();
       const key = event as KeyboardEvent;
-      this.literalNext = key.key.toLowerCase() === 'v' && key.shiftKey && (key.metaKey || key.ctrlKey && !key.altKey);
+      this.#literalNext = key.key.toLowerCase() === 'v' && key.shiftKey && (key.metaKey || key.ctrlKey && !key.altKey);
       return false;
     }
-    if (event.type === 'blur') this.literalNext = false;
+    if (event.type === 'blur') this.#literalNext = false;
     const input = event as InputEvent;
     const type = input.inputType;
     if (event.type === 'copy' || event.type === 'cut' || event.type === 'paste') {
@@ -316,46 +286,49 @@ export class ClipboardInput {
       const data = (event as ClipboardEvent).clipboardData;
       if (event.cancelable) event.preventDefault();
       if (!data) { this.last = { disposition: 'rejected', reason: 'clipboard-data-unavailable' }; return true; }
-      this.last = event.type === 'paste' ? this.paste(data, { literal: this.literalNext }) : this.copy(data, event.type === 'cut');
-      this.literalNext = false;
-      if (event.type !== 'copy') this.pending = { type: event.type === 'cut' ? 'cut' : 'paste', phase: 'event', nodes: this.renderer.textBlockIds() };
+      this.last = event.type === 'paste' ? this.paste(data, { literal: this.#literalNext }) : this.copy(data, event.type === 'cut');
+      this.#literalNext = false;
+      if (event.type !== 'copy') this.#pending = { type: event.type === 'cut' ? 'cut' : 'paste', phase: 'event', nodes: this.#renderer.textBlockIds() };
       return true;
     }
     if (event.type === 'beforeinput' && (type === 'insertFromPaste' || type === 'insertFromPasteAsQuotation' || type === 'deleteByCut')) {
       if (event.cancelable) event.preventDefault();
-      if (this.pending?.phase === 'event') { this.pending.phase = 'beforeinput'; return true; }
+      if (this.#pending?.phase === 'event') { this.#pending.phase = 'beforeinput'; return true; }
       this.finish();
       if (type === 'deleteByCut') { this.last = { disposition: 'rejected', reason: 'clipboard-write-required' }; return true; }
       const data = input.dataTransfer;
       const text = data?.getData('text/plain') || input.data;
       if (event.cancelable) {
-        this.last = this.paste(data ?? { getData: flavor => flavor === 'text/plain' ? text ?? '' : '' }, { literal: this.literalNext });
-        this.literalNext = false;
-        this.pending = { type: 'paste', phase: 'beforeinput', nodes: this.renderer.textBlockIds() };
+        this.last = this.paste(data ?? { getData: flavor => flavor === 'text/plain' ? text ?? '' : '' }, { literal: this.#literalNext });
+        this.#literalNext = false;
+        this.#pending = { type: 'paste', phase: 'beforeinput', nodes: this.#renderer.textBlockIds() };
       } else {
-        const target = this.selection.retain();
-        if (target && text && !this.blocked() && new TextEncoder().encode(text).length <= LIMIT) {
-          const nodes = this.renderer.textBlockIds();
-          this.pending = { type: 'paste', phase: 'beforeinput', target, text, nodes };
-          for (const node of nodes) this.renderer.hold(node);
+        const target = this.#selection.retain();
+        if (target && text && !this.#blocked() && new TextEncoder().encode(text).length <= LIMIT) {
+          const nodes = this.#renderer.textBlockIds();
+          this.#pending = { type: 'paste', phase: 'beforeinput', target, text, nodes };
+          for (const node of nodes) this.#renderer.hold(node);
         } else { target?.dispose(); this.last = { disposition: 'rejected', reason: 'clipboard-data-unavailable' }; }
       }
       return true;
     }
-    if (event.type === 'input' && this.pending) {
-      const pending = this.pending;
-      if (pending.target && pending.text) this.last = this.apply(pending.target, [{ runs: [{ text: pending.text, marks: [] }], attributes: null }]);
+    if (event.type === 'input' && this.#pending) {
+      const pending = this.#pending;
+      if (pending.target && pending.text) this.last = this.#apply(pending.target, [{ runs: [{ text: pending.text, marks: [] }], attributes: null }]);
       this.finish(); return true;
     }
-    if (this.pending && !['selectionchange', 'keyup'].includes(event.type)) this.finish();
+    if (this.#pending && !['selectionchange', 'keyup'].includes(event.type)) this.finish();
     return false;
   }
   finish(): void {
-    const pending = this.pending; if (!pending) return;
+    const pending = this.#pending; if (!pending) return;
     // Keep ownership during renderer repair/observer draining to prevent echoes.
     pending.target?.dispose();
-    for (const node of pending.nodes) this.renderer.resume(node);
-    this.pending = undefined;
+    for (const node of pending.nodes) this.#renderer.resume(node);
+    // Repair replaces text nodes even for a canceled native echo. Reapply the
+    // stable caret before another paste intent can capture a DOM boundary.
+    this.#selection.restore();
+    this.#pending = undefined;
   }
-  dispose(): void { if (this.disposed) return; this.cancel(); this.disposed = true; }
+  dispose(): void { if (this.#disposed) return; this.cancel(); this.#disposed = true; }
 }

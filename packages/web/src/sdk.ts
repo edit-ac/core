@@ -1,10 +1,10 @@
 import { mountEditor, type BrowserEditor, type EditorOptions } from './editor.js';
 
-export type TaskPresetOptions = Pick<EditorOptions, 'typingShortcuts' | 'plainTextPolicy' | 'plainPasteControl' | 'contentCodecs'>;
+export type TaskPresetOptions = Pick<EditorOptions, 'markdown' | 'typingShortcuts' | 'plainTextPolicy' | 'plainPasteControl' | 'contentCodecs'>;
 
 /** Explicit defaults; hosts opt into content/module providers separately. */
 export function taskPreset(options: TaskPresetOptions = {}): TaskPresetOptions & { preset: 'task' } {
-  return { preset: 'task', typingShortcuts: true, plainTextPolicy: 'markdown', plainPasteControl: true, ...options };
+  return { preset: 'task', typingShortcuts: true, plainPasteControl: true, ...options };
 }
 
 /** Returns a lifecycle handle immediately. Await ready before commands or input.

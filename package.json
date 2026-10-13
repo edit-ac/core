@@ -13,7 +13,8 @@
     "packages/core",
     "packages/web",
     "packages/react",
-    "packages/astro"
+    "packages/astro",
+    "packages/markdown"
   ],
   "scripts": {
     "example:web": "node examples/web/serve.mjs",
@@ -39,7 +40,9 @@
     "test:regression": "node scripts/test-regression.mjs",
     "check:astro": "npm run build && node --test tests/astro-build.test.mjs",
     "check:browser-size": "node scripts/check-browser-size.mjs",
-    "build:wasm:fixture": "node scripts/build-wasm.mjs --fixture"
+    "build:wasm:fixture": "node scripts/build-wasm.mjs --fixture",
+    "build:wasm:markdown": "node scripts/build-wasm.mjs --markdown",
+    "check:markdown-codec": "npm run build:wasm:markdown && npm run build && node --test tests/markdown-codec.test.mjs"
   },
   "devDependencies": {
     "@astrojs/node": "11.1.7",
@@ -50,6 +53,7 @@
     "playwright": "1.64.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "terser": "5.44.0",
     "typescript": "7.0.2",
     "y-protocols": "1.0.7",
     "yjs": "13.6.33"

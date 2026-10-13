@@ -1,4 +1,6 @@
 import type { ContainerStyle, FragmentBlock, FragmentRun } from '@edit-ac/core';
+import { safeLink } from '../dom/links.js';
+import { inlineTags, htmlMarks } from '../dom/marks.js';
 
 /** Parse into an inert template and construct portable data from a whitelist.
  * No imported node, style, handler, script or resource enters the live document. */
@@ -7,10 +9,6 @@ export function importHTML(document: Document, raw: string, diagnose: (code: str
   const warnings = new Set<string>();
   const warn = (code: string) => { if (!warnings.has(code)) { warnings.add(code); diagnose(code); } };
   const allowed = new Set(['p','div','span','li','ul','ol','blockquote','h1','h2','h3','h4','h5','h6','pre','br','b','strong','i','em','s','del','strike','u','code','a']);
-  const url = (href: string): string | undefined => {
-    if (href.length > 4096 || /[\x00-\x20\x7f\\]/.test(href) || /%(?:0[0-9a-f]|1[0-9a-f]|20|7f)/i.test(href)) return;
-    try { const value = new URL(href); if (!['http:', 'https:', 'mailto:'].includes(value.protocol) || value.username || value.password) return; return href; } catch { return; }
-  };
   const template = document.createElement('template'); template.innerHTML = raw;
   const blocks: FragmentBlock[] = [];
   let visits = 0, sequence = 0, bytes = 0, runs = 0;
@@ -34,14 +32,11 @@ export function importHTML(document: Document, raw: string, diagnose: (code: str
       nextMarks = nextMarks.filter(m => m.mark !== mark);
       nextMarks.push(href ? { mark, href } : { mark });
     };
-    if (['b', 'strong'].includes(tag)) add('bold');
-    if (['i', 'em'].includes(tag)) add('italic');
-    if (['s', 'del', 'strike'].includes(tag)) add('strike');
-    if (tag === 'u') add('underline');
-    if (tag === 'code' && block.attributes?.type !== 'code') add('code');
+    const mark = Object.hasOwn(htmlMarks, tag) ? htmlMarks[tag] : undefined;
+    if (mark && (mark !== 'code' || block.attributes?.type !== 'code')) add(mark);
     if (tag === 'a') {
       const href = element?.getAttribute('href');
-      if (href) { const safe = url(href); if (safe) add('link', safe); else warn('html-url-dropped'); }
+      if (href) { const safe = safeLink(href); if (safe) add('link', safe); else warn('html-url-dropped'); }
     }
     const css = element?.getAttribute('style') ?? '';
     if (css) warn('html-css-reduced-to-marks');
@@ -83,7 +78,7 @@ export function exportHTML(blocks: readonly FragmentBlock[]): string {
       let text = escape(run.text).replaceAll('\n', '<br>');
       for (const mark of run.marks) {
         if (mark.mark === 'link') text = `<a href="${escape(mark.href ?? '')}">${text}</a>`;
-        else { const tag = { bold: 'strong', italic: 'em', strike: 's', underline: 'u', code: 'code' }[mark.mark]; text = `<${tag}>${text}</${tag}>`; }
+        else { const tag = inlineTags[mark.mark]; text = `<${tag}>${text}</${tag}>`; }
       }
       return text;
     }).join('');

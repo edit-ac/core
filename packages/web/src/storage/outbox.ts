@@ -1,3 +1,4 @@
+import { strictTransaction, completeTransaction } from "./transaction.js";
 import { identityKey, ownIdentity, openStorageDatabase, verifyEntries, JournalIntegrityError,
   type JournalIdentity, type JournalEntry } from "./journal.js";
 
@@ -38,18 +39,29 @@ function matches(receipt: DurableReceipt, entry: JournalEntry): boolean {
     && identityKey(receipt.identity) === identityKey(entry.identity);
 }
 
+function unreceipted(entries: JournalEntry[], receipts: Map<string, DurableReceipt>): JournalEntry[] {
+  return entries.filter(entry => {
+    const marker = receipts.get(entry.updateId);
+    if (!marker) return true;
+    if (!matches(ownReceipt(marker), entry)) throw new JournalIntegrityError("Stored receipt identity mismatch");
+    return false;
+  });
+}
+
 /** Internal adapter. Receipts prune pending membership, never the journal's recovery tail.
  * The host passes only receipts from its negotiated durable application transport.
  * Existing v1/v2 journals are pending by default; upgrading does not infer acknowledgments.
  */
 export class UpdateOutbox {
-  private constructor(private readonly database: IDBDatabase, readonly receiptProtocol: typeof durableReceiptProtocol | null) {}
+  readonly #database: IDBDatabase;
+  private constructor(database: IDBDatabase, readonly receiptProtocol: typeof durableReceiptProtocol | null) {
+    this.#database = database;}
   static async open(factory: IDBFactory, name = "editac-local-storage",
     receiptProtocol: typeof durableReceiptProtocol | null = null): Promise<UpdateOutbox> {
     if (receiptProtocol !== null && receiptProtocol !== durableReceiptProtocol) throw new JournalIntegrityError("Unsupported receipt capability");
     return new UpdateOutbox(await openStorageDatabase(factory, name), receiptProtocol);
   }
-  close(): void { this.database.close(); }
+  close(): void { this.#database.close(); }
 
   /** Bounded cursor page for reconnect. The index's equal keys are ordered by
    * primary key (document/epoch/schema/writer/sequence). Receipted entries count
@@ -62,103 +74,61 @@ export class UpdateOutbox {
       || (after && (!Number.isSafeInteger(after.writerId) || after.writerId <= 0 || !Number.isSafeInteger(after.sequence) || after.sequence <= 0))) {
       throw new JournalIntegrityError("Invalid outbox page bounds/cursor");
     }
-    const page = await new Promise<{ entries: JournalEntry[]; receipts: Map<string, DurableReceipt>; after: OutboxCursor | null; done: boolean }>((resolve, reject) => {
-      const tx = this.database.transaction(["updates", "receipts"], "readonly");
-      const entries: JournalEntry[] = [], receipts = new Map<string, DurableReceipt>();
-      let last = after ? { ...after } : null, bytes = 0, done = false, failure: unknown;
-      tx.oncomplete = () => resolve({ entries, receipts, after: last, done });
-      tx.onabort = () => reject(failure ?? tx.error ?? new DOMException("Outbox page aborted", "AbortError"));
-      const abort = (error: unknown) => { failure = error; tx.abort(); };
+    const tx = this.#database.transaction(["updates", "receipts"], "readonly");
+    const entries: JournalEntry[] = [], receipts = new Map<string, DurableReceipt>();
+    let last = after ? { ...after } : null, bytes = 0, done = false;
+    const page = await completeTransaction(tx, "Outbox page aborted", () => ({ entries, receipts, after: last, done }), ({ watch }) => {
       const request = tx.objectStore("updates").index("documentEpochSchema").openCursor([expected.documentId, expected.epoch, expected.schema]);
-      request.onerror = () => { failure = request.error; };
-      request.onsuccess = () => {
-        try {
-          const cursor = request.result;
-          if (!cursor) { done = true; return; }
-          const entry = cursor.value as JournalEntry;
-          if (after && (entry.writerId < after.writerId || (entry.writerId === after.writerId && entry.sequence <= after.sequence))) {
-            // Seek directly to the next primary key rather than scan the prefix.
-            cursor.continuePrimaryKey([expected.documentId, expected.epoch, expected.schema],
-              [expected.documentId, expected.epoch, expected.schema, after.writerId, after.sequence + 1]); return;
-          }
-          if (!(entry.bytes instanceof Uint8Array) || entry.bytes.length > maxBytes) throw new JournalIntegrityError("Pending update exceeds replay page byte limit");
-          if (entries.length >= maxEntries || bytes + entry.bytes.length > maxBytes) return;
-          entries.push(entry); bytes += entry.bytes.length; last = { writerId: entry.writerId, sequence: entry.sequence };
-          const receipt = tx.objectStore("receipts").get(entry.updateId);
-          receipt.onsuccess = () => { if (receipt.result !== undefined) receipts.set(entry.updateId, receipt.result as DurableReceipt); };
-          cursor.continue();
-        } catch (error) { abort(error); }
-      };
+      watch(request, cursor => {
+        if (!cursor) { done = true; return; }
+        const entry = cursor.value as JournalEntry;
+        if (after && (entry.writerId < after.writerId || (entry.writerId === after.writerId && entry.sequence <= after.sequence))) {
+          cursor.continuePrimaryKey([expected.documentId, expected.epoch, expected.schema],
+            [expected.documentId, expected.epoch, expected.schema, after.writerId, after.sequence + 1]); return;
+        }
+        if (!(entry.bytes instanceof Uint8Array) || entry.bytes.length > maxBytes) throw new JournalIntegrityError("Pending update exceeds replay page byte limit");
+        if (entries.length >= maxEntries || bytes + entry.bytes.length > maxBytes) return;
+        entries.push(entry); bytes += entry.bytes.length; last = { writerId: entry.writerId, sequence: entry.sequence };
+        watch(tx.objectStore("receipts").get(entry.updateId), receipt => { if (receipt !== undefined) receipts.set(entry.updateId, receipt); });
+        cursor.continue();
+      });
     });
     const verified = await verifyEntries(page.entries, expected);
-    return { after: page.after, done: page.done, entries: verified.filter(entry => {
-      const marker = page.receipts.get(entry.updateId);
-      if (!marker) return true;
-      if (!matches(ownReceipt(marker), entry)) throw new JournalIntegrityError("Stored receipt identity mismatch");
-      return false;
-    }) };
+    return { after: page.after, done: page.done, entries: unreceipted(verified, page.receipts) };
   }
 
   /** One snapshot of committed bytes and durable receipt markers, independent of checkpoints. */
   async pending(identity: JournalIdentity): Promise<JournalEntry[]> {
     const expected = ownIdentity(identity);
-    const raw = await new Promise<{ entries: JournalEntry[]; receipts: Map<string, DurableReceipt> }>((resolve, reject) => {
-      const tx = this.database.transaction(["updates", "receipts"], "readonly");
-      let entries: JournalEntry[] = [];
-      const receipts = new Map<string, DurableReceipt>();
-      tx.oncomplete = () => resolve({ entries, receipts });
-      tx.onabort = () => reject(tx.error ?? new DOMException("Outbox read aborted", "AbortError"));
-      const request = tx.objectStore("updates").index("documentEpochSchema").getAll([expected.documentId, expected.epoch, expected.schema]);
-      request.onsuccess = () => {
-        entries = request.result as JournalEntry[];
-        for (const entry of entries) {
-          const receipt = tx.objectStore("receipts").get(entry.updateId);
-          receipt.onsuccess = () => { if (receipt.result !== undefined) receipts.set(entry.updateId, receipt.result as DurableReceipt); };
-        }
-      };
+    const tx = this.#database.transaction(["updates", "receipts"], "readonly");
+    let stored: JournalEntry[] = [];
+    const receipts = new Map<string, DurableReceipt>();
+    const raw = await completeTransaction(tx, "Outbox read aborted", () => ({ entries: stored, receipts }), ({ watch }) => {
+      watch(tx.objectStore("updates").index("documentEpochSchema").getAll([expected.documentId, expected.epoch, expected.schema]), entries => {
+        stored = entries;
+        for (const entry of entries) watch(tx.objectStore("receipts").get(entry.updateId), receipt => {
+          if (receipt !== undefined) receipts.set(entry.updateId, receipt);
+        });
+      });
     });
     const entries = await verifyEntries(raw.entries, expected);
-    return entries.filter(entry => {
-      const marker = raw.receipts.get(entry.updateId);
-      if (!marker) return true;
-      const receipt = ownReceipt(marker);
-      if (!matches(receipt, entry)) throw new JournalIntegrityError("Stored receipt identity mismatch");
-      return false;
-    });
+    return unreceipted(entries, raw.receipts);
   }
 
   /** Remote acknowledgment becomes visible only after the local receipt transaction completes. */
   async accept(input: DurableReceipt): Promise<ReceiptResult> {
     const receipt = ownReceipt(input);
     if (this.receiptProtocol === null) return { state: "ignored", updateId: receipt.updateId, reason: "capability-unavailable" };
-    let tx: IDBTransaction;
-    try { tx = this.database.transaction(["updates", "receipts"], "readwrite", { durability: "strict" }); }
-    catch (error) {
-      if (!(error instanceof TypeError) && !(error instanceof DOMException && error.name === "NotSupportedError")) throw error;
-      tx = this.database.transaction(["updates", "receipts"], "readwrite");
-    }
-    return new Promise((resolve, reject) => {
-      let failure: unknown;
-      let result: ReceiptResult = { state: "ignored", updateId: receipt.updateId, reason: "unknown-update" };
-      tx.oncomplete = () => resolve(result);
-      tx.onabort = () => reject(failure ?? tx.error ?? new DOMException("Receipt transaction aborted", "AbortError"));
-      tx.onerror = () => { failure ??= tx.error; };
-      const abort = (error: unknown) => { failure = error; try { tx.abort(); } catch { reject(error); } };
-      try {
-        const request = tx.objectStore("updates").get([receipt.identity.documentId, receipt.identity.epoch,
-          receipt.identity.schema, receipt.writerId, receipt.sequence]);
-        request.onerror = () => { failure = request.error; };
-        request.onsuccess = () => {
-          try {
-            const entry = request.result as JournalEntry | undefined;
-            if (entry === undefined) return;
-            if (!matches(receipt, entry)) { result.reason = "identity-mismatch"; return; }
-            const write = tx.objectStore("receipts").put(receipt, receipt.updateId);
-            write.onerror = () => { failure = write.error; };
-            result = { state: "remoteCommitted", updateId: receipt.updateId };
-          } catch (error) { abort(error); }
-        };
-      } catch (error) { abort(error); }
+    const tx = strictTransaction(this.#database, ["updates", "receipts"]);
+    let result: ReceiptResult = { state: "ignored", updateId: receipt.updateId, reason: "unknown-update" };
+    return completeTransaction(tx, "Receipt transaction aborted", () => result, ({ watch }) => {
+      watch(tx.objectStore("updates").get([receipt.identity.documentId, receipt.identity.epoch,
+        receipt.identity.schema, receipt.writerId, receipt.sequence]), entry => {
+        if (entry === undefined) return;
+        if (!matches(receipt, entry)) { result.reason = "identity-mismatch"; return; }
+        watch(tx.objectStore("receipts").put(receipt, receipt.updateId));
+        result = { state: "remoteCommitted", updateId: receipt.updateId };
+      });
     });
   }
 }

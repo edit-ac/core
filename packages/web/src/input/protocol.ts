@@ -1,4 +1,5 @@
-import type { AnchorToken, EngineHandle, PrepareRequest, PatchSubscription } from '@edit-ac/core';
+import { errorMessage } from '../errors.js';
+import type { CommitResult, AnchorToken, EngineHandle, PrepareRequest, PatchSubscription } from '@edit-ac/core';
 import type { DOMRenderer } from '../dom/render.js';
 import type { DOMSelection, RetainedSelection } from '../dom/selection.js';
 
@@ -88,10 +89,14 @@ export class InputProtocol {
           const point=this.engine.resolve(target.range.anchor);
           if(point.type==='position') {
             event.preventDefault();this.engine.history({type:'explicit'});
-            this.commit({kind:'editor',origin:`input-policy:${this.key.id}`,commands:[{type:'split',owner:point.node,at:target.range.anchor}]});
+            const result=this.commit({kind:'editor',origin:`input-policy:${this.key.id}`,commands:[{type:'split',owner:point.node,at:target.range.anchor}]}) as CommitResult | undefined;
+            // A terminal split can create a fresh source. Use its authored cut,
+            // rather than restoring the preceding composition's old anchor.
+            if(result?.caret)try{this.selection.move(result.caret);}finally{this.engine.releaseAnchor(result.caret);}
+            else this.selection.move(target.range.anchor);
             this.key.disposition='committed';
           }
-        } catch(error) {this.key.disposition='rejected';this.key.reason=error instanceof Error?error.message:String(error);}
+        } catch(error) {this.key.disposition='rejected';this.key.reason=errorMessage(error);}
         finally {target.dispose();}
       }
       return;
@@ -180,7 +185,7 @@ export class InputProtocol {
         const point=this.selection.toDOM({...resolved,bias:'right'});
         if(point)this.renderer.root.ownerDocument.getSelection()?.setBaseAndExtent(point.node,point.offset,point.node,point.offset);
       }
-    } catch(error) {intent.disposition='rejected';intent.reason=error instanceof Error?error.message:String(error);intent.text=text;}
+    } catch(error) {intent.disposition='rejected';intent.reason=errorMessage(error);intent.text=text;}
     finally {if(caret)this.engine.releaseAnchor(caret);}
   }
   private start(): void {

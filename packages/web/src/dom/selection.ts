@@ -1,4 +1,5 @@
-import type { AnchorResolution, Bias, EngineHandle, PatchSubscription, StableRange } from "@edit-ac/core";
+import { errorMessage } from '../errors.js';
+import type { AnchorResolution, AnchorToken, Bias, EngineHandle, PatchSubscription, StableRange } from "@edit-ac/core";
 import type { DOMPosition, DOMRenderer } from "./render.js";
 
 export interface ModelPoint { node: string; offset: number; bias: Bias }
@@ -16,26 +17,28 @@ export type RestoreResult = { type: "restored" } | { type: "outside" | "empty" }
  * until the next capture/clear/dispose. No absolute target survives a patch.
  */
 export class DOMSelection {
-  private captured: CapturedSelection | undefined;
-  private readonly retained = new Set<RetainedSelection>();
-  private readonly subscription: PatchSubscription;
-  private disposed = false;
+  #captured: CapturedSelection | undefined;
+  readonly #retained = new Set<RetainedSelection>();
+  readonly #subscription: PatchSubscription;
+  #disposed = false;
   /** Native composition temporarily owns caret and mutable text positions. */
   suspended = false;
   lastResult: RestoreResult = { type: "empty" };
-  private readonly changed = (): void => {
-    if (!this.disposed && !this.suspended) this.capture();
+  readonly #changed = (): void => {
+    if (!this.#disposed && !this.suspended) this.capture();
   };
-  constructor(readonly renderer: DOMRenderer, private readonly engine: EngineHandle) {
-    renderer.root.ownerDocument.addEventListener("selectionchange", this.changed);
+  readonly #engine: EngineHandle;
+  constructor(readonly renderer: DOMRenderer, engine: EngineHandle) {
+    this.#engine = engine;
+    renderer.root.ownerDocument.addEventListener("selectionchange", this.#changed);
     // Construct after the renderer: its synchronous subscription patches first.
-    this.subscription = engine.subscribe({ type: "all" }, patch => {
-      if (patch.changedNodes.length && !this.disposed && !this.suspended) this.lastResult = this.restore();
+    this.#subscription = engine.subscribe({ type: "all" }, patch => {
+      if (patch.changedNodes.length && !this.#disposed && !this.suspended) this.lastResult = this.restore();
     });
   }
-  get current(): CapturedSelection | undefined { return this.captured; }
-  private native(): Selection | null { return this.renderer.root.ownerDocument.getSelection(); }
-  private inside(selection: Selection): boolean {
+  get current(): CapturedSelection | undefined { return this.#captured; }
+  #native(): Selection | null { return this.renderer.root.ownerDocument.getSelection(); }
+  #inside(selection: Selection): boolean {
     const root = this.renderer.root;
     return !!selection.anchorNode && !!selection.focusNode && root.contains(selection.anchorNode) && root.contains(selection.focusNode);
   }
@@ -58,7 +61,7 @@ export class DOMSelection {
     for (const owner of ids) {
       const positions = this.renderer.positions(owner);
       for (const position of positions) {
-        const start = this.boundary(position, false), end = this.boundary(position, true);
+        const start = this.#boundary(position, false), end = this.#boundary(position, true);
         const marker = doc.createRange(); marker.setStart(start.node, start.offset); marker.collapse(true);
         const before = point.compareBoundaryPoints(0, marker);
         if (before <= 0) return id ? { node: owner, offset: position.start, bias } : bias === "left" && previous ? previous : { node: owner, offset: position.start, bias };
@@ -85,35 +88,35 @@ export class DOMSelection {
     for (const position of positions) {
       if (point.offset < position.start || point.offset > position.start + position.length) continue;
       if (position.node.nodeType === 3) candidates.push({ node: position.node, offset: point.offset - position.start });
-      else candidates.push(this.boundary(position, point.offset > position.start));
+      else candidates.push(this.#boundary(position, point.offset > position.start));
     }
     return point.bias === "left" ? candidates[0] : candidates[candidates.length - 1];
   }
-  private boundary(position: DOMPosition, end: boolean): DOMPoint {
+  #boundary(position: DOMPosition, end: boolean): DOMPoint {
     if (position.node.nodeType === 3) return { node: position.node, offset: end ? position.length : 0 };
     const parent = position.node.parentNode!;
     const index = Array.prototype.indexOf.call(parent.childNodes, position.node) as number;
     return { node: parent, offset: index + (end ? 1 : 0) };
   }
   capture(affinity?: { anchor: Bias; focus: Bias }): CaptureResult {
-    if (this.disposed) return { type: "unsupported", reason: "selection bridge disposed" };
-    const native = this.native();
-    if (!native || !this.inside(native)) { this.clear(); return { type: "outside", reason: "selection is outside this editor" }; }
-    const anchorBias = affinity?.anchor ?? this.captured?.anchorBias ?? "right";
-    const focusBias = affinity?.focus ?? this.captured?.focusBias ?? "right";
+    if (this.#disposed) return { type: "unsupported", reason: "selection bridge disposed" };
+    const native = this.#native();
+    if (!native || !this.#inside(native)) { this.clear(); return { type: "outside", reason: "selection is outside this editor" }; }
+    const anchorBias = affinity?.anchor ?? this.#captured?.anchorBias ?? "right";
+    const focusBias = affinity?.focus ?? this.#captured?.focusBias ?? "right";
     const anchor = this.toModel(native.anchorNode!, native.anchorOffset, anchorBias);
     const focus = this.toModel(native.focusNode!, native.focusOffset, focusBias);
     if (!anchor || !focus) { this.clear(); return { type: "unsupported", reason: "selection endpoint is not editable mapped content" }; }
     let a: StableRange["anchor"] | undefined;
     try {
-      a = this.engine.anchor(anchor.node, anchor.offset, anchor.bias);
-      const f = this.engine.anchor(focus.node, focus.offset, focus.bias);
-      this.clear(false); this.captured = { range: { anchor: a, focus: f }, anchorBias, focusBias };
-      this.renderer.moduleRuntime?.setSelection({ anchor: this.engine.resolve(a), focus: this.engine.resolve(f) });
-      return { type: "captured", selection: this.captured };
+      a = this.#engine.anchor(anchor.node, anchor.offset, anchor.bias);
+      const f = this.#engine.anchor(focus.node, focus.offset, focus.bias);
+      this.clear(false); this.#captured = { range: { anchor: a, focus: f }, anchorBias, focusBias };
+      this.renderer.moduleRuntime?.setSelection({ anchor: this.#engine.resolve(a), focus: this.#engine.resolve(f) });
+      return { type: "captured", selection: this.#captured };
     } catch (error) {
-      if (a) this.engine.releaseAnchor(a);
-      this.clear(); return { type: "unsupported", reason: error instanceof Error ? error.message : String(error) };
+      if (a) this.#engine.releaseAnchor(a);
+      this.clear(); return { type: "unsupported", reason: errorMessage(error) };
     }
   }
   /** Capture an independently owned range before crossing an async boundary.
@@ -122,47 +125,62 @@ export class DOMSelection {
   retain(): RetainedSelection | undefined {
     const result = this.capture();
     if (result.type !== "captured") return undefined;
-    const anchor = this.engine.resolve(result.selection.range.anchor), focus = this.engine.resolve(result.selection.range.focus);
+    const anchor = this.#engine.resolve(result.selection.range.anchor), focus = this.#engine.resolve(result.selection.range.focus);
     if (anchor.type !== "position" || focus.type !== "position") return undefined;
-    const a = this.engine.anchor(anchor.node, anchor.offset, result.selection.anchorBias);
+    const a = this.#engine.anchor(anchor.node, anchor.offset, result.selection.anchorBias);
     let f: StableRange["focus"];
-    try { f = this.engine.anchor(focus.node, focus.offset, result.selection.focusBias); }
-    catch (error) { this.engine.releaseAnchor(a); throw error; }
+    try { f = this.#engine.anchor(focus.node, focus.offset, result.selection.focusBias); }
+    catch (error) { this.#engine.releaseAnchor(a); throw error; }
     let active = true;
     const selection: RetainedSelection = {
       range: { anchor: a, focus: f }, anchorBias: result.selection.anchorBias, focusBias: result.selection.focusBias,
       get active() { return active; },
       dispose: () => {
         if (!active) return;
-        active = false; this.retained.delete(selection);
-        this.engine.releaseAnchor(a); this.engine.releaseAnchor(f);
+        active = false; this.#retained.delete(selection);
+        this.#engine.releaseAnchor(a); this.#engine.releaseAnchor(f);
       }
     };
-    this.retained.add(selection); return selection;
+    this.#retained.add(selection); return selection;
+  }
+  /** Place mapped points without changing token ownership or capture policy. */
+  place(anchor: ModelPoint, focus: ModelPoint = anchor): boolean {
+    const a = this.toDOM(anchor), f = focus === anchor ? a : this.toDOM(focus);
+    if (!a || !f) return false;
+    this.renderer.root.ownerDocument.getSelection()?.setBaseAndExtent(a.node, a.offset, f.node, f.offset);
+    return true;
+  }
+  move(token: AnchorToken): void {
+    const at = this.#engine.resolve(token);
+    if (at.type === "position" && this.place(at)) this.capture({ anchor: at.bias, focus: at.bias });
+  }
+  restoreRetained(target: RetainedSelection): void {
+    const a = this.#engine.resolve(target.range.anchor), f = this.#engine.resolve(target.range.focus);
+    if (a.type === "position" && f.type === "position" && this.place(a, f)) this.capture();
   }
   restore(): RestoreResult {
-    if (this.disposed || !this.captured) return { type: "empty" };
-    const native = this.native();
-    if (!native || !this.inside(native)) { this.clear(); return { type: "outside" }; }
-    const anchor = this.engine.resolve(this.captured.range.anchor), focus = this.engine.resolve(this.captured.range.focus);
+    if (this.#disposed || !this.#captured) return { type: "empty" };
+    const native = this.#native();
+    if (!native || !this.#inside(native)) { this.clear(); return { type: "outside" }; }
+    const anchor = this.#engine.resolve(this.#captured.range.anchor), focus = this.#engine.resolve(this.#captured.range.focus);
     if (anchor.type !== "position" || focus.type !== "position") {
       native.removeAllRanges(); this.clear(); return { type: "stale", anchor, focus };
     }
-    const a = this.toDOM({ ...anchor, bias: this.captured.anchorBias }), f = this.toDOM({ ...focus, bias: this.captured.focusBias });
+    const a = this.toDOM({ ...anchor, bias: this.#captured.anchorBias }), f = this.toDOM({ ...focus, bias: this.#captured.focusBias });
     if (!a || !f) { native.removeAllRanges(); this.clear(); return { type: "unsupported", reason: "resolved endpoint has no rendered editable position" }; }
     native.setBaseAndExtent(a.node, a.offset, f.node, f.offset);
     return { type: "restored" };
   }
   clear(notify = true): void {
     if (notify) this.renderer.moduleRuntime?.setSelection(null);
-    if (!this.captured) return;
-    const { anchor, focus } = this.captured.range; this.captured = undefined;
-    this.engine.releaseAnchor(anchor); this.engine.releaseAnchor(focus);
+    if (!this.#captured) return;
+    const { anchor, focus } = this.#captured.range; this.#captured = undefined;
+    this.#engine.releaseAnchor(anchor); this.#engine.releaseAnchor(focus);
   }
   dispose(): void {
-    if (this.disposed) return;
-    this.disposed = true; this.renderer.root.ownerDocument.removeEventListener("selectionchange", this.changed);
-    this.subscription.dispose(); this.clear();
-    for (const selection of this.retained) selection.dispose();
+    if (this.#disposed) return;
+    this.#disposed = true; this.renderer.root.ownerDocument.removeEventListener("selectionchange", this.#changed);
+    this.#subscription.dispose(); this.clear();
+    for (const selection of this.#retained) selection.dispose();
   }
 }

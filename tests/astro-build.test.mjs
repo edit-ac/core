@@ -27,6 +27,7 @@ test('server import needs neither browser globals nor WASM initialization',async
 });
 test('compiled Astro host typechecks and builds real static and standalone SSR consumers',async()=>{
   await mkdir('examples/astro/public',{recursive:true});
+  await copyFile('packages/markdown/dist/wasm/editac_markdown_wasm_bg.wasm','examples/astro/public/markdown.wasm');
   await copyFile('packages/core/dist/wasm/editac_wasm_bg.wasm','examples/astro/public/engine.wasm');
   await run(['node_modules/astro/bin/astro.mjs','sync','--root','examples/astro'],'astro-sync');
   await run(['scripts/check-astro-types.mjs'],'astro-types');

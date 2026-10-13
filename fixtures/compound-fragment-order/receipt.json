@@ -1,0 +1,20 @@
+{
+  "source": "SDK-1.8 packed enabled compound parity, Chromium captured after Markdown/HTML/internal fragment replacement",
+  "identity": {
+    "documentId": "d37ec784-d2d2-48af-9cad-58beb96403ac",
+    "epoch": "2e06becb-8396-47a1-be72-40150e283ca3",
+    "offsets": "utf16",
+    "profile": "editac.yrs-yjs.editor.v5",
+    "protocolVersion": 1,
+    "schema": "editac.registry.editor.v5",
+    "updateEncoding": 1
+  },
+  "expectedBody": "prefix alpha \ud83d\ude00literalBISUCLG",
+  "negativeControl": "after-enter.bin retains the body after optional content while its first owner is empty; do not rewrite this historical failed state",
+  "captures": {
+    "after-enter.bin": "b274254213efea6a598c35cb61b484c01a148a69f16d131a8acb3f0ea22e23b9",
+    "after-enter.json": "1bc2af4c13abf35db91995ffdf49456f73e294536f910e4424c18dd9a75cb425",
+    "before-enter.bin": "033f849f95c0bde7a0623fbcad44a148a1e7544c8d30ab2703048ef103105d30",
+    "before-enter.json": "1bc2af4c13abf35db91995ffdf49456f73e294536f910e4424c18dd9a75cb425"
+  }
+}

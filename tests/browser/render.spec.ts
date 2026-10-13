@@ -83,6 +83,7 @@ async function withContext(name, action) {
   const context = await browser.newContext();
   const fact = { name, passed: false }; facts.cases.push(fact);
   try { await action(context, fact); fact.passed = true; }
+  catch(error) { fact.error = String(error); throw error; }
   finally { await context.close(); }
 }
 

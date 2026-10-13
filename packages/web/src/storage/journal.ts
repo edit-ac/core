@@ -1,3 +1,4 @@
+import { strictTransaction, completeTransaction } from "./transaction.js";
 /** Browser storage only: engine semantics and replay remain owned by Rust. */
 export interface JournalIdentity {
   profile: string;
@@ -46,8 +47,7 @@ export function ownIdentity(identity: JournalIdentity): JournalIdentity {
     || identity.offsets !== "utf16" || identity.protocolVersion !== 1 || identity.updateEncoding !== 1) {
     throw new JournalIntegrityError("Missing or unsupported document identity/schema/encoding");
   }
-  return { profile: identity.profile, schema: identity.schema, documentId: identity.documentId, epoch: identity.epoch,
-    protocolVersion: identity.protocolVersion, updateEncoding: identity.updateEncoding, offsets: identity.offsets };
+  return Object.fromEntries(identityFields.map(field => [field, identity[field]])) as unknown as JournalIdentity;
 }
 
 function ownUpdate(update: JournalUpdate): JournalUpdate {
@@ -76,67 +76,41 @@ function equalEntry(a: JournalEntry, b: JournalEntry): boolean {
 
 /** Internal adapter, not yet a published editor API. No unload handler or enqueue acknowledgment. */
 export class UpdateJournal {
-  private constructor(private readonly database: IDBDatabase) {}
+  readonly #database: IDBDatabase;
+  private constructor(database: IDBDatabase) {
+    this.#database = database;}
 
   static async open(factory: IDBFactory, name = "editac-local-storage"): Promise<UpdateJournal> {
     return new UpdateJournal(await openStorageDatabase(factory, name));
   }
 
-  close(): void { this.database.close(); }
+  close(): void { this.#database.close(); }
 
   /** Captures owned input before the first await. Repeated identity is a no-op; collisions abort. */
   async append(input: JournalUpdate): Promise<LocalCommit> {
     const update = ownUpdate(input);
     const hash = await checksum(update.bytes);
     const entry: JournalEntry = { ...update, checksum: hash, updateId: updateId(update, hash) };
-    let transaction: IDBTransaction;
-    try {
-      transaction = this.database.transaction(storeName, "readwrite", { durability: "strict" });
-    } catch (error) {
-      // Only unsupported options permit a fallback. Quota, permission and closed-DB errors remain errors.
-      if (!(error instanceof TypeError) && !(error instanceof DOMException && error.name === "NotSupportedError")) throw error;
-      transaction = this.database.transaction(storeName, "readwrite");
-    }
-    return new Promise((resolve, reject) => {
-      let failure: unknown;
-      transaction.oncomplete = () => resolve({ state: "localCommitted", updateId: entry.updateId, durability: transaction.durability ?? "unknown" });
-      transaction.onabort = () => reject(failure ?? transaction.error ?? new DOMException("Journal transaction aborted", "AbortError"));
-      transaction.onerror = () => { failure ??= transaction.error; };
-      const abort = (error: unknown) => {
-        failure = error;
-        try { transaction.abort(); } catch { reject(error); }
-      };
-      try {
+    const transaction = strictTransaction(this.#database, storeName);
+    return completeTransaction(transaction, "Journal transaction aborted",
+      () => ({ state: "localCommitted", updateId: entry.updateId, durability: transaction.durability ?? "unknown" }),
+      ({ watch }) => {
         const store = transaction.objectStore(storeName);
-        const request = store.get([entry.identity.documentId, entry.identity.epoch, entry.identity.schema, entry.writerId, entry.sequence]);
-        request.onerror = () => { failure = request.error; };
-        request.onsuccess = () => {
-          try {
-            if (request.result !== undefined) {
-              if (!equalEntry(request.result as JournalEntry, entry)) throw new JournalIntegrityError("Journal key collision or corrupt existing update");
-            } else {
-              const write = store.add(entry);
-              write.onerror = () => { failure = write.error; };
-            }
-          } catch (error) { abort(error); }
-        };
-      } catch (error) { abort(error); }
-    });
+        watch(store.get([entry.identity.documentId, entry.identity.epoch, entry.identity.schema, entry.writerId, entry.sequence]), existing => {
+          if (existing !== undefined) {
+            if (!equalEntry(existing as JournalEntry, entry)) throw new JournalIntegrityError("Journal key collision or corrupt existing update");
+          } else watch(store.add(entry));
+        });
+      });
   }
 
   /** Returns detached, verified entries for one trusted document/epoch/schema. */
   async read(identity: JournalIdentity): Promise<JournalEntry[]> {
     const expected = ownIdentity(identity);
-    const entries = await new Promise<JournalEntry[]>((resolve, reject) => {
-      const transaction = this.database.transaction(storeName, "readonly");
-      let result: JournalEntry[] = [];
-      let failure: unknown;
-      transaction.oncomplete = () => resolve(result);
-      transaction.onabort = () => reject(failure ?? transaction.error ?? new DOMException("Journal read aborted", "AbortError"));
-      transaction.onerror = () => { failure ??= transaction.error; };
-      const request = transaction.objectStore(storeName).index("documentEpochSchema").getAll([expected.documentId, expected.epoch, expected.schema]);
-      request.onerror = () => { failure = request.error; };
-      request.onsuccess = () => { result = request.result as JournalEntry[]; };
+    const transaction = this.#database.transaction(storeName, "readonly");
+    let result: JournalEntry[] = [];
+    const entries = await completeTransaction(transaction, "Journal read aborted", () => result, ({ watch }) => {
+      watch(transaction.objectStore(storeName).index("documentEpochSchema").getAll([expected.documentId, expected.epoch, expected.schema]), entries => { result = entries; });
     });
     return verifyEntries(entries, expected);
   }

@@ -17,7 +17,6 @@ foundation-fixture = []
 
 [dependencies]
 editac-core = { path = "../editac-core" }
-editac-markdown = { path = "../editac-markdown" }
 wasm-bindgen.workspace = true
 yrs.workspace = true
 serde = { version = "=1.0.229", features = ["derive"] }

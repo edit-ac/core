@@ -1,13 +1,18 @@
 //! Bounded JSON boundary shared by native fixture proofs and the compiled bridge.
 //! Every fallible parse/translation/preparation precedes a live commit.
+#[cfg(test)]
+use editac_core::commands::{format::Mark, lists::ContainerStyle};
+use editac_core::interchange::{
+    MarkName, Result, Style, TransferBlock, err, kernel, parse, transfer_blocks, value,
+};
 use editac_core::{
     Utf16Offset,
     anchors::{Anchor, Bias, Resolution, Selection},
     commands::{
         blocks::{BlockCommand, Side},
-        editor::{EditorCommand, FragmentBlock, FragmentRun, PreparedEditorEdit},
-        format::{BlockFormatCommand, FormatAction, FormatCommand, Mark, PreparedFormatBatch},
-        lists::{ContainerStyle, ListCommand},
+        editor::{EditorCommand, PreparedEditorEdit},
+        format::{BlockFormatCommand, FormatAction, FormatCommand, PreparedFormatBatch},
+        lists::ListCommand,
         r#move::{MoveCommand, MoveTarget},
         text::{PreparedTextEdit, TextCommand, TextOrigin},
     },
@@ -17,37 +22,14 @@ use editac_core::{
     },
     history::{HistoryConfig, HistoryGroup},
 };
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 use yrs::Any;
 
-const MAX_REQUEST: usize = 2 * 1024 * 1024;
 const MAX_PLANS: usize = 128;
 const MAX_ANCHORS: usize = 4096;
-#[derive(Debug, Serialize)]
-pub(crate) struct Error {
-    pub code: &'static str,
-    pub operation: &'static str,
-    pub message: String,
-}
-type Result<T> = std::result::Result<T, Error>;
-fn err(code: &'static str, operation: &'static str, message: impl Into<String>) -> Error {
-    Error {
-        code,
-        operation,
-        message: message.into(),
-    }
-}
-fn kernel(operation: &'static str, e: impl std::fmt::Debug) -> Error {
-    err("EngineRejected", operation, format!("{e:?}"))
-}
-fn parse<T: DeserializeOwned>(s: &str, op: &'static str) -> Result<T> {
-    if s.len() > MAX_REQUEST {
-        return Err(err("ResourceLimit", op, "request exceeds byte limit"));
-    }
-    serde_json::from_str(s).map_err(|e| err("InvalidInput", op, e.to_string()))
-}
+
 #[derive(Deserialize, Serialize, Clone)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 struct Identity {
@@ -167,42 +149,6 @@ enum Prepare {
     },
 }
 #[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct TransferBlock {
-    runs: Vec<TransferRun>,
-    attributes: Option<TransferAttributes>,
-    #[serde(default)]
-    containers: Vec<TransferContainer>,
-    checked: Option<bool>,
-}
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct TransferContainer {
-    key: String,
-    style: Style,
-}
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct TransferRun {
-    text: String,
-    marks: Vec<TransferMark>,
-}
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct TransferMark {
-    mark: MarkName,
-    href: Option<String>,
-}
-#[derive(Deserialize)]
-#[serde(tag = "type", rename_all = "lowercase", deny_unknown_fields)]
-enum TransferAttributes {
-    Paragraph {},
-    Heading { level: u8 },
-    Code { language: String },
-    Separator {},
-    Content { tuple: Value },
-}
-#[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
 enum TextRequest {
     Insert { at: String, text: String },
@@ -300,24 +246,6 @@ enum Command {
     },
 }
 #[derive(Deserialize)]
-#[serde(tag = "type", rename_all = "lowercase", deny_unknown_fields)]
-enum Style {
-    Unordered {},
-    Ordered { start: u32 },
-    Checklist {},
-    Quote {},
-}
-impl Style {
-    fn native(self) -> ContainerStyle {
-        match self {
-            Self::Unordered {} => ContainerStyle::Unordered,
-            Self::Ordered { start } => ContainerStyle::Ordered { start },
-            Self::Checklist {} => ContainerStyle::Checklist,
-            Self::Quote {} => ContainerStyle::Quote,
-        }
-    }
-}
-#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Target {
     id: String,
@@ -342,28 +270,6 @@ impl Edge {
         match self {
             Self::Before => Side::Before,
             Self::After => Side::After,
-        }
-    }
-}
-#[derive(Deserialize)]
-#[serde(rename_all = "lowercase")]
-enum MarkName {
-    Bold,
-    Italic,
-    Strike,
-    Underline,
-    Code,
-    Link,
-}
-impl MarkName {
-    fn native(self) -> Mark {
-        match self {
-            Self::Bold => Mark::Bold,
-            Self::Italic => Mark::Italic,
-            Self::Strike => Mark::Strike,
-            Self::Underline => Mark::Underline,
-            Self::Code => Mark::Code,
-            Self::Link => Mark::Link,
         }
     }
 }
@@ -999,138 +905,6 @@ fn node(n: &editac_core::projection::ProjectedNode) -> Value {
     })
 }
 
-fn transfer_blocks(blocks: Vec<TransferBlock>) -> Result<Vec<FragmentBlock>> {
-    if blocks.len() > 128
-        || blocks.iter().map(|b| b.runs.len()).sum::<usize>() > 1024
-        || blocks
-            .iter()
-            .flat_map(|b| &b.runs)
-            .map(|r| r.text.len())
-            .sum::<usize>()
-            > 1024 * 1024
-        || blocks
-            .iter()
-            .any(|b| b.containers.len() > 16 || b.runs.iter().any(|r| r.marks.len() > 6))
-    {
-        return Err(err("ResourceLimit", "markdown", "fragment exceeds limits"));
-    }
-    let converted = blocks
-        .into_iter()
-        .map(|b| {
-            Ok(FragmentBlock {
-                containers: b
-                    .containers
-                    .into_iter()
-                    .map(|c| (c.key, c.style.native()))
-                    .collect(),
-                checked: b.checked,
-                runs: b
-                    .runs
-                    .into_iter()
-                    .map(|r| FragmentRun {
-                        text: r.text,
-                        marks: r
-                            .marks
-                            .into_iter()
-                            .map(|m| (m.mark.native(), m.href))
-                            .collect(),
-                    })
-                    .collect(),
-                attributes: b
-                    .attributes
-                    .map(|a| match a {
-                        TransferAttributes::Paragraph {} => Ok(BlockAttributes::Paragraph),
-                        TransferAttributes::Heading { level } => {
-                            Ok(BlockAttributes::Heading(level))
-                        }
-                        TransferAttributes::Code { language } => {
-                            Ok(BlockAttributes::Code(language))
-                        }
-                        TransferAttributes::Separator {} => Ok(BlockAttributes::Separator),
-                        TransferAttributes::Content { tuple } => {
-                            let a = Any::from_json(&tuple.to_string())
-                                .map_err(|e| kernel("markdown", e))?;
-                            let content = editac_core::modules::content::Content::from_tuple(&a)
-                                .map_err(|e| kernel("markdown", e))?;
-                            if content.is_none() {
-                                return Err(err(
-                                    "InvalidInput",
-                                    "markdown",
-                                    "unregistered content",
-                                ));
-                            }
-                            Ok(BlockAttributes::Unknown(a))
-                        }
-                    })
-                    .transpose()?,
-            })
-        })
-        .collect::<Result<Vec<_>>>()?;
-    editac_markdown::extensions::validate(&converted).map_err(|e| kernel("markdown", e))?;
-    Ok(converted)
-}
-fn transfer_value(b: &FragmentBlock) -> Value {
-    let attributes = match &b.attributes {
-        None => Value::Null,
-        Some(BlockAttributes::Paragraph) => json!({"type":"paragraph"}),
-        Some(BlockAttributes::Heading(level)) => json!({"type":"heading","level":level}),
-        Some(BlockAttributes::Code(language)) => json!({"type":"code","language":language}),
-        Some(BlockAttributes::Separator) => json!({"type":"separator"}),
-        Some(BlockAttributes::Unknown(tuple)) => json!({"type":"content","tuple":value(tuple)}),
-    };
-    json!({"attributes":attributes,"checked":b.checked,
-        "containers":b.containers.iter().map(|(key,style)| {
-            let style=match style {ContainerStyle::Unordered=>json!({"type":"unordered"}),ContainerStyle::Checklist=>json!({"type":"checklist"}),ContainerStyle::Quote=>json!({"type":"quote"}),ContainerStyle::Ordered{start}=>json!({"type":"ordered","start":start})};
-            json!({"key":key,"style":style})
-        }).collect::<Vec<_>>(),
-        "runs":b.runs.iter().map(|r|json!({"text":r.text,"marks":r.marks.iter().map(|(m,href)|{
-            let name=match m {Mark::Bold=>"bold",Mark::Italic=>"italic",Mark::Strike=>"strike",Mark::Underline=>"underline",Mark::Code=>"code",Mark::Link=>"link"};json!({"mark":name,"href":href})
-        }).collect::<Vec<_>>()})).collect::<Vec<_>>()})
-}
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct MarkdownInput {
-    source: String,
-    #[serde(default)]
-    callouts: bool,
-    #[serde(default)]
-    images: bool,
-    #[serde(default)]
-    tables: bool,
-}
-impl Bridge {
-    pub fn markdown_equivalent(&self, input: &str) -> Result<Value> {
-        let [a, b]: [Vec<TransferBlock>; 2] = parse(input, "markdownEquivalent")?;
-        Ok(json!(editac_markdown::export::equivalent(
-            &transfer_blocks(a)?,
-            &transfer_blocks(b)?
-        )))
-    }
-    pub fn import_markdown(&self, input: &str) -> Result<Value> {
-        let r: MarkdownInput = parse(input, "importMarkdown")?;
-        let p = editac_markdown::optional::import_with_codecs(
-            &r.source,
-            editac_markdown::optional::Codecs {
-                callouts: r.callouts,
-                images: r.images,
-                tables: r.tables,
-            },
-        )
-        .map_err(|e| kernel("importMarkdown", e))?;
-        Ok(
-            json!({"source":p.source,"blocks":p.blocks.iter().map(transfer_value).collect::<Vec<_>>(),"ranges":p.ranges.iter().map(|r|json!([r.start,r.end])).collect::<Vec<_>>(),"diagnostics":p.diagnostics.iter().map(|d|json!({"code":d.code,"range":[d.range.start,d.range.end]})).collect::<Vec<_>>()}),
-        )
-    }
-    pub fn export_markdown(&self, input: &str) -> Result<Value> {
-        let r: Vec<TransferBlock> = parse(input, "exportMarkdown")?;
-        let blocks = transfer_blocks(r)?;
-        let e = editac_markdown::export::export(&blocks);
-        Ok(
-            json!({"markdown":e.markdown,"diagnostics":e.diagnostics.iter().map(|d|json!({"code":d.code,"range":[d.range.start,d.range.end]})).collect::<Vec<_>>(),"recovery":e.recovery.iter().map(transfer_value).collect::<Vec<_>>()}),
-        )
-    }
-}
-
 fn resolution(v: &Resolution) -> Value {
     match v {
         Resolution::Position(p) => {
@@ -1142,24 +916,6 @@ fn resolution(v: &Resolution) -> Value {
         Resolution::Unresolvable(e) => json!({"type":"unresolvable","reason":format!("{e:?}")}),
     }
 }
-fn value(a: &Any) -> Value {
-    match a {
-        Any::Null | Any::Undefined => Value::Null,
-        Any::Bool(b) => json!(b),
-        Any::Number(n) => {
-            if let Some(i) = n.as_i64() {
-                json!(i)
-            } else {
-                json!(n)
-            }
-        }
-        Any::String(s) => json!(s.as_ref()),
-        Any::Array(a) => Value::Array(a.iter().map(value).collect()),
-        Any::Map(m) => Value::Object(m.iter().map(|(k, v)| (k.clone(), value(v))).collect()),
-        Any::Buffer(b) => json!(b.as_ref()),
-    }
-}
-
 #[cfg(test)]
 mod result_caret_tests {
     use super::*;
@@ -1305,51 +1061,5 @@ mod result_caret_tests {
             failure.message
         );
         assert_eq!(b.doc_state(), state);
-    }
-}
-
-#[cfg(test)]
-mod markdown_bridge_tests {
-    use super::*;
-    fn bridge(n: u32) -> Bridge {
-        Bridge::create(&json!({"profile":"v5","documentId":format!("75000000-0000-4000-8000-{n:012}"),"epoch":format!("76000000-0000-4000-8000-{n:012}"),"nodes":[{"text":"original"}]}).to_string()).unwrap()
-    }
-    #[test]
-    fn pure_import_export_has_no_semantic_effects() {
-        let b = bridge(1);
-        let before = b.checkpoint_bytes();
-        let p = b
-            .import_markdown(r##"{"source":"# **😀**\n\n[late][r]\n\n[r]: https://example.com"}"##)
-            .unwrap();
-        let e = b.export_markdown(&p["blocks"].to_string()).unwrap();
-        assert_eq!(e["diagnostics"], json!([]));
-        assert!(e["markdown"].as_str().unwrap().contains("😀"));
-        assert_eq!(before, b.checkpoint_bytes());
-    }
-    #[test]
-    fn registered_content_is_preserved_and_unknown_version_rejected() {
-        let b = bridge(2);
-        let p = b
-            .import_markdown(r#"{"source":"![a](https://example.com/i)","images":true}"#)
-            .unwrap();
-        assert_eq!(p["blocks"][0]["attributes"]["type"], "content");
-        assert!(b.export_markdown(&p["blocks"].to_string()).is_ok());
-        let mut blocks = p["blocks"].clone();
-        blocks[0]["attributes"]["tuple"][1] = json!(99);
-        assert!(b.export_markdown(&blocks.to_string()).is_err());
-    }
-    #[test]
-    fn malformed_and_oversized_inputs_leave_replica_untouched() {
-        let b = bridge(3);
-        let before = b.checkpoint_bytes();
-        assert!(
-            b.import_markdown(r#"{"source":"x","unknown":true}"#)
-                .is_err()
-        );
-        assert!(
-            b.import_markdown(&json!({"source":"x".repeat(1024*1024+1)}).to_string())
-                .is_err()
-        );
-        assert_eq!(before, b.checkpoint_bytes());
     }
 }

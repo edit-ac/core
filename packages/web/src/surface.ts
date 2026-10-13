@@ -6,6 +6,7 @@ import type { ModuleRuntime, ModuleRuntimeOptions } from './modules/runtime.js';
 import type { ClipboardCodec } from './clipboard/fragment.js';
 
 export interface EditorSurfaceOptions {
+  markdown?: import('./input/shortcuts.js').MarkdownAdapter;
   content?: import('./modules/content.js').ContentFactory;
   reorder?: import('./modules/reorder.js').ReorderFactory;
   references?: import('./modules/references.js').ReferenceFactory;
@@ -47,7 +48,12 @@ export function reserveEditorSurface(root: HTMLElement): () => void {
 export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, options: EditorSurfaceOptions = {}) {
   const renderer = new DOMRenderer(root, engine, { readOnly: true, ...(options.content ? { content: options.content } : {}), ...(options.commit ? { commit: options.commit } : {}), ...(options.modules ? { modules: options.modules } : {}), ...(options.moduleRuntime ? { moduleRuntime: options.moduleRuntime } : {}) });
   let selection: DOMSelection | undefined, input: TextInput | undefined;
+  let markdown: import('@edit-ac/core').PatchSubscription | undefined;
+  const disposeAdapters = (): void => {
+    try { input?.dispose(); } finally { try { selection?.dispose(); } finally { try { renderer.dispose(); } finally { markdown?.dispose(); } } }
+  };
   try {
+    if (options.markdown) markdown = engine.registerMarkdown(options.markdown.codec);
     root.setAttribute('role', 'textbox'); root.setAttribute('aria-multiline', 'true');
     root.setAttribute('aria-label', options.label ?? root.getAttribute('aria-label') ?? 'Document editor');
     if (!root.hasAttribute('tabindex')) root.tabIndex = 0;
@@ -57,8 +63,9 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
     if (options.reorder) input.attachReorder(options.reorder);
     if (options.references) input.attachReferences(options.references);
     if (options.slash) input.attachSlash(options.slash);
+    if (options.markdown) input.shortcuts = options.markdown.createShortcuts(engine, options.commit ?? (request => engine.commit(engine.prepare(request))));
     input.shortcuts.enabled=options.typingShortcuts??true;
-    input.clipboard.plainTextPolicy = options.plainTextPolicy ?? (options.preset === 'minimal' ? 'literal' : 'markdown');
+    input.clipboard.plainTextPolicy = options.plainTextPolicy ?? (options.preset === 'minimal' || !engine.markdownAvailable ? 'literal' : 'markdown');
     input.clipboard.contentCodecs = options.contentCodecs ?? {};
     input.setReadOnly(options.readOnly ?? false);
     root.setAttribute('aria-readonly', String(options.readOnly ?? false));
@@ -68,10 +75,10 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
       dispose(): void {
         if (disposed) return; disposed = true;
         root.contentEditable = 'false'; root.setAttribute('aria-readonly', 'true');
-        try { boundInput.dispose(); } finally { try { boundSelection.dispose(); } finally { renderer.dispose(); } }
+        disposeAdapters();
       } };
   } catch (error) {
-    try { input?.dispose(); } finally { try { selection?.dispose(); } finally { renderer.dispose(); } }
+    disposeAdapters();
     root.contentEditable = 'false'; throw error;
   }
 }

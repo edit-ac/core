@@ -1,0 +1,41 @@
+{
+  "name": "@edit-ac/markdown",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Optional stateless Markdown interchange codec",
+  "license": "Apache-2.0",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/edit-ac/core.git",
+    "directory": "packages/markdown"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "THIRD-PARTY-NOTICES.txt"
+  ],
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./wasm": "./dist/wasm/editac_markdown_wasm_bg.wasm",
+    "./web": {
+      "types": "./dist/web.d.ts",
+      "import": "./dist/web.js",
+      "default": "./dist/web.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "typecheck": "tsc --project tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@edit-ac/core": "0.0.0",
+    "@edit-ac/web": "0.0.0"
+  }
+}

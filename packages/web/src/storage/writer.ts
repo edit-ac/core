@@ -3,8 +3,10 @@ import { identityKey } from "./journal.js";
 
 /** An engine replica plus an origin-wide lease. Persisted writer IDs are never reused. */
 export class StorageWriter {
-  private disposed = false;
-  private constructor(readonly engine: EngineHandle, readonly writerId: number, private readonly release: () => void) {}
+  #disposed = false;
+  readonly #release: () => void;
+  private constructor(readonly engine: EngineHandle, readonly writerId: number, release: () => void) {
+    this.#release = release;}
 
   /** Web Locks protects against rare random-ID collisions across separate WASM/tab realms. */
   static async restore(runtime: EngineRuntime, locks: LockManager, expected: DocumentIdentity,
@@ -34,8 +36,8 @@ export class StorageWriter {
   }
 
   dispose(): void {
-    if (this.disposed) return;
-    this.disposed = true;
-    try { this.engine.dispose(); } finally { this.release(); }
+    if (this.#disposed) return;
+    this.#disposed = true;
+    try { this.engine.dispose(); } finally { this.#release(); }
   }
 }

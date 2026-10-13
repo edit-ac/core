@@ -86,6 +86,7 @@ dependencies = [
 name = "editac-core"
 version = "0.0.0"
 dependencies = [
+ "serde",
  "serde_json",
  "unicode-segmentation",
  "url",
@@ -103,11 +104,21 @@ dependencies = [
 ]
 
 [[package]]
-name = "editac-wasm"
+name = "editac-markdown-wasm"
 version = "0.0.0"
 dependencies = [
  "editac-core",
  "editac-markdown",
+ "serde",
+ "serde_json",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "editac-wasm"
+version = "0.0.0"
+dependencies = [
+ "editac-core",
  "serde",
  "serde_json",
  "wasm-bindgen",

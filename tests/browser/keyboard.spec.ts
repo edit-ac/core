@@ -39,11 +39,20 @@ after(async()=>{
 async function probe(name,action,initialText='alpha'){
  const context=await browser.newContext(),fact={name,passed:false,provenance:name.startsWith('native-')?'actual Playwright browser keyboard':'prepared real-DOM event replay',snapshots:[]};facts.cases.push(fact);
  let primaryError;
- const page=await context.newPage();page.on('pageerror',error=>{fact.pageErrors??=[];fact.pageErrors.push(error.message);});
- try{await page.goto(server.url);await page.waitForFunction(()=>!!window.inputFixture);await page.evaluate(text=>window.inputFixture.mount(text),initialText);fact.initialText=initialText;await action(page,fact);fact.traceProvenance={nativeTrustedEventTypes:[...new Set(fact.snapshots.flatMap(s=>s.trace.filter(t=>t.trusted).map(t=>t.type)))],preparedEventTypes:[...new Set(fact.snapshots.flatMap(s=>s.trace.filter(t=>!t.trusted&&!t.type.endsWith('mutations')&&t.type!=='renderer-echo').map(t=>t.type)))],composition:'prepared event replay; no OS IME'};assert.deepEqual(fact.pageErrors??[],[]);fact.passed=true;}
+ let page;
+ try{page=await context.newPage();page.on('pageerror',error=>{fact.pageErrors??=[];fact.pageErrors.push(error.message);});await page.goto(server.url);await page.waitForFunction(()=>!!window.inputFixture);if(initialText!==null)await page.evaluate(text=>window.inputFixture.mount(text),initialText);fact.initialText=initialText;await action(page,fact);fact.traceProvenance={nativeTrustedEventTypes:[...new Set(fact.snapshots.flatMap(s=>s.trace.filter(t=>t.trusted).map(t=>t.type)))],preparedEventTypes:[...new Set(fact.snapshots.flatMap(s=>s.trace.filter(t=>!t.trusted&&!t.type.endsWith('mutations')&&t.type!=='renderer-echo').map(t=>t.type)))],composition:'prepared event replay; no OS IME'};assert.deepEqual(fact.pageErrors??[],[]);fact.passed=true;}
  catch(error){primaryError=error;fact.error=String(error);throw error;}
- finally{try{await page.evaluate(()=>window.inputFixture.destroy());}catch(error){fact.cleanupError=String(error);if(!primaryError)throw error;}finally{await context.close();}}
+ finally{try{if(page&&!page.isClosed())await page.evaluate(()=>window.inputFixture?.destroy());}catch(error){fact.cleanupError=String(error);if(!primaryError)throw error;}finally{await context.close();}}
 }
+test('fixture teardown tolerates failed initialization and repeated disposal',()=>probe('fixture-partial-setup-teardown',async(page,fact)=>{
+ await page.route('**/core/wasm/editac_wasm_bg.wasm',route=>route.abort());
+ assert.equal(await page.evaluate(async()=>{try{await window.inputFixture.mount();return false;}catch{return true;}}),true);
+ await page.evaluate(()=>window.inputFixture.destroy());
+ await page.unroute('**/core/wasm/editac_wasm_bg.wasm');
+ await page.evaluate(()=>window.inputFixture.mount());
+ const state=await observe(page,fact);assert.deepEqual(state.text,['alpha','independent']);
+ await page.evaluate(async()=>{await window.inputFixture.destroy();await window.inputFixture.destroy();});
+},null));
 async function observe(page,fact){const state=await page.evaluate(async()=>{const f=window.inputFixture,s=await f.state(),native=document.getSelection();return {...s,nodes:f.engine.read().visible,semanticSelection:native?.anchorNode?{anchor:f.selection.toModel(native.anchorNode,native.anchorOffset),focus:f.selection.toModel(native.focusNode,native.focusOffset)}:null};});fact.snapshots.push(state);assert.deepEqual(state.errors,[]);assert.equal(state.storage,'localCommitted');assert.deepEqual(state.dom.filter((_,i)=>state.nodes[i].kind==='block'),state.text.filter((_,i)=>state.nodes[i].kind==='block'));return state;}
 async function position(page,index,start,end=start,endIndex=index){await page.evaluate(({index,start,end,endIndex})=>{const f=window.inputFixture,n=f.engine.read().visible.filter(n=>n.kind==='block');const a=f.selection.toDOM({node:n[index].id,offset:start,bias:'right'}),b=f.selection.toDOM({node:n[endIndex].id,offset:end,bias:'right'});f.root.focus();document.getSelection().setBaseAndExtent(a.node,a.offset,b.node,b.offset);f.selection.capture();},{index,start,end,endIndex});}
 async function setup(page,mode){await page.evaluate(mode=>{const f=window.inputFixture,ids=f.ids;let request;

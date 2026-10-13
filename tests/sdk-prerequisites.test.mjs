@@ -4,12 +4,15 @@ import { readFile, mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { init, EngineError } from '@edit-ac/core';
+import {initMarkdown} from '@edit-ac/markdown';
 import * as web from '@edit-ac/web';
 
 // Production WASM, deterministic content, no provider/network or recording port.
 const wasm = await readFile(new URL('../packages/core/dist/wasm/editac_wasm_bg.wasm', import.meta.url));
 const asset = 'data:application/wasm;base64,' + wasm.toString('base64');
 const runtime = await init(asset);
+const parserBytes=await readFile(new URL('../packages/markdown/dist/wasm/editac_markdown_wasm_bg.wasm',import.meta.url));
+const codec=await initMarkdown('data:application/wasm;base64,'+parserBytes.toString('base64'));
 let sequence = 0;
 const create = () => runtime.createEngine({ profile: 'v5', documentId: `81000000-0000-4000-8000-${String(++sequence).padStart(12, '0')}`, epoch: '82000000-0000-4000-8000-000000000001', nodes: [{ text: 'A😀B' }] });
 const text = engine => engine.read().visible.map(n => n.runs.map(r => r.text).join('')).join('\n');
@@ -42,7 +45,7 @@ test('public web exports resolve implemented entrypoints and explicit task defau
     assert.equal(typeof web.BrowserEditor.prototype[name], 'function', name);
   }
   assert.deepEqual(web.taskPreset(), {
-    preset: 'task', typingShortcuts: true, plainTextPolicy: 'markdown', plainPasteControl: true,
+    preset: 'task', typingShortcuts: true, plainPasteControl: true,
   });
   assert.equal(web.taskPreset({ plainTextPolicy: 'literal' }).plainTextPolicy, 'literal');
 });
@@ -128,6 +131,7 @@ test('Markdown preparation and export report actual content without editing the 
   const engine = create();
   try {
     const before = engine.checkpoint();
+    engine.registerMarkdown(codec);
     const prepared = engine.importMarkdown('# Task\n\n**bold** and `code`\n');
     assert.equal(prepared.blocks[0].attributes.type, 'heading');
     assert.ok(prepared.blocks[1].runs.some(r => r.marks.some(m => m.mark === 'bold')));
@@ -144,7 +148,8 @@ test('implemented error variants remain visible and disposed methods cannot repo
     const node = engine.read().visible[0].id;
     assert.throws(() => engine.anchor(node, 2, 'right'), rejects('EngineRejected', 'anchor'));
     assert.throws(() => engine.resolve('missing'), rejects('InvalidHandle'));
-    assert.throws(() => engine.importMarkdown('x'.repeat(2 * 1024 * 1024 + 1)), rejects('ResourceLimit'));
+    assert.equal(engine.markdownAvailable,false);
+    assert.throws(() => engine.importMarkdown('x'), rejects('CapabilityUnavailable','importMarkdown'));
     const subscription = engine.subscribe({ type: 'all' }, () => {});
     engine.dispose(); engine.dispose();
     assert.equal(subscription.active, false);

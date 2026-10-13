@@ -1,13 +1,19 @@
 //! An allocation owns exactly one admitted semantic replica. Disposal drops its
 //! history, projection observers, anchors and plans; later calls return Disposed.
-use crate::bridge::{Bridge, Error};
+use crate::bridge::Bridge;
+use editac_core::interchange::Error;
 use serde_json::Value;
 use wasm_bindgen::prelude::*;
-fn output(result: Result<Value, Error>) -> Result<String, JsValue> {
-    result
-        .map(|v| v.to_string())
-        .map_err(|e| JsValue::from_str(&serde_json::to_string(&e).expect("error serialization")))
+// Keep one retained serializer for errors from every exported engine method.
+#[inline(never)]
+fn error_value(error: Error) -> JsValue {
+    JsValue::from_str(&serde_json::to_string(&error).expect("error serialization"))
 }
+#[inline(never)]
+fn output(result: Result<Value, Error>) -> Result<String, JsValue> {
+    result.map(|v| v.to_string()).map_err(error_value)
+}
+#[inline(never)]
 fn disposed(operation: &'static str) -> Error {
     Error {
         code: "Disposed",
@@ -25,17 +31,13 @@ impl Engine {
     pub fn new(input: &str) -> Result<Engine, JsValue> {
         Bridge::create(input)
             .map(|b| Self { inner: Some(b) })
-            .map_err(|e| {
-                JsValue::from_str(&serde_json::to_string(&e).expect("error serialization"))
-            })
+            .map_err(error_value)
     }
     /// Explicit initialized restore; never imports defaults or reuses a writer.
     pub fn restore(input: &str, bytes: &[u8]) -> Result<Engine, JsValue> {
         Bridge::restore(input, bytes)
             .map(|b| Self { inner: Some(b) })
-            .map_err(|e| {
-                JsValue::from_str(&serde_json::to_string(&e).expect("error serialization"))
-            })
+            .map_err(error_value)
     }
     pub fn checkpoint_metadata(&self) -> Result<String, JsValue> {
         output(
@@ -50,27 +52,21 @@ impl Engine {
             .as_ref()
             .ok_or_else(|| disposed("checkpoint"))
             .map(Bridge::checkpoint_bytes)
-            .map_err(|e| {
-                JsValue::from_str(&serde_json::to_string(&e).expect("error serialization"))
-            })
+            .map_err(error_value)
     }
     pub fn state_vector(&self) -> Result<Vec<u8>, JsValue> {
         self.inner
             .as_ref()
             .ok_or_else(|| disposed("stateVector"))
             .map(Bridge::state_vector)
-            .map_err(|e| {
-                JsValue::from_str(&serde_json::to_string(&e).expect("error serialization"))
-            })
+            .map_err(error_value)
     }
     pub fn encode_update(&self, vector: &[u8]) -> Result<Vec<u8>, JsValue> {
         self.inner
             .as_ref()
             .ok_or_else(|| disposed("encodeUpdate"))
             .and_then(|b| b.update(vector))
-            .map_err(|e| {
-                JsValue::from_str(&serde_json::to_string(&e).expect("error serialization"))
-            })
+            .map_err(error_value)
     }
     pub fn apply_update(&mut self, input: &str, bytes: &[u8]) -> Result<String, JsValue> {
         output(
@@ -97,28 +93,22 @@ impl Engine {
                 .and_then(Bridge::read),
         )
     }
-    pub fn markdown_equivalent(&self, input: &str) -> Result<String, JsValue> {
+    pub fn validate_fragment(&self, input: &str) -> Result<String, JsValue> {
         output(
             self.inner
                 .as_ref()
-                .ok_or_else(|| disposed("markdownEquivalent"))
-                .and_then(|b| b.markdown_equivalent(input)),
-        )
-    }
-    pub fn import_markdown(&self, input: &str) -> Result<String, JsValue> {
-        output(
-            self.inner
-                .as_ref()
-                .ok_or_else(|| disposed("importMarkdown"))
-                .and_then(|b| b.import_markdown(input)),
-        )
-    }
-    pub fn export_markdown(&self, input: &str) -> Result<String, JsValue> {
-        output(
-            self.inner
-                .as_ref()
-                .ok_or_else(|| disposed("exportMarkdown"))
-                .and_then(|b| b.export_markdown(input)),
+                .ok_or_else(|| disposed("validateFragment"))
+                .and_then(|bridge| {
+                    let metadata = bridge.checkpoint_metadata();
+                    editac_core::clipboard::validate(
+                        input,
+                        metadata["identity"]["schema"].as_str().unwrap(),
+                    )
+                    .map(|()| Value::Null)
+                    .map_err(|reason| {
+                        editac_core::interchange::err("InvalidInput", "validateFragment", reason)
+                    })
+                }),
         )
     }
     pub fn anchor(&mut self, input: &str) -> Result<String, JsValue> {

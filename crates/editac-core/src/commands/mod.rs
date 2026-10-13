@@ -8,3 +8,5 @@ pub mod editor;
 
 pub mod blocks;
 pub mod r#move;
+
+pub mod fragment;

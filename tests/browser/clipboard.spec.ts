@@ -72,7 +72,7 @@ test('mobile noncancelable paste repairs native DOM and commits once',()=>probe(
   await page.evaluate(()=>{const f=window.inputFixture;f.event('beforeinput',{inputType:'insertFromPaste',data:'mobile',cancelable:false});f.mutate('alphamobile');f.event('input',{inputType:'insertFromPaste',data:'mobile'});});const s=await state(page,fact);assert.equal(s.text[0],'alphamobile');assert.equal(s.journal.length,1);assert.equal(s.history.undoGroups,1);
 }));
 test('paste plus beforeinput and input is deduplicated; repeated same payload stays deliberate',()=>probe('paste-events',async(page,fact)=>{
-  await page.evaluate(()=>{const f=window.inputFixture;for(let i=0;i<2;i++){const data=new DataTransfer();data.setData('text/plain','same');f.root.dispatchEvent(window.preparedClipboardEvent('paste',data));f.event('beforeinput',{inputType:'insertFromPaste',data:'same',cancelable:true});f.event('input',{inputType:'insertFromPaste',data:'same'});}});const s=await state(page,fact);assert.equal(s.text[0],'alphasamesame');assert.equal(s.journal.length,2);assert.equal(s.history.undoGroups,2);
+  await page.evaluate(()=>{const f=window.inputFixture;for(let i=0;i<2;i++){const data=new DataTransfer();data.setData('text/plain','same');f.root.dispatchEvent(window.preparedClipboardEvent('paste',data));f.event('beforeinput',{inputType:'insertFromPaste',data:'same',cancelable:true});f.event('input',{inputType:'insertFromPaste',data:'same'});}});const s=await state(page,fact);assert.deepEqual(s.text,['alphasamesame','independent']);assert.equal(s.journal.length,2);assert.equal(s.history.undoGroups,2);
 }));
 test('clipboard write failure cannot cut content or add history',()=>probe('write-failure',async(page,fact)=>{await select(page,0,0,0,5);const result=await page.evaluate(()=>window.inputFixture.protocol.clipboard.copy({getData:()=>'',setData:()=>{throw Error('denied');}},true));assert.equal(result.disposition,'rejected');const s=await state(page,fact);assert.equal(s.text[0],'alpha');assert.equal(s.journal.length,0);assert.equal(s.history.undoGroups,0);}));
 test('read-only and active composition reject paste with zero updates',()=>probe('readonly-composition',async(page,fact)=>{await page.evaluate(()=>window.inputFixture.protocol.setReadOnly(true));assert.equal((await paste(page,{'text/plain':'bad'})).disposition,'rejected');await page.evaluate(()=>{const f=window.inputFixture;f.protocol.setReadOnly(false);f.event('compositionstart',{data:''});});assert.equal((await paste(page,{'text/plain':'bad'})).disposition,'rejected');const s=await state(page,fact);assert.equal(s.text[0],'alpha');assert.equal(s.journal.length,0);}));
@@ -81,3 +81,13 @@ test('explicit plain command captures stable target before OS permission and pre
   await page.evaluate(()=>{const f=window.inputFixture;window.pendingPlain=f.protocol.clipboard.pastePlainText(()=>new Promise(resolve=>window.finishRead=resolve));f.select(f.ids[1],2);});await page.evaluate(()=>window.finishRead('plain'));assert.equal((await page.evaluate(()=>window.pendingPlain)).disposition,'committed');const s=await state(page,fact);assert.equal(s.text[0],'alphaplain');assert.equal(s.caret.node,s.ids[1]);assert.equal(s.caret.offset,2);
 }));
 test('late plain paste after read-only transition is canceled',()=>probe('async-canceled',async(page,fact)=>{await page.evaluate(()=>{const f=window.inputFixture;window.pendingPlain=f.protocol.clipboard.pastePlainText(()=>new Promise(()=>{}));f.protocol.setReadOnly(true);});assert.equal((await page.evaluate(()=>window.pendingPlain)).disposition,'rejected');const s=await state(page,fact);assert.equal(s.text[0],'alpha');assert.equal(s.journal.length,0);}));
+
+test('HTML mark aliases share presentation without admitting prototype names as marks',()=>probe('mark-aliases',async(page,fact)=>{
+  await paste(page,{'text/html':'<b>B</b><i>I</i><del>S</del><strike>T</strike><u>U</u><code>C</code><constructor>X</constructor><a href="https://例え.テスト/道">L</a>'});
+  const s=await state(page,fact);
+  assert.equal(s.text[0],'alphaBISTUCXL');
+  for(const [text,mark] of [['B','bold'],['I','italic'],['S','strike'],['T','strike'],['U','underline'],['C','code']]) assert(s.nodes[0].runs.some(run=>run.text.includes(text)&&run.attributes[mark]===true));
+  const unmarked=s.nodes[0].runs.find(run=>run.text.includes('X'));assert.deepEqual(unmarked.attributes,{});
+  assert(s.nodes[0].runs.some(run=>String(run.attributes.link).startsWith('https://xn--')));
+  assert(s.diagnostics.includes('html-element-dropped'));
+}));

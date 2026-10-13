@@ -1,0 +1,13 @@
+{
+  "identity": {
+    "documentId": "d37ec784-d2d2-48af-9cad-58beb96403ac",
+    "epoch": "2e06becb-8396-47a1-be72-40150e283ca3",
+    "offsets": "utf16",
+    "profile": "editac.yrs-yjs.editor.v5",
+    "protocolVersion": 1,
+    "schema": "editac.registry.editor.v5",
+    "updateEncoding": 1
+  },
+  "initialized": true,
+  "writerId": 440034565
+}

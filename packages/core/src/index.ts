@@ -1,6 +1,6 @@
 import { createHandle, restoreHandle, type Checkpoint, type ReplayUpdate, type DocumentIdentity, type CreateOptions, type EngineHandle, type RawEngine } from "./engine.js";
 export type { CreateOptions, EngineHandle, CommitResult, AnchorToken, PortableAnchor, PlanToken, Bias, StableRange, ContainerStyle, MoveTarget, EditorCommand, TextCommand, FormatAction, MarkCommand, BlockFormatCommand, PrepareRequest, Json, ProjectedNode, Snapshot, AnchorResolution, HistoryRequest, HistoryState, DocumentIdentity, Checkpoint, ReplayUpdate, PatchScope, Patch, PatchSubscription, ObserverError } from "./engine.js";
-export type { FragmentBlock, FragmentRun, PreparedMarkdown, MarkdownDiagnostic, MarkdownExport, MarkdownExtension, MarkdownOptions } from "./engine.js";
+export type { FragmentBlock, FragmentRun, PreparedMarkdown, MarkdownDiagnostic, MarkdownExport, MarkdownExtension, MarkdownOptions, MarkdownCodec } from "./engine.js";
 export { EngineError } from "./engine.js";
 export type { EngineErrorCode } from "./engine.js";
 
@@ -10,7 +10,7 @@ export interface EngineRuntime {
 }
 
 interface Bindings {
-  default(options: { module_or_path: string }): Promise<unknown>;
+  default(assetUrl: string): Promise<unknown>;
   Engine: { new (input: string): RawEngine; restore(input: string, bytes: Uint8Array): RawEngine };
 }
 
@@ -35,11 +35,11 @@ export function init(assetUrl: string): Promise<EngineRuntime> {
   // dist/wasm, outside the hand-maintained TypeScript source tree. A string type
   // avoids resolving that generated module during source-only typechecking.
   const promise = (async () => {
-    const bindings = await import("./wasm/editac_wasm.js" as string) as Bindings;
-    await bindings.default({ module_or_path: assetUrl });
+    const { default: initialize, Engine } = await import("./wasm/editac_runtime.js" as string) as Bindings;
+    await initialize(assetUrl);
     return Object.freeze({
-      createEngine: (options: CreateOptions) => createHandle(input => new bindings.Engine(input), options),
-      restoreEngine: (expected: DocumentIdentity, checkpoint: Checkpoint, journal?: readonly ReplayUpdate[]) => restoreHandle((input, bytes) => bindings.Engine.restore(input, bytes), expected, checkpoint, journal),
+      createEngine: (options: CreateOptions) => createHandle(input => new Engine(input), options),
+      restoreEngine: (expected: DocumentIdentity, checkpoint: Checkpoint, journal?: readonly ReplayUpdate[]) => restoreHandle((input, bytes) => Engine.restore(input, bytes), expected, checkpoint, journal),
     });
   })();
   loading = { assetUrl, promise };

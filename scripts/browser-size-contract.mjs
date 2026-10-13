@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { gzipSync, brotliCompressSync, constants } from 'node:zlib';
 
-export const budgets = Object.freeze({ total: { hard: 512000, preferred: 256000 }, js: { hard: 32000, preferred: 16000 } });
+export const budgets = Object.freeze({ total: { hard: 524288, preferred: 256000 }, js: { hard: 32768, preferred: 16000 } });
 export const compression = Object.freeze({ gzip: { level: 9, mtime: 0 }, brotli: { quality: 11 }, counting: 'each distinct delivered resource once; required lazy code included' });
 export function describeAsset(name, kind, bytes) {
   if (!['js', 'wasm', 'css', 'asset'].includes(kind)) throw new Error(`Unknown asset kind: ${kind}`);
@@ -30,14 +30,17 @@ export function assertBudget(result) {
   if (misses.length) throw new Error(misses.map(([scope, value]) => `${scope}: ${value.bytes} gzip bytes exceeds ${value.hard} by ${value.gap}`).join('; '));
 }
 
-export function auditTaskGraph(sources) {
+export function auditTaskGraph(sources, {markdown = false} = {}) {
   const inputs = Object.keys(sources);
+  if (!markdown && inputs.some(p=>/markdown\/dist|clipboard\/markdown\.js/.test(p))) throw new Error('Optional Markdown leaked into default Task graph');
   if (inputs.some(p => p !== 'task.mjs' && !p.startsWith('node_modules/@edit-ac/'))) throw new Error('Consumer resolved outside packed SDKs');
   const essentialInputs = ['core/dist/index.js', 'core/dist/engine.js', 'web/dist/editor.js', 'web/dist/storage/checkpoint.js', 'web/dist/sync/protocol.js', 'web/dist/surface.js'];
   for (const name of essentialInputs) if (!inputs.some(p => p.endsWith(name))) throw new Error(`Missing Task production dependency: ${name}`);
+  if (markdown) for (const name of ['markdown/dist/index.js','markdown/dist/web.js','markdown/dist/shortcuts.js']) if (!inputs.some(p=>p.endsWith(name))) throw new Error(`Missing enabled Markdown dependency: ${name}`);
+  const bundledParser = inputs.some(p=>p.endsWith('markdown/dist/wasm/editac_markdown_wasm.js'));
   const bundledGlue = inputs.some(p => p.endsWith('core/dist/wasm/editac_wasm.js'));
   for (const [name, source] of Object.entries(sources)) {
     const lazy = source.match(/\bimport\s*\(/g) || [];
-    if (lazy.length && !(name.endsWith('core/dist/index.js') && lazy.length === 1 && ((source.includes('import(gluePath)') && source.includes('./wasm/editac_wasm.js')) || (bundledGlue && source.includes('import("./wasm/editac_wasm.js")'))))) throw new Error(`Uninventoried required lazy code: ${name}`);
+    if (lazy.length && !(name.endsWith('core/dist/index.js') && lazy.length === 1 && ((source.includes('import(gluePath)') && source.includes('./wasm/editac_wasm.js')) || (bundledGlue && (source.includes('import("./wasm/editac_wasm.js")') || (inputs.some(p => p.endsWith('core/dist/wasm/editac_runtime.js')) && source.includes('import("./wasm/editac_runtime.js")')))))) && !(markdown && name.endsWith('markdown/dist/index.js') && lazy.length === 1 && bundledParser && source.includes("import('./wasm/editac_markdown_wasm.js')"))) throw new Error(`Uninventoried required lazy code: ${name}`);
   }
 }

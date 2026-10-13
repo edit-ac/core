@@ -7,17 +7,24 @@ import { DOMRenderer } from '/web/dom/render.js';
 import { TextInput } from '/web/input/text.js';
 const identity={documentId:'45678901-4567-4567-8567-45678901abcd',epoch:'56789012-5678-4678-8678-56789012abcd',schema:'editac.registry.editor.v5',offsets:'utf16',profile:'editac.yrs-yjs.editor.v5',protocolVersion:1,updateEncoding:1};
 const root=document.querySelector('#projection'),databaseName='browser-input';
-let runtime,session,renderer,selection,protocol,ids,patches=[],commandResults=[],otherBlock,otherText;
+let markdownRegistration, runtime,session,renderer,selection,protocol,ids,patches=[],commandResults=[],otherBlock,otherText;
 async function mount(text='alpha',other='independent') {
  runtime=await init('/core/wasm/editac_wasm_bg.wasm');
  const engine=runtime.createEngine({profile:'v5',documentId:identity.documentId,epoch:identity.epoch,nodes:[{text},{text:other}]});
  ids=engine.read().visible.map(n=>n.id);const checkpoint=engine.checkpoint();engine.dispose();
  const store=await CheckpointStorage.open(indexedDB,databaseName);try{await store.publish(checkpoint,[]);}finally{store.close();}
  session=await recoverLocalDocument({assetUrl:'/core/wasm/editac_wasm_bg.wasm',databaseName,identity,indexedDB,locks:navigator.locks});
+ if (window.markdownEnabled) {
+   const {initMarkdown}=await import('/markdown/index.js');
+   const {markdownExtension}=await import('/markdown/web.js');
+   const adapter=markdownExtension(await initMarkdown('/markdown/wasm/editac_markdown_wasm_bg.wasm'));
+   markdownRegistration=session.writer.engine.registerMarkdown(adapter.codec); window.markdownAdapter=adapter;
+ }
  session.writer.engine.history({type:'clear'});
  session.writer.engine.subscribe({type:'all'},p=>patches.push({sequence:p.sequence,revision:p.revision,operation:p.operation,origin:p.origin,update:!!p.update,bytes:p.update?.bytes.length??0}));
  renderer=new DOMRenderer(root,session.writer.engine);selection=new DOMSelection(renderer,session.writer.engine);
  protocol=new TextInput(renderer,selection,session.writer.engine,request=>{const result=session.storage.commit(request);commandResults.push(result);return result;});
+ if (window.markdownAdapter) protocol.shortcuts=window.markdownAdapter.createShortcuts(session.writer.engine, request=>session.storage.commit(request));
  otherBlock=renderer.getBlock(ids[1]);otherText=document.createTreeWalker(otherBlock,NodeFilter.SHOW_TEXT).nextNode();
  document.querySelector('#status').textContent='Real engine/storage/DOM protocol attached';select(ids[0],text.length);return {ids};
 }
@@ -44,5 +51,12 @@ async function remoteReplace(start,end,text,id=ids[0]) {
  await session.storage.flush({target:'local'});
 }
 async function apply(bytes){session.writer.engine.applyUpdate({identity,bytes:new Uint8Array(bytes)});await session.storage.flush({target:'local'});}
-async function destroy(){protocol.dispose();selection.dispose();renderer.dispose();await session.storage.destroy({policy:'flush'});}
-window.inputFixture={mount,select,event,mutate,settle,state,remote,remoteReplace,apply,destroy,get commandResults(){return commandResults},get ids(){return ids},get root(){return root},get protocol(){return protocol},get engine(){return session.writer.engine},get renderer(){return renderer},get selection(){return selection}};
+async function destroy(){
+ // Setup can fail before any adapter is attached. Release what exists, and
+ // make repeated teardown safe without hiding a storage flush failure.
+ protocol?.dispose();selection?.dispose();renderer?.dispose();
+ protocol=undefined;selection=undefined;renderer=undefined;
+ const active=session;session=undefined;
+ if(active)await active.storage.destroy({policy:'flush'});
+}
+window.inputFixture={disableMarkdown(){markdownRegistration?.dispose();protocol.shortcuts.enabled=false;},mount,select,event,mutate,settle,state,remote,remoteReplace,apply,destroy,get commandResults(){return commandResults},get ids(){return ids},get root(){return root},get protocol(){return protocol},get engine(){return session.writer.engine},get renderer(){return renderer},get selection(){return selection}};

@@ -5,6 +5,7 @@
 //! persistence ports are subsequent gates.
 
 pub mod anchors;
+pub mod clipboard;
 pub mod commands;
 pub mod document;
 pub mod history;
@@ -42,3 +43,6 @@ pub fn new_document() -> yrs::Doc {
 /// across edits. The owning text operation will need to validate and convert it.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Utf16Offset(pub u32);
+
+#[doc(hidden)]
+pub mod interchange;

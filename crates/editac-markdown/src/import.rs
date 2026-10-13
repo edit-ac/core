@@ -22,11 +22,7 @@ pub struct PreparedContent {
     pub ranges: Vec<Range<usize>>,
     pub diagnostics: Vec<Diagnostic>,
 }
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum ImportError {
-    ResourceLimit,
-    InvalidStructure,
-}
+pub use editac_core::commands::fragment::ImportError;
 
 struct Builder {
     result: PreparedContent,
