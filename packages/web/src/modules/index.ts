@@ -18,3 +18,7 @@ export type { ContentFactory, ContentView, ContentContext, ImageMetadata, Conten
 // Heavy math renderer remains separately opt-in through @edit-ac/web/math.
 export { canonicalSemanticJson, runDescriptorFixture, projectExtensionNodes } from './conformance.js';
 export type { DescriptorFixture, DescriptorResult } from './conformance.js';
+
+export { prepareModuleMigration, ModuleEvolutionError } from '@edit-ac/core/extensions';
+export type { ModuleEvolution, PreparedModuleMigration } from '@edit-ac/core/extensions';
+export { prepareExtensionSource } from './conformance.js';

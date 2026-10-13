@@ -74,3 +74,16 @@ export function projectExtensionNodes(registry: ModuleRegistry, nodes: readonly 
   registry.validate(nodes);
   return JSON.parse(canonicalSemanticJson(nodes.map(n => ({ id: n.id, blockAttributes: n.blockAttributes, runs: n.runs })))) as Json;
 }
+
+/** Exercise the owning codec or literal input boundary without a live document.
+ * Literal input never calls host codecs and retains exact source/ranges. */
+export function prepareExtensionSource(
+  codec: import('@edit-ac/core').MarkdownCodec, source: string,
+  options: import('@edit-ac/core').MarkdownOptions = {}, literal = false,
+): import('@edit-ac/core').PreparedMarkdown {
+  if (typeof source !== 'string') throw new TypeError('Expected source text');
+  const length = new TextEncoder().encode(source).length;
+  if (length > 1_048_576) throw new RangeError('Extension source resource limit');
+  if (!literal) return codec.importMarkdown(source, options);
+  return { source, blocks: [{attributes:{type:'paragraph'},runs:[{text:source,marks:[]}],containers:[],checked:null}], ranges:[[0,length]],diagnostics:[] };
+}

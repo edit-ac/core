@@ -292,6 +292,7 @@ dependencies = [
 name = "editac-core"
 version = "0.0.0"
 dependencies = [
+ "editac-markdown",
  "serde",
  "serde_json",
  "unicode-segmentation",

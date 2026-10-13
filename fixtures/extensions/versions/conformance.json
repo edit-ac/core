@@ -1,0 +1,309 @@
+{
+  "schemaVersion": 1,
+  "gate": "EXT-1.4",
+  "evolution": {
+    "reads": [
+      {
+        "type": "demo.badge",
+        "version": 1,
+        "kind": "inline-atom",
+        "attributes": {
+          "label": {
+            "type": "string",
+            "required": true,
+            "maxUtf16": 128
+          }
+        },
+        "content": {
+          "type": "text",
+          "maxUtf16": 128
+        },
+        "fallback": {
+          "type": "text",
+          "source": "content"
+        }
+      },
+      {
+        "type": "demo.badge",
+        "version": 2,
+        "kind": "inline-atom",
+        "attributes": {
+          "title": {
+            "type": "string",
+            "required": true,
+            "maxUtf16": 128
+          }
+        },
+        "content": {
+          "type": "text",
+          "maxUtf16": 128
+        },
+        "fallback": {
+          "type": "text",
+          "source": "content"
+        }
+      }
+    ],
+    "transitions": [
+      {
+        "from": 1,
+        "to": 2
+      }
+    ]
+  },
+  "migrationCases": [
+    {
+      "id": "old-to-new",
+      "envelope": [
+        1,
+        {
+          "label": "é😀"
+        }
+      ],
+      "target": 2,
+      "mode": "rename",
+      "expected": "prepared"
+    },
+    {
+      "id": "new-to-old-undeclared",
+      "envelope": [
+        2,
+        {
+          "title": "é😀"
+        }
+      ],
+      "target": 1,
+      "mode": "rename",
+      "expected": "unsupported-transition"
+    },
+    {
+      "id": "unknown-version",
+      "envelope": [
+        99,
+        {
+          "original": [
+            "exact",
+            {
+              "future": true
+            }
+          ]
+        }
+      ],
+      "target": 2,
+      "mode": "rename",
+      "expected": "unsupported-transition"
+    },
+    {
+      "id": "unknown-target",
+      "envelope": [
+        1,
+        {
+          "label": "é😀"
+        }
+      ],
+      "target": 99,
+      "mode": "rename",
+      "expected": "unsupported-transition"
+    },
+    {
+      "id": "failed-callback",
+      "envelope": [
+        1,
+        {
+          "label": "é😀"
+        }
+      ],
+      "target": 2,
+      "mode": "fail",
+      "expected": "migration-failed"
+    },
+    {
+      "id": "malformed-candidate",
+      "envelope": [
+        1,
+        {
+          "label": "é😀"
+        }
+      ],
+      "target": 2,
+      "mode": "invalid",
+      "expected": "invalid-content"
+    },
+    {
+      "id": "oversized-candidate",
+      "envelope": [
+        1,
+        {
+          "label": "é😀"
+        }
+      ],
+      "target": 2,
+      "mode": "oversized",
+      "expected": "invalid-content"
+    },
+    {
+      "id": "malformed-old",
+      "envelope": [
+        1,
+        {
+          "wrong": "value"
+        }
+      ],
+      "target": 2,
+      "mode": "rename",
+      "expected": "invalid-content"
+    },
+    {
+      "id": "fractional-version",
+      "envelope": [
+        1.5,
+        {
+          "label": "é😀"
+        }
+      ],
+      "target": 2,
+      "mode": "rename",
+      "expected": "unsupported-transition"
+    },
+    {
+      "id": "zero-version",
+      "envelope": [
+        0,
+        {
+          "label": "é😀"
+        }
+      ],
+      "target": 2,
+      "mode": "rename",
+      "expected": "unsupported-transition"
+    },
+    {
+      "id": "extra-envelope-field",
+      "envelope": [
+        1,
+        {
+          "label": "é😀"
+        },
+        "opaque"
+      ],
+      "target": 2,
+      "mode": "rename",
+      "expected": "unsupported-transition"
+    },
+    {
+      "id": "non-envelope",
+      "envelope": {
+        "version": 1,
+        "label": "é😀"
+      },
+      "target": 2,
+      "mode": "rename",
+      "expected": "unsupported-transition"
+    }
+  ],
+  "codecCases": [
+    {
+      "id": "formatted-text",
+      "source": "# Bold **é😀** and [link](https://example.com)\n",
+      "options": {},
+      "lossless": true
+    },
+    {
+      "id": "image-enabled",
+      "source": "![alt é😀](https://example.com/image.png \"caption\")\n",
+      "options": {
+        "images": true
+      },
+      "lossless": true
+    },
+    {
+      "id": "table-enabled",
+      "source": "| A | B |\n| :- | -: |\n| é😀 | value |\n",
+      "options": {
+        "tables": true
+      },
+      "lossless": true
+    },
+    {
+      "id": "callout-enabled",
+      "source": "> [!NOTE]\n> **body** é😀\n",
+      "options": {
+        "callouts": true
+      },
+      "lossless": true
+    },
+    {
+      "id": "image-disabled",
+      "source": "![alt](https://example.com/image.png)\n",
+      "options": {},
+      "lossless": false,
+      "diagnostic": "markdown-unrepresentable"
+    },
+    {
+      "id": "table-disabled",
+      "source": "| A | B |\n| --- | --- |\n| x | y |\n",
+      "options": {},
+      "lossless": false,
+      "diagnostic": "markdown-unrepresentable"
+    },
+    {
+      "id": "literal-bypass",
+      "source": "# **literal** ![image](https://example.com) é😀\n",
+      "options": {},
+      "literal": true,
+      "lossless": false,
+      "diagnostic": "markdown-unrepresentable"
+    }
+  ],
+  "opaqueCases": [
+    {
+      "id": "future-block",
+      "blockAttributes": [
+        "vendor:future",
+        99,
+        {
+          "source": "exact é😀",
+          "neverFetch": "https://example.com"
+        }
+      ],
+      "text": "opaque"
+    },
+    {
+      "id": "future-mark",
+      "attributes": {
+        "module:demo.highlight": [
+          99,
+          {
+            "source": "exact é😀"
+          }
+        ]
+      },
+      "text": "opaque"
+    },
+    {
+      "id": "future-atom",
+      "attributes": {
+        "module:demo.badge": [
+          99,
+          {
+            "source": "exact é😀"
+          }
+        ]
+      },
+      "text": "opaque"
+    },
+    {
+      "id": "disabled-math",
+      "attributes": {
+        "module:editac.math": [
+          1,
+          {
+            "latex": "\\frac{a}{b}",
+            "display": false
+          }
+        ]
+      },
+      "text": "opaque"
+    }
+  ]
+}

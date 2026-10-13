@@ -23,7 +23,7 @@ const bound = (n: unknown): n is number => Number.isSafeInteger(n) && Number(n) 
 const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 const keys = (v: Record<string, unknown>, expected: string[]) => Object.keys(v).sort().join(',') === [...expected].sort().join(',');
 /** Reject getters, cycles, prototypes and callbacks without invoking them. */
-function data(value: unknown): Json {
+export function copyModuleData(value: unknown): Json {
   let budget = 65536;
   const ancestors = new Set<object>();
   function copy(v: unknown, depth: number): Json {
@@ -44,7 +44,7 @@ function data(value: unknown): Json {
         if (!d || !('value' in d)) return fail('invalid-definition');
         result.push(copy(d.value, depth + 1));
       }
-      if (Object.keys(v).length !== v.length) return fail('invalid-definition');
+      if (Reflect.ownKeys(v).length !== v.length + 1) return fail('invalid-definition');
     } else {
       result = Object.create(null) as Record<string, Json>;
       for (const k of Reflect.ownKeys(v)) {
@@ -59,7 +59,7 @@ function data(value: unknown): Json {
   return copy(value, 0);
 }
 function definition(value: unknown): ModuleDefinition {
-  const v = data(value);
+  const v = copyModuleData(value);
   if (!record(v) || !keys(v, ['type', 'version', 'kind', 'attributes', 'content', 'fallback']) || !name(v.type) ||
       !Number.isSafeInteger(v.version) || Number(v.version) < 1 || Number(v.version) > 0xffffffff ||
       !['mark', 'inline-atom'].includes(String(v.kind)) || !record(v.attributes) || Object.keys(v.attributes).length > 32 ||
@@ -91,7 +91,7 @@ export class ModuleRegistry {
     if (this.#definitions.size >= 256) return fail('resource-limit');
     let p: ModulePresentation | undefined;
     if (presentation !== undefined) {
-      const raw = data(presentation);
+      const raw = copyModuleData(presentation);
       if (!record(raw) || !keys(raw, ['tag']) || !['span', 'mark', 'code'].includes(String(raw.tag))) return fail('invalid-definition');
       p = raw as unknown as ModulePresentation;
     }
