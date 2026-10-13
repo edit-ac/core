@@ -16,3 +16,5 @@ export type { ReorderContext, ReorderFactory } from './reorder.js';
 export { contentModules } from './content.js';
 export type { ContentFactory, ContentView, ContentContext, ImageMetadata, ContentOptions } from './content.js';
 // Heavy math renderer remains separately opt-in through @edit-ac/web/math.
+export { canonicalSemanticJson, runDescriptorFixture, projectExtensionNodes } from './conformance.js';
+export type { DescriptorFixture, DescriptorResult } from './conformance.js';
