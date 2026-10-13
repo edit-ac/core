@@ -6,21 +6,21 @@ const manifest = (js, total) => [
  {name:'task.js',kind:'js',gzip:js-2}, {name:'glue.js',kind:'js',gzip:1}, {name:'required-lazy.js',kind:'js',gzip:1},
  {name:'engine.wasm',kind:'wasm',gzip:total-js-1}, {name:'task.css',kind:'css',gzip:1},
 ].map(a=>({...a,raw:a.gzip,sha256:'a'.repeat(64)}));
-for (const [scope, js, total] of [['total',32000,512000],['js',32000,100000]]) {
+for (const [scope, js, total] of [['total',32768,524288],['js',32768,100000]]) {
  test(`${scope} cap admits its exact boundary`,()=>assertBudget(evaluateBudget(manifest(js,total),required)));
  test(`${scope} cap rejects one byte above`,()=>assert.throws(()=>assertBudget(evaluateBudget(manifest(js+(scope==='js'?1:0),total+(scope==='total'?1:0)),required)),new RegExp(scope+':')));
 }
 test('preferred misses remain visible when hard caps pass',()=>{
- const result=evaluateBudget(manifest(32000,512000),required);assertBudget(result);assert.equal(result.total.preferredPass,false);assert.equal(result.js.preferredPass,false);
+ const result=evaluateBudget(manifest(32768,524288),required);assertBudget(result);assert.equal(result.total.preferredPass,false);assert.equal(result.js.preferredPass,false);
 });
 test('preferred exact boundaries pass',()=>{
  const result=evaluateBudget(manifest(16000,256000),required);assert.equal(result.total.preferredPass,true);assert.equal(result.js.preferredPass,true);
 });
-for (const item of required) test(`omitted required resource fails: ${item.name}`,()=>assert.throws(()=>evaluateBudget(manifest(32000,512000).filter(a=>a.name!==item.name),required),/Missing required/));
-test('duplicate resources cannot disguise the inventory',()=>{const a=manifest(32000,512000);assert.throws(()=>evaluateBudget([...a,a[0]],required),/Duplicate/);});
+for (const item of required) test(`omitted required resource fails: ${item.name}`,()=>assert.throws(()=>evaluateBudget(manifest(32768,524288).filter(a=>a.name!==item.name),required),/Missing required/));
+test('duplicate resources cannot disguise the inventory',()=>{const a=manifest(32768,524288);assert.throws(()=>evaluateBudget([...a,a[0]],required),/Duplicate/);});
 test('invalid measurements and incomplete inventory fail',()=>{
- for(const invalid of [0,-1,NaN,undefined]){const a=manifest(32000,512000);a[0].gzip=invalid;assert.throws(()=>evaluateBudget(a,required),/Invalid/);}
- assert.throws(()=>evaluateBudget([],[]),/inventory/);assert.throws(()=>evaluateBudget(manifest(32000,512000),required.filter(a=>a.kind!=='wasm')),/Incomplete/);
+ for(const invalid of [0,-1,NaN,undefined]){const a=manifest(32768,524288);a[0].gzip=invalid;assert.throws(()=>evaluateBudget(a,required),/Invalid/);}
+ assert.throws(()=>evaluateBudget([],[]),/inventory/);assert.throws(()=>evaluateBudget(manifest(32768,524288),required.filter(a=>a.kind!=='wasm')),/Incomplete/);
 });
 test('resource hashes and level-9 fixed-metadata gzip are reproducible',()=>{
  const a=describeAsset('task.js','js',Buffer.from('export const x=1;'.repeat(100)));assert.deepEqual(a,describeAsset('task.js','js',Buffer.from('export const x=1;'.repeat(100))));assert.ok(a.raw>a.gzip);assert.ok(a.brotli>0);

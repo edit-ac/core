@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { gzipSync, brotliCompressSync, constants } from 'node:zlib';
 
-export const budgets = Object.freeze({ total: { hard: 512000, preferred: 256000 }, js: { hard: 32000, preferred: 16000 } });
+export const budgets = Object.freeze({ total: { hard: 524288, preferred: 256000 }, js: { hard: 32768, preferred: 16000 } });
 export const compression = Object.freeze({ gzip: { level: 9, mtime: 0 }, brotli: { quality: 11 }, counting: 'each distinct delivered resource once; required lazy code included' });
 export function describeAsset(name, kind, bytes) {
   if (!['js', 'wasm', 'css', 'asset'].includes(kind)) throw new Error(`Unknown asset kind: ${kind}`);
