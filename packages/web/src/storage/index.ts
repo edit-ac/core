@@ -1,4 +1,4 @@
-import type { Checkpoint, CommitResult, EngineRuntime, PatchSubscription, PrepareRequest } from "@edit-ac/core";
+import type { Checkpoint, CommitResult, EngineRuntime, PatchSubscription, PrepareRequest, PlanToken } from "@edit-ac/core";
 import type { JournalUpdate, LocalCommit } from "./journal.js";
 import { UpdateJournal } from "./journal.js";
 import { StorageWriter } from "./writer.js";
@@ -126,13 +126,23 @@ export class LocalStorageLifecycle {
 
   /** Policy is checked before preparing or mutating the Rust document. */
   commit(request: PrepareRequest): CommitResult {
+    this.#requireWritable();
+    const plan = this.#writer.engine.prepare(request);
+    try { return this.commitPrepared(plan); } finally { this.#writer.engine.releasePlan(plan); }
+  }
+
+  /** Admit an opaque engine-scoped, revision-bound plan through the same storage
+   * policy and update subscription. The caller owns plan release on every path. */
+  commitPrepared(plan: PlanToken): CommitResult {
+    this.#requireWritable();
+    return this.#writer.engine.commit(plan);
+  }
+  #requireWritable(): void {
     this.#requireLive();
     if (this.#closing) throw new Error("Storage lifecycle is closing");
     if (this.#policy.afterStorageFailure === "reject" && [...this.#updates].some(record => record.failed)) {
       throw new Error("Host policy rejects edits after storage failure", { cause: this.#failure });
     }
-    const plan = this.#writer.engine.prepare(request);
-    try { return this.#writer.engine.commit(plan); } finally { this.#writer.engine.releasePlan(plan); }
   }
 
   /** Captures synchronously. Later updates cannot extend this barrier. Failed updates remain included. */
