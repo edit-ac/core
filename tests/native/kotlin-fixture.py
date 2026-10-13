@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """NAT-1.4 canonical real JVM/JNA host, with prepared corpus and no providers."""
 import argparse
+from collections import Counter
 import hashlib
 import json
 import os
@@ -23,6 +24,64 @@ GRADLE_SHA256 = '61ad310d3c7d3e5da131b76bbf22b5a4c0786e9d892dae8c1658d4b484de3ca
 
 def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+def workspace_expansion(original_manifest, current_manifest, original_lock, current_lock):
+    """Recognize the integrated workspace delta; require a fresh native build."""
+    pattern = r'^members = (\[[^\n]*\])$'
+    old_members = re.findall(pattern, original_manifest, re.MULTILINE)
+    new_members = re.findall(pattern, current_manifest, re.MULTILINE)
+    if len(old_members) != 1 or len(new_members) != 1:
+        raise RuntimeError('expected one workspace member list')
+    old, new = json.loads(old_members[0]), json.loads(new_members[0])
+    added = sorted(set(new) - set(old))
+    if (new != old + [x for x in new if x not in old] or len(new) != len(set(new))
+            or set(added) != {'crates/editac-session', 'crates/editac-diff'}
+            or re.sub(pattern, 'members = []', original_manifest, flags=re.MULTILINE)
+            != re.sub(pattern, 'members = []', current_manifest, flags=re.MULTILINE)):
+        raise RuntimeError('workspace change exceeds qualified session/diff member additions')
+    before = [s.strip() for s in original_lock.split('[[package]]')]
+    after = [s.strip() for s in current_lock.split('[[package]]')]
+    # The merged SQLite consumers enable foldhash on the already pinned
+    # hashbrown 0.17.1. This is feature drift, so never reuse the old build.
+    feature_change = 'name = "hashbrown"\nversion = "0.17.1"'
+    normalized = [re.sub(r'\ndependencies = \[\n "foldhash",\n\]$', '', s)
+        if s.startswith(feature_change) else s for s in after[1:]]
+    if before[0] != after[0] or Counter(before[1:]) - Counter(normalized):
+        raise RuntimeError('qualified Cargo lock package changed or disappeared')
+    additions = list((Counter(normalized) - Counter(before[1:])).elements())
+    def name(block):
+        matches = re.findall(r'^name = "([^"]+)"$', block, re.MULTILINE)
+        if len(matches) != 1: raise RuntimeError('invalid Cargo package name')
+        return matches[0]
+    old_names = {name(block) for block in before[1:]}
+    new_names = [name(block) for block in additions]
+    overlaps = [s for s in additions if name(s) in old_names]
+    if any(not s.startswith('name = "hashbrown"\nversion = "0.16.1"') for s in overlaps):
+        raise RuntimeError('new lock entry could change qualified dependency resolution')
+    return {'members_added': added, 'packages_added': sorted(new_names),
+        'qualified_package_entries': len(before) - 1,
+        'feature_change': 'hashbrown 0.17.1 enables foldhash', 'requires_native_requalification': True}
+
+def verify_qualified_sources(prior, artifacts):
+    changed = []
+    for path, expected in {**prior['source_hashes'], **artifacts}.items():
+        if digest((CORE.parent if path.startswith('core/') else CORE) / path) != expected:
+            changed.append(path)
+    if not changed: return None
+    if set(changed) != {'core/Cargo.toml', 'core/Cargo.lock'}:
+        raise RuntimeError('qualified source/generated artifacts changed: ' + ', '.join(changed))
+    baseline = prior['implementation_commit']
+    originals = {}
+    for name in ['Cargo.toml', 'Cargo.lock']:
+        data = subprocess.check_output(['git', 'show', f'{baseline}:{name}'], cwd=CORE)
+        if hashlib.sha256(data).hexdigest() != prior['source_hashes']['core/' + name]:
+            raise RuntimeError('Git baseline does not match qualified ' + name)
+        originals[name] = data.decode()
+    result = workspace_expansion(originals['Cargo.toml'], (CORE / 'Cargo.toml').read_text(),
+        originals['Cargo.lock'], (CORE / 'Cargo.lock').read_text())
+    return {**result, 'qualified_commit': baseline,
+        'current_manifest_hashes': {name: digest(CORE / name) for name in originals},
+        'scope': 'session/diff workspace delta and hashbrown feature addition; native sources/generated bindings unchanged; fresh native tests/build required'}
 
 def compatible_kotlin(source):
     # UniFFI 0.32.2 emits both a payload property and synthesized Throwable.message
@@ -100,13 +159,28 @@ def main():
             raise RuntimeError('qualified library requires macOS arm64 host; provision that host or qualify a new matching native build')
         if digest(library) != bindings['library']['sha256']:
             raise RuntimeError('native library differs from qualified NAT-1.2; requalify before reuse')
-        for path, expected in {**prior['source_hashes'], **bindings['artifacts']}.items():
-            if digest((CORE.parent if path.startswith('core/') else CORE) / path) != expected:
-                raise RuntimeError('qualified source/generated artifact changed: ' + path)
+        receipt['integrated_workspace_reuse'] = verify_qualified_sources(prior, bindings['artifacts'])
         if digest(fixture) != bindings['fixture_sha256']:
             raise RuntimeError('shared fixture differs from Rust qualification')
         receipt['source_hashes'] = {str(p.relative_to(CORE)): digest(p) for p in sorted(probe.rglob('*')) if p.is_file()}
         receipt['implementation_revision'] = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=CORE, text=True).strip()
+        if receipt['integrated_workspace_reuse']:
+            if previous:
+                raise RuntimeError('workspace drift requires a full fresh host run, not semantic reuse')
+            target = CORE / 'target/native-kotlin-qualification'
+            cargo = Path.home() / '.cargo/bin/cargo'
+            common = [cargo, '+1.97.1', '-p', 'editac-ffi', '--locked', '--target', 'aarch64-apple-darwin', '--target-dir', target]
+            log = run('native-prerequisite-tests', [common[0], common[1], 'test'] + common[2:])
+            suites = re.findall(r'test result: ok\. (\d+) passed; (\d+) failed; (\d+) ignored; (\d+) measured; (\d+) filtered out', log.read_text())
+            nonempty = [list(map(int, s)) for s in suites if int(s[0])]
+            counts = {'executed': sum(s[0] + s[1] for s in nonempty), 'passed': sum(s[0] for s in nonempty),
+                'failed': sum(int(s[1]) for s in suites), 'skipped': sum(int(s[2]) for s in suites), 'filtered': sum(int(s[4]) for s in suites)}
+            # Both the unit and shared-corpus native ABI suite must execute.
+            if len(nonempty) != 2 or counts['passed'] < 13 or any(counts[k] for k in ['failed', 'skipped', 'filtered']):
+                raise RuntimeError('incomplete current-workspace native prerequisite suites')
+            receipt['native_prerequisite_counts'] = counts
+            run('native-prerequisite-build', [common[0], common[1], 'build'] + common[2:])
+            library = target / 'aarch64-apple-darwin/debug/libeditac_ffi.dylib'
         receipt['library'] = {'path': str(library), 'sha256': digest(library), 'target': 'aarch64-apple-darwin', 'transport': 'JVM JNA dynamic library loading'}
         run('library-abi', ['/usr/bin/file', library])
         run('java-version', ['java', '-version'])

@@ -28,6 +28,16 @@ is headless packaging evidence, not an Android AAR or Android ABI build.
 Android cross-compilation, emulator/device execution and EditText controls
 remain unqualified here.
 
+The integrated session/diff workspace changes are recognized separately:
+the original manifest/lock are recovered from the qualification commit and
+checked against their receipt hashes. Only those member additions, new locked
+packages and hashbrown's added foldhash dependency are accepted. This feature
+change requires fresh nonempty Rust FFI tests and a native library build in
+`target/native-kotlin-qualification`, followed by the full Kotlin host checks.
+The prior Swift-qualified library is preserved. Receipts record the manifest
+delta, Rust results and the actual loaded library hash; any other qualified
+source, lock or generated-binding drift is rejected.
+
 UniFFI 0.32.2 generates four typed-error payload fields named `message`
 that collide with its synthesized `Throwable.message` properties. The harness
 applies a guarded compatibility transform to a temporary binding copy: one
