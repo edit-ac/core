@@ -29,4 +29,37 @@ Use the pinned Node runtime above. The adapter forwards invalid batch owners/ran
 
 `fixtures/editing-failures/semantic-vectors.json` contains independent fixed atomic/Unicode vectors shared with native Rust. Receipts record the actual Node ICU/Unicode versions and Cargo.lock hash; the Node and Rust segmentation versions differ, and these named vectors do not claim whole-version Unicode conformance or native deletion gestures.
 
-The semantic group intentionally fails while original required cases are unqualified. SEQ-03/07/13/14 currently stop at missing history selection bookmarks; supported preceding checkpoints remain visible. Additional required REG-05 alignment/rule/atom and REG-07 mixed text/code paste/history selection variants remain explicit failures. Content undo of separated pre fragments is partial evidence only. The group writes bounded case/checkpoint facts and source/fixture/profile hashes to `harness.json`, with teardown facts for its private asset server and extracted package. It does not overwrite the RGS-1.1 receipt or claim a parent gate pass from a filtered run.
+The semantic group intentionally fails while original required cases are unqualified. SEQ-03/07/13/14 currently stop at missing history selection bookmarks; supported preceding checkpoints remain visible. Required REG-05 alignment/atom and REG-07 cross-owner code/text paste and history selection variants remain unqualified. The regression variant suite adds preceding-trigger deletion, empty-destination pending-mark lifecycle and selected paste with content undo within text/code blocks, plus retained failing cross-owner regressions; it does not close the parent gate. Content undo of separated pre fragments is partial evidence only. The group writes bounded case/checkpoint facts and source/fixture/profile hashes to `harness.json`, with teardown facts for its private asset server and extracted package. It does not overwrite the RGS-1.1 receipt or claim a parent gate pass from a filtered run.
+
+RGS-1.2 regression variants run as a separate named suite, without skipping known full-group failures:
+
+```sh
+EDITAC_EDITING_PACK_TARBALL=/absolute/path/to/qualified-core.tgz \
+EDITAC_EDITING_OUTPUT=/absolute/path/to/fresh-evidence \
+npm run test:editing -- --group semantic --cases regression-variants
+```
+
+Unknown case selectors fail. This suite asserts actual public prepared-operation boundaries, publication counts, stable identity, result caret and explicit pending marks with independent snapshots and negative controls. Native counterparts in `editing_regressions.rs` prove the document boundary; pending state stays editor-local. Prepared pre fragments are semantic inputs, not proof of an HTML parser or OS clipboard. Content undo/redo never claims restoration of direction/affinity through the absent history bookmark port.
+
+The full semantic group includes these variants. The named variant suite currently fails its forward/backward cross-owner code/text paste cases; both native Rust and packed WASM reject them before commit. No selector omits those cases, and rejection is not reclassified as the requested paste/undo behavior.
+
+G03 returned selection across a real unrelated replica edit has a dedicated suite:
+
+```sh
+EDITAC_EDITING_PACK_TARBALL=/absolute/path/to/qualified-core.tgz \
+EDITAC_EDITING_OUTPUT=/absolute/path/to/fresh-evidence \
+npm run test:editing -- --group semantic --cases selection-results
+cargo test -p editac-core --test editing_regressions g03_remote_ --locked --offline
+```
+
+`selection-results.test.mjs` composes public prepare/commit, retained result tokens,
+checkpoint restore, real replica delta, resolution and publication ports. Eight
+independent `selection-vectors.json` cases cover replacement/formatting, forward
+and backward endpoint order, and left/right affinity. A next sentinel replaces
+the resolved range; both document/source identities and unrelated remote content
+must survive. Negative controls corrupt each endpoint, direction, affinity,
+owner, remote content and publication count. The full semantic dispatcher includes
+this suite. These supplemental vectors do not replace architecture recipes or
+qualify split/paste selection, history bookmarks, browser gestures or devices.
+Duplicate-update idempotence belongs to the properties owner (G10), separately
+from the single unrelated update in this G03 proof.
