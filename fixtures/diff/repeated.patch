@@ -1,0 +1,8 @@
+# editac-exact-patch-v1 {"representation":"exact-source-utf8-v1","line_algorithm":"lcs-lines-delete-first-v1","word_algorithm":"unicode-whitespace-runs-lcs-delete-first-v1","context_lines":3,"before_hash":"c9cec88805eba4528d8ff787705e91790705fa8f3f2f54c15418996a2a0bab92","after_hash":"7cafa1b24cf9d8d1f03cdc8c03cbe7343e2c7345af2dccce72a830042858a984","before_bytes":6,"after_bytes":6,"before_final_newline":true,"after_final_newline":true,"limits":{"max_source_bytes":5242880,"max_output_bytes":5242880,"max_wire_bytes":16777216,"max_lines":100000,"max_hunks":4096,"max_comparison_cells":4000000}}
+--- before
++++ after
+@@ -1,3 +1,3 @@
+-a
+ b
+ a
++b
