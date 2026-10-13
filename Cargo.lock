@@ -103,6 +103,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "editac-session"
+version = "0.0.0"
+dependencies = [
+ "editac-core",
+ "editac-markdown",
+]
+
+[[package]]
 name = "editac-wasm"
 version = "0.0.0"
 dependencies = [
