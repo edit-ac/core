@@ -287,7 +287,7 @@ fn valid_host(host: &str) -> bool {
                     .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || *c == b'-')
         })
 }
-fn validate_identity(identity: &DocumentIdentity) -> Result<(), LocatorError> {
+pub(crate) fn validate_identity(identity: &DocumentIdentity) -> Result<(), LocatorError> {
     // Compare the entire metadata tuple, preserving the engine's frozen profiles.
     let constructors: [fn(
         String,

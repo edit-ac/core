@@ -13,6 +13,7 @@ workspace = true
 
 [dependencies]
 editac-core = { path = "../editac-core" }
+sha2 = "=0.10.9"
 
 [dev-dependencies]
 editac-markdown = { path = "../editac-markdown" }
