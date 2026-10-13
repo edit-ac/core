@@ -20,6 +20,7 @@ name = "native_store"
 required-features = ["native-store"]
 
 [dependencies]
+editac-diff = { path = "../editac-diff" }
 editac-core = { path = "../editac-core" }
 editac-markdown = { path = "../editac-markdown" }
 sha2 = "=0.10.9"

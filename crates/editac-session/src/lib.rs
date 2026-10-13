@@ -15,3 +15,5 @@ pub mod edit_service;
 pub mod revision;
 
 pub mod operations;
+
+pub mod history_store;

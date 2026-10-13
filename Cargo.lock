@@ -164,6 +164,7 @@ name = "editac-session"
 version = "0.0.0"
 dependencies = [
  "editac-core",
+ "editac-diff",
  "editac-markdown",
  "rusqlite",
  "serde",
