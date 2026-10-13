@@ -481,3 +481,282 @@ fn reg07_separated_pre_in_code_content_undo() {
 fn reg07_separated_pre_empty_control_content_undo() {
     separated_pre(false);
 }
+
+// Matching packed-WASM selected-fragment vectors. Editor-local pending marks and
+// history selection are deliberately outside this document boundary.
+fn selected_pre(in_code: bool, cross_owner: bool, backward: bool) {
+    use editac_core::{
+        anchors::Selection,
+        commands::editor::{FragmentBlock, FragmentRun},
+        document::BlockAttributes,
+    };
+    let mut d = if cross_owner {
+        documents(&["xy", "wz"])
+    } else {
+        document("xyz")
+    };
+    let nodes = d.snapshot().unwrap().visible;
+    let first = nodes[0].id.clone();
+    let origin = TextOrigin::new("local:rgs:selected-pre").unwrap();
+    if in_code {
+        let setup = d
+            .prepare_editor(
+                &[EditorCommand::BlockCommand(BlockCommand::SetCode {
+                    owner: first.clone(),
+                    language: String::new(),
+                })],
+                &origin,
+            )
+            .unwrap();
+        d.commit_editor(setup).unwrap();
+        d.clear_history();
+    }
+    let originals = d.snapshot().unwrap().visible;
+    let lower = d.anchor(&first, U(1), Bias::Right).unwrap();
+    let upper = if cross_owner {
+        d.anchor(&originals[1].id, U(1), Bias::Right).unwrap()
+    } else {
+        d.anchor(&first, U(2), Bias::Right).unwrap()
+    };
+    let selection = if backward {
+        Selection {
+            anchor: upper,
+            focus: lower,
+        }
+    } else {
+        Selection {
+            anchor: lower,
+            focus: upper,
+        }
+    };
+    let make = |text: &str, attributes| FragmentBlock {
+        runs: vec![FragmentRun {
+            text: text.into(),
+            marks: vec![],
+        }],
+        attributes: Some(attributes),
+        containers: vec![],
+        checked: None,
+    };
+    let fragments = [
+        make("A", BlockAttributes::Code(String::new())),
+        make("\n", BlockAttributes::Paragraph),
+        make("B", BlockAttributes::Code(String::new())),
+    ];
+    let before = frozen(&d);
+    let count = Rc::new(Cell::new(0));
+    let seen = count.clone();
+    let _sub = d
+        .subscribe(PatchScope::All, move |_, _| {
+            seen.set(seen.get() + 1);
+            Ok(())
+        })
+        .unwrap();
+    let plan = d.prepare_fragment(&selection, &fragments, &origin).unwrap();
+    assert_eq!(
+        frozen(&d),
+        before,
+        "prepare must publish no intermediate mutation"
+    );
+    assert_eq!(count.get(), 0);
+    let result = d.commit_editor(plan).unwrap();
+    assert_eq!(count.get(), 1);
+    assert_eq!(d.revision(), before.2 + 1);
+    assert_eq!(d.history_state().undo_groups, 1);
+    let pasted = d.snapshot().unwrap().visible;
+    assert_eq!(pasted.len(), 3);
+    assert_eq!(pasted[0].id, originals[0].id);
+    assert_eq!(pasted[0].spans[0].source, originals[0].spans[0].source);
+    for (node, text) in pasted.iter().zip(["xA", "\n", "Bz"]) {
+        assert_eq!(
+            node.runs
+                .iter()
+                .map(|r| r.text.as_str())
+                .collect::<String>(),
+            text
+        );
+        assert!(node.runs.iter().all(|r| r.attributes.is_empty()));
+    }
+    assert_eq!(
+        pasted[0].block_attributes,
+        Some(BlockAttributes::Code(String::new()))
+    );
+    assert_eq!(pasted[1].block_attributes, Some(BlockAttributes::Paragraph));
+    assert_eq!(
+        pasted[2].block_attributes,
+        Some(BlockAttributes::Code(String::new()))
+    );
+    match d.resolve_anchor(&result.result_caret.unwrap()).unwrap() {
+        Resolution::Position(p) => {
+            assert_eq!(p.node, pasted[2].id);
+            assert_eq!(p.offset, U(1));
+        }
+        _ => panic!("missing fragment result caret"),
+    }
+    d.undo().unwrap().unwrap();
+    assert_eq!(count.get(), 2);
+    let restored = d.snapshot().unwrap().visible;
+    assert_eq!(restored.len(), originals.len());
+    for (node, old) in restored.iter().zip(&originals) {
+        assert_eq!(node.id, old.id);
+        assert_eq!(node.block_attributes, old.block_attributes);
+        assert_eq!(node.runs, old.runs);
+    }
+    d.redo().unwrap().unwrap();
+    assert_eq!(count.get(), 3);
+    let redone = d.snapshot().unwrap().visible;
+    assert_eq!(redone.len(), 3);
+    for (node, old) in redone.iter().zip(&pasted) {
+        assert_eq!(node.id, old.id);
+        assert_eq!(node.block_attributes, old.block_attributes);
+        assert_eq!(node.runs, old.runs);
+    }
+}
+#[test]
+fn reg07_selected_code_forward() {
+    selected_pre(true, false, false);
+}
+#[test]
+fn reg07_selected_code_backward() {
+    selected_pre(true, false, true);
+}
+#[test]
+fn reg07_selected_text_forward() {
+    selected_pre(false, false, false);
+}
+#[test]
+fn reg07_selected_text_backward() {
+    selected_pre(false, false, true);
+}
+#[test]
+fn reg07_selected_text_code_boundary_forward() {
+    selected_pre(true, true, false);
+}
+#[test]
+fn reg07_selected_text_code_boundary_backward() {
+    selected_pre(true, true, true);
+}
+
+fn delete_trigger_and_type(explicit_bold: bool) {
+    let mut d = document("#a");
+    let owner = d.snapshot().unwrap().visible[0].id.clone();
+    let origin = TextOrigin::new("local:rgs:trigger").unwrap();
+    let mark = |from, to, action| EditorCommand::MarkAt {
+        owner: owner.clone(),
+        from: U(from),
+        to: U(to),
+        mark: Mark::Bold,
+        action,
+        href: None,
+    };
+    let selection = |offset| EditorCommand::SelectionAt {
+        anchor: EditorPosition {
+            owner: owner.clone(),
+            offset: U(offset),
+            bias: Bias::Right,
+        },
+        focus: EditorPosition {
+            owner: owner.clone(),
+            offset: U(offset),
+            bias: Bias::Right,
+        },
+    };
+    let plan = d
+        .prepare_editor(&[mark(1, 2, FormatAction::Apply)], &origin)
+        .unwrap();
+    d.commit_editor(plan).unwrap();
+    d.clear_history();
+    let original = d.snapshot().unwrap().visible[0].clone();
+    let count = Rc::new(Cell::new(0));
+    let seen = count.clone();
+    let _sub = d
+        .subscribe(PatchScope::All, move |_, _| {
+            seen.set(seen.get() + 1);
+            Ok(())
+        })
+        .unwrap();
+    let before = frozen(&d);
+    let plan = d
+        .prepare_editor(
+            &[
+                EditorCommand::ReplaceAt {
+                    owner: owner.clone(),
+                    from: U(0),
+                    to: U(1),
+                    text: String::new(),
+                },
+                selection(0),
+            ],
+            &origin,
+        )
+        .unwrap();
+    assert_eq!(frozen(&d), before);
+    d.commit_editor(plan).unwrap();
+    assert_eq!(count.get(), 1);
+    let before = frozen(&d);
+    let plan = d
+        .prepare_editor(
+            &[
+                EditorCommand::ReplaceAt {
+                    owner: owner.clone(),
+                    from: U(0),
+                    to: U(0),
+                    text: "X".into(),
+                },
+                mark(
+                    0,
+                    1,
+                    if explicit_bold {
+                        FormatAction::Apply
+                    } else {
+                        FormatAction::Remove
+                    },
+                ),
+                selection(1),
+            ],
+            &origin,
+        )
+        .unwrap();
+    assert_eq!(frozen(&d), before);
+    let result = d.commit_editor(plan).unwrap();
+    assert_eq!(count.get(), 2);
+    let node = d.snapshot().unwrap().visible[0].clone();
+    assert_eq!(node.id, original.id);
+    assert_eq!(node.spans[0].source, original.spans[0].source);
+    assert_eq!(
+        node.runs
+            .iter()
+            .map(|r| r.text.as_str())
+            .collect::<String>(),
+        "Xa"
+    );
+    let mut offset = 0;
+    for run in &node.runs {
+        for _ in run.text.encode_utf16() {
+            assert_eq!(
+                run.attributes.contains_key("bold"),
+                explicit_bold || offset == 1
+            );
+            offset += 1;
+        }
+    }
+    let selection = result.result_selection.unwrap();
+    for token in [&selection.anchor, &selection.focus] {
+        match d.resolve_anchor(token).unwrap() {
+            Resolution::Position(p) => {
+                assert_eq!(p.node, owner);
+                assert_eq!(p.offset, U(1));
+                assert_eq!(p.bias, Bias::Right);
+            }
+            _ => panic!("missing result endpoint"),
+        }
+    }
+}
+#[test]
+fn reg05_trigger_delete_explicit_empty_marks() {
+    delete_trigger_and_type(false);
+}
+#[test]
+fn reg05_trigger_delete_explicit_bold_marks() {
+    delete_trigger_and_type(true);
+}
