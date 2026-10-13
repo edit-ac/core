@@ -141,3 +141,15 @@ history.inspect(revision); // Reads an immutable projection; never checks out a 
 ```
 
 Historical inspection has no mutation controls. A separate writable section previews and applies restoration as a new semantic edit. The preview is single-use and bound to the current engine state; a peer edit, deletion, unavailable revision or changed policy yields visible conflict/recovery. The initial adapter restores same-identity, same-structure unmarked text through existing Rust commands. It retains unchanged marks/opaque nodes and rejects unsupported structural or mark changes without normalization or document reimport. Accepted restores retain node/source identities, use an isolated undo group and generate ordinary local journal updates. Flush through the storage lifecycle before claiming local durability. The view labels semantic projections and unknown attribution explicitly, paginates revision lists and clips values with a notice. It does not retain or claim original source spelling, global revision order, per-character authorship or durable archival history.
+
+## Public module entry point
+
+`@edit-ac/web/modules` exposes the v1 portable registry/command/codec types from
+`@edit-ac/core/extensions` and the existing browser `ModuleRuntime`, renderer,
+slash, reference, reorder and content presenter contracts. Root `@edit-ac/web`
+registry imports stay compatible and share the identical core registry class.
+Renderer functions remain host objects; descriptors accept inert data only.
+Importing these entry points does not mount views, initialize WASM or fetch data.
+Heavy math rendering stays separately opt-in through `@edit-ac/web/math`.
+See the core package's public extension contract v1 for registration, frozen
+registries, supported data versions and limits on custom editing semantics.

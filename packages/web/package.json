@@ -27,6 +27,11 @@
       "types": "./dist/modules/math.d.ts",
       "import": "./dist/modules/math.js",
       "default": "./dist/modules/math.js"
+    },
+    "./modules": {
+      "types": "./dist/modules/index.d.ts",
+      "import": "./dist/modules/index.js",
+      "default": "./dist/modules/index.js"
     }
   },
   "scripts": {

@@ -1,0 +1,143 @@
+{
+  "schemaVersion": 1,
+  "parent": "EXT-1.1",
+  "ownership": {
+    "fixtureDirectory": "fixtures/extensions/",
+    "genericRegistry": "existing mark/inline-atom data on attributed text; immutable engine artifacts",
+    "newSemantics": "new editing semantics require owning Rust engine work",
+    "presenters": "trusted host functions outside document state; downstream 16/17/18 and platform tracks own real renderer/device qualification",
+    "publicLibrary": "exports, conformance, codecs/lifecycle adapters, capability records and consumers; reuse qualified modules"
+  },
+  "contracts": {
+    "specs/extension-library.md": "7f65fec868b90af6748ec51e99a24859baa9a82fc8b3e703c3d9ac4e43d9c6cf",
+    "specs/client-contracts.md": "d8ec945d449cb3821805c971a3ae24f1ca6cf37251933edc39eb3538d823333a",
+    "specs/schema-v1.md": "9c9dcdb3e9edad74d841c55ec11a99962f3e002b823758e88e531291b6d82d23",
+    "specs/modules-native.md": "01f2c31d2087642b1bf146cbdc90512b273bbd630902b6f7ba25a61be040aec7"
+  },
+  "modules": [
+    {
+      "module": "slash",
+      "descriptor": "transient command presenter; no persisted descriptor",
+      "symbols": [
+        "packages/web/src/modules/slash.ts:SlashCommand",
+        "packages/web/src/modules/slash.ts:SlashAction",
+        "packages/web/src/modules/slash.ts:slashCommands"
+      ],
+      "command": "SlashCommand.prepare -> fragment/editor request -> host commit; one history group",
+      "codec": "No slash codec or stored payload; ordinary document export",
+      "fallback": "Factory absent: no slash trigger, document editing remains",
+      "unsupported": [
+        "native menu/focus/accessibility",
+        "remote edits must not open menu"
+      ]
+    },
+    {
+      "module": "references",
+      "descriptor": "module:editac.reference, tuple version 1",
+      "symbols": [
+        "crates/editac-core/src/modules/content.rs:Content",
+        "packages/web/src/modules/references.ts:referenceBlock",
+        "packages/web/src/modules/references.ts:ReferenceResolver",
+        "packages/web/src/modules/references.ts:referenceSuggestions"
+      ],
+      "command": "Anchored fragment preparation; explicit host query; cancellation/stale guards",
+      "codec": "Literal label export with identity-loss diagnostic; internal fragment preserves ID",
+      "fallback": "Inert ID/label, no resolver call on opening",
+      "unsupported": [
+        "inline reference authoring",
+        "lossless reference Markdown conversion",
+        "OS clipboard",
+        "catalog/authority integration (EXT-1.8)"
+      ]
+    },
+    {
+      "module": "reorder",
+      "descriptor": "transient presenter; existing node identity and topology",
+      "symbols": [
+        "packages/web/src/modules/reorder.ts:reorderControls",
+        "packages/web/src/modules/reorder.ts:ReorderPresenter",
+        "crates/editac-core/src/commands/editor.rs:EditorCommand"
+      ],
+      "command": "EditorCommand::Move -> prepare_editor/commit_editor; stable selection and identity",
+      "codec": "No reorder codec; export follows document order",
+      "fallback": "Factory absent: reordered document remains readable",
+      "unsupported": [
+        "native controls/drag qualification",
+        "separate copy/codec claim"
+      ]
+    },
+    {
+      "module": "images",
+      "descriptor": "module:editac.image, tuple version 1",
+      "symbols": [
+        "crates/editac-core/src/modules/content.rs:Content",
+        "crates/editac-markdown/src/optional.rs:Codecs",
+        "packages/web/src/modules/content.ts:contentModules",
+        "packages/web/src/modules/content.ts:ImageMetadata"
+      ],
+      "command": "Prepared fragment insertion; image UI authoring/upload not qualified",
+      "codec": "Codecs.images admits bounded safe Markdown; absent codec retains source",
+      "fallback": "Alt/title/source retained; host asset policy required before URL activation",
+      "unsupported": [
+        "authoring/resizing/upload UI",
+        "implicit asset fetch",
+        "OS clipboard"
+      ]
+    },
+    {
+      "module": "tables",
+      "descriptor": "module:editac.table, tuple version 1",
+      "symbols": [
+        "crates/editac-core/src/modules/content.rs:Content",
+        "crates/editac-markdown/src/optional.rs:Codecs",
+        "packages/web/src/modules/content.ts:contentModules",
+        "crates/editac-core/src/commands/editor.rs:EditorCommand"
+      ],
+      "command": "EditorCommand::TableCell via prepared engine edit; exact tuple stale guard, undo",
+      "codec": "Codecs.tables simple rectangular cells; current-row source update and export",
+      "fallback": "Exact edited tuple/source preserved without controls",
+      "unsupported": [
+        "merged/spanned/rich/nested cell authoring",
+        "native clipboard/renderers",
+        "EXT-1.13 formatting transfer"
+      ]
+    },
+    {
+      "module": "math",
+      "descriptor": "module:editac.math, generic inline-atom version 1",
+      "symbols": [
+        "packages/web/src/modules/math.ts:mathModuleDefinition",
+        "packages/web/src/modules/math.ts:mathAtom",
+        "packages/web/src/modules/math.ts:mathRenderer",
+        "crates/editac-core/src/modules/registry.rs:Registry"
+      ],
+      "command": "Generic attributed text/fragment commands; no new math semantic branch",
+      "codec": "No dedicated qualified Markdown codec; bounded LaTeX retained as source",
+      "fallback": "LaTeX source label; absent/failed/unsafe renderer preserves source",
+      "unsupported": [
+        "dedicated authoring UI",
+        "math clipboard/Markdown conversion",
+        "native typesetting parity"
+      ]
+    }
+  ],
+  "sourceHashes": {
+    "crates/editac-core/src/commands/editor.rs": "821e7a40ed91177f9d9db84389ffe587ac34142facb47be84a6c63e2e98ff040",
+    "crates/editac-core/src/modules/content.rs": "216e1c7fa3971b0f287374199c890ccf999d85c6311e4d839d0f600c8e7c2859",
+    "crates/editac-core/src/modules/mod.rs": "b021b3490bb8b8c389e01accf0b4341f5d33158d5d4dcd30ec642f2ef59c15f9",
+    "crates/editac-core/src/modules/registry.rs": "906dc43aaca9d3c49aeda42b220e6e096db942819d7b584e3b86f2cc21f04254",
+    "crates/editac-markdown/src/export.rs": "51d3e731ff4abaf7d3a8dce86e288397e017220b1d721ae5e4980d4c96087658",
+    "crates/editac-markdown/src/optional.rs": "75d4cfe43ec524b0531a500116ef0c30ebb5cfa0c9b5e54a32b7b78b8ce9ed1c",
+    "packages/core/src/engine.ts": "a83086de891666bf1c37675b734e747ef8b3964e358b0c3fd3e2d4ed969515a8",
+    "packages/web/src/modules/content.ts": "270980980d8040d1501eb216cfcfa3d2640f64e1df20e8733082b92e79e93553",
+    "packages/web/src/modules/math.ts": "3acd59796c36f36a2c248561ad08a047e067cc65f22bac2372e2f6c0bf50eb48",
+    "packages/web/src/modules/references.ts": "3603c9d59e0319294c16a46e47d29e040866657a724afa93bb2809038e3ab8bd",
+    "packages/web/src/modules/registry.ts": "54458a29b7bafe5b672cd605c394b5e28f8851102af449b5193b5b222fc032f3",
+    "packages/web/src/modules/reorder.ts": "2de953d37f1192b1825ae1e952ab0f84a87787c041d6088ce83c43a622c0d927",
+    "packages/web/src/modules/runtime.ts": "faa804a3c5666471e544626d99dd078cb25a2c0ab3ea5de9c85c1941e399794f",
+    "packages/web/src/modules/slash.ts": "8f116c22e247cfca693d2a4bc950ed100065debfd85b09f37d223540a52c36e6",
+    "packages/core/src/extensions/registry.ts": "bc6e7db9e7990974b0025140c2f513a822c0c5061987ac3911337a920aff17c5",
+    "packages/core/src/extensions/index.ts": "a60f4f8dc3e08d0a695c13f7058d5c77ab74ffddd99ef0f8f133cd9512ecabc1",
+    "packages/web/src/modules/index.ts": "ed27810876df6453ac604252084eff2bb8be6389d7c80b264f130c7276b611f8"
+  }
+}
