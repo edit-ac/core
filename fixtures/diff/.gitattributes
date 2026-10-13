@@ -1,0 +1,2 @@
+# Literal source goldens must retain CRLF/LF bytes across Git checkout.
+*.md -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

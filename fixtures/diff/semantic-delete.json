@@ -1,0 +1,31 @@
+{
+  "visible": [
+    {
+      "id": "a",
+      "kind": "block",
+      "parent": "@root",
+      "order": 0,
+      "runs": [
+        {
+          "text": "alpha",
+          "marks": {}
+        }
+      ],
+      "attributes": [
+        "paragraph"
+      ],
+      "opaque": null,
+      "spans": [
+        {
+          "source": "text-a",
+          "identity": "integrated-a",
+          "start": 0,
+          "end": 5
+        }
+      ],
+      "editor": null
+    }
+  ],
+  "recovery": [],
+  "retained_structure": null
+}

@@ -1,0 +1,58 @@
+{
+  "visible": [
+    {
+      "id": "a",
+      "kind": "block",
+      "parent": "@root",
+      "order": 0,
+      "runs": [
+        {
+          "text": "alpha",
+          "marks": {
+            "bold": true
+          }
+        }
+      ],
+      "attributes": [
+        "paragraph"
+      ],
+      "opaque": null,
+      "spans": [
+        {
+          "source": "text-a",
+          "identity": "integrated-a",
+          "start": 0,
+          "end": 5
+        }
+      ],
+      "editor": null
+    },
+    {
+      "id": "b",
+      "kind": "block",
+      "parent": "@root",
+      "order": 1,
+      "runs": [
+        {
+          "text": "beta",
+          "marks": {}
+        }
+      ],
+      "attributes": [
+        "paragraph"
+      ],
+      "opaque": null,
+      "spans": [
+        {
+          "source": "text-b",
+          "identity": "integrated-b",
+          "start": 0,
+          "end": 4
+        }
+      ],
+      "editor": null
+    }
+  ],
+  "recovery": [],
+  "retained_structure": null
+}

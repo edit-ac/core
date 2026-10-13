@@ -141,6 +141,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "editac-diff"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "editac-markdown"
 version = "0.0.0"
 dependencies = [
