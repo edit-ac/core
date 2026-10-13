@@ -21,10 +21,18 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./math": {
+      "types": "./dist/modules/math.d.ts",
+      "import": "./dist/modules/math.js",
+      "default": "./dist/modules/math.js"
     }
   },
   "scripts": {
-    "build": "tsc --project tsconfig.json",
+    "build": "tsc --project tsconfig.json && node ../../scripts/build-math-assets.mjs",
     "typecheck": "tsc --project tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "katex": "0.19.0"
   }
 }

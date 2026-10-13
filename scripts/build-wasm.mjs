@@ -6,8 +6,10 @@ import path from 'node:path';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const cli = process.env.WASM_BINDGEN || 'wasm-bindgen';
-function run(command, args) {
-  const result = spawnSync(command, args, { cwd: root, encoding: 'utf8', stdio: 'pipe' });
+const toolchain = (await readFile(path.join(root, 'rust-toolchain.toml'), 'utf8')).match(/^channel\s*=\s*"([^"]+)"/m)?.[1];
+if (!toolchain) throw new Error('rust-toolchain.toml must declare the engine build toolchain');
+function run(command, args, env = process.env) {
+  const result = spawnSync(command, args, { cwd: root, env, encoding: 'utf8', stdio: 'pipe' });
   if (result.stdout) process.stdout.write(result.stdout);
   if (result.stderr) process.stderr.write(result.stderr);
   if (result.error || result.status !== 0) throw result.error || new Error(`${command} exited ${result.status}`);
@@ -16,7 +18,10 @@ function run(command, args) {
 if (run(cli, ['--version']) !== 'wasm-bindgen 0.2.129') {
   throw new Error('Install wasm-bindgen-cli exactly 0.2.129 (matching the locked Rust crate)');
 }
-run('cargo', ['build', '-p', 'editac-wasm', '--release', '--target', 'wasm32-unknown-unknown', '--locked', '--offline']);
+// Resolve both tools: a pinned Cargo can still find a different rustc on PATH.
+const cargo = run('rustup', ['which', '--toolchain', toolchain, 'cargo']);
+const rustc = run('rustup', ['which', '--toolchain', toolchain, 'rustc']);
+run(cargo, ['build', '-p', 'editac-wasm', '--release', '--target', 'wasm32-unknown-unknown', '--locked', '--offline'], { ...process.env, RUSTC: rustc });
 const dist = path.join(root, 'packages/core/dist');
 const staging = path.join(dist, `.wasm-${process.pid}`);
 await mkdir(staging, { recursive: true });

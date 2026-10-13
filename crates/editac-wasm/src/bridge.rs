@@ -5,7 +5,7 @@ use editac_core::{
     anchors::{Anchor, Bias, Resolution, Selection},
     commands::{
         blocks::{BlockCommand, Side},
-        editor::{EditorCommand, PreparedEditorEdit},
+        editor::{EditorCommand, FragmentBlock, FragmentRun, PreparedEditorEdit},
         format::{BlockFormatCommand, FormatAction, FormatCommand, Mark, PreparedFormatBatch},
         lists::{ContainerStyle, ListCommand},
         r#move::{MoveCommand, MoveTarget},
@@ -147,6 +147,11 @@ struct Range {
 #[derive(Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
 enum Prepare {
+    Fragment {
+        origin: String,
+        range: Range,
+        blocks: Vec<TransferBlock>,
+    },
     Text {
         origin: String,
         command: TextRequest,
@@ -162,6 +167,42 @@ enum Prepare {
     },
 }
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TransferBlock {
+    runs: Vec<TransferRun>,
+    attributes: Option<TransferAttributes>,
+    #[serde(default)]
+    containers: Vec<TransferContainer>,
+    checked: Option<bool>,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TransferContainer {
+    key: String,
+    style: Style,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TransferRun {
+    text: String,
+    marks: Vec<TransferMark>,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TransferMark {
+    mark: MarkName,
+    href: Option<String>,
+}
+#[derive(Deserialize)]
+#[serde(tag = "type", rename_all = "lowercase", deny_unknown_fields)]
+enum TransferAttributes {
+    Paragraph {},
+    Heading { level: u8 },
+    Code { language: String },
+    Separator {},
+    Content { tuple: Value },
+}
+#[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
 enum TextRequest {
     Insert { at: String, text: String },
@@ -171,6 +212,13 @@ enum TextRequest {
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
 enum Command {
+    TableCell {
+        owner: String,
+        expected: Value,
+        row: usize,
+        column: usize,
+        text: String,
+    },
     Insert {
         at: String,
         text: String,
@@ -183,6 +231,10 @@ enum Command {
         text: String,
     },
     Split {
+        owner: String,
+        at: String,
+    },
+    HeadingEnd {
         owner: String,
         at: String,
     },
@@ -366,7 +418,7 @@ enum HistoryRequest {
 }
 enum Plan {
     Text(PreparedTextEdit),
-    Editor(PreparedEditorEdit),
+    Editor(PreparedEditorEdit, Option<String>),
     Format(PreparedFormatBatch),
 }
 
@@ -536,8 +588,16 @@ impl Bridge {
             focus: self.anchor_value(&r.focus)?,
         })
     }
+    fn anchor_slots(&self) -> usize {
+        self.anchors.len()
+            + self
+                .plans
+                .values()
+                .filter(|p| matches!(p, Plan::Editor(_, Some(_))))
+                .count()
+    }
     pub fn capture(&mut self, input: &str) -> Result<Value> {
-        if self.anchors.len() >= MAX_ANCHORS {
+        if self.anchor_slots() >= MAX_ANCHORS {
             return Err(err("ResourceLimit", "anchor", "release unused anchors"));
         }
         let c: Capture = parse(input, "anchor")?;
@@ -548,6 +608,63 @@ impl Bridge {
         let token = self.token("anchor")?;
         self.anchors.insert(token.clone(), a);
         Ok(json!({"token": token}))
+    }
+    pub fn export_anchor(&self, token: &str) -> Result<Value> {
+        let a = self.anchor_value(token)?;
+        let (source, source_identity, position) = a.portable_parts();
+        Ok(
+            json!({"version":1,"identity":identity(self.doc.identity()),"source":source,
+            "sourceIdentity":source_identity,"position":position}),
+        )
+    }
+    pub fn import_anchor(&mut self, input: &str) -> Result<Value> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields, rename_all = "camelCase")]
+        struct Portable {
+            version: u32,
+            identity: Identity,
+            source: String,
+            source_identity: String,
+            position: yrs::StickyIndex,
+        }
+        if input.len() > 4096 || self.anchor_slots() >= MAX_ANCHORS {
+            return Err(err(
+                "ResourceLimit",
+                "importAnchor",
+                "presence anchor limit",
+            ));
+        }
+        let value: Value = parse(input, "importAnchor")?;
+        let p: Portable = parse(input, "importAnchor")?;
+        if serde_json::to_value(&p.position)
+            .map_err(|e| err("InvalidInput", "importAnchor", e.to_string()))?
+            != value["position"]
+        {
+            return Err(err(
+                "InvalidInput",
+                "importAnchor",
+                "noncanonical relative position",
+            ));
+        }
+        if p.version != 1 || p.source.len() > 128 || p.source_identity.len() > 128 {
+            return Err(err(
+                "InvalidInput",
+                "importAnchor",
+                "invalid presence anchor",
+            ));
+        }
+        let a = self
+            .doc
+            .import_presence_anchor(
+                p.identity.admitted_v5("importAnchor")?,
+                p.source,
+                p.source_identity,
+                p.position,
+            )
+            .map_err(|e| kernel("importAnchor", e))?;
+        let token = self.token("anchor")?;
+        self.anchors.insert(token.clone(), a);
+        Ok(json!({"token":token}))
     }
     pub fn resolve(&self, token: &str) -> Result<Value> {
         let a = self.anchor_value(token)?;
@@ -572,6 +689,20 @@ impl Bridge {
     }
     fn command(&self, c: Command) -> Result<EditorCommand> {
         Ok(match c {
+            Command::TableCell {
+                owner,
+                expected,
+                row,
+                column,
+                text,
+            } => EditorCommand::TableCell {
+                target: owner,
+                expected: Any::from_json(&expected.to_string())
+                    .map_err(|e| kernel("tableCell", e))?,
+                row,
+                column,
+                text,
+            },
             Command::Insert { at, text } => EditorCommand::Text(TextCommand::Insert {
                 at: self.anchor_value(&at)?,
                 text,
@@ -584,6 +715,10 @@ impl Bridge {
                 text,
             }),
             Command::Split { owner, at } => EditorCommand::Split {
+                owner,
+                at: self.anchor_value(&at)?,
+            },
+            Command::HeadingEnd { owner, at } => EditorCommand::HeadingEnd {
                 owner,
                 at: self.anchor_value(&at)?,
             },
@@ -650,12 +785,24 @@ impl Bridge {
             }
         })
     }
-    pub fn prepare(&mut self, input: &str) -> Result<Value> {
-        if self.plans.len() >= MAX_PLANS {
-            return Err(err("ResourceLimit", "prepare", "release unused plans"));
-        }
+    fn prepared(&self, input: &str) -> Result<Plan> {
         let r: Prepare = parse(input, "prepare")?;
         let plan = match r {
+            Prepare::Fragment {
+                origin,
+                range,
+                blocks,
+            } => {
+                let origin = TextOrigin::new(&origin).map_err(|e| kernel("prepare", e))?;
+                let selection = self.selection(range)?;
+                let blocks = transfer_blocks(blocks)?;
+                Plan::Editor(
+                    self.doc
+                        .prepare_fragment(&selection, &blocks, &origin)
+                        .map_err(|e| kernel("prepare", e))?,
+                    None,
+                )
+            }
             Prepare::Text { origin, command } => {
                 let origin = TextOrigin::new(&origin).map_err(|e| kernel("prepare", e))?;
                 let command = match command {
@@ -690,6 +837,7 @@ impl Bridge {
                     self.doc
                         .prepare_editor(&commands, &origin)
                         .map_err(|e| kernel("prepare", e))?,
+                    None,
                 )
             }
             Prepare::Format {
@@ -730,7 +878,36 @@ impl Bridge {
                 )
             }
         };
+        Ok(plan)
+    }
+    fn capacity(&self, plan: &Plan) -> Result<()> {
+        if self.plans.len() >= MAX_PLANS {
+            return Err(err("ResourceLimit", "prepare", "release unused plans"));
+        }
+        let needs_caret = matches!(plan, Plan::Editor(p, _) if p.result_caret().is_some());
+        if needs_caret && self.anchor_slots() >= MAX_ANCHORS {
+            return Err(err("ResourceLimit", "prepare", "release unused anchors"));
+        }
+        self.counter
+            .checked_add(if needs_caret { 2 } else { 1 })
+            .ok_or_else(|| err("ResourceLimit", "prepare", "token counter exhausted"))?;
+        Ok(())
+    }
+    pub fn can(&self, input: &str) -> Result<Value> {
+        let plan = self.prepared(input)?;
+        self.capacity(&plan)?;
+        Ok(json!(true))
+    }
+    pub fn prepare(&mut self, input: &str) -> Result<Value> {
+        let mut plan = self.prepared(input)?;
+        self.capacity(&plan)?;
+        // Reserve both tokens before exposing a plan; capacity() preflights overflow.
         let token = self.token("plan")?;
+        if let Plan::Editor(p, reservation) = &mut plan {
+            if p.result_caret().is_some() {
+                *reservation = Some(self.token("anchor")?);
+            }
+        }
         self.plans.insert(token.clone(), plan);
         Ok(json!({"token":token, "revision": self.doc.revision()}))
     }
@@ -745,18 +922,24 @@ impl Bridge {
                 "plan is consumed, released or belongs to another engine",
             )
         })?;
+        let mut result = json!({"revision":self.doc.revision()});
         match plan {
             Plan::Text(p) => {
                 self.doc.commit_text(p).map_err(|e| kernel("commit", e))?;
             }
-            Plan::Editor(p) => {
-                self.doc.commit_editor(p).map_err(|e| kernel("commit", e))?;
+            Plan::Editor(p, reservation) => {
+                let commit = self.doc.commit_editor(p).map_err(|e| kernel("commit", e))?;
+                if let (Some(caret), Some(token)) = (commit.result_caret, reservation) {
+                    self.anchors.insert(token.clone(), caret);
+                    result["caret"] = json!(token);
+                }
             }
             Plan::Format(p) => {
                 self.doc.commit_format(p).map_err(|e| kernel("commit", e))?;
             }
         }
-        Ok(json!({"revision":self.doc.revision()}))
+        result["revision"] = json!(self.doc.revision());
+        Ok(result)
     }
     pub fn history(&mut self, input: &str) -> Result<Value> {
         match parse::<HistoryRequest>(input, "history")? {
@@ -816,6 +999,138 @@ fn node(n: &editac_core::projection::ProjectedNode) -> Value {
     })
 }
 
+fn transfer_blocks(blocks: Vec<TransferBlock>) -> Result<Vec<FragmentBlock>> {
+    if blocks.len() > 128
+        || blocks.iter().map(|b| b.runs.len()).sum::<usize>() > 1024
+        || blocks
+            .iter()
+            .flat_map(|b| &b.runs)
+            .map(|r| r.text.len())
+            .sum::<usize>()
+            > 1024 * 1024
+        || blocks
+            .iter()
+            .any(|b| b.containers.len() > 16 || b.runs.iter().any(|r| r.marks.len() > 6))
+    {
+        return Err(err("ResourceLimit", "markdown", "fragment exceeds limits"));
+    }
+    let converted = blocks
+        .into_iter()
+        .map(|b| {
+            Ok(FragmentBlock {
+                containers: b
+                    .containers
+                    .into_iter()
+                    .map(|c| (c.key, c.style.native()))
+                    .collect(),
+                checked: b.checked,
+                runs: b
+                    .runs
+                    .into_iter()
+                    .map(|r| FragmentRun {
+                        text: r.text,
+                        marks: r
+                            .marks
+                            .into_iter()
+                            .map(|m| (m.mark.native(), m.href))
+                            .collect(),
+                    })
+                    .collect(),
+                attributes: b
+                    .attributes
+                    .map(|a| match a {
+                        TransferAttributes::Paragraph {} => Ok(BlockAttributes::Paragraph),
+                        TransferAttributes::Heading { level } => {
+                            Ok(BlockAttributes::Heading(level))
+                        }
+                        TransferAttributes::Code { language } => {
+                            Ok(BlockAttributes::Code(language))
+                        }
+                        TransferAttributes::Separator {} => Ok(BlockAttributes::Separator),
+                        TransferAttributes::Content { tuple } => {
+                            let a = Any::from_json(&tuple.to_string())
+                                .map_err(|e| kernel("markdown", e))?;
+                            let content = editac_core::modules::content::Content::from_tuple(&a)
+                                .map_err(|e| kernel("markdown", e))?;
+                            if content.is_none() {
+                                return Err(err(
+                                    "InvalidInput",
+                                    "markdown",
+                                    "unregistered content",
+                                ));
+                            }
+                            Ok(BlockAttributes::Unknown(a))
+                        }
+                    })
+                    .transpose()?,
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    editac_markdown::extensions::validate(&converted).map_err(|e| kernel("markdown", e))?;
+    Ok(converted)
+}
+fn transfer_value(b: &FragmentBlock) -> Value {
+    let attributes = match &b.attributes {
+        None => Value::Null,
+        Some(BlockAttributes::Paragraph) => json!({"type":"paragraph"}),
+        Some(BlockAttributes::Heading(level)) => json!({"type":"heading","level":level}),
+        Some(BlockAttributes::Code(language)) => json!({"type":"code","language":language}),
+        Some(BlockAttributes::Separator) => json!({"type":"separator"}),
+        Some(BlockAttributes::Unknown(tuple)) => json!({"type":"content","tuple":value(tuple)}),
+    };
+    json!({"attributes":attributes,"checked":b.checked,
+        "containers":b.containers.iter().map(|(key,style)| {
+            let style=match style {ContainerStyle::Unordered=>json!({"type":"unordered"}),ContainerStyle::Checklist=>json!({"type":"checklist"}),ContainerStyle::Quote=>json!({"type":"quote"}),ContainerStyle::Ordered{start}=>json!({"type":"ordered","start":start})};
+            json!({"key":key,"style":style})
+        }).collect::<Vec<_>>(),
+        "runs":b.runs.iter().map(|r|json!({"text":r.text,"marks":r.marks.iter().map(|(m,href)|{
+            let name=match m {Mark::Bold=>"bold",Mark::Italic=>"italic",Mark::Strike=>"strike",Mark::Underline=>"underline",Mark::Code=>"code",Mark::Link=>"link"};json!({"mark":name,"href":href})
+        }).collect::<Vec<_>>()})).collect::<Vec<_>>()})
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MarkdownInput {
+    source: String,
+    #[serde(default)]
+    callouts: bool,
+    #[serde(default)]
+    images: bool,
+    #[serde(default)]
+    tables: bool,
+}
+impl Bridge {
+    pub fn markdown_equivalent(&self, input: &str) -> Result<Value> {
+        let [a, b]: [Vec<TransferBlock>; 2] = parse(input, "markdownEquivalent")?;
+        Ok(json!(editac_markdown::export::equivalent(
+            &transfer_blocks(a)?,
+            &transfer_blocks(b)?
+        )))
+    }
+    pub fn import_markdown(&self, input: &str) -> Result<Value> {
+        let r: MarkdownInput = parse(input, "importMarkdown")?;
+        let p = editac_markdown::optional::import_with_codecs(
+            &r.source,
+            editac_markdown::optional::Codecs {
+                callouts: r.callouts,
+                images: r.images,
+                tables: r.tables,
+            },
+        )
+        .map_err(|e| kernel("importMarkdown", e))?;
+        Ok(
+            json!({"source":p.source,"blocks":p.blocks.iter().map(transfer_value).collect::<Vec<_>>(),"ranges":p.ranges.iter().map(|r|json!([r.start,r.end])).collect::<Vec<_>>(),"diagnostics":p.diagnostics.iter().map(|d|json!({"code":d.code,"range":[d.range.start,d.range.end]})).collect::<Vec<_>>()}),
+        )
+    }
+    pub fn export_markdown(&self, input: &str) -> Result<Value> {
+        let r: Vec<TransferBlock> = parse(input, "exportMarkdown")?;
+        let blocks = transfer_blocks(r)?;
+        let e = editac_markdown::export::export(&blocks);
+        Ok(
+            json!({"markdown":e.markdown,"diagnostics":e.diagnostics.iter().map(|d|json!({"code":d.code,"range":[d.range.start,d.range.end]})).collect::<Vec<_>>(),"recovery":e.recovery.iter().map(transfer_value).collect::<Vec<_>>()}),
+        )
+    }
+}
+
 fn resolution(v: &Resolution) -> Value {
     match v {
         Resolution::Position(p) => {
@@ -842,5 +1157,199 @@ fn value(a: &Any) -> Value {
         Any::Array(a) => Value::Array(a.iter().map(value).collect()),
         Any::Map(m) => Value::Object(m.iter().map(|(k, v)| (k.clone(), value(v))).collect()),
         Any::Buffer(b) => json!(b.as_ref()),
+    }
+}
+
+#[cfg(test)]
+mod result_caret_tests {
+    use super::*;
+    fn heading(serial: u32) -> (Bridge, String, String) {
+        let mut b = Bridge::create(&json!({"profile":"v5","documentId":format!("95000000-0000-4000-8000-{serial:012}"),"epoch":format!("96000000-0000-4000-8000-{serial:012}"),"nodes":[{"text":"H"}]}).to_string()).unwrap();
+        let node = b.doc.snapshot().unwrap().visible[0].id.clone();
+        let plan = b.prepare(&json!({"kind":"format","origin":"setup","marks":[],"blocks":[{"targets":[node],"attributes":{"type":"heading","level":2},"action":"apply"}]}).to_string()).unwrap();
+        b.commit(plan["token"].as_str().unwrap()).unwrap();
+        let at = b
+            .capture(&json!({"node":node,"offset":1,"bias":"right"}).to_string())
+            .unwrap()["token"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let request = json!({"kind":"editor","origin":"test","commands":[{"type":"headingEnd","owner":node,"at":at}]}).to_string();
+        (b, node, request)
+    }
+    #[test]
+    fn result_capacity_can_and_token_overflow_are_pre_mutation() {
+        let (mut b, node, request) = heading(1);
+        let counter = b.counter;
+        let state = b.doc_state();
+        for _ in 0..16 {
+            assert_eq!(b.can(&request).unwrap(), json!(true));
+        }
+        assert_eq!(b.counter, counter);
+        assert!(b.plans.is_empty());
+        assert_eq!(b.doc_state(), state);
+        for _ in 1..MAX_ANCHORS {
+            b.capture(&json!({"node":node,"offset":0,"bias":"left"}).to_string())
+                .unwrap();
+        }
+        assert_eq!(b.can(&request).unwrap_err().code, "ResourceLimit");
+        assert_eq!(b.prepare(&request).unwrap_err().code, "ResourceLimit");
+        assert_eq!(b.doc_state(), state);
+        b.anchors.clear();
+        // Restore the retained input token, then isolate counter overflow.
+        let at = b
+            .capture(&json!({"node":node,"offset":1,"bias":"right"}).to_string())
+            .unwrap()["token"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let input = json!({"kind":"editor","origin":"test","commands":[{"type":"headingEnd","owner":node,"at":at}]}).to_string();
+        b.counter = u32::MAX - 1;
+        assert_eq!(b.can(&input).unwrap_err().code, "ResourceLimit");
+        assert_eq!(b.prepare(&input).unwrap_err().code, "ResourceLimit");
+        assert_eq!(b.counter, u32::MAX - 1);
+        assert!(b.plans.is_empty());
+        assert_eq!(b.doc_state(), state);
+    }
+    #[test]
+    fn result_reservations_release_and_commit_cannot_fail_after_mutation() {
+        let (mut b, node, request) = heading(2);
+        let plan = b.prepare(&request).unwrap()["token"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        assert_eq!(b.anchor_slots(), 2);
+        b.release_plan(&plan);
+        assert_eq!(b.anchor_slots(), 1);
+        let plan = b.prepare(&request).unwrap()["token"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        for _ in 2..MAX_ANCHORS {
+            b.capture(&json!({"node":node,"offset":0,"bias":"left"}).to_string())
+                .unwrap();
+        }
+        assert_eq!(
+            b.capture(&json!({"node":node,"offset":0,"bias":"left"}).to_string())
+                .unwrap_err()
+                .code,
+            "ResourceLimit"
+        );
+        b.counter = u32::MAX;
+        let result = b.commit(&plan).unwrap();
+        assert_eq!(b.anchor_slots(), MAX_ANCHORS);
+        let token = result["caret"].as_str().unwrap();
+        let nodes = b.doc.snapshot().unwrap().visible;
+        assert_eq!(b.resolve(token).unwrap()["node"], nodes[1].id);
+        assert_eq!(b.resolve(token).unwrap()["offset"], 0);
+        b.release_anchor(token);
+        assert_eq!(b.anchor_slots(), MAX_ANCHORS - 1);
+        assert_eq!(b.resolve(token).unwrap_err().code, "InvalidHandle");
+    }
+    #[test]
+    fn stale_result_plan_consumes_reservation_without_exposing_caret() {
+        let (mut b, node, request) = heading(3);
+        let plan = b.prepare(&request).unwrap()["token"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let change = b.prepare(&json!({"kind":"format","origin":"change","marks":[],"blocks":[{"targets":[node],"attributes":{"type":"heading","level":3},"action":"apply"}]}).to_string()).unwrap();
+        b.commit(change["token"].as_str().unwrap()).unwrap();
+        let state = b.doc_state();
+        assert!(b.commit(&plan).is_err());
+        assert_eq!(b.anchor_slots(), 1);
+        assert!(b.plans.is_empty());
+        assert_eq!(b.doc_state(), state);
+    }
+    #[test]
+    fn result_removed_by_later_batch_command_is_rejected_during_prepare() {
+        let (b, node, request) = heading(4);
+        // Inspect the genuine staged result on a disposable replica; no guessed ID.
+        let mut staged = Document::restore(b.doc.identity(), &b.doc.checkpoint(), &[]).unwrap();
+        let commands: Prepare = parse(&request, "prepare").unwrap();
+        let Prepare::Editor { commands, .. } = commands else {
+            panic!()
+        };
+        // Bridge/native plan lifetime is replica-scoped; use a second genuine preparation
+        // only to inspect the deterministic destination on the live writer's staged update.
+        let native = commands
+            .into_iter()
+            .map(|c| b.command(c))
+            .collect::<Result<Vec<_>>>()
+            .unwrap();
+        let p = staged
+            .prepare_editor(&native, &TextOrigin::new("test").unwrap())
+            .unwrap();
+        let result = staged.commit_editor(p).unwrap().result_caret.unwrap();
+        let Resolution::Position(destination) = staged.resolve_anchor(&result).unwrap() else {
+            panic!()
+        };
+        // Generated operation counters are identical; only the staged writer differs.
+        let destination = destination.node.replace(
+            &format!("o:{}:", staged.writer_id()),
+            &format!("o:{}:", b.doc.writer_id()),
+        );
+        let mut request: Value = serde_json::from_str(&request).unwrap();
+        request["commands"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"type":"join","first":node,"second":destination}));
+        let state = b.doc_state();
+        let failure = match b.prepared(&request.to_string()) {
+            Ok(_) => panic!("invalidated result was admitted"),
+            Err(e) => e,
+        };
+        assert!(
+            failure.message.contains("InvalidCommand"),
+            "{}",
+            failure.message
+        );
+        assert_eq!(b.doc_state(), state);
+    }
+}
+
+#[cfg(test)]
+mod markdown_bridge_tests {
+    use super::*;
+    fn bridge(n: u32) -> Bridge {
+        Bridge::create(&json!({"profile":"v5","documentId":format!("75000000-0000-4000-8000-{n:012}"),"epoch":format!("76000000-0000-4000-8000-{n:012}"),"nodes":[{"text":"original"}]}).to_string()).unwrap()
+    }
+    #[test]
+    fn pure_import_export_has_no_semantic_effects() {
+        let b = bridge(1);
+        let before = b.checkpoint_bytes();
+        let p = b
+            .import_markdown(r##"{"source":"# **😀**\n\n[late][r]\n\n[r]: https://example.com"}"##)
+            .unwrap();
+        let e = b.export_markdown(&p["blocks"].to_string()).unwrap();
+        assert_eq!(e["diagnostics"], json!([]));
+        assert!(e["markdown"].as_str().unwrap().contains("😀"));
+        assert_eq!(before, b.checkpoint_bytes());
+    }
+    #[test]
+    fn registered_content_is_preserved_and_unknown_version_rejected() {
+        let b = bridge(2);
+        let p = b
+            .import_markdown(r#"{"source":"![a](https://example.com/i)","images":true}"#)
+            .unwrap();
+        assert_eq!(p["blocks"][0]["attributes"]["type"], "content");
+        assert!(b.export_markdown(&p["blocks"].to_string()).is_ok());
+        let mut blocks = p["blocks"].clone();
+        blocks[0]["attributes"]["tuple"][1] = json!(99);
+        assert!(b.export_markdown(&blocks.to_string()).is_err());
+    }
+    #[test]
+    fn malformed_and_oversized_inputs_leave_replica_untouched() {
+        let b = bridge(3);
+        let before = b.checkpoint_bytes();
+        assert!(
+            b.import_markdown(r#"{"source":"x","unknown":true}"#)
+                .is_err()
+        );
+        assert!(
+            b.import_markdown(&json!({"source":"x".repeat(1024*1024+1)}).to_string())
+                .is_err()
+        );
+        assert_eq!(before, b.checkpoint_bytes());
     }
 }

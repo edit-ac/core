@@ -1,0 +1,82 @@
+{
+  "definition": {
+    "type": "editac.math",
+    "version": 1,
+    "kind": "inline-atom",
+    "attributes": {
+      "latex": {
+        "type": "string",
+        "required": true,
+        "maxUtf16": 4096
+      },
+      "display": {
+        "type": "boolean",
+        "required": true
+      }
+    },
+    "content": {
+      "type": "text",
+      "maxUtf16": 4110
+    },
+    "fallback": {
+      "type": "text",
+      "source": "content"
+    }
+  },
+  "cases": [
+    {
+      "name": "inline",
+      "latex": "x^2 + \\frac{1}{2}",
+      "display": false,
+      "expected": "rendered"
+    },
+    {
+      "name": "display",
+      "latex": "\\sum_{i=1}^{3} i",
+      "display": true,
+      "expected": "rendered"
+    },
+    {
+      "name": "invalid",
+      "latex": "\\frac{",
+      "display": false,
+      "expected": "source"
+    },
+    {
+      "name": "url",
+      "latex": "\\href{https://external.invalid/leak}{click}",
+      "display": false,
+      "expected": "source"
+    },
+    {
+      "name": "image",
+      "latex": "\\includegraphics{https://external.invalid/pixel}",
+      "display": false,
+      "expected": "source"
+    },
+    {
+      "name": "html",
+      "latex": "\\htmlStyle{color:red}{x}",
+      "display": false,
+      "expected": "source"
+    },
+    {
+      "name": "macro",
+      "latex": "\\def\\x{\\x}\\x",
+      "display": false,
+      "expected": "source"
+    },
+    {
+      "name": "depth",
+      "latex": "{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{x}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}",
+      "display": false,
+      "expected": "source"
+    },
+    {
+      "name": "literal",
+      "latex": "\\text{<script>alert(1)</script>}",
+      "display": false,
+      "expected": "rendered"
+    }
+  ]
+}

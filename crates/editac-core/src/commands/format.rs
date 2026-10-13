@@ -118,7 +118,8 @@ pub struct PreparedFormatBatch {
     edits: Vec<Edit>,
     blocks: BTreeMap<String, Any>,
 }
-fn url(raw: &str) -> Result<String, FormatError> {
+/// Shared inert-import URL admission. This does not fetch or mutate a document.
+pub fn normalize_link_url(raw: &str) -> Result<String, FormatError> {
     if raw.len() > MAX_LINK_BYTES {
         return Err(FormatError::ResourceLimit);
     }
@@ -173,6 +174,10 @@ fn url(raw: &str) -> Result<String, FormatError> {
         return Err(FormatError::ResourceLimit);
     }
     Ok(normalized)
+}
+
+fn url(raw: &str) -> Result<String, FormatError> {
+    normalize_link_url(raw)
 }
 fn value(command: &FormatCommand) -> Result<Option<Any>, FormatError> {
     match (command.mark, command.action, command.href.as_deref()) {

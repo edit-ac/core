@@ -15,7 +15,11 @@
     "packages/react"
   ],
   "scripts": {
+    "example:web": "node examples/web/serve.mjs",
+    "test:example:web": "node --test tests/browser/web-example.test.mjs",
     "build": "npm run build --workspaces",
+    "test:browser": "node scripts/test-browser.mjs",
+    "check:browser-baseline": "npm run build:wasm && npm run build && node --test tests/browser/baseline-runner.test.mjs && npm run test:browser -- baseline",
     "typecheck": "npm run typecheck --workspaces",
     "check:rust": "cargo fmt --all -- --check && cargo check --workspace --all-targets --locked --offline && cargo test --workspace --locked --offline",
     "check:packages": "npm run typecheck && npm run build && node scripts/check-package-exports.mjs",
@@ -23,11 +27,12 @@
     "check:interop": "node --test tests/interop.test.mjs",
     "check:fixtures": "node --test tests/fixtures.test.mjs",
     "check:schema": "node --test tests/schema-profile.test.mjs tests/schema-interop.test.mjs",
-    "check": "npm run check:rust && npm run check:packages && npm run check:protocol && npm run check:fixtures && npm run check:interop && npm run check:schema",
+    "check": "npm run check:rust && npm run check:packages && npm run check:protocol && npm run check:fixtures && npm run check:interop && npm run check:schema && npm run check:browser-baseline",
     "build:wasm": "node scripts/build-wasm.mjs",
     "check:wasm": "npm run build:wasm && node --test tests/wasm-load.test.mjs"
   },
   "devDependencies": {
+    "esbuild": "0.25.12",
     "playwright": "1.64.0",
     "typescript": "7.0.2",
     "y-protocols": "1.0.7",

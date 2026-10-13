@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>edit.ac · Web examples</title>
+  <link rel="stylesheet" href="/example/styles.css">
+  <script type="importmap">{"imports":{"@edit-ac/core":"/core/index.js","@edit-ac/web":"/web/index.js"}}</script>
+  <script type="module" src="/example/editor.mjs"></script>
+</head>
+<body>
+  <header class="site-header"><a class="brand" href="/">edit<span>.</span>ac</a><span class="badge">Web preview</span><a href="https://edit.ac/docs/">Documentation ↗</a></header>
+  <main>
+    <section class="intro"><p class="eyebrow">An editor you can try</p><h1>Start with a real document.</h1><p>Pick an example, put your cursor on the page, and make it yours.</p></section>
+    <div class="workspace">
+      <aside aria-label="Example documents"><p class="eyebrow">Examples</p><div id="examples"></div><p class="local-note">Everything runs in your browser. Edits stay in this tab and are cleared when you reload or switch examples. Export a copy to keep them.</p></aside>
+      <section class="document-panel" aria-label="Editor preview">
+        <div class="document-top"><div><p class="eyebrow">Your document</p><h2 id="document-title">Project kickoff</h2></div><span id="mode">Editable</span></div>
+        <div class="toolbar" role="group" aria-label="Document actions">
+          <button id="undo" disabled>Undo</button><button id="redo" disabled>Redo</button><span class="toolbar-spacer"></span><button id="read-only" aria-pressed="false" disabled>Read only</button><button id="reset" disabled>Reset example</button><button id="export" disabled>Export text ↓</button>
+        </div>
+        <div class="paper"><div id="editor" role="textbox" aria-label="Example document" aria-multiline="true" aria-describedby="editor-help" contenteditable="false" tabindex="0"></div></div>
+        <footer class="document-footer"><span id="status" role="status">Loading editor…</span><span id="word-count"></span></footer>
+      </section>
+    </div>
+    <p id="editor-help" class="help">Try typing, selecting text, splitting a paragraph with Enter, and undoing an edit. Use ⌘/Ctrl + B or I to format a selection.</p>
+    <section id="recovery" class="recovery" hidden><h2>Text kept for recovery</h2><p>An edit could not be applied. Copy this text before resetting or switching examples.</p><pre id="recovery-text"></pre></section>
+    <details class="about"><summary>About this preview</summary><p>This uses the current Rust/WASM engine and browser adapter from the source checkout, version 0.0.0. The public SDK is still in development. This preview has no account, server storage, collaboration, or AI calls. Text export preserves words and paragraph breaks; rich formatting stays in the editor.</p></details>
+  </main>
+</body>
+</html>

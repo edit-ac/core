@@ -1,4 +1,6 @@
 //! Fixed production oracles for post-transaction semantic batches and lifecycle.
+#[path = "support/extension_entry.rs"]
+mod extension_entry;
 #[path = "../../../fixtures/schema-v5/mapping.rs"]
 #[allow(dead_code)]
 mod m;
@@ -88,6 +90,262 @@ fn text(d: &Document, id: &str) -> String {
         .iter()
         .map(|r| r.text.as_str())
         .collect()
+}
+
+/// LOC-1.1: the storage consumer owns envelopes, not a live replica or callback.
+/// These checks exercise the same public boundary a journal adapter will use.
+mod storage_contract {
+    use super::*;
+    use editac_core::document::{DocumentError, ROOTS};
+    use yrs::{Doc, Map, OffsetKind, Options, ReadTxn, StateVector, Text, Transact, XmlTextPrelim};
+
+    #[derive(Clone)]
+    struct Entry {
+        writer: u32,
+        sequence: u64,
+        origin: String,
+        update: ReplayUpdate,
+    }
+    struct Journal {
+        checkpoint: InitializedCheckpoint,
+        entries: Rc<RefCell<Vec<Entry>>>,
+        _subscription: Subscription,
+    }
+    impl Journal {
+        fn attach(d: &mut Document) -> Self {
+            let checkpoint = d.checkpoint();
+            let entries = Rc::new(RefCell::new(Vec::new()));
+            let sink = entries.clone();
+            let subscription = d
+                .subscribe(PatchScope::Updates, move |_, patch| {
+                    let update = patch.update.as_ref().expect("update scope").clone();
+                    assert_eq!(update.identity, patch.identity);
+                    assert_eq!(patch.version, PATCH_VERSION);
+                    sink.borrow_mut().push(Entry {
+                        writer: patch.writer_id,
+                        sequence: patch.sequence,
+                        origin: patch.origin.clone(),
+                        update,
+                    });
+                    Ok(())
+                })
+                .unwrap();
+            Self {
+                checkpoint,
+                entries,
+                _subscription: subscription,
+            }
+        }
+        fn updates(&self) -> Vec<ReplayUpdate> {
+            self.entries
+                .borrow()
+                .iter()
+                .map(|e| e.update.clone())
+                .collect()
+        }
+        fn restore(&self, updates: &[ReplayUpdate]) -> Result<Document, DocumentError> {
+            Document::restore(&self.checkpoint.identity, &self.checkpoint, updates)
+        }
+    }
+
+    /// Frozen schema-v1 seed, fixed writer 11, UTF-16 marks and original pair.
+    /// Receivers restore these real CRDT bytes; they never reconstruct defaults.
+    fn legacy_seed() -> InitializedCheckpoint {
+        let d = Doc::with_options(Options {
+            client_id: yrs::block::ClientID::new(11),
+            offset_kind: OffsetKind::Utf16,
+            ..Options::default()
+        });
+        for root in ROOTS {
+            d.get_or_insert_map(root);
+        }
+        let kinds = d.get_or_insert_map(ROOTS[0]);
+        let texts = d.get_or_insert_map(ROOTS[1]);
+        let placements = d.get_or_insert_map(ROOTS[2]);
+        let pair = d.get_or_insert_map(ROOTS[4]);
+        {
+            let mut tx = d.transact_mut_with("prepared:storage-seed");
+            for (id, value, order, mark) in [
+                ("block-1", "a😀b", 0u32, "bold"),
+                ("block-2", "cאבd", 1u32, "code"),
+            ] {
+                kinds.insert(&mut tx, id, "list");
+                let text = texts.insert(&mut tx, id, XmlTextPrelim::new(value));
+                text.format(&mut tx, 1, 2, [(mark.into(), Any::Bool(true))].into());
+                placements.insert(
+                    &mut tx,
+                    id,
+                    m::arr(vec![Any::from("@root"), Any::from(order)]),
+                );
+            }
+            pair.insert(&mut tx, "pair", m::arr(vec![Any::from("original")]));
+        }
+        InitializedCheckpoint {
+            identity: DocumentIdentity::v1(
+                "99999999-9999-4999-8999-999999999999",
+                "aaaaaaaa-aaaa-4aaa-8aaa-999999999999",
+            )
+            .unwrap(),
+            initialized: true,
+            writer_id: 11,
+            bytes: d
+                .transact()
+                .encode_state_as_update_v1(&StateVector::default()),
+        }
+    }
+
+    #[test]
+    fn storage_contract_owned_patch_tail_survives_engine_disposal_and_reordering() {
+        let mut d = engine();
+        let journal = Journal::attach(&mut d);
+        let writer = d.writer_id();
+        insert(&mut d, A, 0, "LOCAL");
+        insert(&mut d, A, 5, "😀"); // depends on the preceding update
+        let anchor = d.anchor(A, U(7), Bias::Left).unwrap();
+        let updates = journal.updates();
+        let expected = text(&d, A);
+        assert_eq!(expected, format!("LOCAL😀{}", text(&engine(), A)));
+        let entries = journal.entries.borrow();
+        assert_eq!(entries.len(), 2);
+        for (index, entry) in entries.iter().enumerate() {
+            assert_eq!(entry.writer, writer);
+            assert_eq!(entry.sequence, index as u64 + 1);
+            assert_eq!(entry.origin, origin().as_str());
+            assert_eq!(entry.update.identity, journal.checkpoint.identity);
+            assert!(!entry.update.bytes.is_empty());
+        }
+        drop(entries);
+        drop(d);
+        let restored = journal
+            .restore(&[updates[1].clone(), updates[0].clone(), updates[1].clone()])
+            .unwrap();
+        assert_eq!(text(&restored, A), expected);
+        assert_eq!(text(&restored, B), text(&engine(), B));
+        assert!(matches!(
+            restored.resolve_anchor(&anchor).unwrap(),
+            Resolution::Position(p) if p.offset == U(7)
+        ));
+        assert_ne!(restored.writer_id(), writer);
+        assert_ne!(restored.writer_id(), journal.checkpoint.writer_id);
+        let peer = journal.restore(&updates).unwrap();
+        assert_ne!(peer.writer_id(), restored.writer_id());
+        assert_eq!(text(&peer, A), expected);
+    }
+
+    #[test]
+    fn storage_contract_checkpoint_coverage_and_repeated_tail_are_idempotent() {
+        let mut d = engine();
+        let journal = Journal::attach(&mut d);
+        insert(&mut d, A, 0, "BEFORE");
+        let covered = d.checkpoint();
+        insert(&mut d, B, 0, "AFTER");
+        let updates = journal.updates();
+        let expected_a = text(&d, A);
+        let expected_b = text(&d, B);
+        drop(d);
+        let restored = Document::restore(&covered.identity, &covered, &updates).unwrap();
+        assert_eq!(text(&restored, A), expected_a);
+        assert_eq!(text(&restored, B), expected_b);
+        let compact = restored.checkpoint();
+        let again = Document::restore(&compact.identity, &compact, &updates).unwrap();
+        assert_eq!(text(&again, A), expected_a);
+        assert_eq!(text(&again, B), expected_b);
+    }
+
+    #[test]
+    fn storage_contract_frozen_v1_marks_and_original_source_identities_survive() {
+        let seed = legacy_seed();
+        let mut d = Document::restore(&seed.identity, &seed, &[]).unwrap();
+        let journal = Journal::attach(&mut d);
+        let before = d.snapshot().unwrap();
+        insert(&mut d, "block-1", 4, "e\u{301}");
+        let updates = journal.updates();
+        drop(d);
+        let restored = journal.restore(&updates).unwrap();
+        assert_eq!(text(&restored, "block-1"), "a😀be\u{301}");
+        assert_eq!(text(&restored, "block-2"), "cאבd");
+        let after = restored.snapshot().unwrap();
+        for (index, mark) in [(0, "bold"), (1, "code")] {
+            assert_eq!(
+                after.visible[index].spans[0].identity,
+                before.visible[index].spans[0].identity
+            );
+            assert_eq!(
+                after.visible[index].runs[1].attributes.get(mark),
+                Some(&Any::Bool(true))
+            );
+        }
+        assert_eq!(restored.identity().schema, "editac.registry.v1");
+    }
+
+    #[test]
+    fn storage_contract_identity_failures_preserve_checkpoint_and_tail_for_recovery() {
+        let mut d = engine();
+        let journal = Journal::attach(&mut d);
+        insert(&mut d, A, 0, "KEPT");
+        let updates = journal.updates();
+        let original = updates[0].bytes.clone();
+        let expected = journal.checkpoint.identity.clone();
+        let mut wrong_document = expected.clone();
+        wrong_document.document_id = "11111111-1111-4111-8111-111111111111".into();
+        let mut wrong_epoch = expected.clone();
+        wrong_epoch.epoch = "22222222-2222-4222-8222-222222222222".into();
+        let mut missing = expected.clone();
+        missing.document_id.clear();
+        let wrong_schema = DocumentIdentity::v1(&expected.document_id, &expected.epoch).unwrap();
+        for (identity, error) in [
+            (wrong_document, DocumentError::WrongDocument),
+            (wrong_epoch, DocumentError::WrongEpoch),
+            (missing, DocumentError::InvalidMetadata),
+            (wrong_schema, DocumentError::UnsupportedProfile),
+        ] {
+            let mut checkpoint = journal.checkpoint.clone();
+            checkpoint.identity = identity.clone();
+            assert_eq!(
+                Document::restore(&expected, &checkpoint, &updates).err(),
+                Some(error.clone())
+            );
+            let invalid = ReplayUpdate {
+                identity,
+                bytes: original.clone(),
+            };
+            assert_eq!(journal.restore(&[invalid]).err(), Some(error));
+        }
+        assert_eq!(updates[0].bytes, original);
+        assert_eq!(text(&journal.restore(&updates).unwrap(), A), text(&d, A));
+    }
+
+    #[test]
+    fn storage_contract_corrupt_or_incomplete_tail_never_publishes_partial_content() {
+        let mut d = engine();
+        let journal = Journal::attach(&mut d);
+        insert(&mut d, A, 0, "FIRST");
+        insert(&mut d, A, 5, "SECOND");
+        let updates = journal.updates();
+        let mut corrupt = updates[1].clone();
+        corrupt.bytes = vec![255];
+        assert_eq!(
+            journal.restore(&[updates[0].clone(), corrupt]).err(),
+            Some(DocumentError::InvalidUpdate)
+        );
+        assert_eq!(
+            journal.restore(&[updates[1].clone()]).err(),
+            Some(DocumentError::IncompleteRestore)
+        );
+        let mut checkpoint = journal.checkpoint.clone();
+        checkpoint.bytes = vec![255];
+        assert_eq!(
+            Document::restore(&checkpoint.identity, &checkpoint, &updates).err(),
+            Some(DocumentError::InvalidUpdate)
+        );
+        checkpoint = journal.checkpoint.clone();
+        checkpoint.initialized = false;
+        assert_eq!(
+            Document::restore(&checkpoint.identity, &checkpoint, &updates).err(),
+            Some(DocumentError::MissingInitialization)
+        );
+        assert_eq!(text(&journal.restore(&updates).unwrap(), A), text(&d, A));
+    }
 }
 #[test]
 fn text_batch_has_exact_version_origin_bytes_node_and_utf16_range() {

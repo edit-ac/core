@@ -1,0 +1,635 @@
+{
+  "definitions": [
+    {
+      "type": "demo.highlight",
+      "version": 1,
+      "kind": "mark",
+      "attributes": {
+        "label": {
+          "type": "string",
+          "required": true,
+          "maxUtf16": 128
+        },
+        "active": {
+          "type": "boolean",
+          "required": false
+        },
+        "rank": {
+          "type": "number",
+          "required": false
+        }
+      },
+      "content": {
+        "type": "text",
+        "maxUtf16": 128
+      },
+      "fallback": {
+        "type": "text",
+        "source": "content"
+      }
+    },
+    {
+      "type": "demo.badge",
+      "version": 1,
+      "kind": "inline-atom",
+      "attributes": {
+        "label": {
+          "type": "string",
+          "required": true,
+          "maxUtf16": 128
+        },
+        "active": {
+          "type": "boolean",
+          "required": false
+        },
+        "rank": {
+          "type": "number",
+          "required": false
+        }
+      },
+      "content": {
+        "type": "text",
+        "maxUtf16": 128
+      },
+      "fallback": {
+        "type": "text",
+        "source": "content"
+      }
+    }
+  ],
+  "invalidDefinitions": [
+    {
+      "name": "type=badge",
+      "definition": {
+        "type": "badge",
+        "version": 1,
+        "kind": "mark",
+        "attributes": {
+          "label": {
+            "type": "string",
+            "required": true,
+            "maxUtf16": 128
+          },
+          "active": {
+            "type": "boolean",
+            "required": false
+          },
+          "rank": {
+            "type": "number",
+            "required": false
+          }
+        },
+        "content": {
+          "type": "text",
+          "maxUtf16": 128
+        },
+        "fallback": {
+          "type": "text",
+          "source": "content"
+        }
+      }
+    },
+    {
+      "name": "type=demo.Badge",
+      "definition": {
+        "type": "demo.Badge",
+        "version": 1,
+        "kind": "mark",
+        "attributes": {
+          "label": {
+            "type": "string",
+            "required": true,
+            "maxUtf16": 128
+          },
+          "active": {
+            "type": "boolean",
+            "required": false
+          },
+          "rank": {
+            "type": "number",
+            "required": false
+          }
+        },
+        "content": {
+          "type": "text",
+          "maxUtf16": 128
+        },
+        "fallback": {
+          "type": "text",
+          "source": "content"
+        }
+      }
+    },
+    {
+      "name": "version=0",
+      "definition": {
+        "type": "demo.highlight",
+        "version": 0,
+        "kind": "mark",
+        "attributes": {
+          "label": {
+            "type": "string",
+            "required": true,
+            "maxUtf16": 128
+          },
+          "active": {
+            "type": "boolean",
+            "required": false
+          },
+          "rank": {
+            "type": "number",
+            "required": false
+          }
+        },
+        "content": {
+          "type": "text",
+          "maxUtf16": 128
+        },
+        "fallback": {
+          "type": "text",
+          "source": "content"
+        }
+      }
+    },
+    {
+      "name": "version=1.5",
+      "definition": {
+        "type": "demo.highlight",
+        "version": 1.5,
+        "kind": "mark",
+        "attributes": {
+          "label": {
+            "type": "string",
+            "required": true,
+            "maxUtf16": 128
+          },
+          "active": {
+            "type": "boolean",
+            "required": false
+          },
+          "rank": {
+            "type": "number",
+            "required": false
+          }
+        },
+        "content": {
+          "type": "text",
+          "maxUtf16": 128
+        },
+        "fallback": {
+          "type": "text",
+          "source": "content"
+        }
+      }
+    },
+    {
+      "name": "version=4294967296",
+      "definition": {
+        "type": "demo.highlight",
+        "version": 4294967296,
+        "kind": "mark",
+        "attributes": {
+          "label": {
+            "type": "string",
+            "required": true,
+            "maxUtf16": 128
+          },
+          "active": {
+            "type": "boolean",
+            "required": false
+          },
+          "rank": {
+            "type": "number",
+            "required": false
+          }
+        },
+        "content": {
+          "type": "text",
+          "maxUtf16": 128
+        },
+        "fallback": {
+          "type": "text",
+          "source": "content"
+        }
+      }
+    },
+    {
+      "name": "kind=callback",
+      "definition": {
+        "type": "demo.highlight",
+        "version": 1,
+        "kind": "callback",
+        "attributes": {
+          "label": {
+            "type": "string",
+            "required": true,
+            "maxUtf16": 128
+          },
+          "active": {
+            "type": "boolean",
+            "required": false
+          },
+          "rank": {
+            "type": "number",
+            "required": false
+          }
+        },
+        "content": {
+          "type": "text",
+          "maxUtf16": 128
+        },
+        "fallback": {
+          "type": "text",
+          "source": "content"
+        }
+      }
+    },
+    {
+      "name": "content={'type': 'html', 'maxUtf16': 128}",
+      "definition": {
+        "type": "demo.highlight",
+        "version": 1,
+        "kind": "mark",
+        "attributes": {
+          "label": {
+            "type": "string",
+            "required": true,
+            "maxUtf16": 128
+          },
+          "active": {
+            "type": "boolean",
+            "required": false
+          },
+          "rank": {
+            "type": "number",
+            "required": false
+          }
+        },
+        "content": {
+          "type": "html",
+          "maxUtf16": 128
+        },
+        "fallback": {
+          "type": "text",
+          "source": "content"
+        }
+      }
+    },
+    {
+      "name": "content={'type': 'text', 'maxUtf16': 0}",
+      "definition": {
+        "type": "demo.highlight",
+        "version": 1,
+        "kind": "mark",
+        "attributes": {
+          "label": {
+            "type": "string",
+            "required": true,
+            "maxUtf16": 128
+          },
+          "active": {
+            "type": "boolean",
+            "required": false
+          },
+          "rank": {
+            "type": "number",
+            "required": false
+          }
+        },
+        "content": {
+          "type": "text",
+          "maxUtf16": 0
+        },
+        "fallback": {
+          "type": "text",
+          "source": "content"
+        }
+      }
+    },
+    {
+      "name": "fallback={'type': 'html', 'source': 'content'}",
+      "definition": {
+        "type": "demo.highlight",
+        "version": 1,
+        "kind": "mark",
+        "attributes": {
+          "label": {
+            "type": "string",
+            "required": true,
+            "maxUtf16": 128
+          },
+          "active": {
+            "type": "boolean",
+            "required": false
+          },
+          "rank": {
+            "type": "number",
+            "required": false
+          }
+        },
+        "content": {
+          "type": "text",
+          "maxUtf16": 128
+        },
+        "fallback": {
+          "type": "html",
+          "source": "content"
+        }
+      }
+    },
+    {
+      "name": "fallback={'type': 'text', 'source': 'url'}",
+      "definition": {
+        "type": "demo.highlight",
+        "version": 1,
+        "kind": "mark",
+        "attributes": {
+          "label": {
+            "type": "string",
+            "required": true,
+            "maxUtf16": 128
+          },
+          "active": {
+            "type": "boolean",
+            "required": false
+          },
+          "rank": {
+            "type": "number",
+            "required": false
+          }
+        },
+        "content": {
+          "type": "text",
+          "maxUtf16": 128
+        },
+        "fallback": {
+          "type": "text",
+          "source": "url"
+        }
+      }
+    },
+    {
+      "name": "attributes={'constructor': {'type': 'number', 'required': False}}",
+      "definition": {
+        "type": "demo.highlight",
+        "version": 1,
+        "kind": "mark",
+        "attributes": {
+          "constructor": {
+            "type": "number",
+            "required": false
+          }
+        },
+        "content": {
+          "type": "text",
+          "maxUtf16": 128
+        },
+        "fallback": {
+          "type": "text",
+          "source": "content"
+        }
+      }
+    },
+    {
+      "name": "attributes={'label': {'type': 'string', 'required': True, 'maxUtf16': 0}}",
+      "definition": {
+        "type": "demo.highlight",
+        "version": 1,
+        "kind": "mark",
+        "attributes": {
+          "label": {
+            "type": "string",
+            "required": true,
+            "maxUtf16": 0
+          }
+        },
+        "content": {
+          "type": "text",
+          "maxUtf16": 128
+        },
+        "fallback": {
+          "type": "text",
+          "source": "content"
+        }
+      }
+    },
+    {
+      "name": "attributes={'label': {'type': 'function', 'required': True}}",
+      "definition": {
+        "type": "demo.highlight",
+        "version": 1,
+        "kind": "mark",
+        "attributes": {
+          "label": {
+            "type": "function",
+            "required": true
+          }
+        },
+        "content": {
+          "type": "text",
+          "maxUtf16": 128
+        },
+        "fallback": {
+          "type": "text",
+          "source": "content"
+        }
+      }
+    },
+    {
+      "name": "attributes={'label': {'type': 'boolean', 'required': 'yes'}}",
+      "definition": {
+        "type": "demo.highlight",
+        "version": 1,
+        "kind": "mark",
+        "attributes": {
+          "label": {
+            "type": "boolean",
+            "required": "yes"
+          }
+        },
+        "content": {
+          "type": "text",
+          "maxUtf16": 128
+        },
+        "fallback": {
+          "type": "text",
+          "source": "content"
+        }
+      }
+    },
+    {
+      "name": "extra callback key",
+      "definition": {
+        "type": "demo.highlight",
+        "version": 1,
+        "kind": "mark",
+        "attributes": {
+          "label": {
+            "type": "string",
+            "required": true,
+            "maxUtf16": 128
+          },
+          "active": {
+            "type": "boolean",
+            "required": false
+          },
+          "rank": {
+            "type": "number",
+            "required": false
+          }
+        },
+        "content": {
+          "type": "text",
+          "maxUtf16": 128
+        },
+        "fallback": {
+          "type": "text",
+          "source": "content"
+        },
+        "execute": "alert(1)"
+      }
+    }
+  ],
+  "runs": [
+    {
+      "text": "Marked 😀",
+      "attributes": {
+        "module:demo.highlight": [
+          1,
+          {
+            "label": "important",
+            "active": true,
+            "rank": 3
+          }
+        ]
+      }
+    },
+    {
+      "text": "<img src=x onerror=alert(1)>",
+      "attributes": {
+        "module:demo.badge": [
+          1,
+          {
+            "label": "badge"
+          }
+        ]
+      }
+    },
+    {
+      "text": "Future version",
+      "attributes": {
+        "module:demo.badge": [
+          2,
+          {
+            "opaque": {
+              "keep": [
+                "original",
+                7
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "text": "Unknown label",
+      "attributes": {
+        "module:other.label": [
+          1,
+          {
+            "target": "host-id"
+          }
+        ]
+      }
+    }
+  ],
+  "invalidRuns": [
+    {
+      "text": "x",
+      "attributes": {
+        "module:demo.badge": [
+          1,
+          {}
+        ]
+      }
+    },
+    {
+      "text": "x",
+      "attributes": {
+        "module:demo.badge": [
+          1,
+          {
+            "label": false
+          }
+        ]
+      }
+    },
+    {
+      "text": "x",
+      "attributes": {
+        "module:demo.badge": [
+          1,
+          {
+            "label": "x",
+            "unknown": 3
+          }
+        ]
+      }
+    },
+    {
+      "text": "x",
+      "attributes": {
+        "module:demo.badge": [
+          1,
+          {
+            "label": "x",
+            "active": "yes"
+          }
+        ]
+      }
+    },
+    {
+      "text": "x",
+      "attributes": {
+        "module:demo.badge": [
+          1,
+          {
+            "label": "x"
+          },
+          "extra"
+        ]
+      }
+    },
+    {
+      "text": "x",
+      "attributes": {
+        "module:demo.badge": [
+          1,
+          null
+        ]
+      }
+    },
+    {
+      "text": "x",
+      "attributes": {
+        "module:demo.badge": [
+          1,
+          {
+            "label": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+          }
+        ]
+      }
+    },
+    {
+      "text": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+      "attributes": {
+        "module:demo.badge": [
+          1,
+          {
+            "label": "x"
+          }
+        ]
+      }
+    }
+  ]
+}

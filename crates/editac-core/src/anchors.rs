@@ -118,6 +118,11 @@ impl Anchor {
     pub fn source(&self) -> &str {
         &self.source
     }
+    /// Read-only parts for the ephemeral presence bridge. The receiving document
+    /// must validate lineage and resolve the original source before retaining it.
+    pub fn portable_parts(&self) -> (&str, &str, &StickyIndex) {
+        (&self.source, &self.source_identity, &self.position)
+    }
     pub fn bias(&self) -> Bias {
         self.bias
     }
@@ -184,7 +189,7 @@ fn source<T: ReadTxn>(txn: &T, id: &str) -> Option<XmlTextRef> {
 fn text_identity(text: &XmlTextRef) -> String {
     format!("{:?}", XmlOut::Text(text.clone()).id())
 }
-fn capture<T: ReadTxn>(
+pub(crate) fn capture<T: ReadTxn>(
     txn: &T,
     identity: &DocumentIdentity,
     snapshot: &Snapshot,
@@ -398,6 +403,30 @@ impl Document {
             offset,
             bias,
         )
+    }
+    pub fn import_presence_anchor(
+        &self,
+        identity: DocumentIdentity,
+        source: String,
+        source_identity: String,
+        position: StickyIndex,
+    ) -> Result<Anchor, AnchorError> {
+        let bias = if position.assoc == Assoc::Before {
+            Bias::Left
+        } else {
+            Bias::Right
+        };
+        let anchor = Anchor {
+            identity,
+            source,
+            source_identity,
+            position,
+            bias,
+        };
+        if !matches!(self.resolve_anchor(&anchor)?, Resolution::Position(_)) {
+            return Err(AnchorError::Unresolvable);
+        }
+        Ok(anchor)
     }
     pub fn resolve_anchor(&self, anchor: &Anchor) -> Result<Resolution, AnchorError> {
         Ok(resolve(
