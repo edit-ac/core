@@ -109,7 +109,7 @@ test('optional images/tables/callouts retain registered content and disabled sou
         assert.equal(prepared.source,source);
       }
       if (!source.startsWith('<script>') && !options.images) assert(prepared.diagnostics.length > 0);
-      if (!source.startsWith('<script>') && options.images) assert(prepared.blocks.some(b=>b.attributes?.type==='content')); 
+      if (!source.startsWith('<script>') && options.images) assert(prepared.blocks.some(b=>b.attributes?.type==='content'));
     }
   }
 });

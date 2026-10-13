@@ -24,5 +24,5 @@ for(const pkg of metadata.packages.sort((a,b)=>a.name.localeCompare(b.name))){
  }
  for(const file of files)notices.push(file+'\n'+await readFile(join(directory,file),'utf8')+'\n');
 }
-await writeFile(new URL(markdown ? '../packages/markdown/THIRD-PARTY-NOTICES.txt' : '../packages/core/THIRD-PARTY-NOTICES.txt',import.meta.url),notices.join(''));
+await writeFile(new URL(markdown ? '../packages/markdown/THIRD-PARTY-NOTICES.txt' : '../packages/core/THIRD-PARTY-NOTICES.txt',import.meta.url),notices.join('').trimEnd()+'\n');
 console.log(`WASM notices: ${ids.size} locked packages`);
