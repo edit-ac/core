@@ -1,0 +1,16 @@
+---
+export interface Props {
+  /** Stable host key passed to the browser options resolver; never document JSON. */
+  name: string;
+  label?: string;
+  readOnly?: boolean;
+}
+const { name, label = 'Editor', readOnly = false } = Astro.props;
+---
+<edit-ac-editor data-editor-name={name} data-read-only={String(readOnly)}>
+  <div data-editor-surface aria-label={label}></div>
+</edit-ac-editor>
+<script>
+  import { defineEditorHost } from '@edit-ac/astro';
+  defineEditorHost();
+</script>

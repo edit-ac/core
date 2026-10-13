@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "fixtureVersion": 1,
+  "warmups": 2,
+  "runs": 5,
+  "samples": 50,
+  "formatSamples": 10,
+  "interKeyDelayMs": 12,
+  "memoryEdits": 1000,
+  "mountCycles": 5,
+  "budgets": {
+    "typing.small": 8,
+    "typing.medium": 8,
+    "typing.large": 16,
+    "typing.large-structured": 16,
+    "load.cold": 300,
+    "editable.medium.warm": 50,
+    "editable.large.cold": 500,
+    "paste.large": 200,
+    "bundle.full": 409600,
+    "bundle.minimal": 153600,
+    "bundle.react": 409600
+  },
+  "hardTypingLimitMs": 25,
+  "bundleGrowthPercent": 5,
+  "latencyGrowthPercent": 20
+}

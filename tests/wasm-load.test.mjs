@@ -30,8 +30,8 @@ before(async () => {
   await writeFile(path.join(consumer, 'package.json'), JSON.stringify({ private: true, type: 'module' }));
   run('npm', ['install', '--ignore-scripts', '--offline', '--no-audit', '--no-fund', path.join(temp, metadata.filename)], consumer);
   packed = path.join(consumer, 'node_modules/@edit-ac/core');
-  const wasm = await readFile(path.join(packed, 'dist/wasm/editac_wasm_bg.wasm'));
-  assert.deepEqual(wasm, await readFile(path.join(root, 'packages/core/dist/wasm/editac_wasm_bg.wasm')));
+  const wasm = await readFile(path.join(packed, 'dist/wasm-fixture/editac_wasm_bg.wasm'));
+  assert.deepEqual(wasm, await readFile(path.join(root, 'packages/core/dist/wasm-fixture/editac_wasm_bg.wasm')));
   facts.pack = { filename: metadata.filename, integrity: metadata.integrity, files: metadata.files.map(f => f.path), bytes: metadata.size };
   facts.temp = temp;
   server = createServer(async (req, res) => {
@@ -81,7 +81,7 @@ test('built and packed SSR imports perform no browser access, fetch or WASM init
       const runtime = await import(${JSON.stringify(mode === 'built' ? new URL('../packages/core/dist/index.js', import.meta.url).href : '@edit-ac/core')});
       assert.deepEqual(Object.keys(runtime), ['EngineError', 'init']);
       await assert.rejects(runtime.init(''), /nonempty/);
-      ${mode === 'packed' ? "assert.ok(import.meta.resolve('@edit-ac/core/wasm').endsWith('/dist/wasm/editac_wasm_bg.wasm'));" : ''}
+      ${mode === 'packed' ? "assert.ok(import.meta.resolve('@edit-ac/core/fixture/wasm').endsWith('/dist/wasm-fixture/editac_wasm_bg.wasm'));" : ''}
     `;
     const scriptPath = path.join(consumer, 'ssr.mjs');
     await writeFile(scriptPath, script);
@@ -94,7 +94,7 @@ async function loadFixture(mode, asset) {
   try {
     await page.goto(base);
     return await page.evaluate(async ({ mode, asset }) => {
-      const { init } = await import(`/${mode}/index.js`);
+      const { initFixture: init } = await import(`/${mode}/fixture.js`);
       const first = init(asset);
       const samePromise = first === init(asset);
       const runtime = await first;
@@ -110,7 +110,7 @@ async function loadFixture(mode, asset) {
   } finally { await page.close(); }
 }
 
-for (const [mode, asset] of [['built', '/assets/supplied.wasm'], ['packed', '/packed/wasm/editac_wasm_bg.wasm']]) {
+for (const [mode, asset] of [['built', '/assets/supplied.wasm'], ['packed', '/packed/wasm-fixture/editac_wasm_bg.wasm']]) {
   test(`${mode} browser consumer loads actual compiled WASM at the explicit asset URL`, async () => {
     const start = requests.length;
     const result = await loadFixture(mode, asset);
@@ -140,7 +140,7 @@ test('failed asset initialization is observable and retry creates no document un
   try {
     await page.goto(base);
     const result = await page.evaluate(async () => {
-      const { init } = await import('/built/index.js');
+      const { initFixture: init } = await import('/built/fixture.js');
       let failed = false;
       try { await init('/missing.wasm'); } catch { failed = true; }
       const runtime = await init('/assets/supplied.wasm');
@@ -155,7 +155,7 @@ test('compiled bridge applies JS-authored marked Unicode v1 updates and rejects 
   try {
     await page.goto(base);
     const initial = await page.evaluate(async () => {
-      const runtime = await (await import('/built/index.js')).init('/assets/supplied.wasm');
+      const runtime = await (await import('/built/fixture.js')).initFixture('/assets/supplied.wasm');
       globalThis.fixture = runtime.createFixture();
       return Array.from(globalThis.fixture.update_v1());
     });
@@ -203,7 +203,7 @@ test('packed binary and glue bytes are measured and generated output does not re
     (facts.artifacts ??= []).push({ name, bytes });
   }
   assert.ok(facts.pack.files.includes('dist/index.d.ts'));
-  assert.ok(facts.pack.files.includes('dist/wasm/editac_wasm_bg.wasm'));
+  assert.ok(facts.pack.files.includes('dist/wasm-fixture/editac_wasm_bg.wasm'));
   assert.ok(!facts.pack.files.includes('dist/wasm/package.json'));
 });
 
@@ -238,4 +238,17 @@ test('built and packed browser consumers own real engine plans, anchors and hist
       facts.cases.push({ mode, semanticEngine: true, command: 'unicode replacement/undo/redo/disposal' });
     } finally { await page.close(); }
   }
+});
+
+test('qualification entry rejects production WASM instead of returning unusable fixture methods', async () => {
+  const page = await browser.newPage();
+  try {
+    await page.goto(base);
+    const result = await page.evaluate(async () => {
+      const { initFixture } = await import('/built/fixture.js');
+      try { await initFixture('/built/wasm/editac_wasm_bg.wasm'); return 'unexpected success'; }
+      catch (error) { return error.message; }
+    });
+    assert.match(result, /Foundation fixture bindings are required/);
+  } finally { await page.close(); }
 });

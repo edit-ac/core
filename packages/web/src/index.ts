@@ -1,5 +1,8 @@
-export { mountEditor, BrowserEditor } from './editor.js';
-export type { EditorOptions, DestroyResult } from './editor.js';
+export { mountEditor, BrowserEditor, CommandChain } from './editor.js';
+export type { EditorOptions, DestroyResult, AttachSyncOptions, SyncAttachment } from './editor.js';
+export { createEditor, taskPreset } from './sdk.js';
+export type { TaskPresetOptions } from './sdk.js';
+export { CheckpointStorage } from './storage/checkpoint.js';
 export { mountEditorSurface } from './surface.js';
 export type { EditorSurface, EditorSurfaceOptions } from './surface.js';
 export type { EditorState, PreviewTag } from './lifecycle.js';

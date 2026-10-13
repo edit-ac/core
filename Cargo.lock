@@ -86,6 +86,7 @@ dependencies = [
 name = "editac-core"
 version = "0.0.0"
 dependencies = [
+ "serde_json",
  "unicode-segmentation",
  "url",
  "yrs",

@@ -2,7 +2,7 @@
   "name": "@edit-ac/web",
   "version": "0.0.0",
   "private": true,
-  "description": "Future edit.ac browser input, selection, and incremental DOM adapter; scaffold only",
+  "description": "Framework-independent editor surface, storage, synchronization and optional modules",
   "license": "Apache-2.0",
   "type": "module",
   "repository": {
@@ -13,7 +13,8 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "NOTICE"
   ],
   "types": "./dist/index.d.ts",
   "exports": {
@@ -34,5 +35,8 @@
   },
   "devDependencies": {
     "katex": "0.19.0"
+  },
+  "dependencies": {
+    "@edit-ac/core": "0.0.0"
   }
 }

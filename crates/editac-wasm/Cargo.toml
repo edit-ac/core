@@ -11,6 +11,10 @@ publish.workspace = true
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[features]
+default = []
+foundation-fixture = []
+
 [dependencies]
 editac-core = { path = "../editac-core" }
 editac-markdown = { path = "../editac-markdown" }

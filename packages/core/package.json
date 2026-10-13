@@ -13,7 +13,8 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "THIRD-PARTY-NOTICES.txt"
   ],
   "types": "./dist/index.d.ts",
   "exports": {
@@ -22,7 +23,13 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
-    "./wasm": "./dist/wasm/editac_wasm_bg.wasm"
+    "./wasm": "./dist/wasm/editac_wasm_bg.wasm",
+    "./fixture": {
+      "types": "./dist/fixture.d.ts",
+      "import": "./dist/fixture.js",
+      "default": "./dist/fixture.js"
+    },
+    "./fixture/wasm": "./dist/wasm-fixture/editac_wasm_bg.wasm"
   },
   "scripts": {
     "build": "tsc --project tsconfig.json",

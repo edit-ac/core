@@ -8,3 +8,13 @@
 .env
 .env.*
 !.env.example
+
+/benchmark-results/
+/regression-results/
+/examples/astro/node_modules/
+/examples/astro/.astro/
+/examples/astro/dist-*/
+/examples/astro/public/engine.wasm
+
+/examples/task-editor/react-built.mjs
+/examples/task-editor/wasm/
