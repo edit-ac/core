@@ -40,6 +40,36 @@
       "artifacts": [
         "profiles-inventory.json"
       ]
+    },
+    "profile-producers": {
+      "tests": [
+        "tests/architecture/profile-producers/producers.test.mjs"
+      ],
+      "inputs": [
+        "contracts/capabilities.schema.json",
+        "contracts/profiles/producers.json",
+        "contracts/profiles/portable-editor-v5.json",
+        "contracts/profiles/README.md",
+        "scripts/profile-producers.mjs",
+        "scripts/release-profile.mjs",
+        "scripts/capability-contract.mjs",
+        "scripts/contract-schema.mjs",
+        "native/ios/capability.json",
+        "native/android/capability.json",
+        "tests/architecture/profile-producers/fixtures/README.md",
+        "tests/architecture/profile-producers/fixtures/manifest.json",
+        "tests/architecture/profile-producers/fixtures/native-read.json",
+        "tests/architecture/profile-producers/fixtures/native-write.json",
+        "tests/architecture/profile-producers/fixtures/package.json",
+        "tests/architecture/profile-producers/fixtures/policy.json",
+        "tests/architecture/profile-producers/fixtures/profile.json",
+        "tests/architecture/profile-producers/fixtures/receipt.json",
+        "native/desktop/capability.json"
+      ],
+      "artifacts": [
+        "profile-producers-inventory.json",
+        "release-profile.json"
+      ]
     }
   },
   "components": [

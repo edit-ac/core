@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "producers": [
+    {
+      "profile": {
+        "repository": "core",
+        "path": "tests/architecture/profile-producers/fixtures/profile.json",
+        "sha256": "7b676d9bdedba2a15d279ab00eb28b0e7123bcc5c3605c16e3f5e0a0dc66450c"
+      },
+      "observation": null,
+      "qualification": {
+        "policy": {
+          "repository": "core",
+          "path": "tests/architecture/profile-producers/fixtures/policy.json",
+          "sha256": "7ee3343730623b81fa6c8a0fb83b72d1f76db9879ff5d8cee5afabb32954ace7"
+        },
+        "receipt": {
+          "repository": "core",
+          "path": "tests/architecture/profile-producers/fixtures/receipt.json",
+          "sha256": "e5e371042b5e675d4a76b22c1e056a955777472d46d6b3b94e9bb4f56d3dafae"
+        }
+      }
+    }
+  ]
+}
