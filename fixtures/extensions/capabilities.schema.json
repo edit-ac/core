@@ -1,0 +1,336 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:edit-ac:extension-capabilities:v1",
+  "title": "Portable extension capability and platform obligation matrix v1",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "parent": {
+      "const": "EXT-1.7"
+    },
+    "scope": {
+      "type": "string",
+      "minLength": 1
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "preservation",
+          "view",
+          "edit",
+          "copy",
+          "markdown",
+          "accessibility",
+          "rendering"
+        ]
+      },
+      "minItems": 7,
+      "uniqueItems": true
+    },
+    "modules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "slash",
+              "references",
+              "reorder",
+              "images",
+              "tables",
+              "math"
+            ]
+          },
+          "descriptor": {
+            "type": "string",
+            "minLength": 1
+          },
+          "keyboardFocus": {
+            "type": "string",
+            "minLength": 1
+          },
+          "fallback": {
+            "type": "string",
+            "minLength": 1
+          },
+          "unsupported": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "id",
+          "descriptor",
+          "keyboardFocus",
+          "fallback",
+          "unsupported"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 6,
+      "uniqueItems": true
+    },
+    "hosts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "browser",
+              "terminal",
+              "swift-ios",
+              "kotlin-android",
+              "desktop"
+            ]
+          },
+          "roadmap": {
+            "type": "string",
+            "minLength": 1
+          },
+          "actualPlatformEvidence": {
+            "const": "pending-downstream"
+          },
+          "qualification": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id",
+          "roadmap",
+          "actualPlatformEvidence",
+          "qualification"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 5,
+      "uniqueItems": true
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "browser-proof",
+              "portable-preservation",
+              "portable-codec",
+              "headless-protocol"
+            ]
+          },
+          "fixtureId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "module": {
+            "type": "string",
+            "minLength": 1
+          },
+          "capability": {
+            "type": "string",
+            "minLength": 1
+          },
+          "fixturePath": {
+            "type": "string",
+            "minLength": 1
+          },
+          "engine": {
+            "type": "string",
+            "enum": [
+              "chromium",
+              "firefox",
+              "webkit"
+            ]
+          },
+          "host": {
+            "type": "string",
+            "minLength": 1
+          },
+          "obligation": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "path",
+          "sha256",
+          "kind",
+          "fixtureId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "cells": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "module": {
+            "type": "string",
+            "minLength": 1
+          },
+          "host": {
+            "type": "string",
+            "minLength": 1
+          },
+          "capability": {
+            "type": "string",
+            "minLength": 1
+          },
+          "required": {
+            "type": "string",
+            "enum": [
+              "preservation",
+              "rich-parity",
+              "fallback",
+              "document-behavior"
+            ]
+          },
+          "requirement": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "portable-qualified",
+              "browser-mechanics-qualified",
+              "pending-platform",
+              "fallback-only",
+              "document-behavior"
+            ]
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0,
+            "uniqueItems": true
+          },
+          "presenterFixtures": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "owner": {
+            "type": "object",
+            "properties": {
+              "roadmap": {
+                "type": "string",
+                "minLength": 1
+              },
+              "gates": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "minItems": 1,
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "roadmap",
+              "gates"
+            ],
+            "additionalProperties": false
+          },
+          "fallback": {
+            "type": "object",
+            "properties": {
+              "preservesUnknown": {
+                "const": true
+              },
+              "richParity": {
+                "const": false
+              },
+              "behavior": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "preservesUnknown",
+              "richParity",
+              "behavior"
+            ],
+            "additionalProperties": false
+          },
+          "limitation": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id",
+          "module",
+          "host",
+          "capability",
+          "required",
+          "requirement",
+          "status",
+          "evidence",
+          "presenterFixtures",
+          "owner",
+          "fallback",
+          "limitation"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 210,
+      "uniqueItems": true
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "parent",
+    "scope",
+    "capabilities",
+    "modules",
+    "hosts",
+    "inputs",
+    "evidence",
+    "cells"
+  ],
+  "additionalProperties": false
+}
