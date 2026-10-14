@@ -19,10 +19,13 @@ class Locks {
  * Raw-port cases bind their own real tokens; driver cases route commits through
  * the same lifecycle. No fixture setup commit is admitted to the journal.
  */
-export async function storageHarness(runtime, initial, { attachDriver = true } = {}) {
-  const seed = new SemanticDriver(runtime, initial);
-  let checkpoint;
-  try { checkpoint = seed.engine.checkpoint(); } finally { seed.dispose(); }
+export async function storageHarness(runtime, initial, { attachDriver = true, checkpoint: suppliedCheckpoint } = {}) {
+  let checkpoint = suppliedCheckpoint;
+  if (!checkpoint) {
+    const seed = new SemanticDriver(runtime, initial);
+    try { checkpoint = seed.engine.checkpoint(); } finally { seed.dispose(); }
+  }
+  assert.ok(!attachDriver || initial, "driver binding requires an authored initial state");
   const locks = new Locks(), db = new PreparedIndexedDB();
   const writer = await StorageWriter.restore(runtime, locks, checkpoint.identity, checkpoint);
   let journal, lifecycle, subscription, stop;
