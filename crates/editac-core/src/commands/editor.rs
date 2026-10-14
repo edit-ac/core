@@ -356,6 +356,38 @@ impl Document {
         for id in selected_atoms {
             m::set(&stage.doc, 4, &id, BlockAttributes::Paragraph.tuple());
         }
+        // Ordinary joins require identical code witnesses. A fragment replaces
+        // the selected range and supplies its own final presentation, so align
+        // only selected tail owners on this disposable replica before joining.
+        // Original sources/cuts remain intact; failed staging never reaches live
+        // content and undo restores the complete entry presentation.
+        let inherited = nodes[first]
+            .block_attributes
+            .clone()
+            .unwrap_or(BlockAttributes::Paragraph);
+        let mut presentations = Vec::new();
+        for node in nodes.iter().take(last + 1).skip(first + 1) {
+            let attributes = node.block_attributes.as_ref();
+            if (matches!(inherited, BlockAttributes::Code(_))
+                || matches!(attributes, Some(BlockAttributes::Code(_))))
+                && attributes != Some(&inherited)
+            {
+                let command = match &inherited {
+                    BlockAttributes::Code(language) => super::blocks::BlockCommand::SetCode {
+                        owner: node.id.clone(),
+                        language: language.clone(),
+                    },
+                    _ => super::blocks::BlockCommand::SetParagraph {
+                        owner: node.id.clone(),
+                    },
+                };
+                presentations.push(EditorCommand::BlockCommand(command));
+            }
+        }
+        if !presentations.is_empty() {
+            let plan = stage.prepare_editor(&presentations, origin)?;
+            stage.commit_editor(plan)?;
+        }
         let insertion = stage
             .anchor(
                 &start.node,

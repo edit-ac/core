@@ -11,7 +11,7 @@ import { variantStorage } from './variant-storage-harness.mjs';
 export function registerVariantTests({ withStorage = false } = {}) {
 
 const output = process.env.EDITAC_EDITING_OUTPUT;
-const facts = { child: withStorage ? 'RGS-1.2-C18' : 'RGS-1.2-C1', parent: 'RGS-1.2', layer: withStorage ? 'real packed-WASM + production LocalStorageLifecycle/StorageWriter/UpdateJournal + prepared IndexedDB' : 'real packed-WASM semantic regression variants', profile: withStorage ? { ...semanticProfile, persistence: 'actual journal enqueue/local completion; prepared IndexedDB delivery', clock: 'fixed driver clock 0; isolated default history groups' } : semanticProfile, fixtureHashes: loadSuite().hashes, cases: [], negativeControls: [], exclusions: ['Mixed code/text cross-owner paste is rejected: unqualified REG-07 boundary', 'History selection bookmark/result remains unbound', 'Cross-owner C2 cases retain original failed evidence and are not selected for C18', 'No alignment or atom profile binding', ...(withStorage ? [] : ['Journal/persistence unattached']), 'No browser/native gesture/device qualification'] };
+const facts = { child: withStorage ? 'RGS-1.2-C18' : 'RGS-1.2-C1', parent: 'RGS-1.2', layer: withStorage ? 'real packed-WASM + production LocalStorageLifecycle/StorageWriter/UpdateJournal + prepared IndexedDB' : 'real packed-WASM semantic regression variants', profile: withStorage ? { ...semanticProfile, persistence: 'actual journal enqueue/local completion; prepared IndexedDB delivery', clock: 'fixed driver clock 0; isolated default history groups' } : semanticProfile, fixtureHashes: loadSuite().hashes, cases: [], negativeControls: [], exclusions: ['History selection bookmark/result remains unbound', 'Cross-owner C2 cases retain original failed evidence and are not selected for C18', 'No alignment or atom profile binding', ...(withStorage ? [] : ['Journal/persistence unattached']), 'No browser/native gesture/device qualification'] };
 let pack, runtime;
 before(async () => {
   assert.ok(output, 'EDITAC_EDITING_OUTPUT must identify a fresh evidence directory');
@@ -132,12 +132,47 @@ if (!withStorage) for (const backward of [false, true]) {
   const points = [{ block: 'p1', offset: 1 }, { block: 'p2', offset: 1 }];
   const initial = state([block('p1', 'xy', 'code'), block('p2', 'wz')], { anchor: points[backward ? 1 : 0], focus: points[backward ? 0 : 1], affinity: 'forward' });
   caseTest(`REG-07 selected-text-code-boundary/${backward ? 'backward' : 'forward'}/pre-content-undo`, initial, async (d, fact) => {
-    const originals = d.engine.read().visible;
-    await checkpoint(fact, d.act({ type: 'pasteFragment', blocks: pre(), newBlockIds: ['p3', 'p4'] }), expected(state([block('p1', 'xA', 'code'), block('p3', '\n'), block('p4', 'Bz', 'code')], select(1, 1, 'p4'))));
-    assert.equal(d.engine.history({ type: 'state' }).undoGroups, 1);
-    d.engine.history({ type: 'undo' }); const restored = d.engine.read().visible;
-    assert.equal(restored.length, 2);
-    restored.forEach((node, i) => { assert.equal(node.id, originals[i].id); assert.deepEqual(node.runs, originals[i].runs); assert.deepEqual(node.blockAttributes, originals[i].blockAttributes); }); fact.checkpoints++;
+    const originals = d.engine.read().visible, before = d.frozen(); let events = 0;
+    const subscription = d.engine.subscribe({ type: 'updates' }, () => events++);
+    try {
+      const anchors = points.map(p => d.engine.anchor(originals[p.block === 'p1' ? 0 : 1].id, p.offset, 'right'));
+      try {
+        const range = { anchor: anchors[backward ? 1 : 0], focus: anchors[backward ? 0 : 1] };
+        const invalid = pre(); invalid[2].attributes = { type: 'code', language: 'invalid language!' };
+        const request = { kind: 'fragment', origin: 'local:rgs:rejected-cross-owner', range, blocks: invalid };
+        assert.equal(d.engine.can(request), false); assert.throws(() => d.engine.prepare(request));
+        assert.deepEqual(d.frozen(), before); assert.equal(events, 0); fact.checkpoints++;
+      } finally { anchors.forEach(a => d.engine.releaseAnchor(a)); }
+      const wanted = expected(state([block('p1', 'xA', 'code'), block('p3', '\n'), block('p4', 'Bz', 'code')], select(1, 1, 'p4')));
+      const actual = d.act({ type: 'pasteFragment', blocks: pre(), newBlockIds: ['p3', 'p4'] });
+      await checkpoint(fact, actual, wanted);
+      assert.equal(actual.revision, before.snapshot.revision + 1); assert.equal(events, 1);
+      assert.equal(d.engine.history({ type: 'state' }).undoGroups, 1);
+      const pasted = d.engine.read().visible;
+      assert.equal(pasted[0].id, originals[0].id);
+      assert.equal(pasted[0].spans[0].source, originals[0].spans[0].source);
+      assert.equal(pasted[0].spans[0].identity, originals[0].spans[0].identity);
+      const suffix = originals[1].spans.at(-1);
+      assert.ok(pasted[2].spans.some(span => span.source === suffix.source && span.identity === suffix.identity));
+      for (const [name, corrupt] of [
+        ['prefix', e => e.state.blocks[0].text = 'A'], ['whitespace', e => e.state.blocks[1].text = ''],
+        ['suffix', e => e.state.blocks[2].text = 'B'], ['caret', e => e.state.selection.focus.offset = 0],
+        ['commits', e => e.effects.localCommits = 2],
+      ]) {
+        const wrong = structuredClone(wanted); corrupt(wrong);
+        assert.throws(() => assertCheckpoint(actual, wrong), assert.AssertionError);
+        facts.negativeControls.push(`${fact.id}/${name}`); fact.controls++; fact.checkpoints++;
+      }
+      d.engine.history({ type: 'undo' }); const restored = d.engine.read().visible;
+      assert.equal(events, 2); assert.equal(restored.length, 2);
+      restored.forEach((node, i) => {
+        assert.equal(node.id, originals[i].id); assert.deepEqual(node.runs, originals[i].runs);
+        assert.deepEqual(node.blockAttributes, originals[i].blockAttributes); assert.deepEqual(node.spans, originals[i].spans);
+      }); fact.checkpoints++;
+      d.engine.history({ type: 'redo' }); assert.equal(events, 3);
+      assert.deepEqual(d.engine.read().visible, pasted); assert.deepEqual(d.snapshot(), wanted.state); fact.checkpoints++;
+      await checkpoint(fact, d.act({ type: 'insertText', text: '!' }), expected(state([wanted.state.blocks[0], wanted.state.blocks[1], block('p4', 'B!z', 'code')], select(2, 2, 'p4'))));
+    } finally { subscription.dispose(); }
   });
 }
 

@@ -909,6 +909,24 @@ fn selected_pre(in_code: bool, cross_owner: bool, backward: bool) {
             Ok(())
         })
         .unwrap();
+    if cross_owner {
+        // A clipboard-only staging repair must not broaden ordinary Join.
+        assert!(
+            d.prepare_editor(
+                &[EditorCommand::Join {
+                    first: originals[0].id.clone(),
+                    second: originals[1].id.clone(),
+                }],
+                &origin
+            )
+            .is_err()
+        );
+        let mut invalid = fragments.clone();
+        invalid[2].attributes = Some(BlockAttributes::Code("invalid language!".into()));
+        assert!(d.prepare_fragment(&selection, &invalid, &origin).is_err());
+        assert_eq!(frozen(&d), before);
+        assert_eq!(count.get(), 0);
+    }
     let plan = d.prepare_fragment(&selection, &fragments, &origin).unwrap();
     assert_eq!(
         frozen(&d),
@@ -924,6 +942,15 @@ fn selected_pre(in_code: bool, cross_owner: bool, backward: bool) {
     assert_eq!(pasted.len(), 3);
     assert_eq!(pasted[0].id, originals[0].id);
     assert_eq!(pasted[0].spans[0].source, originals[0].spans[0].source);
+    assert_eq!(pasted[0].spans[0].identity, originals[0].spans[0].identity);
+    let suffix_source = originals.last().unwrap().spans.last().unwrap();
+    assert!(
+        pasted[2]
+            .spans
+            .iter()
+            .any(|span| span.source == suffix_source.source
+                && span.identity == suffix_source.identity)
+    );
     for (node, text) in pasted.iter().zip(["xA", "\n", "Bz"]) {
         assert_eq!(
             node.runs
@@ -958,6 +985,7 @@ fn selected_pre(in_code: bool, cross_owner: bool, backward: bool) {
         assert_eq!(node.id, old.id);
         assert_eq!(node.block_attributes, old.block_attributes);
         assert_eq!(node.runs, old.runs);
+        assert_eq!(node.spans, old.spans);
     }
     d.redo().unwrap().unwrap();
     assert_eq!(count.get(), 3);
@@ -967,6 +995,7 @@ fn selected_pre(in_code: bool, cross_owner: bool, backward: bool) {
         assert_eq!(node.id, old.id);
         assert_eq!(node.block_attributes, old.block_attributes);
         assert_eq!(node.runs, old.runs);
+        assert_eq!(node.spans, old.spans);
     }
 }
 #[test]
