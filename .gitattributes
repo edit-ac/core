@@ -1,0 +1,3 @@
+# Preserve exact third-party notice payloads, including upstream line endings.
+licenses/notices/*.txt -text -whitespace
+licenses/upstream/* -text -whitespace

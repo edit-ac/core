@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "locks": {
+    "cargo": "a5f7fc8c2fdc3cfd9fbecb25949bb77ce75022584617dfa47851a9b3160868bc",
+    "npm": "5273ea685692bdb01a99dd8b300d64904abf533c59da6fb325fc820b0d9f19fd"
+  },
+  "sources": {
+    "npm": {
+      "state": "available",
+      "owner": "Browser SDK/build maintainers",
+      "checkedAt": "2026-10-14T19:20:53.734Z",
+      "command": [
+        "npm",
+        "audit",
+        "--json",
+        "--ignore-scripts"
+      ],
+      "exit": 0,
+      "report": "licenses/advisory-reports/npm-20261014.json",
+      "sha256": "3d6a6791c214fd351672874806f4ac3ed69ec870872f16f4b7ab518d99bcbecd",
+      "findings": 0,
+      "source": "Configured npm registry audit endpoint (current full lock, including optional/tooling)"
+    },
+    "cargo": {
+      "state": "unavailable",
+      "owner": "Core portable/native maintainers",
+      "checkedAt": "2026-10-14T19:20:53.740Z",
+      "command": [
+        "cargo",
+        "audit",
+        "--locked"
+      ],
+      "reason": "cargo-audit is not installed; no current RustSec database was queried. License/lock checks are not an advisory scan.",
+      "releaseAction": "Install approved cargo-audit and capture current RustSec database revision plus exact-lock results before release."
+    },
+    "gradle": {
+      "state": "unavailable",
+      "owner": "Android SDK maintainers",
+      "checkedAt": "2026-10-14T19:20:53.740Z",
+      "command": [
+        "owning Android release advisory scan"
+      ],
+      "reason": "Probe locks only; no configured current Maven advisory checker or released Android artifact.",
+      "releaseAction": "Owning Android release must scan exact dependencies and retain JAR/POM notices before shipping."
+    }
+  }
+}

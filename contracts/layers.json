@@ -248,6 +248,32 @@
         "consumers-loading-inventory.json",
         "loading-graph.json"
       ]
+    },
+    "dependencies": {
+      "tests": [
+        "tests/architecture/dependencies/dependencies.test.mjs"
+      ],
+      "inputs": [
+        "scripts/dependency-inventory.mjs",
+        "scripts/check-dependencies.mjs",
+        "licenses/policy.json",
+        "licenses/advisories.json",
+        "licenses/inventory.json",
+        "licenses/README.md",
+        "licenses/upstream/uniffi-0.32.2.LICENSE",
+        "licenses/upstream/rsqlite-vfs-0.1.1.LICENSE",
+        "scripts/licenses/yrs-0.28.0.LICENSE",
+        "tests/architecture/dependencies/fixtures/missing-notice.json",
+        "tests/architecture/dependencies/README.md",
+        "Cargo.toml",
+        "Cargo.lock",
+        "package-lock.json",
+        "licenses/upstream/sqlite-3.53.2.NOTICE",
+        "licenses/advisory-reports/npm-20261014.json"
+      ],
+      "artifacts": [
+        "dependencies-inventory.json"
+      ]
     }
   },
   "components": [

@@ -1,0 +1,254 @@
+{
+  "version": 1,
+  "gate": "FIT-1.7",
+  "sourceRevision": "78b3fd484f3af6ca9ab61b5457cfb1aa45474dbba889a88e863949d9d631cb74",
+  "loadedPromptRevision": "2e18a98412c7",
+  "state": "Implemented and verified dependency/license maintenance boundary; no publication, certification, clean RustSec/Maven scan or native SDK support claim",
+  "implementationBaseRevision": "bd25fe24ea6f2bb24b8db316f51eba4a85734ac2",
+  "commands": [
+    {
+      "command": "node scripts/check-dependencies.mjs --check",
+      "path": "architecture-results/fit-1.7-20261014/standalone-1/receipt.json",
+      "sha256": "8b0dd1a627cdf99408d1865777f7b63b61c705ca7fa63534a15c75cf0740b9ee",
+      "exit": 0,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "skipped": 0
+      },
+      "implementation": {
+        "scripts/check-dependencies.mjs": "944705df843667a9552603e354c13fa56463b2830546298c6f6db4d01827a619",
+        "scripts/dependency-inventory.mjs": "1bdab6492516d7717523d3f71daf4988a01ff492b8aaf0901d6183946886b599",
+        "scripts/test-toolchain.mjs": "82546890ad57ba64eb0e7440967a65cc100ac71e78a31a43c4829377d66d3717",
+        "scripts/architecture-layers.mjs": "59c7f18e326871f7f2ff450fa99545d6cc5cf66f2e0bc06226bed5387639cbc4",
+        "licenses/policy.json": "6ca1ec8c70dd420de175ea2187435f34e8cebb01b613c8854a14c0877844428c",
+        "licenses/advisories.json": "e92930d2328c26b5d170ce30bc80835a5d526d1efab6696b96aa80d7952381f6"
+      },
+      "artifacts": {
+        "dependencies-inventory.json": "dca5d2ec03be7c8aa08ad2f15394e2e1ef9d705c6aee9feed016acec5c82079f"
+      }
+    },
+    {
+      "command": "node scripts/check-architecture.mjs --suite dependencies",
+      "path": "architecture-results/fit-1.7-20261014/validation-1/receipt.json",
+      "sha256": "f5dc63fcb3edc5fbe16a7ae4a9446a94eece14d007e7465d8333949b1c1a9f70",
+      "exit": 0,
+      "counts": {
+        "tests": 31,
+        "pass": 31,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "implementation": {
+        "scripts/architecture-layers.mjs": "59c7f18e326871f7f2ff450fa99545d6cc5cf66f2e0bc06226bed5387639cbc4",
+        "scripts/check-architecture.mjs": "bde9e1c38e3883a61d9ab5547359599e171634f10aafc085d9b48653742278a5",
+        "scripts/test-toolchain.mjs": "82546890ad57ba64eb0e7440967a65cc100ac71e78a31a43c4829377d66d3717",
+        "tests/architecture/dependencies/dependencies.test.mjs": "e038f9d13112ca99cc0b213219402080e2d2564193feafab18d6de5911ea552e",
+        "scripts/dependency-inventory.mjs": "1bdab6492516d7717523d3f71daf4988a01ff492b8aaf0901d6183946886b599",
+        "scripts/check-dependencies.mjs": "944705df843667a9552603e354c13fa56463b2830546298c6f6db4d01827a619",
+        "licenses/policy.json": "6ca1ec8c70dd420de175ea2187435f34e8cebb01b613c8854a14c0877844428c",
+        "licenses/advisories.json": "e92930d2328c26b5d170ce30bc80835a5d526d1efab6696b96aa80d7952381f6",
+        "licenses/inventory.json": "dca5d2ec03be7c8aa08ad2f15394e2e1ef9d705c6aee9feed016acec5c82079f",
+        "licenses/README.md": "a83d23d53a5e1988818585e0c1dc222d4f431ba8c9cd413ede4cd85d191271c7",
+        "licenses/upstream/uniffi-0.32.2.LICENSE": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5",
+        "licenses/upstream/rsqlite-vfs-0.1.1.LICENSE": "e1c1975c3474cce31722836f101a40ffaf1cc784e4d2f38ce3e77b9712934e78",
+        "scripts/licenses/yrs-0.28.0.LICENSE": "b6d81564e9c46473907bd3c09d4d5ab0f21cfbe6ac35d46daf1bdb0423182a5b",
+        "tests/architecture/dependencies/fixtures/missing-notice.json": "6f4758d6ad6447a492b25a049750c57c760adbf42038d365cf1fbc1aa331ec3a",
+        "tests/architecture/dependencies/README.md": "a46794942273181e23c36d875e3957ac2cd93fe96e02ef1776a82caf365af13f",
+        "Cargo.toml": "8548a141c4506f46eb7274163a4e929ccb0f85dd392feb9076f8fd6c8be6b541",
+        "Cargo.lock": "a5f7fc8c2fdc3cfd9fbecb25949bb77ce75022584617dfa47851a9b3160868bc",
+        "package-lock.json": "5273ea685692bdb01a99dd8b300d64904abf533c59da6fb325fc820b0d9f19fd",
+        "licenses/upstream/sqlite-3.53.2.NOTICE": "f2bb780e3664373c4819d4d517448f17b8b535c67a225eb35235c0e547cc4809",
+        "licenses/advisory-reports/npm-20261014.json": "3d6a6791c214fd351672874806f4ac3ed69ec870872f16f4b7ab518d99bcbecd"
+      },
+      "artifacts": {
+        "tests.tap": "35ded3a958472cd2eb97c228c3357d4bd6acdcdb237b7ec2cb5f21beb2616446",
+        "dependencies-inventory.json": "dca5d2ec03be7c8aa08ad2f15394e2e1ef9d705c6aee9feed016acec5c82079f"
+      }
+    }
+  ],
+  "inputs": {
+    "policy": {
+      "path": "licenses/policy.json",
+      "sha256": "6ca1ec8c70dd420de175ea2187435f34e8cebb01b613c8854a14c0877844428c"
+    },
+    "inventory": {
+      "path": "licenses/inventory.json",
+      "sha256": "dca5d2ec03be7c8aa08ad2f15394e2e1ef9d705c6aee9feed016acec5c82079f"
+    },
+    "advisories": {
+      "path": "licenses/advisories.json",
+      "sha256": "e92930d2328c26b5d170ce30bc80835a5d526d1efab6696b96aa80d7952381f6"
+    }
+  },
+  "inventoryCounts": {
+    "cargo": 156,
+    "npm": 353,
+    "gradle": 36,
+    "embedded": 1,
+    "artifacts": 10,
+    "notices": 231,
+    "unavailableNotices": 164,
+    "measuredArtifacts": 7
+  },
+  "advisoryAvailability": {
+    "npm": {
+      "state": "available",
+      "owner": "Browser SDK/build maintainers",
+      "checkedAt": "2026-10-14T19:20:53.734Z",
+      "command": [
+        "npm",
+        "audit",
+        "--json",
+        "--ignore-scripts"
+      ],
+      "exit": 0,
+      "report": "licenses/advisory-reports/npm-20261014.json",
+      "sha256": "3d6a6791c214fd351672874806f4ac3ed69ec870872f16f4b7ab518d99bcbecd",
+      "findings": 0,
+      "source": "Configured npm registry audit endpoint (current full lock, including optional/tooling)"
+    },
+    "cargo": {
+      "state": "unavailable",
+      "owner": "Core portable/native maintainers",
+      "checkedAt": "2026-10-14T19:20:53.740Z",
+      "command": [
+        "cargo",
+        "audit",
+        "--locked"
+      ],
+      "reason": "cargo-audit is not installed; no current RustSec database was queried. License/lock checks are not an advisory scan.",
+      "releaseAction": "Install approved cargo-audit and capture current RustSec database revision plus exact-lock results before release."
+    },
+    "gradle": {
+      "state": "unavailable",
+      "owner": "Android SDK maintainers",
+      "checkedAt": "2026-10-14T19:20:53.740Z",
+      "command": [
+        "owning Android release advisory scan"
+      ],
+      "reason": "Probe locks only; no configured current Maven advisory checker or released Android artifact.",
+      "releaseAction": "Owning Android release must scan exact dependencies and retain JAR/POM notices before shipping."
+    }
+  },
+  "prerequisites": [
+    "FIT-1.1 dependency ownership; current packed distributions and measured manifests from FIT-1.6; portable FFI preparation from FIT-1.5"
+  ],
+  "failuresRetained": [
+    {
+      "path": "architecture-results/fit-1.7-20261014/generation-1/receipt.json",
+      "sha256": "d75f90180cc9ae31d8b484ef3ca803238341ec7e967d7d163ba5026ad0e1048e",
+      "exit": 1,
+      "reason": [
+        "ENOENT: no such file or directory, open '/Users/bpstr/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anstyle-1.0.14/.cargo-checksum.json'"
+      ],
+      "scope": "inventory generation; not feature qualification"
+    },
+    {
+      "path": "architecture-results/fit-1.7-20261014/generation-2/receipt.json",
+      "sha256": "6bee5ec19f871b32e88c6a5a0f00a3a9ec79fba63197224377cb994f1aee765a",
+      "exit": 1,
+      "reason": [
+        "Missing Cargo notice: rsqlite-vfs@0.1.1"
+      ],
+      "scope": "inventory generation; not feature qualification"
+    },
+    {
+      "path": "architecture-results/fit-1.7-20261014/generation-3/receipt.json",
+      "sha256": "168b403e0b3039b2409bec95f643c13f62777c9d7c149cca4c7a1c915cb3217b",
+      "exit": 1,
+      "reason": [
+        "Missing npm archive notice\n\n1 !== 0\n"
+      ],
+      "scope": "inventory generation; not feature qualification"
+    },
+    {
+      "path": "architecture-results/fit-1.7-20261014/generation-4/receipt.json",
+      "sha256": "11c1255009fc40519c4e88edb5597f92eb94e6afbe17b1206b8ed7673357784f",
+      "exit": 1,
+      "reason": [
+        "Invalid Gradle lock entry: empty=kotlinScriptDefExtensions"
+      ],
+      "scope": "inventory generation; not feature qualification"
+    },
+    {
+      "path": "architecture-results/fit-1.7-20261014/generation-5/receipt.json",
+      "sha256": "11c1255009fc40519c4e88edb5597f92eb94e6afbe17b1206b8ed7673357784f",
+      "exit": 1,
+      "reason": [
+        "Invalid Gradle lock entry: empty=kotlinScriptDefExtensions"
+      ],
+      "scope": "inventory generation; not feature qualification"
+    }
+  ],
+  "artifactScope": "5 current unpublished SDK tarballs, 3 WASM artifacts, optional KaTeX renderer and portable FFI preparation executable; 7 measured manifest artifacts admitted without rerunning consumers",
+  "upstreamNoticeSources": {
+    "uniffi@0.32.2": {
+      "path": "licenses/upstream/uniffi-0.32.2.LICENSE",
+      "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5",
+      "revision": "7bc621ee9d0d15371d792612707ba5ed4111f950",
+      "source": "https://github.com/mozilla/uniffi-rs/blob/7bc621ee9d0d15371d792612707ba5ed4111f950/LICENSE"
+    },
+    "uniffi_bindgen@0.32.2": {
+      "path": "licenses/upstream/uniffi-0.32.2.LICENSE",
+      "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5",
+      "revision": "7bc621ee9d0d15371d792612707ba5ed4111f950",
+      "source": "https://github.com/mozilla/uniffi-rs/blob/7bc621ee9d0d15371d792612707ba5ed4111f950/LICENSE"
+    },
+    "uniffi_core@0.32.2": {
+      "path": "licenses/upstream/uniffi-0.32.2.LICENSE",
+      "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5",
+      "revision": "7bc621ee9d0d15371d792612707ba5ed4111f950",
+      "source": "https://github.com/mozilla/uniffi-rs/blob/7bc621ee9d0d15371d792612707ba5ed4111f950/LICENSE"
+    },
+    "uniffi_internal_macros@0.32.2": {
+      "path": "licenses/upstream/uniffi-0.32.2.LICENSE",
+      "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5",
+      "revision": "7bc621ee9d0d15371d792612707ba5ed4111f950",
+      "source": "https://github.com/mozilla/uniffi-rs/blob/7bc621ee9d0d15371d792612707ba5ed4111f950/LICENSE"
+    },
+    "uniffi_macros@0.32.2": {
+      "path": "licenses/upstream/uniffi-0.32.2.LICENSE",
+      "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5",
+      "revision": "7bc621ee9d0d15371d792612707ba5ed4111f950",
+      "source": "https://github.com/mozilla/uniffi-rs/blob/7bc621ee9d0d15371d792612707ba5ed4111f950/LICENSE"
+    },
+    "uniffi_meta@0.32.2": {
+      "path": "licenses/upstream/uniffi-0.32.2.LICENSE",
+      "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5",
+      "revision": "7bc621ee9d0d15371d792612707ba5ed4111f950",
+      "source": "https://github.com/mozilla/uniffi-rs/blob/7bc621ee9d0d15371d792612707ba5ed4111f950/LICENSE"
+    },
+    "uniffi_pipeline@0.32.2": {
+      "path": "licenses/upstream/uniffi-0.32.2.LICENSE",
+      "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5",
+      "revision": "7bc621ee9d0d15371d792612707ba5ed4111f950",
+      "source": "https://github.com/mozilla/uniffi-rs/blob/7bc621ee9d0d15371d792612707ba5ed4111f950/LICENSE"
+    },
+    "uniffi_udl@0.32.2": {
+      "path": "licenses/upstream/uniffi-0.32.2.LICENSE",
+      "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5",
+      "revision": "7bc621ee9d0d15371d792612707ba5ed4111f950",
+      "source": "https://github.com/mozilla/uniffi-rs/blob/7bc621ee9d0d15371d792612707ba5ed4111f950/LICENSE"
+    },
+    "yrs@0.28.0": {
+      "path": "scripts/licenses/yrs-0.28.0.LICENSE",
+      "sha256": "b6d81564e9c46473907bd3c09d4d5ab0f21cfbe6ac35d46daf1bdb0423182a5b",
+      "revision": "23b7f5693bbf9e7d26340c521ee8647f79bdfba2",
+      "source": "https://github.com/y-crdt/y-crdt/blob/23b7f5693bbf9e7d26340c521ee8647f79bdfba2/LICENSE"
+    },
+    "rsqlite-vfs@0.1.1": {
+      "path": "licenses/upstream/rsqlite-vfs-0.1.1.LICENSE",
+      "sha256": "e1c1975c3474cce31722836f101a40ffaf1cc784e4d2f38ce3e77b9712934e78",
+      "revision": "1bb309784f25c401ddf95131dcde4c4cdad7aee7",
+      "source": "https://github.com/Spxg/sqlite-wasm-rs/blob/1bb309784f25c401ddf95131dcde4c4cdad7aee7/LICENSE"
+    }
+  },
+  "noticeState": {
+    "redistributed": "All admitted distribution notices retained and verified against archive bytes",
+    "unavailable": "128 nonbundled npm tooling/platform/host packages and 36 Android probe lock entries require notice resolution before redistribution; none qualified as bundled artifacts"
+  }
+}

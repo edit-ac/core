@@ -1,0 +1,325 @@
+{
+  "version": 1,
+  "scope": "Current unpublished SDK distribution and conservative all-features Rust closure. Exact lock inventory includes tooling/host peers and Android probes without treating them as released SDKs. No certification, publication or native platform support claim.",
+  "owners": {
+    "cargo": "Core portable/native maintainers",
+    "npm": "Browser SDK/build maintainers",
+    "native": "Android SDK maintainers"
+  },
+  "cargoNoticeFallbacks": {
+    "uniffi@0.32.2": {
+      "path": "licenses/upstream/uniffi-0.32.2.LICENSE",
+      "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5",
+      "revision": "7bc621ee9d0d15371d792612707ba5ed4111f950",
+      "source": "https://github.com/mozilla/uniffi-rs/blob/7bc621ee9d0d15371d792612707ba5ed4111f950/LICENSE"
+    },
+    "uniffi_bindgen@0.32.2": {
+      "path": "licenses/upstream/uniffi-0.32.2.LICENSE",
+      "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5",
+      "revision": "7bc621ee9d0d15371d792612707ba5ed4111f950",
+      "source": "https://github.com/mozilla/uniffi-rs/blob/7bc621ee9d0d15371d792612707ba5ed4111f950/LICENSE"
+    },
+    "uniffi_core@0.32.2": {
+      "path": "licenses/upstream/uniffi-0.32.2.LICENSE",
+      "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5",
+      "revision": "7bc621ee9d0d15371d792612707ba5ed4111f950",
+      "source": "https://github.com/mozilla/uniffi-rs/blob/7bc621ee9d0d15371d792612707ba5ed4111f950/LICENSE"
+    },
+    "uniffi_internal_macros@0.32.2": {
+      "path": "licenses/upstream/uniffi-0.32.2.LICENSE",
+      "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5",
+      "revision": "7bc621ee9d0d15371d792612707ba5ed4111f950",
+      "source": "https://github.com/mozilla/uniffi-rs/blob/7bc621ee9d0d15371d792612707ba5ed4111f950/LICENSE"
+    },
+    "uniffi_macros@0.32.2": {
+      "path": "licenses/upstream/uniffi-0.32.2.LICENSE",
+      "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5",
+      "revision": "7bc621ee9d0d15371d792612707ba5ed4111f950",
+      "source": "https://github.com/mozilla/uniffi-rs/blob/7bc621ee9d0d15371d792612707ba5ed4111f950/LICENSE"
+    },
+    "uniffi_meta@0.32.2": {
+      "path": "licenses/upstream/uniffi-0.32.2.LICENSE",
+      "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5",
+      "revision": "7bc621ee9d0d15371d792612707ba5ed4111f950",
+      "source": "https://github.com/mozilla/uniffi-rs/blob/7bc621ee9d0d15371d792612707ba5ed4111f950/LICENSE"
+    },
+    "uniffi_pipeline@0.32.2": {
+      "path": "licenses/upstream/uniffi-0.32.2.LICENSE",
+      "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5",
+      "revision": "7bc621ee9d0d15371d792612707ba5ed4111f950",
+      "source": "https://github.com/mozilla/uniffi-rs/blob/7bc621ee9d0d15371d792612707ba5ed4111f950/LICENSE"
+    },
+    "uniffi_udl@0.32.2": {
+      "path": "licenses/upstream/uniffi-0.32.2.LICENSE",
+      "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5",
+      "revision": "7bc621ee9d0d15371d792612707ba5ed4111f950",
+      "source": "https://github.com/mozilla/uniffi-rs/blob/7bc621ee9d0d15371d792612707ba5ed4111f950/LICENSE"
+    },
+    "yrs@0.28.0": {
+      "path": "scripts/licenses/yrs-0.28.0.LICENSE",
+      "sha256": "b6d81564e9c46473907bd3c09d4d5ab0f21cfbe6ac35d46daf1bdb0423182a5b",
+      "revision": "23b7f5693bbf9e7d26340c521ee8647f79bdfba2",
+      "source": "https://github.com/y-crdt/y-crdt/blob/23b7f5693bbf9e7d26340c521ee8647f79bdfba2/LICENSE"
+    },
+    "rsqlite-vfs@0.1.1": {
+      "path": "licenses/upstream/rsqlite-vfs-0.1.1.LICENSE",
+      "sha256": "e1c1975c3474cce31722836f101a40ffaf1cc784e4d2f38ce3e77b9712934e78",
+      "revision": "1bb309784f25c401ddf95131dcde4c4cdad7aee7",
+      "source": "https://github.com/Spxg/sqlite-wasm-rs/blob/1bb309784f25c401ddf95131dcde4c4cdad7aee7/LICENSE"
+    }
+  },
+  "redistributedNpm": [
+    "katex"
+  ],
+  "gradleLocks": [
+    "native/android/probe/gradle.lockfile",
+    "native/android/probe/control/gradle.lockfile"
+  ],
+  "artifacts": [
+    {
+      "path": "architecture-results/fit-1.6-20261014/validation-2/packed-consumers/edit-ac-core-0.0.0.tgz",
+      "kind": "packed-sdk",
+      "sha256": "d431e09fc487936345253c1d69eaa25cb321217e3c61311e75051f410a3c2f02"
+    },
+    {
+      "path": "architecture-results/fit-1.6-20261014/validation-2/packed-consumers/edit-ac-web-0.0.0.tgz",
+      "kind": "packed-sdk",
+      "sha256": "2b587bf8a69d1bbc9c38ffd6b34270093e863ea9e6aaf61f27d342b5f2c1a59e"
+    },
+    {
+      "path": "architecture-results/fit-1.6-20261014/validation-2/packed-consumers/edit-ac-markdown-0.0.0.tgz",
+      "kind": "packed-sdk",
+      "sha256": "8075ef2ac25cb5b27f37e40547b8af2621f226338559eaac8d9bfc173829aa59"
+    },
+    {
+      "path": "architecture-results/fit-1.6-20261014/validation-2/packed-consumers/edit-ac-react-0.0.0.tgz",
+      "kind": "packed-sdk",
+      "sha256": "8b2eade5147348cc4d7036d1b43d29b52f1ecac1e25231ac109f81c46ec9510e"
+    },
+    {
+      "path": "architecture-results/fit-1.6-20261014/validation-2/packed-consumers/edit-ac-astro-0.0.0.tgz",
+      "kind": "packed-sdk",
+      "sha256": "cfc6a9bc2b539a818c72cb9659de47d5f46e2801ad203146264d723be53676d0"
+    },
+    {
+      "path": "packages/core/dist/wasm/editac_wasm_bg.wasm",
+      "kind": "wasm",
+      "sha256": "3669a9367310765a34564e0eedc5782e904fe4bfcaeac885b16d5a073d73b718"
+    },
+    {
+      "path": "packages/core/dist/wasm-fixture/editac_wasm_bg.wasm",
+      "kind": "wasm",
+      "sha256": "1f50ea2d21a3b169e8dac0ec993a1f49ddee5ff97f80a5837a48aeab42cca0eb"
+    },
+    {
+      "path": "packages/markdown/dist/wasm/editac_markdown_wasm_bg.wasm",
+      "kind": "wasm",
+      "sha256": "4e86b6c247f351ec5fc3579b0cf3728295c5f07abb2213f73bc30befe7478539"
+    },
+    {
+      "path": "architecture-results/fit-1.5-20261014/validation-4/compiled/editac_ffi-007668dd5ce961d7",
+      "kind": "native-preparation-test-executable",
+      "sha256": "55cfea769d7a65f806efb56d766f4f1ffff571f9efe38a289a3ed0d84518941f"
+    },
+    {
+      "path": "packages/web/dist/modules/vendor/katex.mjs",
+      "kind": "optional-renderer",
+      "sha256": "e5bc26598084ad869939ecaa262673814f26ed586312a409b5f8427c01e4f681"
+    }
+  ],
+  "distributions": [
+    {
+      "path": "architecture-results/fit-1.6-20261014/validation-2/packed-consumers/edit-ac-core-0.0.0.tgz",
+      "notices": [
+        {
+          "entry": "package/LICENSE",
+          "source": "packages/core/LICENSE"
+        },
+        {
+          "entry": "package/THIRD-PARTY-NOTICES.txt",
+          "source": "packages/core/THIRD-PARTY-NOTICES.txt"
+        }
+      ],
+      "assets": [
+        {
+          "entry": "package/dist/wasm/editac_wasm_bg.wasm",
+          "source": "packages/core/dist/wasm/editac_wasm_bg.wasm"
+        },
+        {
+          "entry": "package/dist/wasm-fixture/editac_wasm_bg.wasm",
+          "source": "packages/core/dist/wasm-fixture/editac_wasm_bg.wasm"
+        }
+      ]
+    },
+    {
+      "path": "architecture-results/fit-1.6-20261014/validation-2/packed-consumers/edit-ac-web-0.0.0.tgz",
+      "notices": [
+        {
+          "entry": "package/LICENSE",
+          "source": "packages/web/LICENSE"
+        },
+        {
+          "entry": "package/NOTICE",
+          "source": "packages/web/NOTICE"
+        },
+        {
+          "entry": "package/dist/modules/vendor/LICENSE.katex",
+          "source": "node_modules/katex/LICENSE"
+        }
+      ],
+      "assets": [
+        {
+          "entry": "package/dist/modules/vendor/katex.mjs",
+          "source": "packages/web/dist/modules/vendor/katex.mjs"
+        }
+      ]
+    },
+    {
+      "path": "architecture-results/fit-1.6-20261014/validation-2/packed-consumers/edit-ac-markdown-0.0.0.tgz",
+      "notices": [
+        {
+          "entry": "package/LICENSE",
+          "source": "packages/markdown/LICENSE"
+        },
+        {
+          "entry": "package/THIRD-PARTY-NOTICES.txt",
+          "source": "packages/markdown/THIRD-PARTY-NOTICES.txt"
+        }
+      ],
+      "assets": [
+        {
+          "entry": "package/dist/wasm/editac_markdown_wasm_bg.wasm",
+          "source": "packages/markdown/dist/wasm/editac_markdown_wasm_bg.wasm"
+        }
+      ]
+    },
+    {
+      "path": "architecture-results/fit-1.6-20261014/validation-2/packed-consumers/edit-ac-react-0.0.0.tgz",
+      "notices": [
+        {
+          "entry": "package/LICENSE",
+          "source": "packages/react/LICENSE"
+        },
+        {
+          "entry": "package/NOTICE",
+          "source": "packages/react/NOTICE"
+        }
+      ],
+      "assets": []
+    },
+    {
+      "path": "architecture-results/fit-1.6-20261014/validation-2/packed-consumers/edit-ac-astro-0.0.0.tgz",
+      "notices": [
+        {
+          "entry": "package/LICENSE",
+          "source": "packages/astro/LICENSE"
+        },
+        {
+          "entry": "package/NOTICE",
+          "source": "packages/astro/NOTICE"
+        }
+      ],
+      "assets": []
+    }
+  ],
+  "families": {
+    "native": {
+      "state": "included",
+      "owner": "Native bridge/session maintainers",
+      "reason": "Portable FFI prepared executable and all-features bundled-store dependency inventory only; iOS/Android/desktop SDKs pending at owning tracks. UniFFI MPL source obligations remain explicit.",
+      "inputs": [
+        "crates/editac-ffi/THIRD_PARTY_NOTICES.md",
+        "crates/editac-session/Cargo.toml",
+        "native/ios/capability.json",
+        "native/android/capability.json",
+        "native/desktop/capability.json"
+      ],
+      "artifacts": [
+        "architecture-results/fit-1.5-20261014/validation-4/compiled/editac_ffi-007668dd5ce961d7"
+      ],
+      "components": [
+        "uniffi",
+        "libsqlite3-sys"
+      ]
+    },
+    "wasm": {
+      "state": "included",
+      "owner": "Portable WASM maintainers",
+      "reason": "Default, fixture and optional Markdown WASM with complete locked dependency notices.",
+      "inputs": [
+        "scripts/build-wasm.mjs",
+        "scripts/build-wasm-notices.mjs",
+        "packages/core/THIRD-PARTY-NOTICES.txt",
+        "packages/markdown/THIRD-PARTY-NOTICES.txt"
+      ],
+      "artifacts": [
+        "packages/core/dist/wasm/editac_wasm_bg.wasm",
+        "packages/core/dist/wasm-fixture/editac_wasm_bg.wasm",
+        "packages/markdown/dist/wasm/editac_markdown_wasm_bg.wasm"
+      ],
+      "components": [
+        "wasm-bindgen",
+        "yrs",
+        "pulldown-cmark"
+      ]
+    },
+    "font": {
+      "state": "not-distributed",
+      "owner": "Math/browser maintainers",
+      "reason": "KaTeX font assets are not copied by the current math build; only renderer code is distributed. Adding font/CSS assets requires a reviewed exact artifact and notice entry.",
+      "inputs": [
+        "scripts/build-math-assets.mjs",
+        "packages/web/NOTICE",
+        "node_modules/katex/package.json"
+      ],
+      "artifacts": [],
+      "components": [
+        "katex"
+      ]
+    },
+    "grammar": {
+      "state": "pending",
+      "owner": "Highlighting maintainers",
+      "reason": "No highlighting runtime or grammar assets are distributed. Markdown parser is covered by the WASM family; new grammars require exact revision/license/notice admission.",
+      "inputs": [
+        "contracts/services.json"
+      ],
+      "artifacts": [],
+      "components": []
+    },
+    "media": {
+      "state": "not-distributed",
+      "owner": "Asset/conversion maintainers",
+      "reason": "Image URLs use host/browser decoding; no bundled media codecs or conversion assets are shipped. Adding codecs requires owning-track qualification and exact notices.",
+      "inputs": [
+        "contracts/services.json",
+        "packages/web/src/modules/content.ts"
+      ],
+      "artifacts": [],
+      "components": []
+    }
+  },
+  "wasmNoticeRoots": {
+    "editac-wasm": "packages/core/THIRD-PARTY-NOTICES.txt",
+    "editac-markdown-wasm": "packages/markdown/THIRD-PARTY-NOTICES.txt"
+  },
+  "embedded": [
+    {
+      "name": "SQLite amalgamation",
+      "version": "3.53.2",
+      "revision": "2026-06-03 19:12:13 d6e03d8c777cfa2d35e3b60d8ec3e0187f3e9f99d8e2ee9cac695fd6fcdf1a24",
+      "container": "libsqlite3-sys",
+      "containerVersion": "0.38.2",
+      "file": "sqlite3/sqlite3.c",
+      "sha256": "0a409f1633283fa31a9126b11fbfd64a1991c5d30defad07e5745d4667f5e23d",
+      "license": "Public-domain dedication in exact amalgamation source; binding crate MIT notice retained separately",
+      "noticeSource": "licenses/upstream/sqlite-3.53.2.NOTICE",
+      "owner": "Native bridge/session maintainers",
+      "scope": "Optional bundled native-store SQLite source; no SQLCipher feature enabled"
+    }
+  ],
+  "measuredManifests": [
+    "architecture-results/fit-1.6-20261014/validation-2/default-task/manifest.json",
+    "architecture-results/fit-1.6-20261014/validation-2/markdown-enabled/manifest.json"
+  ]
+}

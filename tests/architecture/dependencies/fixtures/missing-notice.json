@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "cases": [
+    { "ecosystem": "cargo", "name": "uniffi", "change": "remove-text" },
+    { "ecosystem": "cargo", "name": "libsqlite3-sys", "change": "unavailable" },
+    { "ecosystem": "npm", "name": "katex", "change": "remove-text" },
+    { "ecosystem": "npm", "name": "katex", "change": "unavailable" }
+  ]
+}
