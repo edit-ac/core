@@ -123,13 +123,17 @@ fn atomic(id: &str) {
         .unwrap();
     if matches!(
         id,
-        "REG-13-invalid-final-selection"
+        "REG-13-valid"
+            | "REG-13-invalid-final-owner"
+            | "REG-13-invalid-final-surrogate"
+            | "G03-backward-selection"
+            | "REG-13-invalid-final-selection"
             | "REG-13-invalid-mark-policy"
             | "REG-13-staged-offsets"
             | "G06-astral-staged-utf16"
             | "G06-invalid-first-surrogate"
     ) {
-        c20_atomic(v);
+        qualified_raw_atomic(v);
         return;
     }
     let mut d = document(v["text"].as_str().unwrap());
@@ -217,9 +221,9 @@ fn atomic(id: &str) {
         v["text"].as_str().unwrap()
     );
 }
-// C20 owns complete snapshots at each selected native vector, including a
+// C20/C21 own complete snapshots at each selected native vector, including a
 // separate accepted observer probe after rejection. It does not claim storage.
-fn c20_atomic(v: &Value) {
+fn qualified_raw_atomic(v: &Value) {
     use serde_json::json;
     fn verify(actual: &Value, expected: &Value, paths: &[&str]) -> usize {
         assert_eq!(actual, expected);
@@ -360,6 +364,36 @@ fn c20_atomic(v: &Value) {
             "/redo",
         ],
     );
+    let remaining = matches!(
+        v["id"].as_str().unwrap(),
+        "REG-13-valid"
+            | "REG-13-invalid-final-owner"
+            | "REG-13-invalid-final-surrogate"
+            | "G03-backward-selection"
+    );
+    if v["id"] == "G03-backward-selection" {
+        controls += verify(
+            &json!({"backward": observed["endpoints"][0]["offset"].as_u64().unwrap() > observed["endpoints"][1]["offset"].as_u64().unwrap()}),
+            &json!({"backward": true}),
+            &["/backward"],
+        );
+        checkpoints += 1;
+    }
+    if remaining {
+        controls += verify(
+            &observed,
+            &expected,
+            &[
+                "/endpoints/0/owner",
+                "/endpoints/1/owner",
+                "/endpoints/0/source",
+                "/endpoints/1/source",
+                "/endpoints/0/sourceOffset",
+                "/endpoints/1/sourceOffset",
+            ],
+        );
+        checkpoints += 1;
+    }
     checkpoints += 1;
     assert_ne!(d.checkpoint().bytes, before.0);
     assert_ne!(d.state_vector_v1(), before.1);
@@ -371,7 +405,8 @@ fn c20_atomic(v: &Value) {
     assert_eq!(d.history_state().redo_groups, 1);
     checkpoints += 4;
     println!(
-        "C20 {} checkpoints={} controls={} rejection={} accepted=1 content_undo=1",
+        "{} {} checkpoints={} controls={} rejection={} accepted=1 content_undo=1",
+        if remaining { "C21" } else { "C20" },
         v["id"].as_str().unwrap(),
         checkpoints,
         controls,

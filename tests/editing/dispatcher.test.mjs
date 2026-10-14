@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process';
 // Admission must fail before loading a runtime. These failures cannot become
 // an accidental successful zero-test qualification of a misspelled case group.
 for (const [name, args] of [
+  ['remaining atomic vector selector on fixtures', ['--group', 'fixtures', '--cases', 'remaining-atomic-vector-storage']],
   ['collapsed pre storage selector on fixtures', ['--group', 'fixtures', '--cases', 'collapsed-pre-storage']],
   ['variant storage selector on fixtures', ['--group', 'fixtures', '--cases', 'variant-storage']],
   ['selection storage selector on fixtures', ['--group', 'fixtures', '--cases', 'selection-storage']],
@@ -128,6 +129,13 @@ test('collapsed pre storage proof is mandatory in canonical semantic dispatch', 
 test('atomic vector storage proof is mandatory in canonical semantic dispatch', () => {
   const selected = editingSuites('semantic', 'atomic-vector-storage');
   assert.deepEqual(selected, ['tests/editing/atomic-vector-storage.test.mjs']);
+  assert.equal(editingSuites('semantic').filter(path => path === selected[0]).length, 1);
+  assert.ok(existsSync(selected[0]));
+});
+
+test('remaining original atomic vectors are mandatory in canonical semantic dispatch', () => {
+  const selected = editingSuites('semantic', 'remaining-atomic-vector-storage');
+  assert.deepEqual(selected, ['tests/editing/remaining-atomic-vector-storage.test.mjs']);
   assert.equal(editingSuites('semantic').filter(path => path === selected[0]).length, 1);
   assert.ok(existsSync(selected[0]));
 });

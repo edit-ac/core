@@ -7,7 +7,7 @@ import { assertCheckpoint } from './driver.ts';
 import { SemanticDriver, semanticCapabilities, semanticActions, semanticProfile, MissingCapabilityError } from './semantic-adapter.ts';
 import { packedRuntime, sha256 } from './packed-runtime.mjs';
 import { collapsedPreCases, collapsedPreInitial, pasteCollapsedPre, undoCollapsedPre } from './collapsed-pre-oracle.mjs';
-import { storageVectorIds, runAtomicVector } from './atomic-vector-oracle.mjs';
+import { qualifiedVectorIds, runAtomicVector } from './atomic-vector-oracle.mjs';
 const suite = loadSuite();
 const vectors = JSON.parse(await readFile(new URL('../../fixtures/editing-failures/semantic-vectors.json', import.meta.url)));
 const output = process.env.EDITAC_EDITING_OUTPUT;
@@ -45,7 +45,7 @@ for (const id of groupIds('semantic')) {
   }));
 }
 for (const v of vectors.atomic) caseTest(`native/WASM:${v.id}`, fact => driver(state(v.text, 0), d => {
-  if (storageVectorIds.includes(v.id)) return runAtomicVector(d, v, fact, facts);
+  if (qualifiedVectorIds.includes(v.id)) return runAtomicVector(d, v, fact, facts);
   const engine = d.engine, owner = engine.read().visible[0].id, original = engine.read().visible[0];
   const commands = v.commands.map(c => c.type === 'insertSeparator' ? { type: c.type, beside: owner, side: c.side } : c.type === 'selectionAt'
     ? { type: c.type, anchor: { owner, offset: c.anchor, bias: 'left' }, focus: { owner, offset: c.focus, bias: 'right' } }

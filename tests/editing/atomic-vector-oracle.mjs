@@ -3,6 +3,8 @@ import { readFile } from 'node:fs/promises';
 
 export const atomicVectors = JSON.parse(await readFile(new URL('../../fixtures/editing-failures/semantic-vectors.json', import.meta.url))).atomic;
 export const storageVectorIds = ['REG-13-invalid-final-selection', 'REG-13-invalid-mark-policy', 'REG-13-staged-offsets', 'G06-astral-staged-utf16', 'G06-invalid-first-surrogate'];
+export const remainingVectorIds = ['REG-13-valid', 'REG-13-invalid-final-owner', 'REG-13-invalid-final-surrogate', 'G03-backward-selection'];
+export const qualifiedVectorIds = [...storageVectorIds, ...remainingVectorIds];
 export const atomicInitial = v => ({ blocks: [{ id: 'p1', kind: 'paragraph', text: v.text, marks: [], hardBreaks: [] }], selection: { anchor: { block: 'p1', offset: 0 }, focus: { block: 'p1', offset: 0 }, affinity: 'forward' }, pendingMarks: null });
 // A separately authored live observer probe, not a successful retry of invalid policy.
 export const atomicProbe = v => ({ id: `${v.id}/live-probe`, text: v.text, commands: [{ type: 'replaceAt', from: 0, to: 0, text: '!' }, { type: 'selectionAt', anchor: 1, focus: 1 }], expectedText: `!${v.text}`, expectedMarks: [], selection: [1, 1], rejected: false });
@@ -39,7 +41,14 @@ export function runAtomicVector(d, v, fact, facts) {
     }
     const plan = engine.prepare(request);
     try {
-      check(d.frozen(), before); check(events, 0);
+      const prepared = d.frozen(); check(prepared, before); check(events, 0);
+      if (remainingVectorIds.includes(v.id)) {
+        for (const [name, corrupt] of [
+          ['content', e => e.state.blocks[0].text += '!'], ['vector', e => e.vector[0] ^= 1],
+          ['checkpoint', e => e.checkpoint[0] ^= 1], ['history', e => e.history.undoGroups++],
+          ['pending', e => e.state.pendingMarks = []],
+        ]) control(`prepared-${name}`, prepared, before, corrupt);
+      }
       const result = engine.commit(plan);
       try {
         check(events, 1); check(result.revision, before.snapshot.revision + 1);
@@ -58,14 +67,29 @@ export function runAtomicVector(d, v, fact, facts) {
         const endpoints = [result.selection.anchor, result.selection.focus].map(token => engine.resolve(token));
         const wanted = v.selection.map((offset, i) => ({ type: 'position', node: owner, offset, source: original.spans[0].source, sourceOffset: offset, bias: i ? 'right' : 'left' }));
         check(endpoints, wanted);
+        if (v.id === 'G03-backward-selection') {
+          const direction = { backward: endpoints[0].offset > endpoints[1].offset };
+          check(direction, { backward: true });
+          control('direction', direction, { backward: true }, e => e.backward = false);
+        }
         for (const i of [0, 1]) {
           control(`endpoint-${i}`, endpoints, wanted, e => e[i].offset++);
           control(`bias-${i}`, endpoints, wanted, e => e[i].bias = i ? 'left' : 'right');
+          if (remainingVectorIds.includes(v.id)) {
+            control(`endpoint-owner-${i}`, endpoints, wanted, e => e[i].node = 'missing');
+            control(`endpoint-source-${i}`, endpoints, wanted, e => e[i].source = 'missing');
+            control(`endpoint-source-offset-${i}`, endpoints, wanted, e => e[i].sourceOffset++);
+          }
         }
         control('publication', { events }, { events: 1 }, e => e.events++);
         control('revision', { revision: result.revision }, { revision: before.snapshot.revision + 1 }, e => e.revision++);
         control('history', { undoGroups: history.undoGroups, redoGroups: history.redoGroups }, { undoGroups: 1, redoGroups: 0 }, e => e.undoGroups++);
         check(d.snapshot().pendingMarks, null);
+        if (remainingVectorIds.includes(v.id)) {
+          control('pending', { pending: d.snapshot().pendingMarks }, { pending: null }, e => e.pending = []);
+          control('block-kind', { kind: node.kind }, { kind: original.kind }, e => e.kind = 'missing');
+          control('block-attributes', { attributes: node.blockAttributes }, { attributes: original.blockAttributes }, e => e.attributes[0] = 'code');
+        }
         fact.resultEndpoints = endpoints;
       } finally { for (const token of [result.selection?.anchor, result.selection?.focus, result.caret].filter(Boolean)) engine.releaseAnchor(token); }
     } finally { engine.releasePlan(plan); }
