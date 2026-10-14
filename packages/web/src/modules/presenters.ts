@@ -1,3 +1,4 @@
+import { extensionTransferRequest, type PreparedExtensionTransfer } from '@edit-ac/core/extensions';
 import type { PrepareRequest, Patch, PatchSubscription } from '@edit-ac/core';
 import type { ModuleEvent, ModuleRuntime, ModuleScope, ModuleViewContent } from './runtime.js';
 import { ExtensionCommandSession } from './conformance.js';
@@ -76,7 +77,7 @@ export class ExtensionPresenterSession {
   #composing = false;
   constructor(
     runtime: ModuleRuntime, private readonly adapter: PresenterAdapterV1,
-    private readonly snapshot: () => PresenterInputV1, host: ExtensionCommandHost, scope: ModuleScope,
+    private readonly snapshot: () => PresenterInputV1, private readonly host: ExtensionCommandHost, scope: ModuleScope,
   ) {
     const session = this;
     this.#commands = new ExtensionCommandSession({
@@ -144,6 +145,23 @@ export class ExtensionPresenterSession {
   run(prepare: (signal: AbortSignal) => PrepareRequest | undefined | Promise<PrepareRequest | undefined>): Promise<ExtensionCommandResult> {
     if (!this.active || this.#composing) return Promise.resolve({ status: 'cancelled' });
     return this.#commands.run(prepare);
+  }
+  /** All hosts use identical formatted/literal policy and atomic prepared edits.
+   * A prepared offer owns inert data, not source-view resources or clipboard authority. */
+  transfer(prepared: PreparedExtensionTransfer, engine: import('@edit-ac/core').EngineHandle, range: import('@edit-ac/core').StableRange, origin = 'extension:paste'): Promise<ExtensionCommandResult> {
+    return this.run(() => extensionTransferRequest(prepared, engine, range, origin));
+  }
+  cut(prepared: PreparedExtensionTransfer, engine: import('@edit-ac/core').EngineHandle, range: import('@edit-ac/core').StableRange,
+    write: (offer: PreparedExtensionTransfer['recovery'], signal: AbortSignal) => Promise<boolean>): Promise<ExtensionCommandResult> {
+    const target = { anchor: range.anchor, focus: range.focus };
+    return this.run(async signal => {
+      const request = extensionTransferRequest(prepared, engine, target, 'extension:cut', true);
+      // Do not expose clipboard data before current mutation capability admission.
+      if (this.snapshot().readOnly || !this.host.can(request) || signal.aborted || !this.active) return undefined;
+      // Host must acknowledge every required flavor; refusal/throw/cancel never deletes.
+      if (await write(prepared.recovery, signal) !== true || signal.aborted) return undefined;
+      return extensionTransferRequest(prepared, engine, target, 'extension:cut', true);
+    });
   }
   cancel(): void {
     if (this.#disposed) return;

@@ -15,3 +15,5 @@ export { prepareModuleMigration, ModuleEvolutionError } from './evolution.js';
 export type { ModuleEvolution, PreparedModuleMigration } from './evolution.js';
 export { prepareExtensionProfile, ExtensionProfileActivation, ProfileError, FIRST_PARTY_FEATURES, FIRST_PARTY_PROFILES } from './profiles.js';
 export type { ProfileFeature, ExtensionProfile, ProfileEnvironment, PreparedProfile, ProfileResource, ProfileLoader } from './profiles.js';
+export { EXTENSION_TRANSFER_VERSION, EXTENSION_TRANSFER_MIME, ExtensionTransferRegistry, ExtensionTransferError, exportExtensionTransfer, importExtensionTransfer, extensionTransferRequest } from './transfer.js';
+export type { ExtensionTransferDescriptor, ExtensionTransferEnvelope, ExtensionTransferCodec, PreparedExtensionTransfer, TransferMark } from './transfer.js';

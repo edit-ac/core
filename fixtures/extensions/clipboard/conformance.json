@@ -1,0 +1,493 @@
+{
+  "version": 1,
+  "gate": "EXT-1.13",
+  "descriptors": [
+    {
+      "type": "editac.table",
+      "versions": [
+        1
+      ],
+      "inline": [
+        "bold",
+        "italic",
+        "underline",
+        "strike",
+        "code",
+        "link"
+      ],
+      "blocks": [
+        "paragraph",
+        "heading",
+        "code",
+        "content"
+      ],
+      "tableMetadata": [
+        "rows",
+        "columns",
+        "alignment",
+        "header"
+      ],
+      "fallback": "inert-source-with-recovery"
+    },
+    {
+      "type": "editac.image",
+      "versions": [
+        1
+      ],
+      "inline": [
+        "bold",
+        "italic",
+        "underline",
+        "strike",
+        "code",
+        "link"
+      ],
+      "blocks": [
+        "paragraph",
+        "heading",
+        "code",
+        "content"
+      ],
+      "tableMetadata": [],
+      "fallback": "inert-source-with-recovery"
+    },
+    {
+      "type": "editac.reference",
+      "versions": [
+        1
+      ],
+      "inline": [
+        "bold",
+        "italic",
+        "underline",
+        "strike",
+        "code",
+        "link"
+      ],
+      "blocks": [
+        "paragraph",
+        "heading",
+        "code",
+        "content"
+      ],
+      "tableMetadata": [],
+      "fallback": "inert-source-with-recovery"
+    },
+    {
+      "type": "editac.text",
+      "versions": [
+        1
+      ],
+      "inline": [
+        "bold",
+        "italic",
+        "underline",
+        "strike",
+        "code",
+        "link"
+      ],
+      "blocks": [
+        "paragraph",
+        "heading",
+        "code",
+        "content"
+      ],
+      "tableMetadata": [],
+      "fallback": "inert-source-with-recovery"
+    },
+    {
+      "type": "editac.disabled-image",
+      "versions": [
+        1
+      ],
+      "inline": [
+        "bold",
+        "italic",
+        "underline",
+        "strike",
+        "code",
+        "link"
+      ],
+      "blocks": [
+        "paragraph",
+        "heading",
+        "code",
+        "content"
+      ],
+      "tableMetadata": [],
+      "fallback": "inert-source-with-recovery"
+    },
+    {
+      "type": "editac.rich-table",
+      "versions": [
+        1
+      ],
+      "inline": [
+        "bold",
+        "italic",
+        "underline",
+        "strike",
+        "code",
+        "link"
+      ],
+      "blocks": [
+        "paragraph",
+        "heading",
+        "code",
+        "content"
+      ],
+      "tableMetadata": [
+        "rows",
+        "columns",
+        "spans",
+        "header",
+        "cell-paragraph-style"
+      ],
+      "fallback": "inert-source-with-recovery"
+    }
+  ],
+  "cases": [
+    {
+      "id": "mixed-table",
+      "mode": "formatted",
+      "envelope": {
+        "version": 1,
+        "type": "editac.table",
+        "dataVersion": 1,
+        "source": "| Header | é😀 |\n| :--- | ---: |\n| `=SUM(A1)` | linked |",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.table",
+                1,
+                {
+                  "alignments": [
+                    "left",
+                    "right"
+                  ],
+                  "rows": [
+                    [
+                      [
+                        [
+                          "Header",
+                          [
+                            [
+                              "bold"
+                            ]
+                          ]
+                        ]
+                      ],
+                      [
+                        [
+                          "é😀",
+                          [
+                            [
+                              "italic"
+                            ],
+                            [
+                              "underline"
+                            ]
+                          ]
+                        ]
+                      ]
+                    ],
+                    [
+                      [
+                        [
+                          "=SUM(A1)",
+                          [
+                            [
+                              "code"
+                            ]
+                          ]
+                        ]
+                      ],
+                      [
+                        [
+                          "linked",
+                          [
+                            [
+                              "link",
+                              "https://example.invalid/é"
+                            ],
+                            [
+                              "strike"
+                            ]
+                          ]
+                        ]
+                      ]
+                    ]
+                  ],
+                  "source": "| Header | é😀 |\n| :--- | ---: |\n| `=SUM(A1)` | linked |"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "",
+                "marks": []
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "image-caption",
+      "mode": "formatted",
+      "envelope": {
+        "version": 1,
+        "type": "editac.image",
+        "dataVersion": 1,
+        "source": "![alt](https://example.invalid/image.png \"title\")\n\n**caption é😀**",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.image",
+                1,
+                {
+                  "url": "https://example.invalid/image.png",
+                  "alt": "alt",
+                  "title": "title",
+                  "source": "![alt](https://example.invalid/image.png \"title\")\n\n**caption é😀**"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "",
+                "marks": []
+              }
+            ]
+          },
+          {
+            "attributes": {
+              "type": "paragraph"
+            },
+            "runs": [
+              {
+                "text": "caption é😀",
+                "marks": [
+                  {
+                    "mark": "bold"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "reference",
+      "mode": "formatted",
+      "envelope": {
+        "version": 1,
+        "type": "editac.reference",
+        "dataVersion": 1,
+        "source": "[label](ac://document/opaque)",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.reference",
+                1,
+                {
+                  "targetId": "host:opaque/😀",
+                  "label": "label"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "label",
+                "marks": []
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "nested-formatting",
+      "mode": "formatted",
+      "envelope": {
+        "version": 1,
+        "type": "editac.text",
+        "dataVersion": 1,
+        "source": "# heading\n\nformatted 😀",
+        "payload": [
+          {
+            "attributes": {
+              "type": "heading",
+              "level": 2
+            },
+            "runs": [
+              {
+                "text": "heading",
+                "marks": [
+                  {
+                    "mark": "bold"
+                  },
+                  {
+                    "mark": "italic"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "attributes": {
+              "type": "paragraph"
+            },
+            "runs": [
+              {
+                "text": "formatted 😀",
+                "marks": [
+                  {
+                    "mark": "underline"
+                  },
+                  {
+                    "mark": "strike"
+                  },
+                  {
+                    "mark": "link",
+                    "href": "https://example.invalid/é"
+                  }
+                ]
+              }
+            ],
+            "containers": [
+              {
+                "key": "quote",
+                "style": {
+                  "type": "quote"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "math-inert",
+      "mode": "fallback",
+      "envelope": {
+        "version": 1,
+        "type": "editac.math",
+        "dataVersion": 1,
+        "source": "$$\\input{secret} + x^2$$",
+        "payload": {
+          "formula": "\\input{secret} + x^2",
+          "version": 1
+        }
+      }
+    },
+    {
+      "id": "future-atom",
+      "mode": "fallback",
+      "envelope": {
+        "version": 1,
+        "type": "vendor.atom",
+        "dataVersion": 1,
+        "source": "future é😀",
+        "payload": {
+          "identity": "stable:atom",
+          "attributes": {
+            "nested": [
+              true,
+              "exact"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "unknown-version",
+      "mode": "fallback",
+      "envelope": {
+        "version": 1,
+        "type": "editac.table",
+        "dataVersion": 99,
+        "source": "original future table",
+        "payload": {
+          "futureRows": [
+            {
+              "header": true,
+              "span": 2
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "unavailable-image",
+      "mode": "fallback",
+      "envelope": {
+        "version": 1,
+        "type": "editac.disabled-image",
+        "dataVersion": 1,
+        "source": "![alt](https://example.invalid/image.png \"title\")\n\n**caption é😀**",
+        "payload": {
+          "caption": "caption",
+          "url": "https://example.invalid/image.png"
+        }
+      }
+    },
+    {
+      "id": "rich-table-recovery",
+      "mode": "fallback",
+      "envelope": {
+        "version": 1,
+        "type": "editac.rich-table",
+        "dataVersion": 1,
+        "source": "exact rich table source",
+        "payload": {
+          "rows": [
+            [
+              {
+                "paragraphs": [
+                  {
+                    "style": "heading-2",
+                    "runs": [
+                      {
+                        "text": "rich",
+                        "marks": [
+                          {
+                            "mark": "bold"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "rowSpan": 2,
+                "colSpan": 1,
+                "header": true
+              }
+            ]
+          ],
+          "columns": [
+            {
+              "width": 10
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "limits": {
+    "bytes": 1048576,
+    "depth": 16,
+    "cells": 65536
+  },
+  "pending": [
+    "Rich table paragraph styles/spans have inert recovery only; no semantic engine admission.",
+    "OS/native clipboard and physical-device receipts remain downstream."
+  ]
+}
