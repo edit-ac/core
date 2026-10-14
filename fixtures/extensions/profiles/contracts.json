@@ -1,0 +1,449 @@
+{
+  "apiVersion": 1,
+  "features": [
+    {
+      "id": "editac.slash",
+      "version": 1,
+      "schemas": [
+        "editac.registry.editor.v5"
+      ],
+      "capabilities": [
+        "commands"
+      ],
+      "permissions": [],
+      "requires": [],
+      "conflicts": [],
+      "bindings": [
+        {
+          "kind": "command",
+          "key": "slash.activate",
+          "command": "slash.activate",
+          "priority": 100
+        }
+      ],
+      "qualification": "qualified",
+      "owner": "07/21",
+      "ownership": {
+        "focus": "host",
+        "nestedControls": "exclude",
+        "drag": "host-text-or-block",
+        "composition": "exclude",
+        "selection": "prepared-result",
+        "history": "one-intent",
+        "presenters": [
+          "browser",
+          "terminal",
+          "swift-ios",
+          "kotlin-android",
+          "desktop"
+        ],
+        "cancellation": "abort-and-revision",
+        "teardown": "idempotent"
+      }
+    },
+    {
+      "id": "editac.references",
+      "version": 1,
+      "schemas": [
+        "editac.registry.editor.v5"
+      ],
+      "capabilities": [
+        "commands",
+        "host-resolver"
+      ],
+      "permissions": [],
+      "requires": [],
+      "conflicts": [],
+      "bindings": [
+        {
+          "kind": "command",
+          "key": "references.activate",
+          "command": "references.activate",
+          "priority": 100
+        }
+      ],
+      "qualification": "qualified",
+      "owner": "07/21",
+      "ownership": {
+        "focus": "host",
+        "nestedControls": "exclude",
+        "drag": "host-text-or-block",
+        "composition": "exclude",
+        "selection": "prepared-result",
+        "history": "one-intent",
+        "presenters": [
+          "browser",
+          "terminal",
+          "swift-ios",
+          "kotlin-android",
+          "desktop"
+        ],
+        "cancellation": "abort-and-revision",
+        "teardown": "idempotent"
+      }
+    },
+    {
+      "id": "editac.reorder",
+      "version": 1,
+      "schemas": [
+        "editac.registry.editor.v5"
+      ],
+      "capabilities": [
+        "commands"
+      ],
+      "permissions": [],
+      "requires": [],
+      "conflicts": [],
+      "bindings": [
+        {
+          "kind": "command",
+          "key": "reorder.activate",
+          "command": "reorder.activate",
+          "priority": 100
+        }
+      ],
+      "qualification": "qualified",
+      "owner": "07/21",
+      "ownership": {
+        "focus": "host",
+        "nestedControls": "exclude",
+        "drag": "host-text-or-block",
+        "composition": "exclude",
+        "selection": "prepared-result",
+        "history": "one-intent",
+        "presenters": [
+          "browser",
+          "terminal",
+          "swift-ios",
+          "kotlin-android",
+          "desktop"
+        ],
+        "cancellation": "abort-and-revision",
+        "teardown": "idempotent"
+      }
+    },
+    {
+      "id": "editac.images",
+      "version": 1,
+      "schemas": [
+        "editac.registry.editor.v5"
+      ],
+      "capabilities": [
+        "source-fallback"
+      ],
+      "permissions": [],
+      "requires": [],
+      "conflicts": [],
+      "bindings": [
+        {
+          "kind": "command",
+          "key": "images.activate",
+          "command": "images.activate",
+          "priority": 100
+        }
+      ],
+      "qualification": "qualified",
+      "owner": "07/21",
+      "ownership": {
+        "focus": "host",
+        "nestedControls": "exclude",
+        "drag": "host-text-or-block",
+        "composition": "exclude",
+        "selection": "prepared-result",
+        "history": "one-intent",
+        "presenters": [
+          "browser",
+          "terminal",
+          "swift-ios",
+          "kotlin-android",
+          "desktop"
+        ],
+        "cancellation": "abort-and-revision",
+        "teardown": "idempotent"
+      }
+    },
+    {
+      "id": "editac.tables",
+      "version": 1,
+      "schemas": [
+        "editac.registry.editor.v5"
+      ],
+      "capabilities": [
+        "commands",
+        "source-fallback"
+      ],
+      "permissions": [],
+      "requires": [],
+      "conflicts": [],
+      "bindings": [
+        {
+          "kind": "command",
+          "key": "tables.activate",
+          "command": "tables.activate",
+          "priority": 100
+        }
+      ],
+      "qualification": "qualified",
+      "owner": "07/21",
+      "ownership": {
+        "focus": "host",
+        "nestedControls": "exclude",
+        "drag": "host-text-or-block",
+        "composition": "exclude",
+        "selection": "prepared-result",
+        "history": "one-intent",
+        "presenters": [
+          "browser",
+          "terminal",
+          "swift-ios",
+          "kotlin-android",
+          "desktop"
+        ],
+        "cancellation": "abort-and-revision",
+        "teardown": "idempotent"
+      }
+    },
+    {
+      "id": "editac.math",
+      "version": 1,
+      "schemas": [
+        "editac.registry.editor.v5"
+      ],
+      "capabilities": [
+        "source-fallback"
+      ],
+      "permissions": [],
+      "requires": [],
+      "conflicts": [],
+      "bindings": [
+        {
+          "kind": "command",
+          "key": "math.activate",
+          "command": "math.activate",
+          "priority": 100
+        }
+      ],
+      "qualification": "qualified",
+      "owner": "07/21",
+      "ownership": {
+        "focus": "host",
+        "nestedControls": "exclude",
+        "drag": "host-text-or-block",
+        "composition": "exclude",
+        "selection": "prepared-result",
+        "history": "one-intent",
+        "presenters": [
+          "browser",
+          "terminal",
+          "swift-ios",
+          "kotlin-android",
+          "desktop"
+        ],
+        "cancellation": "abort-and-revision",
+        "teardown": "idempotent"
+      }
+    },
+    {
+      "id": "editac.search",
+      "version": 1,
+      "schemas": [
+        "editac.registry.editor.v5"
+      ],
+      "capabilities": [
+        "commands"
+      ],
+      "permissions": [],
+      "requires": [],
+      "conflicts": [],
+      "bindings": [
+        {
+          "kind": "command",
+          "key": "search.activate",
+          "command": "search.activate",
+          "priority": 100
+        }
+      ],
+      "qualification": "contract-fixture",
+      "owner": "desktop-search",
+      "ownership": {
+        "focus": "host",
+        "nestedControls": "exclude",
+        "drag": "host-text-or-block",
+        "composition": "exclude",
+        "selection": "prepared-result",
+        "history": "one-intent",
+        "presenters": [
+          "browser",
+          "terminal",
+          "swift-ios",
+          "kotlin-android",
+          "desktop"
+        ],
+        "cancellation": "abort-and-revision",
+        "teardown": "idempotent"
+      }
+    },
+    {
+      "id": "editac.code",
+      "version": 1,
+      "schemas": [
+        "editac.registry.editor.v5"
+      ],
+      "capabilities": [
+        "source-fallback"
+      ],
+      "permissions": [],
+      "requires": [],
+      "conflicts": [],
+      "bindings": [
+        {
+          "kind": "command",
+          "key": "code.activate",
+          "command": "code.activate",
+          "priority": 100
+        }
+      ],
+      "qualification": "contract-fixture",
+      "owner": "25-rich-content",
+      "ownership": {
+        "focus": "host",
+        "nestedControls": "exclude",
+        "drag": "host-text-or-block",
+        "composition": "exclude",
+        "selection": "prepared-result",
+        "history": "one-intent",
+        "presenters": [
+          "browser",
+          "terminal",
+          "swift-ios",
+          "kotlin-android",
+          "desktop"
+        ],
+        "cancellation": "abort-and-revision",
+        "teardown": "idempotent"
+      }
+    },
+    {
+      "id": "editac.pairs",
+      "version": 1,
+      "schemas": [
+        "editac.registry.editor.v5"
+      ],
+      "capabilities": [
+        "commands"
+      ],
+      "permissions": [],
+      "requires": [],
+      "conflicts": [],
+      "bindings": [
+        {
+          "kind": "command",
+          "key": "pairs.activate",
+          "command": "pairs.activate",
+          "priority": 100
+        }
+      ],
+      "qualification": "contract-fixture",
+      "owner": "desktop-editing",
+      "ownership": {
+        "focus": "host",
+        "nestedControls": "exclude",
+        "drag": "host-text-or-block",
+        "composition": "exclude",
+        "selection": "prepared-result",
+        "history": "one-intent",
+        "presenters": [
+          "browser",
+          "terminal",
+          "swift-ios",
+          "kotlin-android",
+          "desktop"
+        ],
+        "cancellation": "abort-and-revision",
+        "teardown": "idempotent"
+      }
+    }
+  ],
+  "profiles": {
+    "core": {
+      "apiVersion": 1,
+      "id": "editac.core",
+      "version": 1,
+      "features": []
+    },
+    "document-tools": {
+      "apiVersion": 1,
+      "id": "editac.document-tools",
+      "version": 1,
+      "features": [
+        {
+          "id": "editac.slash",
+          "version": 1
+        },
+        {
+          "id": "editac.references",
+          "version": 1
+        },
+        {
+          "id": "editac.reorder",
+          "version": 1
+        },
+        {
+          "id": "editac.images",
+          "version": 1
+        },
+        {
+          "id": "editac.tables",
+          "version": 1
+        },
+        {
+          "id": "editac.search",
+          "version": 1
+        }
+      ]
+    },
+    "code-tools": {
+      "apiVersion": 1,
+      "id": "editac.code-tools",
+      "version": 1,
+      "features": [
+        {
+          "id": "editac.slash",
+          "version": 1
+        },
+        {
+          "id": "editac.math",
+          "version": 1
+        },
+        {
+          "id": "editac.code",
+          "version": 1
+        },
+        {
+          "id": "editac.pairs",
+          "version": 1
+        }
+      ]
+    }
+  },
+  "qualifiedCases": [
+    "FPX-01",
+    "FPX-02",
+    "FPX-03",
+    "FPX-05",
+    "FPX-06",
+    "FPX-07",
+    "FPX-08"
+  ],
+  "downstream": {
+    "FPX-04": {
+      "owner": "desktop-editing/25-rich-content/platform SDKs",
+      "combinations": [
+        "table + search + history",
+        "code + pairs + IME",
+        "link/slash + replacement"
+      ],
+      "state": "pending actual feature/platform evidence"
+    }
+  }
+}
