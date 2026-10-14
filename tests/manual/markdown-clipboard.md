@@ -1,6 +1,8 @@
 # Roadmap 05 actual-device clipboard qualification
 
-Status: READY FOR DEVICE OPERATOR; mandatory observations not executed. FMT-1.15-I1 authors this protocol. FMT-1.15-V1 remains unchecked until all required platforms have recorded observations. Prepared Playwright event variants are mechanical evidence only.
+Qualification amendment (user decision, 2026-10-14): This protocol may run on physical devices, iOS/iPadOS Simulator, Android Emulator and desktop OS VMs/test hosts under `architecture/specs/verification.md`. Use actual target-runtime clipboard/menu/shortcut APIs and tested virtual equivalents for unavailable hardware-only cases. Missing physical hardware does not block FMT-1.15-V1; its full required profile/case matrix and current-artifact evidence still must pass. Preserve previous physical-availability receipts unchanged.
+
+Status: READY FOR PLATFORM RUNTIME QUALIFICATION; required platform observations not fully executed. FMT-1.15-I1 authors this protocol. FMT-1.15-V1 remains unchecked until all required platforms have recorded observations. Prepared Playwright event variants are mechanical evidence only.
 
 Use the exact compiled core/web packages and WASM pinned in `architecture/evidence/markdown/device/manifest.json`. Serve their unpacked `dist` folders as `/core/` and `/web/`, and the pinned `fixtures/browser-input/` files as `/fixture/`. Serve the prepared HTML producer separately. Use the device lab's HTTPS origin on physical phones (Web Locks/storage must be available); the test server's desktop loopback address is insufficient for remote phones. Record the origin and certificate setup. Do not alter SDK sources or silently use an installed product build. Record each server's launcher, PID, workspace, port, purpose and log; stop it after testing.
 
@@ -18,10 +20,10 @@ Fixtures: `device/palette.md` is the exact full Markdown palette; `device/html-p
 
 | Required entry point | Actual platform and action |
 |---|---|
-| Native mobile paste menu | Physical iPhone Safari and physical Android Chrome; long-press selection, choose the native Paste menu. Record model, OS/build, browser/build and keyboard. Include iPad Safari if claiming iPad support. |
-| macOS plain paste | Physical macOS host, claimed Chromium/Firefox/Safari versions; Command+Shift+V and Command+Option+Shift+V. Record OS shortcut remapping or interception as a failure/unsupported case. |
-| Windows plain paste | Physical Windows host with each claimed Chromium/Firefox browser, Control+Shift+V. |
-| Linux plain paste | Physical Linux host with each claimed Chromium/Firefox browser, Control+Shift+V; record desktop/window manager and clipboard manager. |
+| Native mobile paste menu | Physical or simulated iPhone Safari and physical or emulated Android Chrome; long-press selection, choose the native Paste menu. Record model, OS/build, browser/build and keyboard. Include physical or simulated iPad Safari if claiming iPad support. |
+| macOS plain paste | Physical macOS host or macOS VM, claimed Chromium/Firefox/Safari versions; Command+Shift+V and Command+Option+Shift+V. Record OS shortcut remapping or interception as a failure/unsupported case. |
+| Windows plain paste | Physical Windows host or Windows VM with each claimed Chromium/Firefox browser, Control+Shift+V. |
+| Linux plain paste | Physical Linux host or Linux VM with each claimed Chromium/Firefox browser, Control+Shift+V; record desktop/window manager and clipboard manager. |
 
 Execute the following cases on both required mobile platforms, and literal routing plus undo/redo on each required desktop shortcut/browser combination. A required platform that is unavailable keeps the gate open.
 
