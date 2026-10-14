@@ -74,10 +74,11 @@ export class ReferenceLookupSession {
   }
   async search(request: Readonly<ReferenceQuery>): Promise<readonly Readonly<ReferenceTarget>[]> {
     this.cancel();
-    if (this.disposed || request.signal.aborted) return [];
-    if (typeof request.query !== 'string' || request.query.length > 128 || /[\u0000-\u001f\u007f-\u009f]/u.test(request.query) || !Number.isSafeInteger(request.requestId) || request.requestId < 0) throw Error('Invalid reference query');
+    if (this.disposed) { this.lastOutcome = 'disposed'; return []; }
+    if (request.signal.aborted) { this.lastOutcome = 'cancelled'; return []; }
+    if (typeof request.query !== 'string' || request.query.length > 128 || /[\u0000-\u001f\u007f-\u009f]/u.test(request.query) || !Number.isSafeInteger(request.requestId) || request.requestId < 0) { this.lastOutcome = 'invalid'; throw Error('Invalid reference query'); }
     const permission = this.permission();
-    if (!permission.lookup) return [];
+    if (!permission.lookup) { this.lastOutcome = 'permission-loss'; return []; }
     const controller = new AbortController(); this.pending = controller;
     const abort = () => controller.abort(); request.signal.addEventListener('abort', abort, { once: true });
     const current = () => { if (this.disposed || controller.signal.aborted || this.pending !== controller) return false; const now = this.permission(); return now.lookup && now.revision === permission.revision; };

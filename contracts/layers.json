@@ -274,6 +274,41 @@
       "artifacts": [
         "dependencies-inventory.json"
       ]
+    },
+    "diagnostics": {
+      "tests": [
+        "tests/architecture/diagnostics/diagnostics.test.mjs"
+      ],
+      "inputs": [
+        "crates/editac-session/src/diagnostics.rs",
+        "crates/editac-session/src/lib.rs",
+        "crates/editac-session/src/session.rs",
+        "crates/editac-session/src/ports.rs",
+        "crates/editac-session/src/ports/memory.rs",
+        "crates/editac-session/src/locator.rs",
+        "crates/editac-session/src/service_lifecycle.rs",
+        "crates/editac-session/tests/diagnostics.rs",
+        "packages/web/src/services/diagnostics.ts",
+        "packages/web/src/services/lifecycle.ts",
+        "packages/web/src/modules/references.ts",
+        "packages/web/src/modules/index.ts",
+        "tests/architecture/diagnostics/failures.tsv",
+        "tests/architecture/diagnostics/README.md",
+        "../architecture/specs/ecosystem-maintainability.md",
+        "contracts/services.json",
+        "Cargo.lock",
+        "package-lock.json"
+      ],
+      "artifacts": [
+        "rust-diagnostics.json",
+        "store-support.json",
+        "locator-support.json",
+        "bounded-support.json",
+        "derived-support.json",
+        "session-bounded-support.json",
+        "web-support.json",
+        "diagnostics-inputs.json"
+      ]
     }
   },
   "components": [

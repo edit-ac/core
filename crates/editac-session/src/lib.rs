@@ -22,3 +22,6 @@ pub mod review_apply;
 
 /// Optional derived-work admission, independent of store/transport durability.
 pub mod service_lifecycle;
+
+/// Bounded support artifacts without document content or credentials.
+pub mod diagnostics;
