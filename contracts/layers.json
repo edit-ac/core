@@ -9,6 +9,36 @@
       "inputs": [
         "tests/architecture/layers/fixtures/production-graph.json",
         "tests/architecture/layers/fixtures/forbidden-layer.json"
+      ],
+      "artifacts": [
+        "layers-graph.json"
+      ]
+    },
+    "profiles": {
+      "tests": [
+        "tests/architecture/profiles/profiles.test.mjs",
+        "tests/architecture/profiles/extensions.test.mjs"
+      ],
+      "inputs": [
+        "contracts/capabilities.schema.json",
+        "contracts/profiles/portable-editor-v5.json",
+        "scripts/contract-schema.mjs",
+        "scripts/capability-contract.mjs",
+        "scripts/check-extension-capabilities.mjs",
+        "fixtures/extensions/capabilities.json",
+        "fixtures/extensions/capabilities.schema.json",
+        "tests/architecture/profiles/fixtures/profile.json",
+        "tests/architecture/profiles/fixtures/prepared-proof.json",
+        "fixtures/schema-v5/profile.json",
+        "packages/core/package.json",
+        "crates/editac-ffi/src/lib.rs",
+        "packages/core/src/extensions/profiles.ts",
+        "packages/core/src/extensions/registry.ts",
+        "contracts/profiles/README.md",
+        "tests/extension-capabilities.test.mjs"
+      ],
+      "artifacts": [
+        "profiles-inventory.json"
       ]
     }
   },

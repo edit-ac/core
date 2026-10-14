@@ -1,0 +1,124 @@
+{
+  "version": 1,
+  "gate": "FIT-1.2",
+  "sourceRevision": "78b3fd484f3af6ca9ab61b5457cfb1aa45474dbba889a88e863949d9d631cb74",
+  "scope": "Shared inventory schema, metadata admission and runtime host-answer separation. Prepared profiles validate contracts only; no native/release/resource/converter-fidelity claim. Actual packed reorder source proof refreshed as a migration prerequisite.",
+  "commands": [
+    "node scripts/check-architecture.mjs --suite profiles",
+    "node scripts/check-architecture.mjs --suite layers",
+    "npm run build --workspace @edit-ac/core --workspace @edit-ac/web",
+    "node scripts/test-browser.mjs reorder"
+  ],
+  "toolchain": {
+    "node": "24.19.0"
+  },
+  "validation": [
+    {
+      "path": "architecture-results/fit-1.2-20261014/validation-2/receipt.json",
+      "sha256": "dd02a2432959b3d08ac9c21f70d1be551195e77371ed4a079f96f1e161edb3a5",
+      "suite": "profiles",
+      "exit": 1,
+      "counts": {
+        "tests": 340,
+        "pass": 295,
+        "fail": 45,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "errors": [
+        "Incomplete architecture tests: {\"tests\":340,\"pass\":295,\"fail\":45,\"cancelled\":0,\"skipped\":0,\"todo\":0}"
+      ],
+      "revision": "72f900e5a8526e5cee96643a29c48d038376c6c7",
+      "artifacts": {
+        "tests.tap": "34b1eeb816a833574a6da3faf69a1de0efafcf9ff0e86c977b6a4f0d0a2dedd5"
+      }
+    },
+    {
+      "path": "architecture-results/fit-1.2-20261014/validation-3/receipt.json",
+      "sha256": "bac560cd3c3039794cd5b4a1cf6a5f78422197af01abd81aa8347455bf5d2676",
+      "suite": "profiles",
+      "exit": 0,
+      "counts": {
+        "tests": 342,
+        "pass": 342,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "errors": [],
+      "revision": "72f900e5a8526e5cee96643a29c48d038376c6c7",
+      "artifacts": {
+        "tests.tap": "553f2df207dbcf173dcee03655369b0b52573d9234627343490ede6f58848bc9",
+        "profiles-inventory.json": "97a75188ff41c7271b1f5d82c690afeb233ba0e1328d082158b493c85b5d5055"
+      }
+    },
+    {
+      "path": "architecture-results/fit-1.2-20261014/layers-regression/receipt.json",
+      "sha256": "953169a45d89f70b671d6df759cf2d106604675b2b763c9c724c2622da2e3539",
+      "suite": "layers",
+      "exit": 0,
+      "counts": {
+        "tests": 72,
+        "pass": 72,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "errors": [],
+      "revision": "72f900e5a8526e5cee96643a29c48d038376c6c7",
+      "artifacts": {
+        "tests.tap": "aad0560fb3b88858f2b2c8e96a233ffbc989575367f30c258c1ec88315d1e996",
+        "layers-graph.json": "73943f851057777ed1a0542b0bf761b8ccb050a5a1cb9ac697733136439a1697"
+      }
+    }
+  ],
+  "retainedArtifacts": {
+    "architecture-results/fit-1.2-20261014/validation-1/command.log": "55861e92a290345e8fc7dad97da2ad68f9bb61106512c80b565265d59a3b37a3",
+    "architecture-results/fit-1.2-20261014/reorder-current/aborted.json": "65e23979fa1d19bca02dd6ef2607bdf01d2652c3133f9866ff5f72b9607e6d63",
+    "architecture-results/fit-1.2-20261014/reorder-current.log": "61a6853e593d10a4b55739de2d76b5d3a5a71c776fab88cecb427cb73c9f8565",
+    "architecture-results/fit-1.2-20261014/producer-build.log": "1067f10623a5b3814d00c59eb81754335d9ebcd4c0e0719910c46588d7e1d4f9",
+    "architecture-results/fit-1.2-20261014/reorder-repaired.log": "8c9fc55537b9772c95cb55fdd2c3272125353d8b4a75e1d6b18aba9c87c1a37b",
+    "architecture-results/fit-1.2-20261014/repins.json": "5588aa049bfa834e84fe6fa0461a32e2829758a765af8e87e60690fc14d4c432"
+  },
+  "browserProofs": {
+    "chromium": {
+      "path": "../architecture/evidence/architecture-fitness/fit-1.2/reorder-current/chromium/receipt.json",
+      "sha256": "42b49384e92915ea6b56c65282eb97727cf6de7100358992cbc89b488abd3afd",
+      "counts": {
+        "executed": 20,
+        "passed": 20,
+        "failed": 0,
+        "skipped": 0
+      }
+    },
+    "firefox": {
+      "path": "../architecture/evidence/architecture-fitness/fit-1.2/reorder-current/firefox/receipt.json",
+      "sha256": "3d2b482e6ecab8b895662f0be6310bea766c9a8c090b9cfa857a89f2517db054",
+      "counts": {
+        "executed": 20,
+        "passed": 20,
+        "failed": 0,
+        "skipped": 0
+      }
+    },
+    "webkit": {
+      "path": "../architecture/evidence/architecture-fitness/fit-1.2/reorder-current/webkit/receipt.json",
+      "sha256": "8f3d1232e1d9a454c74669aefe155b0bb7f0fe5a0b1254a9f4b36fee93bc5568",
+      "counts": {
+        "executed": 20,
+        "passed": 20,
+        "failed": 0,
+        "skipped": 0
+      }
+    }
+  },
+  "repairs": [
+    "Architecture-only wrapper restored dispatcher path policy after preflight rejection.",
+    "Two new profile fixtures repaired before validation-3.",
+    "Missing extension import map repaired after three startup failures;57 cases uncompleted in aborted run.",
+    "Current reorder implementation now has60 passing packed browser cases;10 stale inventory document/source/baseline pins refreshed; historical receipts untouched."
+  ]
+}

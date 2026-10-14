@@ -111,24 +111,25 @@
     }
   ],
   "inputs": {
-    "architecture/evidence/modules-matrix/capabilities.json": "2712693725653637c1e6c8655ece2cd0868b7ef43aef323bfb39fe3969924e38",
+    "architecture/evidence/modules-matrix/capabilities.json": "e8d106a9ff8b30f49036f41de28cc7abe9830396545f9db3498d9c47e421c6d2",
     "core/fixtures/extensions/entry-map.json": "126ba6ce4c4fef7cfc5ec701d2bffe520b533472934fe011564fccc3dd275c03",
     "core/fixtures/extensions/conformance.json": "608d4dcff4ae3da9ef76df5d5407c07830c1936582bd51de0644826b9a7e2eeb",
     "core/fixtures/extensions/versions/conformance.json": "184a9bab5b51096f8bfbbcf4adc2e0147649217b355cb0e487baac3236c323bd",
     "core/fixtures/extensions/presenters/conformance.json": "390393183bfb12d1ef3a02923018be69d2d0e47d5d2fbfb91f93254abb48cede",
-    "architecture/specs/extension-library.md": "90b76e6a05896b32490a5e0473fe43c7e06f8144e3b7c0374d2fb7c2e501647b",
-    "architecture/specs/extension-presenters.md": "508387d4684331bcab266b121ae3c911422681e48944383ae4256e92d1ccafb0",
-    "architecture/specs/client-contracts.md": "d8ec945d449cb3821805c971a3ae24f1ca6cf37251933edc39eb3538d823333a",
+    "architecture/specs/extension-library.md": "503599277d6955cb626f96d09e3a8107da184bb0e1d7332a66afeec9e9748480",
+    "architecture/specs/extension-presenters.md": "4fef2220b62700ccaaed0da3b9b7cb5f1354b2bc53453fcfbb3bf89da273e738",
+    "architecture/specs/client-contracts.md": "a1f3ff08c6e1748daa93c4e6a688eaf4b4d628ac36dcb76d58d70c9426f97a62",
     "core/packages/web/src/modules/slash.ts": "8f116c22e247cfca693d2a4bc950ed100065debfd85b09f37d223540a52c36e6",
     "core/packages/web/src/modules/references.ts": "620c0c7ce2862306f8082b04dda1b0a070d961fd81a0eae5fcd6e6cc467d407f",
-    "core/packages/web/src/modules/reorder.ts": "2de953d37f1192b1825ae1e952ab0f84a87787c041d6088ce83c43a622c0d927",
+    "core/packages/web/src/modules/reorder.ts": "8c541590f9d0900b0dcaeaf5741353e20e787849a1b5a0596f3a65ef8630f473",
     "core/packages/web/src/modules/content.ts": "270980980d8040d1501eb216cfcfa3d2640f64e1df20e8733082b92e79e93553",
     "core/packages/web/src/modules/math.ts": "3acd59796c36f36a2c248561ad08a047e067cc65f22bac2372e2f6c0bf50eb48",
-    "architecture/roadmaps/41-mobile-web-extensions.md": "ec9ea56c02bffe4b9f0cd84431d3a3c4964e430307d490dc4f89f5f8b3cde052",
-    "architecture/roadmaps/15-tui-client.md": "27c3a04fc615519df139823fec43ac846ee3cac6b1fd713017722a368e647736",
-    "architecture/roadmaps/16-ios-sdk.md": "8705afc8308f3007bbd8bd9d128cff696d329bf2e4ddb30a8e4f515aec7812f9",
-    "architecture/roadmaps/17-android-sdk.md": "da857c5326a69a900b260a0184e6d5de6f43197820b84c7d3a6d1bf29c4ed3ef",
-    "architecture/roadmaps/18-desktop-native.md": "3e195efbf3fe38e72e42082e1a90d8c2a2ca990a25749e14d48f59e71fc0bb4e"
+    "architecture/roadmaps/41-mobile-web-extensions.md": "fa3dd84d497358ffe04a133de05f69847794e2bceccbadafe90fddf4e9ab3bb6",
+    "architecture/roadmaps/15-tui-client.md": "a5634dfbe471d6d1d4f6f2062143dd77f498c1d9c11c6727acf81da525a2c53c",
+    "architecture/roadmaps/16-ios-sdk.md": "6fea5b6b362b1f5b24be7770b0a4903ec461412585ba35f59cfae265357050f2",
+    "architecture/roadmaps/17-android-sdk.md": "237797b0087beed05599a62997d91bec712af51de3d0497e8e4922edc35b3095",
+    "architecture/roadmaps/18-desktop-native.md": "8d97d88778dcffdacdebd83ff1d932fd5b7b1b071c56cdbafe1d6fd5c5cf5bf1",
+    "core/fixtures/browser-reorder/index.html": "53afc310a1b3927759512c8a515b962f10bbb0a4914853c410d80eedb4595543"
   },
   "evidence": {
     "preserve-slash": {
@@ -609,8 +610,8 @@
       "engine": "webkit"
     },
     "MOD-reorder-read-tab-enter-chromium": {
-      "path": "architecture/evidence/modules-reorder/complete-browser/chromium/receipt.json",
-      "sha256": "b0e15f0eafb61044b9d80c7bdff6fd41ccd0681e25e7e62050e44f13bfdbffd1",
+      "path": "architecture/evidence/architecture-fitness/fit-1.2/reorder-current/chromium/receipt.json",
+      "sha256": "42b49384e92915ea6b56c65282eb97727cf6de7100358992cbc89b488abd3afd",
       "kind": "browser-proof",
       "fixtureId": "tab-enter",
       "module": "reorder",
@@ -618,8 +619,8 @@
       "engine": "chromium"
     },
     "MOD-reorder-edit-keyboard-parity-chromium": {
-      "path": "architecture/evidence/modules-reorder/complete-browser/chromium/receipt.json",
-      "sha256": "b0e15f0eafb61044b9d80c7bdff6fd41ccd0681e25e7e62050e44f13bfdbffd1",
+      "path": "architecture/evidence/architecture-fitness/fit-1.2/reorder-current/chromium/receipt.json",
+      "sha256": "42b49384e92915ea6b56c65282eb97727cf6de7100358992cbc89b488abd3afd",
       "kind": "browser-proof",
       "fixtureId": "keyboard-parity",
       "module": "reorder",
@@ -627,8 +628,8 @@
       "engine": "chromium"
     },
     "MOD-reorder-edit-button-parity-chromium": {
-      "path": "architecture/evidence/modules-reorder/complete-browser/chromium/receipt.json",
-      "sha256": "b0e15f0eafb61044b9d80c7bdff6fd41ccd0681e25e7e62050e44f13bfdbffd1",
+      "path": "architecture/evidence/architecture-fitness/fit-1.2/reorder-current/chromium/receipt.json",
+      "sha256": "42b49384e92915ea6b56c65282eb97727cf6de7100358992cbc89b488abd3afd",
       "kind": "browser-proof",
       "fixtureId": "button-parity",
       "module": "reorder",
@@ -636,8 +637,8 @@
       "engine": "chromium"
     },
     "MOD-reorder-edit-concurrent-before-chromium": {
-      "path": "architecture/evidence/modules-reorder/complete-browser/chromium/receipt.json",
-      "sha256": "b0e15f0eafb61044b9d80c7bdff6fd41ccd0681e25e7e62050e44f13bfdbffd1",
+      "path": "architecture/evidence/architecture-fitness/fit-1.2/reorder-current/chromium/receipt.json",
+      "sha256": "42b49384e92915ea6b56c65282eb97727cf6de7100358992cbc89b488abd3afd",
       "kind": "browser-proof",
       "fixtureId": "concurrent-before",
       "module": "reorder",
@@ -645,8 +646,8 @@
       "engine": "chromium"
     },
     "MOD-reorder-edit-concurrent-after-chromium": {
-      "path": "architecture/evidence/modules-reorder/complete-browser/chromium/receipt.json",
-      "sha256": "b0e15f0eafb61044b9d80c7bdff6fd41ccd0681e25e7e62050e44f13bfdbffd1",
+      "path": "architecture/evidence/architecture-fitness/fit-1.2/reorder-current/chromium/receipt.json",
+      "sha256": "42b49384e92915ea6b56c65282eb97727cf6de7100358992cbc89b488abd3afd",
       "kind": "browser-proof",
       "fixtureId": "concurrent-after",
       "module": "reorder",
@@ -654,8 +655,8 @@
       "engine": "chromium"
     },
     "MOD-reorder-edit-invalid-descendant-chromium": {
-      "path": "architecture/evidence/modules-reorder/complete-browser/chromium/receipt.json",
-      "sha256": "b0e15f0eafb61044b9d80c7bdff6fd41ccd0681e25e7e62050e44f13bfdbffd1",
+      "path": "architecture/evidence/architecture-fitness/fit-1.2/reorder-current/chromium/receipt.json",
+      "sha256": "42b49384e92915ea6b56c65282eb97727cf6de7100358992cbc89b488abd3afd",
       "kind": "browser-proof",
       "fixtureId": "invalid-descendant",
       "module": "reorder",
@@ -663,8 +664,8 @@
       "engine": "chromium"
     },
     "MOD-reorder-edit-history-chromium": {
-      "path": "architecture/evidence/modules-reorder/complete-browser/chromium/receipt.json",
-      "sha256": "b0e15f0eafb61044b9d80c7bdff6fd41ccd0681e25e7e62050e44f13bfdbffd1",
+      "path": "architecture/evidence/architecture-fitness/fit-1.2/reorder-current/chromium/receipt.json",
+      "sha256": "42b49384e92915ea6b56c65282eb97727cf6de7100358992cbc89b488abd3afd",
       "kind": "browser-proof",
       "fixtureId": "history",
       "module": "reorder",
@@ -672,8 +673,8 @@
       "engine": "chromium"
     },
     "MOD-reorder-disabled-recovery-disposal-chromium": {
-      "path": "architecture/evidence/modules-reorder/complete-browser/chromium/receipt.json",
-      "sha256": "b0e15f0eafb61044b9d80c7bdff6fd41ccd0681e25e7e62050e44f13bfdbffd1",
+      "path": "architecture/evidence/architecture-fitness/fit-1.2/reorder-current/chromium/receipt.json",
+      "sha256": "42b49384e92915ea6b56c65282eb97727cf6de7100358992cbc89b488abd3afd",
       "kind": "browser-proof",
       "fixtureId": "recovery-disposal",
       "module": "reorder",
@@ -681,8 +682,8 @@
       "engine": "chromium"
     },
     "MOD-reorder-read-tab-enter-firefox": {
-      "path": "architecture/evidence/modules-reorder/complete-browser/firefox/receipt.json",
-      "sha256": "c576870c8e6051fe20a8581a78f3f5d273e36c47b893d692d0f3a0b2740fa3b6",
+      "path": "architecture/evidence/architecture-fitness/fit-1.2/reorder-current/firefox/receipt.json",
+      "sha256": "3d2b482e6ecab8b895662f0be6310bea766c9a8c090b9cfa857a89f2517db054",
       "kind": "browser-proof",
       "fixtureId": "tab-enter",
       "module": "reorder",
@@ -690,8 +691,8 @@
       "engine": "firefox"
     },
     "MOD-reorder-edit-keyboard-parity-firefox": {
-      "path": "architecture/evidence/modules-reorder/complete-browser/firefox/receipt.json",
-      "sha256": "c576870c8e6051fe20a8581a78f3f5d273e36c47b893d692d0f3a0b2740fa3b6",
+      "path": "architecture/evidence/architecture-fitness/fit-1.2/reorder-current/firefox/receipt.json",
+      "sha256": "3d2b482e6ecab8b895662f0be6310bea766c9a8c090b9cfa857a89f2517db054",
       "kind": "browser-proof",
       "fixtureId": "keyboard-parity",
       "module": "reorder",
@@ -699,8 +700,8 @@
       "engine": "firefox"
     },
     "MOD-reorder-edit-button-parity-firefox": {
-      "path": "architecture/evidence/modules-reorder/complete-browser/firefox/receipt.json",
-      "sha256": "c576870c8e6051fe20a8581a78f3f5d273e36c47b893d692d0f3a0b2740fa3b6",
+      "path": "architecture/evidence/architecture-fitness/fit-1.2/reorder-current/firefox/receipt.json",
+      "sha256": "3d2b482e6ecab8b895662f0be6310bea766c9a8c090b9cfa857a89f2517db054",
       "kind": "browser-proof",
       "fixtureId": "button-parity",
       "module": "reorder",
@@ -708,8 +709,8 @@
       "engine": "firefox"
     },
     "MOD-reorder-edit-concurrent-before-firefox": {
-      "path": "architecture/evidence/modules-reorder/complete-browser/firefox/receipt.json",
-      "sha256": "c576870c8e6051fe20a8581a78f3f5d273e36c47b893d692d0f3a0b2740fa3b6",
+      "path": "architecture/evidence/architecture-fitness/fit-1.2/reorder-current/firefox/receipt.json",
+      "sha256": "3d2b482e6ecab8b895662f0be6310bea766c9a8c090b9cfa857a89f2517db054",
       "kind": "browser-proof",
       "fixtureId": "concurrent-before",
       "module": "reorder",
@@ -717,8 +718,8 @@
       "engine": "firefox"
     },
     "MOD-reorder-edit-concurrent-after-firefox": {
-      "path": "architecture/evidence/modules-reorder/complete-browser/firefox/receipt.json",
-      "sha256": "c576870c8e6051fe20a8581a78f3f5d273e36c47b893d692d0f3a0b2740fa3b6",
+      "path": "architecture/evidence/architecture-fitness/fit-1.2/reorder-current/firefox/receipt.json",
+      "sha256": "3d2b482e6ecab8b895662f0be6310bea766c9a8c090b9cfa857a89f2517db054",
       "kind": "browser-proof",
       "fixtureId": "concurrent-after",
       "module": "reorder",
@@ -726,8 +727,8 @@
       "engine": "firefox"
     },
     "MOD-reorder-edit-invalid-descendant-firefox": {
-      "path": "architecture/evidence/modules-reorder/complete-browser/firefox/receipt.json",
-      "sha256": "c576870c8e6051fe20a8581a78f3f5d273e36c47b893d692d0f3a0b2740fa3b6",
+      "path": "architecture/evidence/architecture-fitness/fit-1.2/reorder-current/firefox/receipt.json",
+      "sha256": "3d2b482e6ecab8b895662f0be6310bea766c9a8c090b9cfa857a89f2517db054",
       "kind": "browser-proof",
       "fixtureId": "invalid-descendant",
       "module": "reorder",
@@ -735,8 +736,8 @@
       "engine": "firefox"
     },
     "MOD-reorder-edit-history-firefox": {
-      "path": "architecture/evidence/modules-reorder/complete-browser/firefox/receipt.json",
-      "sha256": "c576870c8e6051fe20a8581a78f3f5d273e36c47b893d692d0f3a0b2740fa3b6",
+      "path": "architecture/evidence/architecture-fitness/fit-1.2/reorder-current/firefox/receipt.json",
+      "sha256": "3d2b482e6ecab8b895662f0be6310bea766c9a8c090b9cfa857a89f2517db054",
       "kind": "browser-proof",
       "fixtureId": "history",
       "module": "reorder",
@@ -744,8 +745,8 @@
       "engine": "firefox"
     },
     "MOD-reorder-disabled-recovery-disposal-firefox": {
-      "path": "architecture/evidence/modules-reorder/complete-browser/firefox/receipt.json",
-      "sha256": "c576870c8e6051fe20a8581a78f3f5d273e36c47b893d692d0f3a0b2740fa3b6",
+      "path": "architecture/evidence/architecture-fitness/fit-1.2/reorder-current/firefox/receipt.json",
+      "sha256": "3d2b482e6ecab8b895662f0be6310bea766c9a8c090b9cfa857a89f2517db054",
       "kind": "browser-proof",
       "fixtureId": "recovery-disposal",
       "module": "reorder",
@@ -753,8 +754,8 @@
       "engine": "firefox"
     },
     "MOD-reorder-read-tab-enter-webkit": {
-      "path": "architecture/evidence/modules-reorder/complete-browser/webkit/receipt.json",
-      "sha256": "1cca3b80649e3a6088147c8e66d1a9ee911ae59b89c35a6ef51cf56089c819a2",
+      "path": "architecture/evidence/architecture-fitness/fit-1.2/reorder-current/webkit/receipt.json",
+      "sha256": "8f3d1232e1d9a454c74669aefe155b0bb7f0fe5a0b1254a9f4b36fee93bc5568",
       "kind": "browser-proof",
       "fixtureId": "tab-enter",
       "module": "reorder",
@@ -762,8 +763,8 @@
       "engine": "webkit"
     },
     "MOD-reorder-edit-keyboard-parity-webkit": {
-      "path": "architecture/evidence/modules-reorder/complete-browser/webkit/receipt.json",
-      "sha256": "1cca3b80649e3a6088147c8e66d1a9ee911ae59b89c35a6ef51cf56089c819a2",
+      "path": "architecture/evidence/architecture-fitness/fit-1.2/reorder-current/webkit/receipt.json",
+      "sha256": "8f3d1232e1d9a454c74669aefe155b0bb7f0fe5a0b1254a9f4b36fee93bc5568",
       "kind": "browser-proof",
       "fixtureId": "keyboard-parity",
       "module": "reorder",
@@ -771,8 +772,8 @@
       "engine": "webkit"
     },
     "MOD-reorder-edit-button-parity-webkit": {
-      "path": "architecture/evidence/modules-reorder/complete-browser/webkit/receipt.json",
-      "sha256": "1cca3b80649e3a6088147c8e66d1a9ee911ae59b89c35a6ef51cf56089c819a2",
+      "path": "architecture/evidence/architecture-fitness/fit-1.2/reorder-current/webkit/receipt.json",
+      "sha256": "8f3d1232e1d9a454c74669aefe155b0bb7f0fe5a0b1254a9f4b36fee93bc5568",
       "kind": "browser-proof",
       "fixtureId": "button-parity",
       "module": "reorder",
@@ -780,8 +781,8 @@
       "engine": "webkit"
     },
     "MOD-reorder-edit-concurrent-before-webkit": {
-      "path": "architecture/evidence/modules-reorder/complete-browser/webkit/receipt.json",
-      "sha256": "1cca3b80649e3a6088147c8e66d1a9ee911ae59b89c35a6ef51cf56089c819a2",
+      "path": "architecture/evidence/architecture-fitness/fit-1.2/reorder-current/webkit/receipt.json",
+      "sha256": "8f3d1232e1d9a454c74669aefe155b0bb7f0fe5a0b1254a9f4b36fee93bc5568",
       "kind": "browser-proof",
       "fixtureId": "concurrent-before",
       "module": "reorder",
@@ -789,8 +790,8 @@
       "engine": "webkit"
     },
     "MOD-reorder-edit-concurrent-after-webkit": {
-      "path": "architecture/evidence/modules-reorder/complete-browser/webkit/receipt.json",
-      "sha256": "1cca3b80649e3a6088147c8e66d1a9ee911ae59b89c35a6ef51cf56089c819a2",
+      "path": "architecture/evidence/architecture-fitness/fit-1.2/reorder-current/webkit/receipt.json",
+      "sha256": "8f3d1232e1d9a454c74669aefe155b0bb7f0fe5a0b1254a9f4b36fee93bc5568",
       "kind": "browser-proof",
       "fixtureId": "concurrent-after",
       "module": "reorder",
@@ -798,8 +799,8 @@
       "engine": "webkit"
     },
     "MOD-reorder-edit-invalid-descendant-webkit": {
-      "path": "architecture/evidence/modules-reorder/complete-browser/webkit/receipt.json",
-      "sha256": "1cca3b80649e3a6088147c8e66d1a9ee911ae59b89c35a6ef51cf56089c819a2",
+      "path": "architecture/evidence/architecture-fitness/fit-1.2/reorder-current/webkit/receipt.json",
+      "sha256": "8f3d1232e1d9a454c74669aefe155b0bb7f0fe5a0b1254a9f4b36fee93bc5568",
       "kind": "browser-proof",
       "fixtureId": "invalid-descendant",
       "module": "reorder",
@@ -807,8 +808,8 @@
       "engine": "webkit"
     },
     "MOD-reorder-edit-history-webkit": {
-      "path": "architecture/evidence/modules-reorder/complete-browser/webkit/receipt.json",
-      "sha256": "1cca3b80649e3a6088147c8e66d1a9ee911ae59b89c35a6ef51cf56089c819a2",
+      "path": "architecture/evidence/architecture-fitness/fit-1.2/reorder-current/webkit/receipt.json",
+      "sha256": "8f3d1232e1d9a454c74669aefe155b0bb7f0fe5a0b1254a9f4b36fee93bc5568",
       "kind": "browser-proof",
       "fixtureId": "history",
       "module": "reorder",
@@ -816,8 +817,8 @@
       "engine": "webkit"
     },
     "MOD-reorder-disabled-recovery-disposal-webkit": {
-      "path": "architecture/evidence/modules-reorder/complete-browser/webkit/receipt.json",
-      "sha256": "1cca3b80649e3a6088147c8e66d1a9ee911ae59b89c35a6ef51cf56089c819a2",
+      "path": "architecture/evidence/architecture-fitness/fit-1.2/reorder-current/webkit/receipt.json",
+      "sha256": "8f3d1232e1d9a454c74669aefe155b0bb7f0fe5a0b1254a9f4b36fee93bc5568",
       "kind": "browser-proof",
       "fixtureId": "recovery-disposal",
       "module": "reorder",

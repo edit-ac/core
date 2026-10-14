@@ -39,7 +39,10 @@ async function main() {
   try {
     receipt.counts = testCounts(tap);
     if (result.error || result.status !== 0) throw Error(`Test runner failed: ${result.error?.message ?? result.status}`);
-    if (args[1] === 'layers') receipt.artifacts['layers-graph.json'] = hash(await readFile(resolve(output, 'layers-graph.json')));
+    for (const artifact of suite.artifacts ?? []) {
+      if (!/^[a-z0-9-]+\.json$/.test(artifact)) throw Error('Invalid suite artifact path');
+      receipt.artifacts[artifact] = hash(await readFile(resolve(output, artifact)));
+    }
   } catch (error) { receipt.counts ??= error.counts ?? null; receipt.errors.push(error.message); }
   await writeFile(resolve(output, 'receipt.json'), JSON.stringify(receipt, null, 2) + '\n');
   console.log(JSON.stringify({ suite: args[1], exit: receipt.exit, counts: receipt.counts, errors: receipt.errors, output: relative(root, output) }));
