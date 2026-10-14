@@ -8,7 +8,7 @@ import { assertPendingSequence } from './pending-harness.mjs';
 import { SemanticDriver, semanticProfile } from './semantic-adapter.ts';
 const vectors = JSON.parse(await readFile('fixtures/editing-failures/pending-vectors.json', 'utf8')).sequences;
 const suite = loadSuite(), output = process.env.EDITAC_EDITING_OUTPUT;
-const facts = { parent: 'RGS-1.2', child: 'RGS-1.2-C10', guard: 'G04', layer: 'real packed-WASM via shared SemanticDriver', fixtureHashes: suite.hashes, profile: { ...semanticProfile, clock: 'driver fixed 0; default isolated history groups; fresh cleared history' }, cases: [], negativeControls: [], exclusions: ['No journal/persistence attachment', 'No native editor-local pending state', 'History bookmarks and alignment/atom profiles remain unqualified', 'No device/gesture evidence'] };
+const facts = { parent: 'RGS-1.2', child: 'RGS-1.2-C10', guard: 'G04', layer: 'real packed-WASM via shared SemanticDriver', fixtureHashes: suite.hashes, profile: { ...semanticProfile, clock: 'driver fixed 0; default isolated history groups; fresh cleared history' }, cases: [], negativeControls: [], exclusions: ['No journal/persistence attachment', 'No native editor-local pending state', 'No device/gesture evidence'] };
 let pack;
 before(async () => { assert.ok(output); assert.equal(vectors.length, 2); pack = await packedRuntime(process.env.EDITAC_EDITING_PACK_TARBALL); });
 after(async () => {

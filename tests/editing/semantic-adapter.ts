@@ -4,8 +4,8 @@ import { EditingDriver, type DriverResult } from './driver.ts';
 import type { Action, State, Selection, Position } from './fixture-loader.ts';
 
 export class MissingCapabilityError extends Error {}
-export const semanticCapabilities = new Set(['compound-edit', 'result-selection', 'hard-break', 'utf16', 'range-format', 'pending-marks', 'atomic-rejection', 'multi-block-replace', 'grapheme-delete', 'boundary-noop', 'history', 'semantic-history']);
-export const semanticActions = new Set(['insertText', 'insertParagraph', 'insertHardBreak', 'toggleMark', 'setSelection', 'applyBatch', 'backspace', 'deleteForward', 'undo', 'redo', 'pasteFragment']);
+export const semanticCapabilities = new Set(['compound-edit', 'result-selection', 'hard-break', 'utf16', 'range-format', 'pending-marks', 'atomic-rejection', 'multi-block-replace', 'grapheme-delete', 'boundary-noop', 'history', 'semantic-history', 'paragraph-left-alignment', 'preceding-separator']);
+export const semanticActions = new Set(['insertText', 'insertParagraph', 'insertHardBreak', 'toggleMark', 'setSelection', 'applyBatch', 'backspace', 'deleteForward', 'undo', 'redo', 'pasteFragment', 'setAlignment', 'deleteSeparator']);
 const markNames: MarkCommand['mark'][] = ['bold', 'italic', 'strike', 'underline', 'code', 'link'];
 export const semanticProfile = Object.freeze({ name: 'rgs-semantic-v1', engine: 'v5', capabilities: [...semanticCapabilities], actions: [...semanticActions], historySelection: 'native entry/result relative bookmarks', persistence: 'unattached', graphemes: 'pinned Node ICU prepared command targets; matching native Unicode vectors' });
 
@@ -16,6 +16,7 @@ export class SemanticDriver extends EditingDriver {
     try {
       const commands: EditorCommand[] = [];
       for (const block of initial.blocks) {
+        if (block.kind === 'separator') commands.push({ type: 'convertSeparator', owner: this.id(block.id) });
         if (block.kind === 'code') commands.push({ type: 'setCode', owner: this.id(block.id), language: '' });
         for (const mark of block.marks) commands.push({ type: 'markAt', owner: this.id(block.id), from: mark.from, to: mark.to, mark: mark.type as MarkCommand['mark'], action: 'apply' });
       }
@@ -37,7 +38,7 @@ export class SemanticDriver extends EditingDriver {
     const blocks: State['blocks'] = this.engine.read().visible.filter(n => n.kind === 'block').map(node => {
       const id = aliases.get(node.id); if (!id) throw new Error(`Unbound engine identity: ${node.id}`);
       const kind = (node.blockAttributes as unknown[])?.[0];
-      if (kind !== 'paragraph' && kind !== 'code') throw new MissingCapabilityError(`Unsupported semantic projection: ${kind}`);
+      if (kind !== 'paragraph' && kind !== 'code' && kind !== 'separator') throw new MissingCapabilityError(`Unsupported semantic projection: ${kind}`);
       const text = node.runs.map(r => r.text).join('');
       const marks: State['blocks'][number]['marks'] = []; let offset = 0;
       for (const run of node.runs) {
@@ -133,6 +134,12 @@ export class SemanticDriver extends EditingDriver {
         return this.result(result.revision === before.snapshot.revision ? 'no-op' : 'applied', events);
       } finally { subscription.dispose(); }
     }
+    if (action.type === 'setAlignment' || action.type === 'deleteSeparator') {
+      const alias = typeof action.block === 'string' ? action.block : a.block;
+      const owner = this.ids.get(alias) ?? alias;
+      const command: EditorCommand = action.type === 'setAlignment' ? { type: 'setAlignment', owner, alignment: action.alignment as 'left' } : { type: 'deleteSeparator', owner };
+      return this.commit({ kind: 'editor', origin: 'local:rgs:block', commands: [command, this.resultSelection(this.selection)] });
+    }
     if (action.type === 'applyBatch') {
       return this.applyBatch(action);
     }
@@ -185,6 +192,8 @@ export class SemanticDriver extends EditingDriver {
       const owner = this.ids.get(op.block as string) ?? op.block as string; // Unknown IDs reach engine admission unchanged.
       if (op.type === 'insertText') return { type: 'replaceAt', owner, from: op.offset as number, to: op.offset as number, text: op.text! };
       if (op.type === 'replaceText') return { type: 'replaceAt', owner, from: op.from as number, to: op.to as number, text: op.text! };
+      if (op.type === 'setAlignment') return { type: 'setAlignment', owner, alignment: op.alignment as 'left' };
+      if (op.type === 'deleteSeparator') return { type: 'deleteSeparator', owner };
       if (op.type === 'applyMark') return { type: 'markAt', owner, from: op.from as number, to: op.to as number, mark: op.mark as MarkCommand['mark'], action: 'apply' };
       throw new MissingCapabilityError(`Unbound batch operation: ${op.type}`);
     });
