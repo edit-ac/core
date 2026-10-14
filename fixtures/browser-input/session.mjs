@@ -7,8 +7,13 @@ import { DOMRenderer } from '/web/dom/render.js';
 import { TextInput } from '/web/input/text.js';
 const identity={documentId:'45678901-4567-4567-8567-45678901abcd',epoch:'56789012-5678-4678-8678-56789012abcd',schema:'editac.registry.editor.v5',offsets:'utf16',profile:'editac.yrs-yjs.editor.v5',protocolVersion:1,updateEncoding:1};
 const root=document.querySelector('#projection'),databaseName='browser-input';
+let mountGeneration=0;
 let markdownRegistration, runtime,session,renderer,selection,protocol,ids,patches=[],commandResults=[],otherBlock,otherText;
 async function mount(text='alpha',other='independent') {
+ // A remount is a new session, never a second initialization of an existing
+ // document/epoch. Preserve first-mount fixture pins for existing suites.
+ if (++mountGeneration > 1) identity.epoch=`56789012-5678-4678-8678-${String(mountGeneration).padStart(12,'0')}`;
+ patches=[];commandResults=[];
  runtime=await init('/core/wasm/editac_wasm_bg.wasm');
  const engine=runtime.createEngine({profile:'v5',documentId:identity.documentId,epoch:identity.epoch,nodes:other===null?[{text}]:[{text},{text:other}]});
  ids=engine.read().visible.map(n=>n.id);const checkpoint=engine.checkpoint();engine.dispose();

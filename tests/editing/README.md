@@ -227,3 +227,17 @@ EDITAC_EDITING_INPUT_OUTPUT=/absolute/path/to/fresh/evidence npm run test:editin
 ```
 
 The command requires Chromium, Firefox and WebKit and fails for a missing browser or required case. `browser-driver.ts` consumes SEQ-10 from architecture, maps its logical IDs at mount, mutates the actual DOM from the action range and reads engine/DOM selection, update, history and IndexedDB journal checkpoints. Its bounded profile admits one unmarked paragraph with context-derived marks; unsupported capabilities and actions fail explicitly. REG-14/16 and G01/G05/G09 share the packed production TextInput/renderer/selection/storage harness. Date.now is fixed; settlement uses the adapter's generation-aware eight-turn microtask drain and the local storage barrier, with a failure deadline instead of sleeps. Receipts distinguish prepared composition/native-notification replay from trusted WebDriver key cycles, deliberate Enter and sentinels. These runs establish browser mechanics, not OS IME or platform/release qualification. The unchanged qualified ADR is pinned alongside refreshed WEB-1.13 current-source evidence.
+
+
+## Failure and lifetime proof (RGS-1.6)
+
+```sh
+EDITAC_EDITING_PACK_TARBALL=/absolute/path/to/qualified/edit-ac-core-0.0.0.tgz \
+EDITAC_EDITING_OUTPUT=/absolute/path/to/fresh/packed-evidence \
+EDITAC_EDITING_LIFETIME_OUTPUT=/absolute/path/to/fresh/browser-evidence \
+npm run test:editing -- --group failures
+```
+
+The canonical group runs packed production engine, ModuleRuntime and ExtensionCommandSession cases with the shared production storage/journal harness, then Chromium, Firefox and WebKit lifetime cases. Host observer commands await preparation before committing in a later microtask; cancellation/disposal aborts their ownership, and revision/capability rechecks reject stale completion. Exceptions stay independent of committed content and persistence. Tests observe actual updates, journal transaction completion, history and cumulative recovery; corrupted independent expectations must fail.
+
+`browser-lifetime-driver.ts` consumes every SEQ-09 action/checkpoint directly from architecture. A prepared clipboard provider holds the actual retained target; a real remote tombstone update deletes its owner. The host explicitly recovers a stale DOM selection to the first surviving owner at offset zero; the pending request retains its original anchors and rejects instead of following that caret. Remounts use a new epoch. Queued observer work and late provider completions cannot write detached DOM, refocus or edit the replacement session. Browser evidence covers prepared mechanics with actual adapters and IndexedDB; OS clipboard/provider and device qualification remain separately owned.

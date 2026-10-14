@@ -158,3 +158,8 @@ test('properties group binds all owning packed and native checks', () => {
   assert.ok(existsSync('tests/editing/properties.test.mjs'));
   assert.throws(() => editingSuites('properties', 'pending'));
 });
+
+test('failure proof binds both production command and browser lifetime suites', () => {
+  assert.deepEqual(editingSuites('failures'), ['tests/editing/failure-injection.test.mjs', 'tests/browser/editing-lifetime.spec.ts']);
+  for (const path of editingSuites('failures')) assert.ok(existsSync(path));
+});
