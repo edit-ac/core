@@ -1405,6 +1405,126 @@ fn original_seq07_cross_owner_history_restores_both_source_endpoints() {
 }
 
 #[test]
+fn original_seq03_seq13_seq14_typing_consumes_native_undo_range() {
+    use editac_core::document::BlockAttributes;
+    for kind in ["format", "enter", "hard-break"] {
+        for bias in [Bias::Left, Bias::Right] {
+            let mut d = engine();
+            replace(&mut d, A, 0, 4, "abcd");
+            d.clear_history();
+            let original = d.snapshot().unwrap().visible;
+            let (a, f) = if kind == "format" { (1, 3) } else { (3, 1) };
+            let entry = d.selection((A, U(a), bias), (A, U(f), bias)).unwrap();
+            let plan = if kind == "format" {
+                d.prepare_editor(
+                    &[
+                        EditorCommand::HistorySelectionAt {
+                            anchor: bookmark_position(A, a, bias),
+                            focus: bookmark_position(A, f, bias),
+                        },
+                        EditorCommand::MarkAt {
+                            owner: A.into(),
+                            from: U(1),
+                            to: U(3),
+                            mark: Mark::Bold,
+                            action: FormatAction::Toggle,
+                            href: None,
+                        },
+                        EditorCommand::SelectionAt {
+                            anchor: bookmark_position(A, a, bias),
+                            focus: bookmark_position(A, f, bias),
+                        },
+                    ],
+                    &origin(),
+                )
+                .unwrap()
+            } else {
+                let empty = || FragmentBlock {
+                    runs: vec![],
+                    attributes: Some(BlockAttributes::Paragraph),
+                    containers: vec![],
+                    checked: None,
+                };
+                let blocks = if kind == "enter" {
+                    vec![empty(), empty()]
+                } else {
+                    vec![FragmentBlock {
+                        runs: vec![FragmentRun {
+                            text: "\n".into(),
+                            marks: vec![],
+                        }],
+                        ..empty()
+                    }]
+                };
+                d.prepare_fragment(&entry, &blocks, &origin()).unwrap()
+            };
+            d.commit_editor(plan).unwrap();
+            let undo = d.undo().unwrap().unwrap();
+            let restored = undo.selection.unwrap();
+            assert_eq!(d.snapshot().unwrap().visible, original);
+            assert_eq!(
+                bookmark_cuts(&d, &restored),
+                (A.into(), a, bias, A.into(), f, bias)
+            );
+            let Resolution::Position(anchor) = d.resolve_anchor(&restored.anchor).unwrap() else {
+                panic!()
+            };
+            let Resolution::Position(focus) = d.resolve_anchor(&restored.focus).unwrap() else {
+                panic!()
+            };
+            let plan = d
+                .prepare_editor(
+                    &[
+                        EditorCommand::HistorySelectionAt {
+                            anchor: bookmark_position(&anchor.node, anchor.offset.0, anchor.bias),
+                            focus: bookmark_position(&focus.node, focus.offset.0, focus.bias),
+                        },
+                        EditorCommand::ReplaceAt {
+                            owner: anchor.node,
+                            from: U(anchor.offset.0.min(focus.offset.0)),
+                            to: U(anchor.offset.0.max(focus.offset.0)),
+                            text: "!".into(),
+                        },
+                        EditorCommand::SelectionAt {
+                            anchor: bookmark_position(A, 2, bias),
+                            focus: bookmark_position(A, 2, bias),
+                        },
+                    ],
+                    &origin(),
+                )
+                .unwrap();
+            let before = (d.checkpoint().bytes, d.state_vector_v1(), d.revision());
+            assert_eq!(
+                text(&d, A),
+                "abcd",
+                "prepare cannot mutate the restored range"
+            );
+            let committed = d.commit_editor(plan).unwrap();
+            assert_eq!(text(&d, A), "a!d");
+            assert_eq!(
+                bookmark_cuts(&d, &committed.result_selection.unwrap()),
+                (A.into(), 2, bias, A.into(), 2, bias)
+            );
+            assert_eq!(d.revision(), before.2 + 1);
+            assert_ne!(d.state_vector_v1(), before.1);
+            assert_ne!(d.checkpoint().bytes, before.0);
+            assert_eq!(d.history_state().redo_groups, 0);
+            assert_eq!(d.history_state().undo_groups, 1);
+            let visible = d.snapshot().unwrap().visible;
+            let node = visible.iter().find(|n| n.id == A).unwrap();
+            assert!(node.runs.iter().all(|r| r.attributes.is_empty()));
+            let original_owner = original.iter().find(|n| n.id == A).unwrap();
+            assert_eq!(node.spans[0].source, original_owner.spans[0].source);
+            assert_ne!(
+                text(&d, A),
+                "abcd!",
+                "a later caret cannot replace the bookmark"
+            );
+        }
+    }
+}
+
+#[test]
 fn history_bookmark_remote_owner_removal_rejects_before_mutation() {
     let mut d = engine();
     edit(

@@ -7,11 +7,12 @@ import { assertCheckpoint } from './driver.ts';
 import { SemanticDriver, semanticProfile } from './semantic-adapter.ts';
 import { packedRuntime, sha256 } from './packed-runtime.mjs';
 import { variantStorage } from './variant-storage-harness.mjs';
+import { checkedCheckpoint } from './checkpoint-oracle.mjs';
 
 export function registerVariantTests({ withStorage = false } = {}) {
 
 const output = process.env.EDITAC_EDITING_OUTPUT;
-const facts = { child: withStorage ? 'RGS-1.2-C18' : 'RGS-1.2-C1', parent: 'RGS-1.2', layer: withStorage ? 'real packed-WASM + production LocalStorageLifecycle/StorageWriter/UpdateJournal + prepared IndexedDB' : 'real packed-WASM semantic regression variants', profile: withStorage ? { ...semanticProfile, persistence: 'actual journal enqueue/local completion; prepared IndexedDB delivery', clock: 'fixed driver clock 0; isolated default history groups' } : semanticProfile, fixtureHashes: loadSuite().hashes, cases: [], negativeControls: [], exclusions: ['Cross-owner C2 cases retain original failed evidence and are not selected for C18', 'Alignment/separator lifecycle is qualified separately by the C4 semantic harness', ...(withStorage ? [] : ['Journal/persistence unattached']), 'No browser/native gesture/device qualification'] };
+const facts = { child: withStorage ? 'RGS-1.2-C18' : 'RGS-1.2-C1', parent: 'RGS-1.2', layer: withStorage ? 'real packed-WASM + production LocalStorageLifecycle/StorageWriter/UpdateJournal + prepared IndexedDB' : 'real packed-WASM semantic regression variants', profile: withStorage ? { ...semanticProfile, persistence: 'actual journal enqueue/local completion; prepared IndexedDB delivery', clock: 'fixed driver clock 0; isolated default history groups' } : semanticProfile, fixtureHashes: loadSuite().hashes, cases: [], negativeControls: [], exclusions: [...(withStorage ? ['Cross-owner C2 cases are qualified in semantic-variants, not selected for C18'] : []), 'Alignment/separator lifecycle is qualified separately by the C4 semantic harness', ...(withStorage ? [] : ['Journal/persistence unattached']), 'No browser/native gesture/device qualification'] };
 let pack, runtime;
 before(async () => {
   assert.ok(output, 'EDITAC_EDITING_OUTPUT must identify a fresh evidence directory');
@@ -20,7 +21,7 @@ before(async () => {
 after(async () => {
   if (pack) { await pack.close(); facts.runtime = pack.facts; }
   facts.sourceHashes = {};
-  for (const path of ['tests/editing/semantic-variants.test.mjs', 'tests/editing/variant-harness.mjs', 'tests/editing/variant-storage.test.mjs', 'tests/editing/variant-storage-harness.mjs', 'tests/editing/storage-harness.mjs', 'tests/editing/replica-state.mjs', 'tests/helpers/journal-storage.mjs', ...['index', 'writer', 'journal', 'transaction'].flatMap(n => [`packages/web/src/storage/${n}.ts`, `packages/web/dist/storage/${n}.js`]), 'scripts/editing-suites.mjs', 'Cargo.lock', 'tests/editing/semantic-adapter.ts', 'tests/editing/driver.ts', 'tests/editing/packed-runtime.mjs', 'scripts/test-editing.mjs', 'crates/editac-core/tests/editing_regressions.rs']) facts.sourceHashes[path] = sha256(await readFile(path));
+  for (const path of ['tests/editing/checkpoint-oracle.mjs', 'tests/editing/history-bookmark-oracle.mjs', 'tests/editing/semantic-variants.test.mjs', 'tests/editing/variant-harness.mjs', 'tests/editing/variant-storage.test.mjs', 'tests/editing/variant-storage-harness.mjs', 'tests/editing/storage-harness.mjs', 'tests/editing/replica-state.mjs', 'tests/helpers/journal-storage.mjs', ...['index', 'writer', 'journal', 'transaction'].flatMap(n => [`packages/web/src/storage/${n}.ts`, `packages/web/dist/storage/${n}.js`]), 'scripts/editing-suites.mjs', 'Cargo.lock', 'tests/editing/semantic-adapter.ts', 'tests/editing/driver.ts', 'tests/editing/packed-runtime.mjs', 'scripts/test-editing.mjs', 'crates/editac-core/tests/editing_regressions.rs']) facts.sourceHashes[path] = sha256(await readFile(path));
   facts.counts = { executed: facts.cases.length, passed: facts.cases.filter(c => c.status === 'passed').length, failed: facts.cases.filter(c => c.status === 'failed').length, skipped: 0 };
   await mkdir(output, { recursive: true }); await writeFile(join(output, withStorage ? 'variant-storage-harness.json' : 'semantic-variants-harness.json'), JSON.stringify(facts, null, 2) + '\n');
 });
@@ -103,8 +104,8 @@ caseTest('REG-05 empty destination recomputes null and rejects unsupported pendi
   facts.negativeControls.push('G04-empty-destination/null-versus-override'); fact.checkpoints++;
 });
 
-// Selection direction is independently authored. These checks prove content undo,
-// never the missing history selection boundary. Each direction gets a fresh engine.
+// Selection direction is independently authored; native bookmarks supply history
+// selection, including both endpoints. Each direction gets a fresh engine.
 for (const kind of ['code', 'paragraph']) for (const backward of [false, true]) {
   const initial = state([block('p1', 'xyz', kind)], select(backward ? 2 : 1, backward ? 1 : 2));
   caseTest(`REG-07 selected-${kind}/${backward ? 'backward' : 'forward'}/pre-content-undo`, initial, async (d, fact) => {
@@ -117,10 +118,12 @@ for (const kind of ['code', 'paragraph']) for (const backward of [false, true]) 
       assert.equal(actual.revision, before.snapshot.revision + 1); assert.equal(events, 1); assert.equal(d.engine.history({ type: 'state' }).undoGroups, 1);
       const nodes = d.engine.read().visible; assert.equal(nodes[0].id, original.id); assert.equal(nodes[0].spans[0].source, original.spans[0].source);
       // Undo before a sentinel: no conflated history group can hide a dropped range.
-      d.engine.history({ type: 'undo' }); const restored = d.engine.read().visible;
+      checkedCheckpoint(d.act({ type: 'undo' }), expected(initial), `${fact.id}/undo-entry`, fact, facts);
+      const restored = d.engine.read().visible;
       assert.equal(events, 2); assert.equal(restored.length, 1); assert.equal(restored[0].id, original.id); assert.deepEqual(restored[0].runs, original.runs); assert.deepEqual(restored[0].blockAttributes, original.blockAttributes); fact.checkpoints++;
       if (fact.storage) await fact.storage.verifyStep('undo', 1, 'Undo');
-      d.engine.history({ type: 'redo' }); assert.equal(events, 3); assert.deepEqual(d.snapshot(), wanted.state); fact.checkpoints++;
+      checkedCheckpoint(d.act({ type: 'redo' }), wanted, `${fact.id}/redo-result`, fact, facts);
+      assert.equal(events, 3); fact.checkpoints++;
       if (fact.storage) await fact.storage.verifyStep('redo', 1, 'Redo');
       await checkpoint(fact, d.act({ type: 'insertText', text: '!' }), expected(state([wanted.state.blocks[0], wanted.state.blocks[1], block('p3', 'B!z', 'code')], select(2, 2, 'p3'))));
       const wrong = structuredClone(wanted); wrong.state.blocks[1].text = ''; wrong.state.blocks[1].hardBreaks = [];
@@ -163,15 +166,16 @@ if (!withStorage) for (const backward of [false, true]) {
         assert.throws(() => assertCheckpoint(actual, wrong), assert.AssertionError);
         facts.negativeControls.push(`${fact.id}/${name}`); fact.controls++; fact.checkpoints++;
       }
-      d.engine.history({ type: 'undo' }); const restored = d.engine.read().visible;
+      checkedCheckpoint(d.act({ type: 'undo' }), expected(initial), `${fact.id}/undo-entry`, fact, facts);
+      const restored = d.engine.read().visible;
       assert.equal(events, 2); assert.equal(restored.length, 2);
       restored.forEach((node, i) => {
         assert.equal(node.id, originals[i].id); assert.deepEqual(node.runs, originals[i].runs);
         assert.deepEqual(node.blockAttributes, originals[i].blockAttributes); assert.deepEqual(node.spans, originals[i].spans);
       }); fact.checkpoints++;
-      d.engine.history({ type: 'redo' }); assert.equal(events, 3);
-      assert.deepEqual(d.engine.read().visible, pasted); assert.deepEqual(d.snapshot(), wanted.state); fact.checkpoints++;
-      await checkpoint(fact, d.act({ type: 'insertText', text: '!' }), expected(state([wanted.state.blocks[0], wanted.state.blocks[1], block('p4', 'B!z', 'code')], select(2, 2, 'p4'))));
+      checkedCheckpoint(d.act({ type: 'redo' }), wanted, `${fact.id}/redo-result`, fact, facts);
+      assert.equal(events, 3); assert.deepEqual(d.engine.read().visible, pasted); fact.checkpoints++;
+      checkedCheckpoint(d.act({ type: 'insertText', text: '!' }), expected(state([wanted.state.blocks[0], wanted.state.blocks[1], block('p4', 'B!z', 'code')], select(2, 2, 'p4'))), `${fact.id}/redo-sentinel`, fact, facts);
     } finally { subscription.dispose(); }
   });
 }

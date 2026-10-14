@@ -7,18 +7,20 @@ import { assertCheckpoint } from './driver.ts';
 import { SemanticDriver, semanticCapabilities, semanticActions, semanticProfile, MissingCapabilityError } from './semantic-adapter.ts';
 import { packedRuntime, sha256 } from './packed-runtime.mjs';
 import { registerAlignmentPendingCases } from './alignment-pending-oracle.mjs';
+import { checkedCheckpoint } from './checkpoint-oracle.mjs';
+import { registerUndoSentinelCases } from './history-bookmark-oracle.mjs';
 import { collapsedPreCases, collapsedPreInitial, pasteCollapsedPre, undoCollapsedPre } from './collapsed-pre-oracle.mjs';
 import { qualifiedVectorIds, runAtomicVector } from './atomic-vector-oracle.mjs';
 const suite = loadSuite();
 const vectors = JSON.parse(await readFile(new URL('../../fixtures/editing-failures/semantic-vectors.json', import.meta.url)));
 const output = process.env.EDITAC_EDITING_OUTPUT;
-const facts = { repair: { parent: 'UPG-1.3', child: 'RGS-1.2-C4', originalRow: 'REG-05', originalRecipe: 'SEQ-05', preservedRow: 'REG-07' }, layer: 'real packed-WASM semantic prepared operations', profile: semanticProfile, fixtureHashes: suite.hashes, cases: [], recipes: [], negativeControls: [], bindings: suite.recipes.map(r => capabilityBinding(r, semanticCapabilities, semanticActions)), exclusions: ['No attached journal/persistence port', 'No native gesture or device claim', 'Canonical paragraph-left and separator profile; no other alignment or device claim'] };
+const facts = { parent: 'RGS-1.2', children: ['RGS-1.2-C2', 'RGS-1.2-C3', 'RGS-1.2-C4'], originalRows: ['REG-05', 'REG-06', 'REG-07', 'REG-13'], layer: 'real packed-WASM semantic prepared operations', profile: semanticProfile, fixtureHashes: suite.hashes, cases: [], recipes: [], negativeControls: [], bindings: suite.recipes.map(r => capabilityBinding(r, semanticCapabilities, semanticActions)), exclusions: ['No attached journal/persistence port', 'No native gesture or device claim', 'Canonical paragraph-left and separator profile; no other alignment or device claim'] };
 let pack, runtime;
 before(async () => { assert.ok(output, 'EDITAC_EDITING_OUTPUT must be a fresh evidence directory'); pack = await packedRuntime(process.env.EDITAC_EDITING_PACK_TARBALL); runtime = pack.runtime; });
 after(async () => {
   if (pack) { await pack.close(); facts.runtime = pack.facts; }
   facts.sourceHashes = {};
-  for (const path of ['crates/editac-core/tests/alignment_pending.rs', 'crates/editac-core/src/commands/blocks.rs', 'crates/editac-wasm/src/bridge.rs', 'packages/core/src/engine.ts', 'tests/editing/alignment-pending-oracle.mjs', 'tests/editing/driver.ts', 'tests/editing/semantic-adapter.ts', 'tests/editing/fixture-loader.ts', 'tests/editing/semantic.test.mjs', 'tests/editing/collapsed-pre-oracle.mjs', 'tests/editing/atomic-vector-oracle.mjs', 'tests/editing/packed-runtime.mjs', 'scripts/test-editing.mjs', 'fixtures/editing-failures/semantic-vectors.json', 'crates/editac-core/tests/editing_regressions.rs', 'Cargo.lock']) facts.sourceHashes[path] = sha256(await readFile(path));
+  for (const path of ['tests/editing/checkpoint-oracle.mjs', 'tests/editing/history-bookmark-oracle.mjs', 'crates/editac-core/tests/alignment_pending.rs', 'crates/editac-core/src/commands/blocks.rs', 'crates/editac-wasm/src/bridge.rs', 'packages/core/src/engine.ts', 'tests/editing/alignment-pending-oracle.mjs', 'tests/editing/driver.ts', 'tests/editing/semantic-adapter.ts', 'tests/editing/fixture-loader.ts', 'tests/editing/semantic.test.mjs', 'tests/editing/collapsed-pre-oracle.mjs', 'tests/editing/atomic-vector-oracle.mjs', 'tests/editing/packed-runtime.mjs', 'scripts/test-editing.mjs', 'fixtures/editing-failures/semantic-vectors.json', 'crates/editac-core/tests/editing_regressions.rs', 'Cargo.lock']) facts.sourceHashes[path] = sha256(await readFile(path));
   facts.counts = { executed: facts.cases.length, passed: facts.cases.filter(c => c.status === 'passed').length, failed: facts.cases.filter(c => c.status === 'failed').length, skipped: 0 };
   await mkdir(output, { recursive: true }); await writeFile(join(output, 'harness.json'), JSON.stringify(facts, null, 2));
 });
@@ -38,8 +40,8 @@ for (const id of groupIds('semantic')) {
     const receipt = { id, checkpoints: [], status: 'running' }; facts.recipes.push(receipt);
     try {
       for (const step of recipe.steps) {
-        const actual = d.act(step.action); assertCheckpoint(actual, step.expect);
-        fact.checkpoints++; receipt.checkpoints.push({ id: step.id, outcome: actual.outcome, revision: actual.revision, effects: actual.effects });
+        const actual = checkedCheckpoint(d.act(step.action), step.expect, `${id}/${step.id}`, fact, facts);
+        receipt.checkpoints.push({ id: step.id, outcome: actual.outcome, revision: actual.revision, effects: actual.effects });
       }
       receipt.status = 'passed';
     } catch (error) { receipt.status = error instanceof MissingCapabilityError ? 'blocked' : 'failed'; receipt.error = error.message; throw error; }
@@ -115,6 +117,7 @@ caseTest('REG-07 separated pre fragments retain literal whitespace in code and e
   });
 });
 registerAlignmentPendingCases(caseTest, driver, facts);
+registerUndoSentinelCases(caseTest, driver, suite, facts);
 
 caseTest('C3/G03 native packed bookmark rebase, affinity and rejection controls', fact => {
   for (const affinity of ['forward', 'backward']) driver({ blocks: [block('p1', 'abcdef')], selection: select(5, 2, affinity), pendingMarks: null }, d => {

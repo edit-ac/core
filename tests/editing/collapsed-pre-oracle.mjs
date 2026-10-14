@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { assertCheckpoint } from './driver.ts';
+import { checkedCheckpoint } from './checkpoint-oracle.mjs';
 
 const select = (offset, block = 'p1') => ({ anchor: { block, offset }, focus: { block, offset }, affinity: 'forward' });
 const block = (id, text, kind = 'paragraph') => ({ id, text, kind, hardBreaks: kind === 'paragraph' ? [...text.matchAll(/\n/g)].map(m => m.index) : [], marks: [] });
@@ -55,10 +56,10 @@ export function pasteCollapsedPre(d, v, fact, facts) {
   return { original, before, wanted };
 }
 
-// Content undo only: the absent history bookmark port must not be simulated.
+// Restore content and selection from the real native entry bookmark.
 export function undoCollapsedPre(d, v, fact, facts, { original }) {
   const beforeRevision = d.engine.read().revision;
-  d.engine.history({ type: 'undo' });
+  checkedCheckpoint(d.act({ type: 'undo' }), { outcome: 'applied', effects: { localCommits: 1, remoteCommits: 0 }, state: collapsedPreInitial(v) }, `${fact.id}/${v.id}/undo-entry`, fact, facts);
   const snapshot = d.engine.read(), restored = snapshot.visible;
   check(fact, restored.length, 1);
   check(fact, restored[0].id, original.id);

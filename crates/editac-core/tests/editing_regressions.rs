@@ -818,7 +818,21 @@ fn separated_pre(in_code: bool) {
         }
         _ => panic!("missing fragment caret"),
     }
-    d.undo().unwrap().unwrap();
+    let undo = d.undo().unwrap().unwrap();
+    let entry = undo.selection.unwrap();
+    for anchor in [&entry.anchor, &entry.focus] {
+        let Resolution::Position(p) = d.resolve_anchor(anchor).unwrap() else {
+            panic!("missing collapsed pre history endpoint")
+        };
+        assert_eq!(
+            (p.node, p.offset, p.bias),
+            (
+                original.id.clone(),
+                U(if in_code { 1 } else { 0 }),
+                Bias::Right
+            )
+        );
+    }
     let restored = d.snapshot().unwrap().visible;
     assert_eq!(restored.len(), 1);
     assert_eq!(restored[0].id, original.id);
@@ -977,7 +991,7 @@ fn selected_pre(in_code: bool, cross_owner: bool, backward: bool) {
         }
         _ => panic!("missing fragment result caret"),
     }
-    d.undo().unwrap().unwrap();
+    let undone = d.undo().unwrap().unwrap();
     assert_eq!(count.get(), 2);
     let restored = d.snapshot().unwrap().visible;
     assert_eq!(restored.len(), originals.len());
@@ -987,8 +1001,36 @@ fn selected_pre(in_code: bool, cross_owner: bool, backward: bool) {
         assert_eq!(node.runs, old.runs);
         assert_eq!(node.spans, old.spans);
     }
-    d.redo().unwrap().unwrap();
+    let cuts = |d: &Document, s: &Selection| {
+        [&s.anchor, &s.focus].map(|a| {
+            let Resolution::Position(p) = d.resolve_anchor(a).unwrap() else {
+                panic!("missing native history endpoint")
+            };
+            (p.node, p.offset.0, p.bias)
+        })
+    };
+    let low = (originals[0].id.clone(), 1, Bias::Right);
+    let high = (
+        originals[if cross_owner { 1 } else { 0 }].id.clone(),
+        if cross_owner { 1 } else { 2 },
+        Bias::Right,
+    );
+    let expected_entry = if backward { [high, low] } else { [low, high] };
+    let actual_entry = cuts(&d, &undone.selection.unwrap());
+    assert_eq!(actual_entry, expected_entry);
+    assert_ne!(
+        actual_entry,
+        [expected_entry[1].clone(), expected_entry[0].clone()]
+    );
+    let redone_result = d.redo().unwrap().unwrap();
     assert_eq!(count.get(), 3);
+    assert_eq!(
+        cuts(&d, &redone_result.selection.unwrap()),
+        [
+            (pasted[2].id.clone(), 1, Bias::Right),
+            (pasted[2].id.clone(), 1, Bias::Right)
+        ]
+    );
     let redone = d.snapshot().unwrap().visible;
     assert_eq!(redone.len(), 3);
     for (node, old) in redone.iter().zip(&pasted) {
