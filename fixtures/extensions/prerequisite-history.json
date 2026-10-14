@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "qualification": "Historical receipt identities only; current proof is separately required.",
+  "receipts": [
+    {
+      "gate": "MOD-1.1",
+      "path": "architecture/evidence/modules-entry/receipt.json",
+      "sha256": "0e1ce0a80182f902024a6d608ae3491d527cda18dfbe4e21ac4997a702b50cd5",
+      "sourceRevision": "621cbff280187a584cd0ceb5b9ac66d176b916c16f99ba34a48e6fd74c08c294"
+    },
+    {
+      "gate": "MOD-1.2",
+      "path": "architecture/evidence/modules-registration/receipt.json",
+      "sha256": "403c88d0b25de9151848c95af0cb8cd517e9159ebb11e5abe45939aa2c2212e1",
+      "sourceRevision": "621cbff280187a584cd0ceb5b9ac66d176b916c16f99ba34a48e6fd74c08c294"
+    },
+    {
+      "gate": "MOD-1.3",
+      "path": "architecture/evidence/modules-runtime/receipt.json",
+      "sha256": "c08b65f500c3b74a918f858b5eeefda122a8e724f25d4669d90adab5fecbd010",
+      "sourceRevision": "621cbff280187a584cd0ceb5b9ac66d176b916c16f99ba34a48e6fd74c08c294"
+    },
+    {
+      "gate": "MOD-1.4",
+      "path": "architecture/evidence/modules-slash/receipt.json",
+      "sha256": "387be60ec22847315cc10f8980b7c37f62a3b8b614de3c96d2107a0552d3e305",
+      "sourceRevision": "621cbff280187a584cd0ceb5b9ac66d176b916c16f99ba34a48e6fd74c08c294"
+    },
+    {
+      "gate": "MOD-1.5",
+      "path": "architecture/evidence/modules-references/receipt.json",
+      "sha256": "efa386e10bbcd4102e1e5a6171a7c7b9971ef340ae3e2a46db01fac49114dfec",
+      "sourceRevision": "621cbff280187a584cd0ceb5b9ac66d176b916c16f99ba34a48e6fd74c08c294"
+    },
+    {
+      "gate": "MOD-1.6",
+      "path": "architecture/evidence/modules-reorder/receipt.json",
+      "sha256": "4100259b9b9b08f018f57ae0d5ae9586efda854d69a8bb19bc992e4ffc4f37fd",
+      "sourceRevision": "621cbff280187a584cd0ceb5b9ac66d176b916c16f99ba34a48e6fd74c08c294"
+    },
+    {
+      "gate": "MOD-1.7",
+      "path": "architecture/evidence/modules-content/receipt.json",
+      "sha256": "6d085bce49b612e347a21b06176a9684ccb5d5d16959dffd0b7eb9172d730bda",
+      "sourceRevision": "621cbff280187a584cd0ceb5b9ac66d176b916c16f99ba34a48e6fd74c08c294"
+    },
+    {
+      "gate": "MOD-1.8",
+      "path": "architecture/evidence/modules-math/receipt.json",
+      "sha256": "5ca88e6ec59da546a354ac0aa6590e69e043905f32b326c6e07ced1489af3306",
+      "sourceRevision": "621cbff280187a584cd0ceb5b9ac66d176b916c16f99ba34a48e6fd74c08c294"
+    },
+    {
+      "gate": "MOD-1.9",
+      "path": "architecture/evidence/modules-matrix/receipt.json",
+      "sha256": "52dc5aed089330c6e31f9fed6a1c5e988b8583af45b5f68577aafb5f320fd2de",
+      "sourceRevision": "621cbff280187a584cd0ceb5b9ac66d176b916c16f99ba34a48e6fd74c08c294"
+    },
+    {
+      "gate": "CAP-1.10",
+      "path": "architecture/evidence/client-contracts/conformance-20261013/receipt.json",
+      "sha256": "6353f19fc33b5c8aad02b31b03473c3d338d4856524ab85c791b2241eaff90cf",
+      "sourceRevision": "caeb98cf0c73a690da793aaa891732a4fbef88ea64e9b1be1ee5ff43293921bb"
+    }
+  ]
+}

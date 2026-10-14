@@ -9,10 +9,10 @@
     "publicLibrary": "exports, conformance, codecs/lifecycle adapters, capability records and consumers; reuse qualified modules"
   },
   "contracts": {
-    "specs/extension-library.md": "7f65fec868b90af6748ec51e99a24859baa9a82fc8b3e703c3d9ac4e43d9c6cf",
-    "specs/client-contracts.md": "d8ec945d449cb3821805c971a3ae24f1ca6cf37251933edc39eb3538d823333a",
+    "specs/extension-library.md": "503599277d6955cb626f96d09e3a8107da184bb0e1d7332a66afeec9e9748480",
+    "specs/client-contracts.md": "a1f3ff08c6e1748daa93c4e6a688eaf4b4d628ac36dcb76d58d70c9426f97a62",
     "specs/schema-v1.md": "9c9dcdb3e9edad74d841c55ec11a99962f3e002b823758e88e531291b6d82d23",
-    "specs/modules-native.md": "01f2c31d2087642b1bf146cbdc90512b273bbd630902b6f7ba25a61be040aec7"
+    "specs/modules-native.md": "a5605d0b1ad2cc6942f57b4607578d301965c7f4f91d056f9ece5bd9e028a0f2"
   },
   "modules": [
     {
@@ -124,22 +124,22 @@
     }
   ],
   "sourceHashes": {
-    "crates/editac-core/src/commands/editor.rs": "821e7a40ed91177f9d9db84389ffe587ac34142facb47be84a6c63e2e98ff040",
-    "crates/editac-core/src/modules/content.rs": "216e1c7fa3971b0f287374199c890ccf999d85c6311e4d839d0f600c8e7c2859",
-    "crates/editac-core/src/modules/mod.rs": "b021b3490bb8b8c389e01accf0b4341f5d33158d5d4dcd30ec642f2ef59c15f9",
+    "crates/editac-core/src/commands/editor.rs": "1a424dad5424bff8022a606a2171196ac54192f19cd9f98cc3e5fbdca99a6aac",
+    "crates/editac-core/src/modules/content.rs": "2641c0dc44a42b6263b80c2888dd68a5050356be808be77de5a2a1f15a590b96",
+    "crates/editac-core/src/modules/mod.rs": "1027cc67619146aee2df8fe7e8d9ef2fba41edbfcdaf555876b1120ddfeb8147",
     "crates/editac-core/src/modules/registry.rs": "906dc43aaca9d3c49aeda42b220e6e096db942819d7b584e3b86f2cc21f04254",
-    "crates/editac-markdown/src/export.rs": "51d3e731ff4abaf7d3a8dce86e288397e017220b1d721ae5e4980d4c96087658",
-    "crates/editac-markdown/src/optional.rs": "75d4cfe43ec524b0531a500116ef0c30ebb5cfa0c9b5e54a32b7b78b8ce9ed1c",
-    "packages/core/src/engine.ts": "a83086de891666bf1c37675b734e747ef8b3964e358b0c3fd3e2d4ed969515a8",
+    "crates/editac-markdown/src/export.rs": "9d8bcdd215f833f39be0a4086797b0d1080fbf94d9f63f562e97ef7c7fe97814",
+    "crates/editac-markdown/src/optional.rs": "c432f7dbcc6d4f17e19f5c3507599d98ef04a03be8302d21ce79e8588be77559",
+    "packages/core/src/engine.ts": "59f82662ae7dbaafed24c0d6b7a6d4dbdab4331d4a18736c0a3956c0a67414e4",
     "packages/web/src/modules/content.ts": "270980980d8040d1501eb216cfcfa3d2640f64e1df20e8733082b92e79e93553",
     "packages/web/src/modules/math.ts": "3acd59796c36f36a2c248561ad08a047e067cc65f22bac2372e2f6c0bf50eb48",
-    "packages/web/src/modules/references.ts": "620c0c7ce2862306f8082b04dda1b0a070d961fd81a0eae5fcd6e6cc467d407f",
+    "packages/web/src/modules/references.ts": "6fcd18b1dcfaf8cb0ef8a76c1ce0ba21403a32480d8d0f9f2f2eed680bbaa2c4",
     "packages/web/src/modules/registry.ts": "54458a29b7bafe5b672cd605c394b5e28f8851102af449b5193b5b222fc032f3",
-    "packages/web/src/modules/reorder.ts": "2de953d37f1192b1825ae1e952ab0f84a87787c041d6088ce83c43a622c0d927",
+    "packages/web/src/modules/reorder.ts": "8c541590f9d0900b0dcaeaf5741353e20e787849a1b5a0596f3a65ef8630f473",
     "packages/web/src/modules/runtime.ts": "faa804a3c5666471e544626d99dd078cb25a2c0ab3ea5de9c85c1941e399794f",
     "packages/web/src/modules/slash.ts": "8f116c22e247cfca693d2a4bc950ed100065debfd85b09f37d223540a52c36e6",
-    "packages/core/src/extensions/registry.ts": "bc6e7db9e7990974b0025140c2f513a822c0c5061987ac3911337a920aff17c5",
-    "packages/core/src/extensions/index.ts": "a60f4f8dc3e08d0a695c13f7058d5c77ab74ffddd99ef0f8f133cd9512ecabc1",
-    "packages/web/src/modules/index.ts": "9363290730345fa3f86143112a7d183f88bc8837407a28e72821c34cb0d0451e"
+    "packages/core/src/extensions/registry.ts": "f07db2fe6b4be34cb0c77fe27ee8fcc86064650805a99e905e1541ead474a5dd",
+    "packages/core/src/extensions/index.ts": "7b2a702b9fb9fceca3b40038ccedd24c958068e7d3a6211c64b58374ffbb6a58",
+    "packages/web/src/modules/index.ts": "61c421591b30e30ee1995a97d615e18bb2666540be91dae0473172fb055f7491"
   }
 }

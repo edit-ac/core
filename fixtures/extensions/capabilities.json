@@ -112,7 +112,7 @@
   ],
   "inputs": {
     "architecture/evidence/modules-matrix/capabilities.json": "f8596db9f1ad7a13f8d67c3c6518aa56a165939c3f0f12c9cc0c863bb8446e75",
-    "core/fixtures/extensions/entry-map.json": "126ba6ce4c4fef7cfc5ec701d2bffe520b533472934fe011564fccc3dd275c03",
+    "core/fixtures/extensions/entry-map.json": "6c08f3429cdab83286f26f80c535004f6fcae0cdfba1be00204e682635977079",
     "core/fixtures/extensions/conformance.json": "608d4dcff4ae3da9ef76df5d5407c07830c1936582bd51de0644826b9a7e2eeb",
     "core/fixtures/extensions/versions/conformance.json": "184a9bab5b51096f8bfbbcf4adc2e0147649217b355cb0e487baac3236c323bd",
     "core/fixtures/extensions/presenters/conformance.json": "390393183bfb12d1ef3a02923018be69d2d0e47d5d2fbfb91f93254abb48cede",

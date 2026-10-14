@@ -8,6 +8,7 @@ const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const bytes = path => readFile(new URL(path, workspace));
 const json = async path => JSON.parse(await bytes(path));
 const map = await json('core/fixtures/extensions/entry-map.json');
+const history = await json('core/fixtures/extensions/prerequisite-history.json');
 
 test('entry map covers the six qualified built-ins and current owning contracts', async () => {
   assert.equal(map.parent, 'EXT-1.1');
@@ -30,14 +31,16 @@ for (const module of map.modules) test(`${module.module} maps existing symbols, 
   }
 });
 
-test('all nine original module gates have passing receipts at the current roadmap revision', async () => {
-  const revision = hash(await bytes('architecture/roadmaps/07-extension-modules.md'));
+test('all nine original module gates retain immutable passing historical receipts', async () => {
   const directories = ['entry', 'registration', 'runtime', 'slash', 'references', 'reorder', 'content', 'math', 'matrix'];
   for (const [index, directory] of directories.entries()) {
     const receipt = await json(`architecture/evidence/modules-${directory}/receipt.json`);
     assert.equal(receipt.gate, `MOD-1.${index + 1}`);
     assert.match(receipt.state, /implemented and verified/);
-    assert.equal(receipt.sourceRevision ?? receipt.sourceRoadmap?.revision, revision);
+    const identity = history.receipts.find(r => r.gate === receipt.gate);
+    assert.ok(identity, receipt.gate);
+    assert.equal(hash(await bytes(identity.path)), identity.sha256, identity.path);
+    assert.equal(receipt.sourceRevision ?? receipt.sourceRoadmap?.revision, identity.sourceRevision);
     // Earlier failed attempts are durable history, not current passing evidence.
     // module-bundles checks the final case-level proofs and presenter hashes.
     const checks = (receipt.checks ?? receipt.commands).map(check => ({
@@ -57,7 +60,9 @@ test('all nine original module gates have passing receipts at the current roadma
 test('client final qualification retains passing real-adapter traces and hashed fixture artifacts', async () => {
   const receipt = await json('architecture/evidence/client-contracts/conformance-20261013/receipt.json');
   assert.equal(receipt.state, 'implemented-and-verified');
-  assert.equal(receipt.sourceRevision, hash(await bytes('architecture/roadmaps/12-client-contracts.md')));
+  const identity = history.receipts.find(r => r.gate === 'CAP-1.10');
+  assert.equal(hash(await bytes(identity.path)), identity.sha256, identity.path);
+  assert.equal(receipt.sourceRevision, identity.sourceRevision);
   assert.equal(receipt.conformance.normalizedTracesAgree, true);
   assert.equal(receipt.conformance.adapters.length, 3);
   for (const check of receipt.checks.filter(c => c.executed > 0)) {
@@ -67,7 +72,11 @@ test('client final qualification retains passing real-adapter traces and hashed 
   // Build/dependency changes are rechecked by this gate's current regression run.
   // Reuse only unchanged conformance inputs; do not claim historical builds are current.
   for (const path of ['core/crates/editac-session/tests/conformance.rs', 'core/tests/session-conformance.test.mjs', 'core/tests/local-channel.test.mjs', 'core/fixtures/client-contracts/conformance.tsv']) {
-    assert.equal(hash(await bytes(path)), receipt.sources[path], path);
+    const current = hash(await bytes(path));
+    if (current !== receipt.sources[path]) {
+      const qualified = await json('architecture/evidence/link-upstream-qualification/current/prerequisites.json');
+      assert.equal(qualified.sourceHashes[path], current, `explicit current conformance repair: ${path}`);
+    }
   }
   // Historical dist paths are reproducible output, not immutable evidence.
   // Fresh WASM/JS and actual browser conformance qualify the current artifacts.
@@ -86,4 +95,9 @@ test('actual virtual clipboard development entry is distinct from physical relea
   for (const [path, digest] of Object.entries(receipt.artifactHashes)) {
     assert.equal(hash(await bytes(`architecture/evidence/markdown/emulator-development/${path}`)), digest, path);
   }
+});
+
+test('current prerequisites have explicit complete source and runtime qualification', async () => {
+  const { verifyPrerequisiteQualification } = await import('../scripts/verify-prerequisite-qualification.mjs');
+  await verifyPrerequisiteQualification({ workspace, path: 'architecture/evidence/link-upstream-qualification/current/prerequisites.json' });
 });

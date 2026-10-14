@@ -95,7 +95,11 @@ test('native and terminal inventories identify actual dependencies without claim
   assert(native.android.includes('net.java.dev.jna:jna:5.17.0@aar'));
   assert(native.android.includes('com.google.code.gson:gson:2.13.1'));
   assert.equal(native.inventories[1].packages[0].name,'editac-cli');
-  assert.deepEqual(native.inventories[1].packages[0].dependencies,[]);
+  const terminal = native.inventories[1].packages[0];
+  assert.deepEqual(terminal.dependencies.map(d => d.name).sort(), ['crossterm','editac-core','editac-diff','editac-markdown','editac-session','ratatui','serde','serde_json','sha2','signal-hook','unicode-segmentation','unicode-width','yrs']);
+  assert.deepEqual(terminal.dependencies.find(d => d.name === 'editac-session').features, ['native-store']);
+  assert.deepEqual(terminal.dependencies.find(d => d.name === 'crossterm').features, ['events','bracketed-paste','windows']);
+  assert.equal(terminal.dependencies.find(d => d.name === 'crossterm').defaultFeatures, false);
   assert.deepEqual(native.rendererAssets,[]);
   assert.equal(Object.keys(native.sources).length, config.nativeInventory.length);
 });
