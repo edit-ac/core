@@ -229,16 +229,31 @@ test('unsupported richer atoms remain an explicit owning admission gap rather th
 test('table v2 rejects malformed spans, styles, versions and undeclared formatting atomically',async()=>{
  const fixture=corpus.cases.find(f=>f.id==='table-v2-mixed-cell'),h=await harness(),r=range(h.engine);
  try{
+  let rejected=0;
+  const reject=async offer=>{
+   let prepared;
+   try{prepared=registry.prepare(h.engine,offer);}catch(error){
+    assert(error instanceof api.ExtensionTransferError||['InvalidInput','ResourceLimit'].includes(error.code));return;
+   }
+   // Clipboard shape validation may retain opaque tuples. Semantic admission
+   // belongs to the owning prepared engine edit and must still reject atomically.
+   assert.equal(h.engine.can(api.extensionTransferRequest(prepared,h.engine,r.value,'invalid-table')),false);
+   assert.notEqual((await h.session.transfer(prepared,h.engine,r.value)).status,'committed');
+  };
+  for(const damage of [data=>{data.alignments=[];},data=>{data.alignments[0]='unsupported';},data=>{data.rows=[];},data=>{data.rows=Array(129).fill(data.rows[0]);},data=>{data.source='x'.repeat(1_048_577);},data=>{data.rows[1][1]=null;},data=>{data.rows[1][1].paragraphs=[];},data=>{data.rows[1][1].paragraphs=Array(1025).fill(data.rows[1][1].paragraphs[0]);}]){
+   const offer=structuredClone(fixture.envelope);damage(offer.payload[0].attributes.tuple[2]);const before=h.engine.checkpoint(),history=h.engine.history({type:'state'});
+   await reject(offer);
+   assert.deepEqual(h.engine.checkpoint(),before);assert.deepEqual(h.engine.history({type:'state'}),history);assert.equal(h.commits(),0);rejected++;
+  }
   for(const damage of [data=>{data.rows[0][0].rowSpan=3;},data=>{data.rows[0][2]=data.rows[1][1];},data=>{data.rows[1][0]=data.rows[1][1];},data=>{data.rows[0][0].paragraphs[0].style=['heading',7];},data=>{data.rows[1][1].paragraphs[0].style=['code','bad language'];},data=>{data.rows[0][0].header='yes';},data=>{data.rows[0][0].paragraphs[0].runs[0][1]=[['link','javascript:alert(1)']];},data=>{data.rows[0][0].paragraphs[0].runs=Array(1025).fill(['x',[]]);}]){
    const offer=structuredClone(fixture.envelope);damage(offer.payload[0].attributes.tuple[2]);const before=h.engine.checkpoint(),history=h.engine.history({type:'state'}).undoGroups;
-   let prepared;try{prepared=registry.prepare(h.engine,offer);}catch{prepared=null;}
-   if(prepared){const result=await h.session.transfer(prepared,h.engine,r.value);assert.notEqual(result.status,'committed');}
-   assert.deepEqual(h.engine.checkpoint(),before);assert.equal(h.engine.history({type:'state'}).undoGroups,history);assert.equal(h.commits(),0);
+   await reject(offer);
+   assert.deepEqual(h.engine.checkpoint(),before);assert.equal(h.engine.history({type:'state'}).undoGroups,history);assert.equal(h.commits(),0);rejected++;
   }
   const descriptor=corpus.descriptors.find(d=>d.type===fixture.envelope.type);
   for(const field of ['spans','cell-paragraph-style']){const narrow=new api.ExtensionTransferRegistry([{descriptor:{...descriptor,tableMetadata:descriptor.tableMetadata.filter(x=>x!==field)},codec:{prepare:e=>e.payload}}]);assert.throws(()=>narrow.prepare(h.engine,fixture.envelope),e=>e.code==='undeclared-formatting');}
   const offer=structuredClone(fixture.envelope);offer.payload[0].attributes.tuple[1]=3;assert.throws(()=>registry.prepare(h.engine,offer));
-  facts.checks.push({id:'table-v2-atomic-rejection',cases:11});
+  facts.checks.push({id:'table-v2-atomic-rejection',cases:rejected+3});
  }finally{r.close();await h.close();}
 });
 test('all fixture and host cells execute with admitted table v2 and without native qualification',()=>{

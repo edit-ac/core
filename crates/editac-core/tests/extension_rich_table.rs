@@ -32,6 +32,17 @@ fn exact_mixed_cell_roundtrip_preserves_every_field() {
 #[test]
 fn malformed_geometry_styles_and_bounds_reject() {
     let mutations: Vec<fn(&mut Value)> = vec![
+        |t| t[2]["alignments"] = json!([]),
+        |t| t[2]["alignments"][0] = json!("unsupported"),
+        |t| t[2]["rows"] = json!([]),
+        |t| t[2]["rows"] = json!(vec![t[2]["rows"][0].clone(); 129]),
+        |t| t[2]["source"] = json!("x".repeat(1_048_577)),
+        |t| t[2]["rows"][1][1] = Value::Null,
+        |t| t[2]["rows"][1][1]["paragraphs"] = json!([]),
+        |t| {
+            t[2]["rows"][1][1]["paragraphs"] =
+                json!(vec![t[2]["rows"][1][1]["paragraphs"][0].clone(); 1025])
+        },
         |t| t[2]["rows"][0][0]["rowSpan"] = json!(3),
         |t| t[2]["rows"][0][0]["columnSpan"] = json!(0),
         |t| t[2]["rows"][0][0]["rowSpan"] = json!(1.5),
