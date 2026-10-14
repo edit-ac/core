@@ -7,6 +7,7 @@ import { assertCheckpoint } from './driver.ts';
 import { SemanticDriver, semanticCapabilities, semanticActions, semanticProfile, MissingCapabilityError } from './semantic-adapter.ts';
 import { packedRuntime, sha256 } from './packed-runtime.mjs';
 import { collapsedPreCases, collapsedPreInitial, pasteCollapsedPre, undoCollapsedPre } from './collapsed-pre-oracle.mjs';
+import { storageVectorIds, runAtomicVector } from './atomic-vector-oracle.mjs';
 const suite = loadSuite();
 const vectors = JSON.parse(await readFile(new URL('../../fixtures/editing-failures/semantic-vectors.json', import.meta.url)));
 const output = process.env.EDITAC_EDITING_OUTPUT;
@@ -16,7 +17,7 @@ before(async () => { assert.ok(output, 'EDITAC_EDITING_OUTPUT must be a fresh ev
 after(async () => {
   if (pack) { await pack.close(); facts.runtime = pack.facts; }
   facts.sourceHashes = {};
-  for (const path of ['tests/editing/driver.ts', 'tests/editing/semantic-adapter.ts', 'tests/editing/fixture-loader.ts', 'tests/editing/semantic.test.mjs', 'tests/editing/collapsed-pre-oracle.mjs', 'tests/editing/packed-runtime.mjs', 'scripts/test-editing.mjs', 'fixtures/editing-failures/semantic-vectors.json', 'crates/editac-core/tests/editing_regressions.rs', 'Cargo.lock']) facts.sourceHashes[path] = sha256(await readFile(path));
+  for (const path of ['tests/editing/driver.ts', 'tests/editing/semantic-adapter.ts', 'tests/editing/fixture-loader.ts', 'tests/editing/semantic.test.mjs', 'tests/editing/collapsed-pre-oracle.mjs', 'tests/editing/atomic-vector-oracle.mjs', 'tests/editing/packed-runtime.mjs', 'scripts/test-editing.mjs', 'fixtures/editing-failures/semantic-vectors.json', 'crates/editac-core/tests/editing_regressions.rs', 'Cargo.lock']) facts.sourceHashes[path] = sha256(await readFile(path));
   facts.counts = { executed: facts.cases.length, passed: facts.cases.filter(c => c.status === 'passed').length, failed: facts.cases.filter(c => c.status === 'failed').length, skipped: 0 };
   await mkdir(output, { recursive: true }); await writeFile(join(output, 'harness.json'), JSON.stringify(facts, null, 2));
 });
@@ -44,6 +45,7 @@ for (const id of groupIds('semantic')) {
   }));
 }
 for (const v of vectors.atomic) caseTest(`native/WASM:${v.id}`, fact => driver(state(v.text, 0), d => {
+  if (storageVectorIds.includes(v.id)) return runAtomicVector(d, v, fact, facts);
   const engine = d.engine, owner = engine.read().visible[0].id, original = engine.read().visible[0];
   const commands = v.commands.map(c => c.type === 'insertSeparator' ? { type: c.type, beside: owner, side: c.side } : c.type === 'selectionAt'
     ? { type: c.type, anchor: { owner, offset: c.anchor, bias: 'left' }, focus: { owner, offset: c.focus, bias: 'right' } }

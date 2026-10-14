@@ -121,6 +121,17 @@ fn atomic(id: &str) {
         .iter()
         .find(|v| v["id"] == id)
         .unwrap();
+    if matches!(
+        id,
+        "REG-13-invalid-final-selection"
+            | "REG-13-invalid-mark-policy"
+            | "REG-13-staged-offsets"
+            | "G06-astral-staged-utf16"
+            | "G06-invalid-first-surrogate"
+    ) {
+        c20_atomic(v);
+        return;
+    }
     let mut d = document(v["text"].as_str().unwrap());
     let original = d.snapshot().unwrap().visible[0].clone();
     let owner = original.id.clone();
@@ -206,6 +217,168 @@ fn atomic(id: &str) {
         v["text"].as_str().unwrap()
     );
 }
+// C20 owns complete snapshots at each selected native vector, including a
+// separate accepted observer probe after rejection. It does not claim storage.
+fn c20_atomic(v: &Value) {
+    use serde_json::json;
+    fn verify(actual: &Value, expected: &Value, paths: &[&str]) -> usize {
+        assert_eq!(actual, expected);
+        for path in paths {
+            let mut wrong = expected.clone();
+            *wrong.pointer_mut(path).unwrap() = json!("corrupted");
+            assert!(
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| assert_eq!(
+                    actual,
+                    &wrong
+                )))
+                .is_err(),
+                "undetected {path}"
+            );
+        }
+        paths.len()
+    }
+    let mut d = document(v["text"].as_str().unwrap());
+    let original = d.snapshot().unwrap().visible[0].clone();
+    let owner = original.id.clone();
+    let count = Rc::new(Cell::new(0));
+    let seen = count.clone();
+    let _subscription = d
+        .subscribe(PatchScope::All, move |_, _| {
+            seen.set(seen.get() + 1);
+            Ok(())
+        })
+        .unwrap();
+    let before = frozen(&d);
+    let origin = TextOrigin::new("local:rgs:native").unwrap();
+    let mut controls = 0;
+    let mut checkpoints = 0;
+    let mut accepted = v.clone();
+    let plan = d.prepare_editor(&atomic_commands(v, &owner), &origin);
+    assert_eq!(frozen(&d), before);
+    assert_eq!(count.get(), 0);
+    checkpoints += 2;
+    if v["rejected"] == true {
+        assert!(plan.is_err());
+        checkpoints += 1;
+        assert_eq!(d.snapshot().unwrap().visible, vec![original.clone()]);
+        checkpoints += 1;
+        let observed = json!({"content":format!("{:?}", d.snapshot().unwrap().visible), "vector":d.state_vector_v1(), "checkpoint":d.checkpoint().bytes, "revision":d.revision(), "history":format!("{:?}",d.history_state()), "publications":count.get()});
+        let expected = json!({"content":format!("{:?}",vec![original.clone()]), "vector":before.1, "checkpoint":before.0, "revision":before.2, "history":format!("{:?}",before.3), "publications":0});
+        controls += verify(
+            &observed,
+            &expected,
+            &[
+                "/content",
+                "/vector",
+                "/checkpoint",
+                "/revision",
+                "/history",
+                "/publications",
+            ],
+        );
+        checkpoints += 1;
+        accepted = json!({"id":format!("{}/live-probe",v["id"].as_str().unwrap()), "commands":[{"type":"replaceAt","from":0,"to":0,"text":"!"},{"type":"selectionAt","anchor":1,"focus":1}], "expectedText":format!("!{}",v["text"].as_str().unwrap()), "expectedMarks":[], "selection":[1,1]});
+    }
+    let plan = if v["rejected"] == true {
+        d.prepare_editor(&atomic_commands(&accepted, &owner), &origin)
+            .unwrap()
+    } else {
+        plan.unwrap()
+    };
+    assert_eq!(frozen(&d), before);
+    assert_eq!(count.get(), 0);
+    checkpoints += 2;
+    let result = d.commit_editor(plan).unwrap();
+    let nodes = d.snapshot().unwrap().visible;
+    assert_eq!(nodes.len(), 1);
+    assert_eq!(nodes[0].kind, original.kind);
+    assert_eq!(nodes[0].block_attributes, original.block_attributes);
+    checkpoints += 3;
+    let node = &nodes[0];
+    let text = node
+        .runs
+        .iter()
+        .map(|r| r.text.as_str())
+        .collect::<String>();
+    let mut units = Vec::new();
+    for run in &node.runs {
+        let attrs = run
+            .attributes
+            .iter()
+            .map(|(key, value)| {
+                assert_eq!(value, &Any::Bool(true));
+                (key.clone(), json!(true))
+            })
+            .collect::<serde_json::Map<_, _>>();
+        for _ in run.text.encode_utf16() {
+            units.push(Value::Object(attrs.clone()));
+        }
+    }
+    let expected_text = accepted["expectedText"].as_str().unwrap();
+    let expected_units = (0..expected_text.encode_utf16().count() as u32)
+        .map(|offset| {
+            Value::Object(
+                accepted["expectedMarks"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .filter(|m| number(&m[0]) <= offset && offset < number(&m[1]))
+                    .map(|m| (m[2].as_str().unwrap().to_string(), json!(true)))
+                    .collect(),
+            )
+        })
+        .collect::<Vec<_>>();
+    let mut endpoints = Vec::new();
+    for token in [
+        &result.result_selection.as_ref().unwrap().anchor,
+        &result.result_selection.as_ref().unwrap().focus,
+    ] {
+        match d.resolve_anchor(token).unwrap() {
+            Resolution::Position(p) => endpoints.push(json!({"owner":p.node,"offset":p.offset.0,"source":p.source,"sourceOffset":p.source_offset.0,"bias":format!("{:?}",p.bias)})),
+            _ => panic!("unresolved endpoint"),
+        }
+    }
+    let expected_endpoints = [0,1].map(|i| json!({"owner":owner,"offset":accepted["selection"][i],"source":original.spans[0].source,"sourceOffset":accepted["selection"][i],"bias":if i == 0 {"Left"} else {"Right"}}));
+    let observed = json!({"text":text,"units":units,"owner":node.id,"source":node.spans[0].source,"identity":format!("{:?}",node.spans[0].identity),"endpoints":endpoints,"revision":result.revision,"publications":count.get(),"undo":d.history_state().undo_groups,"redo":d.history_state().redo_groups});
+    let expected = json!({"text":expected_text,"units":expected_units,"owner":owner,"source":original.spans[0].source,"identity":format!("{:?}",original.spans[0].identity),"endpoints":expected_endpoints,"revision":before.2 + 1,"publications":1,"undo":1,"redo":0});
+    controls += verify(
+        &observed,
+        &expected,
+        &[
+            "/text",
+            "/units",
+            "/owner",
+            "/source",
+            "/identity",
+            "/endpoints/0/offset",
+            "/endpoints/1/offset",
+            "/endpoints/0/bias",
+            "/endpoints/1/bias",
+            "/revision",
+            "/publications",
+            "/undo",
+            "/redo",
+        ],
+    );
+    checkpoints += 1;
+    assert_ne!(d.checkpoint().bytes, before.0);
+    assert_ne!(d.state_vector_v1(), before.1);
+    checkpoints += 2;
+    d.undo().unwrap().unwrap();
+    assert_eq!(d.snapshot().unwrap().visible, vec![original]);
+    assert_eq!(count.get(), 2);
+    assert_eq!(d.history_state().undo_groups, 0);
+    assert_eq!(d.history_state().redo_groups, 1);
+    checkpoints += 4;
+    println!(
+        "C20 {} checkpoints={} controls={} rejection={} accepted=1 content_undo=1",
+        v["id"].as_str().unwrap(),
+        checkpoints,
+        controls,
+        v["rejected"] == true
+    );
+}
+
 macro_rules! atomic_case {
     ($name:ident, $id:literal) => {
         #[test]

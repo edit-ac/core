@@ -124,3 +124,10 @@ test('collapsed pre storage proof is mandatory in canonical semantic dispatch', 
   assert.equal(editingSuites('semantic').filter(path => path === selected[0]).length, 1);
   assert.ok(existsSync(selected[0]));
 });
+
+test('atomic vector storage proof is mandatory in canonical semantic dispatch', () => {
+  const selected = editingSuites('semantic', 'atomic-vector-storage');
+  assert.deepEqual(selected, ['tests/editing/atomic-vector-storage.test.mjs']);
+  assert.equal(editingSuites('semantic').filter(path => path === selected[0]).length, 1);
+  assert.ok(existsSync(selected[0]));
+});
