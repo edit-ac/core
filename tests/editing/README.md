@@ -172,3 +172,23 @@ lease/journal/server teardown are checked. `mixed-storage-harness.json` records
 counts and hashes; canonical semantic dispatch includes this suite. Matching
 native vectors remain `reg13_mixed_`. This is production storage integration over
 prepared IndexedDB delivery, not real-browser/device or full-parent acceptance.
+
+`npm run test:editing -- --group semantic --cases pending-storage` attaches both
+existing G04 pending lifecycle sequences (16 steps, six commits) to production
+storage over prepared IndexedDB. `pending-harness.mjs` shares their independently
+authored semantic, pending, identity, selection and history checkpoints with the
+unattached pending suite. Restored fixture binding preserves the pre-binding
+checkpoint without replaying code/mark setup through the journal. Every local-only
+or rejected step has zero new storage effects; each committed operation appends
+and completes once, with staged flush, persisted metadata/bytes and cumulative
+recovery replay assertions. Matching native committed vectors are `g04_pending_`;
+editor-local pending state remains a packed-adapter assertion.
+
+`pending-storage-harness.json` binds counts, hashes, corruption controls and
+teardown. Canonical semantic dispatch includes this suite and the replay-vector
+decoder qualification. Replay compares exact document/source identity plus every
+decoded Yrs client/clock entry: different replicas can encode this unordered map
+in different orders. Rejection/no-op checks retain byte-for-byte state-vector and
+checkpoint comparison on the same replica. This remains prepared storage
+integration; history bookmarks, unsupported profiles and browser/device proof
+remain separate acceptance criteria.

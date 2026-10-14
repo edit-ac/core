@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { assertRestoredReplica } from './replica-state.mjs';
 import { test, before, after } from 'node:test';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -13,7 +14,7 @@ before(async () => { assert.ok(output); assert.equal(vectors.cases.length, 12); 
 after(async () => {
   if (pack) { await pack.close(); facts.runtime = pack.facts; }
   facts.sourceHashes = {};
-  for (const path of ['tests/editing/schema-storage.test.mjs', 'tests/editing/storage-harness.mjs', 'tests/editing/semantic-adapter.ts', 'tests/editing/driver.ts', 'tests/helpers/journal-storage.mjs', ...['index', 'writer', 'journal', 'transaction'].flatMap(n => [`packages/web/src/storage/${n}.ts`, `packages/web/dist/storage/${n}.js`]), 'fixtures/editing-failures/schema-rejection-vectors.json', 'tests/editing/packed-runtime.mjs', 'scripts/test-editing.mjs', 'scripts/editing-suites.mjs', 'crates/editac-core/tests/editing_regressions.rs', 'Cargo.lock']) facts.sourceHashes[path] = sha256(await readFile(path));
+  for (const path of ['tests/editing/schema-storage.test.mjs', 'tests/editing/replica-state.mjs', 'tests/editing/storage-harness.mjs', 'tests/editing/semantic-adapter.ts', 'tests/editing/driver.ts', 'tests/helpers/journal-storage.mjs', ...['index', 'writer', 'journal', 'transaction'].flatMap(n => [`packages/web/src/storage/${n}.ts`, `packages/web/dist/storage/${n}.js`]), 'fixtures/editing-failures/schema-rejection-vectors.json', 'tests/editing/packed-runtime.mjs', 'scripts/test-editing.mjs', 'scripts/editing-suites.mjs', 'crates/editac-core/tests/editing_regressions.rs', 'Cargo.lock']) facts.sourceHashes[path] = sha256(await readFile(path));
   facts.counts = { executed: facts.cases.length, passed: facts.cases.filter(c => c.status === 'passed').length, failed: facts.cases.filter(c => c.status === 'failed').length, skipped: 0 };
   await mkdir(output, { recursive: true }); await writeFile(join(output, 'schema-storage-harness.json'), JSON.stringify(facts, null, 2) + '\n');
 });
@@ -99,7 +100,7 @@ for (const [i, v] of vectors.cases.entries()) test(`packed/storage:${v.id}`, asy
     check(storage.completions[0].update.bytes, tx.entry.bytes); check(storage.completions[0].commit, completed.localCommitted);
     check([...db.records.values()], [tx.entry]); check(lifecycle.recoveryExport().unsavedUpdates, []);
     const restored = pack.runtime.restoreEngine(storage.checkpoint.identity, storage.checkpoint, [{ identity: tx.entry.identity, bytes: tx.entry.bytes }]);
-    try { check(restored.read().visible, engine.read().visible); check(Buffer.from(restored.stateVector()), Buffer.from(engine.stateVector())); }
+    try { check(restored.read().visible, engine.read().visible); assertRestoredReplica(restored, engine); fact.checkpoints++; }
     finally { restored.dispose(); }
     for (const key of ['appends', 'transactions', 'records', 'completions']) control(`completed-${key}`, storage.effects(), completed, e => e[key]++);
     control('journal-bytes', tx.entry, tx.entry, e => e.bytes[0] ^= 1);

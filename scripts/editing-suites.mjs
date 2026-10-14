@@ -10,6 +10,8 @@ const semantic = [
   'tests/editing/storage-atomicity.test.mjs',
   'tests/editing/mixed-storage.test.mjs',
   'tests/editing/schema-storage.test.mjs',
+  'tests/editing/pending-storage.test.mjs',
+  'tests/editing/replica-state.test.mjs',
 ];
 const selected = {
   'regression-variants': semantic[1],
@@ -22,6 +24,7 @@ const selected = {
   'storage-atomicity': semantic[7],
   'mixed-storage': semantic[8],
   'schema-storage': semantic[9],
+  'pending-storage': semantic[10],
 };
 export const caseSelectors = Object.freeze(Object.keys(selected));
 export function editingSuites(group, selector) {

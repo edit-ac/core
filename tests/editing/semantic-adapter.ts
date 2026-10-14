@@ -11,7 +11,7 @@ export const semanticProfile = Object.freeze({ name: 'rgs-semantic-v1', engine: 
 
 /** Test adapter over public qualified operations. It never reads expected state. */
 export class SemanticDriver extends EditingDriver {
-  constructor(runtime: EngineRuntime, initial: State) {
+  constructor(runtime: EngineRuntime, initial: State, { restored = false }: { restored?: boolean } = {}) {
     super(runtime, { ...initial, pendingMarks: null, blocks: initial.blocks.map(b => ({ ...b, kind: 'paragraph', hardBreaks: [], marks: [] })) });
     try {
       const commands: EditorCommand[] = [];
@@ -19,11 +19,15 @@ export class SemanticDriver extends EditingDriver {
         if (block.kind === 'code') commands.push({ type: 'setCode', owner: this.id(block.id), language: '' });
         for (const mark of block.marks) commands.push({ type: 'markAt', owner: this.id(block.id), from: mark.from, to: mark.to, mark: mark.type as MarkCommand['mark'], action: 'apply' });
       }
-      if (commands.length) {
+      if (!restored && commands.length) {
         const plan = this.engine.prepare({ kind: 'editor', origin: 'fixture:setup', commands });
         try { this.releaseResult(this.engine.commit(plan)); } finally { this.engine.releasePlan(plan); }
       }
-      this.engine.history({ type: 'clear' });
+      if (restored) {
+        const history = this.engine.history({ type: 'state' });
+        assert.equal(history.undoGroups, 0, 'restored fixture starts with empty history');
+        assert.equal(history.redoGroups, 0, 'restored fixture starts with empty redo');
+      } else this.engine.history({ type: 'clear' });
       this.pendingMarks = initial.pendingMarks === null ? null : [...initial.pendingMarks];
       assert.deepEqual(this.snapshot(), initial, 'independent initial semantic fixture');
     } catch (error) { this.dispose(); throw error; }

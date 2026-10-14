@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process';
 // Admission must fail before loading a runtime. These failures cannot become
 // an accidental successful zero-test qualification of a misspelled case group.
 for (const [name, args] of [
+  ['pending storage selector on fixtures', ['--group', 'fixtures', '--cases', 'pending-storage']],
   ['schema storage selector on fixtures', ['--group', 'fixtures', '--cases', 'schema-storage']],
   ['mixed storage selector on fixtures', ['--group', 'fixtures', '--cases', 'mixed-storage']],
   ['storage selector on fixtures', ['--group', 'fixtures', '--cases', 'storage-atomicity']],
@@ -69,4 +70,17 @@ test('schema rejection storage proof is mandatory in canonical semantic dispatch
   assert.deepEqual(selected, ['tests/editing/schema-storage.test.mjs']);
   assert.equal(editingSuites('semantic').filter(path => path === selected[0]).length, 1);
   assert.ok(existsSync(selected[0]));
+});
+
+test('pending storage proof is mandatory in canonical semantic dispatch', () => {
+  const selected = editingSuites('semantic', 'pending-storage');
+  assert.deepEqual(selected, ['tests/editing/pending-storage.test.mjs']);
+  assert.equal(editingSuites('semantic').filter(path => path === selected[0]).length, 1);
+  assert.ok(existsSync(selected[0]));
+});
+
+test('replica vector decoder qualification is mandatory in canonical semantic dispatch', () => {
+  const path = 'tests/editing/replica-state.test.mjs';
+  assert.equal(editingSuites('semantic').filter(p => p === path).length, 1);
+  assert.ok(existsSync(path));
 });

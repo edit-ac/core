@@ -32,18 +32,20 @@ export async function storageHarness(runtime, initial, { attachDriver = true } =
     const append = journal.append.bind(journal);
     journal.append = update => { appends++; return append(update); };
     lifecycle = new LocalStorageLifecycle(writer, journal);
-    const engine = writer.engine, publications = [], completions = [], resolvedResults = [];
+    const engine = writer.engine, publications = [], completions = [], resolvedResults = [], resolvedCarets = [];
     let commitCalls = 0;
     const commit = plan => {
       const result = lifecycle.commitPrepared(plan); commitCalls++;
       resolvedResults.push({ revision: result.revision, endpoints: result.selection ? [result.selection.anchor, result.selection.focus].map(token => engine.resolve(token)) : null });
+      resolvedCarets.push(result.caret ? engine.resolve(result.caret) : null);
       return result;
     };
-    const driver = attachDriver ? new SemanticDriver({ ...runtime, createEngine: () => ({ ...engine, commit }) }, initial) : undefined;
+    const bindingCheckpoint = engine.checkpoint();
+    const driver = attachDriver ? new SemanticDriver({ ...runtime, createEngine: () => ({ ...engine, commit }) }, initial, { restored: true }) : undefined;
     subscription = engine.subscribe({ type: 'updates' }, patch => publications.push(patch));
     stop = lifecycle.subscribeCommitted((update, commit) => completions.push({ update, commit }));
     return {
-      driver, engine, lifecycle, db, checkpoint, publications, completions, resolvedResults, commit,
+      driver, engine, lifecycle, db, checkpoint, bindingCheckpoint, publications, completions, resolvedResults, resolvedCarets, commit,
       get commitCalls() { return commitCalls; },
       effects: () => ({ publications: publications.length, appends, transactions: db.transactions.length, records: db.records.size, completions: completions.length, pending: lifecycle.state.pending, saved: lifecycle.state.saved, localCommitted: lifecycle.state.localCommitted }),
       async nextTransaction() {
