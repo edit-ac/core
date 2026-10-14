@@ -94,6 +94,7 @@ pub fn validate(raw: &str, schema: &str) -> Result<()> {
                                 "module:editac.table",
                                 "module:editac.callout",
                                 "module:editac.reference",
+                                "module:editac.inert-extension",
                             ]
                             .contains(&s)
                         })

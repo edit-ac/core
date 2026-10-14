@@ -46,18 +46,23 @@ An exported inert offer remains usable after its source view is disposed.
 
 Plain paste bypasses every codec and preserves the destination style using a
 literal prepared replacement. Unknown types, unavailable codecs and unsupported
-versions return `mode: 'fallback'`, explicit diagnostics, literal source blocks
-and the exact original envelope in `recovery`. Accessors, executable values,
+versions return `mode: 'fallback'`, explicit diagnostics and an engine-admitted
+inert content block containing the exact original envelope. Its visible text is
+the unformatted source; its tuple retains identity, version and payload. Accessors, executable values,
 cycles, excessive nesting and excessive data reject without interpreting them.
 Input and candidates are bounded to 1 MiB, 65,536 data cells and depth 16;
 engine fragment limits remain independently enforced.
 
-The host must display fallback diagnostics and retain/export the recovery envelope
-alongside its persisted document when richer payload recovery is required.
-Literal source alone cannot reconstruct opaque payloads. The conformance harness
-stores recovery envelopes separately and restores the committed source through
-the real storage checkpoint. It does not claim that an unknown atom has been
-admitted to the engine, or that an ordinary clipboard copy carries its envelope.
+The host displays fallback diagnostics and source. Ordinary structured document
+copy/paste/cut, undo/redo and checkpoint reopen retain the complete envelope in
+`module:editac.inert-extension` version 1, without an optional codec or presenter.
+Payload and source are never interpreted, executed or fetched. Unknown carrier
+versions, malformed identities/data, partial atom edits and excessive resources
+reject atomically. Literal paste deliberately creates only source text.
+Markdown export escapes active source syntax, reports
+`inert-extension-source-fallback`, and retains the complete typed fragment in
+`recovery`; Markdown source alone cannot reconstruct opaque payloads. Reimport the
+recovery fragment through the same prepared engine boundary for lossless recovery.
 
 Cut checks current mutation capability before calling the host's clipboard writer.
 The writer must acknowledge all required flavors by returning `true`. Refusal,
@@ -66,9 +71,13 @@ deletion. Final semantic/permission checks still occur at the shared commit
 boundary. No transfer method fetches an asset or executes a formula.
 
 Current table v1 semantics admit rows, columns, alignment, the first header row and
-inline marks/links/code. Cell paragraph styles and spans need a qualified owning
-representation and atomic engine admission. Richer tables, math and future atoms
-currently use explicit inert recovery; this does not qualify richer formatting.
+inline marks/links/code. Table v2 admits bounded paragraph/heading/code cell blocks, explicit header flags
+and nonoverlapping row/column spans with null covered cells. Its exact tuple survives
+portable structured transfer, history and storage. V1 remains unchanged; v1
+presenters show fallback for v2. Markdown export reports a source fallback and
+retains the complete typed recovery fragment; source alone cannot recover all
+metadata. Unavailable richer shapes, math and future atoms use the same bounded inert
+carrier without claiming their richer editing or rendering semantics.
 Version callbacks may prepare explicit compatible candidate data, but this API
 does not migrate document epochs or reinterpret delayed offline updates.
 

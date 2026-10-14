@@ -53,7 +53,22 @@ fn text(d: &Document) -> String {
         .collect()
 }
 fn contents() -> Vec<Content> {
+    let corpus: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../fixtures/extensions/clipboard/conformance.json"
+    ))
+    .unwrap();
+    let rich = corpus["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|f| f["id"] == "table-v2-mixed-cell")
+        .unwrap();
+    let tuple =
+        yrs::Any::from_json(&rich["envelope"]["payload"][0]["attributes"]["tuple"].to_string())
+            .unwrap();
     vec![
+        Content::InertExtension { data: yrs::Any::from_json(r#"{"version":1,"type":"vendor.atom","dataVersion":99,"source":"inert 😀","payload":{"formula":"=unsafe()"}}"#).unwrap() },
+        Content::from_tuple(&tuple).unwrap().unwrap(),
         Content::Table {
             alignments: vec![Alignment::Left],
             rows: vec![vec![vec![run("cell")]]],
@@ -81,7 +96,7 @@ fn whole_mixed_atom_deletion_preserves_surroundings_history_and_restore() {
         let label = if let Content::Reference { label, .. } = &content {
             label.as_str()
         } else {
-            ""
+            content.inert_source().unwrap_or("")
         };
         let mut atom = block(label);
         atom.attributes = Some(BlockAttributes::Unknown(content.tuple().unwrap()));

@@ -15,6 +15,10 @@ pub enum Alignment {
 }
 #[derive(Clone, Debug)]
 pub enum Content {
+    /// Validated inert transfer envelope, independent of optional codecs/presenters.
+    InertExtension {
+        data: Any,
+    },
     Reference {
         target_id: String,
         label: String,
@@ -29,6 +33,10 @@ pub enum Content {
         kind: String,
         body: String,
         source: String,
+    },
+    /// Bounded v2 cell blocks and structural metadata; renderers remain optional.
+    RichTable {
+        data: Any,
     },
     Table {
         alignments: Vec<Alignment>,
@@ -157,8 +165,33 @@ fn alignment_name(a: Alignment) -> &'static str {
     }
 }
 impl Content {
+    pub fn inert_source(&self) -> Option<&str> {
+        if let Self::InertExtension {
+            data: Any::Map(data),
+        } = self
+        {
+            if let Some(Any::String(source)) = data.get("source") {
+                return Some(source);
+            }
+        }
+        None
+    }
+    /// Exact inert v2 source, exposed without making consumers parse engine values.
+    pub fn rich_table_source(&self) -> Option<&str> {
+        if let Self::RichTable {
+            data: Any::Map(data),
+        } = self
+        {
+            if let Some(Any::String(source)) = data.get("source") {
+                return Some(source.as_ref());
+            }
+        }
+        None
+    }
     pub fn validate(&self) -> Result<(), ContentError> {
         match self {
+            Self::InertExtension { data } => super::inert_content::validate(data)?,
+            Self::RichTable { data } => super::rich_table::validate(data)?,
             Self::Reference { target_id, label } => {
                 if target_id.is_empty()
                     || label.is_empty()
@@ -233,7 +266,16 @@ impl Content {
     }
     pub fn tuple(&self) -> Result<Any, ContentError> {
         self.validate()?;
+        if let Self::RichTable { data } = self {
+            return Ok(array(vec![
+                Any::from("module:editac.table"),
+                Any::from(2u32),
+                data.clone(),
+            ]));
+        }
         let (tag, data) = match self {
+            Self::InertExtension { data } => ("module:editac.inert-extension", data.clone()),
+            Self::RichTable { .. } => unreachable!(),
             Self::Reference { target_id, label } => (
                 "module:editac.reference",
                 object(vec![
@@ -342,11 +384,17 @@ impl Content {
                 | "module:editac.table"
                 | "module:editac.callout"
                 | "module:editac.reference"
+                | "module:editac.inert-extension"
         ) {
             return Ok(None);
         }
         if v.len() != 3 {
             return Err(ContentError::InvalidShape);
+        }
+        if tag.as_ref() == "module:editac.table" && v[1] == Any::from(2u32) {
+            let content = Self::RichTable { data: v[2].clone() };
+            content.validate()?;
+            return Ok(Some(content));
         }
         if v[1] != Any::from(1u32) {
             return Err(ContentError::UnsupportedVersion);
@@ -355,7 +403,9 @@ impl Content {
             return Err(ContentError::InvalidShape);
         };
         let get = |key: &str| data.get(key).ok_or(ContentError::InvalidShape);
-        let content = if tag.as_ref() == "module:editac.reference" {
+        let content = if tag.as_ref() == "module:editac.inert-extension" {
+            Self::InertExtension { data: v[2].clone() }
+        } else if tag.as_ref() == "module:editac.reference" {
             if data.len() != 2 {
                 return Err(ContentError::InvalidShape);
             }

@@ -32,7 +32,7 @@ function blockStyle(node: ProjectedNode): FragmentBlock['attributes'] {
   if (type === 'paragraph' || type === 'separator') return { type };
   if (type === 'heading' && typeof tuple[1] === 'number') return { type, level: tuple[1] };
   if (type === 'code' && typeof tuple[1] === 'string') return { type, language: tuple[1] };
-  if (['module:editac.image','module:editac.table','module:editac.callout','module:editac.reference'].includes(String(tuple[0]))) return { type: 'content', tuple };
+  if (['module:editac.image','module:editac.table','module:editac.callout','module:editac.reference','module:editac.inert-extension'].includes(String(tuple[0]))) return { type: 'content', tuple };
   throw Error('unsupported-fragment-style');
 }
 function clipRuns(node: ProjectedNode, start: number, end: number): FragmentRun[] {
@@ -129,6 +129,7 @@ export class ClipboardInput {
           const candidate = decodeFragment(raw, this.#engine).blocks;
           if (!this.#engine.can({ kind: 'fragment', origin: `clipboard:${this.#sequence+1}`, range: target.range, blocks: candidate })) throw Error('fragment-semantics');
           blocks = candidate;
+          if (candidate.some(b => b.attributes?.type === 'content' && Array.isArray(b.attributes.tuple) && b.attributes.tuple[0] === 'module:editac.inert-extension')) this.#diagnose('inert-extension-source-fallback');
         }
         catch (error) { const reason=errorMessage(error);this.#diagnose(reason);if(new TextEncoder().encode(raw).length<=LIMIT)this.#recoverSource(FRAGMENT_MIME,raw,reason); }
       }
@@ -242,6 +243,7 @@ export class ClipboardInput {
       const [first, last, from, to] = (ai < bi || ai === bi && a.offset <= b.offset) ? [ai, bi, a.offset, b.offset] : [bi, ai, b.offset, a.offset];
       if (first === last && from === to) return this.last = { disposition: 'handled' };
       const selected = nodes.slice(first, last + 1);
+      const inert = selected.some(n => Array.isArray(n.blockAttributes) && n.blockAttributes[0] === 'module:editac.inert-extension');
       const clipped = selected.map((node, index) => ({ node, start: index === 0 ? from : 0, end: index === selected.length - 1 ? to : node.runs.reduce((n, r) => n + r.text.length, 0) }));
       const plain = clipped.map(({node, start, end}) => node.runs.map(run => run.text).join('').slice(start, end)).join('\n');
       if (new TextEncoder().encode(plain).length > LIMIT) throw Error('clipboard-limit');
@@ -264,8 +266,10 @@ export class ClipboardInput {
             }
             return { runs: clipRuns(node, start, end), attributes: blockStyle(node), containers, checked: node.editor?.checked ?? null };
           }) };
-        const raw = JSON.stringify(fragment); decodeFragment(raw, this.#engine); data.setData(FRAGMENT_MIME, raw); data.setData('text/html', exportHTML(fragment.blocks));
-      } catch (error) { this.#diagnose(errorMessage(error)); }
+        const raw = JSON.stringify(fragment); decodeFragment(raw, this.#engine); data.setData(FRAGMENT_MIME, raw);
+        if (inert) { this.#diagnose('inert-extension-source-fallback'); if (cut && data.getData(FRAGMENT_MIME) !== raw) throw Error('clipboard-write-failed'); }
+        data.setData('text/html', exportHTML(fragment.blocks));
+      } catch (error) { this.#diagnose(errorMessage(error)); if (cut && inert) throw error; }
       // Never delete until the required interoperable text flavor was written.
       return this.last = cut ? this.#apply(target, [{ runs: [], attributes: null }]) : { disposition: 'handled' };
     } catch (error) { return this.last = { disposition: 'rejected', reason: errorMessage(error) }; }
