@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "qualification": "headless-protocol-only",
+  "obligations": [
+    "focus",
+    "input-composition",
+    "selection",
+    "accessibility",
+    "clipboard-source",
+    "patch",
+    "cancel-stale",
+    "dispose",
+    "capability-readonly",
+    "theme-fallback"
+  ],
+  "hosts": [
+    {
+      "id": "browser",
+      "owner": "41-mobile-web-extensions.md / browser integration",
+      "actualPlatformEvidence": "pending-downstream",
+      "fixtures": [
+        "PRES-browser-focus",
+        "PRES-browser-input-composition",
+        "PRES-browser-selection",
+        "PRES-browser-accessibility",
+        "PRES-browser-clipboard-source",
+        "PRES-browser-patch",
+        "PRES-browser-cancel-stale",
+        "PRES-browser-dispose",
+        "PRES-browser-capability-readonly",
+        "PRES-browser-theme-fallback"
+      ]
+    },
+    {
+      "id": "terminal",
+      "owner": "15-tui-client.md",
+      "actualPlatformEvidence": "pending-downstream",
+      "fixtures": [
+        "PRES-terminal-focus",
+        "PRES-terminal-input-composition",
+        "PRES-terminal-selection",
+        "PRES-terminal-accessibility",
+        "PRES-terminal-clipboard-source",
+        "PRES-terminal-patch",
+        "PRES-terminal-cancel-stale",
+        "PRES-terminal-dispose",
+        "PRES-terminal-capability-readonly",
+        "PRES-terminal-theme-fallback"
+      ]
+    },
+    {
+      "id": "swift-ios",
+      "owner": "16-ios-sdk.md",
+      "actualPlatformEvidence": "pending-downstream",
+      "fixtures": [
+        "PRES-swift-ios-focus",
+        "PRES-swift-ios-input-composition",
+        "PRES-swift-ios-selection",
+        "PRES-swift-ios-accessibility",
+        "PRES-swift-ios-clipboard-source",
+        "PRES-swift-ios-patch",
+        "PRES-swift-ios-cancel-stale",
+        "PRES-swift-ios-dispose",
+        "PRES-swift-ios-capability-readonly",
+        "PRES-swift-ios-theme-fallback"
+      ]
+    },
+    {
+      "id": "kotlin-android",
+      "owner": "17-android-sdk.md",
+      "actualPlatformEvidence": "pending-downstream",
+      "fixtures": [
+        "PRES-kotlin-android-focus",
+        "PRES-kotlin-android-input-composition",
+        "PRES-kotlin-android-selection",
+        "PRES-kotlin-android-accessibility",
+        "PRES-kotlin-android-clipboard-source",
+        "PRES-kotlin-android-patch",
+        "PRES-kotlin-android-cancel-stale",
+        "PRES-kotlin-android-dispose",
+        "PRES-kotlin-android-capability-readonly",
+        "PRES-kotlin-android-theme-fallback"
+      ]
+    },
+    {
+      "id": "desktop",
+      "owner": "18-desktop-native.md",
+      "actualPlatformEvidence": "pending-downstream",
+      "fixtures": [
+        "PRES-desktop-focus",
+        "PRES-desktop-input-composition",
+        "PRES-desktop-selection",
+        "PRES-desktop-accessibility",
+        "PRES-desktop-clipboard-source",
+        "PRES-desktop-patch",
+        "PRES-desktop-cancel-stale",
+        "PRES-desktop-dispose",
+        "PRES-desktop-capability-readonly",
+        "PRES-desktop-theme-fallback"
+      ]
+    }
+  ]
+}
