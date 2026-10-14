@@ -9,11 +9,16 @@ import {build} from 'esbuild';
 import {chromium,firefox,webkit} from 'playwright';
 import {prepareTutorial} from '../scripts/prepare-extension-tutorial.mjs';
 import {sha256} from '../scripts/extension-bundles.mjs';
+import { verifyPrerequisiteQualification } from '../scripts/verify-prerequisite-qualification.mjs';
+const workspace=new URL('../../',import.meta.url);
+let qualified;
 const output=resolve(process.env.EDITAC_EXTENSION_PROFILES_OUTPUT??'../architecture/evidence/desktop-interactions/extension-profiles');
 const fixture=JSON.parse(await readFile('fixtures/extensions/profiles/contracts.json'));
 const facts={gate:'EXT-1.12',sourceRevision:process.env.EDITAC_CORE_REVISION??'working-tree',node:process.version,checks:[],browsers:[],sourceHashes:{},artifactHashes:{},cleanup:{},downstream:fixture.downstream};
 let directory,manifest,server,url,api,conformance,stdout='',stderr='';
 before(async()=>{
+ qualified=await verifyPrerequisiteQualification({workspace,path:'architecture/evidence/link-upstream-qualification/current/prerequisites.json'});
+ facts.currentPrerequisiteReceiptSha256=sha256(await readFile('../architecture/evidence/link-upstream-qualification/current/prerequisites.json'));
   await mkdir(output,{recursive:true});
   directory=await mkdtemp(join(tmpdir(),'editac-extension-profiles-'));
   manifest=await prepareTutorial(directory);
@@ -37,7 +42,10 @@ before(async()=>{
     const hash=sha256(await readFile(join(directory,name)));facts.artifactHashes[name]=hash;
     assert.equal(hash,manifest.inputs[name]);
     const previous=JSON.parse(await readFile('../architecture/evidence/extension-tutorial/receipt.json'));
-    const prior=previous.artifactHashes[name];assert.equal(hash,prior,'unchanged owning engine/codec');
+    const prior=previous.artifactHashes[name];
+    facts.historicalArtifactHashes??={};facts.historicalArtifactHashes[name]=prior;
+    const currentPath=name==='engine.wasm'?'core/packages/core/dist/wasm/editac_wasm_bg.wasm':'core/packages/markdown/dist/wasm/editac_markdown_wasm_bg.wasm';
+    assert.equal(hash,qualified.artifactHashes[currentPath],'current qualified owning engine/codec');
   }
   const environment={...process.env};delete environment.NODE_TEST_CONTEXT;
   server=spawn(process.execPath,['serve.mjs','--port=0'],{cwd:directory,env:environment,stdio:['ignore','pipe','pipe']});

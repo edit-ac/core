@@ -6,16 +6,21 @@ import { resolve, join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { chromium, firefox, webkit } from 'playwright';
 import { loggedRun, sha256 } from '../scripts/extension-bundles.mjs';
+import { verifyPrerequisiteQualification } from '../scripts/verify-prerequisite-qualification.mjs';
+const workspace = new URL('../../', import.meta.url);
+let qualified;
 const output = resolve(process.env.EDITAC_EXTENSION_TUTORIAL_OUTPUT ?? '../architecture/evidence/extension-tutorial/current');
 const upstream = JSON.parse(await readFile('../architecture/evidence/extension-exports/receipt.json'));
 const codecsReceipt = JSON.parse(await readFile('../architecture/evidence/extension-codecs/receipt.json'));
 const commandsReceipt = JSON.parse(await readFile('../architecture/evidence/extension-commands/receipt.json'));
 const unchanged = Object.fromEntries(Object.entries({ ...codecsReceipt.packageHashes, ...commandsReceipt.artifactHashes }).filter(([path]) => /\/wasm\//.test(path)));
 const nativePins = { ...upstream.sourceHashes, ...codecsReceipt.sourceHashes };
-const facts = { gate:'EXT-1.10', checks:[], browsers:[], unchangedArtifacts:unchanged, upstreamReceipts:Object.fromEntries(await Promise.all(['extension-exports','extension-codecs','extension-commands'].map(async name=>[name,sha256(await readFile('../architecture/evidence/'+name+'/receipt.json'))]))), cleanup:{} };
+const facts = { gate:'EXT-1.10', checks:[], browsers:[], historicalArtifacts:unchanged, upstreamReceipts:Object.fromEntries(await Promise.all(['extension-exports','extension-codecs','extension-commands'].map(async name=>[name,sha256(await readFile('../architecture/evidence/'+name+'/receipt.json'))]))), cleanup:{} };
 let consumer, manifest, server, url, stdout = '', stderr = '';
 const counts = text => Object.fromEntries(['tests','pass','fail','skipped','cancelled'].map(key => [key, Number(text.match(new RegExp('^# '+key+' (\\d+)$','m'))?.[1] ?? -1)]));
 before(async () => {
+  qualified = await verifyPrerequisiteQualification({workspace,path:'architecture/evidence/link-upstream-qualification/current/prerequisites.json'});
+  facts.currentPrerequisiteReceiptSha256=sha256(await readFile('../architecture/evidence/link-upstream-qualification/current/prerequisites.json'));
   await mkdir(output,{recursive:true});
   consumer = await mkdtemp(join(tmpdir(),'editac-extension-tutorial-'));
   // Execute the authoring instructions verbatim; this command packs, never compiles Rust/WASM/native.
@@ -50,15 +55,15 @@ test('documented command passes every shared fixture in a clean packed consumer'
   const actual=counts(result.stdout);facts.checks.push({...result,stdout:undefined,counts:actual});
   assert.deepEqual(actual,{tests:48,pass:48,fail:0,skipped:0,cancelled:0});
 });
-test('unchanged production engine/codec and qualified native checkpoint are pinned',async()=>{
-  for(const [path,hash] of Object.entries(unchanged))assert.equal(sha256(await readFile(path)),hash,path);
-  assert.equal(manifest.inputs['engine.wasm'],unchanged['packages/core/dist/wasm/editac_wasm_bg.wasm']);
-  assert.equal(manifest.inputs['markdown.wasm'],unchanged['packages/markdown/dist/wasm/editac_markdown_wasm_bg.wasm']);
+test('current qualified production engine/codec and immutable native checkpoint are pinned',async()=>{
+  for(const path of Object.keys(unchanged))assert.equal(sha256(await readFile(path)),qualified.artifactHashes['core/'+path],path);
+  assert.equal(manifest.inputs['engine.wasm'],qualified.artifactHashes['core/packages/core/dist/wasm/editac_wasm_bg.wasm']);
+  assert.equal(manifest.inputs['markdown.wasm'],qualified.artifactHashes['core/packages/markdown/dist/wasm/editac_markdown_wasm_bg.wasm']);
   for(const name of ['custom-checkpoint.bin','identity.json'])assert.equal(manifest.inputs['fixtures/'+name],upstream.artifactHashes['registry/'+name]);
   assert.equal(manifest.inputs['fixtures/conformance.json'],sha256(await readFile('fixtures/extensions/conformance.json')));
   assert(manifest.wasmExports.includes('engine_restore'));assert(!manifest.wasmExports.some(name=>/fixture/.test(name)));
   facts.nativeSourcePins={};
-  for(const [path,hash] of Object.entries(nativePins).filter(([path])=>path.startsWith('crates/'))){assert.equal(sha256(await readFile(path)),hash,path);facts.nativeSourcePins[path]=hash;}
+  for(const [path,hash] of Object.entries(nativePins).filter(([path])=>path.startsWith('crates/'))){const current=sha256(await readFile(path));assert.equal(current,qualified.sourceHashes['core/'+path],path);facts.nativeSourcePins[path]={historical:hash,current};}
   assert(Object.keys(facts.nativeSourcePins).length>0);
 });
 test('tutorial imports and bundle graph use only documented packed entry points',async()=>{

@@ -10,10 +10,10 @@
     "fixtures/extensions/presenters/conformance.json": "390393183bfb12d1ef3a02923018be69d2d0e47d5d2fbfb91f93254abb48cede",
     "fixtures/extensions/clipboard/conformance.json": "ffc955446436bd61bf28c66a687ffdff0ef19dd49a2506578e15ed61646f46f9",
     "fixtures/extensions/profiles/contracts.json": "5afd1df2b8be564309faadc4f47ed4409f7cb64d9baad391069c8e1a7cae2b38",
-    "fixtures/extensions/capabilities.json": "7e5248d9fdf6b9a6196fe1d8f6988e788ef2d87b20bbb4ed53fc1a7f4eb6f0e3",
-    "../architecture/specs/extension-library.md": "90b76e6a05896b32490a5e0473fe43c7e06f8144e3b7c0374d2fb7c2e501647b",
-    "../architecture/specs/extension-presenters.md": "508387d4684331bcab266b121ae3c911422681e48944383ae4256e92d1ccafb0",
-    "../architecture/specs/client-contracts.md": "d8ec945d449cb3821805c971a3ae24f1ca6cf37251933edc39eb3538d823333a"
+    "fixtures/extensions/capabilities.json": "207fc923709cdc84570a8c1a4c3798574eab504aa9d6aa8a1881719f43f21e86",
+    "../architecture/specs/extension-library.md": "503599277d6955cb626f96d09e3a8107da184bb0e1d7332a66afeec9e9748480",
+    "../architecture/specs/extension-presenters.md": "4fef2220b62700ccaaed0da3b9b7cb5f1354b2bc53453fcfbb3bf89da273e738",
+    "../architecture/specs/client-contracts.md": "a1f3ff08c6e1748daa93c4e6a688eaf4b4d628ac36dcb76d58d70c9426f97a62"
   },
   "prerequisites": {
     "EXT-1.1": {

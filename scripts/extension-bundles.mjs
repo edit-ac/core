@@ -94,7 +94,7 @@ export async function nativeInventory(output, config) {
   // Android dependencies are declared in the actual control probe, not renderer binaries.
   const gradle = await readFile('native/android/probe/control/build.gradle.kts', 'utf8');
   const android = [...gradle.matchAll(/implementation\("([^"]+)"\)/g)].map(m => m[1]);
-  const result = { schema: 1, inventories, sources, android, rendererAssets: [], scope: 'Actual Cargo workspace manifests and Android control-probe dependency declarations. Built-in portable modules are compiled into editac-core, with no per-module optional Cargo feature. FFI bindgen is tooling-only. Terminal checkout is an unimplemented scaffold with no extension dependencies. Swift/Kotlin/desktop/TUI richer presenters remain downstream; no native binary size or per-feature savings claimed.' };
+  const result = { schema: 1, inventories, sources, android, rendererAssets: [], scope: 'Actual Cargo workspace manifests and Android control-probe dependency declarations. Built-in portable modules are compiled into editac-core, with no per-module optional Cargo feature. FFI bindgen is tooling-only. Terminal inventory records the current CLI manifest, including its vendored engine/session and terminal UI dependencies. Presence of a dependency does not prove renderer parity. Swift/Kotlin/desktop richer presenters remain downstream; no native binary size or per-feature savings claimed.' };
   await writeFile(join(output, 'native-terminal-inventory.json'), JSON.stringify(result, null, 2) + '\n');
   return result;
 }

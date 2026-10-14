@@ -19,7 +19,7 @@ before(async()=>{
  browser=await chromium.connect(controller.wsEndpoint());facts.browser={version:browser.version()};context=await browser.newContext();
  await context.route('https://session-conformance.test/**',async route=>{
   const path=new URL(route.request().url()).pathname;
-  if(path==='/')return route.fulfill({contentType:'text/html',body:'<!doctype html><script type="importmap">{"imports":{"@edit-ac/core":"/core/index.js"}}</script><main id="editor"></main>'});
+  if(path==='/')return route.fulfill({contentType:'text/html',body:'<!doctype html><script type="importmap">{"imports":{"@edit-ac/core":"/core/index.js","@edit-ac/core/extensions":"/core/extensions/index.js"}}</script><main id="editor"></main>'});
   if(!/^\/(core|web)\/[a-zA-Z0-9/_-]+\.(js|wasm)$/.test(path))return route.abort();
   const prefix=path.startsWith('/core/')?'../packages/core/dist/':'../packages/web/dist/';
   return route.fulfill({contentType:path.endsWith('.wasm')?'application/wasm':'text/javascript',body:await readFile(new URL(prefix+path.replace(/^\/(core|web)\//,''),import.meta.url))});
