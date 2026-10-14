@@ -1514,3 +1514,213 @@ schema_rejection_case!(
     reg06_matrix_format_backward_right,
     "REG06-format-backward-right"
 );
+
+// RGS-1.2-C8: the editor-local pending matrix belongs to the packed adapter.
+// Native matches the four shared document/selection vectors without claiming it.
+fn mixed_batch(id: &str) {
+    use serde_json::json;
+    let vectors: Value = serde_json::from_str(include_str!(
+        "../../../fixtures/editing-failures/mixed-batch-vectors.json"
+    ))
+    .unwrap();
+    let v = vectors["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|v| v["id"] == id)
+        .unwrap();
+    let mut d = document(vectors["initialText"].as_str().unwrap());
+    let original = d.snapshot().unwrap().visible[0].clone();
+    let owner = original.id.clone();
+    let bias = if v["bias"] == "left" {
+        Bias::Left
+    } else {
+        Bias::Right
+    };
+    let commands: Vec<_> = vectors["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| match c["type"].as_str().unwrap() {
+            "insertText" => EditorCommand::ReplaceAt {
+                owner: owner.clone(),
+                from: U(number(&c["offset"])),
+                to: U(number(&c["offset"])),
+                text: c["text"].as_str().unwrap().into(),
+            },
+            "replaceText" => EditorCommand::ReplaceAt {
+                owner: owner.clone(),
+                from: U(number(&c["from"])),
+                to: U(number(&c["to"])),
+                text: c["text"].as_str().unwrap().into(),
+            },
+            "applyMark" => EditorCommand::MarkAt {
+                owner: owner.clone(),
+                from: U(number(&c["from"])),
+                to: U(number(&c["to"])),
+                mark: mark(c["mark"].as_str().unwrap()),
+                action: FormatAction::Apply,
+                href: None,
+            },
+            _ => panic!("unbound mixed batch command"),
+        })
+        .collect();
+    let origin = TextOrigin::new("local:rgs:mixed-batch").unwrap();
+    let count = Rc::new(Cell::new(0));
+    let seen = count.clone();
+    let _subscription = d
+        .subscribe(PatchScope::All, move |_, _| {
+            seen.set(seen.get() + 1);
+            Ok(())
+        })
+        .unwrap();
+    let before = frozen(&d);
+    let snapshot = d.snapshot().unwrap().visible;
+    let observe_rejection = |d: &Document| json!({"document": d.snapshot().unwrap().visible.iter().map(|n| json!({"owner":n.id,"text":n.runs.iter().map(|r|r.text.as_str()).collect::<String>(),"runs":n.runs.iter().map(|r|json!({"text":r.text,"attributes":r.attributes})).collect::<Vec<_>>(),"spans":n.spans.iter().map(|s|json!({"source":s.source,"identity":s.identity})).collect::<Vec<_>>()})).collect::<Vec<_>>(), "revision":d.revision(),"vector":d.state_vector_v1(),"checkpoint":d.checkpoint().bytes,"history":format!("{:?}",d.history_state()),"publications":count.get()});
+    let expected_rejection = json!({"document":[{"owner":owner,"text":vectors["initialText"],"runs":[{"text":vectors["initialText"],"attributes":{}}],"spans":original.spans.iter().map(|s|json!({"source":s.source,"identity":s.identity})).collect::<Vec<_>>()}],"revision":before.2,"vector":before.1,"checkpoint":before.0,"history":format!("{:?}",before.3),"publications":0});
+    let mut invalid = commands.clone();
+    if let EditorCommand::MarkAt { owner, .. } = invalid.last_mut().unwrap() {
+        *owner = vectors["invalidFinalOwner"].as_str().unwrap().into();
+    } else {
+        panic!("expected final mark");
+    }
+    // The staged emoji spans UTF-16 [3,5); offset 4 must not be resolved
+    // against the entry document where it was a valid boundary.
+    let mut invalid_mark = commands.clone();
+    if let EditorCommand::MarkAt { from, to, .. } = invalid_mark.last_mut().unwrap() {
+        *from = U(number(&vectors["invalidStagedUtf16Offset"]));
+        *to = U(5);
+    }
+    let mut invalid_selection = commands.clone();
+    invalid_selection.push(EditorCommand::SelectionAt {
+        anchor: EditorPosition {
+            owner: owner.clone(),
+            offset: U(1),
+            bias,
+        },
+        focus: EditorPosition {
+            owner: owner.clone(),
+            offset: U(number(&vectors["invalidStagedUtf16Offset"])),
+            bias,
+        },
+    });
+    for (name, rejected) in [
+        ("missing-final-owner", invalid),
+        ("staged-surrogate-mark", invalid_mark),
+        ("staged-surrogate-selection", invalid_selection),
+    ] {
+        assert!(
+            d.prepare_editor(&rejected, &origin).is_err(),
+            "accepted {name}"
+        );
+        assert_eq!(frozen(&d), before, "mutated after {name}");
+        assert_eq!(d.snapshot().unwrap().visible, snapshot);
+        assert_eq!(observe_rejection(&d), expected_rejection);
+    }
+    for (path, value) in [
+        ("/document", json!([])),
+        ("/revision", json!(before.2 + 1)),
+        ("/vector", json!([])),
+        ("/checkpoint", json!([])),
+        ("/history", json!("corrupt")),
+        ("/publications", json!(1)),
+    ] {
+        let mut wrong = expected_rejection.clone();
+        *wrong.pointer_mut(path).unwrap() = value;
+        assert!(
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| assert_eq!(
+                observe_rejection(&d),
+                wrong
+            )))
+            .is_err(),
+            "undetected {path}"
+        );
+    }
+    let mut valid = commands;
+    valid.push(EditorCommand::SelectionAt {
+        anchor: EditorPosition {
+            owner: owner.clone(),
+            offset: U(number(&v["selection"][0])),
+            bias,
+        },
+        focus: EditorPosition {
+            owner: owner.clone(),
+            offset: U(number(&v["selection"][1])),
+            bias,
+        },
+    });
+    let plan = d.prepare_editor(&valid, &origin).unwrap();
+    assert_eq!(frozen(&d), before);
+    assert_eq!(count.get(), 0);
+    let result = d.commit_editor(plan).unwrap();
+    assert_ne!(d.state_vector_v1(), before.1);
+    assert_ne!(d.checkpoint().bytes, before.0);
+    let selection = result.result_selection.unwrap();
+    let observe_retry = |d: &Document| {
+        let node = d.snapshot().unwrap().visible[0].clone();
+        let endpoints=[&selection.anchor,&selection.focus].map(|token| match d.resolve_anchor(token).unwrap() {
+            Resolution::Position(p)=>json!({"node":p.node,"offset":p.offset.0,"source":p.source,"sourceOffset":p.source_offset.0,"bias":if p.bias==Bias::Left {"left"} else {"right"}}),
+            _=>panic!("result selection unresolved"),
+        });
+        json!({"text":node.runs.iter().map(|r|r.text.as_str()).collect::<String>(),"runs":node.runs.iter().map(|r|json!({"text":r.text,"attributes":r.attributes})).collect::<Vec<_>>(),"owner":node.id,"spans":node.spans.iter().map(|s|json!({"source":s.source,"identity":s.identity})).collect::<Vec<_>>(),"endpoints":endpoints,"revision":d.revision(),"publications":count.get(),"undoGroups":d.history_state().undo_groups,"redoGroups":d.history_state().redo_groups})
+    };
+    let expected_retry = json!({"text":vectors["expectedText"],"runs":vectors["expectedRuns"],"owner":owner,"spans":original.spans.iter().map(|s|json!({"source":s.source,"identity":s.identity})).collect::<Vec<_>>(),"endpoints":v["selection"].as_array().unwrap().iter().map(|offset|json!({"node":owner,"offset":offset,"source":original.spans[0].source,"sourceOffset":offset,"bias":v["bias"]})).collect::<Vec<_>>(),"revision":before.2+1,"publications":1,"undoGroups":1,"redoGroups":0});
+    assert_eq!(result.revision, before.2 + 1);
+    assert_eq!(observe_retry(&d), expected_retry);
+    assert!(
+        observe_retry(&d)["text"]
+            .as_str()
+            .unwrap()
+            .ends_with(vectors["suffix"].as_str().unwrap())
+    );
+    for (path, value) in [
+        ("/text", json!("aXY😀bc")),
+        ("/runs/2/text", json!("😀b")),
+        ("/runs/1/attributes", json!({})),
+        ("/runs/2/attributes", json!({"bold":true})),
+        ("/owner", json!("missing")),
+        ("/spans/0/source", json!("missing")),
+        ("/spans/0/identity", json!("missing")),
+        ("/endpoints/0/offset", json!(0)),
+        ("/endpoints/1/offset", json!(0)),
+        (
+            "/endpoints",
+            json!([
+                expected_retry["endpoints"][1],
+                expected_retry["endpoints"][0]
+            ]),
+        ),
+        (
+            "/endpoints/1/bias",
+            json!(if bias == Bias::Left { "right" } else { "left" }),
+        ),
+        ("/endpoints/1/sourceOffset", json!(0)),
+        ("/revision", json!(before.2 + 2)),
+        ("/publications", json!(2)),
+        ("/undoGroups", json!(2)),
+        ("/redoGroups", json!(1)),
+    ] {
+        let mut wrong = expected_retry.clone();
+        *wrong.pointer_mut(path).unwrap() = value;
+        assert!(
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| assert_eq!(
+                observe_retry(&d),
+                wrong
+            )))
+            .is_err(),
+            "undetected {path}"
+        );
+    }
+}
+macro_rules! mixed_batch_case {
+    ($name:ident,$id:literal) => {
+        #[test]
+        fn $name() {
+            mixed_batch($id);
+        }
+    };
+}
+mixed_batch_case!(reg13_mixed_forward_left, "REG13-mixed-forward-left");
+mixed_batch_case!(reg13_mixed_forward_right, "REG13-mixed-forward-right");
+mixed_batch_case!(reg13_mixed_backward_left, "REG13-mixed-backward-left");
+mixed_batch_case!(reg13_mixed_backward_right, "REG13-mixed-backward-right");

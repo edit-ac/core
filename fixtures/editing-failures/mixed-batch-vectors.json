@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "parent": "RGS-1.2",
+  "child": "RGS-1.2-C8",
+  "recipe": "SEQ-11",
+  "initialText": "a😀bc",
+  "operations": [
+    {
+      "type": "insertText",
+      "block": "p1",
+      "offset": 1,
+      "text": "XY"
+    },
+    {
+      "type": "replaceText",
+      "block": "p1",
+      "from": 2,
+      "to": 3,
+      "text": "Z"
+    },
+    {
+      "type": "applyMark",
+      "block": "p1",
+      "from": 1,
+      "to": 3,
+      "mark": "bold"
+    }
+  ],
+  "invalidFinalOwner": "missing",
+  "expectedText": "aXZ😀bc",
+  "expectedMarks": [
+    {
+      "from": 1,
+      "to": 3,
+      "type": "bold"
+    }
+  ],
+  "expectedRuns": [
+    {
+      "text": "a",
+      "attributes": {}
+    },
+    {
+      "text": "XZ",
+      "attributes": {
+        "bold": true
+      }
+    },
+    {
+      "text": "😀bc",
+      "attributes": {}
+    }
+  ],
+  "suffix": "😀bc",
+  "pendingVariants": [
+    {
+      "id": "null",
+      "marks": null
+    },
+    {
+      "id": "empty",
+      "marks": []
+    },
+    {
+      "id": "nonempty",
+      "marks": [
+        "italic"
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "id": "REG13-mixed-forward-left",
+      "direction": "forward",
+      "bias": "left",
+      "selection": [
+        1,
+        3
+      ]
+    },
+    {
+      "id": "REG13-mixed-forward-right",
+      "direction": "forward",
+      "bias": "right",
+      "selection": [
+        1,
+        3
+      ]
+    },
+    {
+      "id": "REG13-mixed-backward-left",
+      "direction": "backward",
+      "bias": "left",
+      "selection": [
+        3,
+        1
+      ]
+    },
+    {
+      "id": "REG13-mixed-backward-right",
+      "direction": "backward",
+      "bias": "right",
+      "selection": [
+        3,
+        1
+      ]
+    }
+  ],
+  "invalidStagedUtf16Offset": 4
+}
