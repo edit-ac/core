@@ -48,5 +48,6 @@ export function editingSuites(group, selector) {
   }
   if (group === 'semantic') return [...semantic];
   if (group === 'fixtures') return ['tests/editing/fixture-loader.test.mjs'];
+  if (group === 'history') return ['tests/editing/history.test.mjs'];
   throw new Error(`Editing group ${group} has no qualified runtime suite yet`);
 }

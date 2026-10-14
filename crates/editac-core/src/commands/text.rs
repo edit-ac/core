@@ -75,6 +75,8 @@ pub struct PreparedTextEdit {
     state: Vec<u8>,
     origin: TextOrigin,
     edits: Vec<Edit>,
+    entry_selection: Selection,
+    result_selection: Selection,
 }
 #[derive(Debug)]
 pub struct TextCommit {
@@ -129,6 +131,10 @@ impl Document {
             return Err(TextError::ResourceLimit);
         }
         let snapshot = self.inspect()?;
+        let entry_selection = Selection {
+            anchor: a.clone(),
+            focus: b.clone(),
+        };
         let txn = self.read();
         let a = position(anchors::resolve(&txn, self.identity(), &snapshot, a))?;
         let b = position(anchors::resolve(&txn, self.identity(), &snapshot, b))?;
@@ -136,6 +142,15 @@ impl Document {
             return Err(TextError::CrossNodeRange);
         }
         let (start, end) = if a.offset <= b.offset { (a, b) } else { (b, a) };
+        // The upper right-affine cut follows the replacement end, including a
+        // collapsed insertion. Retain CRDT anchors, never caller offsets.
+        let result_anchor = self
+            .anchor(&end.node, end.offset, anchors::Bias::Right)
+            .map_err(|_| TextError::Unresolvable(Unresolvable::MissingPosition))?;
+        let result_selection = Selection {
+            anchor: result_anchor.clone(),
+            focus: result_anchor,
+        };
         if !self.identity().has_editor() {
             check_depth(&snapshot, &start.node)?;
         }
@@ -277,6 +292,8 @@ impl Document {
             state,
             origin: origin.clone(),
             edits,
+            entry_selection,
+            result_selection,
         })
     }
     /// Preconditions are rechecked before opening the single write transaction.
@@ -333,6 +350,7 @@ impl Document {
             }
             update = txn.encode_update_v1();
         } // observer accumulation/commit precedes any public result
+        self.history_bookmarks(Some(plan.entry_selection), Some(plan.result_selection));
         self.history_finish(update.len());
         self.revision = next_revision;
         let commit = TextCommit {

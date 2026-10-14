@@ -403,7 +403,11 @@ impl Document {
         result: Option<crate::anchors::Selection>,
     ) {
         if let Some(g) = self.history.as_mut().and_then(|h| h.undo.back_mut()) {
-            g.entry_selection = entry;
+            // A typing group keeps its first transaction-entry bookmark;
+            // subsequent commits update only the group's final selection.
+            if g.commits == 0 {
+                g.entry_selection = entry;
+            }
             g.result_selection = result;
         }
     }

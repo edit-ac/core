@@ -765,6 +765,9 @@ fn pinned_bidirectional_yjs_history_exchange_and_remote_text_preservation() {
             .expect("isolated exchange evidence path required"),
     );
     fs::create_dir_all(&dir).unwrap();
+    // The Node exchange runs from the workspace, while Rust tests run from
+    // the crate directory. Share one absolute evidence path across both.
+    let dir = fs::canonicalize(dir).unwrap();
     let mut d = engine();
     let mut checkpoints = vec![];
     for (name, action) in [("seed", 0), ("insert", 1), ("undo", 2), ("redo", 3)] {
@@ -1561,4 +1564,248 @@ fn history_bookmark_remote_owner_removal_rejects_before_mutation() {
         (d.checkpoint().bytes, d.revision(), d.history_state()),
         before
     );
+}
+
+#[test]
+fn rgs_fixed_clock_typing_paste_cut_bookmarks_are_isolated() {
+    for cut in [false, true] {
+        let mut d = engine();
+        replace(&mut d, A, 0, 4, "");
+        d.clear_history();
+        d.set_history_group(HistoryGroup::Typing {
+            session: 42,
+            time_ms: 0,
+        });
+        insert(&mut d, A, 0, "a");
+        insert(&mut d, A, 1, "b");
+        assert_eq!(d.history_state().undo_groups, 1);
+        d.set_history_group(HistoryGroup::Explicit);
+        if cut {
+            replace(&mut d, A, 1, 2, "");
+        } else {
+            insert(&mut d, A, 2, "X");
+        }
+        d.set_history_group(HistoryGroup::Typing {
+            session: 42,
+            time_ms: 0,
+        });
+        insert(&mut d, A, if cut { 1 } else { 3 }, "d");
+        assert_eq!(d.history_state().undo_groups, 3);
+        let expectations = if cut {
+            [("a", 1, 1), ("ab", 1, 2), ("", 0, 0)]
+        } else {
+            [("abX", 3, 3), ("ab", 2, 2), ("", 0, 0)]
+        };
+        for (content, a, f) in expectations {
+            let u = d.undo().unwrap().unwrap();
+            assert_eq!(text(&d, A), content);
+            assert_eq!(
+                bookmark_cuts(&d, &u.selection.unwrap()),
+                (
+                    A.into(),
+                    a,
+                    if cut && content == "ab" {
+                        Bias::Left
+                    } else {
+                        Bias::Right
+                    },
+                    A.into(),
+                    f,
+                    Bias::Right
+                )
+            );
+        }
+        let expectations = if cut {
+            [("ab", 2), ("a", 1), ("ad", 2)]
+        } else {
+            [("ab", 2), ("abX", 3), ("abXd", 4)]
+        };
+        for (content, at) in expectations {
+            let r = d.redo().unwrap().unwrap();
+            assert_eq!(text(&d, A), content);
+            assert_eq!(
+                bookmark_cuts(&d, &r.selection.unwrap()),
+                (A.into(), at, Bias::Right, A.into(), at, Bias::Right)
+            );
+        }
+    }
+}
+
+#[test]
+fn rgs_outer_command_keeps_entry_caret_before_nested_temporary_range() {
+    let mut d = engine();
+    replace(&mut d, A, 0, 4, "abc");
+    d.clear_history();
+    edit(
+        &mut d,
+        &[
+            EditorCommand::HistorySelectionAt {
+                anchor: bookmark_position(A, 3, Bias::Right),
+                focus: bookmark_position(A, 3, Bias::Right),
+            },
+            EditorCommand::MarkAt {
+                owner: A.into(),
+                from: U(0),
+                to: U(3),
+                mark: Mark::Bold,
+                action: FormatAction::Apply,
+                href: None,
+            },
+            EditorCommand::SelectionAt {
+                anchor: bookmark_position(A, 3, Bias::Right),
+                focus: bookmark_position(A, 3, Bias::Right),
+            },
+        ],
+    );
+    for redo in [false, true] {
+        let result = if redo { d.redo() } else { d.undo() }.unwrap().unwrap();
+        assert_eq!(text(&d, A), "abc");
+        assert!(
+            d.snapshot()
+                .unwrap()
+                .visible
+                .iter()
+                .find(|n| n.id == A)
+                .unwrap()
+                .runs
+                .iter()
+                .all(|r| if redo {
+                    r.attributes.get("bold") == Some(&Any::Bool(true))
+                } else {
+                    r.attributes.is_empty()
+                })
+        );
+        assert_eq!(
+            bookmark_cuts(&d, &result.selection.unwrap()),
+            (A.into(), 3, Bias::Right, A.into(), 3, Bias::Right)
+        );
+    }
+}
+
+#[test]
+fn rgs_pinned_pending_delete_remote_inverse_reapplied_bookmarks() {
+    for (bias, reparent) in [
+        (Bias::Left, false),
+        (Bias::Right, false),
+        (Bias::Left, true),
+        (Bias::Right, true),
+    ] {
+        let mut d = engine();
+        replace(&mut d, A, 0, 4, "123456789ABCD");
+        d.clear_history();
+        let ids = identities(&d);
+        let mut remote = restore(&d.checkpoint().bytes);
+        edit(
+            &mut d,
+            &[
+                EditorCommand::HistorySelectionAt {
+                    anchor: bookmark_position(A, 12, bias),
+                    focus: bookmark_position(A, 5, bias),
+                },
+                EditorCommand::ReplaceAt {
+                    owner: A.into(),
+                    from: U(5),
+                    to: U(12),
+                    text: "".into(),
+                },
+                EditorCommand::SelectionAt {
+                    anchor: bookmark_position(A, 5, bias),
+                    focus: bookmark_position(A, 5, bias),
+                },
+            ],
+        );
+        let r = insert(&mut remote, A, 13, "E");
+        d.apply_replay(&r).unwrap();
+        if reparent {
+            let r = edit(
+                &mut remote,
+                &[EditorCommand::List(
+                    editac_core::commands::lists::ListCommand::Wrap {
+                        targets: vec![A.into()],
+                        style: editac_core::commands::lists::ContainerStyle::Unordered,
+                    },
+                )],
+            );
+            d.apply_replay(&r).unwrap();
+        }
+        let expected_parent = parent(&d, A);
+        assert_eq!(text(&d, A), "12345DE");
+        for _ in 0..2 {
+            let inverse = d.undo().unwrap().unwrap();
+            assert_eq!(text(&d, A), "123456789ABCDE");
+            assert_eq!(
+                bookmark_cuts(&d, &inverse.selection.unwrap()),
+                (A.into(), 12, bias, A.into(), 5, bias)
+            );
+            let reapplied = d.redo().unwrap().unwrap();
+            assert_eq!(text(&d, A), "12345DE");
+            assert_eq!(
+                bookmark_cuts(&d, &reapplied.selection.unwrap()),
+                (A.into(), 5, bias, A.into(), 5, bias)
+            );
+            assert_eq!(identities(&d), ids);
+            assert_eq!(parent(&d, A), expected_parent);
+        }
+    }
+}
+
+#[test]
+fn rgs_clipboard_cut_fast_path_restores_entry_range_between_typing_groups() {
+    for backward in [false, true] {
+        for (anchor_bias, focus_bias) in [
+            (Bias::Right, Bias::Left),
+            (Bias::Left, Bias::Right),
+            (Bias::Right, Bias::Right),
+            (Bias::Left, Bias::Left),
+        ] {
+            let mut d = engine();
+            replace(&mut d, A, 0, 4, "a");
+            d.clear_history();
+            insert(&mut d, A, 1, "b");
+            let (anchor, focus) = if backward { (2, 1) } else { (1, 2) };
+            let range = d
+                .selection((A, U(anchor), anchor_bias), (A, U(focus), focus_bias))
+                .unwrap();
+            let before = (d.checkpoint().bytes, d.state_vector_v1(), d.revision());
+            let plan = d
+                .prepare_fragment(
+                    &range,
+                    &[FragmentBlock {
+                        runs: vec![],
+                        attributes: None,
+                        containers: vec![],
+                        checked: None,
+                    }],
+                    &origin(),
+                )
+                .unwrap();
+            assert_eq!(
+                before,
+                (d.checkpoint().bytes, d.state_vector_v1(), d.revision())
+            );
+            d.commit_editor(plan).unwrap();
+            insert(&mut d, A, 1, "d");
+            assert_eq!(d.history_state().undo_groups, 3);
+            for (content, a, ab, f, fb) in [
+                ("a", 1, Bias::Right, 1, Bias::Right),
+                ("ab", anchor, anchor_bias, focus, focus_bias),
+                ("a", 1, Bias::Right, 1, Bias::Right),
+            ] {
+                let result = d.undo().unwrap().unwrap();
+                assert_eq!(text(&d, A), content);
+                assert_eq!(
+                    bookmark_cuts(&d, &result.selection.unwrap()),
+                    (A.into(), a, ab, A.into(), f, fb)
+                );
+            }
+            for (content, at) in [("ab", 2), ("a", 1), ("ad", 2)] {
+                let result = d.redo().unwrap().unwrap();
+                assert_eq!(text(&d, A), content);
+                assert_eq!(
+                    bookmark_cuts(&d, &result.selection.unwrap()),
+                    (A.into(), at, Bias::Right, A.into(), at, Bias::Right)
+                );
+            }
+        }
+    }
 }

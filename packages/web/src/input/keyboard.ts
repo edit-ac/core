@@ -83,8 +83,18 @@ export class KeyboardInput {
     if (action === 'undo' || action === 'redo') {
       this.#engine.history({ type: 'boundary' });
       const before = this.#engine.read().revision;
-      this.#engine.history({ type: action });
-      this.#selection.restore();
+      const result = this.#engine.history({ type: action });
+      if (result.selection) {
+        try {
+          const a = this.#engine.resolve(result.selection.anchor), f = this.#engine.resolve(result.selection.focus);
+          if (a.type === 'position' && f.type === 'position' && this.#selection.place(a, f)) {
+            this.#selection.capture({ anchor: a.bias, focus: f.bias });
+          }
+        } finally {
+          this.#engine.releaseAnchor(result.selection.anchor);
+          this.#engine.releaseAnchor(result.selection.focus);
+        }
+      } else this.#selection.restore();
       return { disposition: before === this.#engine.read().revision ? 'handled' : 'committed' };
     }
     if (action === 'enter') {
@@ -176,6 +186,7 @@ export class KeyboardInput {
         }
       }
       if (!commands.length) return { disposition: 'handled' };
+      commands.unshift({ type: 'historySelectionAt', anchor: { owner: a.node, offset: a.offset, bias: a.bias }, focus: { owner: b.node, offset: b.offset, bias: b.bias } });
       const request: PrepareRequest = { kind: 'editor', origin, commands };
       if (!this.#engine.can(request)) return action === 'indent' || action === 'outdent' ? undefined : { disposition: 'rejected', reason: 'inapplicable-command' };
       this.#engine.history({ type: 'explicit' });

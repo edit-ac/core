@@ -139,3 +139,9 @@ test('remaining original atomic vectors are mandatory in canonical semantic disp
   assert.equal(editingSuites('semantic').filter(path => path === selected[0]).length, 1);
   assert.ok(existsSync(selected[0]));
 });
+
+test('history group admits the owning real-engine suite and rejects semantic selectors', () => {
+  assert.deepEqual(editingSuites('history'), ['tests/editing/history.test.mjs']);
+  assert.ok(existsSync('tests/editing/history.test.mjs'));
+  assert.throws(() => editingSuites('history', 'pending'));
+});

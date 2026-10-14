@@ -290,13 +290,22 @@ impl Document {
                             focus: selection.anchor.clone(),
                         }
                     };
-                    return self.prepare_editor(
+                    let mut plan = self.prepare_editor(
                         &[EditorCommand::Text(TextCommand::Replace {
                             selection: range,
                             text: blocks[0].runs.iter().map(|run| run.text.as_str()).collect(),
                         })],
                         origin,
+                    )?;
+                    // The text fast path still owns the fragment's original
+                    // range, including direction and endpoint affinity.
+                    plan.entry_selection = Some(selection.clone());
+                    let end = if a.offset.0 <= b.offset.0 { &b } else { &a };
+                    plan.result_caret = Some(
+                        self.anchor(&end.node, end.offset, crate::anchors::Bias::Right)
+                            .map_err(|_| EditorError::InvalidCommand)?,
                     );
+                    return Ok(plan);
                 }
             }
         }
