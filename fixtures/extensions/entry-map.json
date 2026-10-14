@@ -38,16 +38,18 @@
         "crates/editac-core/src/modules/content.rs:Content",
         "packages/web/src/modules/references.ts:referenceBlock",
         "packages/web/src/modules/references.ts:ReferenceResolver",
-        "packages/web/src/modules/references.ts:referenceSuggestions"
+        "packages/web/src/modules/references.ts:referenceSuggestions",
+        "packages/web/src/modules/references.ts:ReferenceHostV1",
+        "packages/web/src/modules/references.ts:ReferenceLookupSession"
       ],
-      "command": "Anchored fragment preparation; explicit host query; cancellation/stale guards",
+      "command": "Current host policy/catalog admission; anchored fragment preparation and shared commit; cancellation/revocation/stale guards",
       "codec": "Literal label export with identity-loss diagnostic; internal fragment preserves ID",
       "fallback": "Inert ID/label, no resolver call on opening",
       "unsupported": [
         "inline reference authoring",
         "lossless reference Markdown conversion",
         "OS clipboard",
-        "catalog/authority integration (EXT-1.8)"
+        "deployed catalog/authority service qualification"
       ]
     },
     {
@@ -131,13 +133,13 @@
     "packages/core/src/engine.ts": "a83086de891666bf1c37675b734e747ef8b3964e358b0c3fd3e2d4ed969515a8",
     "packages/web/src/modules/content.ts": "270980980d8040d1501eb216cfcfa3d2640f64e1df20e8733082b92e79e93553",
     "packages/web/src/modules/math.ts": "3acd59796c36f36a2c248561ad08a047e067cc65f22bac2372e2f6c0bf50eb48",
-    "packages/web/src/modules/references.ts": "3603c9d59e0319294c16a46e47d29e040866657a724afa93bb2809038e3ab8bd",
+    "packages/web/src/modules/references.ts": "620c0c7ce2862306f8082b04dda1b0a070d961fd81a0eae5fcd6e6cc467d407f",
     "packages/web/src/modules/registry.ts": "54458a29b7bafe5b672cd605c394b5e28f8851102af449b5193b5b222fc032f3",
     "packages/web/src/modules/reorder.ts": "2de953d37f1192b1825ae1e952ab0f84a87787c041d6088ce83c43a622c0d927",
     "packages/web/src/modules/runtime.ts": "faa804a3c5666471e544626d99dd078cb25a2c0ab3ea5de9c85c1941e399794f",
     "packages/web/src/modules/slash.ts": "8f116c22e247cfca693d2a4bc950ed100065debfd85b09f37d223540a52c36e6",
     "packages/core/src/extensions/registry.ts": "bc6e7db9e7990974b0025140c2f513a822c0c5061987ac3911337a920aff17c5",
     "packages/core/src/extensions/index.ts": "a60f4f8dc3e08d0a695c13f7058d5c77ab74ffddd99ef0f8f133cd9512ecabc1",
-    "packages/web/src/modules/index.ts": "ed27810876df6453ac604252084eff2bb8be6389d7c80b264f130c7276b611f8"
+    "packages/web/src/modules/index.ts": "9363290730345fa3f86143112a7d183f88bc8837407a28e72821c34cb0d0451e"
   }
 }

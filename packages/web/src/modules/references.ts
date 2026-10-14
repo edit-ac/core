@@ -6,14 +6,99 @@ export interface ReferenceTarget { targetId: string; label: string }
 export interface ReferenceQuery { query: string; requestId: number; signal: AbortSignal }
 /** Only explicit user search calls this host port. Mount/render never resolve IDs. */
 export type ReferenceResolver = (request: Readonly<ReferenceQuery>) => readonly ReferenceTarget[] | Promise<readonly ReferenceTarget[]>;
+/** Host authorization is transient and independent of stored reference data.
+ * revision changes on any policy/catalog/principal replacement. */
+export interface ReferencePermissionV1 { revision: string; lookup: boolean; insert: boolean }
+export interface ReferenceCatalogResultV1 {
+  status: 'local' | 'cached' | 'hosted' | 'locked' | 'unavailable' | 'unauthorized' | 'incompatible';
+  /** Exact admitted identifier, from the shared catalog, never a source path/token. */
+  targetId: string;
+}
+export interface ReferenceHostV1 {
+  version: 1;
+  permission(): Readonly<ReferencePermissionV1>;
+  /** Read-only local catalog port. Parse/allowlist ac/app links with the shared
+   * client catalog; this port must not fetch, create or grant authority. */
+  catalog(targetId: string): Readonly<ReferenceCatalogResultV1>;
+  resolve: ReferenceResolver;
+  /** Notify on revocation, principal/catalog replacement or lease expiry. */
+  subscribe(listener: () => void): { dispose(): void };
+}
+
+/** Bounded host search admission, reusable by headless/native presenters.
+ * Constructing, reading stored atoms and disposal never call resolve/catalog. */
+export class ReferenceLookupSession {
+  private pending: AbortController | undefined;
+  private accepted: string | undefined;
+  private targets: readonly Readonly<ReferenceTarget>[] = [];
+  private disposed = false;
+  private readonly subscription: { dispose(): void };
+  constructor(private readonly host: ReferenceHostV1, invalidate: () => void = () => {}) {
+    if (host.version !== 1 || ['permission', 'catalog', 'resolve', 'subscribe'].some(k => typeof host[k as keyof ReferenceHostV1] !== 'function')) throw Error('Invalid reference host');
+    this.subscription = host.subscribe(() => { if (this.disposed) return; this.cancel(); invalidate(); });
+    if (!this.subscription || typeof this.subscription.dispose !== 'function') throw Error('Invalid reference subscription');
+  }
+  cancel(): void { this.pending?.abort(); this.pending = undefined; this.accepted = undefined; this.targets = []; }
+  private permission(): Readonly<ReferencePermissionV1> {
+    const value = this.host.permission();
+    if (!valid(value.revision) || typeof value.lookup !== 'boolean' || typeof value.insert !== 'boolean') throw Error('Invalid reference permission');
+    return { revision: value.revision, lookup: value.lookup, insert: value.insert };
+  }
+  private target(target: ReferenceTarget): Readonly<ReferenceTarget> {
+    // Reject accessors/extra fields without evaluating them or copying secrets.
+    if (!target || Object.getPrototypeOf(target) !== Object.prototype || Reflect.ownKeys(target).length !== 2) throw Error('Invalid reference target');
+    const id = Object.getOwnPropertyDescriptor(target, 'targetId'), label = Object.getOwnPropertyDescriptor(target, 'label');
+    if (!id || !label || !('value' in id) || !('value' in label)) throw Error('Invalid reference target');
+    const value = { targetId: id.value, label: label.value };
+    referenceBlock(value);
+    const entry = this.host.catalog(value.targetId);
+    if (!entry || entry.targetId !== value.targetId || !['local', 'cached', 'hosted'].includes(entry.status)) throw Error('Reference target unavailable');
+    return Object.freeze(value);
+  }
+  async search(request: Readonly<ReferenceQuery>): Promise<readonly Readonly<ReferenceTarget>[]> {
+    this.cancel();
+    if (this.disposed || request.signal.aborted) return [];
+    if (typeof request.query !== 'string' || request.query.length > 128 || /[\u0000-\u001f\u007f-\u009f]/u.test(request.query) || !Number.isSafeInteger(request.requestId) || request.requestId < 0) throw Error('Invalid reference query');
+    const permission = this.permission();
+    if (!permission.lookup) return [];
+    const controller = new AbortController(); this.pending = controller;
+    const abort = () => controller.abort(); request.signal.addEventListener('abort', abort, { once: true });
+    const current = () => { if (this.disposed || controller.signal.aborted || this.pending !== controller) return false; const now = this.permission(); return now.lookup && now.revision === permission.revision; };
+    try {
+      const response = await this.host.resolve(Object.freeze({ query: request.query, requestId: request.requestId, signal: controller.signal }));
+      if (!current()) return [];
+      if (!Array.isArray(response) || response.length > 64) throw Error('Reference response exceeds limits');
+      const ids = new Set<string>();
+      const targets = response.map(target => { const value = this.target(target); if (ids.has(value.targetId)) throw Error('Duplicate reference target'); ids.add(value.targetId); return value; });
+      // Host callbacks may re-enter policy/catalog replacement.
+      if (!current()) return [];
+      this.accepted = permission.revision; this.targets = Object.freeze(targets);
+      return this.targets;
+    } finally {
+      request.signal.removeEventListener('abort', abort);
+      if (this.pending === controller) this.pending = undefined;
+    }
+  }
+  admit(target: ReferenceTarget): Readonly<ReferenceTarget> | undefined {
+    if (this.disposed) return undefined;
+    try {
+      const before = this.permission();
+      if (this.disposed || this.accepted === undefined || before.revision !== this.accepted || !before.lookup || !before.insert) return undefined;
+      if (!this.targets.some(value => value.targetId === target.targetId && value.label === target.label)) return undefined;
+      const value = this.target(target), after = this.permission();
+      return !this.disposed && after.revision === this.accepted && after.lookup && after.insert ? value : undefined;
+    } catch { return undefined; }
+  }
+  dispose(): void { if (this.disposed) return; this.disposed = true; this.cancel(); try { this.subscription.dispose(); } catch { /* teardown cannot reactivate a disposed lookup */ } }
+}
 export type ReferenceFactory = (context: SlashContext) => ReferencePresenter;
 const valid = (value: unknown): value is string => typeof value === 'string' && value.length > 0 && value.length <= 512 && !/[\u0000-\u001f\u007f-\u009f]/u.test(value);
 export function referenceBlock(target: ReferenceTarget): FragmentBlock {
   if (!valid(target.targetId) || !valid(target.label)) throw Error('Invalid reference target');
   return { attributes: { type: 'content', tuple: ['module:editac.reference', 1, { targetId: target.targetId, label: target.label }] }, runs: [{ text: target.label, marks: [] }] };
 }
-export function referenceSuggestions(resolve: ReferenceResolver): ReferenceFactory {
-  if (typeof resolve !== 'function') throw Error('Invalid reference resolver');
+export function referenceSuggestions(resolve: ReferenceResolver | ReferenceHostV1): ReferenceFactory {
+  if (typeof resolve !== 'function' && (!resolve || resolve.version !== 1)) throw Error('Invalid reference resolver');
   return context => new ReferencePresenter(context, resolve);
 }
 interface Session { target: RetainedSelection; node: string; subscription: { dispose(): void } }
@@ -36,8 +121,10 @@ export class ReferencePresenter {
   private readOnly = false;
   private disposed = false;
   private committing = false;
+  private readonly lookup: ReferenceLookupSession | undefined;
+  private readonly resolve: ReferenceResolver;
   private readonly listeners: [EventTarget, string, EventListener][] = [];
-  constructor(private readonly context: SlashContext, private readonly resolve: ReferenceResolver) {
+  constructor(private readonly context: SlashContext, resolve: ReferenceResolver | ReferenceHostV1) {
     const doc = context.root.ownerDocument;
     this.menu = doc.createElement('div'); this.menu.id = `editac-references-${++sequence}`; this.menu.hidden = true;
     this.menu.setAttribute('role', 'dialog'); this.menu.setAttribute('aria-label', 'Reference suggestions');
@@ -61,6 +148,9 @@ export class ReferencePresenter {
     this.listen(this.items, 'focusin', event => { const index = Number((event.target as HTMLElement).dataset.reference); if (Number.isInteger(index)) this.active = index; });
     this.listen(doc, 'focusin', () => { if (!this.inside(doc.activeElement)) { this.clearCapture(); this.dismiss(); } });
     this.listen(doc, 'selectionchange', () => { if (this.session && !this.menu.contains(doc.activeElement)) this.dismiss(); });
+    try { this.lookup = typeof resolve === 'function' ? undefined : new ReferenceLookupSession(resolve, () => this.dismiss()); }
+    catch { this.dispose(); throw Error('Reference host unavailable'); }
+    this.resolve = this.lookup ? request => this.lookup!.search(request) : resolve as ReferenceResolver;
   }
   private listen(target: EventTarget, type: string, listener: EventListener): void { target.addEventListener(type, listener); this.listeners.push([target, type, listener]); }
   private inside(element: Element | null): boolean { return !!element && (this.context.root.contains(element) || this.menu.contains(element) || element === this.control); }
@@ -79,7 +169,7 @@ export class ReferencePresenter {
     void this.query();
   }
   private invalidate(): void {
-    this.pending?.abort(); this.pending = undefined; this.requestId++; this.lastQuery = undefined; this.results = []; this.active = -1; this.items.replaceChildren(); this.menu.setAttribute('aria-busy', 'false');
+    this.lookup?.cancel(); this.pending?.abort(); this.pending = undefined; this.requestId++; this.lastQuery = undefined; this.results = []; this.active = -1; this.items.replaceChildren(); this.menu.setAttribute('aria-busy', 'false');
   }
   private async query(): Promise<void> {
     const session = this.session; if (!session || this.readOnly || this.disposed || this.composing) return;
@@ -112,9 +202,17 @@ export class ReferencePresenter {
   activate(index: number): void {
     const session = this.session, target = this.results[index];
     if (!session || !target || this.pending || this.disposed || this.readOnly) return;
-    const request: PrepareRequest = { kind: 'fragment', origin: 'reference:insert', range: session.target.range, blocks: [referenceBlock(target)] };
     try {
+      const admitted = this.lookup ? this.lookup.admit(target) : target;
+      if (!admitted || this.session !== session || this.readOnly || this.disposed) { this.dismiss(); return; }
+      const a = this.context.engine.resolve(session.target.range.anchor), b = this.context.engine.resolve(session.target.range.focus);
+      if (a.type !== 'position' || b.type !== 'position' || a.node !== session.node || b.node !== session.node) { this.dismiss(); return; }
+      const request: PrepareRequest = { kind: 'fragment', origin: 'reference:insert', range: session.target.range, blocks: [referenceBlock(admitted)] };
       if (!this.context.engine.can(request)) { this.status.textContent = 'Reference insertion unavailable. Source retained.'; return; }
+      const authorized = !this.lookup || !!this.lookup.admit(admitted);
+      if (!authorized || this.session !== session || this.readOnly || this.disposed) { this.dismiss(); return; }
+      const currentA = this.context.engine.resolve(session.target.range.anchor), currentB = this.context.engine.resolve(session.target.range.focus);
+      if (currentA.type !== 'position' || currentB.type !== 'position' || currentA.node !== session.node || currentB.node !== session.node) { this.dismiss(); return; }
       this.committing = true;
       this.context.engine.history({ type: 'boundary' }); this.context.engine.history({ type: 'explicit' });
       let result;
@@ -154,5 +252,5 @@ export class ReferencePresenter {
     session?.subscription.dispose(); session?.target.dispose(); this.menu.hidden = true; this.status.textContent = ''; this.control.setAttribute('aria-expanded', 'false');
   }
   setReadOnly(value: boolean): void { this.readOnly = value; this.control.disabled = value; if (value) { this.clearCapture(); this.dismiss(); } }
-  dispose(): void { if (this.disposed) return; this.disposed = true; this.clearCapture(); this.dismiss(); for (const [target, type, listener] of this.listeners) target.removeEventListener(type, listener); this.listeners.length = 0; this.control.remove(); this.menu.remove(); }
+  dispose(): void { if (this.disposed) return; this.disposed = true; this.clearCapture(); this.dismiss(); this.lookup?.dispose(); for (const [target, type, listener] of this.listeners) target.removeEventListener(type, listener); this.listeners.length = 0; this.control.remove(); this.menu.remove(); }
 }

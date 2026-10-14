@@ -17,8 +17,8 @@ export type { ModuleEvent, ModuleScope, ModuleRuntimeOptions, ModuleRuntimeError
 export { slashCommands, SlashPresenter } from './modules/slash.js';
 export type { SlashAction, SlashCommand, SlashContext, SlashFactory } from './modules/slash.js';
 
-export { referenceSuggestions, referenceBlock, ReferencePresenter } from './modules/references.js';
-export type { ReferenceTarget, ReferenceQuery, ReferenceResolver, ReferenceFactory } from './modules/references.js';
+export { referenceSuggestions, referenceBlock, ReferencePresenter, ReferenceLookupSession } from './modules/references.js';
+export type { ReferenceTarget, ReferenceQuery, ReferenceResolver, ReferenceFactory, ReferencePermissionV1, ReferenceCatalogResultV1, ReferenceHostV1 } from './modules/references.js';
 
 export { reorderControls, ReorderPresenter } from './modules/reorder.js';
 export type { ReorderContext, ReorderFactory } from './modules/reorder.js';

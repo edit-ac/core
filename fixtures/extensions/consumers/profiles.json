@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "gate": "EXT-1.9",
+  "profiles": {
+    "minimal": { "entry": "minimal.mjs", "presenters": [], "admission": "informational extension consumer; default Task measured independently" },
+    "enabled": { "entry": "enabled.mjs", "presenters": ["slash", "references", "reorder", "content", "math"], "admission": "informational enabled optional cost" }
+  },
+  "fallbackCells": ["mark-content", "atom-content", "unknown-version", "unknown-type", "disabled-renderer", "disabled-registration", "future-arbitrary-payload", "builtin-math", "builtin-reference", "builtin-image", "builtin-table", "builtin-future-block"],
+  "hosts": ["chromium", "firefox", "webkit"],
+  "nativeInventory": ["Cargo.toml", "crates/editac-core/Cargo.toml", "crates/editac-ffi/Cargo.toml", "native/android/probe/control/build.gradle.kts", "../cli/Cargo.toml"]
+}
