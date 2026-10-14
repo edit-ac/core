@@ -11,6 +11,7 @@
 
 /benchmark-results/
 /regression-results/
+/architecture-results/
 /examples/astro/node_modules/
 /examples/astro/.astro/
 /examples/astro/dist-*/
