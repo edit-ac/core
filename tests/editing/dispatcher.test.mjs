@@ -163,3 +163,7 @@ test('failure proof binds both production command and browser lifetime suites', 
   assert.deepEqual(editingSuites('failures'), ['tests/editing/failure-injection.test.mjs', 'tests/browser/editing-lifetime.spec.ts']);
   for (const path of editingSuites('failures')) assert.ok(existsSync(path));
 });
+
+test('presenter group binds the named real-browser suite', () => {
+  assert.deepEqual(editingSuites('presenters'), ['tests/browser/editing-presenters.spec.ts']);
+});

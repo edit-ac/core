@@ -40,7 +40,7 @@ export class DOMSelection {
   #native(): Selection | null { return this.renderer.root.ownerDocument.getSelection(); }
   #inside(selection: Selection): boolean {
     const root = this.renderer.root;
-    return !!selection.anchorNode && !!selection.focusNode && root.contains(selection.anchorNode) && root.contains(selection.focusNode);
+    return root.contains(selection.anchorNode) && root.contains(selection.focusNode);
   }
   /** Map only renderer-owned text/BR positions. Noneditable atoms are excluded. */
   toModel(node: Node, offset: number, bias: Bias = "right"): ModelPoint | undefined {
@@ -98,6 +98,15 @@ export class DOMSelection {
     const index = Array.prototype.indexOf.call(parent.childNodes, position.node) as number;
     return { node: parent, offset: index + (end ? 1 : 0) };
   }
+  /** An exact DOM node range is a node action, never an adjacent text range. */
+  selectedNode(): string | undefined {
+    const native = this.#native();
+    if (this.#disposed || !native?.anchorNode || native.anchorNode !== native.focusNode ||
+        Math.abs(native.anchorOffset - native.focusOffset) !== 1) return undefined;
+    const element = native.anchorNode.childNodes[Math.min(native.anchorOffset, native.focusOffset)];
+    const id = element && this.renderer.getNodeId(element);
+    return id && (element as HTMLElement).contentEditable === 'false' && this.renderer.getBlock(id) === element ? id : undefined;
+  }
   capture(affinity?: { anchor: Bias; focus: Bias }): CaptureResult {
     if (this.#disposed) return { type: "unsupported", reason: "selection bridge disposed" };
     const native = this.#native();
@@ -106,7 +115,7 @@ export class DOMSelection {
     const focusBias = affinity?.focus ?? this.#captured?.focusBias ?? "right";
     const anchor = this.toModel(native.anchorNode!, native.anchorOffset, anchorBias);
     const focus = this.toModel(native.focusNode!, native.focusOffset, focusBias);
-    if (!anchor || !focus) { this.clear(); return { type: "unsupported", reason: "selection endpoint is not editable mapped content" }; }
+    if (this.selectedNode() || !anchor || !focus) { this.clear(); return { type: "unsupported", reason: "selection endpoint is not editable mapped content" }; }
     let a: StableRange["anchor"] | undefined;
     try {
       a = this.#engine.anchor(anchor.node, anchor.offset, anchor.bias);
@@ -138,7 +147,7 @@ export class DOMSelection {
       dispose: () => {
         if (!active) return;
         active = false; this.#retained.delete(selection);
-        this.#engine.releaseAnchor(a); this.#engine.releaseAnchor(f);
+        this.#release(selection.range);
       }
     };
     this.#retained.add(selection); return selection;
@@ -150,14 +159,13 @@ export class DOMSelection {
     this.renderer.root.ownerDocument.getSelection()?.setBaseAndExtent(a.node, a.offset, f.node, f.offset);
     return true;
   }
-  move(token: AnchorToken): void {
-    const at = this.#engine.resolve(token);
-    if (at.type === "position" && this.place(at)) this.capture({ anchor: at.bias, focus: at.bias });
+  move(token: AnchorToken): void { this.restoreRange({ anchor: token, focus: token }); }
+  /** Restore semantic endpoints with their resolved affinity; caller owns tokens. */
+  restoreRange(range: StableRange): void {
+    const a = this.#engine.resolve(range.anchor), f = range.focus === range.anchor ? a : this.#engine.resolve(range.focus);
+    if (a.type === "position" && f.type === "position" && this.place(a, f)) this.capture({ anchor: a.bias, focus: f.bias });
   }
-  restoreRetained(target: RetainedSelection): void {
-    const a = this.#engine.resolve(target.range.anchor), f = this.#engine.resolve(target.range.focus);
-    if (a.type === "position" && f.type === "position" && this.place(a, f)) this.capture();
-  }
+  restoreRetained(target: RetainedSelection): void { this.restoreRange(target.range); }
   restore(): RestoreResult {
     if (this.#disposed || !this.#captured) return { type: "empty" };
     const native = this.#native();
@@ -167,15 +175,18 @@ export class DOMSelection {
       native.removeAllRanges(); this.clear(); return { type: "stale", anchor, focus };
     }
     const a = this.toDOM({ ...anchor, bias: this.#captured.anchorBias }), f = this.toDOM({ ...focus, bias: this.#captured.focusBias });
-    if (!a || !f) { native.removeAllRanges(); this.clear(); return { type: "unsupported", reason: "resolved endpoint has no rendered editable position" }; }
+    if (!a || !f) { native.removeAllRanges(); this.clear(); return { type: "unsupported", reason: "selection endpoint is not editable mapped content" }; }
     native.setBaseAndExtent(a.node, a.offset, f.node, f.offset);
     return { type: "restored" };
+  }
+  #release(range: StableRange): void {
+    this.#engine.releaseAnchor(range.anchor); this.#engine.releaseAnchor(range.focus);
   }
   clear(notify = true): void {
     if (notify) this.renderer.moduleRuntime?.setSelection(null);
     if (!this.#captured) return;
-    const { anchor, focus } = this.#captured.range; this.#captured = undefined;
-    this.#engine.releaseAnchor(anchor); this.#engine.releaseAnchor(focus);
+    const range = this.#captured.range; this.#captured = undefined;
+    this.#release(range);
   }
   dispose(): void {
     if (this.#disposed) return;

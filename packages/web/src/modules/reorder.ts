@@ -8,10 +8,13 @@ export interface ReorderContext {
   commit(request: PrepareRequest): CommitResult;
   /** Composition and open command presenters keep priority over reorder UI. */
   blocked?(): boolean;
+  /** Copy uses the host clipboard preparation and captured destination, never a move. */
+  copyDrop?(event: DragEvent, target: string): boolean;
 }
 export type ReorderFactory = (context: ReorderContext) => ReorderPresenter;
 /** Optional UI only; the engine validates all topology and owns the one move. */
 export function reorderControls(): ReorderFactory { return context => new ReorderPresenter(context); }
+const blockDragMime = 'application/x-editac-block';
 interface Target { target: MoveTarget; selection: RetainedSelection }
 
 export class ReorderPresenter {
@@ -27,9 +30,13 @@ export class ReorderPresenter {
   private composing = false;
   private escapeFocus = false;
   private disposed = false;
+  private readonly dragScope: string;
+  private dragSequence = 0;
+  private dragToken: string | undefined;
 
   constructor(private readonly context: ReorderContext) {
     const { root, engine } = context, doc = root.ownerDocument;
+    this.dragScope = [...doc.defaultView!.crypto.getRandomValues(new Uint32Array(4))].join('-');
     this.controls = doc.createElement('div');
     this.controls.setAttribute('role', 'group'); this.controls.setAttribute('aria-label', 'Reorder block');
     this.controls.contentEditable = 'false';
@@ -80,14 +87,66 @@ export class ReorderPresenter {
         key.preventDefault(); key.stopImmediatePropagation(); this.moveBy(key.key === 'ArrowUp' ? -1 : 1);
       }
     };
+    const nodeAt = (event: Event, allowHandle = false): string | undefined => {
+      const target = event.target as Element | null;
+      if (!target || !root.contains(target) || target.closest('input, textarea, select, button')) return undefined;
+      const control = target.closest('[contenteditable="false"]');
+      // Native HTML drag in an editing host needs an explicit noneditable grip.
+      // An embedded control is still its own owner unless the host opts this
+      // mapped grip into block reorder. Never infer ownership from draggable.
+      if (control && !(allowHandle && control.matches('[data-editac-reorder-handle][draggable="true"]') && context.selection.renderer.ownsModuleDecoration(control))) return undefined;
+      return context.selection.renderer.getNodeId(target);
+    };
+    this.listen(root, 'pointerdown', event => {
+      const target = event.target as Element | null;
+      if (target?.closest('[data-editac-reorder-handle]')) {
+        const id = nodeAt(event, true);
+        if (id) this.begin(id);
+      }
+    }, true);
+    this.listen(root, 'dragstart', event => {
+      const drag = event as DragEvent, id = nodeAt(event, true), node = id && this.nodes.get(id);
+      if (event.defaultPrevented || !drag.dataTransfer || !node || this.blocked() || !(this.session?.target.id === id || this.begin(id))) return;
+      this.dragToken = `${this.dragScope}:${++this.dragSequence}`;
+      drag.dataTransfer.setData(blockDragMime, this.dragToken);
+      // This optional block handle offers literal source text for copy. Rich
+      // cross-editor offers remain with their owning codecs/clipboard host.
+      drag.dataTransfer.setData('text/plain', node.runs.map(r=>r.text).join(''));
+      drag.dataTransfer.effectAllowed = 'copyMove';
+    }, true);
+    this.listen(root, 'dragover', event => {
+      const drag=event as DragEvent;
+      if (this.dragToken && drag.dataTransfer?.types.includes(blockDragMime) && nodeAt(event) && !this.blocked()) event.preventDefault();
+    }, true);
+    this.listen(root, 'drop', event => {
+      const drag=event as DragEvent, token=drag.dataTransfer?.getData(blockDragMime);
+      if (!this.dragToken || token !== this.dragToken) return;
+      if (event.defaultPrevented) { this.cancel(); return; }
+      const element=event.target as Element | null;
+      if (element?.closest('input, textarea, select, button, [contenteditable="false"]')) { this.cancel(); return; }
+      const id=nodeAt(event), destination=id && this.nodes.get(id);
+      if (!event.cancelable || !destination || this.blocked()) {
+        if(event.cancelable)event.preventDefault();this.cancel();return;
+      }
+      if(drag.ctrlKey || drag.metaKey || drag.altKey || drag.dataTransfer?.dropEffect==='copy') {
+        // Release source selection without restoring it over the drop target.
+        this.cancel();
+        if (!context.copyDrop?.(drag,destination.id)) { event.preventDefault(); this.status.textContent='Block copy unavailable. Source preserved.'; }
+      } else {
+        event.preventDefault(); this.moveTo(destination.parent,destination.id);
+      }
+      event.stopPropagation();
+    }, true);
+    this.listen(root, 'dragend', () => this.cancel(), true);
     this.listen(root, 'keydown', keyboard, true); this.listen(this.controls, 'keydown', keyboard, true);
     this.listen(root, 'compositionstart', () => { this.composing = true; this.cancel(); this.updateDisabled(); }, true);
     this.listen(root, 'compositionend', () => { this.composing = false; this.updateDisabled(); }, true);
     this.listen(doc, 'focusin', () => { const active = doc.activeElement; if (!root.contains(active) && !this.controls.contains(active)) this.cancel(); });
   }
+  private blocked(): boolean { return this.disposed || this.readOnly || this.composing || !!this.context.blocked?.(); }
   /** Capture identity/version and independent relative selection before UI focus. */
   begin(id?: string): boolean {
-    if (this.disposed || this.readOnly || this.composing || this.context.blocked?.()) return false;
+    if (this.blocked()) return false;
     if (!this.context.root.contains(this.context.root.ownerDocument.activeElement) && id === undefined) return !!this.session;
     this.cancel();
     const selection = this.context.selection.retain();
@@ -105,7 +164,7 @@ export class ReorderPresenter {
   }
   /** Explicit host UI destination. Never repair or redirect an invalid target. */
   moveTo(parent: string, before?: string | null): boolean {
-    if (this.disposed || this.readOnly || this.composing || this.context.blocked?.() || !this.session) return false;
+    if (this.blocked() || !this.session) return false;
     try {
       const command = { type: 'move' as const, target: this.session.target, parent: this.target(parent), before: before == null ? null : this.target(before) };
       this.context.engine.history({ type: 'boundary' });
@@ -117,7 +176,7 @@ export class ReorderPresenter {
     finally { this.cancel(); }
   }
   moveBy(direction: -1 | 1): boolean {
-    if (this.disposed || this.readOnly || this.composing || this.context.blocked?.() || (direction !== -1 && direction !== 1)) return false;
+    if (this.blocked() || (direction !== -1 && direction !== 1)) return false;
     if (this.context.root.contains(this.context.root.ownerDocument.activeElement)) { if (!this.begin()) return false; }
     else if (!this.session && !this.begin()) return false;
     const node = this.nodes.get(this.session!.target.id);
@@ -138,7 +197,7 @@ export class ReorderPresenter {
     const focus = selection.toDOM({ ...f, bias: this.session.selection.focusBias });
     if (anchor && focus) { root.focus({ preventScroll: true }); root.ownerDocument.getSelection()?.setBaseAndExtent(anchor.node, anchor.offset, focus.node, focus.offset); selection.capture(); }
   }
-  cancel(): void { this.session?.selection.dispose(); this.session = undefined; }
+  cancel(): void { this.dragToken=undefined; this.session?.selection.dispose(); this.session = undefined; }
   private updateDisabled(): void { this.up.disabled = this.down.disabled = this.readOnly || this.composing; }
   setReadOnly(value: boolean): void { this.readOnly = value; if (value) this.cancel(); this.updateDisabled(); }
   private listen(target: EventTarget, type: string, listener: EventListener, capture = false): void {

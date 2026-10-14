@@ -101,7 +101,7 @@ export class TextInput {
         this.#rendering = false;
       }
     };
-    for (const type of ['keydown', 'keyup', 'beforeinput', 'input', 'compositionstart', 'compositionupdate', 'compositionend', 'blur', 'copy', 'cut', 'paste']) {
+    for (const type of ['keydown', 'keyup', 'beforeinput', 'input', 'compositionstart', 'compositionupdate', 'compositionend', 'blur', 'copy', 'cut', 'paste', 'drop']) {
       const listener: EventListener = event => this.#handle(event);
       this.#listeners.push([type, listener]); renderer.root.addEventListener(type, listener);
     }
@@ -119,6 +119,8 @@ export class TextInput {
   }
   #handle(event: Event): void {
     if (this.#disposed) return;
+    const eventTarget=event.target as Element | null;
+    if (eventTarget!==this.#renderer.root && eventTarget?.closest?.('input, textarea, select, button, [contenteditable="false"]')) return;
     this.#flushNative();
     if (['compositionstart', 'paste', 'cut', 'beforeinput'].includes(event.type)) { this.slash?.handle(event); this.references?.handle(event); }
     if (this.clipboard.handle(event)) return;
@@ -301,7 +303,7 @@ export class TextInput {
   }
   #moveShortcut(result:CommitResult): void {
     if(!result.caret)return;
-    try{const at=this.#engine.resolve(result.caret);if(at.type==='position'){this.#selection.place(at);this.#selection.capture();}}
+    try{this.#selection.move(result.caret);}
     finally{this.#engine.releaseAnchor(result.caret);}
   }
   #apply(intent: TextIntent, range: StableRange, text: string, nativeCaret?: { anchor: number; focus: number }, moveCaret = true, shortcutEligible = false): void {
@@ -337,7 +339,10 @@ export class TextInput {
   #release(range: StableRange): void { this.#engine.releaseAnchor(range.anchor); this.#engine.releaseAnchor(range.focus); }
   attachReorder(factory: import('../modules/reorder.js').ReorderFactory): void {
     if (this.reorder || this.#disposed) throw Error('Reorder presenter already attached or disposed');
-    this.reorder = factory({ root: this.#renderer.root, selection: this.#selection, engine: this.#engine, commit: this.#commit, blocked: () => this.#composition.active || !!this.slash?.open || !!this.references?.open });
+    this.reorder = factory({ root: this.#renderer.root, selection: this.#selection, engine: this.#engine, commit: this.#commit, copyDrop: (event,target) => {
+      if (!this.#selection.place({node:target,offset:0,bias:'right'})) return false;
+      this.clipboard.handle(event);return this.clipboard.last.disposition==='committed';
+    }, blocked: () => this.#composition.active || !!this.slash?.open || !!this.references?.open });
     this.reorder.setReadOnly(this.#readOnly);
   }
   attachReferences(factory: import('../modules/references.js').ReferenceFactory): void {

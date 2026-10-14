@@ -63,10 +63,10 @@ export function browserHarness(suite, fixtureDirectory = 'fixtures/browser-input
       finally { try { await server?.close(); facts.cleanup.serverClosed = true; } finally {
         if (consumer) await rm(consumer, { recursive: true, force: true }); facts.cleanup.consumerRemoved = true;
         facts.counts = { executed: facts.cases.length, passed: facts.cases.filter(c => c.passed).length, failed: facts.cases.filter(c => !c.passed).length, skipped: 0 };
-        if (suite === 'editing-input') {
+        if (['editing-input', 'editing-presenters'].includes(suite)) {
           const final = Object.fromEntries(await Promise.all(Object.keys(facts.sources ?? {}).map(async path => [path, createHash('sha256').update(await readFile(path)).digest('hex')])));
           facts.sourcesUnchanged = JSON.stringify(final) === JSON.stringify(facts.sources);
-          assert.equal(facts.sourcesUnchanged, true, 'Input qualification sources changed during execution');
+          assert.equal(facts.sourcesUnchanged, true, 'Editing qualification sources changed during execution');
         }
         if (output) await writeFile(join(output, 'receipt.json'), JSON.stringify(facts, null, 2));
       } }

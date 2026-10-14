@@ -1,4 +1,4 @@
-import { errorMessage } from '../errors.js';
+import { errorMessage, rejected } from '../errors.js';
 import type {ClipboardOutcome} from './fragment.js';
 
 /** An owned preparation job. Source is kept after cancellation/rejection so a
@@ -18,11 +18,11 @@ export class PendingPaste {
     this.#status.append('Preparing paste. ');
     const button = document.createElement('button'); button.type='button'; button.textContent='Cancel paste'; button.onclick=()=>this.cancel(); this.#status.append(button);
     document.body.append(this.#status);
-    const cancellation = new Promise<ClipboardOutcome>(resolve=>{this.#stop=()=>resolve({disposition:'rejected',reason:'clipboard-canceled'});});
+    const cancellation = new Promise<ClipboardOutcome>(resolve=>{this.#stop=()=>resolve(rejected('clipboard-canceled'));});
     this.result = Promise.race([Promise.resolve().then(()=>run(this)), cancellation]).then(outcome=>{
       if (this.state==='pending'||this.state==='applying') this.state=outcome.disposition==='committed'?'committed':'rejected';
       return outcome;
-    }).catch(error=>{this.state='rejected';return {disposition:'rejected',reason:errorMessage(error)} as ClipboardOutcome;})
+    }).catch(error=>{this.state='rejected';return rejected(errorMessage(error));})
       .finally(()=>{this.timings.elapsedMs=performance.now()-start;this.#status.remove();release();});
   }
   get active(): boolean {return this.state==='pending';}

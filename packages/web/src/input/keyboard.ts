@@ -1,4 +1,4 @@
-import { errorMessage } from '../errors.js';
+import { errorMessage, rejected } from '../errors.js';
 import type { AnchorToken, CommitResult, EditorCommand, EngineHandle, MarkCommand, PrepareRequest, ProjectedNode, StableRange } from '@edit-ac/core';
 import type { DOMRenderer } from '../dom/render.js';
 import type { DOMSelection, RetainedSelection } from '../dom/selection.js';
@@ -75,9 +75,22 @@ export class KeyboardInput {
   /** Undefined means native ownership: do not prevent the event. */
   execute(action: KeyboardAction, origin = `keyboard:${++this.#sequence}`): CommandResult | undefined {
     this.resetFocusEscape();
-    if (this.#disposed || this.#blocked()) return { disposition: 'rejected', reason: this.#disposed ? 'disposed' : 'read-only-or-composing' };
+    if (this.#disposed || this.#blocked()) return rejected(this.#disposed ? 'disposed' : 'read-only-or-composing');
+    const selectedNode = (action === 'backward' || action === 'forward') && this.#selection.selectedNode();
+    if (selectedNode) {
+      const request: PrepareRequest = { kind: 'editor', origin, commands: [{ type: 'deleteSeparator', owner: selectedNode }] };
+      if (!this.#engine.can(request)) return rejected('inapplicable-command');
+      this.#engine.history({ type: 'explicit' });
+      let caret: AnchorToken | undefined;
+      try {
+        caret = this.#commit(request).caret;
+        if (caret) this.#move(caret);
+        return { disposition: 'committed' };
+      } catch(error) { return rejected(errorMessage(error)); }
+      finally { if (caret) this.#engine.releaseAnchor(caret); this.#engine.history({ type: 'boundary' }); }
+    }
     if (action === 'bold' || action === 'italic' || action === 'underline' || action === 'strike') {
-      const target = this.captureToolbar(); if (!target) return { disposition: 'rejected', reason: 'unmapped-selection' };
+      const target = this.captureToolbar(); if (!target) return rejected('unmapped-selection');
       try { return target.format(action); } finally { target.dispose(); this.#engine.history({ type: 'boundary' }); }
     }
     if (action === 'undo' || action === 'redo') {
@@ -85,14 +98,12 @@ export class KeyboardInput {
       const before = this.#engine.read().revision;
       const result = this.#engine.history({ type: action });
       if (result.selection) {
+        const selection = result.selection;
         try {
-          const a = this.#engine.resolve(result.selection.anchor), f = this.#engine.resolve(result.selection.focus);
-          if (a.type === 'position' && f.type === 'position' && this.#selection.place(a, f)) {
-            this.#selection.capture({ anchor: a.bias, focus: f.bias });
-          }
+          this.#selection.restoreRange(selection);
         } finally {
-          this.#engine.releaseAnchor(result.selection.anchor);
-          this.#engine.releaseAnchor(result.selection.focus);
+          this.#engine.releaseAnchor(selection.anchor);
+          this.#engine.releaseAnchor(selection.focus);
         }
       } else this.#selection.restore();
       return { disposition: before === this.#engine.read().revision ? 'handled' : 'committed' };
@@ -114,17 +125,17 @@ export class KeyboardInput {
       }
     }
     const target = this.#selection.retain();
-    if (!target) return { disposition: 'rejected', reason: 'unmapped-selection' };
+    if (!target) return rejected('unmapped-selection');
     const tokens: AnchorToken[] = [];
     const anchor = (id: string, offset: number, bias: 'left' | 'right' = 'right') => {
       const token = this.#engine.anchor(id, offset, bias); tokens.push(token); return token;
     };
     try {
       const a = this.#engine.resolve(target.range.anchor), b = this.#engine.resolve(target.range.focus);
-      if (a.type !== 'position' || b.type !== 'position') return { disposition: 'rejected', reason: 'stale-target' };
+      if (a.type !== 'position' || b.type !== 'position') return rejected('stale-target');
       const nodes = this.#engine.read().visible.filter(n => n.kind === 'block');
       const ai = nodes.findIndex(n => n.id === a.node), bi = nodes.findIndex(n => n.id === b.node);
-      if (ai < 0 || bi < 0) return { disposition: 'rejected', reason: 'unsupported-target' };
+      if (ai < 0 || bi < 0) return rejected('unsupported-target');
       const forward = ai < bi || ai === bi && a.offset <= b.offset;
       const start = forward ? a : b, end = forward ? b : a, si = Math.min(ai, bi), ei = Math.max(ai, bi);
       const node = nodes[si]!, collapsed = si === ei && start.offset === end.offset;
@@ -188,7 +199,7 @@ export class KeyboardInput {
       if (!commands.length) return { disposition: 'handled' };
       commands.unshift({ type: 'historySelectionAt', anchor: { owner: a.node, offset: a.offset, bias: a.bias }, focus: { owner: b.node, offset: b.offset, bias: b.bias } });
       const request: PrepareRequest = { kind: 'editor', origin, commands };
-      if (!this.#engine.can(request)) return action === 'indent' || action === 'outdent' ? undefined : { disposition: 'rejected', reason: 'inapplicable-command' };
+      if (!this.#engine.can(request)) return action === 'indent' || action === 'outdent' ? undefined : rejected('inapplicable-command');
       this.#engine.history({ type: 'explicit' });
       const result = this.#commit(request);
       if (result.caret) tokens.push(result.caret);
@@ -207,7 +218,7 @@ export class KeyboardInput {
         }
       } else this.#move(caret);
       return { disposition: 'committed' };
-    } catch (error) { return { disposition: 'rejected', reason: errorMessage(error) }; }
+    } catch (error) { return rejected(errorMessage(error)); }
     finally { for (const token of tokens) this.#engine.releaseAnchor(token); target.dispose(); }
   }
 
@@ -220,9 +231,9 @@ export class KeyboardInput {
     return { get active() { return target.active; }, applicable,
       format: mark => {
         this.resetFocusEscape();
-        if (!applicable(mark)) return { disposition: 'rejected', reason: 'inapplicable-toolbar-target' };
+        if (!applicable(mark)) return rejected('inapplicable-toolbar-target');
         try { this.#engine.history({ type: 'explicit' }); this.#commit(request(mark)); this.#renderer.root.focus(); this.#restore(target); return { disposition: 'committed' }; }
-        catch (error) { return { disposition: 'rejected', reason: errorMessage(error) }; }
+        catch (error) { return rejected(errorMessage(error)); }
       }, dispose: () => { target.dispose(); this.#targets.delete(target); } };
   }
   #move(token: AnchorToken): void { this.#selection.move(token); }

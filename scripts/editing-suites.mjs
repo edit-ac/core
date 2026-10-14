@@ -48,6 +48,7 @@ export function editingSuites(group, selector) {
   }
   if (group === 'semantic') return [...semantic];
   if (group === 'fixtures') return ['tests/editing/fixture-loader.test.mjs'];
+  if (group === 'presenters') return ['tests/browser/editing-presenters.spec.ts'];
   if (group === 'input') return ['tests/browser/editing-input.spec.ts'];
   if (group === 'failures') return ['tests/editing/failure-injection.test.mjs', 'tests/browser/editing-lifetime.spec.ts'];
   if (group === 'properties') return ['tests/editing/properties.test.mjs'];
