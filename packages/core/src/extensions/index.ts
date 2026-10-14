@@ -10,3 +10,6 @@ export type {
   MarkdownCodec as MarkdownCodecV1, MarkdownExtension as MarkdownExtensionV1,
   MarkdownOptions, PreparedMarkdown, MarkdownExport, PatchSubscription,
 } from '../engine.js';
+
+export { prepareModuleMigration, ModuleEvolutionError } from './evolution.js';
+export type { ModuleEvolution, PreparedModuleMigration } from './evolution.js';
