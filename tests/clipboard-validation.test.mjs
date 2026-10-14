@@ -45,3 +45,28 @@ test('compiled repeated literal fragments preserve owners, reverse targets and o
  assert.equal(e.read().visible[0].runs.map(r=>r.text).join(''),'alpha😀same');assert.equal(updates,3);sub.dispose();
  }finally{e.dispose();}
 });
+test('successful structural validation preserves live anchors, plans, history and all subscriptions',()=>{
+ const e=createHandle(input=>new Engine(input),{profile:'v5',documentId:'97000000-0000-4000-8000-000000000003',epoch:'98000000-0000-4000-8000-000000000003',nodes:[{text:'alpha'}]});
+ const id=e.read().visible[0].id, anchor=e.anchor(id,1,'left'), focus=e.anchor(id,3,'right');
+ const plan=e.prepare({kind:'fragment',origin:'clipboard:purity',range:{anchor,focus},blocks:[{attributes:null,runs:[{text:'X',marks:[]}]}]});
+ const before={read:e.read(),checkpoint:e.checkpoint(),vector:e.stateVector(),history:e.history({type:'state'}),anchor:e.resolve(anchor),focus:e.resolve(focus)};
+ let effects=0;const sub=e.subscribe({type:'all'},()=>effects++);
+ try {
+  for(let i=0;i<3;i++) assert.equal(e.validateFragment(JSON.stringify({version:1,schema:before.read.identity.schema,blocks:[{attributes:{type:'paragraph'},runs:[{text:'😀',marks:[]}]}]})),undefined);
+  assert.deepEqual({read:e.read(),checkpoint:e.checkpoint(),vector:e.stateVector(),history:e.history({type:'state'}),anchor:e.resolve(anchor),focus:e.resolve(focus)},before);assert.equal(effects,0);
+  e.commit(plan);assert.equal(e.read().visible[0].runs.map(r=>r.text).join(''),'aXha');assert.equal(effects,1);
+ }finally{sub.dispose();e.releasePlan(plan);e.releaseAnchor(anchor);e.releaseAnchor(focus);e.dispose();}
+});
+test('literal replacement retains destination marks, source and presentation with exact caret and undo/redo',()=>{
+ const e=createHandle(input=>new Engine(input),{profile:'v5',documentId:'97000000-0000-4000-8000-000000000004',epoch:'98000000-0000-4000-8000-000000000004',nodes:[{text:'alpha'}]});
+ const id=e.read().visible[0].id;
+ let plan=e.prepare({kind:'editor',origin:'clipboard:setup',commands:[{type:'markAt',owner:id,from:0,to:5,mark:'bold',action:'apply'}]});e.commit(plan);e.releasePlan(plan);e.history({type:'boundary'});
+ const before=e.read().visible;const anchor=e.anchor(id,4,'right'),focus=e.anchor(id,1,'left');let updates=0;const sub=e.subscribe({type:'updates'},()=>updates++);
+ try {
+  plan=e.prepare({kind:'fragment',origin:'clipboard:literal-marked',range:{anchor,focus},blocks:[{attributes:null,runs:[{text:'😀',marks:[]}]}]});const result=e.commit(plan);e.releasePlan(plan);
+  const after=e.read().visible;assert.equal(after.length,1);assert.equal(after[0].id,id);assert.deepEqual(after[0].blockAttributes,before[0].blockAttributes);assert.deepEqual(after[0].runs,[{text:'a😀a',attributes:{bold:true}}]);assert.equal(updates,1);
+  assert.equal(e.resolve(result.caret).offset,3);assert.deepEqual(e.history({type:'state'}).selection,result.selection);
+  e.history({type:'undo'});assert.deepEqual(e.read().visible,before);e.history({type:'redo'});assert.deepEqual(e.read().visible,after);
+  for(const token of new Set([result.caret,result.selection?.anchor,result.selection?.focus].filter(Boolean)))e.releaseAnchor(token);
+ }finally{sub.dispose();e.releaseAnchor(anchor);e.releaseAnchor(focus);e.dispose();}
+});
