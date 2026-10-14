@@ -48,7 +48,7 @@ for (const [i, v] of vectors.entries()) test(`native/WASM:${v.id}`, () => {
     for (const [name, corrupt] of [
       ['anchor', e => e.selection[0].offset++], ['focus', e => e.selection[1].offset++],
       ['direction', e => e.selection.reverse()], ['affinity', e => e.selection[0].bias = v.bias === 'left' ? 'right' : 'left'],
-      ['owner', e => e.selection[1].node = neighbor.id], ['source-offset', e => e.caret.sourceOffset++], ['remote', e => e.remote = 'remote'], ['publication', e => e.publications.push('Editor')],
+      ['owner', e => e.selection[1].node = neighbor.id], ['source-offset', e => e.selection[1].sourceOffset++], ['remote', e => e.remote = 'remote'], ['publication', e => e.publications.push('Editor')],
     ]) { const wrong = structuredClone(expected); corrupt(wrong); assert.throws(() => assert.deepEqual(observed(), wrong), assert.AssertionError); facts.negativeControls.push(`${v.id}/${name}`); fact.checkpoints++; }
     const [a, f] = observed().selection; const from = Math.min(a.offset, f.offset), to = Math.max(a.offset, f.offset);
     const sentinel = commit(engine, [{ type: 'replaceAt', owner: a.node, from, to, text: '!' }, { type: 'markAt', owner: a.node, from, to: from + 1, mark: 'bold', action: 'remove' }, { type: 'selectionAt', anchor: { owner, offset: 2, bias: v.bias }, focus: { owner, offset: 2, bias: v.bias } }]);
