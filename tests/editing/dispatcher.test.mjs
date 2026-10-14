@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process';
 // Admission must fail before loading a runtime. These failures cannot become
 // an accidental successful zero-test qualification of a misspelled case group.
 for (const [name, args] of [
+  ['schema storage selector on fixtures', ['--group', 'fixtures', '--cases', 'schema-storage']],
   ['mixed storage selector on fixtures', ['--group', 'fixtures', '--cases', 'mixed-storage']],
   ['storage selector on fixtures', ['--group', 'fixtures', '--cases', 'storage-atomicity']],
   ['pending selector on fixtures', ['--group', 'fixtures', '--cases', 'pending']],
@@ -59,6 +60,13 @@ test('storage atomicity proof is mandatory in canonical semantic dispatch', () =
 test('mixed storage proof is mandatory in canonical semantic dispatch', () => {
   const selected = editingSuites('semantic', 'mixed-storage');
   assert.deepEqual(selected, ['tests/editing/mixed-storage.test.mjs']);
+  assert.equal(editingSuites('semantic').filter(path => path === selected[0]).length, 1);
+  assert.ok(existsSync(selected[0]));
+});
+
+test('schema rejection storage proof is mandatory in canonical semantic dispatch', () => {
+  const selected = editingSuites('semantic', 'schema-storage');
+  assert.deepEqual(selected, ['tests/editing/schema-storage.test.mjs']);
   assert.equal(editingSuites('semantic').filter(path => path === selected[0]).length, 1);
   assert.ok(existsSync(selected[0]));
 });

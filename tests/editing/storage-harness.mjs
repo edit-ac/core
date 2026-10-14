@@ -15,8 +15,11 @@ class Locks {
   }
 }
 
-/** C11's owning setup, with the shared driver routed through the storage host. */
-export async function mixedStorageHarness(runtime, initial) {
+/** Seed the declared semantic profile before attaching production storage.
+ * Raw-port cases bind their own real tokens; driver cases route commits through
+ * the same lifecycle. No fixture setup commit is admitted to the journal.
+ */
+export async function storageHarness(runtime, initial, { attachDriver = true } = {}) {
   const seed = new SemanticDriver(runtime, initial);
   let checkpoint;
   try { checkpoint = seed.engine.checkpoint(); } finally { seed.dispose(); }
@@ -31,15 +34,16 @@ export async function mixedStorageHarness(runtime, initial) {
     lifecycle = new LocalStorageLifecycle(writer, journal);
     const engine = writer.engine, publications = [], completions = [], resolvedResults = [];
     let commitCalls = 0;
-    const driver = new SemanticDriver({ ...runtime, createEngine: () => ({ ...engine, commit(plan) {
+    const commit = plan => {
       const result = lifecycle.commitPrepared(plan); commitCalls++;
-      resolvedResults.push({ revision: result.revision, endpoints: [result.selection.anchor, result.selection.focus].map(token => engine.resolve(token)) });
+      resolvedResults.push({ revision: result.revision, endpoints: result.selection ? [result.selection.anchor, result.selection.focus].map(token => engine.resolve(token)) : null });
       return result;
-    } }) }, initial);
+    };
+    const driver = attachDriver ? new SemanticDriver({ ...runtime, createEngine: () => ({ ...engine, commit }) }, initial) : undefined;
     subscription = engine.subscribe({ type: 'updates' }, patch => publications.push(patch));
     stop = lifecycle.subscribeCommitted((update, commit) => completions.push({ update, commit }));
     return {
-      driver, engine, lifecycle, db, checkpoint, publications, completions, resolvedResults,
+      driver, engine, lifecycle, db, checkpoint, publications, completions, resolvedResults, commit,
       get commitCalls() { return commitCalls; },
       effects: () => ({ publications: publications.length, appends, transactions: db.transactions.length, records: db.records.size, completions: completions.length, pending: lifecycle.state.pending, saved: lifecycle.state.saved, localCommitted: lifecycle.state.localCommitted }),
       async nextTransaction() {
@@ -61,3 +65,6 @@ export async function mixedStorageHarness(runtime, initial) {
     throw error;
   }
 }
+
+// Preserve the existing mixed-vector caller contract.
+export const mixedStorageHarness = storageHarness;
