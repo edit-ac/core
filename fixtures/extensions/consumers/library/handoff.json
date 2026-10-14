@@ -1,0 +1,229 @@
+{
+  "schemaVersion": 1,
+  "apiVersion": 1,
+  "gate": "EXT-1.11",
+  "sourceRoadmapRevision": "ee774e02a4e2fb78208a106b8f5028b07e2a1788f8e6f937759fe5c3c73b4d4e",
+  "qualification": "portable contracts/examples; unpublished",
+  "fixtureHashes": {
+    "fixtures/extensions/conformance.json": "608d4dcff4ae3da9ef76df5d5407c07830c1936582bd51de0644826b9a7e2eeb",
+    "fixtures/extensions/versions/conformance.json": "184a9bab5b51096f8bfbbcf4adc2e0147649217b355cb0e487baac3236c323bd",
+    "fixtures/extensions/presenters/conformance.json": "390393183bfb12d1ef3a02923018be69d2d0e47d5d2fbfb91f93254abb48cede",
+    "fixtures/extensions/clipboard/conformance.json": "ffc955446436bd61bf28c66a687ffdff0ef19dd49a2506578e15ed61646f46f9",
+    "fixtures/extensions/profiles/contracts.json": "5afd1df2b8be564309faadc4f47ed4409f7cb64d9baad391069c8e1a7cae2b38",
+    "fixtures/extensions/capabilities.json": "7e5248d9fdf6b9a6196fe1d8f6988e788ef2d87b20bbb4ed53fc1a7f4eb6f0e3",
+    "../architecture/specs/extension-library.md": "90b76e6a05896b32490a5e0473fe43c7e06f8144e3b7c0374d2fb7c2e501647b",
+    "../architecture/specs/extension-presenters.md": "508387d4684331bcab266b121ae3c911422681e48944383ae4256e92d1ccafb0",
+    "../architecture/specs/client-contracts.md": "d8ec945d449cb3821805c971a3ae24f1ca6cf37251933edc39eb3538d823333a"
+  },
+  "prerequisites": {
+    "EXT-1.1": {
+      "path": "../architecture/evidence/extension-entry/receipt.json",
+      "sha256": "a94457e4ac683725695e809caf8cca441aec9e5041e9be23ab65d297a84a0b52",
+      "qualification": "portable-contracts; historical artifact revisions retained"
+    },
+    "EXT-1.2": {
+      "path": "../architecture/evidence/extension-exports/receipt.json",
+      "sha256": "dbfc680904d1bff499d92256a8b2f7fa323859d7d91a44cd4015a32662898b5d",
+      "qualification": "portable-contracts; historical artifact revisions retained"
+    },
+    "EXT-1.3": {
+      "path": "../architecture/evidence/extension-contract/receipt.json",
+      "sha256": "16273442aed8c50f51dbf6adb0fb58bd66cd4f54dfe0b98c8088bf5f05fa8bfc",
+      "qualification": "portable-contracts; historical artifact revisions retained"
+    },
+    "EXT-1.4": {
+      "path": "../architecture/evidence/extension-codecs/receipt.json",
+      "sha256": "30cae2320b8e38b10d18113f36b6850df91f53526ebe156b064052b55efb1b90",
+      "qualification": "portable-contracts; historical artifact revisions retained"
+    },
+    "EXT-1.5": {
+      "path": "../architecture/evidence/extension-commands/receipt.json",
+      "sha256": "d74b17ae7c2743533e751a141c618c54e67ff569b8887f70fcc53e2804c4b558",
+      "qualification": "portable-contracts; historical artifact revisions retained"
+    },
+    "EXT-1.6": {
+      "path": "../architecture/evidence/extension-presenters/receipt.json",
+      "sha256": "9cd332eadae73243a8c319c8b3726df08dd568d44d3df496dc867e2650d5ee49",
+      "qualification": "portable-contracts; historical artifact revisions retained"
+    },
+    "EXT-1.7": {
+      "path": "../architecture/evidence/extension-capabilities/receipt.json",
+      "sha256": "2769ad7767719253652cbd58477a2adf3330b30472ec1dba454423ab27990553",
+      "qualification": "portable-contracts; historical artifact revisions retained"
+    },
+    "EXT-1.8": {
+      "path": "../architecture/evidence/extension-references/receipt.json",
+      "sha256": "5f12c317c6df8d3b59dff077d2eebef9b50400cedb2f33858d2d74dcfeac2575",
+      "qualification": "portable-contracts; historical artifact revisions retained"
+    },
+    "EXT-1.9": {
+      "path": "../architecture/evidence/extension-bundles/receipt.json",
+      "sha256": "a863535952b5960a344a2c9212922b07a71c95aa176d7ae420f1192393c2a184",
+      "qualification": "portable-contracts; historical artifact revisions retained"
+    },
+    "EXT-1.10": {
+      "path": "../architecture/evidence/extension-tutorial/receipt.json",
+      "sha256": "10387d1c177f03862e7a695abfa56a3b7eaa02a563be7b4a164dc69da4a1ab9e",
+      "qualification": "portable-contracts; historical artifact revisions retained"
+    },
+    "EXT-1.12": {
+      "path": "../architecture/evidence/desktop-interactions/extension-profiles/receipt.json",
+      "sha256": "928c199cb4252efb24c3c1bc3f4bf73fec39c92cb113cfd762f33b43cf55512a",
+      "qualification": "portable-contracts; historical artifact revisions retained"
+    },
+    "EXT-1.13": {
+      "path": "../architecture/evidence/extension-formatting/c3-b/receipt.json",
+      "sha256": "cd58b737807d8b744d63cd1fc25441451dc71f0fe744a83a06b9192ffbb3dcd5",
+      "qualification": "portable-contracts; historical artifact revisions retained"
+    }
+  },
+  "platforms": {
+    "browser": {
+      "roadmap": "41-mobile-web-extensions.md",
+      "gates": [
+        "MWX-1.8"
+      ],
+      "presenterFixtures": [
+        "PRES-browser-accessibility",
+        "PRES-browser-cancel-stale",
+        "PRES-browser-capability-readonly",
+        "PRES-browser-clipboard-source",
+        "PRES-browser-dispose",
+        "PRES-browser-focus",
+        "PRES-browser-input-composition",
+        "PRES-browser-patch",
+        "PRES-browser-selection",
+        "PRES-browser-theme-fallback"
+      ],
+      "requiredCells": 42,
+      "actualEvidence": "pending-downstream"
+    },
+    "terminal": {
+      "roadmap": "15-tui-client.md",
+      "gates": [
+        "TUI-1.11",
+        "TUI-1.12"
+      ],
+      "presenterFixtures": [
+        "PRES-terminal-accessibility",
+        "PRES-terminal-cancel-stale",
+        "PRES-terminal-capability-readonly",
+        "PRES-terminal-clipboard-source",
+        "PRES-terminal-dispose",
+        "PRES-terminal-focus",
+        "PRES-terminal-input-composition",
+        "PRES-terminal-patch",
+        "PRES-terminal-selection",
+        "PRES-terminal-theme-fallback"
+      ],
+      "requiredCells": 42,
+      "actualEvidence": "pending-downstream"
+    },
+    "swift-ios": {
+      "roadmap": "16-ios-sdk.md",
+      "gates": [
+        "IOS-1.10",
+        "IOS-1.11",
+        "IOS-1.12",
+        "IOS-1.13",
+        "IOS-1.16",
+        "IOS-1.17",
+        "IOS-1.4",
+        "IOS-1.7",
+        "IOS-1.9"
+      ],
+      "presenterFixtures": [
+        "PRES-swift-ios-accessibility",
+        "PRES-swift-ios-cancel-stale",
+        "PRES-swift-ios-capability-readonly",
+        "PRES-swift-ios-clipboard-source",
+        "PRES-swift-ios-dispose",
+        "PRES-swift-ios-focus",
+        "PRES-swift-ios-input-composition",
+        "PRES-swift-ios-patch",
+        "PRES-swift-ios-selection",
+        "PRES-swift-ios-theme-fallback"
+      ],
+      "requiredCells": 42,
+      "actualEvidence": "pending-downstream"
+    },
+    "kotlin-android": {
+      "roadmap": "17-android-sdk.md",
+      "gates": [
+        "AND-1.10",
+        "AND-1.11",
+        "AND-1.12",
+        "AND-1.13",
+        "AND-1.16",
+        "AND-1.17",
+        "AND-1.4",
+        "AND-1.7",
+        "AND-1.9"
+      ],
+      "presenterFixtures": [
+        "PRES-kotlin-android-accessibility",
+        "PRES-kotlin-android-cancel-stale",
+        "PRES-kotlin-android-capability-readonly",
+        "PRES-kotlin-android-clipboard-source",
+        "PRES-kotlin-android-dispose",
+        "PRES-kotlin-android-focus",
+        "PRES-kotlin-android-input-composition",
+        "PRES-kotlin-android-patch",
+        "PRES-kotlin-android-selection",
+        "PRES-kotlin-android-theme-fallback"
+      ],
+      "requiredCells": 42,
+      "actualEvidence": "pending-downstream"
+    },
+    "desktop": {
+      "roadmap": "18-desktop-native.md",
+      "gates": [
+        "DSK-1.10",
+        "DSK-1.11",
+        "DSK-1.12",
+        "DSK-1.13",
+        "DSK-1.16",
+        "DSK-1.17",
+        "DSK-1.4",
+        "DSK-1.7",
+        "DSK-1.9"
+      ],
+      "presenterFixtures": [
+        "PRES-desktop-accessibility",
+        "PRES-desktop-cancel-stale",
+        "PRES-desktop-capability-readonly",
+        "PRES-desktop-clipboard-source",
+        "PRES-desktop-dispose",
+        "PRES-desktop-focus",
+        "PRES-desktop-input-composition",
+        "PRES-desktop-patch",
+        "PRES-desktop-selection",
+        "PRES-desktop-theme-fallback"
+      ],
+      "requiredCells": 42,
+      "actualEvidence": "pending-downstream"
+    }
+  },
+  "FPX-04": {
+    "fixture": "../architecture/tests/desktop-editing-cases.md",
+    "state": "pending-actual-feature-platform-evidence",
+    "combinations": [
+      "table + search + history",
+      "code + pairs + IME",
+      "link/slash + replacement"
+    ],
+    "owners": [
+      "25-rich-content-extensions.md",
+      "38-editor-interactions.md",
+      "16-ios-sdk.md",
+      "17-android-sdk.md",
+      "18-desktop-native.md",
+      "41-mobile-web-extensions.md"
+    ],
+    "finalQualification": "37-ecosystem-qualification.md"
+  },
+  "release": {
+    "physicalClipboard": "FMT-1.15-V1 remains open",
+    "publication": "not performed"
+  }
+}
