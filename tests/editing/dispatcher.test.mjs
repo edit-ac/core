@@ -167,3 +167,10 @@ test('failure proof binds both production command and browser lifetime suites', 
 test('presenter group binds the named real-browser suite', () => {
   assert.deepEqual(editingSuites('presenters'), ['tests/browser/editing-presenters.spec.ts']);
 });
+
+test('all includes every canonical runtime suite once and rejects selectors', () => {
+  const all = editingSuites('all');
+  for (const group of ['fixtures','semantic','history','properties','failures','input','presenters']) for (const file of editingSuites(group)) assert.ok(all.includes(file));
+  assert.equal(all.length,new Set(all).size);
+  assert.throws(()=>editingSuites('all','mixed-batch'));
+});

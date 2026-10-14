@@ -2,23 +2,28 @@ import { spawnSync } from 'node:child_process';
 import { caseSelectors, editingSuites } from './editing-suites.mjs';
 import { groupIds } from '../tests/editing/fixture-loader.ts';
 const args = process.argv.slice(2);
-if (![2, 4].includes(args.length) || args[0] !== '--group' || (args.length === 4 && (args[1] !== 'semantic' || args[2] !== '--cases' || !caseSelectors.includes(args[3])))) throw new Error('Usage: npm run test:editing -- --group fixtures|history|input|properties|failures|presenters|semantic [--cases regression-variants|selection-results|selection-actions|schema-rejection|mixed-batch|unicode|pending|storage-atomicity|mixed-storage|schema-storage|pending-storage|unicode-storage|recipe-storage|selection-storage|variant-storage|collapsed-pre-storage|atomic-vector-storage|remaining-atomic-vector-storage]');
+if (![2, 4].includes(args.length) || args[0] !== '--group' || (args.length === 4 && (args[1] !== 'semantic' || args[2] !== '--cases' || !caseSelectors.includes(args[3])))) throw new Error('Usage: npm run test:editing -- --group all|fixtures|history|input|properties|failures|presenters|semantic [--cases regression-variants|selection-results|selection-actions|schema-rejection|mixed-batch|unicode|pending|storage-atomicity|mixed-storage|schema-storage|pending-storage|unicode-storage|recipe-storage|selection-storage|variant-storage|collapsed-pre-storage|atomic-vector-storage|remaining-atomic-vector-storage]');
+if (args[1] === 'all') {
+  const { runAll } = await import('./run-editing-all.mjs');
+  process.exit(await runAll());
+}
 groupIds(args[1]);
 // Full qualification includes every owning suite, including failures.
 const files = editingSuites(args[1], args[3]);
+const reporter = process.env.EDITAC_EDITING_ALL_OUTPUT ? ['--test-reporter=tap'] : [];
 if (['input','presenters'].includes(args[1])) {
   const browserResult = spawnSync(process.execPath, ['scripts/test-browser.mjs', args[1] === 'input' ? 'editing-input' : 'editing-presenters'], { stdio: 'inherit' });
   if (browserResult.error) throw browserResult.error;
   process.exit(browserResult.status ?? 1);
 }
 if (args[1] === 'failures') {
-  const semantic = spawnSync(process.execPath, ['--test', files[0]], {stdio:'inherit'});
+  const semantic = spawnSync(process.execPath, ['--test', ...reporter, files[0]], {stdio:'inherit'});
   if (semantic.error) throw semantic.error;
   if (semantic.status !== 0) process.exit(semantic.status ?? 1);
   const browser = spawnSync(process.execPath, ['scripts/test-browser.mjs', 'editing-lifetime'], {stdio:'inherit'});
   if (browser.error) throw browser.error;
   process.exit(browser.status ?? 1);
 }
-const result = spawnSync(process.execPath, ['--test', ...files], { stdio: 'inherit', env: { ...process.env, EDITAC_EDITING_SELECTION_SCOPE: args[3] === 'selection-actions' ? 'actions' : 'all' } });
+const result = spawnSync(process.execPath, ['--test', ...reporter, ...files], { stdio: 'inherit', env: { ...process.env, EDITAC_EDITING_SELECTION_SCOPE: args[3] === 'selection-actions' ? 'actions' : 'all' } });
 if (result.error) throw result.error;
 process.exitCode = result.status ?? 1;

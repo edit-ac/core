@@ -1,3 +1,4 @@
+import { editingPackedCache } from './editing-packed-cache.mjs';
 import * as Y from 'yjs';
 import assert from 'node:assert/strict';
 import { test, before, after } from 'node:test';
@@ -23,7 +24,7 @@ before(async()=>{
  facts.sources=await hashSources();
  facts.coreBaseRevision=spawnSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).stdout.trim();
  consumer=await mkdtemp(join(tmpdir(),'editac-keyboard-consumer-'));
- const packed=JSON.parse(await run('npm',['pack','--workspace','@edit-ac/core','--json','--pack-destination',consumer],'pack.log'))[0];
+ const packed=await editingPackedCache('core',consumer) ?? JSON.parse(await run('npm',['pack','--workspace','@edit-ac/core','--json','--pack-destination',consumer],'pack.log'))[0];
  const bytes=await readFile(join(consumer,packed.filename));await writeFile(join(output,packed.filename),bytes);
  facts.packed={filename:packed.filename,bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex'),includesWasm:packed.files.some(f=>f.path==='dist/wasm/editac_wasm_bg.wasm')};assert.equal(facts.packed.includesWasm,true);
  await run('tar',['-xzf',join(consumer,packed.filename),'-C',consumer],'unpack.log');

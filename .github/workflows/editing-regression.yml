@@ -1,0 +1,55 @@
+name: Editing regression infrastructure
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  infrastructure:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      EDITAC_EDITING_ALL_OUTPUT: ${{ github.workspace }}/architecture/evidence/ci-editing-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          path: core
+          persist-credentials: false
+      - name: Require reviewed architecture revision
+        env:
+          ARCHITECTURE_REVISION: ${{ vars.EDITAC_ARCHITECTURE_REVISION }}
+        run: test -n "$ARCHITECTURE_REVISION"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: edit-ac/architecture
+          ref: ${{ vars.EDITAC_ARCHITECTURE_REVISION }}
+          path: architecture
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: core/.node-version
+          package-manager-cache: false
+      - name: Select locked tools
+        run: |
+          npm install --global npm@11.17.0 --ignore-scripts
+          rustup toolchain install 1.97.1 --profile minimal --target wasm32-unknown-unknown
+          cargo install wasm-bindgen-cli --version 0.2.129 --locked
+      - name: Install deterministic test dependencies
+        working-directory: core
+        run: |
+          npm ci --ignore-scripts
+          cargo fetch --locked
+          npx --no-install playwright install --with-deps chromium firefox webkit
+      - name: Execute canonical groups and permanent baseline
+        working-directory: core
+        run: npm run test:editing -- --group all
+      - name: Reject stale or incomplete infrastructure receipts
+        working-directory: core
+        run: node scripts/check-editing-coverage.mjs --profile infrastructure
+      - name: Retain raw qualification and failure evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: editing-infrastructure-${{ github.run_id }}-${{ github.run_attempt }}
+          path: architecture/evidence/ci-editing-*
+          if-no-files-found: error

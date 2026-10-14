@@ -241,3 +241,37 @@ npm run test:editing -- --group failures
 The canonical group runs packed production engine, ModuleRuntime and ExtensionCommandSession cases with the shared production storage/journal harness, then Chromium, Firefox and WebKit lifetime cases. Host observer commands await preparation before committing in a later microtask; cancellation/disposal aborts their ownership, and revision/capability rechecks reject stale completion. Exceptions stay independent of committed content and persistence. Tests observe actual updates, journal transaction completion, history and cumulative recovery; corrupted independent expectations must fail.
 
 `browser-lifetime-driver.ts` consumes every SEQ-09 action/checkpoint directly from architecture. A prepared clipboard provider holds the actual retained target; a real remote tombstone update deletes its owner. The host explicitly recovers a stale DOM selection to the first surviving owner at offset zero; the pending request retains its original anchors and rejects instead of following that caret. Remounts use a new epoch. Queued observer work and late provider completions cannot write detached DOM, refocus or edit the replacement session. Browser evidence covers prepared mechanics with actual adapters and IndexedDB; OS clipboard/provider and device qualification remain separately owned.
+
+## Coverage integrity and downstream handoff (RGS-1.8)
+
+```sh
+EDITAC_EDITING_ALL_OUTPUT=/absolute/path/to/new/evidence npm run test:editing -- --group all
+EDITAC_EDITING_ALL_OUTPUT=/absolute/path/to/evidence node scripts/check-editing-coverage.mjs --profile infrastructure
+```
+
+`all` builds current WASM/packages and packs core/web/markdown once offline.
+Each suite unpacks the hash-qualified shared bytes into its own fresh consumer. It runs
+fixtures, semantic/storage, history, properties/native vectors, failures, input
+and presenters through the existing dispatchers, followed by permanent browser
+history-selection, the independent renderer/keyboard/example baseline and G14.
+Each stage retains its raw log, counts and hash-bound reports. Failure stops with
+partial evidence. Use a new directory after a relevant repair. The checker
+recomputes source, fixture and built-artifact pins, counts, owning cell bindings
+and browser revisions; planned metadata cannot satisfy executed coverage.
+
+Every catalog owner, source clause and platform/profile constraint remains in the
+report with unqualified variants, including desktop/native/preset/performance
+rows. Physical/virtual platform observations remain separate. `releaseQualified`
+is always false. Tracks 38/40/41 and INT/MWB/MWX reuse `editingSuites`, `loadSuite`,
+shared driver ports and the receipt boundary instead of duplicating fixtures.
+Release consumers must require current passing infrastructure plus their own
+mandatory case/platform qualification. CI requires `EDITAC_ARCHITECTURE_REVISION`
+to name the reviewed immutable sibling architecture commit. Local evidence does
+not claim remote CI execution or authorize publication.
+
+For an interrupted local run, `EDITAC_EDITING_REUSE_OUTPUT` may point to its retained
+execution directory. Reuse is restricted to passing owning stages with identical
+fixture, built artifact, Node/Playwright and engine/adapter/test dependencies.
+Only example-page or all-run receipt/orchestration edits permit reattachment;
+baseline executes again after example-page changes; integrity always executes. Raw origin hashes and reused counts remain
+visible. CI performs a fresh run.
