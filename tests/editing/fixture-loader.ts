@@ -24,7 +24,7 @@ export const architectureRoot = resolve(dirname(fileURLToPath(import.meta.url)),
 export const groups = Object.freeze({
   fixtures: ['SEQ-01', 'SEQ-02'],
   semantic: ['SEQ-01', 'SEQ-02', 'SEQ-03', 'SEQ-04', 'SEQ-05', 'SEQ-06', 'SEQ-07', 'SEQ-11', 'SEQ-12', 'SEQ-13', 'SEQ-14'],
-  history: ['SEQ-03', 'SEQ-08'], input: ['SEQ-10'], failures: ['SEQ-09'],
+  properties: [], history: ['SEQ-03', 'SEQ-08'], input: ['SEQ-10'], failures: ['SEQ-09'],
 });
 export type Group = keyof typeof groups;
 export function groupIds(group: string): readonly string[] {

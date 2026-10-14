@@ -152,3 +152,9 @@ test('input group binds the production three-browser suite and rejects semantic 
   assert.ok(existsSync('tests/browser/editing-input.spec.ts'));
   assert.throws(() => editingSuites('input', 'pending'));
 });
+
+test('properties group binds all owning packed and native checks', () => {
+  assert.deepEqual(editingSuites('properties'), ['tests/editing/properties.test.mjs']);
+  assert.ok(existsSync('tests/editing/properties.test.mjs'));
+  assert.throws(() => editingSuites('properties', 'pending'));
+});

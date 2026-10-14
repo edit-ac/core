@@ -6,7 +6,7 @@ use crate::anchors::{self, Anchor, BoundaryError, Position, Resolution, Selectio
 use crate::document::{Document, DocumentIdentity, MAX_RESTORE_BYTES, ROOTS, ReplayUpdate};
 use crate::projection::{ProjectionError, Snapshot, TouchedRange};
 use std::collections::BTreeSet;
-use yrs::{GetString, Map, Out, ReadTxn, StateVector, Text, XmlTextRef};
+use yrs::{Map, Out, ReadTxn, StateVector, Text, XmlTextRef};
 
 pub const MAX_EDIT_BYTES: usize = 1024 * 1024;
 pub const MAX_TEXT_BYTES: usize = 5 * 1024 * 1024;
@@ -218,7 +218,7 @@ impl Document {
             let Some(Out::YXmlText(text)) = texts.get(&txn, &span.source) else {
                 return Err(TextError::Unresolvable(Unresolvable::MissingSource));
             };
-            let raw = text.get_string(&txn);
+            let raw = crate::projection::plain_text(&text, &txn)?;
             let removed = anchors::validate_range(&raw, Utf16Offset(s)..Utf16Offset(e))?;
             let addition = if insertion_here { inserted } else { "" };
             if raw.len() > MAX_TEXT_BYTES
