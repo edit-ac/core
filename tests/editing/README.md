@@ -143,3 +143,19 @@ new structural identities bind at their creating split and must remain stable.
 Every sequence contains falsifying controls. Canonical semantic dispatch includes
 this suite; selected passes do not close original REG-05 alignment/atom variants,
 history bookmarks, journal/persistence, or the full parent gate.
+
+`npm run test:editing -- --group semantic --cases storage-atomicity` runs the
+existing REG-13 text+mark+separator invalid-final vector then its valid retry on
+one storage-owned engine, for null/empty/italic editor-local pending states.
+Production LocalStorageLifecycle, StorageWriter and UpdateJournal run over
+PreparedIndexedDB transaction delivery. Separate append, staging, completion,
+recovery and lease teardown observations prevent publication counts from being
+used as persistence evidence. Request success cannot mark a document saved.
+Independent full semantic/identity/endpoints/effect expectations and per-cell
+falsifying controls are mandatory in canonical semantic dispatch.
+
+`cargo test -p editac-core --test editing_regressions reg13_structure_rejection_retry_owning --locked --offline -- --show-output`
+proves the matching paired committed operations on one native replica. Native
+pending/journal state and real browser storage/device behavior are not claimed.
+The selected proof does not complete RGS-1.2 or its unsupported profiles/history
+bookmarks. `storage-harness.json` records actual counts, hashes and teardown.

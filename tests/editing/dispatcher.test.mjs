@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process';
 // Admission must fail before loading a runtime. These failures cannot become
 // an accidental successful zero-test qualification of a misspelled case group.
 for (const [name, args] of [
+  ['storage selector on fixtures', ['--group', 'fixtures', '--cases', 'storage-atomicity']],
   ['pending selector on fixtures', ['--group', 'fixtures', '--cases', 'pending']],
   ['Unicode selector on fixtures', ['--group', 'fixtures', '--cases', 'unicode']],
   ['mixed selector on fixtures', ['--group', 'fixtures', '--cases', 'mixed-batch']],
@@ -43,6 +44,13 @@ test('Unicode proof is mandatory in canonical semantic dispatch', () => {
 test('pending proof is mandatory in canonical semantic dispatch', () => {
   const selected = editingSuites('semantic', 'pending');
   assert.deepEqual(selected, ['tests/editing/pending.test.mjs']);
+  assert.equal(editingSuites('semantic').filter(path => path === selected[0]).length, 1);
+  assert.ok(existsSync(selected[0]));
+});
+
+test('storage atomicity proof is mandatory in canonical semantic dispatch', () => {
+  const selected = editingSuites('semantic', 'storage-atomicity');
+  assert.deepEqual(selected, ['tests/editing/storage-atomicity.test.mjs']);
   assert.equal(editingSuites('semantic').filter(path => path === selected[0]).length, 1);
   assert.ok(existsSync(selected[0]));
 });

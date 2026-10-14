@@ -70,18 +70,8 @@ fn mark(value: &str) -> Mark {
         _ => panic!("unbound vector mark"),
     }
 }
-fn atomic(id: &str) {
-    let all = vectors();
-    let v = all["atomic"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|v| v["id"] == id)
-        .unwrap();
-    let mut d = document(v["text"].as_str().unwrap());
-    let original = d.snapshot().unwrap().visible[0].clone();
-    let owner = original.id.clone();
-    let commands: Vec<_> = v["commands"]
+fn atomic_commands(v: &Value, owner: &str) -> Vec<EditorCommand> {
+    v["commands"]
         .as_array()
         .unwrap()
         .iter()
@@ -121,7 +111,20 @@ fn atomic(id: &str) {
                 _ => panic!("unbound vector command"),
             }
         })
-        .collect();
+        .collect()
+}
+fn atomic(id: &str) {
+    let all = vectors();
+    let v = all["atomic"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|v| v["id"] == id)
+        .unwrap();
+    let mut d = document(v["text"].as_str().unwrap());
+    let original = d.snapshot().unwrap().visible[0].clone();
+    let owner = original.id.clone();
+    let commands = atomic_commands(v, &owner);
     let count = Rc::new(Cell::new(0));
     let seen = count.clone();
     let _subscription = d
@@ -2165,4 +2168,135 @@ fn g04_pending_context_disable_reject_revisit() {
 #[test]
 fn g04_pending_override_split_empty_revisit() {
     g04_pending_sequence("override-split-empty-revisit");
+}
+
+/// REG-13 paired owning proof: failed final selection then retry on one replica.
+/// Journal and editor-local pending state are asserted only by the packed host.
+#[test]
+fn reg13_structure_rejection_retry_owning() {
+    use serde_json::json;
+    let mut checkpoints = 0;
+    let all = vectors();
+    let pair: Vec<_> = all["atomic"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|v| {
+            v["id"]
+                .as_str()
+                .unwrap()
+                .starts_with("REG-13-text-mark-structure-")
+        })
+        .collect();
+    assert_eq!(pair.len(), 2);
+    let mut d = document("abc");
+    let original = d.snapshot().unwrap().visible[0].clone();
+    let owner = original.id.clone();
+    let before = frozen(&d);
+    let original_visible = d.snapshot().unwrap().visible;
+    let publications = Rc::new(Cell::new(0));
+    let seen = publications.clone();
+    let _sub = d
+        .subscribe(PatchScope::All, move |_, _| {
+            seen.set(seen.get() + 1);
+            Ok(())
+        })
+        .unwrap();
+    let origin = TextOrigin::new("local:rgs:structure-storage").unwrap();
+    assert!(
+        d.prepare_editor(&atomic_commands(pair[0], &owner), &origin)
+            .is_err()
+    );
+    assert_eq!(frozen(&d), before);
+    assert_eq!(d.snapshot().unwrap().visible, original_visible);
+    assert_eq!(publications.get(), 0);
+    checkpoints += 3;
+    let rejection = json!({"checkpoint":before.0,"vector":before.1,"revision":before.2,"undo":before.3.undo_groups,"redo":before.3.redo_groups,"publications":0,"visible":format!("{original_visible:?}")});
+    let mut controls = 0;
+    let mut falsify = |actual: &Value, wrong: Value| {
+        assert!(std::panic::catch_unwind(|| assert_eq!(actual, &wrong)).is_err());
+        controls += 1;
+    };
+    for key in ["revision", "undo", "redo", "publications"] {
+        let mut wrong = rejection.clone();
+        wrong[key] = json!(1);
+        falsify(&rejection, wrong);
+    }
+    for key in ["checkpoint", "vector"] {
+        let mut wrong = rejection.clone();
+        wrong[key][0] = json!(255);
+        falsify(&rejection, wrong);
+    }
+    let plan = d
+        .prepare_editor(&atomic_commands(pair[1], &owner), &origin)
+        .unwrap();
+    assert_eq!(frozen(&d), before);
+    assert_eq!(publications.get(), 0);
+    checkpoints += 2;
+    let result = d.commit_editor(plan).unwrap();
+    let visible = d.snapshot().unwrap().visible;
+    assert_eq!(visible.len(), 2);
+    let node = &visible[0];
+    let separator = &visible[1];
+    assert_ne!(separator.id, owner);
+    assert!(matches!(
+        separator.block_attributes,
+        Some(editac_core::document::BlockAttributes::Separator)
+    ));
+    checkpoints += 3;
+    let selection = result.result_selection.unwrap();
+    let points: Vec<_> = [&selection.anchor, &selection.focus].into_iter().map(|a| match d.resolve_anchor(a).unwrap() {
+        Resolution::Position(p) => json!({"node":p.node,"offset":p.offset.0,"bias":if p.bias == Bias::Left {"left"} else {"right"}}),
+        _ => panic!("missing REG-13 endpoint"),
+    }).collect();
+    let identities: Vec<_> = node
+        .spans
+        .iter()
+        .map(|s| json!({"source":s.source,"identity":s.identity}))
+        .collect();
+    let original_identities: Vec<_> = original
+        .spans
+        .iter()
+        .map(|s| json!({"source":s.source,"identity":s.identity}))
+        .collect();
+    let actual = json!({"owner":node.id,"text":node.runs.iter().map(|r|r.text.as_str()).collect::<String>(),"runs":node.runs.iter().map(|r| { let attributes: serde_json::Map<String,Value> = r.attributes.iter().map(|(k,v)| (k.clone(), match v { Any::Bool(b) => json!(b), _ => panic!("unexpected attribute") })).collect(); json!({"text":r.text,"attributes":attributes}) }).collect::<Vec<_>>(),"identities":identities,"separator":{"id":separator.id,"kind":separator.kind,"runs":separator.runs.iter().map(|r|r.text.clone()).collect::<Vec<_>>()},"revision":d.revision(),"undo":d.history_state().undo_groups,"redo":d.history_state().redo_groups,"endpoints":points,"publications":publications.get()});
+    let expected = json!({"owner":owner,"text":"aXbc","runs":[{"text":"a","attributes":{}},{"text":"X","attributes":{"bold":true}},{"text":"bc","attributes":{}}],"identities":original_identities,"separator":{"id":separator.id,"kind":"block","runs":[]},"revision":before.2+1,"undo":1,"redo":0,"endpoints":[{"node":owner,"offset":2,"bias":"left"},{"node":owner,"offset":2,"bias":"right"}],"publications":1});
+    assert_eq!(actual, expected);
+    checkpoints += 1;
+    assert_eq!(result.revision, before.2 + 1);
+    assert_ne!(d.state_vector_v1(), before.1);
+    assert_ne!(d.checkpoint().bytes, before.0);
+    checkpoints += 3;
+    for key in ["owner", "text"] {
+        let mut wrong = expected.clone();
+        wrong[key] = json!("wrong");
+        falsify(&actual, wrong);
+    }
+    for key in ["revision", "undo", "redo", "publications"] {
+        let mut wrong = expected.clone();
+        wrong[key] = json!(99);
+        falsify(&actual, wrong);
+    }
+    for i in [0, 1] {
+        let mut wrong = expected.clone();
+        wrong["endpoints"][i]["offset"] = json!(99);
+        falsify(&actual, wrong);
+    }
+    let mut wrong = expected.clone();
+    wrong["endpoints"][0]["bias"] = json!("right");
+    falsify(&actual, wrong);
+    let mut wrong = expected.clone();
+    wrong["runs"][1]["attributes"] = json!({});
+    falsify(&actual, wrong);
+    for key in ["source", "identity"] {
+        let mut wrong = expected.clone();
+        wrong["identities"][0][key] = json!("wrong");
+        falsify(&actual, wrong);
+    }
+    let mut wrong = expected.clone();
+    wrong["separator"]["kind"] = json!("separator");
+    falsify(&actual, wrong);
+    println!(
+        "REG13_STORAGE_NATIVE_RECEIPT vectors=2 sequences=1 rejected=1 committed=1 checkpoints={checkpoints} controls={controls} pending=editor-local-only journal=packed-host-only"
+    );
 }
