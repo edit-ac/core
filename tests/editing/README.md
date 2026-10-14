@@ -159,3 +159,16 @@ proves the matching paired committed operations on one native replica. Native
 pending/journal state and real browser storage/device behavior are not claimed.
 The selected proof does not complete RGS-1.2 or its unsupported profiles/history
 bookmarks. `storage-harness.json` records actual counts, hashes and teardown.
+
+`npm run test:editing -- --group semantic --cases mixed-storage` attaches all
+12 existing SEQ-11 mixed direction/affinity/pending cells to the same production
+storage ports. The shared semantic driver commits through the storage lifecycle;
+missing final owner, staged surrogate mark and staged surrogate selection each
+produce zero journal appends. A valid retry preserves independent staged offsets,
+marks, suffix, identity and returned endpoints and produces one append and local
+completion. Prepared request success leaves the flush barrier pending until
+transaction completion. Metadata/bytes, recovery replay, corruption controls and
+lease/journal/server teardown are checked. `mixed-storage-harness.json` records
+counts and hashes; canonical semantic dispatch includes this suite. Matching
+native vectors remain `reg13_mixed_`. This is production storage integration over
+prepared IndexedDB delivery, not real-browser/device or full-parent acceptance.
