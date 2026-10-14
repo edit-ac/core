@@ -583,6 +583,7 @@ fn separated_pre(in_code: bool) {
     } else {
         ["A", "\n", "B"]
     };
+    assert_eq!(nodes[0].spans[0].identity, original.spans[0].identity);
     for (node, text) in nodes.iter().zip(expected) {
         assert_eq!(
             node.runs
@@ -615,6 +616,10 @@ fn separated_pre(in_code: bool) {
     assert_eq!(restored[0].id, original.id);
     assert_eq!(restored[0].block_attributes, original.block_attributes);
     assert_eq!(restored[0].runs, original.runs);
+    assert_eq!(restored[0].spans[0].source, original.spans[0].source);
+    assert_eq!(restored[0].spans[0].identity, original.spans[0].identity);
+    assert_eq!(d.history_state().undo_groups, 0);
+    assert_eq!(d.history_state().redo_groups, 1);
     assert_eq!(count.get(), 2);
 }
 #[test]
