@@ -5,6 +5,7 @@ const semantic = [
   'tests/editing/selection-results.test.mjs',
   'tests/editing/schema-rejection.test.mjs',
   'tests/editing/mixed-batch.test.mjs',
+  'tests/editing/unicode.test.mjs',
 ];
 const selected = {
   'regression-variants': semantic[1],
@@ -12,6 +13,7 @@ const selected = {
   'selection-actions': semantic[2],
   'schema-rejection': semantic[3],
   'mixed-batch': semantic[4],
+  'unicode': semantic[5],
 };
 export const caseSelectors = Object.freeze(Object.keys(selected));
 export function editingSuites(group, selector) {

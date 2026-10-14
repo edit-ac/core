@@ -102,3 +102,22 @@ returned endpoints, history, revision/vector and publications have falsifying
 controls. Pending marks are editor-local; unattached journal/persistence and
 remaining REG-13 structure variants are unproved. The canonical semantic group
 includes this suite; its selected pass does not qualify the full parent.
+
+G06 Unicode owning assertions use the existing independent `semantic-vectors.json`
+NFC/NFD/ZWJ/flag/Indic/bidi/authored-space/interior/boundary vectors:
+
+```sh
+EDITAC_EDITING_PACK_TARBALL=/absolute/path/to/qualified-core.tgz \
+EDITAC_EDITING_OUTPUT=/absolute/path/to/fresh-evidence \
+npm run test:editing -- --group semantic --cases unicode
+cargo test -p editac-core --test editing_regressions g06_ --locked --offline -- --skip reg06_ --show-output
+```
+
+The selected suite is mandatory in full semantic dispatch. Both biases preserve
+independently authored content, empty marks, owner/source identity and exact
+prepared endpoints; every vector has corruption controls. Rejected/no-op vectors
+retain revisions, state vectors, checkpoints, history and publications. Packed
+boundary and combining-interior dispositions occur in the shared adapter without
+engine commits; native boundary uses `deletion_range` returning no range and dispatches no
+engine mutation. An explicit empty replacement is a different operation. Native pending state, visual movement,
+actual deletion gestures and whole-version Unicode conformance remain unproved.

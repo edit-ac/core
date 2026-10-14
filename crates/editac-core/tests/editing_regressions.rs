@@ -235,6 +235,7 @@ atomic_case!(g03_backward_selection, "G03-backward-selection");
 atomic_case!(g06_astral_staged_utf16, "G06-astral-staged-utf16");
 atomic_case!(g06_invalid_first_surrogate, "G06-invalid-first-surrogate");
 fn grapheme(id: &str) {
+    use serde_json::json;
     let all = vectors();
     let v = all["graphemes"]
         .as_array()
@@ -242,42 +243,182 @@ fn grapheme(id: &str) {
         .iter()
         .find(|v| v["id"] == id)
         .unwrap();
-    let text = v["text"].as_str().unwrap();
-    let actual = deletion_range(text, U(number(&v["offset"])), Direction::Backward);
-    if v["rejected"] == true {
-        assert!(actual.is_err());
-        return;
+    let mut controls = 0;
+    for bias in [Bias::Left, Bias::Right] {
+        let text = v["text"].as_str().unwrap();
+        let mut d = document(text);
+        let original = d.snapshot().unwrap().visible[0].clone();
+        let owner = original.id.clone();
+        let before = frozen(&d);
+        let count = Rc::new(Cell::new(0));
+        let seen = count.clone();
+        let _subscription = d
+            .subscribe(PatchScope::All, move |_, _| {
+                seen.set(seen.get() + 1);
+                Ok(())
+            })
+            .unwrap();
+        let origin = TextOrigin::new("local:rgs:unicode").unwrap();
+        let range = deletion_range(text, U(number(&v["offset"])), Direction::Backward);
+        let applied = v["rejected"] != true && !v["range"].is_null();
+        let mut endpoints = json!([]);
+        if v["rejected"] == true {
+            assert!(range.is_err());
+            if id == "surrogate-interior" {
+                // Invalid UTF-16 public command ranges also reach real preparation.
+                assert!(
+                    d.prepare_editor(
+                        &[EditorCommand::ReplaceAt {
+                            owner: owner.clone(),
+                            from: U(2),
+                            to: U(3),
+                            text: String::new()
+                        }],
+                        &origin
+                    )
+                    .is_err()
+                );
+            }
+        } else if v["range"].is_null() {
+            // A boundary deletion has no range and dispatches no engine edit.
+            // Preparing an empty replacement is a different operation.
+            assert!(range.unwrap().is_none());
+        } else {
+            let range = range.unwrap();
+            let (from, to) = if v["range"].is_null() {
+                assert!(range.is_none());
+                (U(0), U(0))
+            } else {
+                let range = range.unwrap();
+                assert_eq!(range, U(number(&v["range"][0]))..U(number(&v["range"][1])));
+                (range.start, range.end)
+            };
+            let plan = d
+                .prepare_editor(
+                    &[
+                        EditorCommand::ReplaceAt {
+                            owner: owner.clone(),
+                            from,
+                            to,
+                            text: String::new(),
+                        },
+                        EditorCommand::SelectionAt {
+                            anchor: EditorPosition {
+                                owner: owner.clone(),
+                                offset: U(number(&v["selection"][0])),
+                                bias,
+                            },
+                            focus: EditorPosition {
+                                owner: owner.clone(),
+                                offset: U(number(&v["selection"][1])),
+                                bias,
+                            },
+                        },
+                    ],
+                    &origin,
+                )
+                .unwrap();
+            assert_eq!(frozen(&d), before, "preparation changed state");
+            assert_eq!(count.get(), 0);
+            let result = d.commit_editor(plan).unwrap();
+            assert_eq!(result.revision, before.2 + u64::from(applied));
+            let selection = result.result_selection.unwrap();
+            endpoints = json!([&selection.anchor, &selection.focus].map(|token| match d.resolve_anchor(token).unwrap() {
+                Resolution::Position(p) => json!({"node":p.node,"offset":p.offset.0,"bias":if p.bias == Bias::Left {"left"} else {"right"}}),
+                _ => panic!("prepared Unicode result unresolved"),
+            }));
+        }
+        let observe = |d: &Document| {
+            let snapshot = d.snapshot().unwrap();
+            let node = &snapshot.visible[0];
+            json!({"visibleCount":snapshot.visible.len(),"owner":node.id,"kind":node.kind,"attributes":format!("{:?}",node.block_attributes),"text":node.runs.iter().map(|r|r.text.as_str()).collect::<String>(),"runs":node.runs.iter().map(|r|json!({"text":r.text,"attributes":r.attributes})).collect::<Vec<_>>(),"spans":node.spans.iter().map(|s|json!({"source":s.source,"identity":s.identity})).collect::<Vec<_>>(),"endpoints":endpoints,"revision":d.revision(),"publications":count.get(),"undo":d.history_state().undo_groups,"redo":d.history_state().redo_groups})
+        };
+        let expected_endpoints = if !applied {
+            json!([])
+        } else {
+            json!(v["selection"].as_array().unwrap().iter().map(|offset|json!({"node":owner,"offset":offset,"bias":if bias == Bias::Left {"left"} else {"right"}})).collect::<Vec<_>>())
+        };
+        let expected = json!({"visibleCount":1,"owner":owner,"kind":original.kind,"attributes":format!("{:?}",original.block_attributes),"text":v["expectedText"],"runs":[{"text":v["expectedText"],"attributes":{}}],"spans":original.spans.iter().map(|s|json!({"source":s.source,"identity":s.identity})).collect::<Vec<_>>(),"endpoints":expected_endpoints,"revision":before.2+u64::from(applied),"publications":u32::from(applied),"undo":u32::from(applied),"redo":0});
+        assert_eq!(observe(&d), expected);
+        for (path, value) in [
+            ("/text", json!("corrupted")),
+            ("/runs/0/attributes", json!({"bold":true})),
+            ("/owner", json!("missing")),
+            ("/spans/0/source", json!("missing")),
+            ("/spans/0/identity", json!("missing")),
+            ("/attributes", json!(["code"])),
+            ("/visibleCount", json!(2)),
+            ("/revision", json!(before.2 + 2)),
+            ("/publications", json!(2)),
+            ("/undo", json!(2)),
+            ("/redo", json!(1)),
+        ] {
+            let mut wrong = expected.clone();
+            *wrong.pointer_mut(path).unwrap() = value;
+            assert!(
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| assert_eq!(
+                    observe(&d),
+                    wrong
+                )))
+                .is_err(),
+                "undetected {id}/{path}"
+            );
+            controls += 1;
+        }
+        if applied {
+            for (path, value) in [
+                ("/endpoints/0/offset", json!(99)),
+                ("/endpoints/1/offset", json!(99)),
+                ("/endpoints/0/node", json!("missing")),
+                (
+                    "/endpoints/1/bias",
+                    json!(if bias == Bias::Left { "right" } else { "left" }),
+                ),
+            ] {
+                let mut wrong = expected.clone();
+                *wrong.pointer_mut(path).unwrap() = value;
+                assert!(
+                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| assert_eq!(
+                        observe(&d),
+                        wrong
+                    )))
+                    .is_err(),
+                    "undetected {id}/{path}"
+                );
+                controls += 1;
+            }
+        }
+        if applied {
+            // Delete-set updates do not advance the CRDT insertion clock.
+            assert_eq!(d.state_vector_v1(), before.1);
+            assert_ne!(d.checkpoint().bytes, before.0);
+        } else {
+            assert_eq!(frozen(&d), before);
+            let observe_frozen = |d: &Document| json!({"vector":d.state_vector_v1(),"checkpoint":d.checkpoint().bytes,"revision":d.revision(),"history":format!("{:?}",d.history_state()),"publications":count.get()});
+            let expected_frozen = json!({"vector":before.1,"checkpoint":before.0,"revision":before.2,"history":format!("{:?}",before.3),"publications":0});
+            assert_eq!(observe_frozen(&d), expected_frozen);
+            for (path, value) in [
+                ("/vector", json!([])),
+                ("/checkpoint", json!([])),
+                ("/revision", json!(before.2 + 1)),
+                ("/history", json!("corrupted")),
+                ("/publications", json!(1)),
+            ] {
+                let mut wrong = expected_frozen.clone();
+                *wrong.pointer_mut(path).unwrap() = value;
+                assert!(
+                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| assert_eq!(
+                        observe_frozen(&d),
+                        wrong
+                    )))
+                    .is_err(),
+                    "undetected {id}/{path}"
+                );
+                controls += 1;
+            }
+        }
     }
-    let range = actual.unwrap();
-    if v["range"].is_null() {
-        assert!(range.is_none());
-        assert_eq!(text, v["expectedText"].as_str().unwrap());
-        return;
-    }
-    let range = range.unwrap();
-    assert_eq!(range, U(number(&v["range"][0]))..U(number(&v["range"][1])));
-    let mut d = document(text);
-    let owner = d.snapshot().unwrap().visible[0].id.clone();
-    let plan = d
-        .prepare_editor(
-            &[EditorCommand::ReplaceAt {
-                owner,
-                from: range.start,
-                to: range.end,
-                text: String::new(),
-            }],
-            &TextOrigin::new("local:rgs:unicode").unwrap(),
-        )
-        .unwrap();
-    d.commit_editor(plan).unwrap();
-    assert_eq!(
-        d.snapshot().unwrap().visible[0]
-            .runs
-            .iter()
-            .map(|r| r.text.as_str())
-            .collect::<String>(),
-        v["expectedText"].as_str().unwrap()
-    );
+    println!("G06_RECEIPT id={id} vectors=2 controls={controls}");
 }
 macro_rules! grapheme_case {
     ($name:ident, $id:literal) => {

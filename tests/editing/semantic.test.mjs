@@ -71,15 +71,6 @@ for (const v of vectors.atomic) caseTest(`native/WASM:${v.id}`, fact => driver(s
     } finally { engine.releasePlan(plan); }
   } finally { subscription.dispose(); }
 }));
-for (const v of vectors.graphemes) caseTest(`native/WASM:G06-${v.id}`, fact => driver(state(v.text, v.id === 'surrogate-interior' ? 0 : v.offset), d => {
-  const old = d.frozen(); const actual = v.id === 'surrogate-interior' ? d.act({ type: 'applyBatch', operations: [{ type: 'replaceText', block: 'p1', from: v.offset, to: v.offset + 1, text: '' }] }) : d.act({ type: 'backspace' });
-  if (v.rejected) { assert.equal(actual.outcome, 'rejected'); assert.deepEqual(d.frozen(), old); }
-  else {
-    assert.equal(actual.outcome, v.range === null ? 'no-op' : 'applied'); assert.equal(actual.state.blocks[0].text, v.expectedText);
-    assert.deepEqual(actual.state.selection, select(v.range === null ? v.offset : v.range[0])); assert.equal(actual.effects.localCommits, v.range === null ? 0 : 1);
-  }
-  fact.checkpoints++;
-}));
 caseTest('G02/G03/G04/G06 independent checkpoint negative controls', fact => {
   const recipe = suite.recipes.find(r => r.id === 'SEQ-05');
   driver(recipe.initial, d => {
