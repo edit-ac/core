@@ -26,15 +26,14 @@ before(async()=>{
  await copyFile(join(directory,'qualification/consumer.json'),join(output,'packed-consumer.json'));facts.artifactHashes['packed-consumer.json']=sha256(await readFile(join(output,'packed-consumer.json')));
  api=await import(pathToFileURL(join(directory,'public-transfer.mjs')));assert.equal(api.ExtensionTransferRegistry,api.PortableTransferRegistry,'one public owning registry');
  const wasm=await readFile(join(directory,'engine.wasm'));runtime=await api.init('data:application/wasm;base64,'+wasm.toString('base64'));
- const prior=JSON.parse(await readFile('../architecture/evidence/desktop-interactions/extension-profiles/receipt.json'));
- assert.equal(sha256(wasm),prior.artifactHashes['task-budget-final/artifacts/wasm/editac_wasm_bg.wasm'],'unchanged production engine');
+ assert.equal(sha256(wasm),sha256(await readFile('packages/core/dist/wasm/editac_wasm_bg.wasm')),'packed rebuilt production engine');
  for(const pack of manifest.packs){await copyFile(join(directory,'qualification',pack.filename),join(output,pack.filename));facts.artifactHashes[pack.filename]=pack.sha256;}
  facts.artifactHashes['engine.wasm']=sha256(wasm);facts.artifactHashes['markdown.wasm']=sha256(await readFile(join(directory,'markdown.wasm')));
  for(const name of ['engine.wasm','markdown.wasm','public-transfer.mjs'])await copyFile(join(directory,name),join(output,name));
  facts.artifactHashes['public-transfer.mjs']=sha256(await readFile(join(output,'public-transfer.mjs')));
  registry=new api.ExtensionTransferRegistry(corpus.descriptors.map(descriptor=>({descriptor,...(!['editac.disabled-image','editac.rich-table'].includes(descriptor.type)?{codec:{prepare:e=>e.payload}}:{})})));
  const e=blank();seed=e.checkpoint();e.dispose();
- for(const path of ['packages/core/src/extensions/transfer.ts','packages/core/src/extensions/index.ts','packages/web/src/modules/index.ts','packages/web/src/modules/presenters.ts','fixtures/extensions/clipboard/conformance.json','tests/extension-formatting.test.mjs','tests/helpers/extension-presenter-host.mjs','tests/helpers/journal-storage.mjs','scripts/prepare-extension-tutorial.mjs','docs/extensions/transfer.md'])facts.sourceHashes[path]=sha256(await readFile(path));
+ for(const path of ['packages/core/src/extensions/transfer.ts','packages/core/src/extensions/index.ts','packages/web/src/modules/index.ts','packages/web/src/modules/presenters.ts','fixtures/extensions/clipboard/conformance.json','tests/extension-formatting.test.mjs','tests/helpers/extension-presenter-host.mjs','tests/helpers/journal-storage.mjs','scripts/prepare-extension-tutorial.mjs','docs/extensions/transfer.md','crates/editac-core/src/commands/editor.rs'])facts.sourceHashes[path]=sha256(await readFile(path));
 });
 after(async()=>{try{await writeFile(join(output,'receipt.json'),JSON.stringify(facts,null,2)+'\n');}finally{if(directory)await rm(directory,{recursive:true,force:true});}});
 function blank(){const suffix=String(++count).padStart(12,'0');return runtime.createEngine({profile:'v5',documentId:`81000000-0000-4000-8000-${suffix}`,epoch:`82000000-0000-4000-8000-${suffix}`,nodes:[{text:''}]});}
@@ -146,10 +145,36 @@ test('structured table/image/reference transfer cuts and restores one semantic h
   const h=await harness(),r=range(h.engine);try{
    const inserted=await h.session.transfer(registry.prepare(h.engine,fixture.envelope),h.engine,r.value);assert.equal(inserted.status,'committed');release(h.engine,inserted.result);await h.settle();
    const before=semantic(h.engine),nodes=h.engine.read().visible.filter(n=>n.kind==='block'),selection={anchor:h.engine.anchor(nodes[0].id,0,'right'),focus:h.engine.anchor(nodes.at(-1).id,nodes.at(-1).runs.reduce((n,run)=>n+run.text.length,0),'left')};
-   try{const prepared=registry.prepare(h.engine,fixture.envelope),result=await h.session.cut(prepared,h.engine,selection,async offer=>{assert.deepEqual(JSON.parse(api.exportExtensionTransfer(offer)),fixture.envelope);return true;});assert.equal(result.status,'committed');release(h.engine,result.result);await h.settle();assert.deepEqual(semantic(h.engine),[]);assert.equal(h.engine.history({type:'state'}).undoGroups,2);h.engine.history({type:'undo'});assert.deepEqual(semantic(h.engine),before);}finally{h.engine.releaseAnchor(selection.anchor);h.engine.releaseAnchor(selection.focus);}
+   try{const prepared=registry.prepare(h.engine,fixture.envelope),result=await h.session.cut(prepared,h.engine,selection,async offer=>{assert.deepEqual(JSON.parse(api.exportExtensionTransfer(offer)),fixture.envelope);return true;});assert.equal(result.status,'committed');release(h.engine,result.result);await h.settle();assert.deepEqual(semantic(h.engine),[]);assert.equal(h.engine.history({type:'state'}).undoGroups,2);h.engine.history({type:'undo'});assert.deepEqual(semantic(h.engine),before);h.engine.history({type:'redo'});assert.deepEqual(semantic(h.engine),[]);await h.settle();assert.equal(h.storage.state.pending,0);assert.equal(h.storage.state.saved,true);const checkpoint=h.storage.recoveryExport().checkpoint,reopened=runtime.restoreEngine(checkpoint.identity,checkpoint,[]);try{assert.deepEqual(semantic(reopened),[]);}finally{reopened.dispose();}}finally{h.engine.releaseAnchor(selection.anchor);h.engine.releaseAnchor(selection.focus);}
   }finally{r.close();await h.close();}
  }
  facts.checks.push({id:'structured-cut-history'});
+});
+test('mixed structured cut preserves unselected formatted text and restores exact tuples on undo/redo',async()=>{
+ for(const fixture of corpus.cases.slice(0,3)){
+  const h=await harness(),r=range(h.engine);try{
+   const payload=[{attributes:{type:'heading',level:2},runs:[{text:'prefixDROP',marks:[{mark:'bold'}]}]},...fixture.envelope.payload,{attributes:{type:'paragraph'},runs:[{text:'DROPtail😀',marks:[{mark:'link',href:'https://example.invalid/tail'}]}]}];
+   const inserted=await h.session.transfer(registry.prepare(h.engine,{...fixture.envelope,payload}),h.engine,r.value);assert.equal(inserted.status,'committed');release(h.engine,inserted.result);await h.settle();
+   const before=semantic(h.engine),nodes=h.engine.read().visible.filter(n=>n.kind==='block'),selection={anchor:h.engine.anchor(nodes[0].id,6,'right'),focus:h.engine.anchor(nodes.at(-1).id,4,'left')};
+   try{
+    let writes=0;const result=await h.session.cut(registry.prepare(h.engine,fixture.envelope),h.engine,selection,async()=>{writes++;return true;});assert.equal(result.status,'committed');assert.equal(writes,1);release(h.engine,result.result);await h.settle();
+    assert.equal(text(h.engine),'prefixtail😀');const after=semantic(h.engine);assert.deepEqual(after[0].blockAttributes,['heading',2]);assert.equal(after[0].runs[0].attributes.bold,true);assert.equal(after[0].runs.at(-1).attributes.link,'https://example.invalid/tail');assert.equal(h.engine.history({type:'state'}).undoGroups,2);
+    h.engine.history({type:'undo'});assert.deepEqual(semantic(h.engine),before);h.engine.history({type:'redo'});assert.deepEqual(semantic(h.engine),after);await h.settle();
+    assert.equal(h.storage.state.pending,0);assert.equal(h.storage.state.saved,true);const checkpoint=h.storage.recoveryExport().checkpoint,reopened=runtime.restoreEngine(checkpoint.identity,checkpoint,[]);try{assert.deepEqual(semantic(reopened),after);}finally{reopened.dispose();}
+   }finally{h.engine.releaseAnchor(selection.anchor);h.engine.releaseAnchor(selection.focus);}
+  }finally{r.close();await h.close();}
+ }
+ facts.checks.push({id:'mixed-structured-cut-history-reopen'});
+});
+test('partial reference and collapsed empty atom cuts reject before clipboard write',async()=>{
+ for(const index of [0,2]){
+  const fixture=corpus.cases[index],h=await harness(),r=range(h.engine);try{
+   const inserted=await h.session.transfer(registry.prepare(h.engine,fixture.envelope),h.engine,r.value);assert.equal(inserted.status,'committed');release(h.engine,inserted.result);await h.settle();
+   const node=h.engine.read().visible.find(n=>n.blockAttributes?.[0].startsWith('module:')),selection={anchor:h.engine.anchor(node.id,index===2?1:0,'right'),focus:h.engine.anchor(node.id,index===2?4:0,'left')};
+   try{let writes=0;const before=h.engine.checkpoint(),commits=h.commits(),history=h.engine.history({type:'state'});const result=await h.session.cut(registry.prepare(h.engine,fixture.envelope),h.engine,selection,async()=>{writes++;return true;});assert.notEqual(result.status,'committed');assert.equal(writes,0);assert.equal(h.commits(),commits);assert.deepEqual(h.engine.checkpoint(),before);assert.deepEqual(h.engine.history({type:'state'}),history);}finally{h.engine.releaseAnchor(selection.anchor);h.engine.releaseAnchor(selection.focus);}
+  }finally{r.close();await h.close();}
+ }
+ facts.checks.push({id:'partial-atom-cut-atomicity'});
 });
 test('plain transfer retains destination paragraph style and inline formatting',async()=>{
  const h=await harness(),r=range(h.engine);try{

@@ -252,7 +252,24 @@ impl Document {
                 self.resolve_anchor(&selection.anchor),
                 self.resolve_anchor(&selection.focus),
             ) {
-                if a.node == b.node {
+                if a.node == b.node
+                    && self
+                        .inspect()
+                        .map_err(|_| EditorError::InvalidCommand)?
+                        .visible
+                        .iter()
+                        .any(|node| {
+                            node.id == a.node
+                                && matches!(
+                                    node.block_attributes,
+                                    Some(
+                                        BlockAttributes::Paragraph
+                                            | BlockAttributes::Heading(_)
+                                            | BlockAttributes::Code(_)
+                                    )
+                                )
+                        })
+                {
                     let range = if a.offset.0 <= b.offset.0 {
                         selection.clone()
                     } else {
@@ -303,6 +320,36 @@ impl Document {
         } else {
             (b, a, bi, ai)
         };
+        // Whole admitted atoms are removable only within this disposable
+        // transfer plan. Ordinary text/Join admission remains unchanged. Validate
+        // every selected atom before staging any presentation change; a partial
+        // label or unknown tuple must never be flattened into editable text.
+        let mut selected_atoms = Vec::new();
+        for (index, node) in nodes.iter().enumerate().take(last + 1).skip(first) {
+            let Some(BlockAttributes::Unknown(tuple)) = &node.block_attributes else {
+                continue;
+            };
+            let length = node
+                .runs
+                .iter()
+                .map(|r| r.text.encode_utf16().count() as u32)
+                .sum::<u32>();
+            let from = if index == first { start.offset.0 } else { 0 };
+            let to = if index == last { end.offset.0 } else { length };
+            if from != 0
+                || to != length
+                || (first == last && length == 0)
+                || crate::modules::content::Content::from_tuple(tuple)
+                    .map_err(|_| EditorError::UnsupportedTarget)?
+                    .is_none()
+            {
+                return Err(EditorError::UnsupportedTarget);
+            }
+            selected_atoms.push(node.id.clone());
+        }
+        for id in selected_atoms {
+            m::set(&stage.doc, 4, &id, BlockAttributes::Paragraph.tuple());
+        }
         let insertion = stage
             .anchor(
                 &start.node,
