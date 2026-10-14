@@ -37,6 +37,7 @@ export function browserHarness(suite, fixtureDirectory = 'fixtures/browser-input
     if (suite === 'history-selection') paths.push('packages/web/src/input/keyboard.ts', 'packages/web/src/dom/selection.ts', 'crates/editac-core/src/history.rs', 'crates/editac-core/src/commands/text.rs', 'fixtures/browser-input/session.mjs', 'fixtures/browser-input/index.html');
     if (suite === 'history-review') paths.push('packages/web/src/review/history.ts', 'packages/web/src/index.ts', 'packages/web/src/storage/index.ts', 'packages/web/src/entry.ts', 'packages/web/src/sync/session.ts', 'packages/web/src/sync/protocol.ts', 'fixtures/browser-history-review/session.mjs', 'fixtures/browser-history-review/index.html');
     if (suite === 'review-concurrent') paths.push('packages/web/src/review/model.ts', 'packages/web/src/review/view.ts', 'packages/web/src/review/history.ts', 'packages/web/src/index.ts', 'packages/web/src/storage/index.ts', 'packages/web/src/sync/session.ts', 'packages/web/src/sync/protocol.ts', 'fixtures/browser-review-concurrent/session.mjs', 'fixtures/browser-review-concurrent/index.html', 'fixtures/browser-review-concurrent/models.json', 'fixtures/browser-review-concurrent/concurrent.json', 'crates/editac-diff/src/portable.rs', 'crates/editac-diff/tests/portable.rs');
+    paths.push(...(options.sourcePaths ?? []));
     facts.sources = Object.fromEntries(await Promise.all(paths.map(async path => [path, createHash('sha256').update(await readFile(path)).digest('hex')])));
     consumer = await mkdtemp(join(tmpdir(), `editac-${suite}-consumer-`));
     for (const name of [...new Set([...(options.packages ?? ['core', 'web']), ...(markdownEnabled ? ['markdown'] : [])])]) {
@@ -62,6 +63,11 @@ export function browserHarness(suite, fixtureDirectory = 'fixtures/browser-input
       finally { try { await server?.close(); facts.cleanup.serverClosed = true; } finally {
         if (consumer) await rm(consumer, { recursive: true, force: true }); facts.cleanup.consumerRemoved = true;
         facts.counts = { executed: facts.cases.length, passed: facts.cases.filter(c => c.passed).length, failed: facts.cases.filter(c => !c.passed).length, skipped: 0 };
+        if (suite === 'editing-input') {
+          const final = Object.fromEntries(await Promise.all(Object.keys(facts.sources ?? {}).map(async path => [path, createHash('sha256').update(await readFile(path)).digest('hex')])));
+          facts.sourcesUnchanged = JSON.stringify(final) === JSON.stringify(facts.sources);
+          assert.equal(facts.sourcesUnchanged, true, 'Input qualification sources changed during execution');
+        }
         if (output) await writeFile(join(output, 'receipt.json'), JSON.stringify(facts, null, 2));
       } }
     }

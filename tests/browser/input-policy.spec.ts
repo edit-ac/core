@@ -38,9 +38,10 @@ after(async()=>{
 });
 async function probe(name,action){
  const context=await browser.newContext(),fact={name,passed:false,provenance:name==='native-typing-delete'?'actual Playwright browser keyboard':'prepared real-DOM event replay',snapshots:[]};facts.cases.push(fact);
- const page=await context.newPage();page.on('pageerror',error=>{fact.pageErrors??=[];fact.pageErrors.push(error.message);});
+ const page=await context.newPage();page.setDefaultTimeout(5000);page.on('pageerror',error=>{fact.pageErrors??=[];fact.pageErrors.push(error.message);});
  try{await page.goto(server.url);await page.waitForFunction(()=>!!window.policyFixture);await page.evaluate(()=>window.policyFixture.mount());await action(page,fact);fact.traceProvenance={nativeTrustedEventTypes:[...new Set(fact.snapshots.flatMap(s=>s.trace.filter(t=>t.trusted).map(t=>t.type)))],preparedEventTypes:[...new Set(fact.snapshots.flatMap(s=>s.trace.filter(t=>!t.trusted&&!t.type.endsWith('mutations')&&t.type!=='renderer-echo').map(t=>t.type)))],composition:'prepared event replay; no OS IME'};assert.deepEqual(fact.pageErrors??[],[]);fact.passed=true;}
- finally{try{await page.evaluate(()=>window.policyFixture.destroy());}finally{await context.close();}}
+ catch(error){fact.failure={message:error.message,stack:error.stack};await writeFile(join(output,`${name}-failure.json`),JSON.stringify(fact,null,2));throw error;}
+ finally{try{await page.evaluate(()=>window.policyFixture?.destroy());}finally{await context.close();}}
 }
 async function observe(page,fact){const state=await page.evaluate(()=>window.policyFixture.state());fact.snapshots.push(state);assert.deepEqual(state.errors,[]);assert.equal(state.storage,'localCommitted');return state;}
 function effects(state,count){const commits=state.patches.filter(p=>p.origin.startsWith('editac:local:input-policy:')&&p.update);const journal=state.journal.filter(p=>p.origin.startsWith('editac:local:input-policy:'));assert.equal(commits.length,count);assert.equal(journal.length,count);assert.equal(state.history.undoGroups,count);assert.equal(new Set(commits.map(p=>p.origin)).size,count);assert.equal(state.intents.filter(i=>i.disposition==='committed').length,count);for(const p of commits)assert.ok(p.bytes>0);}

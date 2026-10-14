@@ -32,6 +32,7 @@ suites.example = ['tests/browser/web-example.test.mjs'];
 suites.review = ['tests/browser/review.spec.ts'];
 suites['review-concurrent'] = ['tests/browser/review-concurrent.spec.ts'];
 suites['history-review'] = ['tests/browser/history-review.spec.ts'];
+suites['editing-input'] = ['tests/browser/editing-input.spec.ts'];
 suites['history-selection'] = ['tests/browser/history-selection.spec.ts'];
 suites.baseline = [...suites.render, ...suites.keyboard, ...suites.example];
 if (!suites[suite]) throw new Error(`Expected browser suite: ${Object.keys(suites).join(', ')}`);

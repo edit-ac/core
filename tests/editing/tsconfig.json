@@ -4,5 +4,5 @@
     "strict": true, "allowJs": true, "checkJs": false, "noEmit": true,
     "allowImportingTsExtensions": true, "skipLibCheck": true, "types": ["node"]
   },
-  "include": ["driver.ts", "fixture-loader.ts", "semantic-adapter.ts", "history-driver.ts"]
+  "include": ["driver.ts", "fixture-loader.ts", "semantic-adapter.ts", "history-driver.ts", "browser-driver.ts"]
 }

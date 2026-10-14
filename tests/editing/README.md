@@ -219,3 +219,11 @@ source/profile/fixture/package hashes and teardown. Canonical semantic dispatch
 requires this suite. These selected passes do not complete the full semantic group,
 missing history bookmarks or unsupported cross-owner/alignment/atom variants, and
 do not establish real-browser storage or device behavior.
+
+RGS-1.4 binds browser replay to the production input adapter:
+
+```sh
+EDITAC_EDITING_INPUT_OUTPUT=/absolute/path/to/fresh/evidence npm run test:editing -- --group input
+```
+
+The command requires Chromium, Firefox and WebKit and fails for a missing browser or required case. `browser-driver.ts` consumes SEQ-10 from architecture, maps its logical IDs at mount, mutates the actual DOM from the action range and reads engine/DOM selection, update, history and IndexedDB journal checkpoints. Its bounded profile admits one unmarked paragraph with context-derived marks; unsupported capabilities and actions fail explicitly. REG-14/16 and G01/G05/G09 share the packed production TextInput/renderer/selection/storage harness. Date.now is fixed; settlement uses the adapter's generation-aware eight-turn microtask drain and the local storage barrier, with a failure deadline instead of sleeps. Receipts distinguish prepared composition/native-notification replay from trusted WebDriver key cycles, deliberate Enter and sentinels. These runs establish browser mechanics, not OS IME or platform/release qualification. The unchanged qualified ADR is pinned alongside refreshed WEB-1.13 current-source evidence.

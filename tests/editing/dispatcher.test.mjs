@@ -145,3 +145,10 @@ test('history group admits the owning real-engine suite and rejects semantic sel
   assert.ok(existsSync('tests/editing/history.test.mjs'));
   assert.throws(() => editingSuites('history', 'pending'));
 });
+
+
+test('input group binds the production three-browser suite and rejects semantic selectors', () => {
+  assert.deepEqual(editingSuites('input'), ['tests/browser/editing-input.spec.ts']);
+  assert.ok(existsSync('tests/browser/editing-input.spec.ts'));
+  assert.throws(() => editingSuites('input', 'pending'));
+});
