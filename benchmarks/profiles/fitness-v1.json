@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "id": "fitness-v1",
+  "reviewedAt": "2026-10-14T19:35:50Z",
+  "scope": "FIT-1.8; evidence admission, not a release/support claim",
+  "limitsSource": "architecture/specs/verification.md",
+  "preserveBenchmarkConfig": true,
+  "minimumTailSamples": 100,
+  "requiredSizes": [
+    "Task",
+    "Long"
+  ],
+  "requiredCases": {
+    "PRF-01": [
+      "input-visible",
+      "engine",
+      "ffi",
+      "render",
+      "composition"
+    ],
+    "PRF-02": [
+      "selection",
+      "drag",
+      "autoscroll",
+      "frame-trace",
+      "geometry-work",
+      "cancel"
+    ],
+    "PRF-03": [
+      "highlight",
+      "collaboration",
+      "stale-result",
+      "changed-region",
+      "queue-bounds"
+    ],
+    "PRF-04": [
+      "long-line",
+      "table",
+      "images",
+      "bidi",
+      "peak-memory"
+    ],
+    "PRF-05": [
+      "disposal",
+      "canceled-transfer",
+      "unload",
+      "memory-plateau",
+      "resources",
+      "idle"
+    ],
+    "PRF-06": [
+      "packed-baseline",
+      "packed-presets",
+      "cold",
+      "warm",
+      "disabled-imports",
+      "gzip-caps"
+    ],
+    "PRF-07": [
+      "native-input",
+      "ime",
+      "candidate-geometry",
+      "accessibility",
+      "thermal",
+      "text-services"
+    ]
+  },
+  "requiredAccessibility": [
+    "keyboard",
+    "touch",
+    "screen-reader",
+    "non-drag-pointer"
+  ],
+  "limits": {
+    "desktop": {
+      "core-edit": 1,
+      "input-visible": 16.7,
+      "Task-warm": 50,
+      "Long-warm": 200,
+      "Large-warm": 750,
+      "preview": 50,
+      "paste-10KiB": 50,
+      "paste-100KiB": 150
+    },
+    "phone": {
+      "core-edit": 2,
+      "input-visible": 33,
+      "Task-warm": 100,
+      "Long-warm": 400,
+      "Large-warm": 1500,
+      "preview": 100,
+      "paste-10KiB": 100,
+      "paste-100KiB": 300
+    }
+  },
+  "unreviewedLimits": [
+    "memory-plateau",
+    "peak-memory",
+    "per-device-frame-misses",
+    "geometry-work"
+  ],
+  "owningCommands": [
+    "npm run bench -- --fitness --quick --fixtures small,medium --output <unique-directory>"
+  ],
+  "commandScope": "Baseline diagnostics only; full PRF/platform producers remain required. Task/Long are not silently equated with old small/medium fixtures.",
+  "benchmarkConfigHash": "e018e1decf3f2aa2b4334bede9c359cd3418b86b19a84d11833f3f2029bfbe34",
+  "verificationSpecHash": "d27215ea8bf1041f63f98b0039085a2cc41bb6bf8ec347bfbd9592bc758f0667",
+  "reviewedMetricLimits": {}
+}

@@ -23,6 +23,7 @@ const flags = options(process.argv.slice(2));
 const config = JSON.parse(await readFile('benchmarks/config.json', 'utf8'));
 const profile = flags.quick ? { ...config, runs: 1, warmups: 1, samples: 5, formatSamples: 2, memoryEdits: 100, mountCycles: 2, operationSamples: 2 }
   : { ...config, operationSamples: 5 };
+profile.fitness = flags.fitness === true;
 const output = resolve(flags.output ?? join('benchmark-results', new Date().toISOString().replaceAll(':', '-')));
 await mkdir(output, { recursive: true });
 try { await readFile(join(output, 'results.json')); throw Error(`Output already contains evidence; choose a new --output directory: ${output}`); }
@@ -32,10 +33,11 @@ const revision = spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' });
 if (revision.status !== 0) throw Error('Cannot resolve source revision');
 const dirty = spawnSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).stdout.trim().length > 0;
 const result = { version: 1, bundleVersion: 1, mode: flags.quick ? 'quick' : 'full', status: 'running', errors: [], cases: [], bundles: {}, cleanup: {},
-  metadata: { revision: revision.stdout.trim(), dirty, timestamp: new Date().toISOString(), packageVersion: packageJson.version,
+  metadata: { command: [process.execPath, ...process.argv.slice(1)], revision: revision.stdout.trim(), dirty, timestamp: new Date().toISOString(), packageVersion: packageJson.version,
     node: process.version, playwright: packageJson.devDependencies.playwright, platform: platform(), arch: arch(),
     cpu: cpus()[0]?.model, cores: cpus().length, totalMemoryBytes: totalmem(), loadAverage: loadavg(),
     runnerClass: process.env.EDITAC_BENCH_RUNNER_CLASS ?? 'local', output },
+  profileInputs: {},
   fixtures: flags.fixtures.map(name => ({ name, version: fixtureVersion, chars: fixture(name).chars,
     sha256: hash(Buffer.from(JSON.stringify(fixture(name)))) })),
   deferred: { reactWrapper: 'Scaffold only', comparisonEditors: 'Pinned Tiptap/Lexical runs not implemented', tables: 'Not in this fixture version', virtualization: 'No viewport virtualization scenario' },
@@ -43,6 +45,20 @@ const result = { version: 1, bundleVersion: 1, mode: flags.quick ? 'quick' : 'fu
 for (const name of result.plan.metrics) result.plan.sampleCounts[name] = name.startsWith('load.') || name.startsWith('editable.') ? 1
   : ['paste.large', 'select-all-format.large', 'delete-range.large', 'remote-update.large'].includes(name) ? profile.operationSamples
   : /^(bold|italic|heading|undo|redo)\./.test(name) ? profile.formatSamples : profile.samples;
+for (const file of ['benchmarks/config.json', 'benchmarks/profiles/fitness-v1.json', 'benchmarks/client.mjs', 'benchmarks/fixtures.mjs',
+  'benchmarks/options.mjs', 'benchmarks/statistics.mjs', 'benchmarks/report.mjs', 'scripts/bench.mjs',
+  'package.json', 'package-lock.json', '.node-version', 'tsconfig.base.json', 'Cargo.toml', 'rust-toolchain.toml', 'Cargo.lock']) result.profileInputs[file] = hash(await readFile(file));
+result.metadata.osRelease = (await import('node:os')).release();
+// Freeze the executable source closure before compilation, including dirty files.
+// The observation index is output metadata, never an executable/build input.
+const sourceFiles = spawnSync('git', ['ls-files', 'crates', 'packages', 'scripts', 'benchmarks'], { encoding: 'utf8' });
+if (sourceFiles.status !== 0) throw Error('Cannot inventory benchmark sources');
+result.sourceInputs = {};
+for (const file of sourceFiles.stdout.trim().split('\n').filter(file => /\.(rs|toml|ts|mjs|json|css)$/.test(file) && !/\/(dist|generated)\//.test(file)
+  && file !== 'benchmarks/profiles/baseline-evidence.json')) {
+  result.sourceInputs[file] = hash(await readFile(file));
+}
+
 let server, controller, browser, temporary, child, interrupted = false;
 const stop = () => { interrupted = true; if (child) result.cleanup.interruptedProcesses = stopOwnedProcess(child); void browser?.close().catch(() => {}); };
 process.on('SIGINT', stop); process.on('SIGTERM', stop);
@@ -111,6 +127,7 @@ async function bundles() {
   await build({ stdin: { contents: 'export {createEditor, CheckpointStorage} from "@edit-ac/web"; export {init} from "@edit-ac/core"; export {recoverLocalDocument} from "./packages/web/dist/entry.js";', resolveDir: root },
     outfile: join(temporary, 'sdk.js'), bundle: true, minify: true, format: 'esm', platform: 'browser', target: 'es2022' });
   result.metadata.harnessBundleHash = hash(await readFile(join(temporary, 'sdk.js')));
+  await copyFile(join(temporary, 'sdk.js'), join(output, 'harness/sdk.js'));
   await copyFile('packages/core/dist/wasm/editac_wasm.js', join(temporary, 'wasm/editac_wasm.js'));
   await copyFile('packages/core/dist/wasm/editac_wasm_bg.wasm', join(temporary, 'wasm/editac_wasm_bg.wasm'));
 }
@@ -141,7 +158,7 @@ try {
     interKeyDelayMs: profile.interKeyDelayMs, platform: platform(), arch: arch(), nodeMajor: process.versions.node.split('.')[0],
     browser: result.metadata.browser, runnerClass: result.metadata.runnerClass,
     hardware: result.metadata.runnerClass === 'local' ? `${result.metadata.cpu}/${result.metadata.cores}` : `${result.metadata.runnerClass}/${result.metadata.cores} cores/${Math.round(totalmem() / 2 ** 30)} GiB`,
-    endpoint: 'dispatch-dom-layout-v1' };
+    fitness: profile.fitness, preset: 'minimal', endpoint: profile.fitness ? 'dispatch-layout-two-animation-frames-v1' : 'dispatch-dom-layout-v1' };
   for (const name of flags.fixtures) {
     for (let iteration = 0; iteration < profile.warmups + profile.runs; iteration++) {
       if (interrupted) throw Error('Benchmark interrupted');
@@ -215,6 +232,11 @@ finally {
   result.metadata.finalLoadAverage = loadavg();
   result.counts = { executed: result.cases.length, passed: result.cases.filter(item => item.correctness === 'passed' && !item.errors.length).length,
     failed: result.cases.filter(item => item.correctness !== 'passed' || item.errors.length).length, skipped: 0 };
+  result.artifactInputs = {};
+  for (const file of ['harness/client.mjs', 'harness/fixtures.mjs', 'harness/sdk.js', 'bundles/wasm/editac_wasm.js', 'bundles/wasm/editac_wasm_bg.wasm', 'config.json']) {
+    try { result.artifactInputs[file] = hash(await readFile(join(output, file))); }
+    catch (error) { result.errors.push(`Missing retained artifact ${file}: ${error.message}`); result.status = 'failed'; }
+  }
   await writeFile(join(output, 'results.json'), JSON.stringify(result, null, 2));
   await writeFile(join(output, 'summary.md'), markdown(result));
   if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, markdown(result));

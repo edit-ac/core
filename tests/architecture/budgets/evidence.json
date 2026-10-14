@@ -1,0 +1,144 @@
+{
+  "version": 1,
+  "parent": "FIT-1.8",
+  "child": "FIT-1.8-I1-A",
+  "state": "implemented-and-verified-prerequisite",
+  "qualification": "unqualified; original parent/I1/V1 remain open",
+  "sourceRevision": "78b3fd484f3af6ca9ab61b5457cfb1aa45474dbba889a88e863949d9d631cb74",
+  "implementationReceipt": "architecture-results/fit-1.8-20261014/validation-5/receipt.json",
+  "artifacts": {
+    "benchmarks/profiles/fitness-v1.json": "58f8cb7309dc130b9ad4250e8e0257565fce667ecca33e71e640ca4653823d06",
+    "benchmarks/profiles/baseline-evidence.json": "a57201b765677fe906e925f84ff575ab607abcc1281de7c64de1e9ae6fafc2d7",
+    "architecture-results/fit-1.8-20261014/validation-5/receipt.json": "57139587191ffb2ee1401d7a12f98d9c56a0af6684ebaf9d0ee1d4eebe7b98a2",
+    "architecture-results/fit-1.8-20261014/validation-5/tests.tap": "f7275766bf15bbfb0ea550439759d5d499093abd06fe73fbcf6df1c65e42d3a2",
+    "architecture-results/fit-1.8-20261014/validation-5/budgets-inventory.json": "9eaa12c6f6cb485c44f735f936ca80d1cc1db2a39e1b4210a52c36577138de86",
+    "architecture-results/fit-1.8-20261014/baseline-2/results.json": "1c343ef985ee63e179cc3f3c5b96037d96af882b227c1ba71f9cbab08407bf8c",
+    "architecture-results/fit-1.8-20261014/benchmark-contracts.tap": "8b4b01041c681ba6b48429c6bf32a7efb4d5f7a5c94ddb2b5f5dcc3354813222",
+    "architecture-results/fit-1.8-20261014/record-baseline-2.log": "8415c5922195254ea68aa865695f4bafa61d584964aa6cc9c9dc8cb66f9232c8",
+    "architecture-results/fit-1.8-20261014/baseline-2-launch.log": "a8327a17e33b1882d6cf678f233dfdb9360a6141c1be2905cfac1377d21242fd"
+  },
+  "commands": [
+    {
+      "command": "node --test core/tests/benchmarks.test.mjs",
+      "exit": 0,
+      "executed": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "cwd": "/Users/bpstr/Github/edit-ac-primary-unblock-20261014"
+    },
+    {
+      "command": "npm run bench -- --fitness --quick --fixtures small,medium --output architecture-results/fit-1.8-20261014/baseline-2",
+      "exit": 0,
+      "status": "warning",
+      "counts": {
+        "executed": 4,
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0
+      },
+      "warmup": 2,
+      "measured": 2,
+      "findings": [
+        {
+          "name": "typing.small.start",
+          "severity": "budget",
+          "value": 16.200000047683716,
+          "limit": 8
+        },
+        {
+          "name": "typing.small.middle",
+          "severity": "budget",
+          "value": 13.699999988079071,
+          "limit": 8
+        },
+        {
+          "name": "typing.small.end",
+          "severity": "budget",
+          "value": 15.199999988079071,
+          "limit": 8
+        },
+        {
+          "name": "typing.medium.start",
+          "severity": "budget",
+          "value": 172,
+          "limit": 8
+        },
+        {
+          "name": "typing.medium.middle",
+          "severity": "budget",
+          "value": 173.5,
+          "limit": 8
+        },
+        {
+          "name": "typing.medium.end",
+          "severity": "budget",
+          "value": 169.69999998807907,
+          "limit": 8
+        },
+        {
+          "name": "editable.medium.warm",
+          "severity": "budget",
+          "value": 244.0999999642372,
+          "limit": 50
+        },
+        {
+          "name": "bundle.minimal",
+          "severity": "budget",
+          "value": 382739,
+          "limit": 153600
+        }
+      ]
+    },
+    {
+      "command": "node scripts/record-fitness-baseline.mjs --directory architecture-results/fit-1.8-20261014/baseline-2",
+      "exit": 0,
+      "qualification": "unqualified"
+    },
+    {
+      "command": "node scripts/check-architecture.mjs --suite budgets",
+      "exit": 0,
+      "counts": {
+        "tests": 44,
+        "pass": 44,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    }
+  ],
+  "retainedPreviousInputs": [
+    "architecture-results/fit-1.8-20261014/baseline-1/results.json",
+    "architecture-results/fit-1.8-20261014/validation-1/receipt.json",
+    "architecture-results/fit-1.8-20261014/validation-2/receipt.json",
+    "architecture-results/fit-1.8-20261014/validation-3/receipt.json",
+    "architecture-results/fit-1.8-20261014/validation-4/receipt.json"
+  ],
+  "optionalLoading": {
+    "directory": "architecture-results/fit-1.6-20261014/validation-2",
+    "pins": {
+      "receipt.json": "5bedf64c1b94c7131fb17e4dca0efd484e49224cc68ed1fec3b45920e8007a6e",
+      "consumers-loading-inventory.json": "288574158c34b5e77b506149f4388f853e4cae74a52db0b06e34ada646b4195f"
+    },
+    "scope": "Retained FIT-1.6 exact packed artifact costs; prerequisite, not current PRF-06 startup/performance qualification"
+  },
+  "evidenceIdentityRepair": "Exclude mutable observation index from executable source pins; baseline-2 refreshes changed runner identity, not latency qualification. Earlier warnings remain preserved.",
+  "remaining": [
+    "Exact Task/Long fixture byte/checkpoint sizes and official presets",
+    "PRF-01 compositor/engine/FFI/render/composition attribution and representative comparable samples",
+    "PRF-02 continuous range/drag/autoscroll frame/geometry/cancel traces",
+    "PRF-03 real optional highlight/collaboration/queue and invalidation traces",
+    "PRF-04 long-line/table/images/bidi workload peak-memory/tails",
+    "PRF-05 resource counts, canceled transfers/unload and prereviewed memory/frame limits",
+    "PRF-06 current packed cold/warm startup/preset evidence; previous FIT-1.6 costs only prerequisite",
+    "PRF-07 implemented target runtime text services/IME/candidate/accessibility/thermal, physical or approved virtual",
+    "Keyboard/touch/screen-reader/non-drag accessibility executed proofs"
+  ],
+  "paidInference": false,
+  "published": false,
+  "toolchain": {
+    "node": "24.19.0",
+    "childPathPrefix": "/Users/bpstr/.nvm/versions/node/v24.19.0/bin"
+  }
+}

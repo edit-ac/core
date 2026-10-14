@@ -5,6 +5,7 @@ export function options(args) {
   for (let index = 0; index < args.length; index++) {
     const argument = args[index];
     if (argument === '--quick') result.quick = true;
+    else if (argument === '--fitness') result.fitness = true;
     else if (argument === '--enforce') result.enforce = true;
     else if (['--baseline', '--save-baseline', '--output', '--fixtures'].includes(argument)) {
       const value = args[++index];

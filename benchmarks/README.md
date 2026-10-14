@@ -158,3 +158,13 @@ inspect disk free space and remove only inactive outputs you no longer need.
 Implementation references: [Playwright library](https://playwright.dev/docs/library),
 [Chrome heap usage](https://chromedevtools.github.io/devtools-protocol/tot/Runtime/#method-getHeapUsage),
 [esbuild](https://esbuild.github.io/api/).
+
+## Architecture fitness baseline traces
+
+`npm run bench -- --fitness --quick --fixtures small,medium --output <unique-directory>`
+adds the FIT-1.8 raw baseline observations documented in
+[the budgets suite](../tests/architecture/budgets/README.md). This opt-in mode changes
+the sample endpoint and comparison signature. Synthetic input, forced layout and
+two animation frames are diagnostic observations; they do not establish paint,
+OS input, full PRF coverage or a qualified resource envelope. Existing budgets
+and the ordinary runner endpoint are preserved.

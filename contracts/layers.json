@@ -274,6 +274,29 @@
       "artifacts": [
         "dependencies-inventory.json"
       ]
+    },
+    "budgets": {
+      "tests": [
+        "tests/architecture/budgets/budgets.test.mjs"
+      ],
+      "inputs": [
+        "scripts/architecture-budgets.mjs",
+        "benchmarks/profiles/fitness-v1.json",
+        "benchmarks/profiles/baseline-evidence.json",
+        "benchmarks/config.json",
+        "benchmarks/client.mjs",
+        "benchmarks/fixtures.mjs",
+        "benchmarks/options.mjs",
+        "benchmarks/statistics.mjs",
+        "benchmarks/report.mjs",
+        "scripts/bench.mjs",
+        "scripts/browser-size-contract.mjs",
+        "tests/architecture/budgets/README.md",
+        "scripts/record-fitness-baseline.mjs"
+      ],
+      "artifacts": [
+        "budgets-inventory.json"
+      ]
     }
   },
   "components": [

@@ -138,6 +138,16 @@ export async function prepareFixture(name) {
 export async function runScenario(name, config, prepared) {
   console.info('editac-benchmark-phase', name, 'cold/warm startup');
   const metrics = {}, memory = {};
+  const fitness = config.fitness ? { version: 1, provenance: 'browser-synthetic-input', preset: 'minimal',
+    endpoint: 'dispatch-layout-two-animation-frames-v1', input: [], changedRegion: [], longTasks: [], disposal: [],
+    gaps: ['Compositor presentation unobserved', 'Engine/FFI internal stages uninstrumented',
+      'Continuous drag/scroll and native text services unmeasured', 'Optional table/highlighter and accessibility unmeasured'] } : null;
+  let longTaskObserver;
+  if (fitness && PerformanceObserver.supportedEntryTypes.includes('longtask')) {
+    longTaskObserver = new PerformanceObserver(list => fitness.longTasks.push(...list.getEntries().map(e => ({ startTime: e.startTime, duration: e.duration }))));
+    longTaskObserver.observe({ type: 'longtask', buffered: true });
+    fitness.longTaskStatus = 'observed';
+  } else if (fitness) fitness.longTaskStatus = 'unavailable';
   const record = (key, value) => (metrics[key] ??= []).push(value);
   check(prepared?.identity && prepared.databaseName, 'Missing prepared checkpoint');
   databaseName = prepared.databaseName;
@@ -163,7 +173,27 @@ export async function runScenario(name, config, prepared) {
       const at = offset > 0 && /[\uDC00-\uDFFF]/.test(before[offset] ?? '') ? offset - 1 : offset;
       for (let sample = 0; sample < config.samples; sample++) {
         select(node.id, at);
-        record(`typing.${name}.${position}`, timed(() => input('insertText', 'x'), node.id).ms);
+        if (fitness) {
+          const mutations = new MutationObserver(() => {});
+          mutations.observe(root, { subtree: true, childList: true, characterData: true, attributes: true });
+          try {
+            const start = performance.now(); input('insertText', 'x'); const dispatched = performance.now();
+            element(node.id).getBoundingClientRect(); const laidOut = performance.now();
+            const records = mutations.takeRecords();
+            const blockIds = new Set(nodes.map(n => n.id));
+            const touched = [...new Set(records.flatMap(r => {
+              const owner = r.target.nodeType === Node.ELEMENT_NODE ? r.target : r.target.parentElement;
+              const affected = [owner?.closest('[data-node-id]'), ...r.addedNodes, ...r.removedNodes];
+              return affected.flatMap(n => n?.nodeType === Node.ELEMENT_NODE ? [n.dataset?.nodeId, ...[...n.querySelectorAll('[data-node-id]')].map(el => el.dataset.nodeId)] : []);
+            }).filter(id => blockIds.has(id)))];
+            await nextFrame(); const firstFrame = performance.now(); await nextFrame(); const secondFrame = performance.now();
+            fitness.input.push({ position, sample, dispatchMs: dispatched - start, layoutMs: laidOut - dispatched,
+              firstFrameMs: firstFrame - start, secondFrameMs: secondFrame - start });
+            fitness.changedRegion.push({ position, sample, documentBlocks: nodes.length, target: node.id, touched, mutationCount: records.length,
+              scope: 'DOM mutation observations; not engine invalidation or a full-document scan proof' });
+            record(`typing.${name}.${position}`, laidOut - start);
+          } finally { mutations.disconnect(); }
+        } else record(`typing.${name}.${position}`, timed(() => input('insertText', 'x'), node.id).ms);
         check(element(node.id).textContent === before.slice(0, at) + 'x' + before.slice(at), 'Typing projection mismatch');
         record(`delete.${name}.${position}`, timed(() => input('deleteContentBackward'), node.id).ms);
         check(element(node.id).textContent === before, 'Backspace projection mismatch');
@@ -228,12 +258,29 @@ export async function runScenario(name, config, prepared) {
       }
       memory.notes = 'CDP JS heap and backing storage (includes buffers, not exclusively WASM); forced GC only at snapshots, outside latency samples. WASM can retain a high-water allocation. No absolute memory gate yet.';
     }
+    if (fitness) {
+      await editor.flush({ target: 'local' });
+      fitness.disposal.push({ phase: 'loaded', heap: await window.benchmarkHeap() });
+      for (let cycle = 0; cycle < config.mountCycles; cycle++) {
+        await unmount(); await mount(identity); await unmount();
+        fitness.disposal.push({ phase: 'disposed', cycle, childNodes: root.childNodes.length,
+          contentEditable: root.contentEditable, heap: await window.benchmarkHeap() });
+        check(root.childNodes.length === 0 && root.contentEditable === 'false', 'Disposed surface retained editor DOM');
+      }
+      fitness.memoryStatus = 'diagnostic; no reviewed absolute plateau budget';
+    }
     check(session?.writer.engine.takeObserverErrors().length === 0 || !session, 'Engine observer failed');
     await unmount();
-    return { fixture: name, chars: document.chars, metrics, memory, correctness: 'passed' };
+    return { fixture: name, chars: document.chars, metrics, memory, fitness, correctness: 'passed' };
   } catch (error) {
-    return { fixture: name, chars: document.chars, metrics, memory, correctness: 'failed', failure: error.stack ?? error.message };
-  } finally { await unmount(); await removeDatabase(); }
+    return { fixture: name, chars: document.chars, metrics, memory, fitness, correctness: 'failed', failure: error.stack ?? error.message };
+  } finally {
+    if (longTaskObserver) {
+      fitness.longTasks.push(...longTaskObserver.takeRecords().map(e => ({ startTime: e.startTime, duration: e.duration })));
+      longTaskObserver.disconnect();
+    }
+    await unmount(); await removeDatabase();
+  }
 }
 
 async function largeOperations(metrics, config) {
