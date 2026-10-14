@@ -53,7 +53,21 @@ fn text(d: &Document) -> String {
         .collect()
 }
 fn contents() -> Vec<Content> {
+    let corpus: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../fixtures/extensions/clipboard/conformance.json"
+    ))
+    .unwrap();
+    let rich = corpus["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|f| f["id"] == "table-v2-mixed-cell")
+        .unwrap();
+    let tuple =
+        yrs::Any::from_json(&rich["envelope"]["payload"][0]["attributes"]["tuple"].to_string())
+            .unwrap();
     vec![
+        Content::from_tuple(&tuple).unwrap().unwrap(),
         Content::Table {
             alignments: vec![Alignment::Left],
             rows: vec![vec![vec![run("cell")]]],

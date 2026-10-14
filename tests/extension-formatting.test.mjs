@@ -10,7 +10,7 @@ import { presenterHost } from './helpers/extension-presenter-host.mjs';
 let ClipboardInput, FRAGMENT_MIME, middleware;
 const output=resolve(process.env.EDITAC_EXTENSION_FORMATTING_OUTPUT??'../architecture/evidence/extension-formatting');
 const corpus=JSON.parse(await readFile('fixtures/extensions/clipboard/conformance.json'));
-const facts={gate:'EXT-1.13',qualification:'portable-contract-partial; rich table and unknown atom semantic admission remain open',sourceRevision:'ee774e02a4e2fb78208a106b8f5028b07e2a1788f8e6f937759fe5c3c73b4d4e',loadedPrompt:'2e18a98412c7',node:process.version,checks:[],sourceHashes:{},artifactHashes:{},pending:corpus.pending};
+const facts={gate:'EXT-1.13',qualification:'portable-contract-partial; admitted table v2 qualified, ordinary unknown atom admission remains open',sourceRevision:'ee774e02a4e2fb78208a106b8f5028b07e2a1788f8e6f937759fe5c3c73b4d4e',loadedPrompt:'2e18a98412c7',node:process.version,checks:[],sourceHashes:{},artifactHashes:{},pending:corpus.pending};
 let directory,api,runtime,registry,seed,count=0;
 const packed = relative => import(pathToFileURL(join(directory,'node_modules/@edit-ac',relative)));
 before(async()=>{
@@ -33,7 +33,7 @@ before(async()=>{
  facts.artifactHashes['public-transfer.mjs']=sha256(await readFile(join(output,'public-transfer.mjs')));
  registry=new api.ExtensionTransferRegistry(corpus.descriptors.map(descriptor=>({descriptor,...(!['editac.disabled-image','editac.rich-table'].includes(descriptor.type)?{codec:{prepare:e=>e.payload}}:{})})));
  const e=blank();seed=e.checkpoint();e.dispose();
- for(const path of ['packages/core/src/extensions/transfer.ts','packages/core/src/extensions/index.ts','packages/web/src/modules/index.ts','packages/web/src/modules/presenters.ts','fixtures/extensions/clipboard/conformance.json','tests/extension-formatting.test.mjs','tests/helpers/extension-presenter-host.mjs','tests/helpers/journal-storage.mjs','scripts/prepare-extension-tutorial.mjs','docs/extensions/transfer.md','crates/editac-core/src/commands/editor.rs'])facts.sourceHashes[path]=sha256(await readFile(path));
+ for(const path of ['packages/core/src/extensions/transfer.ts','packages/core/src/extensions/index.ts','packages/web/src/modules/index.ts','packages/web/src/modules/presenters.ts','fixtures/extensions/clipboard/conformance.json','tests/extension-formatting.test.mjs','tests/helpers/extension-presenter-host.mjs','tests/helpers/journal-storage.mjs','scripts/prepare-extension-tutorial.mjs','docs/extensions/transfer.md','crates/editac-core/src/commands/editor.rs','crates/editac-core/src/modules/content.rs','crates/editac-core/src/modules/rich_table.rs'])facts.sourceHashes[path]=sha256(await readFile(path));
 });
 after(async()=>{try{await writeFile(join(output,'receipt.json'),JSON.stringify(facts,null,2)+'\n');}finally{if(directory)await rm(directory,{recursive:true,force:true});}});
 function blank(){const suffix=String(++count).padStart(12,'0');return runtime.createEngine({profile:'v5',documentId:`81000000-0000-4000-8000-${suffix}`,epoch:`82000000-0000-4000-8000-${suffix}`,nodes:[{text:''}]});}
@@ -64,6 +64,7 @@ for(const fixture of corpus.cases)test('bounded export/import and atomic semanti
   if(fixture.mode==='fallback'){assert(prepared.diagnostics.length);assert.equal(prepared.blocks[0].runs[0].text,fixture.envelope.source);}
   const result=await h.session.transfer(prepared,h.engine,r.value);assert.equal(result.status,'committed');release(h.engine,result.result);await h.settle();assert.equal(h.commits(),1);assert.equal(h.engine.history({type:'state'}).undoGroups,1);
   const saved=semantic(h.engine),fragment=copied(h.engine);assert(fragment.blocks.length>0);
+  if(fixture.id==='table-v2-mixed-cell'){assert.deepEqual(saved[0].blockAttributes,fixture.envelope.payload[0].attributes.tuple);assert.deepEqual(fragment.blocks.find(b=>b.attributes?.type==='content').attributes.tuple,fixture.envelope.payload[0].attributes.tuple);}
   await writeFile(join(output,fixture.id+'-recovery.json'),encoded);facts.artifactHashes[fixture.id+'-recovery.json']=sha256(await readFile(join(output,fixture.id+'-recovery.json')));
   assert.deepEqual(JSON.parse(api.exportExtensionTransfer(api.importExtensionTransfer(await readFile(join(output,fixture.id+'-recovery.json'),'utf8')))),fixture.envelope);
   const checkpoint=h.storage.recoveryExport().checkpoint;assert.equal(h.storage.state.pending,0);assert.equal(h.storage.state.saved,true);
@@ -73,8 +74,8 @@ for(const fixture of corpus.cases)test('bounded export/import and atomic semanti
   facts.checks.push({id:fixture.id,mode:prepared.mode,diagnostics:prepared.diagnostics,semanticHash:sha256(JSON.stringify(saved)),recoveryHash:sha256(encoded)});
  }finally{r.close();await h.close();}
 });
-for(const host of ['browser','terminal','swift-ios','kotlin-android','desktop'])for(const literal of [false,true])test('shared presenter policy '+host+' '+(literal?'literal':'formatted'),async()=>{
- const h=await harness(host),r=range(h.engine);try{const fixture=corpus.cases[3],prepared=registry.prepare(h.engine,fixture.envelope,literal);const result=await h.session.transfer(prepared,h.engine,r.value);assert.equal(result.status,'committed');release(h.engine,result.result);assert.equal(prepared.mode,literal?'literal':'formatted');if(literal)assert.equal(text(h.engine),fixture.envelope.source);assert.equal(h.commits(),1);await h.settle();facts.checks.push({id:host+'-'+prepared.mode});}finally{r.close();await h.close();}
+for(const host of ['browser','terminal','swift-ios','kotlin-android','desktop'])for(const fixture of [corpus.cases[3],corpus.cases.find(f=>f.id==='table-v2-mixed-cell')])for(const literal of [false,true])test('shared presenter policy '+host+' '+fixture.id+' '+(literal?'literal':'formatted'),async()=>{
+ const h=await harness(host),r=range(h.engine);try{const prepared=registry.prepare(h.engine,fixture.envelope,literal);const result=await h.session.transfer(prepared,h.engine,r.value);assert.equal(result.status,'committed');release(h.engine,result.result);assert.equal(prepared.mode,literal?'literal':'formatted');if(literal)assert.equal(text(h.engine),fixture.envelope.source);assert.equal(h.commits(),1);await h.settle();facts.checks.push({id:host+'-'+prepared.mode});}finally{r.close();await h.close();}
 });
 test('cut deletes only after acknowledged transfer; failed/refused/canceled offers preserve state',async()=>{
  for(const disposition of ['refused','throw','cancel','accepted']){const h=await harness(),r=range(h.engine);try{
@@ -141,7 +142,7 @@ test('partial marked selection copies through the owning clipboard without alter
  }finally{r.close();await h.close();}
 });
 test('structured table/image/reference transfer cuts and restores one semantic history group',async()=>{
- for(const fixture of corpus.cases.slice(0,3)){
+ for(const fixture of corpus.cases.filter(f=>['table-v2-mixed-cell',...corpus.cases.slice(0,3).map(f=>f.id)].includes(f.id))){
   const h=await harness(),r=range(h.engine);try{
    const inserted=await h.session.transfer(registry.prepare(h.engine,fixture.envelope),h.engine,r.value);assert.equal(inserted.status,'committed');release(h.engine,inserted.result);await h.settle();
    const before=semantic(h.engine),nodes=h.engine.read().visible.filter(n=>n.kind==='block'),selection={anchor:h.engine.anchor(nodes[0].id,0,'right'),focus:h.engine.anchor(nodes.at(-1).id,nodes.at(-1).runs.reduce((n,run)=>n+run.text.length,0),'left')};
@@ -151,7 +152,7 @@ test('structured table/image/reference transfer cuts and restores one semantic h
  facts.checks.push({id:'structured-cut-history'});
 });
 test('mixed structured cut preserves unselected formatted text and restores exact tuples on undo/redo',async()=>{
- for(const fixture of corpus.cases.slice(0,3)){
+ for(const fixture of corpus.cases.filter(f=>['table-v2-mixed-cell',...corpus.cases.slice(0,3).map(f=>f.id)].includes(f.id))){
   const h=await harness(),r=range(h.engine);try{
    const payload=[{attributes:{type:'heading',level:2},runs:[{text:'prefixDROP',marks:[{mark:'bold'}]}]},...fixture.envelope.payload,{attributes:{type:'paragraph'},runs:[{text:'DROPtail😀',marks:[{mark:'link',href:'https://example.invalid/tail'}]}]}];
    const inserted=await h.session.transfer(registry.prepare(h.engine,{...fixture.envelope,payload}),h.engine,r.value);assert.equal(inserted.status,'committed');release(h.engine,inserted.result);await h.settle();
@@ -219,14 +220,29 @@ test('data bounds and registry snapshots reject malformed declarations without i
 });
 test('unsupported richer atoms remain an explicit owning admission gap rather than a prepared success',async()=>{
  const h=await harness(),r=range(h.engine);try{
-  const original=corpus.cases.at(-1).envelope,before=h.engine.checkpoint();
-  const unqualified=new api.ExtensionTransferRegistry([{descriptor:corpus.descriptors.at(-1),codec:{prepare:offer=>[{attributes:{type:'content',tuple:['module:editac.rich-table',1,offer.payload]},runs:[{text:offer.source,marks:[]}]}]}}]);
+  const original=corpus.cases.find(f=>f.id==='rich-table-recovery').envelope,before=h.engine.checkpoint();
+  const unqualified=new api.ExtensionTransferRegistry([{descriptor:corpus.descriptors.find(d=>d.type==='editac.rich-table'),codec:{prepare:offer=>[{attributes:{type:'content',tuple:['module:editac.rich-table',1,offer.payload]},runs:[{text:offer.source,marks:[]}]}]}}]);
   assert.throws(()=>unqualified.prepare(h.engine,original),error=>error.code==='InvalidInput'&&error.message==='fragment-content');assert.deepEqual(h.engine.checkpoint(),before);assert.equal(h.commits(),0);assert.equal(h.engine.history({type:'state'}).undoGroups,0);
   facts.checks.push({id:'owning-rich-atom-gap',qualification:'unsupported; parent remains open'});
  }finally{r.close();await h.close();}
 });
-test('all fixture and host cells execute without claiming richer table/native qualification',()=>{
- assert.equal(corpus.cases.length,9);for(const fixture of corpus.cases)assert(facts.checks.some(x=>x.id===fixture.id));
- assert.equal(facts.checks.filter(x=>/^(browser|terminal|swift-ios|kotlin-android|desktop)-/.test(x.id)).length,10);
+test('table v2 rejects malformed spans, styles, versions and undeclared formatting atomically',async()=>{
+ const fixture=corpus.cases.find(f=>f.id==='table-v2-mixed-cell'),h=await harness(),r=range(h.engine);
+ try{
+  for(const damage of [data=>{data.rows[0][0].rowSpan=3;},data=>{data.rows[0][2]=data.rows[1][1];},data=>{data.rows[1][0]=data.rows[1][1];},data=>{data.rows[0][0].paragraphs[0].style=['heading',7];},data=>{data.rows[1][1].paragraphs[0].style=['code','bad language'];},data=>{data.rows[0][0].header='yes';},data=>{data.rows[0][0].paragraphs[0].runs[0][1]=[['link','javascript:alert(1)']];},data=>{data.rows[0][0].paragraphs[0].runs=Array(1025).fill(['x',[]]);}]){
+   const offer=structuredClone(fixture.envelope);damage(offer.payload[0].attributes.tuple[2]);const before=h.engine.checkpoint(),history=h.engine.history({type:'state'}).undoGroups;
+   let prepared;try{prepared=registry.prepare(h.engine,offer);}catch{prepared=null;}
+   if(prepared){const result=await h.session.transfer(prepared,h.engine,r.value);assert.notEqual(result.status,'committed');}
+   assert.deepEqual(h.engine.checkpoint(),before);assert.equal(h.engine.history({type:'state'}).undoGroups,history);assert.equal(h.commits(),0);
+  }
+  const descriptor=corpus.descriptors.find(d=>d.type===fixture.envelope.type);
+  for(const field of ['spans','cell-paragraph-style']){const narrow=new api.ExtensionTransferRegistry([{descriptor:{...descriptor,tableMetadata:descriptor.tableMetadata.filter(x=>x!==field)},codec:{prepare:e=>e.payload}}]);assert.throws(()=>narrow.prepare(h.engine,fixture.envelope),e=>e.code==='undeclared-formatting');}
+  const offer=structuredClone(fixture.envelope);offer.payload[0].attributes.tuple[1]=3;assert.throws(()=>registry.prepare(h.engine,offer));
+  facts.checks.push({id:'table-v2-atomic-rejection',cases:11});
+ }finally{r.close();await h.close();}
+});
+test('all fixture and host cells execute with admitted table v2 and without native qualification',()=>{
+ assert.equal(corpus.cases.length,10);for(const fixture of corpus.cases)assert(facts.checks.some(x=>x.id===fixture.id));
+ assert.equal(facts.checks.filter(x=>/^(browser|terminal|swift-ios|kotlin-android|desktop)-/.test(x.id)).length,20);
  assert.equal(facts.checks.find(x=>x.id==='rich-table-recovery').mode,'fallback');assert.equal(corpus.pending.length,2);
 });

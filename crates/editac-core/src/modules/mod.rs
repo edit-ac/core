@@ -1,6 +1,7 @@
 pub mod content;
 pub mod evolution;
 pub mod registry;
+mod rich_table;
 
 /// Public library API contract version, independent of stored module data versions.
 pub const EXTENSION_API_VERSION: u32 = 1;

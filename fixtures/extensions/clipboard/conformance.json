@@ -144,6 +144,35 @@
         "cell-paragraph-style"
       ],
       "fallback": "inert-source-with-recovery"
+    },
+    {
+      "type": "editac.table-rich-v2",
+      "versions": [
+        2
+      ],
+      "inline": [
+        "bold",
+        "italic",
+        "underline",
+        "strike",
+        "code",
+        "link"
+      ],
+      "blocks": [
+        "paragraph",
+        "heading",
+        "code",
+        "content"
+      ],
+      "tableMetadata": [
+        "rows",
+        "columns",
+        "alignment",
+        "header",
+        "spans",
+        "cell-paragraph-style"
+      ],
+      "fallback": "inert-source-with-recovery"
     }
   ],
   "cases": [
@@ -479,6 +508,166 @@
           ]
         }
       }
+    },
+    {
+      "id": "table-v2-mixed-cell",
+      "mode": "formatted",
+      "envelope": {
+        "version": 1,
+        "type": "editac.table-rich-v2",
+        "dataVersion": 2,
+        "source": "table v2 inert source: Title😀 Emphasis literal() RTL שלום",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.table",
+                2,
+                {
+                  "alignments": [
+                    "left",
+                    "center",
+                    "right"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "paragraphs": [
+                          {
+                            "style": [
+                              "heading",
+                              2
+                            ],
+                            "runs": [
+                              [
+                                "Title😀",
+                                [
+                                  [
+                                    "bold"
+                                  ],
+                                  [
+                                    "link",
+                                    "https://example.invalid/header"
+                                  ]
+                                ]
+                              ]
+                            ]
+                          }
+                        ],
+                        "rowSpan": 2,
+                        "columnSpan": 1,
+                        "header": true
+                      },
+                      {
+                        "paragraphs": [
+                          {
+                            "style": [
+                              "paragraph"
+                            ],
+                            "runs": [
+                              [
+                                "Emphasis",
+                                [
+                                  [
+                                    "italic"
+                                  ],
+                                  [
+                                    "underline"
+                                  ],
+                                  [
+                                    "strike"
+                                  ]
+                                ]
+                              ]
+                            ]
+                          }
+                        ],
+                        "rowSpan": 1,
+                        "columnSpan": 2,
+                        "header": false
+                      },
+                      null
+                    ],
+                    [
+                      null,
+                      {
+                        "paragraphs": [
+                          {
+                            "style": [
+                              "code",
+                              "js"
+                            ],
+                            "runs": [
+                              [
+                                "literal()",
+                                [
+                                  [
+                                    "code"
+                                  ]
+                                ]
+                              ]
+                            ]
+                          }
+                        ],
+                        "rowSpan": 1,
+                        "columnSpan": 1,
+                        "header": false
+                      },
+                      {
+                        "paragraphs": [
+                          {
+                            "style": [
+                              "paragraph"
+                            ],
+                            "runs": [
+                              [
+                                "RTL שלום",
+                                [
+                                  [
+                                    "link",
+                                    "https://example.invalid/item"
+                                  ]
+                                ]
+                              ]
+                            ]
+                          },
+                          {
+                            "style": [
+                              "heading",
+                              3
+                            ],
+                            "runs": [
+                              [
+                                "Nested style",
+                                [
+                                  [
+                                    "bold"
+                                  ]
+                                ]
+                              ]
+                            ]
+                          }
+                        ],
+                        "rowSpan": 1,
+                        "columnSpan": 1,
+                        "header": false
+                      }
+                    ]
+                  ],
+                  "source": "table v2 inert source: Title😀 Emphasis literal() RTL שלום"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "table v2 inert source: Title😀 Emphasis literal() RTL שלום",
+                "marks": []
+              }
+            ]
+          }
+        ]
+      }
     }
   ],
   "limits": {
@@ -487,7 +676,7 @@
     "cells": 65536
   },
   "pending": [
-    "Rich table paragraph styles/spans have inert recovery only; no semantic engine admission.",
+    "Unknown/unavailable identity and payload still require ordinary document transfer/storage admission (C3-B).",
     "OS/native clipboard and physical-device receipts remain downstream."
   ]
 }

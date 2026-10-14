@@ -66,9 +66,13 @@ deletion. Final semantic/permission checks still occur at the shared commit
 boundary. No transfer method fetches an asset or executes a formula.
 
 Current table v1 semantics admit rows, columns, alignment, the first header row and
-inline marks/links/code. Cell paragraph styles and spans need a qualified owning
-representation and atomic engine admission. Richer tables, math and future atoms
-currently use explicit inert recovery; this does not qualify richer formatting.
+inline marks/links/code. Table v2 admits bounded paragraph/heading/code cell blocks, explicit header flags
+and nonoverlapping row/column spans with null covered cells. Its exact tuple survives
+portable structured transfer, history and storage. V1 remains unchanged; v1
+presenters show fallback for v2. Markdown export reports a source fallback and
+retains the complete typed recovery fragment; source alone cannot recover all
+metadata. Unadmitted richer shapes, math and future atoms still require explicit
+inert recovery; ordinary unknown-content admission remains unfinished.
 Version callbacks may prepare explicit compatible candidate data, but this API
 does not migrate document epochs or reinterpret delayed offline updates.
 

@@ -146,7 +146,7 @@ fn semantics(blocks: &[FragmentBlock]) -> Vec<SemanticBlock> {
             if let BlockAttributes::Unknown(tuple) = &attributes {
                 if let Ok(Some(mut content)) = Content::from_tuple(tuple) {
                     match &mut content {
-                        Content::Reference { .. } => {}
+                        Content::Reference { .. } | Content::RichTable { .. } => {}
                         Content::Image { source, .. }
                         | Content::Table { source, .. }
                         | Content::Callout { source, .. } => source.clear(),
@@ -206,6 +206,13 @@ pub fn export(blocks: &[FragmentBlock]) -> ExportResult {
                         range: 0..0,
                     });
                     escape(&label)
+                }
+                Ok(Some(content @ Content::RichTable { .. })) => {
+                    diagnostics.push(Diagnostic {
+                        code: "rich-table-source-fallback",
+                        range: 0..0,
+                    });
+                    content.rich_table_source().unwrap().to_owned()
                 }
                 Ok(Some(Content::Callout { source, .. })) => source.trim_end().to_owned(),
                 Ok(Some(Content::Image {

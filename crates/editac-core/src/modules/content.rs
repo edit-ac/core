@@ -30,6 +30,10 @@ pub enum Content {
         body: String,
         source: String,
     },
+    /// Bounded v2 cell blocks and structural metadata; renderers remain optional.
+    RichTable {
+        data: Any,
+    },
     Table {
         alignments: Vec<Alignment>,
         rows: Vec<Vec<Vec<FragmentRun>>>,
@@ -157,8 +161,21 @@ fn alignment_name(a: Alignment) -> &'static str {
     }
 }
 impl Content {
+    /// Exact inert v2 source, exposed without making consumers parse engine values.
+    pub fn rich_table_source(&self) -> Option<&str> {
+        if let Self::RichTable {
+            data: Any::Map(data),
+        } = self
+        {
+            if let Some(Any::String(source)) = data.get("source") {
+                return Some(source.as_ref());
+            }
+        }
+        None
+    }
     pub fn validate(&self) -> Result<(), ContentError> {
         match self {
+            Self::RichTable { data } => super::rich_table::validate(data)?,
             Self::Reference { target_id, label } => {
                 if target_id.is_empty()
                     || label.is_empty()
@@ -233,7 +250,15 @@ impl Content {
     }
     pub fn tuple(&self) -> Result<Any, ContentError> {
         self.validate()?;
+        if let Self::RichTable { data } = self {
+            return Ok(array(vec![
+                Any::from("module:editac.table"),
+                Any::from(2u32),
+                data.clone(),
+            ]));
+        }
         let (tag, data) = match self {
+            Self::RichTable { .. } => unreachable!(),
             Self::Reference { target_id, label } => (
                 "module:editac.reference",
                 object(vec![
@@ -347,6 +372,11 @@ impl Content {
         }
         if v.len() != 3 {
             return Err(ContentError::InvalidShape);
+        }
+        if tag.as_ref() == "module:editac.table" && v[1] == Any::from(2u32) {
+            let content = Self::RichTable { data: v[2].clone() };
+            content.validate()?;
+            return Ok(Some(content));
         }
         if v[1] != Any::from(1u32) {
             return Err(ContentError::UnsupportedVersion);

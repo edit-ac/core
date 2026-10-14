@@ -266,7 +266,7 @@ impl<S: SessionStore> EditService<S> {
             match command {
                 EditorCommand::Content { content, .. } => match content {
                     Content::Image { .. } => requirements.images = true,
-                    Content::Table { .. } => requirements.tables = true,
+                    Content::Table { .. } | Content::RichTable { .. } => requirements.tables = true,
                     Content::Callout { .. } => requirements.callouts = true,
                     Content::Reference { .. } => requirements.references = true,
                 },

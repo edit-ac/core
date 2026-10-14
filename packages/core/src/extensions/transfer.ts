@@ -125,11 +125,26 @@ export class ExtensionTransferRegistry {
           const data = tuple[2] as Record<string, Json>;
           if (!data || typeof data !== 'object' || !keys(data,['alignments','rows','source']) ||
             !['rows','columns','alignment','header'].every(k => entry.descriptor.tableMetadata.includes(k as ExtensionTransferDescriptor['tableMetadata'][number]))) throw new ExtensionTransferError('undeclared-formatting');
+          const rich = tuple[1] === 2;
+          if (rich && !['spans','cell-paragraph-style'].every(k => entry.descriptor.tableMetadata.includes(k as ExtensionTransferDescriptor['tableMetadata'][number]))) throw new ExtensionTransferError('undeclared-formatting');
           if (Array.isArray(data.rows)) for (const row of data.rows) {
             if (!Array.isArray(row)) throw new ExtensionTransferError('invalid-data');
             for (const cell of row) {
-              if (!Array.isArray(cell)) throw new ExtensionTransferError('invalid-data');
-              for (const run of cell) {
+              if (rich && cell === null) continue;
+              let cells: Json[];
+              if (rich) {
+                if (!cell || typeof cell !== 'object' || Array.isArray(cell) || !keys(cell,['paragraphs','rowSpan','columnSpan','header']) || !Array.isArray(cell.paragraphs)) throw new ExtensionTransferError('invalid-data');
+                cells = [];
+                for (const paragraph of cell.paragraphs) {
+                  if (!paragraph || typeof paragraph !== 'object' || Array.isArray(paragraph) || !keys(paragraph,['style','runs']) || !Array.isArray(paragraph.style) || !Array.isArray(paragraph.runs)) throw new ExtensionTransferError('invalid-data');
+                  if (!entry.descriptor.blocks.includes(paragraph.style[0] as ExtensionTransferDescriptor['blocks'][number])) throw new ExtensionTransferError('undeclared-formatting');
+                  cells.push(...paragraph.runs);
+                }
+              } else {
+                if (!Array.isArray(cell)) throw new ExtensionTransferError('invalid-data');
+                cells = cell;
+              }
+              for (const run of cells) {
                 const marks = Array.isArray(run) ? run[1] : null;
                 if (!Array.isArray(marks) || marks.some(m => !Array.isArray(m) || !entry.descriptor.inline.includes(m[0] as TransferMark))) throw new ExtensionTransferError('undeclared-formatting');
               }
