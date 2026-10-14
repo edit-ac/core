@@ -32,6 +32,7 @@ export type EditorCommand =
   | { type: "setChecked"; owner: string; checked: boolean }
   | { type: "indent" | "outdent" | "setParagraph" | "convertSeparator" | "deleteSeparator"; owner: string }
   | { type: "move"; target: MoveTarget; parent: MoveTarget; before?: MoveTarget | null }
+  | { type: "setAlignment"; owner: string; alignment: "left" }
   | { type: "setCode"; owner: string; language: string }
   | { type: "hardBreak"; at: AnchorToken }
   | { type: "insertSeparator"; beside: string; side: "before" | "after" }

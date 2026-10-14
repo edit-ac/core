@@ -7,7 +7,7 @@ import { validateSuite, validateRecipe } from '../../../architecture/scripts/val
 export interface Position { block: string; offset: number }
 export interface Selection { anchor: Position; focus: Position; affinity: 'forward' | 'backward' }
 export interface State {
-  blocks: { id: string; kind: 'paragraph' | 'code'; text: string; hardBreaks: number[]; marks: { from: number; to: number; type: string }[] }[];
+  blocks: { id: string; kind: 'paragraph' | 'code' | 'separator'; text: string; hardBreaks: number[]; marks: { from: number; to: number; type: string }[] }[];
   selection: Selection; pendingMarks: null | string[];
 }
 export interface Action {

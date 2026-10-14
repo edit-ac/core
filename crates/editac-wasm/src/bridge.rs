@@ -241,6 +241,10 @@ enum Command {
         parent: Target,
         before: Option<Target>,
     },
+    SetAlignment {
+        owner: String,
+        alignment: ParagraphAlignment,
+    },
     SetCode {
         owner: String,
         language: String,
@@ -296,6 +300,11 @@ impl Target {
             version: self.version,
         }
     }
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+enum ParagraphAlignment {
+    Left,
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -744,6 +753,10 @@ impl Bridge {
                 parent: parent.native(),
                 before: before.map(Target::native),
             }),
+            Command::SetAlignment {
+                owner,
+                alignment: ParagraphAlignment::Left,
+            } => EditorCommand::BlockCommand(BlockCommand::AlignLeft { owner }),
             Command::SetCode { owner, language } => {
                 EditorCommand::BlockCommand(BlockCommand::SetCode { owner, language })
             }
@@ -1296,6 +1309,27 @@ mod history_selection_tests {
                 b.release_anchor(token);
             }
             assert_eq!(b.anchor_slots(), 0);
+        }
+    }
+}
+
+#[cfg(test)]
+mod alignment_profile_tests {
+    use super::*;
+    #[test]
+    fn canonical_left_is_noop_and_undeclared_alignment_is_atomic_rejection() {
+        let mut b = Bridge::create(&json!({"profile":"v5","documentId":"42600000-0000-4000-8000-000000000001","epoch":"42600000-0000-4000-9000-000000000001","nodes":[{"text":"a"}]}).to_string()).unwrap();
+        let owner = b.doc.snapshot().unwrap().visible[0].id.clone();
+        let before = b.doc_state();
+        let request = json!({"kind":"editor","origin":"local:rgs:c4","commands":[{"type":"setAlignment","owner":owner,"alignment":"left"}]}).to_string();
+        let plan = b.prepare(&request).unwrap();
+        b.commit(plan["token"].as_str().unwrap()).unwrap();
+        assert_eq!(b.doc_state(), before);
+        for value in ["center", "right", "justify", "LEFT"] {
+            let request = json!({"kind":"editor","origin":"local:rgs:c4","commands":[{"type":"replaceAt","owner":owner,"from":0,"to":0,"text":"BAD"},{"type":"setAlignment","owner":owner,"alignment":value}]}).to_string();
+            assert!(b.can(&request).is_err());
+            assert!(b.prepare(&request).is_err());
+            assert_eq!(b.doc_state(), before);
         }
     }
 }
