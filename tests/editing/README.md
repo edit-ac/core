@@ -81,3 +81,24 @@ state vector, revision, history and publication remain unchanged. Each case has
 16 corrupted-oracle controls. These vectors prove atomic rejection only; they do
 not qualify an accepted cross-owner policy, history bookmarks or unattached
 journal/persistence effects. Canonical semantic dispatch includes this suite.
+
+Ordered mixed-batch rejection/retry proof (RGS-1.2-C8):
+
+```sh
+EDITAC_EDITING_PACK_TARBALL=/absolute/path/to/qualified-core.tgz \
+EDITAC_EDITING_OUTPUT=/absolute/path/to/evidence \
+npm run test:editing -- --group semantic --cases mixed-batch
+cargo test -p editac-core --test editing_regressions reg13_mixed_ --locked --offline
+node --test tests/editing/dispatcher.test.mjs
+```
+
+The supplemental hand-authored vectors consume SEQ-11 through the shared driver.
+Twelve packed cells cover forward/backward result direction, left/right bias and
+editor-local null/empty/nonempty pending marks; four native vectors prove the
+matching document/selection contract. Each rejects a missing final mark owner, a
+staged surrogate-interior mark range and a staged surrogate-interior selection,
+then retries once. Exact content, inserted-only bold, suffix/source/identity,
+returned endpoints, history, revision/vector and publications have falsifying
+controls. Pending marks are editor-local; unattached journal/persistence and
+remaining REG-13 structure variants are unproved. The canonical semantic group
+includes this suite; its selected pass does not qualify the full parent.
