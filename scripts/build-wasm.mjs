@@ -8,6 +8,8 @@ import { shareEngineStringAdapters } from './share-wasm-glue.mjs';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const fixture = process.argv.includes('--fixture');
 const markdown = process.argv.includes('--markdown');
+const fitness = process.argv.includes('--fitness');
+if (fitness && (fixture || markdown)) throw new Error('fitness instrumentation requires the engine profile');
 if (fixture && markdown) throw new Error('fixture and markdown profiles are independent');
 const crate = markdown ? 'editac-markdown-wasm' : 'editac-wasm';
 const stem = markdown ? 'editac_markdown_wasm' : 'editac_wasm';
@@ -28,16 +30,16 @@ if (run(cli, ['--version']) !== 'wasm-bindgen 0.2.129') {
 // Resolve both tools: a pinned Cargo can still find a different rustc on PATH.
 const cargo = run('rustup', ['which', '--toolchain', toolchain, 'cargo']);
 const rustc = run('rustup', ['which', '--toolchain', toolchain, 'rustc']);
-run(cargo, ['build', '-p', crate, '--profile', 'browser', ...(fixture ? ['--features', 'foundation-fixture'] : []), '--target', 'wasm32-unknown-unknown', '--locked', '--offline'], { ...process.env, RUSTC: rustc });
+run(cargo, ['build', '-p', crate, '--profile', 'browser', ...(fixture ? ['--features', 'foundation-fixture'] : fitness ? ['--features', 'fitness-trace'] : []), '--target', 'wasm32-unknown-unknown', '--locked', '--offline'], { ...process.env, RUSTC: rustc });
 // Cargo reuses the crate's output path across feature configurations. Retain
 // each exact bindgen input so fixture builds cannot replace production parity
 // inputs. These reproducible build intermediates are never packed or loaded.
-const inputDir = path.join(root, 'target/browser-inputs', markdown ? 'markdown' : fixture ? 'fixture' : 'production');
+const inputDir = path.join(root, 'target/browser-inputs', markdown ? 'markdown' : fixture ? 'fixture' : fitness ? 'fitness' : 'production');
 await mkdir(inputDir, { recursive: true });
 const input = path.join(inputDir, `${stem}.wasm`);
 await copyFile(path.join(root, 'target/wasm32-unknown-unknown/browser', `${stem}.wasm`), input);
-const artifactDir = fixture ? 'wasm-fixture' : 'wasm';
-const dist = path.join(root, markdown ? 'packages/markdown/dist' : 'packages/core/dist');
+const artifactDir = fixture ? 'wasm-fixture' : fitness ? 'fitness-runtime' : 'wasm';
+const dist = fitness ? path.join(root, 'target') : path.join(root, markdown ? 'packages/markdown/dist' : 'packages/core/dist');
 const staging = path.join(dist, `.wasm-${process.pid}`);
 await mkdir(staging, { recursive: true });
 try {
@@ -50,8 +52,8 @@ try {
   }
   await rm(path.join(dist, artifactDir), { recursive: true, force: true });
   await rename(staging, path.join(dist, artifactDir));
-  run('npm', ['run', 'build', '--workspace', packageName]);
-  await import('./build-wasm-notices.mjs');
+  if (!fitness) run('npm', ['run', 'build', '--workspace', packageName]);
+  if (!fitness) await import('./build-wasm-notices.mjs');
   for (const name of [`${stem}_bg.wasm`, `${stem}.js`]) {
     const file = path.join(dist, artifactDir, name);
     console.log(JSON.stringify({ artifact: name, bytes: (await stat(file)).size, sha256: createHash('sha256').update(await readFile(file)).digest('hex') }));

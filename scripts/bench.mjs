@@ -16,6 +16,8 @@ import { options } from '../benchmarks/options.mjs';
 import { aggregate, markdown, scenarioCounts } from '../benchmarks/report.mjs';
 import { stopOwnedProcess } from './owned-processes.mjs';
 import { requireTestNode } from './test-toolchain.mjs';
+import { fitnessInstrumentation } from './fitness-instrumentation.mjs';
+import { attributionVersion } from '../benchmarks/attribution.mjs';
 import { summarize } from '../benchmarks/statistics.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -53,7 +55,7 @@ for (const key of result.plan.metrics) {
   : /^(bold|italic|heading|undo|redo)\./.test(name) ? profile.formatSamples : profile.samples;
 }
 for (const file of ['benchmarks/config.json', 'benchmarks/profiles/fitness-v1.json', 'benchmarks/client.mjs', 'benchmarks/fixtures.mjs',
-  'benchmarks/options.mjs', 'benchmarks/seeds.mjs', 'benchmarks/presets.mjs', 'benchmarks/expected/Task.json', 'benchmarks/expected/Long.json', 'benchmarks/statistics.mjs', 'benchmarks/report.mjs', 'scripts/bench.mjs',
+  'benchmarks/attribution.mjs', 'benchmarks/stage-summary.mjs', 'scripts/fitness-instrumentation.mjs', 'crates/editac-wasm/src/fitness.rs', 'benchmarks/options.mjs', 'benchmarks/seeds.mjs', 'benchmarks/presets.mjs', 'benchmarks/expected/Task.json', 'benchmarks/expected/Long.json', 'benchmarks/statistics.mjs', 'benchmarks/report.mjs', 'scripts/bench.mjs',
   'crates/editac-ffi/examples/fitness-seed.rs', 'fixtures/schema-v5/mapping.rs', 'fixtures/schema-v5/seed.json', 'package.json', 'package-lock.json', '.node-version', 'tsconfig.base.json', 'Cargo.toml', 'rust-toolchain.toml', 'Cargo.lock']) result.profileInputs[file] = hash(await readFile(file));
 result.metadata.osRelease = (await import('node:os')).release();
 // Freeze the executable source closure before compilation, including dirty files.
@@ -132,12 +134,15 @@ async function bundles() {
   await mkdir(join(temporary, 'wasm'));
   // The test helper captures the ordinary host recovery session for remote-update fixtures.
   // Production size measurements above use only package exports.
-  await build({ stdin: { contents: 'export {createEditor, taskPreset, CheckpointStorage} from "@edit-ac/web"; export {init} from "@edit-ac/core"; export {recoverLocalDocument} from "./packages/web/dist/entry.js";', resolveDir: root },
+  if (flags.fitness) await command(['run', 'build:wasm', '--', '--fitness'], 'build-wasm-fitness.log');
+  await build({ plugins: flags.fitness ? [fitnessInstrumentation(root)] : [], stdin: { contents: 'export {createEditor, taskPreset, CheckpointStorage} from "@edit-ac/web"; export {init} from "@edit-ac/core"; export {recoverLocalDocument} from "./packages/web/dist/entry.js";', resolveDir: root },
     outfile: join(temporary, 'sdk.js'), bundle: true, minify: true, format: 'esm', platform: 'browser', target: 'es2022' });
   result.metadata.harnessBundleHash = hash(await readFile(join(temporary, 'sdk.js')));
   await copyFile(join(temporary, 'sdk.js'), join(output, 'harness/sdk.js'));
-  await copyFile('packages/core/dist/wasm/editac_wasm.js', join(temporary, 'wasm/editac_wasm.js'));
-  await copyFile('packages/core/dist/wasm/editac_wasm_bg.wasm', join(temporary, 'wasm/editac_wasm_bg.wasm'));
+  await copyFile(`${flags.fitness ? 'target/fitness-runtime' : 'packages/core/dist/wasm'}/editac_wasm.js`, join(temporary, 'wasm/editac_wasm.js'));
+  await copyFile(`${flags.fitness ? 'target/fitness-runtime' : 'packages/core/dist/wasm'}/editac_wasm_bg.wasm`, join(temporary, 'wasm/editac_wasm_bg.wasm'));
+  await mkdir(join(output, 'harness/wasm'));
+  for (const file of ['editac_wasm.js', 'editac_wasm_bg.wasm']) await copyFile(join(temporary, 'wasm', file), join(output, 'harness/wasm', file));
 }
 
 try {
@@ -149,7 +154,7 @@ try {
   for (const name of flags.fixtures) await writeFile(join(output, 'fixtures', `${name}.json`), JSON.stringify(fixture(name)));
   await copyFile('benchmarks/config.json', join(output, 'config.json'));
   await mkdir(join(output, 'harness'));
-  for (const file of ['client.mjs', 'fixtures.mjs', 'presets.mjs']) await copyFile(join('benchmarks', file), join(output, 'harness', file));
+  for (const file of ['client.mjs', 'fixtures.mjs', 'presets.mjs', 'attribution.mjs']) await copyFile(join('benchmarks', file), join(output, 'harness', file));
   await bundles();
   const nativeSeeds = {};
   if (flags.fixtures.some(name => fixture(name).generator)) {
@@ -180,14 +185,14 @@ try {
       nativeSeeds[name] = frozen;
     }
   }
-  for (const file of ['client.mjs', 'fixtures.mjs', 'presets.mjs']) await copyFile(join(output, 'harness', file), join(temporary, file));
+  for (const file of ['client.mjs', 'fixtures.mjs', 'presets.mjs', 'attribution.mjs']) await copyFile(join(output, 'harness', file), join(temporary, file));
   await writeFile(join(temporary, 'index.html'), '<!doctype html><meta charset="utf-8"><title>edit.ac benchmarks</title><style>#editor{max-width:900px;font:16px/1.5 sans-serif;white-space:pre-wrap}body{margin:24px}</style><div id="editor"></div>');
   server = await startFixtureServer({ fixtureDirectory: temporary });
   result.metadata.server = { pid: process.pid, port: server.port, workspace: root, purpose: 'benchmarks', log: output };
   controller = await chromium.launchServer({ headless: true });
   result.metadata.browserProcess = { pid: controller.process().pid, launcher: controller.process().spawnfile, workspace: root, purpose: 'benchmarks', log: output };
   browser = await chromium.connect(controller.wsEndpoint()); result.metadata.browser = browser.version();
-  result.signature = { fixtureVersion, mode: result.mode, fixtures: flags.fixtures, runs: profile.runs, samples: profile.samples,
+  result.signature = { attribution: flags.fitness ? attributionVersion : null, fixtureVersion, mode: result.mode, fixtures: flags.fixtures, runs: profile.runs, samples: profile.samples,
     fixtureHashes: result.fixtures.map(document => document.sha256),
     harnessHash: hash(await readFile(join(output, 'harness/client.mjs'))), warmups: profile.warmups,
     operationSamples: profile.operationSamples, memoryEdits: profile.memoryEdits, mountCycles: profile.mountCycles,
@@ -297,7 +302,7 @@ finally {
   result.metadata.finalLoadAverage = loadavg();
   result.counts = scenarioCounts(result.cases, flags.fixtures.length * flags.presets.length * (profile.runs + profile.warmups));
   result.artifactInputs = {};
-  for (const file of ['harness/client.mjs', 'harness/fixtures.mjs', 'harness/presets.mjs', 'harness/sdk.js', 'bundles/wasm/editac_wasm.js', 'bundles/wasm/editac_wasm_bg.wasm', 'config.json']) {
+  for (const file of ['harness/client.mjs', 'harness/attribution.mjs', 'harness/wasm/editac_wasm.js', 'harness/wasm/editac_wasm_bg.wasm', 'harness/fixtures.mjs', 'harness/presets.mjs', 'harness/sdk.js', 'bundles/wasm/editac_wasm.js', 'bundles/wasm/editac_wasm_bg.wasm', 'config.json']) {
     try { result.artifactInputs[file] = hash(await readFile(join(output, file))); }
     catch (error) { result.errors.push(`Missing retained artifact ${file}: ${error.message}`); result.status = 'failed'; }
   }

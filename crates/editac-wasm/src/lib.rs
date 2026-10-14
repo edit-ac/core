@@ -3,6 +3,8 @@ mod bridge;
 #[cfg(test)]
 mod cases;
 mod engine;
+#[cfg(feature = "fitness-trace")]
+mod fitness;
 #[cfg(test)]
 mod updates;
 

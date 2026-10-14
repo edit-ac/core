@@ -304,7 +304,11 @@
         "crates/editac-core/src/editor.rs",
         "fixtures/schema-v4/mapping.rs",
         "crates/editac-core/examples/fitness-edit-cost.rs",
-        "crates/editac-core/tests/fitness_projection_cache.rs"
+        "crates/editac-core/tests/fitness_projection_cache.rs",
+        "benchmarks/attribution.mjs",
+        "benchmarks/stage-summary.mjs",
+        "scripts/fitness-instrumentation.mjs",
+        "tests/fitness-attribution.test.mjs"
       ],
       "artifacts": [
         "budgets-inventory.json"

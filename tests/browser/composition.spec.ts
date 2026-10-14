@@ -90,6 +90,17 @@ for(const [label,steps] of [['japanese',['に','日本']],['korean',['ㅎ','한'
   assert.equal(state.intents.at(-1).origin,'composition');assert.equal(state.intents.at(-1).text,steps.at(-1));
  }));
 }
+test('split-text-node: native siblings are removed at the canonical finalization boundary',()=>probe('split-text-node',async(page,fact)=>{
+ await start(page,1,4);
+ await page.evaluate(()=>{const f=window.inputFixture;
+  const range=document.getSelection().getRangeAt(0);range.deleteContents();
+  const text=document.createTextNode('文');range.insertNode(text);
+  document.getSelection().setBaseAndExtent(text,1,text,1);
+  f.event('input',{inputType:'insertCompositionText',data:'文',isComposing:true});
+ });
+ const provisional=await observe(page,fact);effects(provisional,0);assert.equal(provisional.dom[0],'a文a');
+ await end(page,'文');const state=await observe(page,fact);content(state,'a文a',2);effects(state,1);
+}));
 for(const order of ['before','after','missing'])test(`final-input-${order}: duplicate final notifications have one owner`,()=>probe('final-input-'+order,async(page,fact)=>{
  await start(page);await intermediate(page,fact,'alpha文','文');await end(page,'文',order);
  await page.evaluate(()=>{const f=window.inputFixture;f.event('compositionend',{data:'文'});f.event('beforeinput',{inputType:'insertCompositionText',data:'文',cancelable:true});f.event('input',{inputType:'insertCompositionText',data:'文'});f.event('input',{inputType:'insertCompositionText',data:'文'});});

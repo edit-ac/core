@@ -1,3 +1,5 @@
+import { stageSummary } from '../benchmarks/stage-summary.mjs';
+import { attributionVersion } from '../benchmarks/attribution.mjs';
 import { readFile, realpath } from 'node:fs/promises';
 import { resolve, relative, isAbsolute } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -37,6 +39,8 @@ export function validateFitnessProfile(profile, configBytes, specBytes) {
   require(JSON.stringify(profile.presets) === JSON.stringify(['baseline', 'task']), 'Preset scope drift');
   require(JSON.stringify(profile.owningCommands) === JSON.stringify(['npm run bench -- --fitness --quick --fixtures Task,Long --presets baseline,task --output <unique-directory>']), 'Owning fixture/preset command drift');
   require(profile.seedPreparation === 'prepared-frozen-schema-v5/public-native-restore-validation; outside measurement; shared exact bytes restored by browser WASM', 'Seed producer scope drift');
+  require(profile.compositionReplay === 'ascii-overwrite-restore-character-data-and-split-text-v1', 'Composition replay profile drift');
+  require(profile.attribution === attributionVersion, 'Stage instrumentation profile drift');
   require(profile.inputReplay === 'ascii-overwrite-delete-restore-v1', 'Input replay policy drift');
   require(profile.fixtureIdentity === 'seeded-utf8-v1/shared-initial-checkpoint-v1', 'Fixture identity policy drift');
   require(profile.unreviewedLimits.length > 0, 'Missing explicit resource/frame review gaps');
@@ -159,6 +163,19 @@ export function inspectBaseline(profile, result) {
       && Number.isSafeInteger(sample.sample) && sample.sample >= 0 && sample.sample < result.plan.samples), 'Duplicate/invalid input sample');
     require(trace.changedRegion.every((region, index) => `${region.position}/${region.sample}` === sampleKeys[index]), 'Changed-region attribution mismatch');
     for (const sample of trace.input) require(['dispatchMs', 'layoutMs', 'firstFrameMs', 'secondFrameMs'].every(key => nonnegative(sample[key])) && sample.firstFrameMs >= sample.dispatchMs + sample.layoutMs - 0.01 && sample.secondFrameMs >= sample.firstFrameMs, 'Invalid attribution samples');
+    require(result.signature.attribution === attributionVersion && trace.attribution === attributionVersion, 'Missing stage instrumentation identity');
+    const stages = trace.input.map(sample => stageSummary(sample.stages));
+    require(Array.isArray(trace.composition) && trace.composition.length === trace.input.length, 'Missing synthetic composition observations');
+    const composition = trace.composition.map((sample, index) => {
+      require(`${sample.position}/${sample.sample}` === sampleKeys[index] && sample.provenance === 'synthetic-dom-composition-finalization'
+        && sample.nativeMutation === (sample.sample % 2 ? 'split-text-node' : 'mapped-character-data')
+        && sample.provisionalCommits === 0 && sample.finalCommits === 1 && sample.restored === true, 'Composition ownership/restoration failure');
+      require(['provisionalMs', 'dispatchMs', 'layoutMs', 'firstFrameMs', 'secondFrameMs'].every(k => nonnegative(sample[k]))
+        && sample.firstFrameMs >= sample.dispatchMs + sample.layoutMs - 0.01 && sample.secondFrameMs >= sample.firstFrameMs, 'Invalid composition timing');
+      require(sample.stages?.spans.some(s => s.operation === 'render.resume'), 'Missing composition renderer finalization');
+      return { position: sample.position, sample: sample.sample, stages: stageSummary(sample.stages), dispatchMs: sample.dispatchMs,
+        secondFrameMs: sample.secondFrameMs, nativeMutation: sample.nativeMutation, provenance: sample.provenance };
+    });
     for (const region of trace.changedRegion) require(positiveInt(region.documentBlocks) && positiveInt(region.mutationCount) && region.touched.includes(region.target) && new Set(region.touched).size === region.touched.length && region.touched.length <= region.documentBlocks, 'Invalid DOM changed-region sample');
     require(trace.disposal.length === result.signature.mountCycles + 1 && trace.disposal[0].phase === 'loaded', 'Missing repeated-disposal samples');
     for (const [index, sample] of trace.disposal.entries()) {
@@ -167,7 +184,7 @@ export function inspectBaseline(profile, result) {
     }
     require(['observed', 'unavailable'].includes(trace.longTaskStatus) && trace.longTasks.every(sample => nonnegative(sample.startTime) && nonnegative(sample.duration)), 'Missing long-task trace status');
     return { fixture: item.fixture, preset: item.preset, iteration: item.iteration, chars: item.chars, identity: item.fixtureIdentity, input: rawSummary(trace.input.map(s => s.secondFrameMs), profile.minimumTailSamples),
-      changedRegion: trace.changedRegion, disposal: trace.disposal, longTasks: trace.longTasks, longTaskStatus: trace.longTaskStatus };
+      stages, composition, changedRegion: trace.changedRegion, disposal: trace.disposal, longTasks: trace.longTasks, longTaskStatus: trace.longTaskStatus };
   });
   const featureCosts = profile.fixtureNames.map(name => {
     const forPreset = preset => observations.filter(o => o.fixture === name && o.preset === preset);

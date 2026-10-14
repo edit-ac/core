@@ -1,5 +1,8 @@
 import { fixture, fixtureText, expectedSemantics, projectedSemantics, overwriteTarget } from './fixtures.mjs';
 
+import { installAttribution, attributionVersion } from './attribution.mjs';
+const attribution = installAttribution();
+
 import { presets, presetOptions } from './presets.mjs';
 
 const root = document.querySelector('#editor');
@@ -42,6 +45,51 @@ function input(inputType, data = null) {
     Object.defineProperty(event, 'getTargetRanges', { value: () => [target] });
   }
   root.dispatchEvent(event); check(event.defaultPrevented, `Editor did not own ${inputType}`);
+}
+async function compositionSample(id, before, at, position, sample) {
+  select(id, at, id, at + 1);
+  const replacement = before[at] === 'x' ? 'q' : 'x';
+  const revision = editor.read().revision;
+  const provisionalStart = performance.now();
+  root.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true, data: '' }));
+  root.dispatchEvent(new InputEvent('beforeinput', { bubbles: true, cancelable: true, inputType: 'insertCompositionText', data: replacement, isComposing: true }));
+  const nativeMutation = sample % 2 ? 'split-text-node' : 'mapped-character-data';
+  if (nativeMutation === 'split-text-node') {
+    const selection = document.getSelection(), nativeRange = selection.getRangeAt(0);
+    nativeRange.deleteContents();
+    const text = document.createTextNode(replacement); nativeRange.insertNode(text);
+    selection.setBaseAndExtent(text, 1, text, 1);
+  } else {
+  // Match the prepared characterData mutation used by the owning composition
+  // policy suite. Creating unmanaged sibling nodes is a different native shape.
+  const selection = document.getSelection();
+  const walker = document.createTreeWalker(element(id), NodeFilter.SHOW_TEXT);
+  let remaining = at, composing;
+  for (let text = walker.nextNode(); text; text = walker.nextNode()) {
+    if (text.parentElement.closest('[contenteditable="false"]')) continue;
+    if (remaining < text.length) { composing = text; break; }
+    remaining -= text.length;
+  }
+  check(composing?.data[remaining] === before[at], 'Unmapped composition character');
+  composing.replaceData(remaining, 1, replacement);
+  selection.setBaseAndExtent(composing, remaining + 1, composing, remaining + 1);
+  }
+  root.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertCompositionText', data: replacement, isComposing: true }));
+  const provisionalMs = performance.now() - provisionalStart;
+  check(editor.read().revision === revision, 'Composition committed provisional DOM');
+  attribution.begin();
+  const start = performance.now();
+  root.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: replacement }));
+  const dispatched = performance.now(), stages = attribution.end();
+  element(id).getBoundingClientRect(); const laidOut = performance.now();
+  await nextFrame(); const firstFrame = performance.now(); await nextFrame(); const secondFrame = performance.now();
+  check(editor.read().revision === revision + 1, 'Composition must commit exactly once');
+  check(element(id).textContent === before.slice(0, at) + replacement + before.slice(at + 1), 'Composition projection mismatch');
+  select(id, at, id, at + 1); input('insertText', before[at]);
+  check(element(id).textContent === before, 'Composition restoration mismatch');
+  return { position, sample, provenance: 'synthetic-dom-composition-finalization', nativeMutation, provisionalMs,
+    provisionalCommits: 0, finalCommits: 1, restored: true, stages, dispatchMs: dispatched - start,
+    layoutMs: laidOut - dispatched, firstFrameMs: firstFrame - start, secondFrameMs: secondFrame - start };
 }
 function timed(action, id) {
   const start = performance.now();
@@ -177,8 +225,8 @@ export async function runScenario(name, config, prepared) {
   check(presets[activePreset], 'Unknown configured preset');
   const metrics = {}, memory = {};
   const fitness = config.fitness ? { version: 1, provenance: 'browser-synthetic-input', preset: activePreset, featureSet: presets[activePreset].featureSet, providers: presets[activePreset].providers,
-    endpoint: 'dispatch-layout-two-animation-frames-v1', replay: 'ascii-overwrite-delete-restore-v1', input: [], changedRegion: [], longTasks: [], disposal: [],
-    gaps: ['Compositor presentation unobserved', 'Engine/FFI internal stages uninstrumented',
+    endpoint: 'dispatch-layout-two-animation-frames-v1', replay: 'ascii-overwrite-delete-restore-v1', attribution: attributionVersion, composition: [], input: [], changedRegion: [], longTasks: [], disposal: [],
+    gaps: ['Compositor presentation unobserved', 'Rust bridge spans include JSON serialization; FFI spans include engine work; instrumentation overhead is not subtracted',
       'Continuous drag/scroll and native text services unmeasured', 'Optional table/highlighter and accessibility unmeasured'] } : null;
   let longTaskObserver;
   if (fitness && PerformanceObserver.supportedEntryTypes.includes('longtask')) {
@@ -217,7 +265,9 @@ export async function runScenario(name, config, prepared) {
           const mutations = new MutationObserver(() => {});
           mutations.observe(root, { subtree: true, childList: true, characterData: true, attributes: true });
           try {
+            attribution.begin();
             const start = performance.now(); input('insertText', 'x'); const dispatched = performance.now();
+            const stages = attribution.end();
             element(node.id).getBoundingClientRect(); const laidOut = performance.now();
             const records = mutations.takeRecords();
             const blockIds = new Set(nodes.map(n => n.id));
@@ -227,7 +277,7 @@ export async function runScenario(name, config, prepared) {
               return affected.flatMap(n => n?.nodeType === Node.ELEMENT_NODE ? [n.dataset?.nodeId, ...[...n.querySelectorAll('[data-node-id]')].map(el => el.dataset.nodeId)] : []);
             }).filter(id => blockIds.has(id)))];
             await nextFrame(); const firstFrame = performance.now(); await nextFrame(); const secondFrame = performance.now();
-            fitness.input.push({ position, sample, dispatchMs: dispatched - start, layoutMs: laidOut - dispatched,
+            fitness.input.push({ position, sample, stages, dispatchMs: dispatched - start, layoutMs: laidOut - dispatched,
               firstFrameMs: firstFrame - start, secondFrameMs: secondFrame - start });
             fitness.changedRegion.push({ position, sample, documentBlocks: nodes.length, target: node.id, touched, mutationCount: records.length,
               scope: 'DOM mutation observations; not engine invalidation or a full-document scan proof' });
@@ -239,6 +289,7 @@ export async function runScenario(name, config, prepared) {
         check(element(node.id).textContent === before.slice(0, at) + before.slice(at + (overwrite ? 1 : 0)), 'Backspace projection mismatch');
         if (overwrite) input('insertText', overwrite.original);
         check(element(node.id).textContent === before, 'Replay restoration mismatch');
+        if (fitness && overwrite) fitness.composition.push(await compositionSample(node.id, before, at, position, sample));
         await wait(config.interKeyDelayMs);
       }
       await window.benchmarkCheckpoint({ metrics });

@@ -116,5 +116,8 @@
   ],
   "fixtureIdentity": "seeded-utf8-v1/shared-initial-checkpoint-v1",
   "seedPreparation": "prepared-frozen-schema-v5/public-native-restore-validation; outside measurement; shared exact bytes restored by browser WASM",
-  "inputReplay": "ascii-overwrite-delete-restore-v1"
+  "inputReplay": "ascii-overwrite-delete-restore-v1",
+  "attribution": "wasm-bridge-render-v1",
+  "attributionScope": "Opt-in instrumented Rust bridge (including JSON), generated FFI, SDK decode and renderer patch; exclusive timeline partition. Synthetic DOM composition finalization only; no compositor/native IME or uninstrumented latency claim.",
+  "compositionReplay": "ascii-overwrite-restore-character-data-and-split-text-v1"
 }

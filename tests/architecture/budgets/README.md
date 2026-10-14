@@ -33,7 +33,7 @@ owns gzip caps; legacy benchmark Brotli measurements are not Task cap evidence.
 FIT-1.6's packed size proof remains prerequisite evidence only.
 
 Remaining owning work: sufficient comparable tails and other shipped/high-risk optional presets;
-engine/FFI/render and composition attribution; continuous selection/drag/scroll
+uninstrumented engine-only attribution and actual OS composition; continuous selection/drag/scroll
 frame/geometry and cancellation traces; actual optional highlighting/table/asset
 workloads, changed-region/queue bounds; repeated disposal/canceled transfer/unload
 resource counts and prereviewed memory/frame limits; packed cold/warm activation;
@@ -59,3 +59,24 @@ evidence. Qualified mapping fixtures still own replay and snapshot serialization
 The Rust equivalence tests cover their nested-list/check/number metadata, unknown
 marks, Unicode edits, structural replay, restore and malformed-input rejection;
 the cache tests cover repeated local edits and deletion-only remote replay.
+
+The opt-in `fitness-trace` Rust feature builds a separate `target/fitness-runtime` artifact outside package distribution.
+Production bundles and byte measurements retain the default artifact. Only the
+benchmark SDK applies fail-closed generated-FFI/SDK/renderer hooks. Every measured
+typing and composition-finalization window retains up to512 numeric spans with
+an explicit overflow count (any drop rejects admission). The exclusive timeline
+partition counts nested work once: Rust bridge including JSON, generated FFI
+residual, SDK residual, renderer residual and unattributed dispatch work. Timing
+imports/hooks perturb these diagnostic observations; no overhead subtraction or
+uninstrumented engine latency claim is made. The composition replay uses actual
+input ownership and DOM mutation, asserts zero provisional commits, one final
+commit and exact corpus restoration. Synthetic events cannot qualify OS IME,
+candidate geometry or compositor presentation. Small quick samples still cannot
+qualify p95/p99. Instrumented and production WASM are separately hashed/retained.
+
+Composition samples alternate mapped character-data replacement and native
+Range deletion/insertion that splits text nodes. Both use the same selected ASCII
+overwrite and restore corpus bytes. Raw shape identities remain separate; these
+small mixed-shape samples are not a comparable tail estimate. Native finalization
+explicitly rebuilds the composing block's runs because native splits invalidate
+cached positions. Ordinary text reconciliation retains its mapped nodes. Other blocks and their views retain identity.
