@@ -144,6 +144,378 @@
       ],
       "expectedSentinel": "a!ef",
       "expectedRemote": "remoteR"
+    },
+    {
+      "id": "G03-enter-forward-left",
+      "kind": "enter",
+      "bias": "left",
+      "text": "abcd",
+      "remoteText": "remote",
+      "inputSelection": [
+        1,
+        3
+      ],
+      "initialKind": "paragraph",
+      "expectedBlocks": [
+        {
+          "text": "a",
+          "kind": "paragraph"
+        },
+        {
+          "text": "d",
+          "kind": "paragraph"
+        }
+      ],
+      "resultBlock": 1,
+      "resultOffset": 0,
+      "resultBias": "right",
+      "expectedSentinel": [
+        "a",
+        "!d"
+      ],
+      "expectedRemote": "remoteR",
+      "resultSourceOffset": 0
+    },
+    {
+      "id": "G03-enter-forward-right",
+      "kind": "enter",
+      "bias": "right",
+      "text": "abcd",
+      "remoteText": "remote",
+      "inputSelection": [
+        1,
+        3
+      ],
+      "initialKind": "paragraph",
+      "expectedBlocks": [
+        {
+          "text": "a",
+          "kind": "paragraph"
+        },
+        {
+          "text": "d",
+          "kind": "paragraph"
+        }
+      ],
+      "resultBlock": 1,
+      "resultOffset": 0,
+      "resultBias": "right",
+      "expectedSentinel": [
+        "a",
+        "!d"
+      ],
+      "expectedRemote": "remoteR",
+      "resultSourceOffset": 0
+    },
+    {
+      "id": "G03-enter-backward-left",
+      "kind": "enter",
+      "bias": "left",
+      "text": "abcd",
+      "remoteText": "remote",
+      "inputSelection": [
+        3,
+        1
+      ],
+      "initialKind": "paragraph",
+      "expectedBlocks": [
+        {
+          "text": "a",
+          "kind": "paragraph"
+        },
+        {
+          "text": "d",
+          "kind": "paragraph"
+        }
+      ],
+      "resultBlock": 1,
+      "resultOffset": 0,
+      "resultBias": "right",
+      "expectedSentinel": [
+        "a",
+        "!d"
+      ],
+      "expectedRemote": "remoteR",
+      "resultSourceOffset": 0
+    },
+    {
+      "id": "G03-enter-backward-right",
+      "kind": "enter",
+      "bias": "right",
+      "text": "abcd",
+      "remoteText": "remote",
+      "inputSelection": [
+        3,
+        1
+      ],
+      "initialKind": "paragraph",
+      "expectedBlocks": [
+        {
+          "text": "a",
+          "kind": "paragraph"
+        },
+        {
+          "text": "d",
+          "kind": "paragraph"
+        }
+      ],
+      "resultBlock": 1,
+      "resultOffset": 0,
+      "resultBias": "right",
+      "expectedSentinel": [
+        "a",
+        "!d"
+      ],
+      "expectedRemote": "remoteR",
+      "resultSourceOffset": 0
+    },
+    {
+      "id": "G03-hard-break-forward-left",
+      "kind": "hard-break",
+      "bias": "left",
+      "text": "abcd",
+      "remoteText": "remote",
+      "inputSelection": [
+        1,
+        3
+      ],
+      "initialKind": "paragraph",
+      "expectedBlocks": [
+        {
+          "text": "a\nd",
+          "kind": "paragraph"
+        }
+      ],
+      "resultBlock": 0,
+      "resultOffset": 2,
+      "resultBias": "right",
+      "expectedSentinel": [
+        "a\n!d"
+      ],
+      "expectedRemote": "remoteR",
+      "resultSourceOffset": 1
+    },
+    {
+      "id": "G03-hard-break-forward-right",
+      "kind": "hard-break",
+      "bias": "right",
+      "text": "abcd",
+      "remoteText": "remote",
+      "inputSelection": [
+        1,
+        3
+      ],
+      "initialKind": "paragraph",
+      "expectedBlocks": [
+        {
+          "text": "a\nd",
+          "kind": "paragraph"
+        }
+      ],
+      "resultBlock": 0,
+      "resultOffset": 2,
+      "resultBias": "right",
+      "expectedSentinel": [
+        "a\n!d"
+      ],
+      "expectedRemote": "remoteR",
+      "resultSourceOffset": 1
+    },
+    {
+      "id": "G03-hard-break-backward-left",
+      "kind": "hard-break",
+      "bias": "left",
+      "text": "abcd",
+      "remoteText": "remote",
+      "inputSelection": [
+        3,
+        1
+      ],
+      "initialKind": "paragraph",
+      "expectedBlocks": [
+        {
+          "text": "a\nd",
+          "kind": "paragraph"
+        }
+      ],
+      "resultBlock": 0,
+      "resultOffset": 2,
+      "resultBias": "right",
+      "expectedSentinel": [
+        "a\n!d"
+      ],
+      "expectedRemote": "remoteR",
+      "resultSourceOffset": 1
+    },
+    {
+      "id": "G03-hard-break-backward-right",
+      "kind": "hard-break",
+      "bias": "right",
+      "text": "abcd",
+      "remoteText": "remote",
+      "inputSelection": [
+        3,
+        1
+      ],
+      "initialKind": "paragraph",
+      "expectedBlocks": [
+        {
+          "text": "a\nd",
+          "kind": "paragraph"
+        }
+      ],
+      "resultBlock": 0,
+      "resultOffset": 2,
+      "resultBias": "right",
+      "expectedSentinel": [
+        "a\n!d"
+      ],
+      "expectedRemote": "remoteR",
+      "resultSourceOffset": 1
+    },
+    {
+      "id": "G03-pre-paste-forward-left",
+      "kind": "pre-paste",
+      "bias": "left",
+      "text": "xyz",
+      "remoteText": "remote",
+      "inputSelection": [
+        1,
+        2
+      ],
+      "initialKind": "code",
+      "expectedBlocks": [
+        {
+          "text": "xA",
+          "kind": "code"
+        },
+        {
+          "text": "\n",
+          "kind": "paragraph"
+        },
+        {
+          "text": "Bz",
+          "kind": "code"
+        }
+      ],
+      "resultBlock": 2,
+      "resultOffset": 1,
+      "resultBias": "right",
+      "expectedSentinel": [
+        "xA",
+        "\n",
+        "B!z"
+      ],
+      "expectedRemote": "remoteR",
+      "resultSourceOffset": 1
+    },
+    {
+      "id": "G03-pre-paste-forward-right",
+      "kind": "pre-paste",
+      "bias": "right",
+      "text": "xyz",
+      "remoteText": "remote",
+      "inputSelection": [
+        1,
+        2
+      ],
+      "initialKind": "code",
+      "expectedBlocks": [
+        {
+          "text": "xA",
+          "kind": "code"
+        },
+        {
+          "text": "\n",
+          "kind": "paragraph"
+        },
+        {
+          "text": "Bz",
+          "kind": "code"
+        }
+      ],
+      "resultBlock": 2,
+      "resultOffset": 1,
+      "resultBias": "right",
+      "expectedSentinel": [
+        "xA",
+        "\n",
+        "B!z"
+      ],
+      "expectedRemote": "remoteR",
+      "resultSourceOffset": 1
+    },
+    {
+      "id": "G03-pre-paste-backward-left",
+      "kind": "pre-paste",
+      "bias": "left",
+      "text": "xyz",
+      "remoteText": "remote",
+      "inputSelection": [
+        2,
+        1
+      ],
+      "initialKind": "code",
+      "expectedBlocks": [
+        {
+          "text": "xA",
+          "kind": "code"
+        },
+        {
+          "text": "\n",
+          "kind": "paragraph"
+        },
+        {
+          "text": "Bz",
+          "kind": "code"
+        }
+      ],
+      "resultBlock": 2,
+      "resultOffset": 1,
+      "resultBias": "right",
+      "expectedSentinel": [
+        "xA",
+        "\n",
+        "B!z"
+      ],
+      "expectedRemote": "remoteR",
+      "resultSourceOffset": 1
+    },
+    {
+      "id": "G03-pre-paste-backward-right",
+      "kind": "pre-paste",
+      "bias": "right",
+      "text": "xyz",
+      "remoteText": "remote",
+      "inputSelection": [
+        2,
+        1
+      ],
+      "initialKind": "code",
+      "expectedBlocks": [
+        {
+          "text": "xA",
+          "kind": "code"
+        },
+        {
+          "text": "\n",
+          "kind": "paragraph"
+        },
+        {
+          "text": "Bz",
+          "kind": "code"
+        }
+      ],
+      "resultBlock": 2,
+      "resultOffset": 1,
+      "resultBias": "right",
+      "expectedSentinel": [
+        "xA",
+        "\n",
+        "B!z"
+      ],
+      "expectedRemote": "remoteR",
+      "resultSourceOffset": 1
     }
   ]
 }

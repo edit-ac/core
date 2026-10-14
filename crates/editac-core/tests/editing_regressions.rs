@@ -990,3 +990,316 @@ remote_selection_case!(
     g03_remote_format_backward_right,
     "G03-format-backward-right"
 );
+
+// G03 fragment actions: directional/affinity input, one actual collapsed result
+// caret (right-biased by the engine policy), retained across a real replica delta.
+fn g03_action_result(id: &str) {
+    use editac_core::{
+        anchors::Selection,
+        commands::editor::{FragmentBlock, FragmentRun},
+        document::BlockAttributes,
+    };
+    use serde_json::json;
+    let all: Value = serde_json::from_str(include_str!(
+        "../../../fixtures/editing-failures/selection-vectors.json"
+    ))
+    .unwrap();
+    let v = all["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|v| v["id"] == id)
+        .unwrap();
+    let mut d = documents(&[
+        v["text"].as_str().unwrap(),
+        v["remoteText"].as_str().unwrap(),
+    ]);
+    let owner = d.snapshot().unwrap().visible[0].id.clone();
+    let origin = TextOrigin::new("local:rgs:selection-actions").unwrap();
+    if v["initialKind"] == "code" {
+        let p = d
+            .prepare_editor(
+                &[EditorCommand::BlockCommand(BlockCommand::SetCode {
+                    owner: owner.clone(),
+                    language: String::new(),
+                })],
+                &origin,
+            )
+            .unwrap();
+        d.commit_editor(p).unwrap();
+    }
+    let originals = d.snapshot().unwrap().visible;
+    let neighbor = originals[1].id.clone();
+    d.clear_history();
+    let bias = if v["bias"] == "left" {
+        Bias::Left
+    } else {
+        Bias::Right
+    };
+    let input = Selection {
+        anchor: d
+            .anchor(&owner, U(number(&v["inputSelection"][0])), bias)
+            .unwrap(),
+        focus: d
+            .anchor(&owner, U(number(&v["inputSelection"][1])), bias)
+            .unwrap(),
+    };
+    let resolve =
+        |doc: &Document, a: &editac_core::anchors::Anchor| match doc.resolve_anchor(a).unwrap() {
+            Resolution::Position(p) => p,
+            _ => panic!("unresolved selection"),
+        };
+    let input_actual = [&input.anchor, &input.focus].map(|a| resolve(&d, a));
+    for (i, p) in input_actual.iter().enumerate() {
+        assert_eq!(p.node, owner);
+        assert_eq!(p.offset, U(number(&v["inputSelection"][i])));
+        assert_eq!(p.bias, bias);
+        assert_eq!(p.source, originals[0].spans[0].source);
+        assert_eq!(p.source_offset, p.offset);
+    }
+    let mut wrong_direction = input_actual.clone();
+    wrong_direction.reverse();
+    assert!(std::panic::catch_unwind(|| assert_eq!(input_actual, wrong_direction)).is_err());
+    let fragment = |text: &str, attributes| FragmentBlock {
+        runs: if text.is_empty() {
+            vec![]
+        } else {
+            vec![FragmentRun {
+                text: text.into(),
+                marks: vec![],
+            }]
+        },
+        attributes: Some(attributes),
+        containers: vec![],
+        checked: None,
+    };
+    let blocks = match v["kind"].as_str().unwrap() {
+        "enter" => vec![
+            fragment("", BlockAttributes::Paragraph),
+            fragment("", BlockAttributes::Paragraph),
+        ],
+        "hard-break" => vec![fragment("\n", BlockAttributes::Paragraph)],
+        "pre-paste" => vec![
+            fragment("A", BlockAttributes::Code(String::new())),
+            fragment("\n", BlockAttributes::Paragraph),
+            fragment("B", BlockAttributes::Code(String::new())),
+        ],
+        _ => panic!("unknown action family"),
+    };
+    let count = Rc::new(Cell::new(0));
+    let seen = count.clone();
+    let _subscription = d
+        .subscribe(PatchScope::All, move |_, _| {
+            seen.set(seen.get() + 1);
+            Ok(())
+        })
+        .unwrap();
+    let before = frozen(&d);
+    let plan = d.prepare_fragment(&input, &blocks, &origin).unwrap();
+    assert_eq!(frozen(&d), before);
+    assert_eq!(count.get(), 0);
+    let result = d.commit_editor(plan).unwrap();
+    assert_eq!(result.revision, before.2 + 1);
+    assert_ne!(d.state_vector_v1(), before.1);
+    assert_eq!(count.get(), 1);
+    assert_eq!(d.history_state().undo_groups, 1);
+    assert!(
+        result.result_selection.is_none(),
+        "fragment returns one collapsed caret"
+    );
+    let caret = result.result_caret.expect("action must return a caret");
+    let committed = d.snapshot().unwrap().visible;
+    let destination = &committed[number(&v["resultBlock"]) as usize];
+    assert_eq!(
+        committed.len(),
+        v["expectedBlocks"].as_array().unwrap().len() + 1
+    );
+    assert_eq!(committed[0].id, owner);
+    assert_eq!(committed.last().unwrap().id, neighbor);
+    if v["kind"] != "hard-break" {
+        assert!(!originals.iter().any(|n| n.id == destination.id));
+    }
+    let p = resolve(&d, &caret);
+    assert_eq!(p.node, destination.id);
+    assert_eq!(p.offset, U(number(&v["resultOffset"])));
+    assert_eq!(p.bias, Bias::Right);
+    let payload_source = destination
+        .spans
+        .iter()
+        .find(|s| s.source != originals[0].spans[0].source)
+        .expect("created payload source");
+    assert_eq!(p.source, payload_source.source);
+    assert_eq!(p.source_offset, U(number(&v["resultSourceOffset"])));
+    assert!(
+        destination
+            .spans
+            .iter()
+            .any(|s| s.source == originals[0].spans[0].source
+                && s.identity == originals[0].spans[0].identity)
+    );
+    let content = |n: &editac_core::projection::ProjectedNode| {
+        n.runs.iter().map(|r| r.text.as_str()).collect::<String>()
+    };
+    let kind = |n: &editac_core::projection::ProjectedNode| match &n.block_attributes {
+        Some(BlockAttributes::Paragraph) => "paragraph",
+        Some(BlockAttributes::Code(_)) => "code",
+        _ => panic!("unsupported block"),
+    };
+    let observed = |doc: &Document| {
+        let nodes = doc.snapshot().unwrap().visible;
+        let p = resolve(doc, &caret);
+        json!({"blocks": nodes[..nodes.len()-1].iter().map(|n| json!({"text": content(n), "kind": kind(n), "marks": n.runs.iter().filter(|r| !r.attributes.is_empty()).count()})).collect::<Vec<_>>(),
+            "remote": content(nodes.last().unwrap()), "caret": {"node": p.node, "offset": p.offset.0, "source": p.source, "sourceOffset": p.source_offset.0, "bias": if p.bias == Bias::Right {"right"} else {"left"}}, "publications": count.get()})
+    };
+    let mut expected = json!({"blocks": v["expectedBlocks"].as_array().unwrap().iter().map(|b| json!({"text": b["text"], "kind": b["kind"], "marks": 0})).collect::<Vec<_>>(),
+        "remote": v["remoteText"], "caret": {"node": destination.id, "offset": v["resultOffset"], "source": payload_source.source, "sourceOffset": v["resultSourceOffset"], "bias": v["resultBias"]}, "publications": 1});
+    assert_eq!(observed(&d), expected);
+    let checkpoint = d.checkpoint();
+    let mut remote = Document::restore(d.identity(), &checkpoint, &[]).unwrap();
+    let vector = d.state_vector_v1();
+    let plan = remote
+        .prepare_editor(
+            &[EditorCommand::ReplaceAt {
+                owner: neighbor.clone(),
+                from: U(6),
+                to: U(6),
+                text: "R".into(),
+            }],
+            &origin,
+        )
+        .unwrap();
+    remote.commit_editor(plan).unwrap();
+    d.apply_replay(&editac_core::document::ReplayUpdate {
+        identity: d.identity().clone(),
+        bytes: remote.update_v1(&vector).unwrap(),
+    })
+    .unwrap();
+    expected["remote"] = v["expectedRemote"].clone();
+    expected["publications"] = json!(2);
+    assert_eq!(observed(&d), expected);
+    assert_ne!(d.state_vector_v1(), vector);
+    for (pointer, replacement) in [
+        ("/blocks/0/text", json!("corrupted")),
+        (
+            "/blocks/0/kind",
+            json!(if v["initialKind"] == "code" {
+                "paragraph"
+            } else {
+                "code"
+            }),
+        ),
+        ("/blocks/0/marks", json!(1)),
+        ("/caret/offset", json!(number(&v["resultOffset"]) + 1)),
+        ("/caret/bias", json!("left")),
+        ("/caret/node", json!(neighbor)),
+        ("/caret/source", json!(originals[1].spans[0].source)),
+        (
+            "/caret/sourceOffset",
+            json!(number(&v["resultSourceOffset"]) + 1),
+        ),
+        ("/remote", json!("remote")),
+        ("/publications", json!(3)),
+    ] {
+        let mut wrong = expected.clone();
+        *wrong.pointer_mut(pointer).unwrap() = replacement;
+        let actual = observed(&d);
+        assert!(std::panic::catch_unwind(|| assert_eq!(actual, wrong)).is_err());
+    }
+    let position = resolve(&d, &caret);
+    let pos = || EditorPosition {
+        owner: position.node.clone(),
+        offset: U(number(&v["resultOffset"]) + 1),
+        bias: Bias::Right,
+    };
+    let plan = d
+        .prepare_editor(
+            &[
+                EditorCommand::ReplaceAt {
+                    owner: position.node.clone(),
+                    from: position.offset,
+                    to: position.offset,
+                    text: "!".into(),
+                },
+                EditorCommand::SelectionAt {
+                    anchor: pos(),
+                    focus: pos(),
+                },
+            ],
+            &origin,
+        )
+        .unwrap();
+    let result = d.commit_editor(plan).unwrap();
+    let selection = result.result_selection.unwrap();
+    for a in [&selection.anchor, &selection.focus] {
+        let p = resolve(&d, a);
+        assert_eq!(p.node, destination.id);
+        assert_eq!(p.offset, U(number(&v["resultOffset"]) + 1));
+        assert_eq!(p.bias, Bias::Right);
+    }
+    let nodes = d.snapshot().unwrap().visible;
+    for (i, node) in nodes[..nodes.len() - 1].iter().enumerate() {
+        assert_eq!(content(node), v["expectedSentinel"][i].as_str().unwrap());
+        assert_eq!(kind(node), v["expectedBlocks"][i]["kind"].as_str().unwrap());
+        assert!(node.runs.iter().all(|r| r.attributes.is_empty()));
+    }
+    assert_eq!(
+        content(nodes.last().unwrap()),
+        v["expectedRemote"].as_str().unwrap()
+    );
+    assert_eq!(count.get(), 3);
+    for (node, old) in [
+        (&nodes[0], &originals[0]),
+        (nodes.last().unwrap(), &originals[1]),
+    ] {
+        assert_eq!(node.id, old.id);
+        assert_eq!(node.spans[0].source, old.spans[0].source);
+        assert_eq!(node.spans[0].identity, old.spans[0].identity);
+    }
+    for (node, prior) in nodes.iter().zip(&committed) {
+        assert_eq!(node.id, prior.id);
+    }
+}
+macro_rules! action_selection_case {
+    ($name:ident, $id:literal) => {
+        #[test]
+        fn $name() {
+            g03_action_result($id);
+        }
+    };
+}
+action_selection_case!(g03_action_enter_forward_left, "G03-enter-forward-left");
+action_selection_case!(g03_action_enter_forward_right, "G03-enter-forward-right");
+action_selection_case!(g03_action_enter_backward_left, "G03-enter-backward-left");
+action_selection_case!(g03_action_enter_backward_right, "G03-enter-backward-right");
+action_selection_case!(
+    g03_action_hard_break_forward_left,
+    "G03-hard-break-forward-left"
+);
+action_selection_case!(
+    g03_action_hard_break_forward_right,
+    "G03-hard-break-forward-right"
+);
+action_selection_case!(
+    g03_action_hard_break_backward_left,
+    "G03-hard-break-backward-left"
+);
+action_selection_case!(
+    g03_action_hard_break_backward_right,
+    "G03-hard-break-backward-right"
+);
+action_selection_case!(
+    g03_action_pre_paste_forward_left,
+    "G03-pre-paste-forward-left"
+);
+action_selection_case!(
+    g03_action_pre_paste_forward_right,
+    "G03-pre-paste-forward-right"
+);
+action_selection_case!(
+    g03_action_pre_paste_backward_left,
+    "G03-pre-paste-backward-left"
+);
+action_selection_case!(
+    g03_action_pre_paste_backward_right,
+    "G03-pre-paste-backward-right"
+);
