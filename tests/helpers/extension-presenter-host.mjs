@@ -7,9 +7,10 @@ import { PreparedIndexedDB } from './journal-storage.mjs';
 const tick=()=>new Promise(r=>setImmediate(r));
 // Production engine + actual owning middleware, deterministic transaction transport.
 export async function presenterHost(runtime, seed, api, options={}){
+ const {BrowserLifecycle: Lifecycle, StorageWriter: Writer, UpdateJournal: Journal, LocalStorageLifecycle: Storage} = options.middleware ?? {BrowserLifecycle,StorageWriter,UpdateJournal,LocalStorageLifecycle};
  const db=new PreparedIndexedDB();const held=new Set();const locks={async request(name,options,callback){assert(!held.has(name));held.add(name);try{return await callback({name});}finally{held.delete(name);}}};
- const writer=await StorageWriter.restore(runtime,locks,seed.identity,seed),engine=writer.engine;
- const journal=await UpdateJournal.open(db),storage=new LocalStorageLifecycle(writer,journal),state=new BrowserLifecycle(true,false);state.update({phase:'ready',ready:true});
+ const writer=await Writer.restore(runtime,locks,seed.identity,seed),engine=writer.engine;
+ const journal=await Journal.open(db),storage=new Storage(writer,journal),state=new Lifecycle(true,false);state.update({phase:'ready',ready:true});
  const modules=new api.ModuleRuntime(engine,options);let committed=0,alive=true;
  const host={get active(){return alive&&state.state.ready;},revision(){const s=engine.read();return JSON.stringify([s.identity,s.revision]);},can(request){return this.active&&!state.state.readOnly&&storage.state.phase!=='error'&&engine.can(request);},commit(request){assert(this.active&&!state.state.readOnly,'current host capability required');engine.history({type:'boundary'});engine.history({type:'explicit'});try{const result=storage.commit(request);committed++;return result;}finally{engine.history({type:'boundary'});}}};
  const commands=new api.ExtensionCommandSession(host);
