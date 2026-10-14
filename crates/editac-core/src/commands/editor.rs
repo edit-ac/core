@@ -33,6 +33,11 @@ pub enum EditorCommand {
         action: super::format::FormatAction,
         href: Option<String>,
     },
+    /// Optional first command: capture the actual transaction-entry bookmark.
+    HistorySelectionAt {
+        anchor: EditorPosition,
+        focus: EditorPosition,
+    },
     /// Must be the last command. Both cuts are validated before live mutation.
     SelectionAt {
         anchor: EditorPosition,
@@ -120,6 +125,7 @@ pub struct PreparedEditorEdit {
     next_operation: u32,
     result_caret: Option<crate::anchors::Anchor>,
     result_selection: Option<crate::anchors::Selection>,
+    entry_selection: Option<crate::anchors::Selection>,
 }
 impl PreparedEditorEdit {
     pub fn result_caret(&self) -> Option<&crate::anchors::Anchor> {
@@ -365,6 +371,23 @@ impl Document {
             .block_attributes
             .clone()
             .unwrap_or(BlockAttributes::Paragraph);
+        // Preserve REG-06 rejection: staging a tail as code must never strip
+        // marks from the unselected suffix retained in the result.
+        if first != last
+            && matches!(inherited, BlockAttributes::Code(_))
+            && matches!(
+                blocks.last().and_then(|b| b.attributes.as_ref()),
+                None | Some(BlockAttributes::Code(_))
+            )
+        {
+            let mut offset = 0;
+            for run in &nodes[last].runs {
+                offset += run.text.encode_utf16().count() as u32;
+                if offset > end.offset.0 && !run.attributes.is_empty() {
+                    return Err(EditorError::UnsupportedTarget);
+                }
+            }
+        }
         let mut presentations = Vec::new();
         for node in nodes.iter().take(last + 1).skip(first + 1) {
             let attributes = node.block_attributes.as_ref();
@@ -776,6 +799,7 @@ impl Document {
             next_operation: self.next_structure_counter,
             result_caret: Some(result),
             result_selection: None,
+            entry_selection: Some(selection.clone()),
         })
     }
 }
@@ -1177,6 +1201,7 @@ impl Document {
             next_operation: self.next_structure_counter,
             result_caret: None,
             result_selection: None,
+            entry_selection: None,
         })
     }
 
@@ -1228,6 +1253,7 @@ impl Document {
         let mut last_separator = None;
         let mut result_caret = None;
         let mut result_selection = None;
+        let mut entry_selection = None;
         let mut result_owner = None;
         let mut pending: VecDeque<_> = commands.to_vec().into();
         let mut expanded = 0usize;
@@ -1291,6 +1317,18 @@ impl Document {
                     if let Some(update) = commit.update {
                         m::apply(&stage, &update.bytes).map_err(error)?;
                     }
+                }
+                EditorCommand::HistorySelectionAt { anchor, focus } => {
+                    if expanded != 1 {
+                        return Err(EditorError::InvalidCommand);
+                    }
+                    entry_selection = Some(
+                        self.selection(
+                            (&anchor.owner, anchor.offset, anchor.bias),
+                            (&focus.owner, focus.offset, focus.bias),
+                        )
+                        .map_err(|_| EditorError::InvalidCommand)?,
+                    );
                 }
                 EditorCommand::SelectionAt { anchor, focus } => {
                     if !pending.is_empty() {
@@ -1938,6 +1976,7 @@ impl Document {
             next_operation: counter,
             result_caret,
             result_selection,
+            entry_selection,
         })
     }
     fn virtual_document(&self, stage: &yrs::Doc) -> Result<Document, EditorError> {
@@ -1965,6 +2004,18 @@ impl Document {
             .checked_add(1)
             .ok_or(EditorError::ResourceLimit)?;
         let update = crate::ownership::decode(&plan.update).map_err(error)?;
+        if update.is_empty() {
+            return Ok(EditorCommit {
+                result_caret: plan.result_caret,
+                result_selection: plan.result_selection,
+                revision: self.revision(),
+                origin: plan.origin,
+                update: ReplayUpdate {
+                    identity: self.identity().clone(),
+                    bytes: plan.update,
+                },
+            });
+        }
         let patch_before = self
             .patch_before()
             .map_err(|e| EditorError::Text(TextError::from(e)))?;
@@ -1973,6 +2024,17 @@ impl Document {
             .transact_mut_with(plan.origin.as_str())
             .apply_update(update)
             .expect("validated editor update");
+        self.history_bookmarks(
+            plan.entry_selection,
+            plan.result_selection.clone().or_else(|| {
+                plan.result_caret
+                    .clone()
+                    .map(|a| crate::anchors::Selection {
+                        anchor: a.clone(),
+                        focus: a,
+                    })
+            }),
+        );
         self.history_finish(plan.update.len());
         self.next_structure_counter = plan.next_operation;
         self.revision = revision;

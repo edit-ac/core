@@ -172,6 +172,10 @@ enum Command {
         action: Action,
         href: Option<String>,
     },
+    HistorySelectionAt {
+        anchor: Position,
+        focus: Position,
+    },
     SelectionAt {
         anchor: Position,
         focus: Position,
@@ -668,6 +672,10 @@ impl Bridge {
                 action: action.native(),
                 href,
             },
+            Command::HistorySelectionAt { anchor, focus } => EditorCommand::HistorySelectionAt {
+                anchor: anchor.native(),
+                focus: focus.native(),
+            },
             Command::SelectionAt { anchor, focus } => EditorCommand::SelectionAt {
                 anchor: anchor.native(),
                 focus: focus.native(),
@@ -941,13 +949,31 @@ impl Bridge {
         Ok(result)
     }
     pub fn history(&mut self, input: &str) -> Result<Value> {
-        match parse::<HistoryRequest>(input, "history")? {
+        let request = parse::<HistoryRequest>(input, "history")?;
+        let mut selection = None;
+        if matches!(request, HistoryRequest::Undo {} | HistoryRequest::Redo {}) {
+            if self.anchor_slots().saturating_add(2) > MAX_ANCHORS {
+                return Err(err("ResourceLimit", "history", "release unused anchors"));
+            }
+            self.counter
+                .checked_add(2)
+                .ok_or_else(|| err("ResourceLimit", "history", "token counter exhausted"))?;
+        }
+        match request {
             HistoryRequest::State {} => {}
             HistoryRequest::Undo {} => {
-                self.doc.undo().map_err(|e| kernel("history", e))?;
+                selection = self
+                    .doc
+                    .undo()
+                    .map_err(|e| kernel("history", e))?
+                    .and_then(|c| c.selection);
             }
             HistoryRequest::Redo {} => {
-                self.doc.redo().map_err(|e| kernel("history", e))?;
+                selection = self
+                    .doc
+                    .redo()
+                    .map_err(|e| kernel("history", e))?
+                    .and_then(|c| c.selection);
             }
             HistoryRequest::Clear {} => self.doc.clear_history(),
             HistoryRequest::Boundary {} => self.doc.reset_history_group(),
@@ -965,9 +991,15 @@ impl Bridge {
             }
         }
         let h = self.doc.history_state();
-        Ok(
-            json!({"revision":self.doc.revision(), "undoGroups":h.undo_groups, "redoGroups":h.redo_groups, "retainedUpdateBytes":h.retained_update_bytes}),
-        )
+        let mut result = json!({"revision":self.doc.revision(), "undoGroups":h.undo_groups, "redoGroups":h.redo_groups, "retainedUpdateBytes":h.retained_update_bytes});
+        if let Some(selection) = selection {
+            let anchor = self.token("anchor")?;
+            let focus = self.token("anchor")?;
+            self.anchors.insert(anchor.clone(), selection.anchor);
+            self.anchors.insert(focus.clone(), selection.focus);
+            result["selection"] = json!({"anchor":anchor, "focus":focus});
+        }
+        Ok(result)
     }
     #[cfg(test)]
     pub(super) fn doc_state(&self) -> (Vec<u8>, u64, editac_core::history::HistoryState) {
@@ -1221,5 +1253,49 @@ mod atomic_selection_tests {
         assert!(b.commit(plan["token"].as_str().unwrap()).is_err());
         assert_eq!(b.doc_state(), old);
         assert_eq!(b.anchor_slots(), 0);
+    }
+}
+
+#[cfg(test)]
+mod history_selection_tests {
+    use super::*;
+    #[test]
+    fn history_tokens_and_capacity_rejection_preserve_native_bookmarks() {
+        let mut b = Bridge::create(&json!({"profile":"v5","documentId":"42300000-0000-4000-8000-000000000001","epoch":"42300000-0000-4000-9000-000000000001","nodes":[{"text":"abcdef"}]}).to_string()).unwrap();
+        let node = b.doc.snapshot().unwrap().visible[0].id.clone();
+        let p = b.prepare(&json!({"kind":"editor","origin":"test:history","commands":[
+            {"type":"historySelectionAt","anchor":{"owner":node,"offset":5,"bias":"left"},"focus":{"owner":node,"offset":2,"bias":"right"}},
+            {"type":"replaceAt","owner":node,"from":1,"to":5,"text":"X"},
+            {"type":"selectionAt","anchor":{"owner":node,"offset":2,"bias":"right"},"focus":{"owner":node,"offset":1,"bias":"left"}}
+        ]}).to_string()).unwrap();
+        b.commit(p["token"].as_str().unwrap()).unwrap();
+        b.anchors.clear();
+        for _ in 0..MAX_ANCHORS - 1 {
+            b.capture(&json!({"node":node,"offset":0,"bias":"left"}).to_string())
+                .unwrap();
+        }
+        let before = b.doc_state();
+        assert!(b.history("{\"type\":\"undo\"}").is_err());
+        assert_eq!(b.doc_state(), before);
+        b.anchors.clear();
+        b.counter = u32::MAX - 1;
+        assert!(b.history("{\"type\":\"undo\"}").is_err());
+        assert_eq!(b.doc_state(), before);
+        b.counter = 0;
+        for (action, cuts) in [
+            ("undo", [(5, "left"), (2, "right")]),
+            ("redo", [(2, "right"), (1, "left")]),
+        ] {
+            let result = b.history(&json!({"type":action}).to_string()).unwrap();
+            for (key, (offset, bias)) in ["anchor", "focus"].into_iter().zip(cuts) {
+                let token = result["selection"][key].as_str().unwrap();
+                let position = b.resolve(token).unwrap();
+                assert_eq!(position["node"], node);
+                assert_eq!(position["offset"], offset);
+                assert_eq!(position["bias"], bias);
+                b.release_anchor(token);
+            }
+            assert_eq!(b.anchor_slots(), 0);
+        }
     }
 }

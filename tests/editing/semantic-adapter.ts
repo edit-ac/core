@@ -4,10 +4,10 @@ import { EditingDriver, type DriverResult } from './driver.ts';
 import type { Action, State, Selection, Position } from './fixture-loader.ts';
 
 export class MissingCapabilityError extends Error {}
-export const semanticCapabilities = new Set(['compound-edit', 'result-selection', 'hard-break', 'utf16', 'range-format', 'pending-marks', 'atomic-rejection', 'multi-block-replace', 'grapheme-delete', 'boundary-noop', 'history']);
+export const semanticCapabilities = new Set(['compound-edit', 'result-selection', 'hard-break', 'utf16', 'range-format', 'pending-marks', 'atomic-rejection', 'multi-block-replace', 'grapheme-delete', 'boundary-noop', 'history', 'semantic-history']);
 export const semanticActions = new Set(['insertText', 'insertParagraph', 'insertHardBreak', 'toggleMark', 'setSelection', 'applyBatch', 'backspace', 'deleteForward', 'undo', 'redo', 'pasteFragment']);
 const markNames: MarkCommand['mark'][] = ['bold', 'italic', 'strike', 'underline', 'code', 'link'];
-export const semanticProfile = Object.freeze({ name: 'rgs-semantic-v1', engine: 'v5', capabilities: [...semanticCapabilities], actions: [...semanticActions], historySelection: 'unsupported', persistence: 'unattached', graphemes: 'pinned Node ICU prepared command targets; matching native Unicode vectors' });
+export const semanticProfile = Object.freeze({ name: 'rgs-semantic-v1', engine: 'v5', capabilities: [...semanticCapabilities], actions: [...semanticActions], historySelection: 'native entry/result relative bookmarks', persistence: 'unattached', graphemes: 'pinned Node ICU prepared command targets; matching native Unicode vectors' });
 
 /** Test adapter over public qualified operations. It never reads expected state. */
 export class SemanticDriver extends EditingDriver {
@@ -63,10 +63,13 @@ export class SemanticDriver extends EditingDriver {
     if (result.caret) this.engine.releaseAnchor(result.caret);
     if (result.selection) { this.engine.releaseAnchor(result.selection.anchor); this.engine.releaseAnchor(result.selection.focus); }
   }
-  private position(p: Position) { return { owner: this.ids.get(p.block) ?? p.block, offset: p.offset, bias: this.selection.affinity === 'backward' ? 'left' as const : 'right' as const }; }
-  private resultSelection(s: Selection): EditorCommand { return { type: 'selectionAt', anchor: this.position(s.anchor), focus: this.position(s.focus) }; }
+  private position(p: Position, affinity = this.selection.affinity) { return { owner: this.ids.get(p.block) ?? p.block, offset: p.offset, bias: affinity === 'backward' ? 'left' as const : 'right' as const }; }
+  private resultSelection(s: Selection): EditorCommand { return { type: 'selectionAt', anchor: this.position(s.anchor, s.affinity), focus: this.position(s.focus, s.affinity) }; }
   private collapsed(offset: number, block = this.selection.anchor.block): Selection { return { anchor: { block, offset }, focus: { block, offset }, affinity: this.selection.affinity }; }
   private commit(request: PrepareRequest, resultAffinity = this.selection.affinity): DriverResult {
+    if (request.kind === 'editor') request = { ...request, commands: [
+      { type: 'historySelectionAt', anchor: this.position(this.selection.anchor), focus: this.position(this.selection.focus) }, ...request.commands,
+    ] };
     const before = this.frozen(); let events = 0; let plan: ReturnType<EngineHandle['prepare']> | undefined;
     const subscription = this.engine.subscribe({ type: 'updates' }, () => events++);
     try {
@@ -109,9 +112,26 @@ export class SemanticDriver extends EditingDriver {
       return this.result('selection-only', 0);
     }
     if (action.type === 'undo' || action.type === 'redo') {
-      const history = this.engine.history({ type: 'state' });
-      if (action.type === 'undo' ? history.undoGroups : history.redoGroups) throw new MissingCapabilityError('History selection bookmark/result port is absent; do not restore a fabricated driver selection');
-      const before = this.frozen(); this.engine.history({ type: action.type }); assert.deepEqual(this.frozen(), before); return this.result('no-op', 0);
+      const before = this.frozen(); let events = 0;
+      const subscription = this.engine.subscribe({ type: 'updates' }, () => events++);
+      try {
+        const result = this.engine.history({ type: action.type });
+        if (result.selection) {
+          try {
+            const points = [result.selection.anchor, result.selection.focus].map(token => {
+              const p = this.engine.resolve(token); assert.equal(p.type, 'position');
+              if (p.type !== 'position') throw new Error('Missing mapped history endpoint');
+              const block = [...this.ids].find(([, id]) => id === p.node)?.[0]; assert.ok(block);
+              return { block, offset: p.offset, bias: p.bias };
+            });
+            assert.equal(points[0].bias, points[1].bias, 'semantic profile shares endpoint affinity');
+            this.selection = { anchor: { block: points[0].block, offset: points[0].offset }, focus: { block: points[1].block, offset: points[1].offset }, affinity: points[0].bias === 'left' ? 'backward' : 'forward' };
+            this.pendingMarks = null;
+          } finally { this.engine.releaseAnchor(result.selection.anchor); this.engine.releaseAnchor(result.selection.focus); }
+        } else if (result.revision !== before.snapshot.revision) throw new MissingCapabilityError('History action lacks native selection bookmark');
+        assert.equal(events, result.revision === before.snapshot.revision ? 0 : 1);
+        return this.result(result.revision === before.snapshot.revision ? 'no-op' : 'applied', events);
+      } finally { subscription.dispose(); }
     }
     if (action.type === 'applyBatch') {
       return this.applyBatch(action);
@@ -173,7 +193,7 @@ export class SemanticDriver extends EditingDriver {
     return this.commit({ kind: 'editor', origin: 'local:rgs:batch', commands }, selection?.affinity ?? this.selection.affinity);
   }
   private paste(blocks: FragmentBlock[], newIds?: string[]): DriverResult {
-    const anchors = [this.selection.anchor, this.selection.focus].map(p => this.engine.anchor(this.id(p.block), p.offset, 'right'));
+    const anchors = [this.selection.anchor, this.selection.focus].map(p => this.engine.anchor(this.id(p.block), p.offset, this.selection.affinity === 'backward' ? 'left' : 'right'));
     let plan: ReturnType<EngineHandle['prepare']> | undefined, caret: ReturnType<EngineHandle['anchor']> | undefined;
     const before = this.frozen(); let events = 0; const subscription = this.engine.subscribe({ type: 'updates' }, () => events++);
     try {
@@ -189,7 +209,7 @@ export class SemanticDriver extends EditingDriver {
       const p = this.engine.resolve(caret ?? anchors[1]); assert.equal(p.type, 'position');
       if (p.type !== 'position') throw new Error('Fragment result did not resolve');
       const alias = [...this.ids].find(([, id]) => id === p.node)?.[0]; assert.ok(alias);
-      this.selection = this.collapsed(p.offset, alias); assert.equal(events, 1);
+      this.selection = { ...this.collapsed(p.offset, alias), affinity: p.bias === 'left' ? 'backward' : 'forward' }; assert.equal(events, 1);
       return this.result('applied', events);
     } finally { subscription.dispose(); if (plan) this.engine.releasePlan(plan); if (caret) this.engine.releaseAnchor(caret); anchors.forEach(a => this.engine.releaseAnchor(a)); }
   }

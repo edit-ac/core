@@ -69,8 +69,8 @@ export class EditingDriver {
     const subscription = this.engine.subscribe({ type: 'updates' }, () => publications++);
     try {
       // Preserve invalid action arguments: engine anchors/prepare reject them, not the loader.
-      const anchor = this.engine.anchor(this.id(a.block), a.offset, 'right'); anchors.push(anchor);
-      const focus = this.engine.anchor(this.id(f.block), f.offset, 'right'); anchors.push(focus);
+      const anchor = this.engine.anchor(this.id(a.block), a.offset, this.selection.affinity === 'backward' ? 'left' : 'right'); anchors.push(anchor);
+      const focus = this.engine.anchor(this.id(f.block), f.offset, this.selection.affinity === 'backward' ? 'left' : 'right'); anchors.push(focus);
       const range = { anchor, focus };
       if (action.type === 'insertParagraph' && (!action.newBlockId || this.ids.has(action.newBlockId))) throw new Error('Missing/duplicate newBlockId');
       if (action.type === 'insertText' && typeof action.text !== 'string') throw new Error('Missing insertion text');
@@ -92,7 +92,7 @@ export class EditingDriver {
       }
       const alias = [...this.ids].find(([, id]) => id === position.node)?.[0];
       if (!alias) throw new Error(`Unbound caret ID: ${position.node}`);
-      this.selection = { anchor: { block: alias, offset: position.offset }, focus: { block: alias, offset: position.offset }, affinity: this.selection.affinity };
+      this.selection = { anchor: { block: alias, offset: position.offset }, focus: { block: alias, offset: position.offset }, affinity: position.bias === 'left' ? 'backward' : 'forward' };
       return { outcome: result.revision === before.revision ? 'no-op' : 'applied', state: this.snapshot(), effects: { localCommits: publications, remoteCommits: 0 }, revision: result.revision };
     } finally {
       subscription.dispose(); if (plan) this.engine.releasePlan(plan); if (caret) this.engine.releaseAnchor(caret);

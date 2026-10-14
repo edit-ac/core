@@ -11,7 +11,7 @@ import { qualifiedVectorIds, runAtomicVector } from './atomic-vector-oracle.mjs'
 const suite = loadSuite();
 const vectors = JSON.parse(await readFile(new URL('../../fixtures/editing-failures/semantic-vectors.json', import.meta.url)));
 const output = process.env.EDITAC_EDITING_OUTPUT;
-const facts = { layer: 'real packed-WASM semantic prepared operations', profile: semanticProfile, fixtureHashes: suite.hashes, cases: [], recipes: [], negativeControls: [], bindings: suite.recipes.map(r => capabilityBinding(r, semanticCapabilities, semanticActions)), exclusions: ['No attached journal/persistence port', 'No native gesture or device claim', 'History selection and alignment remain missing capabilities'] };
+const facts = { layer: 'real packed-WASM semantic prepared operations', profile: semanticProfile, fixtureHashes: suite.hashes, cases: [], recipes: [], negativeControls: [], bindings: suite.recipes.map(r => capabilityBinding(r, semanticCapabilities, semanticActions)), exclusions: ['No attached journal/persistence port', 'No native gesture or device claim', 'Alignment remains a missing capability; history uses native bookmarks'] };
 let pack, runtime;
 before(async () => { assert.ok(output, 'EDITAC_EDITING_OUTPUT must be a fresh evidence directory'); pack = await packedRuntime(process.env.EDITAC_EDITING_PACK_TARBALL); runtime = pack.runtime; });
 after(async () => {
@@ -114,5 +114,31 @@ caseTest('REG-07 separated pre fragments retain literal whitespace in code and e
   });
 });
 caseTest('RGS-1.2 outstanding original REG-05/07/13 contracts are explicit', () => {
-  throw new MissingCapabilityError('REG-05 alignment/preceding-rule-or-atom variants, REG-07 selected text/code paste + undo selection remain unqualified; atomic primitive evidence does not close them');
+  throw new MissingCapabilityError('REG-05 alignment/preceding-rule-or-atom pending lifecycle remains unqualified (UPG-1.3/C4); qualified C2/C3 results do not close that original gate');
+});
+
+caseTest('C3/G03 native packed bookmark rebase, affinity and rejection controls', fact => {
+  for (const affinity of ['forward', 'backward']) driver({ blocks: [block('p1', 'abcdef')], selection: select(5, 2, affinity), pendingMarks: null }, d => {
+    const owner = d.ids.get('p1');
+    const expected = { outcome: 'applied', effects: { localCommits: 1, remoteCommits: 0 }, state: { blocks: [block('p1', 'aXf')], selection: select(2, 1, affinity), pendingMarks: null } };
+    assertCheckpoint(d.act({ type: 'applyBatch', operations: [{ type: 'replaceText', block: 'p1', from: 1, to: 5, text: 'X' }], resultSelection: select(2, 1, affinity) }), expected); fact.checkpoints++;
+    const cp = d.engine.checkpoint(); const remote = runtime.restoreEngine(cp.identity, cp);
+    try {
+      const vector = d.engine.stateVector(); const plan = remote.prepare({ kind: 'editor', origin: 'remote:c3', commands: [{ type: 'replaceAt', owner, from: 0, to: 0, text: 'R' }] });
+      try { remote.commit(plan); } finally { remote.releasePlan(plan); }
+      d.engine.applyUpdate(remote.encodeUpdate(vector));
+    } finally { remote.dispose(); }
+    for (let round = 0; round < 3; round++) {
+      const undo = { outcome: 'applied', effects: { localCommits: 1, remoteCommits: 0 }, state: { blocks: [block('p1', 'Rabcdef')], selection: select(6, 3, affinity), pendingMarks: null } };
+      const actual = d.act({ type: 'undo' }); assertCheckpoint(actual, undo); fact.checkpoints++;
+      for (const [id, corrupt] of [['C3-direction', e => { e.state.selection.anchor.offset = 3; e.state.selection.focus.offset = 6; }], ['C3-affinity', e => { e.state.selection.affinity = affinity === 'forward' ? 'backward' : 'forward'; }]]) {
+        const invalid = structuredClone(undo); corrupt(invalid); assert.throws(() => assertCheckpoint(actual, invalid), assert.AssertionError); facts.negativeControls.push(id); fact.checkpoints++;
+      }
+      assertCheckpoint(d.act({ type: 'redo' }), { ...expected, state: { ...expected.state, blocks: [block('p1', 'RaXf')], selection: select(3, 2, affinity) } }); fact.checkpoints++;
+    }
+    const before = d.frozen();
+    assert.equal(d.engine.can({ kind: 'editor', origin: 'reject:c3', commands: [{ type: 'historySelectionAt', anchor: { owner, offset: 99, bias: 'left' }, focus: { owner, offset: 0, bias: 'right' } }, { type: 'replaceAt', owner, from: 0, to: 1, text: 'bad' }] }), false);
+    assert.deepEqual(d.frozen(), before); fact.checkpoints++;
+    assertCheckpoint(d.act({ type: 'insertText', text: 'S' }), { outcome: 'applied', effects: { localCommits: 1, remoteCommits: 0 }, state: { blocks: [block('p1', 'RaSf')], selection: select(3, 3, affinity), pendingMarks: null } }); fact.checkpoints++;
+  });
 });

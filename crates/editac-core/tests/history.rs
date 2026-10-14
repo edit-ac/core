@@ -1073,3 +1073,372 @@ fn concurrent_separator_presentation_blocks_incompatible_undo_before_live_mutati
     undone(&mut d);
     assert_eq!(text(&d, D), "original");
 }
+
+fn bookmark_position(owner: &str, offset: u32, bias: Bias) -> EditorPosition {
+    EditorPosition {
+        owner: owner.into(),
+        offset: U(offset),
+        bias,
+    }
+}
+fn bookmark_cuts(
+    d: &Document,
+    s: &editac_core::anchors::Selection,
+) -> (String, u32, Bias, String, u32, Bias) {
+    let s = d.resolve_selection(s).unwrap();
+    let (Resolution::Position(a), Resolution::Position(f)) = (s.anchor, s.focus) else {
+        panic!("bookmark must resolve")
+    };
+    (a.node, a.offset.0, a.bias, f.node, f.offset.0, f.bias)
+}
+#[test]
+fn history_bookmarks_restore_deleted_backward_range_and_result_affinity() {
+    for bias in [Bias::Left, Bias::Right] {
+        let mut d = engine();
+        edit(
+            &mut d,
+            &[
+                EditorCommand::HistorySelectionAt {
+                    anchor: bookmark_position(A, 3, bias),
+                    focus: bookmark_position(A, 1, bias),
+                },
+                EditorCommand::ReplaceAt {
+                    owner: A.into(),
+                    from: U(1),
+                    to: U(3),
+                    text: "X".into(),
+                },
+                EditorCommand::SelectionAt {
+                    anchor: bookmark_position(A, 2, bias),
+                    focus: bookmark_position(A, 2, bias),
+                },
+            ],
+        );
+        assert_eq!(text(&d, A), "aXb");
+        assert_eq!(d.history_state().undo_groups, 1);
+        let undo = d.undo().unwrap().unwrap();
+        assert_eq!(text(&d, A), "a😀b");
+        assert_eq!(
+            bookmark_cuts(&d, &undo.selection.unwrap()),
+            (A.into(), 3, bias, A.into(), 1, bias)
+        );
+        let redo = d.redo().unwrap().unwrap();
+        assert_eq!(text(&d, A), "aXb");
+        assert_eq!(
+            bookmark_cuts(&d, &redo.selection.unwrap()),
+            (A.into(), 2, bias, A.into(), 2, bias)
+        );
+        insert(&mut d, A, 2, "S");
+        assert_eq!(text(&d, A), "aXSb");
+    }
+}
+
+#[test]
+fn history_bookmarks_rebase_both_endpoints_and_preserve_repeated_roundtrips() {
+    for bias in [Bias::Left, Bias::Right] {
+        let mut d = engine();
+        replace(&mut d, A, 0, 4, "abcdef");
+        d.clear_history();
+        edit(
+            &mut d,
+            &[
+                EditorCommand::HistorySelectionAt {
+                    anchor: bookmark_position(A, 5, bias),
+                    focus: bookmark_position(A, 2, bias),
+                },
+                EditorCommand::ReplaceAt {
+                    owner: A.into(),
+                    from: U(1),
+                    to: U(5),
+                    text: "X".into(),
+                },
+                EditorCommand::SelectionAt {
+                    anchor: bookmark_position(A, 2, bias),
+                    focus: bookmark_position(A, 1, bias),
+                },
+            ],
+        );
+        let mut remote = restore(&d.checkpoint().bytes);
+        let update = insert(&mut remote, A, 0, "R");
+        d.apply_replay(&update).unwrap();
+        assert_eq!(text(&d, A), "RaXf");
+        for _ in 0..3 {
+            let u = d.undo().unwrap().unwrap();
+            assert_eq!(text(&d, A), "Rabcdef");
+            assert_eq!(
+                bookmark_cuts(&d, &u.selection.unwrap()),
+                (A.into(), 6, bias, A.into(), 3, bias)
+            );
+            let r = d.redo().unwrap().unwrap();
+            assert_eq!(text(&d, A), "RaXf");
+            assert_eq!(
+                bookmark_cuts(&d, &r.selection.unwrap()),
+                (A.into(), 3, bias, A.into(), 2, bias)
+            );
+        }
+        insert(&mut d, A, 3, "S");
+        assert_eq!(text(&d, A), "RaXSf");
+    }
+}
+
+#[test]
+fn history_bookmark_admission_and_metadata_only_batches_are_atomic() {
+    let mut d = engine();
+    let before = (d.checkpoint().bytes, d.revision(), d.history_state());
+    let entry = EditorCommand::HistorySelectionAt {
+        anchor: bookmark_position(A, 3, Bias::Left),
+        focus: bookmark_position(A, 1, Bias::Right),
+    };
+    for cmds in [
+        vec![EditorCommand::HistorySelectionAt {
+            anchor: bookmark_position(A, 2, Bias::Left),
+            focus: bookmark_position(A, 1, Bias::Right),
+        }],
+        vec![
+            entry.clone(),
+            EditorCommand::ReplaceAt {
+                owner: A.into(),
+                from: U(1),
+                to: U(3),
+                text: "X".into(),
+            },
+            EditorCommand::SelectionAt {
+                anchor: bookmark_position(A, 99, Bias::Left),
+                focus: bookmark_position(A, 1, Bias::Right),
+            },
+        ],
+        vec![
+            EditorCommand::ReplaceAt {
+                owner: A.into(),
+                from: U(1),
+                to: U(3),
+                text: "X".into(),
+            },
+            entry.clone(),
+        ],
+    ] {
+        assert!(d.prepare_editor(&cmds, &origin()).is_err());
+        assert_eq!(
+            (d.checkpoint().bytes, d.revision(), d.history_state()),
+            before
+        );
+    }
+    let plan = d.prepare_editor(&[entry], &origin()).unwrap();
+    let commit = d.commit_editor(plan).unwrap();
+    assert_eq!(commit.revision, before.1);
+    assert_eq!(
+        (d.checkpoint().bytes, d.revision(), d.history_state()),
+        before
+    );
+    assert!(d.undo().unwrap().is_none());
+}
+
+#[test]
+fn original_seq13_seq14_fragment_history_restores_backward_entry_and_sentinel() {
+    use editac_core::document::BlockAttributes;
+    for hard_break in [false, true] {
+        for bias in [Bias::Left, Bias::Right] {
+            let mut d = engine();
+            replace(&mut d, A, 0, 4, "abcd");
+            d.clear_history();
+            let entry = d.selection((A, U(3), bias), (A, U(1), bias)).unwrap();
+            let empty = || FragmentBlock {
+                runs: vec![],
+                attributes: Some(BlockAttributes::Paragraph),
+                containers: vec![],
+                checked: None,
+            };
+            let blocks = if hard_break {
+                vec![FragmentBlock {
+                    runs: vec![FragmentRun {
+                        text: "\n".into(),
+                        marks: vec![],
+                    }],
+                    ..empty()
+                }]
+            } else {
+                vec![empty(), empty()]
+            };
+            let plan = d.prepare_fragment(&entry, &blocks, &origin()).unwrap();
+            let result = d.commit_editor(plan).unwrap();
+            let Resolution::Position(p) = d.resolve_anchor(&result.result_caret.unwrap()).unwrap()
+            else {
+                panic!()
+            };
+            let destination = p.node;
+            assert_eq!(p.offset.0, if hard_break { 2 } else { 0 });
+            assert_eq!(p.bias, Bias::Right);
+            assert_eq!(text(&d, A), if hard_break { "a\nd" } else { "a" });
+            let u = d.undo().unwrap().unwrap();
+            assert_eq!(text(&d, A), "abcd");
+            assert_eq!(
+                bookmark_cuts(&d, &u.selection.unwrap()),
+                (A.into(), 3, bias, A.into(), 1, bias)
+            );
+            let r = d.redo().unwrap().unwrap();
+            assert_eq!(
+                bookmark_cuts(&d, &r.selection.unwrap()),
+                (
+                    destination.clone(),
+                    if hard_break { 2 } else { 0 },
+                    Bias::Right,
+                    destination.clone(),
+                    if hard_break { 2 } else { 0 },
+                    Bias::Right
+                )
+            );
+            insert(&mut d, &destination, if hard_break { 2 } else { 0 }, "X");
+            assert_eq!(
+                text(&d, &destination),
+                if hard_break { "a\nXd" } else { "Xd" }
+            );
+        }
+    }
+}
+
+#[test]
+fn original_seq03_format_history_returns_range_after_selection_move() {
+    let mut d = engine();
+    replace(&mut d, A, 0, 4, "abcd");
+    d.clear_history();
+    edit(
+        &mut d,
+        &[
+            EditorCommand::HistorySelectionAt {
+                anchor: bookmark_position(A, 1, Bias::Right),
+                focus: bookmark_position(A, 3, Bias::Right),
+            },
+            EditorCommand::MarkAt {
+                owner: A.into(),
+                from: U(1),
+                to: U(3),
+                mark: Mark::Bold,
+                action: FormatAction::Toggle,
+                href: None,
+            },
+            EditorCommand::SelectionAt {
+                anchor: bookmark_position(A, 1, Bias::Right),
+                focus: bookmark_position(A, 3, Bias::Right),
+            },
+        ],
+    );
+    d.selection((A, U(4), Bias::Right), (A, U(4), Bias::Right))
+        .unwrap();
+    let u = d.undo().unwrap().unwrap();
+    assert_eq!(text(&d, A), "abcd");
+    assert_eq!(
+        bookmark_cuts(&d, &u.selection.unwrap()),
+        (A.into(), 1, Bias::Right, A.into(), 3, Bias::Right)
+    );
+    assert!(
+        d.snapshot()
+            .unwrap()
+            .visible
+            .iter()
+            .find(|n| n.id == A)
+            .unwrap()
+            .runs
+            .iter()
+            .all(|r| r.attributes.is_empty())
+    );
+    let r = d.redo().unwrap().unwrap();
+    assert_eq!(
+        bookmark_cuts(&d, &r.selection.unwrap()),
+        (A.into(), 1, Bias::Right, A.into(), 3, Bias::Right)
+    );
+    let runs = d
+        .snapshot()
+        .unwrap()
+        .visible
+        .iter()
+        .find(|n| n.id == A)
+        .unwrap()
+        .runs
+        .clone();
+    assert_eq!(
+        runs.iter()
+            .filter(|r| r.attributes.contains_key("bold"))
+            .map(|r| r.text.as_str())
+            .collect::<String>(),
+        "bc"
+    );
+}
+
+#[test]
+fn original_seq07_cross_owner_history_restores_both_source_endpoints() {
+    for bias in [Bias::Left, Bias::Right] {
+        let mut d = engine();
+        replace(&mut d, A, 0, 4, "abc");
+        replace(&mut d, B, 0, 4, "def");
+        d.clear_history();
+        let before = d.snapshot().unwrap().visible;
+        let entry = d.selection((B, U(2), bias), (A, U(1), bias)).unwrap();
+        let plan = d
+            .prepare_fragment(
+                &entry,
+                &[FragmentBlock {
+                    runs: vec![],
+                    attributes: None,
+                    containers: vec![],
+                    checked: None,
+                }],
+                &origin(),
+            )
+            .unwrap();
+        let c = d.commit_editor(plan).unwrap();
+        assert_eq!(text(&d, A), "af");
+        let Resolution::Position(caret) = d.resolve_anchor(&c.result_caret.unwrap()).unwrap()
+        else {
+            panic!()
+        };
+        assert_eq!(
+            (caret.node.as_str(), caret.offset.0, caret.bias),
+            (A, 1, Bias::Right)
+        );
+        let u = d.undo().unwrap().unwrap();
+        assert_eq!(d.snapshot().unwrap().visible, before);
+        assert_eq!(
+            bookmark_cuts(&d, &u.selection.unwrap()),
+            (B.into(), 2, bias, A.into(), 1, bias)
+        );
+    }
+}
+
+#[test]
+fn history_bookmark_remote_owner_removal_rejects_before_mutation() {
+    let mut d = engine();
+    edit(
+        &mut d,
+        &[
+            EditorCommand::HistorySelectionAt {
+                anchor: bookmark_position(A, 3, Bias::Left),
+                focus: bookmark_position(A, 1, Bias::Right),
+            },
+            EditorCommand::ReplaceAt {
+                owner: A.into(),
+                from: U(1),
+                to: U(3),
+                text: "X".into(),
+            },
+            EditorCommand::SelectionAt {
+                anchor: bookmark_position(A, 2, Bias::Left),
+                focus: bookmark_position(A, 2, Bias::Right),
+            },
+        ],
+    );
+    let mut remote = restore(&d.checkpoint().bytes);
+    let update = edit(
+        &mut remote,
+        &[EditorCommand::Enable {
+            target: A.into(),
+            enabled: false,
+        }],
+    );
+    d.apply_replay(&update).unwrap();
+    let before = (d.checkpoint().bytes, d.revision(), d.history_state());
+    assert!(matches!(d.undo(), Err(HistoryError::ConcurrentConflict)));
+    assert_eq!(
+        (d.checkpoint().bytes, d.revision(), d.history_state()),
+        before
+    );
+}

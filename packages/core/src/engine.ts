@@ -20,7 +20,7 @@ export interface MoveTarget { id: string; version: string }
 export type EditorCommand =
   | { type: "replaceAt"; owner: string; from: number; to: number; text: string }
   | { type: "markAt"; owner: string; from: number; to: number; mark: MarkCommand["mark"]; action: FormatAction; href?: string | null }
-  | { type: "selectionAt"; anchor: EditorPosition; focus: EditorPosition }
+  | { type: "selectionAt" | "historySelectionAt"; anchor: EditorPosition; focus: EditorPosition }
   | { type: "tableCell"; owner: string; expected: Json; row: number; column: number; text: string }
   | { type: "insert"; at: AnchorToken; text: string }
   | { type: "delete"; range: StableRange }
@@ -86,7 +86,7 @@ export type HistoryRequest =
   | { type: "state" | "undo" | "redo" | "clear" | "boundary" | "explicit" }
   | { type: "typing"; session: number; time_ms: number }
   | { type: "composition"; session: number };
-export interface HistoryState { revision: number; undoGroups: number; redoGroups: number; retainedUpdateBytes: number }
+export interface HistoryState { selection?: StableRange; revision: number; undoGroups: number; redoGroups: number; retainedUpdateBytes: number }
 export type DocumentIdentity = Snapshot["identity"];
 /** Persist the envelope atomically with these owned v1 bytes. Writer is provenance. */
 export interface Checkpoint { identity: DocumentIdentity; initialized: true; writerId: number; bytes: Uint8Array }
