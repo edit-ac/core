@@ -1,3 +1,4 @@
+import { editingPackedCache } from './editing-packed-cache.mjs';
 import assert from 'node:assert/strict';
 import { before, after } from 'node:test';
 import { spawnSync } from 'node:child_process';
@@ -42,7 +43,7 @@ export function browserHarness(suite, fixtureDirectory = 'fixtures/browser-input
     consumer = await mkdtemp(join(tmpdir(), `editac-${suite}-consumer-`));
     for (const name of [...new Set([...(options.packages ?? ['core', 'web']), ...(markdownEnabled ? ['markdown'] : [])])]) {
       const directory = join(consumer, name); await mkdir(directory);
-      const pack = JSON.parse(await run('npm', ['pack', '--workspace', `@edit-ac/${name}`, '--json', '--pack-destination', directory], `pack-${name}.log`))[0];
+      const pack = await editingPackedCache(name,directory) ?? JSON.parse(await run('npm', ['pack', '--workspace', `@edit-ac/${name}`, '--json', '--pack-destination', directory], `pack-${name}.log`))[0];
       const bytes = await readFile(join(directory, pack.filename));
       await writeFile(join(output, pack.filename), bytes);
       facts.packs.push({ name, file: pack.filename, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') });

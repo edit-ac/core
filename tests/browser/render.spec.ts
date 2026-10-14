@@ -1,3 +1,4 @@
+import { editingPackedCache } from './editing-packed-cache.mjs';
 import assert from 'node:assert/strict';
 import { test, before, after } from 'node:test';
 import { spawnSync } from 'node:child_process';
@@ -25,7 +26,7 @@ async function run(command, args, cwd, log) {
 }
 before(async () => {
   consumer = await mkdtemp(join(tmpdir(), 'editac-render-consumer-'));
-  const packed = JSON.parse(await run('npm', ['pack', '--workspace', '@edit-ac/core', '--json', '--pack-destination', consumer],
+  const packed = await editingPackedCache('core',consumer) ?? JSON.parse(await run('npm', ['pack', '--workspace', '@edit-ac/core', '--json', '--pack-destination', consumer],
     process.cwd(), 'pack.log'))[0];
   const tarball = await readFile(join(consumer, packed.filename));
   await writeFile(join(output, packed.filename), tarball);

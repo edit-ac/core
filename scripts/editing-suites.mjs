@@ -41,11 +41,13 @@ const selected = {
   'remaining-atomic-vector-storage': semantic[18],
 };
 export const caseSelectors = Object.freeze(Object.keys(selected));
+export const runtimeGroups = Object.freeze(['fixtures', 'semantic', 'history', 'properties', 'failures', 'input', 'presenters']);
 export function editingSuites(group, selector) {
   if (selector !== undefined) {
     if (group !== 'semantic' || !Object.hasOwn(selected, selector)) throw new Error('Unqualified editing selector');
     return [selected[selector]];
   }
+  if (group === 'all') return [...new Set(runtimeGroups.flatMap(group => editingSuites(group)))];
   if (group === 'semantic') return [...semantic];
   if (group === 'fixtures') return ['tests/editing/fixture-loader.test.mjs'];
   if (group === 'presenters') return ['tests/browser/editing-presenters.spec.ts'];

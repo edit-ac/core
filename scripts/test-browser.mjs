@@ -53,7 +53,7 @@ for (const engine of engines) {
     }
     console.log(`${suite} browser: ${engine}`);
   }
-  const result = spawnSync(process.execPath, ['--test', ...(suite === 'baseline' ? ['--test-concurrency=1', '--test-reporter=tap'] : []), ...options, ...suites[suite]], { stdio: 'inherit', env });
+  const result = spawnSync(process.execPath, ['--test', ...(suite === 'baseline' ? ['--test-concurrency=1'] : []), ...(suite === 'baseline' || process.env.EDITAC_EDITING_ALL_OUTPUT ? ['--test-reporter=tap'] : []), ...options, ...suites[suite]], { stdio: 'inherit', env });
   if (result.error) throw result.error;
   if (result.status !== 0) process.exitCode = result.status ?? 1;
 }

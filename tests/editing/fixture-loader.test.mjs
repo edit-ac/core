@@ -11,8 +11,8 @@ import { loadSuite, assertRecipe, groupIds, capabilityBinding } from './fixture-
 import { EditingDriver, FixedClock, assertCheckpoint, replay, capabilities, supportedActions, profile } from './driver.ts';
 
 const suite = loadSuite();
-const output = resolve('../architecture/evidence/editing-regression-suite/rgs-1.1');
-const pack = resolve('../architecture/evidence/browser-size-optimization/compound-order-2/default/edit-ac-core-0.0.0.tgz');
+const output = resolve(process.env.EDITAC_EDITING_OUTPUT ?? '../architecture/evidence/editing-regression-suite/rgs-1.1');
+const pack = resolve(process.env.EDITAC_EDITING_PACK_TARBALL ?? '../architecture/evidence/browser-size-optimization/compound-order-2/default/edit-ac-core-0.0.0.tgz');
 const facts = { layer: 'packed-engine-contract', corpusBinding: 'corpus-only', profile, fixtureHashes: suite.hashes,
   bindings: suite.recipes.map(r => capabilityBinding(r, capabilities, supportedActions)), recipes: [], checkpoints: [], negativeControls: [], catalogs: suite.catalogs, variantPolicies: suite.variantPolicies,
   exclusions: ['Full semantic/history recipe qualification belongs to RGS-1.2/1.3', 'Browser/native/device evidence is not executed here'] };
@@ -135,8 +135,8 @@ test('deterministic clock never moves backwards and disposal is explicit', () =>
   assert.throws(() => driver.act({ type: 'insertText', text: 'X' }), /Disposed/);
 });
 
-test('group command rejects unknown and unimplemented suites instead of zero-test success', async () => {
-  for (const group of ['fabricated', 'history']) {
+test('group command rejects unknown suites instead of zero-test success', async () => {
+  for (const group of ['fabricated', 'unqualified-future']) {
     const result = spawnSync(process.execPath, ['scripts/test-editing.mjs', '--group', group], { encoding: 'utf8' });
     assert.equal(result.status, 1); assert.match(result.stderr, /Unknown|no qualified runtime suite/);
     await writeFile(join(output, `dispatcher-${group}.log`), result.stdout + result.stderr);

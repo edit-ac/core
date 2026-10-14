@@ -1,0 +1,10 @@
+import { resolve, join } from 'node:path';
+import { writeFileSync } from 'node:fs';
+import { json, verifyCoverage } from './editing-coverage.mjs';
+const args=process.argv.slice(2);
+if(args.length!==2||args[0]!=='--profile'||args[1]!=='infrastructure')throw Error('Usage: node scripts/check-editing-coverage.mjs --profile infrastructure');
+if(!process.env.EDITAC_EDITING_ALL_OUTPUT)throw Error('EDITAC_EDITING_ALL_OUTPUT must identify actual all-group evidence');
+const directory=resolve(process.env.EDITAC_EDITING_ALL_OUTPUT);
+const report=verifyCoverage(json(join(directory,'execution.json')),{root:resolve('.'),directory});
+writeFileSync(join(directory,'coverage.json'),JSON.stringify(report,null,2)+'\n');
+console.log(`PASS: ${report.recipes.length} recipes / ${report.regressions.length} regressions / ${report.guards.length} guards; ${report.catalogs.length} catalog rows retain unqualified variants; releaseQualified=false`);
