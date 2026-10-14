@@ -77,3 +77,29 @@ test('unknown labels copy as plain text and internal clipboard round-trip keeps 
  const copied=await page.evaluate(()=>{const f=window.inputFixture,atom=f.engine.read().visible.find(n=>n.blockAttributes?.[0]==='module:editac.reference');f.select(atom.id,0,atom.runs[0].text.length);const data={};f.root.dispatchEvent(preparedClipboardEvent('copy',{setData:(m,v)=>data[m]=v,getData:m=>data[m]??''}));return data;});assert.equal(copied['text/plain'],fresh[0].label);assert.deepEqual(JSON.parse(copied['application/x-edit-ac-fragment+json']).blocks[0].attributes.tuple,['module:editac.reference',1,fresh[0]]);
  await page.evaluate(data=>{const f=window.inputFixture;f.select(f.ids[1],0);f.root.dispatchEvent(preparedClipboardEvent('paste',{getData:m=>data[m]??''}));},copied);const s=await state(page,fact);assert.equal(atoms(s).length,2);for(const atom of atoms(s)){assert.deepEqual(atom.blockAttributes,['module:editac.reference',1,fresh[0]]);assert.equal(atom.runs[0].text,fresh[0].label);}assert.equal(s.requests.length,1);
 }));
+
+const authorized=[{targetId:'ac://team-1/12345678-1234-4234-8234-123456789abc',label:'Offline <label> 😀'}];
+async function authority(page){await page.evaluate(()=>window.inputFixture.enableAuthority());}
+test('typed host mounting remains inert and approved catalog results commit through the journal',()=>probe('authority-approved',async(page,fact)=>{
+ await authority(page);let s=await state(page,fact);assert.equal(s.requests.length,0);await open(page);await respond(page,0,authorized);await page.getByRole('menuitem').click();s=await state(page,fact);assert.deepEqual(atoms(s)[0].blockAttributes,['module:editac.reference',1,authorized[0]]);assert.equal(s.commands.length,1);assert.equal(s.history.undoGroups,1);assert.equal(s.journal.length,1);assert.deepEqual(s.network,[]);
+}));
+for(const when of ['pending','ready'])test(`host revocation with ${when} lookup clears UI and aborts insertion`,()=>probe(`authority-revoke-${when}`,async(page,fact)=>{
+ await authority(page);await open(page);if(when==='ready')await respond(page,0,authorized);await page.evaluate(()=>window.inputFixture.revoke());if(when==='pending')await page.evaluate(results=>window.inputFixture.respond(0,results),authorized);const s=await state(page,fact);assert.equal(s.open,false);assert.equal(atoms(s).length,0);assert.equal(s.commands.length,0);assert.equal(await page.getByRole('menuitem').count(),0);assert.equal(s.aborted[0],when==='pending');
+}));
+for(const kind of ['forbidden','secret','catalog','readonly'])test(`host ${kind} admission leaves state unchanged`,()=>probe(`authority-${kind}`,async(page,fact)=>{
+ await authority(page);await open(page);
+ if(kind==='forbidden'||kind==='secret'){await respond(page,0,kind==='secret'?[{...authorized[0],token:'SECRET'}]:[{targetId:'ac://user:SECRET@evil/id',label:'blocked'}]);assert.equal(await page.getByRole('menuitem').count(),0);}
+ else {await respond(page,0,authorized);if(kind==='catalog')await page.evaluate(()=>window.inputFixture.setCatalog('unauthorized'));else await page.evaluate(()=>window.inputFixture.surface.setReadOnly(true));}
+ if(kind==='catalog')await page.getByRole('menuitem').click();const s=await state(page,fact);assert.equal(atoms(s).length,0);assert.equal(s.commands.length,0);assert.equal(s.history.undoGroups,0);assert.equal(s.journal.length,0);assert.equal(s.text[0],'alpha');assert.deepEqual(s.network,[]);
+}));
+test('typed host subscriptions dispose exactly once',()=>probe('authority-disposal',async(page,fact)=>{
+ await authority(page);assert.equal(await page.evaluate(()=>window.inputFixture.policyListeners.size),1);await open(page);await page.evaluate(()=>{window.inputFixture.surface.references.dispose();window.inputFixture.surface.references.dispose();window.inputFixture.respond(0,[{targetId:'ac://team-1/12345678-1234-4234-8234-123456789abc',label:'Late'}]);});assert.equal(await page.evaluate(()=>window.inputFixture.policyListeners.size),0);assert.equal((await state(page,fact)).commands.length,0);
+}));
+
+test('deleted anchored owner cannot activate a late approved result',()=>probe('authority-deleted-anchor',async(page,fact)=>{
+ await authority(page);await page.evaluate(()=>window.inputFixture.select(window.inputFixture.ids[1],3));await open(page);await page.evaluate(()=>{const f=window.inputFixture;f.engine.commit(f.engine.prepare({kind:'editor',origin:'delete-anchor',commands:[{type:'join',first:f.ids[0],second:f.ids[1]}]}));f.respond(0,[{targetId:'ac://team-1/12345678-1234-4234-8234-123456789abc',label:'Late'}]);});const s=await state(page,fact);assert.equal(s.open,false);assert.equal(s.aborted[0],true);assert.equal(atoms(s).length,0);assert.equal(s.commands.length,0);
+}));
+
+test('reentrant catalog revocation releases anchors without escaping the activation handler',()=>probe('authority-reentrant',async(page,fact)=>{
+ await authority(page);await open(page);await respond(page,0,authorized);await page.evaluate(()=>window.inputFixture.revokeOnCatalog());await page.getByRole('menuitem').click();const s=await state(page,fact);assert.equal(s.open,false);assert.equal(atoms(s).length,0);assert.equal(s.commands.length,0);assert.equal(s.journal.length,0);
+}));

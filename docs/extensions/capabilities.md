@@ -70,7 +70,7 @@ Label and identifier remain inert offline. Keyboard explicit activation/query on
 
 Fallback: Inert ID/label, no resolver call on opening.
 
-Excluded or pending: inline reference authoring; lossless reference Markdown conversion; OS clipboard; catalog/authority integration (EXT-1.8).
+Excluded or pending: inline reference authoring; lossless reference Markdown conversion; OS clipboard; deployed catalog/authority service qualification.
 
 ### reorder
 

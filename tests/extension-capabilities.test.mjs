@@ -17,8 +17,14 @@ const clone = () => structuredClone(matrix);
 // receipts. It does not execute OS renderers or qualify device parity.
 test('complete canonical matrix qualifies all 210 required cells and pinned receipts', () => {
   const result = validateCapabilities(matrix);
-  assert.equal(result.retainedPriorFailures.length, 6);
-  assert.equal(result.retainedPriorFailures.reduce((n, r) => n + r.failed, 0), 6);
+  // Current full reference receipts supersede three historical failed aggregates.
+  // Their original evidence must remain, rather than becoming false passes.
+  assert.equal(result.retainedPriorFailures.length, 3);
+  for (const engine of ["chromium", "firefox", "webkit"]) {
+    const old = JSON.parse(readFileSync(resolve(workspace, `architecture/evidence/modules-references/browser-pre-clipboard-repair/${engine}/receipt.json`)));
+    assert.equal(old.counts.failed, 1);
+  }
+  assert.equal(result.retainedPriorFailures.reduce((n, r) => n + r.failed, 0), 3);
   assert.deepEqual({ ...result, retainedPriorFailures: undefined }, {
     retainedPriorFailures: undefined,
     cells: 210, modules: 6, hosts: 5, capabilities: 7,

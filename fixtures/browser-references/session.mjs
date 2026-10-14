@@ -5,6 +5,7 @@ import {CheckpointStorage} from '/web/storage/checkpoint.js';
 import {UpdateJournal} from '/web/storage/journal.js';
 const identity={documentId:'45678901-4567-4567-8567-45678901abcd',epoch:'56789012-5678-4678-8678-56789012abcd',schema:'editac.registry.editor.v5',offsets:'utf16',profile:'editac.yrs-yjs.editor.v5',protocolVersion:1,updateEncoding:1};
 const root=document.querySelector('#projection'), databaseName='browser-references';
+let authorityEnabled=false,permission={revision:"host:1",lookup:true,insert:true},catalogStatus="cached",revokeOnCatalog=false;const policyListeners=new Set();
 let runtime,session,surface,ids,commands=[],pending=[],patches=[],requests=[],network=[];
 const originalFetch=window.fetch;window.fetch=(...args)=>{network.push(String(args[0]));return originalFetch(...args);};
 const fragment=text=>({type:'fragment',blocks:[{attributes:{type:'paragraph'},runs:[{text,marks:[]}]}]});
@@ -19,7 +20,11 @@ async function mount(value='') {
  bind();
  select(ids[0],text.length);return {ids};
 }
-function bind(disabled=false){surface=mountEditorSurface(root,session.writer.engine,{commit:request=>{commands.push(request);return session.storage.commit(request);},...(disabled?{}:{references:referenceSuggestions(request=>{requests.push({query:request.query,requestId:request.requestId});return new Promise((resolve,reject)=>pending.push({resolve,reject,signal:request.signal}));})})});}
+function preparedResolve(request){requests.push({query:request.query,requestId:request.requestId});return new Promise((resolve,reject)=>pending.push({resolve,reject,signal:request.signal}));}
+const authority={version:1,permission:()=>permission,catalog:targetId=>{if(revokeOnCatalog){revokeOnCatalog=false;revoke();}return {targetId,status:targetId==='ac://team-1/12345678-1234-4234-8234-123456789abc'?catalogStatus:'unauthorized'};},resolve:preparedResolve,subscribe(listener){policyListeners.add(listener);return {dispose(){policyListeners.delete(listener);}};}};
+function enableAuthority(){surface.dispose();authorityEnabled=true;bind();select(ids[0],5);}
+function revoke(patch={lookup:false,insert:false}){permission={...permission,...patch,revision:'host:'+(Number(permission.revision.slice(5))+1)};for(const listener of [...policyListeners])listener();}
+function bind(disabled=false){surface=mountEditorSurface(root,session.writer.engine,{commit:request=>{commands.push(request);return session.storage.commit(request);},...(disabled?{}:{references:referenceSuggestions(authorityEnabled?authority:preparedResolve)})});}
 async function reopen(disabled=false){surface.dispose();await session.storage.destroy({policy:'flush'});session=await recoverLocalDocument({assetUrl:'/core/wasm/editac_wasm_bg.wasm',databaseName,identity,indexedDB,locks:navigator.locks});bind(disabled);await settle();}
 function respond(index,results){pending[index].resolve(results);}
 function reject(index){pending[index].reject(Error('prepared host failure'));}
@@ -29,4 +34,4 @@ async function state(){await settle();const engine=session.writer.engine,journal
 async function remote(offset,text){const local=session.writer.engine,peer=runtime.restoreEngine(identity,local.checkpoint()),vector=local.stateVector(),at=peer.anchor(ids[0],offset,'right');try{peer.commit(peer.prepare({kind:'text',origin:'slash-peer',command:{type:'insert',at,text}}));local.applyUpdate(peer.encodeUpdate(vector));}finally{peer.releaseAnchor(at);peer.dispose();}await settle();}
 function event(type,options={}){const e=type.startsWith('composition')?new CompositionEvent(type,{bubbles:true,...options}):type.startsWith('key')?new KeyboardEvent(type,{bubbles:true,cancelable:true,...options}):new InputEvent(type,{bubbles:true,...options});root.dispatchEvent(e);return e.defaultPrevented;}
 async function destroy(){surface.dispose();await session.storage.destroy({policy:'flush'});window.fixtureDisposed=true;}
-window.inputFixture={mount,select,settle,state,remote,event,destroy,fragment,reopen,respond,reject,referenceBlock,get root(){return root},get ids(){return ids},get engine(){return session.writer.engine},get surface(){return surface},get pending(){return pending}};
+window.inputFixture={enableAuthority,revoke,revokeOnCatalog:()=>{revokeOnCatalog=true},setCatalog:value=>{catalogStatus=value},policyListeners,mount,select,settle,state,remote,event,destroy,fragment,reopen,respond,reject,referenceBlock,get root(){return root},get ids(){return ids},get engine(){return session.writer.engine},get surface(){return surface},get pending(){return pending}};
