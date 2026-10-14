@@ -14,6 +14,10 @@ const semantic = [
   'tests/editing/replica-state.test.mjs',
   'tests/editing/unicode-storage.test.mjs',
   'tests/editing/recipe-storage.test.mjs',
+  'tests/editing/selection-storage.test.mjs',
+  'tests/editing/variant-storage.test.mjs',
+  'tests/editing/collapsed-pre-storage.test.mjs',
+  'tests/editing/atomic-vector-storage.test.mjs',
 ];
 const selected = {
   'regression-variants': semantic[1],
@@ -29,6 +33,10 @@ const selected = {
   'pending-storage': semantic[10],
   'unicode-storage': semantic[12],
   'recipe-storage': semantic[13],
+  'selection-storage': semantic[14],
+  'variant-storage': semantic[15],
+  'collapsed-pre-storage': semantic[16],
+  'atomic-vector-storage': semantic[17],
 };
 export const caseSelectors = Object.freeze(Object.keys(selected));
 export function editingSuites(group, selector) {

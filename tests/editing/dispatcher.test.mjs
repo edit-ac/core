@@ -7,6 +7,9 @@ import { spawnSync } from 'node:child_process';
 // Admission must fail before loading a runtime. These failures cannot become
 // an accidental successful zero-test qualification of a misspelled case group.
 for (const [name, args] of [
+  ['collapsed pre storage selector on fixtures', ['--group', 'fixtures', '--cases', 'collapsed-pre-storage']],
+  ['variant storage selector on fixtures', ['--group', 'fixtures', '--cases', 'variant-storage']],
+  ['selection storage selector on fixtures', ['--group', 'fixtures', '--cases', 'selection-storage']],
   ['recipe storage selector on fixtures', ['--group', 'fixtures', '--cases', 'recipe-storage']],
   ['Unicode storage selector on fixtures', ['--group', 'fixtures', '--cases', 'unicode-storage']],
   ['pending storage selector on fixtures', ['--group', 'fixtures', '--cases', 'pending-storage']],
@@ -97,6 +100,34 @@ test('Unicode storage proof is mandatory in canonical semantic dispatch', () => 
 test('canonical recipe storage proof is mandatory in semantic dispatch', () => {
   const selected = editingSuites('semantic', 'recipe-storage');
   assert.deepEqual(selected, ['tests/editing/recipe-storage.test.mjs']);
+  assert.equal(editingSuites('semantic').filter(path => path === selected[0]).length, 1);
+  assert.ok(existsSync(selected[0]));
+});
+
+test('selection storage proof is mandatory in canonical semantic dispatch', () => {
+  const selected = editingSuites('semantic', 'selection-storage');
+  assert.deepEqual(selected, ['tests/editing/selection-storage.test.mjs']);
+  assert.equal(editingSuites('semantic').filter(path => path === selected[0]).length, 1);
+  assert.ok(existsSync(selected[0]));
+});
+
+test('variant storage proof is mandatory in canonical semantic dispatch', () => {
+  const selected = editingSuites('semantic', 'variant-storage');
+  assert.deepEqual(selected, ['tests/editing/variant-storage.test.mjs']);
+  assert.equal(editingSuites('semantic').filter(path => path === selected[0]).length, 1);
+  assert.ok(existsSync(selected[0]));
+});
+
+test('collapsed pre storage proof is mandatory in canonical semantic dispatch', () => {
+  const selected = editingSuites('semantic', 'collapsed-pre-storage');
+  assert.deepEqual(selected, ['tests/editing/collapsed-pre-storage.test.mjs']);
+  assert.equal(editingSuites('semantic').filter(path => path === selected[0]).length, 1);
+  assert.ok(existsSync(selected[0]));
+});
+
+test('atomic vector storage proof is mandatory in canonical semantic dispatch', () => {
+  const selected = editingSuites('semantic', 'atomic-vector-storage');
+  assert.deepEqual(selected, ['tests/editing/atomic-vector-storage.test.mjs']);
   assert.equal(editingSuites('semantic').filter(path => path === selected[0]).length, 1);
   assert.ok(existsSync(selected[0]));
 });

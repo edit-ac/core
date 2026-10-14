@@ -6,6 +6,8 @@ import { loadSuite, groupIds, capabilityBinding } from './fixture-loader.ts';
 import { assertCheckpoint } from './driver.ts';
 import { SemanticDriver, semanticCapabilities, semanticActions, semanticProfile, MissingCapabilityError } from './semantic-adapter.ts';
 import { packedRuntime, sha256 } from './packed-runtime.mjs';
+import { collapsedPreCases, collapsedPreInitial, pasteCollapsedPre, undoCollapsedPre } from './collapsed-pre-oracle.mjs';
+import { storageVectorIds, runAtomicVector } from './atomic-vector-oracle.mjs';
 const suite = loadSuite();
 const vectors = JSON.parse(await readFile(new URL('../../fixtures/editing-failures/semantic-vectors.json', import.meta.url)));
 const output = process.env.EDITAC_EDITING_OUTPUT;
@@ -15,7 +17,7 @@ before(async () => { assert.ok(output, 'EDITAC_EDITING_OUTPUT must be a fresh ev
 after(async () => {
   if (pack) { await pack.close(); facts.runtime = pack.facts; }
   facts.sourceHashes = {};
-  for (const path of ['tests/editing/driver.ts', 'tests/editing/semantic-adapter.ts', 'tests/editing/fixture-loader.ts', 'tests/editing/semantic.test.mjs', 'tests/editing/packed-runtime.mjs', 'scripts/test-editing.mjs', 'fixtures/editing-failures/semantic-vectors.json', 'crates/editac-core/tests/editing_regressions.rs', 'Cargo.lock']) facts.sourceHashes[path] = sha256(await readFile(path));
+  for (const path of ['tests/editing/driver.ts', 'tests/editing/semantic-adapter.ts', 'tests/editing/fixture-loader.ts', 'tests/editing/semantic.test.mjs', 'tests/editing/collapsed-pre-oracle.mjs', 'tests/editing/atomic-vector-oracle.mjs', 'tests/editing/packed-runtime.mjs', 'scripts/test-editing.mjs', 'fixtures/editing-failures/semantic-vectors.json', 'crates/editac-core/tests/editing_regressions.rs', 'Cargo.lock']) facts.sourceHashes[path] = sha256(await readFile(path));
   facts.counts = { executed: facts.cases.length, passed: facts.cases.filter(c => c.status === 'passed').length, failed: facts.cases.filter(c => c.status === 'failed').length, skipped: 0 };
   await mkdir(output, { recursive: true }); await writeFile(join(output, 'harness.json'), JSON.stringify(facts, null, 2));
 });
@@ -43,6 +45,7 @@ for (const id of groupIds('semantic')) {
   }));
 }
 for (const v of vectors.atomic) caseTest(`native/WASM:${v.id}`, fact => driver(state(v.text, 0), d => {
+  if (storageVectorIds.includes(v.id)) return runAtomicVector(d, v, fact, facts);
   const engine = d.engine, owner = engine.read().visible[0].id, original = engine.read().visible[0];
   const commands = v.commands.map(c => c.type === 'insertSeparator' ? { type: c.type, beside: owner, side: c.side } : c.type === 'selectionAt'
     ? { type: c.type, anchor: { owner, offset: c.anchor, bias: 'left' }, focus: { owner, offset: c.focus, bias: 'right' } }
@@ -105,19 +108,10 @@ caseTest('REG-06 schema crossing rejects without stripping bold suffix', fact =>
   });
 });
 caseTest('REG-07 separated pre fragments retain literal whitespace in code and empty control', fact => {
-  for (const [kind, text, offset] of [['code', 'xy', 1], ['paragraph', '', 0]]) {
-    const initial = { blocks: [block('p1', text, kind)], selection: select(offset), pendingMarks: null };
-    driver(initial, d => {
-      const original = d.engine.read().visible[0];
-      const fragment = [ { attributes: { type: 'code', language: '' }, runs: [{ text: 'A', marks: [] }] }, { attributes: { type: 'paragraph' }, runs: [{ text: '\n', marks: [] }] }, { attributes: { type: 'code', language: '' }, runs: [{ text: 'B', marks: [] }] } ];
-      const actual = d.act({ type: 'pasteFragment', blocks: fragment, newBlockIds: ['p2', 'p3'] });
-      assertCheckpoint(actual, { outcome: 'applied', effects: { localCommits: 1, remoteCommits: 0 }, state: { blocks: [block('p1', text.slice(0, offset) + 'A', 'code'), block('p2', '\n'), block('p3', 'B' + text.slice(offset), 'code')], selection: select(1, 1, 'forward', 'p3'), pendingMarks: null } });
-      const nodes = d.engine.read().visible; assert.equal(nodes[0].id, original.id); assert.equal(nodes[0].spans[0].source, original.spans[0].source); assert.equal(d.engine.history({ type: 'state' }).undoGroups, 1); fact.checkpoints++;
-      // Content-history proof only. No simulated selection restoration.
-      d.engine.history({ type: 'undo' }); const restored = d.engine.read().visible;
-      assert.equal(restored.length, 1); assert.equal(restored[0].id, original.id); assert.equal(restored[0].blockAttributes[0], kind); assert.equal(restored[0].runs.map(r => r.text).join(''), text); fact.checkpoints++;
-    });
-  }
+  for (const v of collapsedPreCases) driver(collapsedPreInitial(v), d => {
+    const paste = pasteCollapsedPre(d, v, fact, facts);
+    undoCollapsedPre(d, v, fact, facts, paste);
+  });
 });
 caseTest('RGS-1.2 outstanding original REG-05/07/13 contracts are explicit', () => {
   throw new MissingCapabilityError('REG-05 alignment/preceding-rule-or-atom variants, REG-07 selected text/code paste + undo selection remain unqualified; atomic primitive evidence does not close them');
