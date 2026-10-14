@@ -192,3 +192,30 @@ in different orders. Rejection/no-op checks retain byte-for-byte state-vector an
 checkpoint comparison on the same replica. This remains prepared storage
 integration; history bookmarks, unsupported profiles and browser/device proof
 remain separate acceptance criteria.
+
+## Canonical recipe storage proof (RGS-1.2-C16)
+
+`npm run test:editing -- --group semantic --cases recipe-storage` runs every
+architecture-authored checkpoint of SEQ-01/02/04/05/06/11/12 through the restored
+SemanticDriver and production LocalStorageLifecycle, StorageWriter and
+UpdateJournal over prepared IndexedDB. Each action retains independent content,
+marks, identity, pending state and selection assertions. Structural aliases bind
+at the returned caret; both ordered-command endpoints and next sentinels are
+checked. Rejected, selection-only, boundary and empty-history steps preserve
+engine and storage effects. Every accepted step observes one append and local
+completion, a transaction-completion flush barrier, persisted metadata/bytes and
+cumulative journal recovery with complete decoded state vectors. SEQ-12's accepted
+observer probe is reported separately from its three canonical no-op steps.
+
+`cargo test -p editac-core --test editing_regressions canonical_ --locked --offline -- --show-output`
+consumes the same authoritative architecture recipes and qualifies their native
+committed operations, isolated preparation, original source identity, exact marks,
+result endpoints/carets and history/publication counts. Editor-local pending and
+selection-only preparation remain packed-adapter assertions. Native checkpoints
+and corruption controls are reported per recipe; filtered tests are unexecuted.
+
+`recipe-storage-harness.json` records actual recipe/step/assertion/control counts,
+source/profile/fixture/package hashes and teardown. Canonical semantic dispatch
+requires this suite. These selected passes do not complete the full semantic group,
+missing history bookmarks or unsupported cross-owner/alignment/atom variants, and
+do not establish real-browser storage or device behavior.

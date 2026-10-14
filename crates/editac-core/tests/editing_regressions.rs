@@ -2300,3 +2300,348 @@ fn reg13_structure_rejection_retry_owning() {
         "REG13_STORAGE_NATIVE_RECEIPT vectors=2 sequences=1 rejected=1 committed=1 checkpoints={checkpoints} controls={controls} pending=editor-local-only journal=packed-host-only"
     );
 }
+
+// Same architecture recipes as the attached packed runner. Native asserts the
+// committed primitive vectors; selection/pending-only actions are fixture-side
+// preparation, never claimed as native editor-local pending-state support.
+fn canonical_recipe(id: &str) {
+    use editac_core::{
+        anchors::Selection,
+        commands::editor::{FragmentBlock, FragmentRun},
+        document::BlockAttributes,
+    };
+    use serde_json::json;
+    use std::collections::BTreeMap;
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../architecture/tests/editing-suite/recipes")
+        .join(format!("{}.json", id.to_lowercase()));
+    let recipe: Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    assert_eq!(recipe["id"], id);
+    let initial = recipe["initial"]["blocks"].as_array().unwrap();
+    let mut d = documents(
+        &initial
+            .iter()
+            .map(|b| b["text"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+    );
+    let mut owners: BTreeMap<String, String> = initial
+        .iter()
+        .zip(d.snapshot().unwrap().visible)
+        .map(|(b, n)| (b["id"].as_str().unwrap().to_owned(), n.id.clone()))
+        .collect();
+    let originals = d.snapshot().unwrap().visible;
+    let origin = TextOrigin::new("local:rgs:canonical").unwrap();
+    let mut selection = recipe["initial"]["selection"].clone();
+    let mut pending = recipe["initial"]["pendingMarks"].clone();
+    let seen = Rc::new(Cell::new(0));
+    let counter = seen.clone();
+    let _subscription = d
+        .subscribe(PatchScope::All, move |_, _| {
+            counter.set(counter.get() + 1);
+            Ok(())
+        })
+        .unwrap();
+    let baseline = d.revision();
+    let mut commits = 0;
+    let mut controls = 0;
+    let mut checkpoints = 0;
+    for step in recipe["steps"].as_array().unwrap() {
+        let action = &step["action"];
+        let before = frozen(&d);
+        let before_events = seen.get();
+        let owner = owners[selection["anchor"]["block"].as_str().unwrap()].clone();
+        let a = number(&selection["anchor"]["offset"]);
+        let f = number(&selection["focus"]["offset"]);
+        let mut from = a.min(f);
+        let mut to = a.max(f);
+        let mut endpoints = vec![];
+        let kind = action["type"].as_str().unwrap();
+        let mut outcome = "applied";
+        let mut commands = Vec::new();
+        match kind {
+            "setSelection" => {
+                selection = action["selection"].clone();
+                pending = Value::Null;
+                outcome = "selection-only";
+            }
+            "toggleMark" if from == to => {
+                pending = json!([action["mark"]]);
+                outcome = "selection-only";
+            }
+            "undo" => {
+                assert_eq!(d.history_state().undo_groups, 0);
+                assert!(d.undo().unwrap().is_none());
+                outcome = "no-op";
+            }
+            "toggleMark" => {
+                commands.push(EditorCommand::MarkAt {
+                    owner: owner.clone(),
+                    from: U(from),
+                    to: U(to),
+                    mark: mark(action["mark"].as_str().unwrap()),
+                    action: FormatAction::Toggle,
+                    href: None,
+                });
+            }
+            "insertText" | "backspace" => {
+                let text = if kind == "insertText" {
+                    action["text"].as_str().unwrap()
+                } else {
+                    ""
+                };
+                let node = d
+                    .snapshot()
+                    .unwrap()
+                    .visible
+                    .into_iter()
+                    .find(|n| n.id == owner)
+                    .unwrap();
+                if kind == "backspace" && from == to {
+                    let content: String = node.runs.iter().map(|r| r.text.as_str()).collect();
+                    match deletion_range(&content, U(from), Direction::Backward).unwrap() {
+                        Some(range) => {
+                            from = range.start.0;
+                            to = range.end.0;
+                        }
+                        None => outcome = "no-op",
+                    }
+                }
+                if outcome == "applied" {
+                    commands.push(EditorCommand::ReplaceAt {
+                        owner: owner.clone(),
+                        from: U(from),
+                        to: U(to),
+                        text: text.into(),
+                    });
+                    if !text.is_empty() {
+                        let marks: Vec<String> = if pending.is_null() {
+                            let mut offset = 0;
+                            node.runs
+                                .iter()
+                                .filter_map(|r| {
+                                    let start = offset;
+                                    offset += r.text.encode_utf16().count() as u32;
+                                    if start <= from
+                                        && (from < offset
+                                            || from == offset
+                                                && from
+                                                    == node
+                                                        .runs
+                                                        .iter()
+                                                        .map(|r| {
+                                                            r.text.encode_utf16().count() as u32
+                                                        })
+                                                        .sum::<u32>())
+                                    {
+                                        Some(r.attributes.keys().cloned().collect::<Vec<_>>())
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .flatten()
+                                .collect()
+                        } else {
+                            pending
+                                .as_array()
+                                .unwrap()
+                                .iter()
+                                .map(|m| m.as_str().unwrap().to_owned())
+                                .collect()
+                        };
+                        for name in marks {
+                            commands.push(EditorCommand::MarkAt {
+                                owner: owner.clone(),
+                                from: U(from),
+                                to: U(from + text.encode_utf16().count() as u32),
+                                mark: mark(&name),
+                                action: FormatAction::Apply,
+                                href: None,
+                            });
+                        }
+                    }
+                    selection["anchor"]["offset"] =
+                        json!(from + text.encode_utf16().count() as u32);
+                    selection["focus"]["offset"] = selection["anchor"]["offset"].clone();
+                }
+            }
+            "applyBatch" => {
+                for op in action["operations"].as_array().unwrap() {
+                    let alias = op["block"].as_str().unwrap();
+                    let target = owners.get(alias).cloned().unwrap_or_else(|| alias.into());
+                    commands.push(match op["type"].as_str().unwrap() {
+                        "insertText" => EditorCommand::ReplaceAt {
+                            owner: target,
+                            from: U(number(&op["offset"])),
+                            to: U(number(&op["offset"])),
+                            text: op["text"].as_str().unwrap().into(),
+                        },
+                        "applyMark" => EditorCommand::MarkAt {
+                            owner: target,
+                            from: U(number(&op["from"])),
+                            to: U(number(&op["to"])),
+                            mark: mark(op["mark"].as_str().unwrap()),
+                            action: FormatAction::Apply,
+                            href: None,
+                        },
+                        _ => panic!("unbound canonical batch operation"),
+                    });
+                }
+                if !action["resultSelection"].is_null() {
+                    selection = action["resultSelection"].clone();
+                }
+            }
+            "insertParagraph" | "insertHardBreak" => {
+                let range = Selection {
+                    anchor: d.anchor(&owner, U(a), Bias::Right).unwrap(),
+                    focus: d.anchor(&owner, U(f), Bias::Right).unwrap(),
+                };
+                let make = |runs| FragmentBlock {
+                    runs,
+                    attributes: Some(BlockAttributes::Paragraph),
+                    containers: vec![],
+                    checked: None,
+                };
+                let fragments = if kind == "insertParagraph" {
+                    vec![make(vec![]), make(vec![])]
+                } else {
+                    vec![make(vec![FragmentRun {
+                        text: "\n".into(),
+                        marks: vec![],
+                    }])]
+                };
+                let plan = d.prepare_fragment(&range, &fragments, &origin).unwrap();
+                assert_eq!(frozen(&d), before);
+                let result = d.commit_editor(plan).unwrap();
+                let caret = match d.resolve_anchor(&result.result_caret.unwrap()).unwrap() {
+                    Resolution::Position(p) => p,
+                    _ => panic!("missing canonical caret"),
+                };
+                if kind == "insertParagraph" {
+                    assert!(!owners.values().any(|old| old == &caret.node));
+                    owners.insert(
+                        action["newBlockId"].as_str().unwrap().into(),
+                        caret.node.clone(),
+                    );
+                    selection["anchor"]["block"] = action["newBlockId"].clone();
+                    selection["focus"]["block"] = action["newBlockId"].clone();
+                }
+                selection["anchor"]["offset"] = json!(caret.offset.0);
+                selection["focus"]["offset"] = json!(caret.offset.0);
+                endpoints.push(json!({"node":caret.node,"offset":caret.offset.0,"bias":"right"}));
+                commits += 1;
+            }
+            _ => panic!("unbound canonical action {kind}"),
+        }
+        if !commands.is_empty() {
+            if kind != "applyBatch" || !action["resultSelection"].is_null() {
+                let point = |p: &Value| EditorPosition {
+                    owner: owners[p["block"].as_str().unwrap()].clone(),
+                    offset: U(number(&p["offset"])),
+                    bias: Bias::Right,
+                };
+                commands.push(EditorCommand::SelectionAt {
+                    anchor: point(&selection["anchor"]),
+                    focus: point(&selection["focus"]),
+                });
+            }
+            let plan = d.prepare_editor(&commands, &origin);
+            assert_eq!(frozen(&d), before);
+            if let Ok(plan) = plan {
+                let result = d.commit_editor(plan).unwrap();
+                let selection = result.result_selection.unwrap();
+                endpoints = [selection.anchor, selection.focus]
+                    .iter()
+                    .map(|t| match d.resolve_anchor(t).unwrap() {
+                        Resolution::Position(p) => {
+                            json!({"node":p.node,"offset":p.offset.0,"bias":"right"})
+                        }
+                        _ => panic!("missing canonical result"),
+                    })
+                    .collect();
+                commits += 1;
+            } else {
+                outcome = "rejected";
+            }
+        }
+        let expected = &step["expect"];
+        assert_eq!(outcome, expected["outcome"]);
+        let committed = number(&expected["effects"]["localCommits"]);
+        assert_eq!(seen.get() - before_events, committed);
+        assert_eq!(d.revision(), baseline + commits);
+        assert_eq!(d.history_state().undo_groups, commits as usize);
+        assert_eq!(d.history_state().redo_groups, 0);
+        if committed == 0 {
+            assert_eq!(frozen(&d), before);
+        }
+        // Both real returned endpoints (or the structural caret) are checked
+        // against independent authored checkpoints, never used to create ops.
+        if committed != 0 {
+            let s = &expected["state"]["selection"];
+            let points = if matches!(kind, "insertParagraph" | "insertHardBreak") {
+                vec![&s["focus"]]
+            } else {
+                vec![&s["anchor"], &s["focus"]]
+            };
+            let expected_points = json!(points.iter().map(|p| json!({"node":owners[p["block"].as_str().unwrap()],"offset":p["offset"],"bias":"right"})).collect::<Vec<_>>());
+            assert_eq!(json!(endpoints), expected_points);
+            let mut wrong = expected_points.clone();
+            wrong[0]["offset"] = json!(number(&wrong[0]["offset"]) + 1);
+            assert_ne!(json!(endpoints), wrong);
+            controls += 1;
+        }
+        let nodes = d.snapshot().unwrap().visible;
+        let blocks = expected["state"]["blocks"].as_array().unwrap();
+        assert_eq!(nodes.len(), blocks.len());
+        for (node, block) in nodes.iter().zip(blocks) {
+            assert_eq!(node.id, owners[block["id"].as_str().unwrap()]);
+            assert_eq!(node.block_attributes, Some(BlockAttributes::Paragraph));
+            let text: String = node.runs.iter().map(|r| r.text.as_str()).collect();
+            assert_eq!(text, block["text"].as_str().unwrap());
+            assert_ne!(text, format!("{}?", block["text"].as_str().unwrap()));
+            controls += 1;
+            let mut offset = 0;
+            for run in &node.runs {
+                for _ in run.text.encode_utf16() {
+                    let mut marks = block["marks"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .filter(|m| number(&m["from"]) <= offset && offset < number(&m["to"]))
+                        .map(|m| m["type"].as_str().unwrap().to_owned())
+                        .collect::<Vec<_>>();
+                    marks.sort();
+                    assert_eq!(run.attributes.keys().cloned().collect::<Vec<_>>(), marks);
+                    offset += 1;
+                }
+            }
+            if let Some(original) = originals.iter().find(|old| old.id == node.id) {
+                assert_eq!(node.spans[0].source, original.spans[0].source);
+                assert_eq!(node.spans[0].identity, original.spans[0].identity);
+                assert_ne!(node.spans[0].source, "corrupt");
+                controls += 1;
+            }
+        }
+        assert_ne!(u64::from(seen.get()), commits + 1);
+        assert_ne!(d.revision(), baseline + commits + 1);
+        controls += 2;
+        checkpoints += 1;
+    }
+    println!(
+        "{id}: canonical native checkpoints={checkpoints} controls={controls} commits={commits}; editor-local pending/selection-only preparation is not native UI evidence"
+    );
+}
+macro_rules! canonical_case {
+    ($name:ident, $id:literal) => {
+        #[test]
+        fn $name() {
+            canonical_recipe($id);
+        }
+    };
+}
+canonical_case!(canonical_seq01, "SEQ-01");
+canonical_case!(canonical_seq02, "SEQ-02");
+canonical_case!(canonical_seq04, "SEQ-04");
+canonical_case!(canonical_seq05, "SEQ-05");
+canonical_case!(canonical_seq06, "SEQ-06");
+canonical_case!(canonical_seq11, "SEQ-11");
+canonical_case!(canonical_seq12, "SEQ-12");
