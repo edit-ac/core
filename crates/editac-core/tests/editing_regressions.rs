@@ -1303,3 +1303,214 @@ action_selection_case!(
     g03_action_pre_paste_backward_right,
     "G03-pre-paste-backward-right"
 );
+
+// REG-06: independently authored rejection matrix at the owning prepare ports.
+fn reg06_rejection_matrix(id: &str) {
+    use editac_core::{
+        anchors::Selection,
+        commands::{
+            editor::{FragmentBlock, FragmentRun},
+            format::FormatCommand,
+        },
+    };
+    use serde_json::json;
+    let vectors: Value = serde_json::from_str(include_str!(
+        "../../../fixtures/editing-failures/schema-rejection-vectors.json"
+    ))
+    .unwrap();
+    let v = vectors["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|v| v["id"] == id)
+        .unwrap();
+    let mut d = documents(&["ab", "cd"]);
+    let originals = d.snapshot().unwrap().visible;
+    let owners = [originals[0].id.clone(), originals[1].id.clone()];
+    let origin = TextOrigin::new("local:rgs:schema").unwrap();
+    let setup = d
+        .prepare_editor(
+            &[
+                EditorCommand::BlockCommand(BlockCommand::SetCode {
+                    owner: owners[0].clone(),
+                    language: String::new(),
+                }),
+                EditorCommand::MarkAt {
+                    owner: owners[1].clone(),
+                    from: U(0),
+                    to: U(2),
+                    mark: Mark::Bold,
+                    action: FormatAction::Apply,
+                    href: None,
+                },
+            ],
+            &origin,
+        )
+        .unwrap();
+    d.commit_editor(setup).unwrap();
+    d.clear_history();
+    let bias = if v["bias"] == "left" {
+        Bias::Left
+    } else {
+        Bias::Right
+    };
+    let indices = [
+        number(&v["endpoints"][0]) as usize,
+        number(&v["endpoints"][1]) as usize,
+    ];
+    let selection = Selection {
+        anchor: d.anchor(&owners[indices[0]], U(1), bias).unwrap(),
+        focus: d.anchor(&owners[indices[1]], U(1), bias).unwrap(),
+    };
+    let count = Rc::new(Cell::new(0));
+    let seen = count.clone();
+    let _subscription = d
+        .subscribe(PatchScope::All, move |_, _| {
+            seen.set(seen.get() + 1);
+            Ok(())
+        })
+        .unwrap();
+    let before = frozen(&d);
+    let snapshot = d.snapshot().unwrap().visible;
+    let observe = |d: &Document| {
+        let nodes = d.snapshot().unwrap().visible;
+        let endpoints = [&selection.anchor, &selection.focus].map(|a| match d.resolve_anchor(a).unwrap() {
+            Resolution::Position(p) => json!({"node":p.node,"offset":p.offset.0,"source":p.source,"sourceOffset":p.source_offset.0,"bias":if p.bias == Bias::Left {"left"} else {"right"}}),
+            _ => panic!("input anchor unresolved"),
+        });
+        json!({"semantic":nodes.iter().map(|n| json!({"owner":n.id,"kind":if matches!(n.block_attributes, Some(editac_core::document::BlockAttributes::Code { .. })) {"code"} else {"paragraph"},"text":n.runs.iter().map(|r| r.text.as_str()).collect::<String>(),"marks":n.runs.iter().map(|r| &r.attributes).collect::<Vec<_>>(),"spans":n.spans.iter().map(|s| json!({"source":s.source,"identity":s.identity})).collect::<Vec<_>>()})).collect::<Vec<_>>(),
+            "endpoints":endpoints,"revision":d.revision(),"vector":d.state_vector_v1(),"checkpoint":d.checkpoint().bytes,"history":format!("{:?}",d.history_state()),"publications":count.get()})
+    };
+    let expected = json!({"semantic":(0..2).map(|i| json!({"owner":owners[i],"kind":if i==0 {"code"} else {"paragraph"},"text":if i==0 {"ab"} else {"cd"},"marks":[if i==0 {json!({})} else {json!({"bold":true})}],"spans":originals[i].spans.iter().map(|s| json!({"source":s.source,"identity":s.identity})).collect::<Vec<_>>()})).collect::<Vec<_>>(),
+        "endpoints":indices.map(|i| json!({"node":owners[i],"offset":1,"source":originals[i].spans[0].source,"sourceOffset":1,"bias":v["bias"]})),"revision":before.2,"vector":before.1,"checkpoint":before.0,"history":format!("{:?}",before.3),"publications":0});
+    assert_eq!(observe(&d), expected);
+    if v["kind"] == "format" {
+        assert!(
+            d.prepare_format(
+                &[FormatCommand {
+                    selection: selection.clone(),
+                    mark: Mark::Bold,
+                    action: FormatAction::Apply,
+                    href: None
+                }],
+                &origin
+            )
+            .is_err()
+        );
+    } else {
+        let fragment = FragmentBlock {
+            runs: vec![FragmentRun {
+                text: if v["kind"] == "delete" { "" } else { "X" }.into(),
+                marks: vec![],
+            }],
+            attributes: None,
+            containers: vec![],
+            checked: None,
+        };
+        assert!(
+            d.prepare_fragment(&selection, &[fragment], &origin)
+                .is_err()
+        );
+    }
+    assert_eq!(frozen(&d), before);
+    assert_eq!(d.snapshot().unwrap().visible, snapshot);
+    assert_eq!(observe(&d), expected);
+    let mutations = [
+        ("/semantic/0/kind", json!("paragraph")),
+        ("/semantic/1/text", json!("c")),
+        ("/semantic/1/marks", json!([{}])),
+        ("/semantic/1/owner", json!(owners[0])),
+        (
+            "/semantic/1/spans/0/source",
+            json!(originals[0].spans[0].source),
+        ),
+        (
+            "/semantic/1/spans/0/identity",
+            json!(originals[0].spans[0].identity),
+        ),
+        ("/endpoints/0/offset", json!(2)),
+        ("/endpoints/1/offset", json!(2)),
+        (
+            "/endpoints",
+            json!([expected["endpoints"][1], expected["endpoints"][0]]),
+        ),
+        (
+            "/endpoints/0/bias",
+            json!(if bias == Bias::Left { "right" } else { "left" }),
+        ),
+        ("/endpoints/1/sourceOffset", json!(2)),
+        ("/revision", json!(before.2 + 1)),
+        ("/vector", json!([])),
+        ("/checkpoint", json!([])),
+        ("/history", json!("corrupt history")),
+        ("/publications", json!(1)),
+    ];
+    for (path, value) in mutations {
+        let mut wrong = expected.clone();
+        *wrong.pointer_mut(path).unwrap() = value;
+        assert!(
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| assert_eq!(
+                observe(&d),
+                wrong
+            )))
+            .is_err(),
+            "undetected {path}"
+        );
+    }
+}
+macro_rules! schema_rejection_case {
+    ($name:ident, $id:literal) => {
+        #[test]
+        fn $name() {
+            reg06_rejection_matrix($id);
+        }
+    };
+}
+schema_rejection_case!(
+    reg06_matrix_delete_forward_left,
+    "REG06-delete-forward-left"
+);
+schema_rejection_case!(
+    reg06_matrix_delete_forward_right,
+    "REG06-delete-forward-right"
+);
+schema_rejection_case!(
+    reg06_matrix_delete_backward_left,
+    "REG06-delete-backward-left"
+);
+schema_rejection_case!(
+    reg06_matrix_delete_backward_right,
+    "REG06-delete-backward-right"
+);
+schema_rejection_case!(
+    reg06_matrix_replace_forward_left,
+    "REG06-replace-forward-left"
+);
+schema_rejection_case!(
+    reg06_matrix_replace_forward_right,
+    "REG06-replace-forward-right"
+);
+schema_rejection_case!(
+    reg06_matrix_replace_backward_left,
+    "REG06-replace-backward-left"
+);
+schema_rejection_case!(
+    reg06_matrix_replace_backward_right,
+    "REG06-replace-backward-right"
+);
+schema_rejection_case!(
+    reg06_matrix_format_forward_left,
+    "REG06-format-forward-left"
+);
+schema_rejection_case!(
+    reg06_matrix_format_forward_right,
+    "REG06-format-forward-right"
+);
+schema_rejection_case!(
+    reg06_matrix_format_backward_left,
+    "REG06-format-backward-left"
+);
+schema_rejection_case!(
+    reg06_matrix_format_backward_right,
+    "REG06-format-backward-right"
+);

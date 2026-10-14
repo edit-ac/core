@@ -1,0 +1,145 @@
+{
+  "parent": "RGS-1.2",
+  "criterion": "REG-06/G02/G03",
+  "initial": [
+    {
+      "text": "ab",
+      "kind": "code",
+      "marks": []
+    },
+    {
+      "text": "cd",
+      "kind": "paragraph",
+      "marks": [
+        [
+          0,
+          2,
+          "bold"
+        ]
+      ]
+    }
+  ],
+  "offset": 1,
+  "cases": [
+    {
+      "id": "REG06-delete-forward-left",
+      "kind": "delete",
+      "direction": "forward",
+      "bias": "left",
+      "endpoints": [
+        0,
+        1
+      ]
+    },
+    {
+      "id": "REG06-delete-forward-right",
+      "kind": "delete",
+      "direction": "forward",
+      "bias": "right",
+      "endpoints": [
+        0,
+        1
+      ]
+    },
+    {
+      "id": "REG06-delete-backward-left",
+      "kind": "delete",
+      "direction": "backward",
+      "bias": "left",
+      "endpoints": [
+        1,
+        0
+      ]
+    },
+    {
+      "id": "REG06-delete-backward-right",
+      "kind": "delete",
+      "direction": "backward",
+      "bias": "right",
+      "endpoints": [
+        1,
+        0
+      ]
+    },
+    {
+      "id": "REG06-replace-forward-left",
+      "kind": "replace",
+      "direction": "forward",
+      "bias": "left",
+      "endpoints": [
+        0,
+        1
+      ]
+    },
+    {
+      "id": "REG06-replace-forward-right",
+      "kind": "replace",
+      "direction": "forward",
+      "bias": "right",
+      "endpoints": [
+        0,
+        1
+      ]
+    },
+    {
+      "id": "REG06-replace-backward-left",
+      "kind": "replace",
+      "direction": "backward",
+      "bias": "left",
+      "endpoints": [
+        1,
+        0
+      ]
+    },
+    {
+      "id": "REG06-replace-backward-right",
+      "kind": "replace",
+      "direction": "backward",
+      "bias": "right",
+      "endpoints": [
+        1,
+        0
+      ]
+    },
+    {
+      "id": "REG06-format-forward-left",
+      "kind": "format",
+      "direction": "forward",
+      "bias": "left",
+      "endpoints": [
+        0,
+        1
+      ]
+    },
+    {
+      "id": "REG06-format-forward-right",
+      "kind": "format",
+      "direction": "forward",
+      "bias": "right",
+      "endpoints": [
+        0,
+        1
+      ]
+    },
+    {
+      "id": "REG06-format-backward-left",
+      "kind": "format",
+      "direction": "backward",
+      "bias": "left",
+      "endpoints": [
+        1,
+        0
+      ]
+    },
+    {
+      "id": "REG06-format-backward-right",
+      "kind": "format",
+      "direction": "backward",
+      "bias": "right",
+      "endpoints": [
+        1,
+        0
+      ]
+    }
+  ]
+}

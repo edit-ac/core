@@ -63,3 +63,21 @@ this suite. These supplemental vectors do not replace architecture recipes or
 qualify split/paste selection, history bookmarks, browser gestures or devices.
 Duplicate-update idempotence belongs to the properties owner (G10), separately
 from the single unrelated update in this G03 proof.
+
+REG-06 schema-crossing rejection has a matching native/packed suite:
+
+```sh
+EDITAC_EDITING_PACK_TARBALL=/absolute/path/to/qualified-core.tgz \
+EDITAC_EDITING_OUTPUT=/absolute/path/to/fresh-evidence \
+npm run test:editing -- --group semantic --cases schema-rejection
+cargo test -p editac-core --test editing_regressions reg06_matrix_ --locked --offline
+```
+
+Use the pinned Node 24.19.0 runtime. Twelve authored vectors cover deletion,
+replacement and formatting across code/marked-paragraph owners, forward/backward
+selection and left/right input bias. Real prepare rejection retains the full bold
+suffix, schema, owner/source/span identity and both input anchors. Checkpoint,
+state vector, revision, history and publication remain unchanged. Each case has
+16 corrupted-oracle controls. These vectors prove atomic rejection only; they do
+not qualify an accepted cross-owner policy, history bookmarks or unattached
+journal/persistence effects. Canonical semantic dispatch includes this suite.
