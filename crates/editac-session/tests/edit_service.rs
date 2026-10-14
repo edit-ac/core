@@ -802,3 +802,89 @@ fn preexisting_unqualified_history_never_silently_bypasses_host_caps() {
     ));
     assert_eq!(text(service.session().document()), "old-abcdef");
 }
+
+// Host lifecycle forwarding must preserve the live replica and origin-aware history.
+fn lifecycle_case<S: SessionStore>(store: Arc<S>, id: DocumentIdentity) {
+    let mut service = service(store.clone(), id.clone());
+    let replica = service.session().document() as *const _;
+    let plan = prepare(&service, "local-");
+    let commit = service.apply(plan, 0).unwrap().unwrap();
+    let pending = store.pending(&id).unwrap();
+    let history = service.session().document().history_state();
+    let attach = |service: &mut EditService<Arc<S>>| {
+        service
+            .attach_transport(
+                Box::new(
+                    PreparedTransport::new(
+                        id.clone(),
+                        ConnectionState::Authorized,
+                        TransportCapabilities {
+                            receipts: ReceiptCapability::DurableV1,
+                            max_frame_bytes: 1_048_576,
+                            max_queue_bytes: 1_048_576,
+                            max_queue_frames: 100,
+                        },
+                    )
+                    .unwrap(),
+                ),
+                100,
+                0,
+            )
+            .unwrap();
+    };
+    attach(&mut service);
+    assert_eq!(service.flush_pending(0).unwrap(), pending.len());
+    assert_eq!(
+        service.read(0).unwrap().state.remote,
+        RemoteState::SentDurabilityUnknown
+    );
+    service.detach_transport();
+    let receipt = DurableReceipt {
+        protocol: ReceiptCapability::DurableV1,
+        update: commit.update,
+    };
+    assert!(service.accept_receipt(receipt.clone(), 0).is_err());
+    assert_eq!(
+        store
+            .pending(&id)
+            .unwrap()
+            .iter()
+            .map(|e| e.id())
+            .collect::<Vec<_>>(),
+        pending.iter().map(|e| e.id()).collect::<Vec<_>>()
+    );
+    attach(&mut service);
+    for entry in &pending {
+        let receipt = DurableReceipt {
+            protocol: ReceiptCapability::DurableV1,
+            update: entry.id().clone(),
+        };
+        assert_eq!(
+            service.accept_receipt(receipt.clone(), 0).unwrap(),
+            ReceiptResult::RemoteCommitted
+        );
+        assert_eq!(
+            service.accept_receipt(receipt, 0).unwrap(),
+            ReceiptResult::RemoteCommitted
+        );
+    }
+    assert!(store.pending(&id).unwrap().is_empty());
+    assert_eq!(
+        service.read(0).unwrap().state.remote,
+        RemoteState::RemotelyCommitted
+    );
+    assert_eq!(service.session().document().history_state(), history);
+    assert_eq!(service.session().document() as *const _, replica);
+    assert_eq!(text(service.session().document()), "local-abcdef");
+}
+#[test]
+fn memory_service_lifecycle_preserves_replica_history_and_receipt_barrier() {
+    let id = identity();
+    lifecycle_case(memory(&id), id);
+}
+#[cfg(feature = "native-store")]
+#[test]
+fn native_service_lifecycle_preserves_replica_history_and_receipt_barrier() {
+    let id = identity();
+    lifecycle_case(native(&id), id);
+}
