@@ -31,3 +31,6 @@ export type { ExtensionTransferDescriptor, ExtensionTransferEnvelope, ExtensionT
 
 export { ServiceLifecycle, serviceScopeFailure } from '../services/lifecycle.js';
 export type { ServiceScope, ServiceResult, ServiceFailure, ServiceLimits, ServiceRequest, ServiceClock } from '../services/lifecycle.js';
+
+export { SupportDiagnostics, serviceDiagnostic, runWithDiagnostics, DIAGNOSTIC_LIMITS } from '../services/diagnostics.js';
+export type { DiagnosticSource, DiagnosticFailure, RecoveryAction } from '../services/diagnostics.js';
