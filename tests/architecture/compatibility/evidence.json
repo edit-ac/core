@@ -1,0 +1,353 @@
+{
+  "version": 1,
+  "gate": "FIT-1.5",
+  "sourceRevision": "78b3fd484f3af6ca9ab61b5457cfb1aa45474dbba889a88e863949d9d631cb74",
+  "loadedPromptRevision": "2e18a98412c7",
+  "scope": "Only exact reviewed previous/current portable source contracts. Matching v4/v5 Rust/Yjs readers; JS SDK/native bridge v5. No implicit persisted schema migration, target-platform SDK or release qualification.",
+  "policy": {
+    "path": "fixtures/compatibility/policy.json",
+    "sha256": "7da0dd22d61e8a89a49c16711707d1be147c935f1007b2e929263cfe50e5af9d",
+    "endpoints": {
+      "previous": {
+        "revision": "8f1eec24a4c3863a31cc00e6d91384b23f2c2355",
+        "versions": {
+          "semanticSchema": "editac.registry.editor.v5",
+          "updateSync": "editac.yrs-yjs.editor.v5",
+          "protocolVersion": 1,
+          "updateEncoding": 1,
+          "offsets": "utf16",
+          "extensionDescriptor": 1,
+          "publicApi": 1,
+          "nativeAbi": 1
+        }
+      },
+      "current": {
+        "revision": "f25b08ab6cca6b967f9c0109030952f71a3778a4",
+        "versions": {
+          "semanticSchema": "editac.registry.editor.v5",
+          "updateSync": "editac.yrs-yjs.editor.v5",
+          "protocolVersion": 1,
+          "updateEncoding": 1,
+          "offsets": "utf16",
+          "extensionDescriptor": 1,
+          "publicApi": 1,
+          "nativeAbi": 1
+        }
+      }
+    }
+  },
+  "immutableFixtures": {
+    "v4.bin": "cb19dbeae4a7201c9d208dcbf9432e7c0b75ce5bae3caf0cc30e8661fd78b72f",
+    "v4-journal.bin": "6bc61fab3e506849e4abb7d9ab094eb6306cd7cf2f049a27b3c129d6a543ba8b",
+    "v4.json": "b82617dfa53e0a570b9af75f840676afd00428e4bc7735ec1049c96cb16b0057",
+    "v5.bin": "109a6a0850e4f9b9264494a303793402bba699fa3ab36b72518849ceb1e46149",
+    "v5-journal.bin": "6bc61fab3e506849e4abb7d9ab094eb6306cd7cf2f049a27b3c129d6a543ba8b",
+    "v5.json": "1a094d4759c3987e7a51e316d9beb1d3753edda2b61ec197c9e9422d2816978e",
+    "descriptor.json": "23cf677aa9cf4a95ed22b06e68b12875278692f92cc24dd9679ae109d8f4aa1d"
+  },
+  "toolchain": {
+    "node": "v24.19.0",
+    "rust": "rustc 1.97.1 (8bab26f4f 2026-07-14)"
+  },
+  "validation": [
+    {
+      "path": "architecture-results/fit-1.5-20261014/validation-1/receipt.json",
+      "sha256": "d43c45b722c0db51c9e3b6c206bd50e2ffa0f90292d9d87a07a873a1d27e9e84",
+      "suite": "compatibility",
+      "exit": 1,
+      "counts": {
+        "tests": 35,
+        "pass": 0,
+        "fail": 35,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "errors": [
+        "Incomplete architecture tests: {\"tests\":35,\"pass\":0,\"fail\":35,\"cancelled\":0,\"skipped\":0,\"todo\":0}"
+      ],
+      "artifacts": {
+        "tests.tap": "9c32ca8974e7e71838e847dfa84a27aa1023a606f1fe4c930964aa566dd1ccab"
+      }
+    },
+    {
+      "path": "architecture-results/fit-1.5-20261014/validation-2/receipt.json",
+      "sha256": "4365571bddd54fe267115faced59e194a8baaabf12456e28978f2b9cecea8aef",
+      "suite": "compatibility",
+      "exit": 1,
+      "counts": {
+        "tests": 34,
+        "pass": 28,
+        "fail": 6,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "errors": [
+        "Incomplete architecture tests: {\"tests\":34,\"pass\":28,\"fail\":6,\"cancelled\":0,\"skipped\":0,\"todo\":0}"
+      ],
+      "artifacts": {
+        "tests.tap": "3024ef01697bf1622fdcaa8531158f3ca1fc6123c3609c70a44c2014f8bb86c7"
+      }
+    },
+    {
+      "path": "architecture-results/fit-1.5-20261014/validation-3/receipt.json",
+      "sha256": "466ae650d8c4457cf38949138cd7310818e32b2cfbb83d5686ea88080e3aae6f",
+      "suite": "compatibility",
+      "exit": 0,
+      "counts": {
+        "tests": 34,
+        "pass": 34,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "errors": [],
+      "artifacts": {
+        "tests.tap": "ed8c0364e3c368bafff6349778fd921b5cd3f1c82be9e1eb3614340843cfbddb",
+        "compatibility-inventory.json": "b57000a75c760a2e9436fa352eb295b8c9506a3283c0cb154753f9ff8be277b5"
+      }
+    },
+    {
+      "path": "architecture-results/fit-1.5-20261014/validation-4/receipt.json",
+      "sha256": "f87e9f53e689be074e031f608451918c782d6e3f765ed7eed06b133b57fed2a6",
+      "suite": "compatibility",
+      "exit": 0,
+      "counts": {
+        "tests": 36,
+        "pass": 36,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "errors": [],
+      "artifacts": {
+        "tests.tap": "b1c72b407a0c304a389ae3516d55df203b6c7e315cc1f9745ba4368438b3d6d5",
+        "compatibility-inventory.json": "8c9f3ff35a016ab7468de72ce686afbc34910bcf2c9a80d22b643672c78df295"
+      }
+    },
+    {
+      "path": "architecture-results/fit-1.5-20261014/layers-regression/receipt.json",
+      "sha256": "91352d9fe2e712980b4c6071d1d8fe1cee4fd839e746a8e1a56a82485b5ea318",
+      "suite": "layers",
+      "exit": 0,
+      "counts": {
+        "tests": 72,
+        "pass": 72,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "errors": [],
+      "artifacts": {
+        "tests.tap": "3ace61ea7da1cb6cd4b663cb500953d84d601de12b5efad97aa2b1556b7f1c2b",
+        "layers-graph.json": "6b1cdf3d5c82849bd63c0217032fbe89c4cd6eaa83f6d6c6fe999b67822d2a20"
+      }
+    }
+  ],
+  "nestedCommands": [
+    {
+      "label": "rust-toolchain",
+      "command": [
+        "rustc",
+        "--version"
+      ],
+      "exit": 0,
+      "error": null,
+      "counts": [],
+      "log": "rust-toolchain.log",
+      "sha256": "4ad84f16acc2f3bdcfbc7b0788f1e74a4e649b962154a585b8f8d0b28eb0dd06"
+    },
+    {
+      "label": "rust-compatibility",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "editac-ffi",
+        "--test",
+        "architecture_compatibility",
+        "--locked",
+        "--offline",
+        "--",
+        "--skip",
+        "public_js_checkpoint_returns_to_native_and_public_rust_with_unknown_data"
+      ],
+      "exit": 0,
+      "error": null,
+      "counts": [
+        {
+          "passed": 10,
+          "failed": 0,
+          "skipped": 0
+        }
+      ],
+      "log": "rust-compatibility.log",
+      "sha256": "25b7ab4f38f76d26784763421efd010d0fa3241487efc0dcbd4603166a5e68e3"
+    },
+    {
+      "label": "generated-abi",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "editac-ffi",
+        "--lib",
+        "abi_wire_tests",
+        "--locked",
+        "--offline"
+      ],
+      "exit": 0,
+      "error": null,
+      "counts": [
+        {
+          "passed": 2,
+          "failed": 0,
+          "skipped": 0
+        }
+      ],
+      "log": "generated-abi.log",
+      "sha256": "67861fd8014c38fcf0d5d5a8925621cbc8b0ec8a0e1d8a63f3ed331f7a5087d8"
+    },
+    {
+      "label": "build-wasm",
+      "command": [
+        "/Users/bpstr/.nvm/versions/node/v24.19.0/bin/node",
+        "scripts/build-wasm.mjs"
+      ],
+      "exit": 0,
+      "error": null,
+      "counts": [],
+      "log": "build-wasm.log",
+      "sha256": "be39fc7d4a2358838b6226d2d22561ac7dc6879cd9ebe2d28ea420b86e76476f"
+    },
+    {
+      "label": "build-public-api",
+      "command": [
+        "npm",
+        "run",
+        "build",
+        "--workspace",
+        "@edit-ac/core"
+      ],
+      "exit": 0,
+      "error": null,
+      "counts": [],
+      "log": "build-public-api.log",
+      "sha256": "a43910291301e225b49807ec9a056f9de4808065e339fca9f7e0f1475373d23d"
+    },
+    {
+      "label": "js-return-to-native",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "editac-ffi",
+        "--test",
+        "architecture_compatibility",
+        "--locked",
+        "--offline",
+        "public_js_checkpoint_returns_to_native_and_public_rust_with_unknown_data"
+      ],
+      "exit": 0,
+      "error": null,
+      "counts": [
+        {
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0
+        }
+      ],
+      "log": "js-return-to-native.log",
+      "sha256": "0bf7bc4464b442cbaefeef83ea8b7ec6003045ef4e48f0b9250aca6fca16c218"
+    }
+  ],
+  "preservedRuntimeArtifacts": {
+    "architecture-results/fit-1.5-20261014/validation-4/runtime/index.js": "cd28d58cc2a61e86323a748a1793d22d3e269d3249f1343ea35426f22625cdc7",
+    "architecture-results/fit-1.5-20261014/validation-4/runtime/engine.js": "8d8283fee51e6c9e3a890e113670890ff009b81a46512170152468edf24ef19d",
+    "architecture-results/fit-1.5-20261014/validation-4/runtime/index.d.ts": "0447aa3bcc142f132792a386ba8d6884f1f2d2226ea7fec7d68a36a6481ffa0e",
+    "architecture-results/fit-1.5-20261014/validation-4/runtime/engine.d.ts": "b53dadef0a652146d528988cef0002db81e7faefa0a8f33fda824c82e00f6a0e",
+    "architecture-results/fit-1.5-20261014/validation-4/runtime/wasm/editac_runtime.js": "873c307eb05718a21745cb130c47d9712d77df55753ef6f804d1b4f14fb02ff0",
+    "architecture-results/fit-1.5-20261014/validation-4/runtime/wasm/editac_wasm.js": "aada0a74d5cd6cd94a0370f77fe7369d3832294796dd68d6b34d45173706dbe2",
+    "architecture-results/fit-1.5-20261014/validation-4/runtime/wasm/editac_wasm_bg.wasm": "3669a9367310765a34564e0eedc5782e904fe4bfcaeac885b16d5a073d73b718",
+    "architecture-results/fit-1.5-20261014/validation-4/compiled/architecture_compatibility-9652ee897f9cab18": "75e9326c4970dd0c49101ce1e81fda6b8e274632790f03efbc679b28d2983d79",
+    "architecture-results/fit-1.5-20261014/validation-4/compiled/editac_ffi-007668dd5ce961d7": "55cfea769d7a65f806efb56d766f4f1ffff571f9efe38a289a3ed0d84518941f"
+  },
+  "prerequisites": [
+    {
+      "path": "architecture-results/fit-1.4-20261014/profiles-regression/receipt.json",
+      "sha256": "2bb46933f85780bc6605893c48fd1e94e128b4d3307ac3b336ad978526accf57",
+      "counts": {
+        "tests": 342,
+        "pass": 342,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "inputPinsMatch": true
+    },
+    {
+      "path": "architecture-results/fit-1.3-20261014/validation-2/receipt.json",
+      "sha256": "ffc90920fda6481c5ef220ba6d012d4f86d1b1df687d4a06954b059b78c21233",
+      "counts": {
+        "tests": 80,
+        "pass": 80,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "inputPinsMatch": true
+    },
+    {
+      "path": "architecture-results/fit-1.4-20261014/validation-3/receipt.json",
+      "sha256": "53a0be38723254444785ca057d8b8be20dbfa642908e86e7da567a1e72011a40",
+      "counts": {
+        "tests": 72,
+        "pass": 72,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "inputPinsMatch": true
+    }
+  ],
+  "upstreamEntryCheck": {
+    "path": "architecture-results/fit-1.1-20261014/upstream-entry-check.json",
+    "sha256": "29a0f4419ef4b872ffd678f413dd3bb8a19047808ff82b09046edeafae827bef",
+    "scope": "Retain reviewed08/12/21 completion and integration evidence; no broad requalification"
+  },
+  "retainedFailedCorpus": {
+    "architecture-results/fit-1.5-20261014/validation-1/failed-corpus/v5-journal.bin": "6bc61fab3e506849e4abb7d9ab094eb6306cd7cf2f049a27b3c129d6a543ba8b",
+    "architecture-results/fit-1.5-20261014/validation-1/failed-corpus/policy.json": "bd704aaeeffa3d3ddb90be0320a5509ea89333464a471a4857c2a05cb0aae0ea",
+    "architecture-results/fit-1.5-20261014/validation-1/failed-corpus/v4.json": "52d7db4cf9697d140474041fb41bb0ace69403d51f1adb67b53719096fd980e3",
+    "architecture-results/fit-1.5-20261014/validation-1/failed-corpus/v5.json": "55140813888061206c15b839d7cc461e809e5e0fff7d605ddea0b8f5231c21ef",
+    "architecture-results/fit-1.5-20261014/validation-1/failed-corpus/v4.bin": "cb19dbeae4a7201c9d208dcbf9432e7c0b75ce5bae3caf0cc30e8661fd78b72f",
+    "architecture-results/fit-1.5-20261014/validation-1/failed-corpus/v5.bin": "109a6a0850e4f9b9264494a303793402bba699fa3ab36b72518849ceb1e46149",
+    "architecture-results/fit-1.5-20261014/validation-1/failed-corpus/v4-journal.bin": "6bc61fab3e506849e4abb7d9ab094eb6306cd7cf2f049a27b3c129d6a543ba8b",
+    "architecture-results/fit-1.5-20261014/validation-1/failed-corpus/descriptor.json": "23cf677aa9cf4a95ed22b06e68b12875278692f92cc24dd9679ae109d8f4aa1d"
+  },
+  "outcomes": [
+    "previous/current exact tuple and reviewed source identity: recover, no migration, owned unknown-data checkpoint export",
+    "unsupported identity/version: reject before dispatch/apply; preserve checkpoint/journal and reopen matching reader or explicit export before new epoch",
+    "persisted newer-schema rollback/relabeling: reject; original remains recoverable",
+    "descriptor forward migration: candidate only, host admission required; absent reverse edge never invokes migrator"
+  ],
+  "failuresRetained": "validation-1 had an incorrect projected-text corpus expectation; failed corpus retained. validation-2 checkpoint arguments included extra metadata and descriptor assertion mismatched immutable object prototype. validation-3 repaired34/34; validation-4 binds implementation revisions and adds2 negatives,36/36.",
+  "coverage": {
+    "node": 36,
+    "rustCompatibility": 11,
+    "generatedAbi": 2,
+    "skipped": 0,
+    "phaseNote": "Rust compatibility executes10 cases before JS and the complementary1 after JS; all11 actual cases execute, zero ignored."
+  },
+  "supportingChecks": {
+    "architecture-results/fit-1.5-20261014/format.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "architecture-results/fit-1.5-20261014/diff-check.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

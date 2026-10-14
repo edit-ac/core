@@ -1,0 +1,47 @@
+{
+  "definition": {
+    "type": "demo.highlight",
+    "version": 1,
+    "kind": "mark",
+    "attributes": {
+      "label": {
+        "type": "string",
+        "required": true,
+        "maxUtf16": 128
+      },
+      "active": {
+        "type": "boolean",
+        "required": false
+      },
+      "rank": {
+        "type": "number",
+        "required": false
+      }
+    },
+    "content": {
+      "type": "text",
+      "maxUtf16": 128
+    },
+    "fallback": {
+      "type": "text",
+      "source": "content"
+    }
+  },
+  "future": [
+    2,
+    {
+      "futureField": "opaque-retained"
+    }
+  ],
+  "unknown": [
+    37,
+    {
+      "nested": [
+        "keep",
+        {
+          "value": 9
+        }
+      ]
+    }
+  ]
+}
