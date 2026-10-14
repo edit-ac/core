@@ -100,10 +100,21 @@
     "geometry-work"
   ],
   "owningCommands": [
-    "npm run bench -- --fitness --quick --fixtures small,medium --output <unique-directory>"
+    "npm run bench -- --fitness --quick --fixtures Task,Long --presets baseline,task --output <unique-directory>"
   ],
-  "commandScope": "Baseline diagnostics only; full PRF/platform producers remain required. Task/Long are not silently equated with old small/medium fixtures.",
+  "commandScope": "Task/Long baseline versus shipped Task feature-cost diagnostics with one initial checkpoint per fixture. No optional providers; full PRF/platform producers and sufficient tail samples remain required.",
   "benchmarkConfigHash": "e018e1decf3f2aa2b4334bede9c359cd3418b86b19a84d11833f3f2029bfbe34",
   "verificationSpecHash": "d27215ea8bf1041f63f98b0039085a2cc41bb6bf8ec347bfbd9592bc758f0667",
-  "reviewedMetricLimits": {}
+  "reviewedMetricLimits": {},
+  "fixtureNames": [
+    "Task",
+    "Long"
+  ],
+  "presets": [
+    "baseline",
+    "task"
+  ],
+  "fixtureIdentity": "seeded-utf8-v1/shared-initial-checkpoint-v1",
+  "seedPreparation": "prepared-frozen-schema-v5/public-native-restore-validation; outside measurement; shared exact bytes restored by browser WASM",
+  "inputReplay": "ascii-overwrite-delete-restore-v1"
 }

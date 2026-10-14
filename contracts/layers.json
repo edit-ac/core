@@ -292,7 +292,19 @@
         "scripts/bench.mjs",
         "scripts/browser-size-contract.mjs",
         "tests/architecture/budgets/README.md",
-        "scripts/record-fitness-baseline.mjs"
+        "scripts/record-fitness-baseline.mjs",
+        "benchmarks/presets.mjs",
+        "benchmarks/expected/Task.json",
+        "benchmarks/expected/Long.json",
+        "crates/editac-ffi/examples/fitness-seed.rs",
+        "benchmarks/seeds.mjs",
+        "fixtures/schema-v5/mapping.rs",
+        "fixtures/schema-v5/seed.json",
+        "crates/editac-core/src/projection.rs",
+        "crates/editac-core/src/editor.rs",
+        "fixtures/schema-v4/mapping.rs",
+        "crates/editac-core/examples/fitness-edit-cost.rs",
+        "crates/editac-core/tests/fitness_projection_cache.rs"
       ],
       "artifacts": [
         "budgets-inventory.json"

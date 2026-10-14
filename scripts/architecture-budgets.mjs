@@ -2,6 +2,8 @@ import { readFile, realpath } from 'node:fs/promises';
 import { resolve, relative, isAbsolute } from 'node:path';
 import { createHash } from 'node:crypto';
 import { percentile } from '../benchmarks/statistics.mjs';
+import { presets } from '../benchmarks/presets.mjs';
+import { fixture, fixtureText, expectedSemantics, projectedSemantics } from '../benchmarks/fixtures.mjs';
 import { budgets } from './browser-size-contract.mjs';
 
 export const digest = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -31,6 +33,12 @@ export function validateFitnessProfile(profile, configBytes, specBytes) {
     require(row && profile.limits.desktop[metric] === Number(row[2].replaceAll(',', '').match(/^[\d.]+/)?.[0])
       && profile.limits.phone[metric] === Number(row[3].replaceAll(',', '').match(/^[\d.]+/)?.[0]), `Existing latency limits changed: ${metric}`);
   }
+  require(JSON.stringify(profile.fixtureNames) === JSON.stringify(['Task', 'Long']), 'Task/Long generator scope drift');
+  require(JSON.stringify(profile.presets) === JSON.stringify(['baseline', 'task']), 'Preset scope drift');
+  require(JSON.stringify(profile.owningCommands) === JSON.stringify(['npm run bench -- --fitness --quick --fixtures Task,Long --presets baseline,task --output <unique-directory>']), 'Owning fixture/preset command drift');
+  require(profile.seedPreparation === 'prepared-frozen-schema-v5/public-native-restore-validation; outside measurement; shared exact bytes restored by browser WASM', 'Seed producer scope drift');
+  require(profile.inputReplay === 'ascii-overwrite-delete-restore-v1', 'Input replay policy drift');
+  require(profile.fixtureIdentity === 'seeded-utf8-v1/shared-initial-checkpoint-v1', 'Fixture identity policy drift');
   require(profile.unreviewedLimits.length > 0, 'Missing explicit resource/frame review gaps');
   return { profileHash: digest(JSON.stringify(profile)), hardGzipCaps: budgets, scope: 'Admission contract only; no support claim' };
 }
@@ -110,16 +118,40 @@ export function inspectBaseline(profile, result) {
   require(result.metadata?.cpu && result.metadata.browser && result.metadata.osRelease && result.metadata.totalMemoryBytes > 0, 'Hardware/runtime missing');
   require(Date.parse(result.metadata.timestamp) > Date.parse(profile.reviewedAt), 'Measurement precedes fixed limits');
   require(result.profileInputs?.['benchmarks/profiles/fitness-v1.json'] && result.profileInputs['benchmarks/config.json'] === profile.benchmarkConfigHash, 'Unpinned measurement limits');
+  require(JSON.stringify(result.signature.fixtures) === JSON.stringify(profile.fixtureNames), 'Missing required Task/Long fixtures');
+  require(result.signature.replay === profile.inputReplay, 'Input replay signature drift');
+  require(JSON.stringify(result.signature.presets) === JSON.stringify(profile.presets.map(name => presets[name])), 'Preset definition drift');
+  require(result.plan.runs === result.signature.runs && result.plan.samples === result.signature.samples && result.plan.warmups === result.signature.warmups, 'Sampling plan/signature drift');
+  require(result.counts.executed === result.signature.fixtures.length * profile.presets.length * (result.plan.runs + result.plan.warmups), 'Missing warmup/preset scenarios');
+  require(JSON.stringify(result.fixtures.map(f => f.name)) === JSON.stringify(profile.fixtureNames), 'Duplicate/missing fixture definitions');
+  require(result.signature.orderPolicy === 'fixture-iteration-preset-fixed-v1' && JSON.stringify(result.signature.viewport) === JSON.stringify({ width: 1280, height: 800 }), 'Incomparable order/viewport');
+  require(result.metadata.seedProducer?.source === 'crates/editac-ffi/examples/fitness-seed.rs' && pin(result.metadata.seedProducer.sha256)
+    && result.artifactInputs['harness/fitness-seed'] === result.metadata.seedProducer.sha256, 'Missing public native fixture producer identity');
+  for (const item of result.fixtures) {
+    const document = fixture(item.name);
+    require(item.sha256 === digest(JSON.stringify(document)) && item.chars === document.chars
+      && item.textBytes === Buffer.byteLength(fixtureText(document)) && item.textHash === digest(fixtureText(document))
+      && item.semanticHash === digest(JSON.stringify(expectedSemantics(document))), 'Fixture generator/semantic/text identity drift');
+    require(positiveInt(item.crdt?.bytes) && pin(item.crdt?.sha256) && pin(item.crdt?.envelopeHash)
+      && result.artifactInputs[item.crdt.file] === item.crdt.sha256 && result.artifactInputs[item.crdt.envelope] === item.crdt.envelopeHash
+      && result.artifactInputs[`fixtures/${item.name}.semantic.json`] === item.semanticHash, 'Missing serialized CRDT/semantic identities');
+  }
   const measured = result.cases.filter(item => item.measured);
-  require(measured.length === result.signature.fixtures.length * result.plan.runs, 'Missing measured fixture runs');
+  require(measured.length === result.signature.fixtures.length * profile.presets.length * result.plan.runs, 'Missing measured fixture runs');
   require(result.counts.executed === result.cases.length && result.cases.every(item => item.correctness === 'passed' && item.errors?.length === 0), 'Forged scenario counts');
-  for (const fixture of result.signature.fixtures) {
-    const runs = measured.filter(item => item.fixture === fixture);
-    require(runs.length === result.plan.runs && new Set(runs.map(item => item.iteration)).size === runs.length, 'Duplicate/missing measured fixture');
+  for (const name of result.signature.fixtures) for (const preset of profile.presets) {
+    const runs = measured.filter(item => item.fixture === name && item.preset === preset);
+    require(runs.length === result.plan.runs && new Set(runs.map(item => item.iteration)).size === runs.length, 'Duplicate/missing measured fixture/preset');
+    const warmups = result.cases.filter(item => !item.measured && item.fixture === name && item.preset === preset);
+    require(warmups.length === result.plan.warmups && new Set(warmups.map(item => item.iteration)).size === warmups.length, 'Duplicate/missing warmup fixture/preset');
   }
   const observations = measured.map(item => {
     const trace = item.fitness;
-    require(item.correctness === 'passed' && trace?.version === 1 && trace.provenance === 'browser-synthetic-input' && trace.endpoint === result.signature.endpoint && trace.preset === 'minimal', 'Wrong baseline trace provenance');
+    require(item.correctness === 'passed' && trace?.version === 1 && trace.provenance === 'browser-synthetic-input' && trace.endpoint === result.signature.endpoint && profile.presets.includes(item.preset) && trace.preset === item.preset && trace.replay === profile.inputReplay
+      && JSON.stringify(trace.featureSet) === JSON.stringify(presets[item.preset].featureSet) && JSON.stringify(trace.providers) === JSON.stringify(presets[item.preset].providers), 'Wrong baseline trace provenance');
+    const definition = result.fixtures.find(f => f.name === item.fixture);
+    require(item.fixtureIdentity?.fixtureHash === definition.sha256 && item.fixtureIdentity.semanticHash === definition.semanticHash
+      && item.fixtureIdentity.crdtHash === definition.crdt.sha256 && item.fixtureIdentity.textBytes === definition.textBytes, 'Incomparable initial fixture/checkpoint');
     require(item.chars === result.fixtures.find(f => f.name === item.fixture)?.chars, 'Size/fixture mismatch');
     require(trace.input.length === result.plan.samples * 3 && trace.changedRegion.length === trace.input.length, 'Missing input/changed-region samples');
     const sampleKeys = trace.input.map(sample => `${sample.position}/${sample.sample}`);
@@ -134,10 +166,36 @@ export function inspectBaseline(profile, result) {
       if (index) require(sample.phase === 'disposed' && sample.cycle === index - 1 && sample.childNodes === 0 && sample.contentEditable === 'false', 'Disposed editor retained surface');
     }
     require(['observed', 'unavailable'].includes(trace.longTaskStatus) && trace.longTasks.every(sample => nonnegative(sample.startTime) && nonnegative(sample.duration)), 'Missing long-task trace status');
-    return { fixture: item.fixture, chars: item.chars, input: rawSummary(trace.input.map(s => s.secondFrameMs), profile.minimumTailSamples),
+    return { fixture: item.fixture, preset: item.preset, iteration: item.iteration, chars: item.chars, identity: item.fixtureIdentity, input: rawSummary(trace.input.map(s => s.secondFrameMs), profile.minimumTailSamples),
       changedRegion: trace.changedRegion, disposal: trace.disposal, longTasks: trace.longTasks, longTaskStatus: trace.longTaskStatus };
   });
-  return { status: 'diagnostic', observations, qualification: 'unqualified', gaps: ['Baseline synthetic DOM/animation-frame observations do not prove compositor paint or OS input',
-    'Task/Long identity, official presets and comparable full tail sample sets required', 'PRF-02 continuous input, PRF-03 optional queues, PRF-04 rich workloads, PRF-05 full resource plateau, PRF-06 packed startup and PRF-07 target text-service/accessibility proofs remain required',
+  const featureCosts = profile.fixtureNames.map(name => {
+    const forPreset = preset => observations.filter(o => o.fixture === name && o.preset === preset);
+    const baseline = forPreset('baseline'), task = forPreset('task');
+    const summary = preset => rawSummary(measured.filter(c => c.fixture === name && c.preset === preset).flatMap(c => c.fitness.input.map(i => i.secondFrameMs)), profile.minimumTailSamples);
+    return { fixture: name, experiment: 'feature-cost; not like-for-like implementation performance',
+      controlled: ['hardware', 'browser', 'viewport', 'toolchain', 'fixture', 'initial-checkpoint', 'warmups', 'samples', 'method'],
+      order: profile.presets, orderPolicy: 'fixed preregistered; order/thermal bias not excluded', baseline: summary('baseline'), task: summary('task'),
+      pairedRuns: baseline.map((o, index) => ({ iteration: o.iteration, baselineP50: o.input.p50, taskP50: task[index].input.p50,
+        p50DifferenceMs: task[index].input.p50 - o.input.p50 })), status: 'inconclusive' };
+  });
+  return { status: 'diagnostic', observations, featureCosts, qualification: 'unqualified', gaps: ['Baseline synthetic DOM/animation-frame observations do not prove compositor paint or OS input',
+    'Task/Long and baseline/Task preset identities observed; comparable full tail sample sets still required', 'PRF-02 continuous input, PRF-03 optional queues, PRF-04 rich workloads, PRF-05 full resource plateau, PRF-06 packed startup and PRF-07 target text-service/accessibility proofs remain required',
     'No reviewed absolute memory/frame budget; prepared or missing runtime evidence cannot qualify'] };
+}
+
+export async function verifyMeasuredFixtures(root, output, result) {
+  for (const item of result.fixtures) {
+    const bytes = await readFile(resolve(output, item.crdt.file));
+    require(bytes.length === item.crdt.bytes && digest(bytes) === item.crdt.sha256, 'Serialized CRDT byte identity drift');
+    const frozen = JSON.parse(await readFile(resolve(output, item.crdt.envelope)));
+    require(digest(JSON.stringify(frozen)) === item.crdt.envelopeHash && digest(Buffer.from(frozen.checkpoint.bytes)) === item.crdt.sha256
+      && JSON.stringify(frozen.identity) === JSON.stringify(frozen.checkpoint.identity), 'Initial checkpoint envelope mismatch');
+    const native = JSON.parse(await readFile(resolve(output, `fixtures/${item.name}.native-checkpoint.json`)));
+    require(digest(Buffer.from(native.checkpoint.bytes)) === item.crdt.sha256, 'Native/browser checkpoint drift');
+    const nativeSnapshot = JSON.parse(await readFile(resolve(output, `fixtures/${item.name}.native-snapshot.json`)));
+    require(digest(JSON.stringify(projectedSemantics(nativeSnapshot))) === item.semanticHash, 'Native producer semantic mismatch');
+    const expected = await readFile(resolve(root, `benchmarks/expected/${item.name}.json`));
+    require(digest(expected) === item.semanticHash, 'Committed semantic oracle drift');
+  }
 }

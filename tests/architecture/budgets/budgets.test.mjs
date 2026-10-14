@@ -3,7 +3,7 @@ import { test, after } from 'node:test';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { validateFitnessProfile, digest, rawSummary, comparable, evaluateFitnessEvidence, inspectBaseline, verifyPins } from '../../../scripts/architecture-budgets.mjs';
+import { validateFitnessProfile, digest, rawSummary, comparable, evaluateFitnessEvidence, inspectBaseline, verifyPins, verifyMeasuredFixtures } from '../../../scripts/architecture-budgets.mjs';
 import { options } from '../../../benchmarks/options.mjs';
 import { budgets, evaluateBudget, assertBudget } from '../../../scripts/browser-size-contract.mjs';
 const root = fileURLToPath(new URL('../../../', import.meta.url));
@@ -24,11 +24,11 @@ test('reviewed profile preserves exact benchmark limits and verification policy'
   assert.deepEqual(options(['--fitness', '--quick', '--fixtures', 'small,medium']).fixtures, ['small', 'medium']);
 });
 for (const [name, mutate] of [
-  ['unknown version', p => p.version++], ['no preregistration', p => delete p.reviewedAt],
+  ['unknown replay', p => p.inputReplay = 'growth'], ['native command claim for prepared seed', p => p.seedPreparation = 'optimized-public-native-abi; outside measurement; shared exact bytes restored by browser WASM'], ['unknown version', p => p.version++], ['no preregistration', p => delete p.reviewedAt],
   ['budget drift', p => p.benchmarkConfigHash = '0'.repeat(64)], ['policy drift', p => p.verificationSpecHash = '0'.repeat(64)],
   ['undersampled tails', p => p.minimumTailSamples = 5], ['size substitution', p => p.requiredSizes = ['small', 'medium']],
   ['missing PRF', p => delete p.requiredCases['PRF-07']], ['missing accessibility', p => p.requiredAccessibility.pop()],
-  ['raised latency', p => p.limits.desktop['input-visible'] = 100], ['raised warm activation', p => p.limits.desktop['Task-warm'] = 100], ['hidden resource gaps', p => p.unreviewedLimits = []],
+  ['raised latency', p => p.limits.desktop['input-visible'] = 100], ['raised warm activation', p => p.limits.desktop['Task-warm'] = 100], ['missing presets', p => p.presets = ['baseline']], ['wrong owning command', p => p.owningCommands = ['unknown']], ['hidden resource gaps', p => p.unreviewedLimits = []],
 ]) test(`profile rejects ${name}`, () => { const p = clone(profile); mutate(p); assert.throws(() => validateFitnessProfile(p, config, spec)); });
 
 test('raw tails are inconclusive for a small sample set', () => {
@@ -80,20 +80,29 @@ test('actual Rust/WASM/IndexedDB baseline retains exact source, profile and exec
   evidence.sources.profile = await verifyPins(root, result.profileInputs);
   evidence.sources.production = await verifyPins(root, result.sourceInputs);
   evidence.sources.artifacts = await verifyPins(measurementRoot, result.artifactInputs);
+  await verifyMeasuredFixtures(root, measurementRoot, result);
   evidence.sources.fixtures = await verifyPins(measurementRoot, Object.fromEntries(result.fixtures.map(item => [`fixtures/${item.name}.json`, item.sha256])));
   evidence.artifacts[index.directory + '/results.json'] = index.resultsHash;
   evidence.observations = inspectBaseline(profile, result);
   assert.equal(evidence.observations.status, 'diagnostic'); assert.equal(evidence.observations.qualification, 'unqualified');
-  assert.equal(evidence.observations.observations.length, 2);
+  assert.equal(evidence.observations.observations.length, 4);
+  assert.equal(evidence.observations.featureCosts.length, 2);
+  assert(evidence.observations.featureCosts.every(c => c.status === 'inconclusive' && c.pairedRuns.length === result.plan.runs));
   assert(evidence.observations.observations.every(o => o.input.status === 'inconclusive' && o.disposal.length > 1));
 });
 for (const [name, mutate] of [
-  ['benchmark failure', r => r.counts.failed++], ['benchmark skip', r => r.counts.skipped++],
+  ['wrong replay signature', r => r.signature.replay = 'growth'], ['wrong trace replay', r => r.cases.find(c => c.measured).fitness.replay = 'growth'], ['benchmark failure', r => r.counts.failed++], ['benchmark skip', r => r.counts.skipped++],
   ['missing measured fixture', r => r.cases = r.cases.filter(c => !c.measured)],
   ['missing hardware', r => delete r.metadata.cpu], ['preregistration violation', r => r.metadata.timestamp = profile.reviewedAt],
   ['leaked browser', r => r.cleanup.browserExited = false], ['legacy endpoint', r => r.signature.endpoint = 'old'],
   ['wrong feature set', r => r.cases.find(c => c.measured).fitness.preset = 'official'],
-  ['duplicate fixture', r => r.cases.find(c => c.measured && c.fixture === 'medium').fixture = 'small'],
+  ['missing Task preset', r => r.signature.presets.pop()],
+  ['preset options drift', r => r.signature.presets[1].options.typingShortcuts = false],
+  ['different initial CRDT', r => r.cases.find(c => c.measured).fixtureIdentity.crdtHash = '0'.repeat(64)],
+  ['text bytes relabeled as CRDT', r => r.fixtures[0].crdt.sha256 = r.fixtures[0].textHash],
+  ['semantic snapshot drift', r => r.fixtures[0].semanticHash = '0'.repeat(64)],
+  ['feature set drift', r => r.cases.find(c => c.measured).fitness.featureSet = ['invented']],
+  ['duplicate fixture', r => r.cases.find(c => c.measured && c.fixture === 'Long').fixture = 'Task'],
   ['duplicate raw input', r => r.cases.find(c => c.measured).fitness.input[1] = r.cases.find(c => c.measured).fitness.input[0]],
   ['missing raw input', r => r.cases.find(c => c.measured).fitness.input.pop()],
   ['negative attribution', r => r.cases.find(c => c.measured).fitness.input[0].layoutMs = -1],

@@ -826,6 +826,10 @@ fn presentation(value: &Any) -> Any {
 }
 pub fn snapshot(d: &Doc) -> Result<Any> {
     let v = project(d)?;
+    snapshot_from_view(d, v)
+}
+/// Serialize a view already qualified by `project` on this unchanged replica.
+pub(crate) fn snapshot_from_view(d: &Doc, v: View) -> Result<Any> {
     let t = d.transact();
     let mut visible = vec![];
     let mut deleted = vec![];

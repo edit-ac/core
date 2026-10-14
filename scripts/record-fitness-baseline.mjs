@@ -1,7 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { resolve, relative, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { digest, validateFitnessProfile, inspectBaseline, verifyPins } from './architecture-budgets.mjs';
+import { digest, validateFitnessProfile, inspectBaseline, verifyPins, verifyMeasuredFixtures } from './architecture-budgets.mjs';
 import { requireTestNode } from './test-toolchain.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -19,6 +19,7 @@ if (result.profileInputs?.['benchmarks/profiles/fitness-v1.json'] !== digest(pro
 const observations = inspectBaseline(profile, result);
 await verifyPins(root, result.profileInputs); await verifyPins(root, result.sourceInputs);
 await verifyPins(output, result.artifactInputs);
+await verifyMeasuredFixtures(root, output, result);
 await verifyPins(output, Object.fromEntries(result.fixtures.map(f => [`fixtures/${f.name}.json`, f.sha256])));
 const path = resolve(root, 'benchmarks/profiles/baseline-evidence.json');
 const previous = JSON.parse(await readFile(path));

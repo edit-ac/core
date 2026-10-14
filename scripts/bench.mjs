@@ -9,9 +9,11 @@ import { brotliCompressSync, gzipSync, constants } from 'node:zlib';
 import { build } from 'esbuild';
 import { chromium } from 'playwright';
 import { startFixtureServer } from '../tests/browser/fixture-server.mjs';
-import { fixture, fixtureVersion } from '../benchmarks/fixtures.mjs';
+import { fixture, fixtureVersion, fixtureText, expectedSemantics, projectedSemantics } from '../benchmarks/fixtures.mjs';
+import { admitSeed } from '../benchmarks/seeds.mjs';
+import { presets } from '../benchmarks/presets.mjs';
 import { options } from '../benchmarks/options.mjs';
-import { aggregate, markdown } from '../benchmarks/report.mjs';
+import { aggregate, markdown, scenarioCounts } from '../benchmarks/report.mjs';
 import { stopOwnedProcess } from './owned-processes.mjs';
 import { requireTestNode } from './test-toolchain.mjs';
 import { summarize } from '../benchmarks/statistics.mjs';
@@ -39,22 +41,27 @@ const result = { version: 1, bundleVersion: 1, mode: flags.quick ? 'quick' : 'fu
     runnerClass: process.env.EDITAC_BENCH_RUNNER_CLASS ?? 'local', output },
   profileInputs: {},
   fixtures: flags.fixtures.map(name => ({ name, version: fixtureVersion, chars: fixture(name).chars,
+    textBytes: Buffer.byteLength(fixtureText(fixture(name))), textHash: hash(fixtureText(fixture(name))),
+    semanticHash: hash(JSON.stringify(expectedSemantics(fixture(name)))),
     sha256: hash(Buffer.from(JSON.stringify(fixture(name)))) })),
   deferred: { reactWrapper: 'Scaffold only', comparisonEditors: 'Pinned Tiptap/Lexical runs not implemented', tables: 'Not in this fixture version', virtualization: 'No viewport virtualization scenario' },
-  plan: { runs: profile.runs, warmups: profile.warmups, samples: profile.samples, metrics: metricNames(flags.fixtures), sampleCounts: {} } };
-for (const name of result.plan.metrics) result.plan.sampleCounts[name] = name.startsWith('load.') || name.startsWith('editable.') ? 1
+  plan: { runs: profile.runs, warmups: profile.warmups, samples: profile.samples, metrics: flags.presets.flatMap(preset => metricNames(flags.fixtures).map(name => metricKey(name, preset))), sampleCounts: {} } };
+for (const key of result.plan.metrics) {
+  const name = key.replace(/@(baseline|task)$/, '');
+  result.plan.sampleCounts[key] = name.startsWith('load.') || name.startsWith('editable.') ? 1
   : ['paste.large', 'select-all-format.large', 'delete-range.large', 'remote-update.large'].includes(name) ? profile.operationSamples
   : /^(bold|italic|heading|undo|redo)\./.test(name) ? profile.formatSamples : profile.samples;
+}
 for (const file of ['benchmarks/config.json', 'benchmarks/profiles/fitness-v1.json', 'benchmarks/client.mjs', 'benchmarks/fixtures.mjs',
-  'benchmarks/options.mjs', 'benchmarks/statistics.mjs', 'benchmarks/report.mjs', 'scripts/bench.mjs',
-  'package.json', 'package-lock.json', '.node-version', 'tsconfig.base.json', 'Cargo.toml', 'rust-toolchain.toml', 'Cargo.lock']) result.profileInputs[file] = hash(await readFile(file));
+  'benchmarks/options.mjs', 'benchmarks/seeds.mjs', 'benchmarks/presets.mjs', 'benchmarks/expected/Task.json', 'benchmarks/expected/Long.json', 'benchmarks/statistics.mjs', 'benchmarks/report.mjs', 'scripts/bench.mjs',
+  'crates/editac-ffi/examples/fitness-seed.rs', 'fixtures/schema-v5/mapping.rs', 'fixtures/schema-v5/seed.json', 'package.json', 'package-lock.json', '.node-version', 'tsconfig.base.json', 'Cargo.toml', 'rust-toolchain.toml', 'Cargo.lock']) result.profileInputs[file] = hash(await readFile(file));
 result.metadata.osRelease = (await import('node:os')).release();
 // Freeze the executable source closure before compilation, including dirty files.
 // The observation index is output metadata, never an executable/build input.
 const sourceFiles = spawnSync('git', ['ls-files', 'crates', 'packages', 'scripts', 'benchmarks'], { encoding: 'utf8' });
 if (sourceFiles.status !== 0) throw Error('Cannot inventory benchmark sources');
 result.sourceInputs = {};
-for (const file of sourceFiles.stdout.trim().split('\n').filter(file => /\.(rs|toml|ts|mjs|json|css)$/.test(file) && !/\/(dist|generated)\//.test(file)
+for (const file of [...new Set([...sourceFiles.stdout.trim().split('\n'), ...Object.keys(result.profileInputs)])].filter(file => /\.(rs|toml|ts|mjs|json|css)$/.test(file) && !/\/(dist|generated)\//.test(file)
   && file !== 'benchmarks/profiles/baseline-evidence.json')) {
   result.sourceInputs[file] = hash(await readFile(file));
 }
@@ -69,6 +76,7 @@ async function bounded(promise, milliseconds, label) {
   try { return await Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(Error(label)), milliseconds); })]); }
   finally { clearTimeout(timer); }
 }
+function metricKey(name, preset) { return flags.presets.length > 1 ? `${name}@${preset}` : name; }
 function metricNames(fixtures) {
   const names = fixtures.flatMap(name => [
     ...['start', 'middle', 'end'].flatMap(position => [`typing.${name}.${position}`, `delete.${name}.${position}`]),
@@ -77,17 +85,17 @@ function metricNames(fixtures) {
   if (fixtures.includes('large')) names.push('paste.large', 'select-all-format.large', 'delete-range.large', 'remote-update.large');
   return names;
 }
-async function command(args, logName) {
+async function command(args, logName, executable = 'npm', timeoutMs = 600000) {
   if (interrupted) throw Error('Benchmark interrupted');
   const logPath = join(output, logName), stream = createWriteStream(logPath);
   console.log(`${args.join(' ')} → ${logPath}`);
   try {
-    await new Promise((done, reject) => {
-      child = spawn('npm', args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    await bounded(new Promise((done, reject) => {
+      child = spawn(executable, args, { stdio: ['ignore', 'pipe', 'pipe'] });
       child.stdout.pipe(stream, { end: false }); child.stderr.pipe(stream, { end: false });
-      child.once('error', reject); child.once('close', (code, signal) => code === 0 ? done() : reject(Error(`npm ${args.join(' ')} failed (${code ?? signal}); see ${logPath}`)));
-    });
-  } finally { child = undefined; await new Promise(resolve => stream.end(resolve)); }
+      child.once('error', reject); child.once('close', (code, signal) => code === 0 ? done() : reject(Error(`${executable} ${args.join(' ')} failed (${code ?? signal}); see ${logPath}`)));
+    }), timeoutMs, `${logName} exceeded ${timeoutMs / 1000}s preparation limit`);
+  } finally { if (child && child.exitCode === null && child.signalCode === null) stopOwnedProcess(child); child = undefined; await new Promise(resolve => stream.end(resolve)); }
 }
 async function bundles() {
   const directory = join(output, 'bundles'); await mkdir(directory);
@@ -105,7 +113,7 @@ async function bundles() {
   for (const name of profiles) {
     const contents = name === 'full' ? 'export * from "@edit-ac/web"; export * from "@edit-ac/core";'
       : name === 'react' ? 'export * from "@edit-ac/web"; export * from "@edit-ac/core"; export * from "@edit-ac/react";'
-      : 'export {createEditor, CheckpointStorage} from "@edit-ac/web"; export {init} from "@edit-ac/core";';
+      : 'export {createEditor, taskPreset, CheckpointStorage} from "@edit-ac/web"; export {init} from "@edit-ac/core";';
     const built = await build({ stdin: { contents, resolveDir: root, sourcefile: `benchmark-${name}.mjs` },
       bundle: true, minify: true, format: 'esm', platform: 'browser', target: 'es2022', external: ['react'], write: false, metafile: true });
     const js = built.outputFiles[0].contents;
@@ -124,7 +132,7 @@ async function bundles() {
   await mkdir(join(temporary, 'wasm'));
   // The test helper captures the ordinary host recovery session for remote-update fixtures.
   // Production size measurements above use only package exports.
-  await build({ stdin: { contents: 'export {createEditor, CheckpointStorage} from "@edit-ac/web"; export {init} from "@edit-ac/core"; export {recoverLocalDocument} from "./packages/web/dist/entry.js";', resolveDir: root },
+  await build({ stdin: { contents: 'export {createEditor, taskPreset, CheckpointStorage} from "@edit-ac/web"; export {init} from "@edit-ac/core"; export {recoverLocalDocument} from "./packages/web/dist/entry.js";', resolveDir: root },
     outfile: join(temporary, 'sdk.js'), bundle: true, minify: true, format: 'esm', platform: 'browser', target: 'es2022' });
   result.metadata.harnessBundleHash = hash(await readFile(join(temporary, 'sdk.js')));
   await copyFile(join(temporary, 'sdk.js'), join(output, 'harness/sdk.js'));
@@ -141,9 +149,38 @@ try {
   for (const name of flags.fixtures) await writeFile(join(output, 'fixtures', `${name}.json`), JSON.stringify(fixture(name)));
   await copyFile('benchmarks/config.json', join(output, 'config.json'));
   await mkdir(join(output, 'harness'));
-  for (const file of ['client.mjs', 'fixtures.mjs']) await copyFile(join('benchmarks', file), join(output, 'harness', file));
+  for (const file of ['client.mjs', 'fixtures.mjs', 'presets.mjs']) await copyFile(join('benchmarks', file), join(output, 'harness', file));
   await bundles();
-  for (const file of ['client.mjs', 'fixtures.mjs']) await copyFile(join(output, 'harness', file), join(temporary, file));
+  const nativeSeeds = {};
+  if (flags.fixtures.some(name => fixture(name).generator)) {
+    await command(['build', '-p', 'editac-ffi', '--example', 'fitness-seed', '--release', '--locked', '--offline'], 'build-fitness-seed.log', 'cargo');
+    const executable = join(output, 'harness/fitness-seed');
+    await copyFile('target/release/examples/fitness-seed', executable);
+    result.metadata.seedProducer = { command: 'cargo build -p editac-ffi --example fitness-seed --release --locked --offline',
+      source: 'crates/editac-ffi/examples/fitness-seed.rs', artifact: 'harness/fitness-seed', sha256: hash(await readFile(executable)),
+      scope: 'Prepared frozen-schema initializer validated through public native restore, outside measurements; not native command/platform qualification' };
+    for (const name of flags.fixtures.filter(name => fixture(name).generator)) {
+      if (flags.seedDirectory) {
+        const priorDirectory = resolve(flags.seedDirectory);
+        if (priorDirectory === output) throw Error('Seed input must differ from output');
+        const priorBytes = await readFile(join(priorDirectory, 'results.json'));
+        const artifacts = {};
+        const paths = { fixture: `fixtures/${name}.json`, checkpoint: `fixtures/${name}.native-checkpoint.json`, snapshot: `fixtures/${name}.native-snapshot.json`, log: `seed-${name}.log` };
+        for (const [key, path] of Object.entries(paths)) artifacts[key] = await readFile(join(priorDirectory, path));
+        const admitted = admitSeed(name, JSON.parse(priorBytes), result.sourceInputs, await readFile(executable), artifacts);
+        for (const [key, path] of Object.entries(paths)) await writeFile(join(output, path), artifacts[key]);
+        await writeFile(join(output, `fixtures/${name}.seed-reuse.json`), JSON.stringify({ ...admitted.receipt, directory: priorDirectory, priorResultHash: hash(priorBytes) }, null, 2));
+        nativeSeeds[name] = admitted.frozen;
+        continue;
+      }
+      await command([join(output, `fixtures/${name}.json`), join(output, `fixtures/${name}.native-checkpoint.json`), join(output, `fixtures/${name}.native-snapshot.json`)], `seed-${name}.log`, executable);
+      const frozen = JSON.parse(await readFile(join(output, `fixtures/${name}.native-checkpoint.json`)));
+      const snapshot = JSON.parse(await readFile(join(output, `fixtures/${name}.native-snapshot.json`)));
+      if (JSON.stringify(projectedSemantics(snapshot)) !== JSON.stringify(expectedSemantics(fixture(name)))) throw Error('Native seed semantic oracle mismatch');
+      nativeSeeds[name] = frozen;
+    }
+  }
+  for (const file of ['client.mjs', 'fixtures.mjs', 'presets.mjs']) await copyFile(join(output, 'harness', file), join(temporary, file));
   await writeFile(join(temporary, 'index.html'), '<!doctype html><meta charset="utf-8"><title>edit.ac benchmarks</title><style>#editor{max-width:900px;font:16px/1.5 sans-serif;white-space:pre-wrap}body{margin:24px}</style><div id="editor"></div>');
   server = await startFixtureServer({ fixtureDirectory: temporary });
   result.metadata.server = { pid: process.pid, port: server.port, workspace: root, purpose: 'benchmarks', log: output };
@@ -158,13 +195,16 @@ try {
     interKeyDelayMs: profile.interKeyDelayMs, platform: platform(), arch: arch(), nodeMajor: process.versions.node.split('.')[0],
     browser: result.metadata.browser, runnerClass: result.metadata.runnerClass,
     hardware: result.metadata.runnerClass === 'local' ? `${result.metadata.cpu}/${result.metadata.cores}` : `${result.metadata.runnerClass}/${result.metadata.cores} cores/${Math.round(totalmem() / 2 ** 30)} GiB`,
-    fitness: profile.fitness, preset: 'minimal', endpoint: profile.fitness ? 'dispatch-layout-two-animation-frames-v1' : 'dispatch-dom-layout-v1' };
+    viewport: { width: 1280, height: 800 }, orderPolicy: 'fixture-iteration-preset-fixed-v1', fitness: profile.fitness, replay: 'ascii-overwrite-delete-restore-v1', presets: flags.presets.map(name => presets[name]), endpoint: profile.fitness ? 'dispatch-layout-two-animation-frames-v1' : 'dispatch-dom-layout-v1' };
   for (const name of flags.fixtures) {
+    let frozen = nativeSeeds[name];
+    let retained = false;
     for (let iteration = 0; iteration < profile.warmups + profile.runs; iteration++) {
+      for (const preset of flags.presets) {
       if (interrupted) throw Error('Benchmark interrupted');
-      console.log(`${name}: ${iteration < profile.warmups ? 'warmup' : 'measured'} ${iteration + 1}/${profile.warmups + profile.runs}`);
+      console.log(`${name}/${preset}: ${iteration < profile.warmups ? 'warmup' : 'measured'} ${iteration + 1}/${profile.warmups + profile.runs}`);
       const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, serviceWorkers: 'block' });
-      const item = { fixture: name, iteration, measured: iteration >= profile.warmups, metrics: {}, errors: [] };
+      const item = { fixture: name, preset, iteration, measured: iteration >= profile.warmups, metrics: {}, errors: [] };
       result.cases.push(item);
       try {
         const page = await context.newPage(); page.setDefaultTimeout(120000);
@@ -180,20 +220,45 @@ try {
         await page.goto(server.url);
         await page.addScriptTag({ type: 'module', content: 'import * as benchmark from "/fixture/client.mjs"; window.benchmark = benchmark;' });
         await page.waitForFunction(() => !!window.benchmark);
-        const prepared = await bounded(page.evaluate(name => window.benchmark.prepareFixture(name), name), 300000, 'Checkpoint preparation exceeded 5 minutes');
+        const prepared = await bounded(page.evaluate(({ name, frozen }) => window.benchmark.prepareFixture(name, frozen), { name, frozen }), 300000, 'Checkpoint preparation exceeded 5 minutes');
+        if (!retained) {
+          frozen = prepared.frozen;
+          retained = true;
+          const bytes = Buffer.from(frozen.checkpoint.bytes);
+          const definition = result.fixtures.find(f => f.name === name);
+          definition.crdt = { bytes: bytes.length, sha256: hash(bytes), envelopeHash: hash(JSON.stringify(frozen)),
+            file: `fixtures/${name}.crdt.bin`, envelope: `fixtures/${name}.checkpoint.json`, scope: 'One initial checkpoint shared across all presets/runs; random runtime IDs retained' };
+          await writeFile(join(output, definition.crdt.file), bytes);
+          await writeFile(join(output, definition.crdt.envelope), JSON.stringify(frozen));
+          const semantic = JSON.stringify(expectedSemantics(fixture(name)));
+          await writeFile(join(output, 'fixtures', `${name}.semantic.json`), semantic);
+          if (fixture(name).generator) {
+            const committed = JSON.parse(await readFile(`benchmarks/expected/${name}.json`));
+            if (JSON.stringify(committed) !== semantic) throw Error('Committed expected semantic snapshot drift');
+          }
+        }
+        item.fixtureIdentity = { fixtureHash: result.fixtures.find(f => f.name === name).sha256,
+          semanticHash: result.fixtures.find(f => f.name === name).semanticHash,
+          crdtHash: result.fixtures.find(f => f.name === name).crdt.sha256, textBytes: result.fixtures.find(f => f.name === name).textBytes };
+        delete prepared.frozen;
         // Preserve the prepared IndexedDB checkpoint while dropping the JS realm
         // and initialized runtime, so cold editable includes actual asset loading.
         await page.reload();
         await page.addScriptTag({ type: 'module', content: 'import * as benchmark from "/fixture/client.mjs"; window.benchmark = benchmark;' });
         await page.waitForFunction(() => !!window.benchmark);
         const observation = await bounded(page.evaluate(({ name, config, prepared }) => window.benchmark.runScenario(name, config, prepared),
-          { name, config: { ...profile, measureMemory: name === 'large' && iteration === profile.warmups + profile.runs - 1 }, prepared }), 600000, 'Benchmark scenario exceeded 10 minutes');
+          { name, config: { ...profile, preset, measureMemory: name === 'large' && iteration === profile.warmups + profile.runs - 1 }, prepared }), 600000, 'Benchmark scenario exceeded 10 minutes');
+        observation.metrics = Object.fromEntries(Object.entries(observation.metrics).map(([key, value]) => [metricKey(key, preset), value]));
         Object.assign(item, observation);
         item.partial = false;
         if (item.correctness !== 'passed') throw Error(item.failure ?? 'Scenario correctness failed');
         if (item.errors.length) throw Error(item.errors.join('; '));
       } catch (error) { item.errors.push(error.message); result.errors.push(`${name} iteration ${iteration + 1}: ${error.message}`); }
       finally { await context.close(); await writeFile(join(output, 'raw.json'), JSON.stringify(result, null, 2)); }
+      // A failed warmup/scenario is durable failure evidence. Do not spend another
+      // scenario on the same unchanged implementation; close owned resources now.
+      if (item.errors.length) throw Error(`Stopped after failed ${name}/${preset} scenario; remaining scenarios not executed`);
+      }
     }
   }
   let baseline;
@@ -230,12 +295,18 @@ finally {
     }
   }
   result.metadata.finalLoadAverage = loadavg();
-  result.counts = { executed: result.cases.length, passed: result.cases.filter(item => item.correctness === 'passed' && !item.errors.length).length,
-    failed: result.cases.filter(item => item.correctness !== 'passed' || item.errors.length).length, skipped: 0 };
+  result.counts = scenarioCounts(result.cases, flags.fixtures.length * flags.presets.length * (profile.runs + profile.warmups));
   result.artifactInputs = {};
-  for (const file of ['harness/client.mjs', 'harness/fixtures.mjs', 'harness/sdk.js', 'bundles/wasm/editac_wasm.js', 'bundles/wasm/editac_wasm_bg.wasm', 'config.json']) {
+  for (const file of ['harness/client.mjs', 'harness/fixtures.mjs', 'harness/presets.mjs', 'harness/sdk.js', 'bundles/wasm/editac_wasm.js', 'bundles/wasm/editac_wasm_bg.wasm', 'config.json']) {
     try { result.artifactInputs[file] = hash(await readFile(join(output, file))); }
     catch (error) { result.errors.push(`Missing retained artifact ${file}: ${error.message}`); result.status = 'failed'; }
+  }
+  if (result.metadata.seedProducer) result.artifactInputs['harness/fitness-seed'] = result.metadata.seedProducer.sha256;
+  for (const definition of result.fixtures) {
+    for (const file of [definition.crdt?.file, definition.crdt?.envelope, `fixtures/${definition.name}.semantic.json`, ...(fixture(definition.name).generator ? [`fixtures/${definition.name}.native-checkpoint.json`, `fixtures/${definition.name}.native-snapshot.json`, `seed-${definition.name}.log`, ...(flags.seedDirectory ? [`fixtures/${definition.name}.seed-reuse.json`] : [])] : [])].filter(Boolean)) {
+      try { result.artifactInputs[file] = hash(await readFile(join(output, file))); }
+      catch (error) { result.errors.push(`Missing fixture artifact ${file}: ${error.message}`); result.status = 'failed'; }
+    }
   }
   await writeFile(join(output, 'results.json'), JSON.stringify(result, null, 2));
   await writeFile(join(output, 'summary.md'), markdown(result));
