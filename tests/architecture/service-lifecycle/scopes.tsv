@@ -1,0 +1,10 @@
+# case document session revision permission authorized outcome
+current d s r p true ready
+stale d s r2 p true stale-revision
+new-session d s2 r p true replaced-session
+new-document d2 s r p true replaced-session
+revoked d s r p false permission-loss
+new-principal d s r p2 true permission-loss
+permission-before-revision d s r2 p2 true permission-loss
+session-before-permission d s2 r p false replaced-session
+invalid-document - s r p true invalid

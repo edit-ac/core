@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "authority": "../architecture/specs/ecosystem-maintainability.md#asynchronous-service-contracts",
+  "scope": "derived work only; ready is not semantic commit or durable acknowledgment",
+  "families": [
+    { "id": "highlight", "registration": "pending", "provider": "deterministic-contract", "owner": "syntax highlighting track" },
+    { "id": "asset", "registration": "pending", "provider": "deterministic-contract", "owner": "rich content track; existing imageUrl policy is synchronous" },
+    { "id": "resolver", "registration": "implemented", "provider": "host-port", "adapter": "packages/web/src/modules/references.ts", "owner": "extension references / link resolution tracks" },
+    { "id": "conversion", "registration": "pending", "provider": "deterministic-contract", "owner": "document conversion track; Markdown source preparation is synchronous" }
+  ],
+  "resolverLimits": { "concurrency": 2, "queue": 0, "bytes": 512, "items": 1, "deadlineMs": 10000 },
+  "pendingAdmission": "Owning tracks must register actual adapters and execute this suite plus their feature-specific input/output/resource checks before runtime qualification. Prepared providers cannot admit runtime support."
+}

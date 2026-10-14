@@ -70,6 +70,27 @@
         "profile-producers-inventory.json",
         "release-profile.json"
       ]
+    },
+    "service-lifecycle": {
+      "tests": [
+        "tests/architecture/service-lifecycle/lifecycle.test.mjs"
+      ],
+      "inputs": [
+        "contracts/services.json",
+        "tests/architecture/service-lifecycle/scopes.tsv",
+        "packages/web/src/services/lifecycle.ts",
+        "packages/web/src/modules/references.ts",
+        "packages/web/src/modules/index.ts",
+        "crates/editac-session/src/service_lifecycle.rs",
+        "crates/editac-session/src/lib.rs",
+        "crates/editac-session/tests/service_lifecycle.rs",
+        "tests/architecture/service-lifecycle/README.md",
+        "tests/browser/browser-harness.ts"
+      ],
+      "artifacts": [
+        "service-lifecycle-inventory.json",
+        "rust-lifecycle.json"
+      ]
     }
   },
   "components": [
