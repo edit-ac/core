@@ -223,18 +223,24 @@ impl Document {
         }
         for block in blocks {
             if let Some(BlockAttributes::Unknown(tuple)) = &block.attributes {
-                if let Ok(Some(crate::modules::content::Content::Reference { label, .. })) =
-                    crate::modules::content::Content::from_tuple(tuple)
-                {
-                    if block
-                        .runs
-                        .iter()
-                        .map(|r| r.text.as_str())
-                        .collect::<String>()
-                        != label
-                        || block.runs.iter().any(|r| !r.marks.is_empty())
-                    {
-                        return Err(EditorError::InvalidCommand);
+                if let Ok(Some(content)) = crate::modules::content::Content::from_tuple(tuple) {
+                    let fallback = match &content {
+                        crate::modules::content::Content::Reference { label, .. } => {
+                            Some(label.as_str())
+                        }
+                        _ => content.inert_source(),
+                    };
+                    if let Some(fallback) = fallback {
+                        if block
+                            .runs
+                            .iter()
+                            .map(|r| r.text.as_str())
+                            .collect::<String>()
+                            != fallback
+                            || block.runs.iter().any(|r| !r.marks.is_empty())
+                        {
+                            return Err(EditorError::InvalidCommand);
+                        }
                     }
                 }
             }

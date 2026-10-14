@@ -676,7 +676,16 @@
     "cells": 65536
   },
   "pending": [
-    "Unknown/unavailable identity and payload still require ordinary document transfer/storage admission (C3-B).",
     "OS/native clipboard and physical-device receipts remain downstream."
-  ]
+  ],
+  "inertCarrier": {
+    "tag": "module:editac.inert-extension",
+    "version": 1,
+    "limits": {
+      "jsonBytes": 1048576,
+      "nodes": 65536,
+      "depth": 16
+    },
+    "qualification": "ordinary document transfer/history/storage; no OS/device qualification"
+  }
 }

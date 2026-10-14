@@ -112,7 +112,7 @@ export class ExtensionTransferRegistry {
     if (literal || !entry?.codec || !entry.descriptor.versions.includes(e.dataVersion)) {
       if (!literal) { mode = 'fallback'; diagnostics.push(!entry ? 'unknown-extension' : !entry.descriptor.versions.includes(e.dataVersion) ? 'unsupported-version' : 'unavailable-codec'); }
       // Preserve exact bounded source and the entire typed envelope. No interpretation.
-      blocks = [{attributes:null,runs:[{text:e.source,marks:[]}]}];
+      blocks = [{attributes:literal ? null : {type:'content',tuple:['module:editac.inert-extension',1,{...e}]},runs:[{text:e.source,marks:[]}]}];
     } else {
       try { blocks = inert(entry.codec.prepare(e)); }
       catch (error) { if (error instanceof ExtensionTransferError) throw error; throw new ExtensionTransferError('codec-failed'); }

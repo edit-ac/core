@@ -146,7 +146,9 @@ fn semantics(blocks: &[FragmentBlock]) -> Vec<SemanticBlock> {
             if let BlockAttributes::Unknown(tuple) = &attributes {
                 if let Ok(Some(mut content)) = Content::from_tuple(tuple) {
                     match &mut content {
-                        Content::Reference { .. } | Content::RichTable { .. } => {}
+                        Content::Reference { .. }
+                        | Content::RichTable { .. }
+                        | Content::InertExtension { .. } => {}
                         Content::Image { source, .. }
                         | Content::Table { source, .. }
                         | Content::Callout { source, .. } => source.clear(),
@@ -200,6 +202,14 @@ pub fn export(blocks: &[FragmentBlock]) -> ExportResult {
             }
             BlockAttributes::Separator => "---".into(),
             BlockAttributes::Unknown(tuple) => match Content::from_tuple(tuple) {
+                Ok(Some(content @ Content::InertExtension { .. })) => {
+                    diagnostics.push(Diagnostic {
+                        code: "inert-extension-source-fallback",
+                        range: 0..0,
+                    });
+                    // Escape executable Markdown/HTML; typed recovery retains exact source/data.
+                    escape(content.inert_source().unwrap())
+                }
                 Ok(Some(Content::Reference { label, .. })) => {
                     diagnostics.push(Diagnostic {
                         code: "reference-identity-not-exported",

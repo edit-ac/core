@@ -1,5 +1,6 @@
 pub mod content;
 pub mod evolution;
+mod inert_content;
 pub mod registry;
 mod rich_table;
 

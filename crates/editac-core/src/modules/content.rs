@@ -15,6 +15,10 @@ pub enum Alignment {
 }
 #[derive(Clone, Debug)]
 pub enum Content {
+    /// Validated inert transfer envelope, independent of optional codecs/presenters.
+    InertExtension {
+        data: Any,
+    },
     Reference {
         target_id: String,
         label: String,
@@ -161,6 +165,17 @@ fn alignment_name(a: Alignment) -> &'static str {
     }
 }
 impl Content {
+    pub fn inert_source(&self) -> Option<&str> {
+        if let Self::InertExtension {
+            data: Any::Map(data),
+        } = self
+        {
+            if let Some(Any::String(source)) = data.get("source") {
+                return Some(source);
+            }
+        }
+        None
+    }
     /// Exact inert v2 source, exposed without making consumers parse engine values.
     pub fn rich_table_source(&self) -> Option<&str> {
         if let Self::RichTable {
@@ -175,6 +190,7 @@ impl Content {
     }
     pub fn validate(&self) -> Result<(), ContentError> {
         match self {
+            Self::InertExtension { data } => super::inert_content::validate(data)?,
             Self::RichTable { data } => super::rich_table::validate(data)?,
             Self::Reference { target_id, label } => {
                 if target_id.is_empty()
@@ -258,6 +274,7 @@ impl Content {
             ]));
         }
         let (tag, data) = match self {
+            Self::InertExtension { data } => ("module:editac.inert-extension", data.clone()),
             Self::RichTable { .. } => unreachable!(),
             Self::Reference { target_id, label } => (
                 "module:editac.reference",
@@ -367,6 +384,7 @@ impl Content {
                 | "module:editac.table"
                 | "module:editac.callout"
                 | "module:editac.reference"
+                | "module:editac.inert-extension"
         ) {
             return Ok(None);
         }
@@ -385,7 +403,9 @@ impl Content {
             return Err(ContentError::InvalidShape);
         };
         let get = |key: &str| data.get(key).ok_or(ContentError::InvalidShape);
-        let content = if tag.as_ref() == "module:editac.reference" {
+        let content = if tag.as_ref() == "module:editac.inert-extension" {
+            Self::InertExtension { data: v[2].clone() }
+        } else if tag.as_ref() == "module:editac.reference" {
             if data.len() != 2 {
                 return Err(ContentError::InvalidShape);
             }

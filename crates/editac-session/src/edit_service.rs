@@ -269,6 +269,7 @@ impl<S: SessionStore> EditService<S> {
                     Content::Table { .. } | Content::RichTable { .. } => requirements.tables = true,
                     Content::Callout { .. } => requirements.callouts = true,
                     Content::Reference { .. } => requirements.references = true,
+                    Content::InertExtension { .. } => {}
                 },
                 EditorCommand::TableCell { .. } => requirements.tables = true,
                 _ => {}
