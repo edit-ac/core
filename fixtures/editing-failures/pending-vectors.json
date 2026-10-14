@@ -1,0 +1,1050 @@
+{
+  "parent": "RGS-1.2",
+  "guard": "G04",
+  "sequences": [
+    {
+      "id": "context-disable-reject-revisit",
+      "initial": {
+        "blocks": [
+          {
+            "id": "p1",
+            "text": "a",
+            "kind": "paragraph",
+            "hardBreaks": [],
+            "marks": [
+              {
+                "from": 0,
+                "to": 1,
+                "type": "bold"
+              }
+            ]
+          },
+          {
+            "id": "p2",
+            "text": "",
+            "kind": "code",
+            "hardBreaks": [],
+            "marks": []
+          }
+        ],
+        "selection": {
+          "anchor": {
+            "block": "p1",
+            "offset": 1
+          },
+          "focus": {
+            "block": "p1",
+            "offset": 1
+          },
+          "affinity": "forward"
+        },
+        "pendingMarks": null
+      },
+      "steps": [
+        {
+          "id": "disable",
+          "action": {
+            "type": "toggleMark",
+            "mark": "bold"
+          },
+          "expect": {
+            "outcome": "selection-only",
+            "state": {
+              "blocks": [
+                {
+                  "id": "p1",
+                  "text": "a",
+                  "kind": "paragraph",
+                  "hardBreaks": [],
+                  "marks": [
+                    {
+                      "from": 0,
+                      "to": 1,
+                      "type": "bold"
+                    }
+                  ]
+                },
+                {
+                  "id": "p2",
+                  "text": "",
+                  "kind": "code",
+                  "hardBreaks": [],
+                  "marks": []
+                }
+              ],
+              "selection": {
+                "anchor": {
+                  "block": "p1",
+                  "offset": 1
+                },
+                "focus": {
+                  "block": "p1",
+                  "offset": 1
+                },
+                "affinity": "forward"
+              },
+              "pendingMarks": []
+            },
+            "effects": {
+              "localCommits": 0,
+              "remoteCommits": 0
+            }
+          },
+          "native": null
+        },
+        {
+          "id": "plain",
+          "action": {
+            "type": "insertText",
+            "text": "x"
+          },
+          "expect": {
+            "outcome": "applied",
+            "state": {
+              "blocks": [
+                {
+                  "id": "p1",
+                  "text": "ax",
+                  "kind": "paragraph",
+                  "hardBreaks": [],
+                  "marks": [
+                    {
+                      "from": 0,
+                      "to": 1,
+                      "type": "bold"
+                    }
+                  ]
+                },
+                {
+                  "id": "p2",
+                  "text": "",
+                  "kind": "code",
+                  "hardBreaks": [],
+                  "marks": []
+                }
+              ],
+              "selection": {
+                "anchor": {
+                  "block": "p1",
+                  "offset": 2
+                },
+                "focus": {
+                  "block": "p1",
+                  "offset": 2
+                },
+                "affinity": "forward"
+              },
+              "pendingMarks": []
+            },
+            "effects": {
+              "localCommits": 1,
+              "remoteCommits": 0
+            }
+          },
+          "native": [
+            {
+              "type": "replaceAt",
+              "owner": "p1",
+              "from": 1,
+              "to": 1,
+              "text": "x"
+            },
+            {
+              "type": "markAt",
+              "owner": "p1",
+              "from": 1,
+              "to": 2,
+              "mark": "bold",
+              "action": "remove"
+            }
+          ]
+        },
+        {
+          "id": "move-code",
+          "action": {
+            "type": "setSelection",
+            "selection": {
+              "anchor": {
+                "block": "p2",
+                "offset": 0
+              },
+              "focus": {
+                "block": "p2",
+                "offset": 0
+              },
+              "affinity": "forward"
+            }
+          },
+          "expect": {
+            "outcome": "selection-only",
+            "state": {
+              "blocks": [
+                {
+                  "id": "p1",
+                  "text": "ax",
+                  "kind": "paragraph",
+                  "hardBreaks": [],
+                  "marks": [
+                    {
+                      "from": 0,
+                      "to": 1,
+                      "type": "bold"
+                    }
+                  ]
+                },
+                {
+                  "id": "p2",
+                  "text": "",
+                  "kind": "code",
+                  "hardBreaks": [],
+                  "marks": []
+                }
+              ],
+              "selection": {
+                "anchor": {
+                  "block": "p2",
+                  "offset": 0
+                },
+                "focus": {
+                  "block": "p2",
+                  "offset": 0
+                },
+                "affinity": "forward"
+              },
+              "pendingMarks": null
+            },
+            "effects": {
+              "localCommits": 0,
+              "remoteCommits": 0
+            }
+          },
+          "native": null
+        },
+        {
+          "id": "code-reject",
+          "action": {
+            "type": "toggleMark",
+            "mark": "bold"
+          },
+          "expect": {
+            "outcome": "rejected",
+            "state": {
+              "blocks": [
+                {
+                  "id": "p1",
+                  "text": "ax",
+                  "kind": "paragraph",
+                  "hardBreaks": [],
+                  "marks": [
+                    {
+                      "from": 0,
+                      "to": 1,
+                      "type": "bold"
+                    }
+                  ]
+                },
+                {
+                  "id": "p2",
+                  "text": "",
+                  "kind": "code",
+                  "hardBreaks": [],
+                  "marks": []
+                }
+              ],
+              "selection": {
+                "anchor": {
+                  "block": "p2",
+                  "offset": 0
+                },
+                "focus": {
+                  "block": "p2",
+                  "offset": 0
+                },
+                "affinity": "forward"
+              },
+              "pendingMarks": null
+            },
+            "effects": {
+              "localCommits": 0,
+              "remoteCommits": 0
+            }
+          },
+          "native": null
+        },
+        {
+          "id": "revisit-context",
+          "action": {
+            "type": "setSelection",
+            "selection": {
+              "anchor": {
+                "block": "p1",
+                "offset": 1
+              },
+              "focus": {
+                "block": "p1",
+                "offset": 1
+              },
+              "affinity": "backward"
+            }
+          },
+          "expect": {
+            "outcome": "selection-only",
+            "state": {
+              "blocks": [
+                {
+                  "id": "p1",
+                  "text": "ax",
+                  "kind": "paragraph",
+                  "hardBreaks": [],
+                  "marks": [
+                    {
+                      "from": 0,
+                      "to": 1,
+                      "type": "bold"
+                    }
+                  ]
+                },
+                {
+                  "id": "p2",
+                  "text": "",
+                  "kind": "code",
+                  "hardBreaks": [],
+                  "marks": []
+                }
+              ],
+              "selection": {
+                "anchor": {
+                  "block": "p1",
+                  "offset": 1
+                },
+                "focus": {
+                  "block": "p1",
+                  "offset": 1
+                },
+                "affinity": "backward"
+              },
+              "pendingMarks": null
+            },
+            "effects": {
+              "localCommits": 0,
+              "remoteCommits": 0
+            }
+          },
+          "native": null
+        },
+        {
+          "id": "derived-sentinel",
+          "action": {
+            "type": "insertText",
+            "text": "Y"
+          },
+          "expect": {
+            "outcome": "applied",
+            "state": {
+              "blocks": [
+                {
+                  "id": "p1",
+                  "text": "aYx",
+                  "kind": "paragraph",
+                  "hardBreaks": [],
+                  "marks": [
+                    {
+                      "from": 0,
+                      "to": 2,
+                      "type": "bold"
+                    }
+                  ]
+                },
+                {
+                  "id": "p2",
+                  "text": "",
+                  "kind": "code",
+                  "hardBreaks": [],
+                  "marks": []
+                }
+              ],
+              "selection": {
+                "anchor": {
+                  "block": "p1",
+                  "offset": 2
+                },
+                "focus": {
+                  "block": "p1",
+                  "offset": 2
+                },
+                "affinity": "backward"
+              },
+              "pendingMarks": null
+            },
+            "effects": {
+              "localCommits": 1,
+              "remoteCommits": 0
+            }
+          },
+          "native": [
+            {
+              "type": "replaceAt",
+              "owner": "p1",
+              "from": 1,
+              "to": 1,
+              "text": "Y"
+            },
+            {
+              "type": "markAt",
+              "owner": "p1",
+              "from": 1,
+              "to": 2,
+              "mark": "bold",
+              "action": "apply"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "override-split-empty-revisit",
+      "initial": {
+        "blocks": [
+          {
+            "id": "p1",
+            "text": "",
+            "kind": "paragraph",
+            "hardBreaks": [],
+            "marks": []
+          }
+        ],
+        "selection": {
+          "anchor": {
+            "block": "p1",
+            "offset": 0
+          },
+          "focus": {
+            "block": "p1",
+            "offset": 0
+          },
+          "affinity": "forward"
+        },
+        "pendingMarks": null
+      },
+      "steps": [
+        {
+          "id": "override",
+          "action": {
+            "type": "toggleMark",
+            "mark": "bold"
+          },
+          "expect": {
+            "outcome": "selection-only",
+            "state": {
+              "blocks": [
+                {
+                  "id": "p1",
+                  "text": "",
+                  "kind": "paragraph",
+                  "hardBreaks": [],
+                  "marks": []
+                }
+              ],
+              "selection": {
+                "anchor": {
+                  "block": "p1",
+                  "offset": 0
+                },
+                "focus": {
+                  "block": "p1",
+                  "offset": 0
+                },
+                "affinity": "forward"
+              },
+              "pendingMarks": [
+                "bold"
+              ]
+            },
+            "effects": {
+              "localCommits": 0,
+              "remoteCommits": 0
+            }
+          },
+          "native": null
+        },
+        {
+          "id": "marked-X",
+          "action": {
+            "type": "insertText",
+            "text": "X"
+          },
+          "expect": {
+            "outcome": "applied",
+            "state": {
+              "blocks": [
+                {
+                  "id": "p1",
+                  "text": "X",
+                  "kind": "paragraph",
+                  "hardBreaks": [],
+                  "marks": [
+                    {
+                      "from": 0,
+                      "to": 1,
+                      "type": "bold"
+                    }
+                  ]
+                }
+              ],
+              "selection": {
+                "anchor": {
+                  "block": "p1",
+                  "offset": 1
+                },
+                "focus": {
+                  "block": "p1",
+                  "offset": 1
+                },
+                "affinity": "forward"
+              },
+              "pendingMarks": [
+                "bold"
+              ]
+            },
+            "effects": {
+              "localCommits": 1,
+              "remoteCommits": 0
+            }
+          },
+          "native": [
+            {
+              "type": "replaceAt",
+              "owner": "p1",
+              "from": 0,
+              "to": 0,
+              "text": "X"
+            },
+            {
+              "type": "markAt",
+              "owner": "p1",
+              "from": 0,
+              "to": 1,
+              "mark": "bold",
+              "action": "apply"
+            }
+          ]
+        },
+        {
+          "id": "split-empty",
+          "action": {
+            "type": "insertParagraph",
+            "newBlockId": "p2"
+          },
+          "expect": {
+            "outcome": "applied",
+            "state": {
+              "blocks": [
+                {
+                  "id": "p1",
+                  "text": "X",
+                  "kind": "paragraph",
+                  "hardBreaks": [],
+                  "marks": [
+                    {
+                      "from": 0,
+                      "to": 1,
+                      "type": "bold"
+                    }
+                  ]
+                },
+                {
+                  "id": "p2",
+                  "text": "",
+                  "kind": "paragraph",
+                  "hardBreaks": [],
+                  "marks": []
+                }
+              ],
+              "selection": {
+                "anchor": {
+                  "block": "p2",
+                  "offset": 0
+                },
+                "focus": {
+                  "block": "p2",
+                  "offset": 0
+                },
+                "affinity": "forward"
+              },
+              "pendingMarks": [
+                "bold"
+              ]
+            },
+            "effects": {
+              "localCommits": 1,
+              "remoteCommits": 0
+            }
+          },
+          "native": {
+            "type": "split",
+            "owner": "p1",
+            "offset": 1,
+            "newBlockId": "p2"
+          }
+        },
+        {
+          "id": "leave-empty",
+          "action": {
+            "type": "setSelection",
+            "selection": {
+              "anchor": {
+                "block": "p1",
+                "offset": 1
+              },
+              "focus": {
+                "block": "p1",
+                "offset": 1
+              },
+              "affinity": "forward"
+            }
+          },
+          "expect": {
+            "outcome": "selection-only",
+            "state": {
+              "blocks": [
+                {
+                  "id": "p1",
+                  "text": "X",
+                  "kind": "paragraph",
+                  "hardBreaks": [],
+                  "marks": [
+                    {
+                      "from": 0,
+                      "to": 1,
+                      "type": "bold"
+                    }
+                  ]
+                },
+                {
+                  "id": "p2",
+                  "text": "",
+                  "kind": "paragraph",
+                  "hardBreaks": [],
+                  "marks": []
+                }
+              ],
+              "selection": {
+                "anchor": {
+                  "block": "p1",
+                  "offset": 1
+                },
+                "focus": {
+                  "block": "p1",
+                  "offset": 1
+                },
+                "affinity": "forward"
+              },
+              "pendingMarks": null
+            },
+            "effects": {
+              "localCommits": 0,
+              "remoteCommits": 0
+            }
+          },
+          "native": null
+        },
+        {
+          "id": "revisit-empty",
+          "action": {
+            "type": "setSelection",
+            "selection": {
+              "anchor": {
+                "block": "p2",
+                "offset": 0
+              },
+              "focus": {
+                "block": "p2",
+                "offset": 0
+              },
+              "affinity": "forward"
+            }
+          },
+          "expect": {
+            "outcome": "selection-only",
+            "state": {
+              "blocks": [
+                {
+                  "id": "p1",
+                  "text": "X",
+                  "kind": "paragraph",
+                  "hardBreaks": [],
+                  "marks": [
+                    {
+                      "from": 0,
+                      "to": 1,
+                      "type": "bold"
+                    }
+                  ]
+                },
+                {
+                  "id": "p2",
+                  "text": "",
+                  "kind": "paragraph",
+                  "hardBreaks": [],
+                  "marks": []
+                }
+              ],
+              "selection": {
+                "anchor": {
+                  "block": "p2",
+                  "offset": 0
+                },
+                "focus": {
+                  "block": "p2",
+                  "offset": 0
+                },
+                "affinity": "forward"
+              },
+              "pendingMarks": null
+            },
+            "effects": {
+              "localCommits": 0,
+              "remoteCommits": 0
+            }
+          },
+          "native": null
+        },
+        {
+          "id": "restore-override",
+          "action": {
+            "type": "toggleMark",
+            "mark": "bold"
+          },
+          "expect": {
+            "outcome": "selection-only",
+            "state": {
+              "blocks": [
+                {
+                  "id": "p1",
+                  "text": "X",
+                  "kind": "paragraph",
+                  "hardBreaks": [],
+                  "marks": [
+                    {
+                      "from": 0,
+                      "to": 1,
+                      "type": "bold"
+                    }
+                  ]
+                },
+                {
+                  "id": "p2",
+                  "text": "",
+                  "kind": "paragraph",
+                  "hardBreaks": [],
+                  "marks": []
+                }
+              ],
+              "selection": {
+                "anchor": {
+                  "block": "p2",
+                  "offset": 0
+                },
+                "focus": {
+                  "block": "p2",
+                  "offset": 0
+                },
+                "affinity": "forward"
+              },
+              "pendingMarks": [
+                "bold"
+              ]
+            },
+            "effects": {
+              "localCommits": 0,
+              "remoteCommits": 0
+            }
+          },
+          "native": null
+        },
+        {
+          "id": "empty-marked-Y",
+          "action": {
+            "type": "insertText",
+            "text": "Y"
+          },
+          "expect": {
+            "outcome": "applied",
+            "state": {
+              "blocks": [
+                {
+                  "id": "p1",
+                  "text": "X",
+                  "kind": "paragraph",
+                  "hardBreaks": [],
+                  "marks": [
+                    {
+                      "from": 0,
+                      "to": 1,
+                      "type": "bold"
+                    }
+                  ]
+                },
+                {
+                  "id": "p2",
+                  "text": "Y",
+                  "kind": "paragraph",
+                  "hardBreaks": [],
+                  "marks": [
+                    {
+                      "from": 0,
+                      "to": 1,
+                      "type": "bold"
+                    }
+                  ]
+                }
+              ],
+              "selection": {
+                "anchor": {
+                  "block": "p2",
+                  "offset": 1
+                },
+                "focus": {
+                  "block": "p2",
+                  "offset": 1
+                },
+                "affinity": "forward"
+              },
+              "pendingMarks": [
+                "bold"
+              ]
+            },
+            "effects": {
+              "localCommits": 1,
+              "remoteCommits": 0
+            }
+          },
+          "native": [
+            {
+              "type": "replaceAt",
+              "owner": "p2",
+              "from": 0,
+              "to": 0,
+              "text": "Y"
+            },
+            {
+              "type": "markAt",
+              "owner": "p2",
+              "from": 0,
+              "to": 1,
+              "mark": "bold",
+              "action": "apply"
+            }
+          ]
+        },
+        {
+          "id": "move-away",
+          "action": {
+            "type": "setSelection",
+            "selection": {
+              "anchor": {
+                "block": "p1",
+                "offset": 1
+              },
+              "focus": {
+                "block": "p1",
+                "offset": 1
+              },
+              "affinity": "forward"
+            }
+          },
+          "expect": {
+            "outcome": "selection-only",
+            "state": {
+              "blocks": [
+                {
+                  "id": "p1",
+                  "text": "X",
+                  "kind": "paragraph",
+                  "hardBreaks": [],
+                  "marks": [
+                    {
+                      "from": 0,
+                      "to": 1,
+                      "type": "bold"
+                    }
+                  ]
+                },
+                {
+                  "id": "p2",
+                  "text": "Y",
+                  "kind": "paragraph",
+                  "hardBreaks": [],
+                  "marks": [
+                    {
+                      "from": 0,
+                      "to": 1,
+                      "type": "bold"
+                    }
+                  ]
+                }
+              ],
+              "selection": {
+                "anchor": {
+                  "block": "p1",
+                  "offset": 1
+                },
+                "focus": {
+                  "block": "p1",
+                  "offset": 1
+                },
+                "affinity": "forward"
+              },
+              "pendingMarks": null
+            },
+            "effects": {
+              "localCommits": 0,
+              "remoteCommits": 0
+            }
+          },
+          "native": null
+        },
+        {
+          "id": "revisit",
+          "action": {
+            "type": "setSelection",
+            "selection": {
+              "anchor": {
+                "block": "p2",
+                "offset": 1
+              },
+              "focus": {
+                "block": "p2",
+                "offset": 1
+              },
+              "affinity": "forward"
+            }
+          },
+          "expect": {
+            "outcome": "selection-only",
+            "state": {
+              "blocks": [
+                {
+                  "id": "p1",
+                  "text": "X",
+                  "kind": "paragraph",
+                  "hardBreaks": [],
+                  "marks": [
+                    {
+                      "from": 0,
+                      "to": 1,
+                      "type": "bold"
+                    }
+                  ]
+                },
+                {
+                  "id": "p2",
+                  "text": "Y",
+                  "kind": "paragraph",
+                  "hardBreaks": [],
+                  "marks": [
+                    {
+                      "from": 0,
+                      "to": 1,
+                      "type": "bold"
+                    }
+                  ]
+                }
+              ],
+              "selection": {
+                "anchor": {
+                  "block": "p2",
+                  "offset": 1
+                },
+                "focus": {
+                  "block": "p2",
+                  "offset": 1
+                },
+                "affinity": "forward"
+              },
+              "pendingMarks": null
+            },
+            "effects": {
+              "localCommits": 0,
+              "remoteCommits": 0
+            }
+          },
+          "native": null
+        },
+        {
+          "id": "derived-sentinel",
+          "action": {
+            "type": "insertText",
+            "text": "Z"
+          },
+          "expect": {
+            "outcome": "applied",
+            "state": {
+              "blocks": [
+                {
+                  "id": "p1",
+                  "text": "X",
+                  "kind": "paragraph",
+                  "hardBreaks": [],
+                  "marks": [
+                    {
+                      "from": 0,
+                      "to": 1,
+                      "type": "bold"
+                    }
+                  ]
+                },
+                {
+                  "id": "p2",
+                  "text": "YZ",
+                  "kind": "paragraph",
+                  "hardBreaks": [],
+                  "marks": [
+                    {
+                      "from": 0,
+                      "to": 2,
+                      "type": "bold"
+                    }
+                  ]
+                }
+              ],
+              "selection": {
+                "anchor": {
+                  "block": "p2",
+                  "offset": 2
+                },
+                "focus": {
+                  "block": "p2",
+                  "offset": 2
+                },
+                "affinity": "forward"
+              },
+              "pendingMarks": null
+            },
+            "effects": {
+              "localCommits": 1,
+              "remoteCommits": 0
+            }
+          },
+          "native": [
+            {
+              "type": "replaceAt",
+              "owner": "p2",
+              "from": 1,
+              "to": 1,
+              "text": "Z"
+            },
+            {
+              "type": "markAt",
+              "owner": "p2",
+              "from": 1,
+              "to": 2,
+              "mark": "bold",
+              "action": "apply"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

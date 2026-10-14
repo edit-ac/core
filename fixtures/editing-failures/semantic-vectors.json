@@ -338,7 +338,12 @@
         1,
         2
       ],
-      "expectedText": "AZ"
+      "expectedText": "AZ",
+      "initialOffset": 2,
+      "selection": [
+        1,
+        1
+      ]
     },
     {
       "id": "nfd",
@@ -348,7 +353,12 @@
         1,
         3
       ],
-      "expectedText": "AZ"
+      "expectedText": "AZ",
+      "initialOffset": 3,
+      "selection": [
+        1,
+        1
+      ]
     },
     {
       "id": "family-zwj",
@@ -358,7 +368,12 @@
         1,
         12
       ],
-      "expectedText": "AZ"
+      "expectedText": "AZ",
+      "initialOffset": 12,
+      "selection": [
+        1,
+        1
+      ]
     },
     {
       "id": "flag",
@@ -368,7 +383,12 @@
         1,
         5
       ],
-      "expectedText": "AZ"
+      "expectedText": "AZ",
+      "initialOffset": 5,
+      "selection": [
+        1,
+        1
+      ]
     },
     {
       "id": "indic",
@@ -378,7 +398,12 @@
         1,
         4
       ],
-      "expectedText": "AZ"
+      "expectedText": "AZ",
+      "initialOffset": 4,
+      "selection": [
+        1,
+        1
+      ]
     },
     {
       "id": "bidi",
@@ -388,7 +413,12 @@
         1,
         3
       ],
-      "expectedText": "AZ"
+      "expectedText": "AZ",
+      "initialOffset": 3,
+      "selection": [
+        1,
+        1
+      ]
     },
     {
       "id": "authored-space",
@@ -398,26 +428,48 @@
         2,
         3
       ],
-      "expectedText": "a b"
+      "expectedText": "a b",
+      "initialOffset": 3,
+      "selection": [
+        2,
+        2
+      ]
     },
     {
       "id": "surrogate-interior",
       "text": "A😀Z",
       "offset": 2,
-      "rejected": true
+      "rejected": true,
+      "initialOffset": 0,
+      "selection": [
+        0,
+        0
+      ],
+      "expectedText": "A😀Z"
     },
     {
       "id": "combining-interior",
       "text": "AéZ",
       "offset": 2,
-      "rejected": true
+      "rejected": true,
+      "initialOffset": 2,
+      "selection": [
+        2,
+        2
+      ],
+      "expectedText": "AéZ"
     },
     {
       "id": "boundary",
       "text": "abc",
       "offset": 0,
       "range": null,
-      "expectedText": "abc"
+      "expectedText": "abc",
+      "initialOffset": 0,
+      "selection": [
+        0,
+        0
+      ]
     }
   ]
 }

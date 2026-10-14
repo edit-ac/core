@@ -102,3 +102,44 @@ returned endpoints, history, revision/vector and publications have falsifying
 controls. Pending marks are editor-local; unattached journal/persistence and
 remaining REG-13 structure variants are unproved. The canonical semantic group
 includes this suite; its selected pass does not qualify the full parent.
+
+G06 Unicode owning assertions use the existing independent `semantic-vectors.json`
+NFC/NFD/ZWJ/flag/Indic/bidi/authored-space/interior/boundary vectors:
+
+```sh
+EDITAC_EDITING_PACK_TARBALL=/absolute/path/to/qualified-core.tgz \
+EDITAC_EDITING_OUTPUT=/absolute/path/to/fresh-evidence \
+npm run test:editing -- --group semantic --cases unicode
+cargo test -p editac-core --test editing_regressions g06_ --locked --offline -- --skip reg06_ --show-output
+```
+
+The selected suite is mandatory in full semantic dispatch. Both biases preserve
+independently authored content, empty marks, owner/source identity and exact
+prepared endpoints; every vector has corruption controls. Rejected/no-op vectors
+retain revisions, state vectors, checkpoints, history and publications. Packed
+boundary and combining-interior dispositions occur in the shared adapter without
+engine commits; native boundary uses `deletion_range` returning no range and dispatches no
+engine mutation. An explicit empty replacement is a different operation. Native pending state, visual movement,
+actual deletion gestures and whole-version Unicode conformance remain unproved.
+
+
+## Pending lifecycle owning proof (RGS-1.2-C10)
+
+`npm run test:editing -- --group semantic --cases pending` executes both existing
+G04 sequence families through the packed engine and SemanticDriver. The shared
+`pending-vectors.json` authors every intermediate state, explicit null/empty/bold
+pending set, both logical endpoints and bias, and the native committed operations.
+The empty split destination is revisited before restoring the override; final
+sentinels prove derived context. Real subscriptions and commit wrappers observe
+publication/result counts. Pending, selection and rejected actions freeze engine
+content, revision, checkpoint, vector and history. The default history policy
+isolates each commit; the driver clock remains fixed at zero.
+
+`cargo test -p editac-core --test editing_regressions g04_pending_ --locked --offline -- --show-output`
+mirrors six committed text/split operations. Native does not invent editor-local
+pending state or claim native execution for adapter-only actions. Split returns a
+caret, while ordered replace/mark returns a range. Original source spans survive;
+new structural identities bind at their creating split and must remain stable.
+Every sequence contains falsifying controls. Canonical semantic dispatch includes
+this suite; selected passes do not close original REG-05 alignment/atom variants,
+history bookmarks, journal/persistence, or the full parent gate.

@@ -235,6 +235,7 @@ atomic_case!(g03_backward_selection, "G03-backward-selection");
 atomic_case!(g06_astral_staged_utf16, "G06-astral-staged-utf16");
 atomic_case!(g06_invalid_first_surrogate, "G06-invalid-first-surrogate");
 fn grapheme(id: &str) {
+    use serde_json::json;
     let all = vectors();
     let v = all["graphemes"]
         .as_array()
@@ -242,42 +243,182 @@ fn grapheme(id: &str) {
         .iter()
         .find(|v| v["id"] == id)
         .unwrap();
-    let text = v["text"].as_str().unwrap();
-    let actual = deletion_range(text, U(number(&v["offset"])), Direction::Backward);
-    if v["rejected"] == true {
-        assert!(actual.is_err());
-        return;
+    let mut controls = 0;
+    for bias in [Bias::Left, Bias::Right] {
+        let text = v["text"].as_str().unwrap();
+        let mut d = document(text);
+        let original = d.snapshot().unwrap().visible[0].clone();
+        let owner = original.id.clone();
+        let before = frozen(&d);
+        let count = Rc::new(Cell::new(0));
+        let seen = count.clone();
+        let _subscription = d
+            .subscribe(PatchScope::All, move |_, _| {
+                seen.set(seen.get() + 1);
+                Ok(())
+            })
+            .unwrap();
+        let origin = TextOrigin::new("local:rgs:unicode").unwrap();
+        let range = deletion_range(text, U(number(&v["offset"])), Direction::Backward);
+        let applied = v["rejected"] != true && !v["range"].is_null();
+        let mut endpoints = json!([]);
+        if v["rejected"] == true {
+            assert!(range.is_err());
+            if id == "surrogate-interior" {
+                // Invalid UTF-16 public command ranges also reach real preparation.
+                assert!(
+                    d.prepare_editor(
+                        &[EditorCommand::ReplaceAt {
+                            owner: owner.clone(),
+                            from: U(2),
+                            to: U(3),
+                            text: String::new()
+                        }],
+                        &origin
+                    )
+                    .is_err()
+                );
+            }
+        } else if v["range"].is_null() {
+            // A boundary deletion has no range and dispatches no engine edit.
+            // Preparing an empty replacement is a different operation.
+            assert!(range.unwrap().is_none());
+        } else {
+            let range = range.unwrap();
+            let (from, to) = if v["range"].is_null() {
+                assert!(range.is_none());
+                (U(0), U(0))
+            } else {
+                let range = range.unwrap();
+                assert_eq!(range, U(number(&v["range"][0]))..U(number(&v["range"][1])));
+                (range.start, range.end)
+            };
+            let plan = d
+                .prepare_editor(
+                    &[
+                        EditorCommand::ReplaceAt {
+                            owner: owner.clone(),
+                            from,
+                            to,
+                            text: String::new(),
+                        },
+                        EditorCommand::SelectionAt {
+                            anchor: EditorPosition {
+                                owner: owner.clone(),
+                                offset: U(number(&v["selection"][0])),
+                                bias,
+                            },
+                            focus: EditorPosition {
+                                owner: owner.clone(),
+                                offset: U(number(&v["selection"][1])),
+                                bias,
+                            },
+                        },
+                    ],
+                    &origin,
+                )
+                .unwrap();
+            assert_eq!(frozen(&d), before, "preparation changed state");
+            assert_eq!(count.get(), 0);
+            let result = d.commit_editor(plan).unwrap();
+            assert_eq!(result.revision, before.2 + u64::from(applied));
+            let selection = result.result_selection.unwrap();
+            endpoints = json!([&selection.anchor, &selection.focus].map(|token| match d.resolve_anchor(token).unwrap() {
+                Resolution::Position(p) => json!({"node":p.node,"offset":p.offset.0,"bias":if p.bias == Bias::Left {"left"} else {"right"}}),
+                _ => panic!("prepared Unicode result unresolved"),
+            }));
+        }
+        let observe = |d: &Document| {
+            let snapshot = d.snapshot().unwrap();
+            let node = &snapshot.visible[0];
+            json!({"visibleCount":snapshot.visible.len(),"owner":node.id,"kind":node.kind,"attributes":format!("{:?}",node.block_attributes),"text":node.runs.iter().map(|r|r.text.as_str()).collect::<String>(),"runs":node.runs.iter().map(|r|json!({"text":r.text,"attributes":r.attributes})).collect::<Vec<_>>(),"spans":node.spans.iter().map(|s|json!({"source":s.source,"identity":s.identity})).collect::<Vec<_>>(),"endpoints":endpoints,"revision":d.revision(),"publications":count.get(),"undo":d.history_state().undo_groups,"redo":d.history_state().redo_groups})
+        };
+        let expected_endpoints = if !applied {
+            json!([])
+        } else {
+            json!(v["selection"].as_array().unwrap().iter().map(|offset|json!({"node":owner,"offset":offset,"bias":if bias == Bias::Left {"left"} else {"right"}})).collect::<Vec<_>>())
+        };
+        let expected = json!({"visibleCount":1,"owner":owner,"kind":original.kind,"attributes":format!("{:?}",original.block_attributes),"text":v["expectedText"],"runs":[{"text":v["expectedText"],"attributes":{}}],"spans":original.spans.iter().map(|s|json!({"source":s.source,"identity":s.identity})).collect::<Vec<_>>(),"endpoints":expected_endpoints,"revision":before.2+u64::from(applied),"publications":u32::from(applied),"undo":u32::from(applied),"redo":0});
+        assert_eq!(observe(&d), expected);
+        for (path, value) in [
+            ("/text", json!("corrupted")),
+            ("/runs/0/attributes", json!({"bold":true})),
+            ("/owner", json!("missing")),
+            ("/spans/0/source", json!("missing")),
+            ("/spans/0/identity", json!("missing")),
+            ("/attributes", json!(["code"])),
+            ("/visibleCount", json!(2)),
+            ("/revision", json!(before.2 + 2)),
+            ("/publications", json!(2)),
+            ("/undo", json!(2)),
+            ("/redo", json!(1)),
+        ] {
+            let mut wrong = expected.clone();
+            *wrong.pointer_mut(path).unwrap() = value;
+            assert!(
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| assert_eq!(
+                    observe(&d),
+                    wrong
+                )))
+                .is_err(),
+                "undetected {id}/{path}"
+            );
+            controls += 1;
+        }
+        if applied {
+            for (path, value) in [
+                ("/endpoints/0/offset", json!(99)),
+                ("/endpoints/1/offset", json!(99)),
+                ("/endpoints/0/node", json!("missing")),
+                (
+                    "/endpoints/1/bias",
+                    json!(if bias == Bias::Left { "right" } else { "left" }),
+                ),
+            ] {
+                let mut wrong = expected.clone();
+                *wrong.pointer_mut(path).unwrap() = value;
+                assert!(
+                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| assert_eq!(
+                        observe(&d),
+                        wrong
+                    )))
+                    .is_err(),
+                    "undetected {id}/{path}"
+                );
+                controls += 1;
+            }
+        }
+        if applied {
+            // Delete-set updates do not advance the CRDT insertion clock.
+            assert_eq!(d.state_vector_v1(), before.1);
+            assert_ne!(d.checkpoint().bytes, before.0);
+        } else {
+            assert_eq!(frozen(&d), before);
+            let observe_frozen = |d: &Document| json!({"vector":d.state_vector_v1(),"checkpoint":d.checkpoint().bytes,"revision":d.revision(),"history":format!("{:?}",d.history_state()),"publications":count.get()});
+            let expected_frozen = json!({"vector":before.1,"checkpoint":before.0,"revision":before.2,"history":format!("{:?}",before.3),"publications":0});
+            assert_eq!(observe_frozen(&d), expected_frozen);
+            for (path, value) in [
+                ("/vector", json!([])),
+                ("/checkpoint", json!([])),
+                ("/revision", json!(before.2 + 1)),
+                ("/history", json!("corrupted")),
+                ("/publications", json!(1)),
+            ] {
+                let mut wrong = expected_frozen.clone();
+                *wrong.pointer_mut(path).unwrap() = value;
+                assert!(
+                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| assert_eq!(
+                        observe_frozen(&d),
+                        wrong
+                    )))
+                    .is_err(),
+                    "undetected {id}/{path}"
+                );
+                controls += 1;
+            }
+        }
     }
-    let range = actual.unwrap();
-    if v["range"].is_null() {
-        assert!(range.is_none());
-        assert_eq!(text, v["expectedText"].as_str().unwrap());
-        return;
-    }
-    let range = range.unwrap();
-    assert_eq!(range, U(number(&v["range"][0]))..U(number(&v["range"][1])));
-    let mut d = document(text);
-    let owner = d.snapshot().unwrap().visible[0].id.clone();
-    let plan = d
-        .prepare_editor(
-            &[EditorCommand::ReplaceAt {
-                owner,
-                from: range.start,
-                to: range.end,
-                text: String::new(),
-            }],
-            &TextOrigin::new("local:rgs:unicode").unwrap(),
-        )
-        .unwrap();
-    d.commit_editor(plan).unwrap();
-    assert_eq!(
-        d.snapshot().unwrap().visible[0]
-            .runs
-            .iter()
-            .map(|r| r.text.as_str())
-            .collect::<String>(),
-        v["expectedText"].as_str().unwrap()
-    );
+    println!("G06_RECEIPT id={id} vectors=2 controls={controls}");
 }
 macro_rules! grapheme_case {
     ($name:ident, $id:literal) => {
@@ -1724,3 +1865,304 @@ mixed_batch_case!(reg13_mixed_forward_left, "REG13-mixed-forward-left");
 mixed_batch_case!(reg13_mixed_forward_right, "REG13-mixed-forward-right");
 mixed_batch_case!(reg13_mixed_backward_left, "REG13-mixed-backward-left");
 mixed_batch_case!(reg13_mixed_backward_right, "REG13-mixed-backward-right");
+
+// G04 mirrors committed operations only. Pending sets belong to the packed editor.
+fn g04_pending_sequence(id: &str) {
+    use editac_core::anchors::Selection;
+    use editac_core::{commands::editor::FragmentBlock, document::BlockAttributes};
+    use serde_json::json;
+    use std::collections::BTreeMap;
+    let all: Value = serde_json::from_str(include_str!(
+        "../../../fixtures/editing-failures/pending-vectors.json"
+    ))
+    .unwrap();
+    let v = all["sequences"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|v| v["id"] == id)
+        .unwrap();
+    let initial = v["initial"]["blocks"].as_array().unwrap();
+    let mut d = documents(
+        &initial
+            .iter()
+            .map(|b| b["text"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+    );
+    let mut owners = BTreeMap::new();
+    for (b, node) in initial.iter().zip(d.snapshot().unwrap().visible) {
+        owners.insert(b["id"].as_str().unwrap().to_owned(), node.id.clone());
+    }
+    let origin = TextOrigin::new("local:rgs:pending").unwrap();
+    let mut setup = Vec::new();
+    for b in initial {
+        let owner = owners[b["id"].as_str().unwrap()].clone();
+        if b["kind"] == "code" {
+            setup.push(EditorCommand::BlockCommand(BlockCommand::SetCode {
+                owner: owner.clone(),
+                language: String::new(),
+            }));
+        }
+        for m in b["marks"].as_array().unwrap() {
+            setup.push(EditorCommand::MarkAt {
+                owner: owner.clone(),
+                from: U(number(&m["from"])),
+                to: U(number(&m["to"])),
+                mark: mark(m["type"].as_str().unwrap()),
+                action: FormatAction::Apply,
+                href: None,
+            });
+        }
+    }
+    if !setup.is_empty() {
+        let plan = d.prepare_editor(&setup, &origin).unwrap();
+        d.commit_editor(plan).unwrap();
+    }
+    d.clear_history();
+    let baseline = frozen(&d);
+    let mut identities = BTreeMap::new();
+    for (alias, owner) in &owners {
+        let node = d
+            .snapshot()
+            .unwrap()
+            .visible
+            .into_iter()
+            .find(|n| &n.id == owner)
+            .unwrap();
+        identities.insert(alias.clone(), json!({"owner":owner,"spans":node.spans.iter().map(|s|json!({"source":s.source,"identity":s.identity})).collect::<Vec<_>>() }));
+    }
+    let count = Rc::new(Cell::new(0));
+    let seen = count.clone();
+    let _sub = d
+        .subscribe(PatchScope::All, move |_, _| {
+            seen.set(seen.get() + 1);
+            Ok(())
+        })
+        .unwrap();
+    let mut commits = 0;
+    let mut controls = 0;
+    let mut checkpoints = 0;
+    for step in v["steps"].as_array().unwrap() {
+        let before = frozen(&d);
+        let native = &step["native"];
+        let s = &step["expect"]["state"]["selection"];
+        let bias = if s["affinity"] == "backward" {
+            Bias::Left
+        } else {
+            Bias::Right
+        };
+        let point = |p: &Value| EditorPosition {
+            owner: owners[p["block"].as_str().unwrap()].clone(),
+            offset: U(number(&p["offset"])),
+            bias,
+        };
+        let mut endpoints = json!([]);
+        if native.is_array() {
+            let mut commands = Vec::new();
+            for c in native.as_array().unwrap() {
+                let owner = owners[c["owner"].as_str().unwrap()].clone();
+                commands.push(match c["type"].as_str().unwrap() {
+                    "replaceAt" => EditorCommand::ReplaceAt {
+                        owner,
+                        from: U(number(&c["from"])),
+                        to: U(number(&c["to"])),
+                        text: c["text"].as_str().unwrap().to_owned(),
+                    },
+                    "markAt" => EditorCommand::MarkAt {
+                        owner,
+                        from: U(number(&c["from"])),
+                        to: U(number(&c["to"])),
+                        mark: mark(c["mark"].as_str().unwrap()),
+                        action: if c["action"] == "apply" {
+                            FormatAction::Apply
+                        } else {
+                            FormatAction::Remove
+                        },
+                        href: None,
+                    },
+                    _ => panic!("unknown G04 native command"),
+                });
+            }
+            commands.push(EditorCommand::SelectionAt {
+                anchor: point(&s["anchor"]),
+                focus: point(&s["focus"]),
+            });
+            let plan = d.prepare_editor(&commands, &origin).unwrap();
+            assert_eq!(frozen(&d), before);
+            let result = d.commit_editor(plan).unwrap();
+            let selection = result.result_selection.unwrap();
+            endpoints = json!([selection.anchor, selection.focus].iter().map(|t| match d.resolve_anchor(t).unwrap() { Resolution::Position(p) => json!({"node":p.node,"offset":p.offset.0,"bias":if p.bias == Bias::Left {"left"} else {"right"}}), _ => panic!("G04 endpoint missing") }).collect::<Vec<_>>());
+            commits += 1;
+        } else if native["type"] == "split" {
+            let owner = &owners[native["owner"].as_str().unwrap()];
+            let range = Selection {
+                anchor: d
+                    .anchor(owner, U(number(&native["offset"])), Bias::Right)
+                    .unwrap(),
+                focus: d
+                    .anchor(owner, U(number(&native["offset"])), Bias::Right)
+                    .unwrap(),
+            };
+            let fragments = [
+                FragmentBlock {
+                    runs: vec![],
+                    attributes: Some(BlockAttributes::Paragraph),
+                    containers: vec![],
+                    checked: None,
+                },
+                FragmentBlock {
+                    runs: vec![],
+                    attributes: Some(BlockAttributes::Paragraph),
+                    containers: vec![],
+                    checked: None,
+                },
+            ];
+            let plan = d.prepare_fragment(&range, &fragments, &origin).unwrap();
+            assert_eq!(frozen(&d), before);
+            let result = d.commit_editor(plan).unwrap();
+            assert!(result.result_selection.is_none());
+            let caret = match d.resolve_anchor(&result.result_caret.unwrap()).unwrap() {
+                Resolution::Position(p) => p,
+                _ => panic!("G04 split caret missing"),
+            };
+            assert!(!owners.values().any(|id| id == &caret.node));
+            let alias = native["newBlockId"].as_str().unwrap().to_owned();
+            owners.insert(alias.clone(), caret.node.clone());
+            let node = d
+                .snapshot()
+                .unwrap()
+                .visible
+                .into_iter()
+                .find(|n| n.id == caret.node)
+                .unwrap();
+            let retained = identities["p1"].clone();
+            let old_owner = &owners["p1"];
+            let split_owner = d
+                .snapshot()
+                .unwrap()
+                .visible
+                .into_iter()
+                .find(|n| &n.id == old_owner)
+                .unwrap();
+            let split_spans = json!(
+                split_owner
+                    .spans
+                    .iter()
+                    .map(|s| json!({"source":s.source,"identity":s.identity}))
+                    .collect::<Vec<_>>()
+            );
+            assert_eq!(
+                split_spans.as_array().unwrap().len(),
+                retained["spans"].as_array().unwrap().len() + 2
+            );
+            assert_eq!(
+                &split_spans.as_array().unwrap()[..retained["spans"].as_array().unwrap().len()],
+                retained["spans"].as_array().unwrap()
+            );
+            identities.insert(
+                "p1".to_owned(),
+                json!({"owner":old_owner,"spans":split_spans}),
+            );
+            identities.insert(alias, json!({"owner":caret.node,"spans":node.spans.iter().map(|s|json!({"source":s.source,"identity":s.identity})).collect::<Vec<_>>() }));
+            endpoints = json!([{ "node":caret.node,"offset":caret.offset.0,"bias":if caret.bias == Bias::Left {"left"} else {"right"}}]);
+            commits += 1;
+        } else {
+            // Local pending/selection dispatch does not call Document; no fabricated native pending state.
+            assert_eq!(frozen(&d), before);
+        }
+        let expected_blocks = step["expect"]["state"]["blocks"].as_array().unwrap();
+        let observe = || {
+            let nodes = d.snapshot().unwrap().visible;
+            let blocks: Vec<_> = nodes.iter().map(|n| {
+                let mut offset = 0u32; let mut marks: Vec<Value> = Vec::new();
+                for run in &n.runs {
+                    let end = offset + u32::try_from(run.text.encode_utf16().count()).unwrap();
+                    for name in run.attributes.keys() {
+                        if let Some(last) = marks.iter_mut().rev().find(|m| m["type"] == *name && m["to"] == offset) { last["to"] = json!(end); }
+                        else { marks.push(json!({"from":offset,"to":end,"type":name})); }
+                    }
+                    offset = end;
+                }
+                json!({"owner":n.id,"kind":match &n.block_attributes { Some(BlockAttributes::Code(language)) if language.is_empty() => "code", Some(BlockAttributes::Paragraph) => "paragraph", _ => panic!("unexpected G04 block attributes") },"text":n.runs.iter().map(|r|r.text.as_str()).collect::<String>(),"marks":marks,"spans":n.spans.iter().map(|s|json!({"source":s.source,"identity":s.identity})).collect::<Vec<_>>()})
+            }).collect();
+            json!({"blocks":blocks,"revision":d.revision(),"publications":count.get(),"undo":d.history_state().undo_groups,"redo":d.history_state().redo_groups,"endpoints":endpoints})
+        };
+        let expected_points: Vec<_> = if native.is_null() {
+            vec![]
+        } else if native["type"] == "split" {
+            vec![&s["anchor"]]
+        } else {
+            vec![&s["anchor"], &s["focus"]]
+        };
+        let expected = json!({"blocks":expected_blocks.iter().map(|b|json!({"owner":owners[b["id"].as_str().unwrap()],"kind":b["kind"],"text":b["text"],"marks":b["marks"],"spans":identities[b["id"].as_str().unwrap()]["spans"]})).collect::<Vec<_>>(),"revision":baseline.2+commits,"publications":commits,"undo":commits,"redo":0,"endpoints":expected_points.iter().map(|p|json!({"node":owners[p["block"].as_str().unwrap()],"offset":p["offset"],"bias":if bias == Bias::Left {"left"} else {"right"}})).collect::<Vec<_>>()});
+        assert_eq!(observe(), expected, "{id}/{}", step["id"]);
+        checkpoints += 1;
+        if native.is_null() {
+            assert_eq!(frozen(&d), before);
+            checkpoints += 1;
+        } else {
+            assert_ne!(d.state_vector_v1(), before.1);
+            assert_ne!(d.checkpoint().bytes, before.0);
+            checkpoints += 1;
+        }
+        for (path, value) in [
+            ("/blocks/0/text", json!("wrong")),
+            (
+                "/blocks/0/marks",
+                json!([{"from":0,"to":1,"type":"italic"}]),
+            ),
+            ("/blocks/0/owner", json!("missing")),
+            ("/blocks/0/spans/0/source", json!("missing")),
+            ("/blocks/0/spans/0/identity", json!("missing")),
+            ("/revision", json!(baseline.2 + commits + 1)),
+            ("/publications", json!(commits + 1)),
+            ("/undo", json!(99)),
+            ("/redo", json!(1)),
+        ] {
+            let mut wrong = expected.clone();
+            *wrong.pointer_mut(path).unwrap() = value;
+            assert_ne!(observe(), wrong);
+            controls += 1;
+        }
+        if !native.is_null() {
+            for (path, value) in [
+                ("/endpoints/0/offset", json!(99)),
+                ("/endpoints/0/node", json!("missing")),
+                ("/endpoints/0/bias", json!("wrong")),
+            ] {
+                let mut wrong = expected.clone();
+                *wrong.pointer_mut(path).unwrap() = value;
+                assert_ne!(observe(), wrong);
+                controls += 1;
+            }
+            if native.is_array() {
+                let mut wrong = expected.clone();
+                wrong["endpoints"][1]["offset"] = json!(99);
+                assert_ne!(observe(), wrong);
+                controls += 1;
+            }
+        } else {
+            let actual = frozen(&d);
+            let mut wrong = actual.clone();
+            wrong.0[0] ^= 1;
+            assert_ne!(frozen(&d), wrong);
+            controls += 1;
+            let mut wrong = actual.clone();
+            wrong.1[0] ^= 1;
+            assert_ne!(frozen(&d), wrong);
+            controls += 1;
+        }
+    }
+    println!(
+        "G04_RECEIPT id={id} steps={} committed={commits} checkpoints={checkpoints} controls={controls} native_pending=unclaimed",
+        v["steps"].as_array().unwrap().len()
+    );
+}
+#[test]
+fn g04_pending_context_disable_reject_revisit() {
+    g04_pending_sequence("context-disable-reject-revisit");
+}
+#[test]
+fn g04_pending_override_split_empty_revisit() {
+    g04_pending_sequence("override-split-empty-revisit");
+}
