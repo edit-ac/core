@@ -222,6 +222,32 @@
       "artifacts": [
         "compatibility-inventory.json"
       ]
+    },
+    "consumers-loading": {
+      "tests": [
+        "tests/architecture/loading/loading.test.mjs"
+      ],
+      "inputs": [
+        "scripts/consumers-loading.mjs",
+        "scripts/browser-size-contract.mjs",
+        "scripts/check-browser-size.mjs",
+        "scripts/minify-task.mjs",
+        "scripts/share-wasm-glue.mjs",
+        "scripts/build-wasm.mjs",
+        "tests/browser-size-runtime.test.mjs",
+        "tests/packed-consumers.test.mjs",
+        "crates/editac-ffi/tests/native_abi.rs",
+        "tests/native/fixtures/bounded-abi.json",
+        "tests/architecture/loading/README.md",
+        "contracts/profiles/portable-editor-v5.json",
+        "Cargo.toml",
+        "Cargo.lock",
+        "package-lock.json"
+      ],
+      "artifacts": [
+        "consumers-loading-inventory.json",
+        "loading-graph.json"
+      ]
     }
   },
   "components": [

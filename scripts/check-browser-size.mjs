@@ -1,16 +1,17 @@
 import { minifyTask, taskMinifier } from './minify-task.mjs';
 import { build, transform, version as esbuildVersion } from 'esbuild';
 import { spawnSync } from 'node:child_process';
-import { mkdtemp, mkdir, readFile, writeFile, copyFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile, copyFile, rm, realpath } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 import { describeAsset, evaluateBudget, assertBudget, compression, auditTaskGraph } from './browser-size-contract.mjs';
 const markdown = process.argv.includes('--markdown');
 const root = fileURLToPath(new URL('../', import.meta.url));
 const output = resolve(process.env.EDITAC_BROWSER_SIZE_OUTPUT || join(root, '../architecture/evidence/browser-size-optimization/current'));
 await mkdir(output, { recursive: true });
-const temp = await mkdtemp(join(tmpdir(), 'editac-browser-size-'));
+const temp = await realpath(await mkdtemp(join(tmpdir(), 'editac-browser-size-')));
 const commands = [];
 function run(command, args, cwd, label) {
   const result = spawnSync(command, args, { cwd, encoding: 'utf8', timeout: 120000, maxBuffer: 16 * 1024 * 1024 });
@@ -26,7 +27,7 @@ try {
     const baselineCore = process.argv.find(arg => arg.startsWith('--baseline-core='))?.slice('--baseline-core='.length);
     if (baselineCore && !process.argv.includes('--allow-fixture-baseline')) throw new Error('Baseline override cannot qualify production');
     const pack = JSON.parse(await run('npm', ['pack', ...(name === 'core' && baselineCore ? [resolve(baselineCore)] : [`--workspace=@edit-ac/${name}`]), '--pack-destination', temp, '--json'], root, 'pack-' + name))[0];
-    packs.push({ name, filename: pack.filename, integrity: pack.integrity, shasum: pack.shasum });
+    packs.push({ name, filename: pack.filename, integrity: pack.integrity, shasum: pack.shasum, sha256: createHash('sha256').update(await readFile(join(temp, pack.filename))).digest('hex') });
     await copyFile(join(temp, pack.filename), join(output, pack.filename));
   }
   await writeFile(join(temp, 'package.json'), JSON.stringify({ private: true, type: 'module' }));
@@ -41,6 +42,7 @@ try {
   }
   const inputs = Object.keys(bundle.metafile.inputs);
   const sources = Object.fromEntries(await Promise.all(inputs.map(async name => [name, await readFile(join(temp, name), 'utf8')])));
+  const inputHashes = Object.fromEntries(Object.entries(sources).map(([name, source]) => [name, createHash('sha256').update(source).digest('hex')]));
   // Include opaque generated-glue import explicitly; reject all other hidden lazy roots.
   auditTaskGraph(sources, { markdown });
   await mkdir(join(dist, 'wasm'), { recursive: true });
@@ -83,6 +85,7 @@ try {
   }
   const result = evaluateBudget(assets, required);
   const receipt = { schema: 1, profile: markdown ? 'markdown-enabled-task' : 'default-task', admission: markdown ? 'optional informational measurement; default caps unchanged' : 'default hard-cap qualification', fixtureBaseline: process.argv.includes('--allow-fixture-baseline'), productionFixtureAbsent, wasmExports, node: process.version, zlib: process.versions.zlib, esbuild: esbuildVersion, minifier: { target: 'es2022', minify: true, bundle: true, splitting: false, postprocess: taskMinifier }, compression, packs, required, assets, result, commands, inputs, ephemeralRoot: temp };
+  receipt.inputHashes = inputHashes;
   await writeFile(join(output, 'manifest.json'), JSON.stringify(receipt, null, 2) + '\n');
   await writeFile(join(output, 'metafile.json'), JSON.stringify(bundle.metafile, null, 2) + '\n');
   console.log(JSON.stringify({ output, result, productionFixtureAbsent: receipt.productionFixtureAbsent }));

@@ -1,0 +1,226 @@
+{
+  "version": 1,
+  "gate": "FIT-1.6",
+  "sourceRevision": "78b3fd484f3af6ca9ab61b5457cfb1aa45474dbba889a88e863949d9d631cb74",
+  "loadedPromptRevision": "2e18a98412c7",
+  "scope": "Current unpublished 0.0.0 public SDK packages and portable FFI; no arbitrary semver/native SDK/deployed qualification",
+  "receipt": {
+    "path": "architecture-results/fit-1.6-20261014/validation-2/receipt.json",
+    "sha256": "5bedf64c1b94c7131fb17e4dca0efd484e49224cc68ed1fec3b45920e8007a6e"
+  },
+  "inventory": {
+    "path": "architecture-results/fit-1.6-20261014/validation-2/consumers-loading-inventory.json",
+    "sha256": "288574158c34b5e77b506149f4388f853e4cae74a52db0b06e34ada646b4195f"
+  },
+  "counts": {
+    "tests": 29,
+    "pass": 29,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "nestedChecks": [
+    {
+      "label": "default-runtime",
+      "command": [
+        "/Users/bpstr/.nvm/versions/node/v24.19.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "tests/browser-size-runtime.test.mjs"
+      ],
+      "exit": 0,
+      "counts": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "sha256": "6301f12ccf5079438d193452157fad307b8c2adb8d443df8779412d1fbddee42"
+    },
+    {
+      "label": "markdown-runtime",
+      "command": [
+        "/Users/bpstr/.nvm/versions/node/v24.19.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "tests/browser-size-runtime.test.mjs"
+      ],
+      "exit": 0,
+      "counts": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "sha256": "052e38d7a1876e0eb79de1a3ed8c9a150d73d192349a97e31b1cd3b7148d1026"
+    },
+    {
+      "label": "packed-consumers",
+      "command": [
+        "/Users/bpstr/.nvm/versions/node/v24.19.0/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "tests/packed-consumers.test.mjs"
+      ],
+      "exit": 0,
+      "counts": {
+        "tests": 15,
+        "pass": 15,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "sha256": "180ab149ca99c2c238433bbe390928a5f105d6a4d0cc64d48060ff660bcb1db0"
+    },
+    {
+      "label": "native-abi",
+      "command": [
+        "cargo",
+        "+1.97.1",
+        "test",
+        "-p",
+        "editac-ffi",
+        "--test",
+        "native_abi",
+        "--locked",
+        "--offline"
+      ],
+      "exit": 0,
+      "counts": {
+        "tests": 7,
+        "pass": 7,
+        "fail": 0,
+        "skipped": 0
+      },
+      "sha256": "30977929c310f3c457bf6cd8d0ec0395f9c1a596e1a7b014bbb2cea92d43ee67"
+    }
+  ],
+  "profiles": {
+    "default": {
+      "profile": "default-task",
+      "result": {
+        "total": {
+          "bytes": 492401,
+          "hard": 524288,
+          "preferred": 256000,
+          "hardPass": true,
+          "preferredPass": false,
+          "gap": 0
+        },
+        "js": {
+          "bytes": 32765,
+          "hard": 32768,
+          "preferred": 16000,
+          "hardPass": true,
+          "preferredPass": false,
+          "gap": 0
+        }
+      },
+      "manifestHash": "cef21be04fa4a494907be19bd2751551fd4a4f524866fef9230ed042b7ff368f",
+      "packs": [
+        {
+          "name": "core",
+          "filename": "edit-ac-core-0.0.0.tgz",
+          "integrity": "sha512-oRNEOdDz/YmU1uOFOxl3aJkZVPPyHqcl0plXxUS9SmjSJlOv09bT7eJqzo8WBtEe23WgoXmSd/Fy/2gzXhUrWQ==",
+          "shasum": "ed25ab382e0b4ceda8c5ea1f54e4fe3f6c50f838",
+          "sha256": "d431e09fc487936345253c1d69eaa25cb321217e3c61311e75051f410a3c2f02"
+        },
+        {
+          "name": "web",
+          "filename": "edit-ac-web-0.0.0.tgz",
+          "integrity": "sha512-cdK/2yHY8GFM7CfSv69Cm8si2uhwvUr80QYkhAotcnjcOasRI38kCBY5ywONJac4Zna1naNF1ZZEL0NcTtkAZA==",
+          "shasum": "6d2fad3453a99674196ebb56fb42294113bc42fc",
+          "sha256": "2b587bf8a69d1bbc9c38ffd6b34270093e863ea9e6aaf61f27d342b5f2c1a59e"
+        }
+      ]
+    },
+    "markdown": {
+      "profile": "markdown-enabled-task",
+      "result": {
+        "total": {
+          "bytes": 737783,
+          "hard": 524288,
+          "preferred": 256000,
+          "hardPass": false,
+          "preferredPass": false,
+          "gap": 213495,
+          "incrementalBytes": 245382
+        },
+        "js": {
+          "bytes": 35155,
+          "hard": 32768,
+          "preferred": 16000,
+          "hardPass": false,
+          "preferredPass": false,
+          "gap": 2387,
+          "incrementalBytes": 2390
+        }
+      },
+      "manifestHash": "b2d9c2074a415a2e39b18a43eeca6e3655c2e849a3c7f0644e062a7debccf413",
+      "packs": [
+        {
+          "name": "core",
+          "filename": "edit-ac-core-0.0.0.tgz",
+          "integrity": "sha512-oRNEOdDz/YmU1uOFOxl3aJkZVPPyHqcl0plXxUS9SmjSJlOv09bT7eJqzo8WBtEe23WgoXmSd/Fy/2gzXhUrWQ==",
+          "shasum": "ed25ab382e0b4ceda8c5ea1f54e4fe3f6c50f838",
+          "sha256": "d431e09fc487936345253c1d69eaa25cb321217e3c61311e75051f410a3c2f02"
+        },
+        {
+          "name": "web",
+          "filename": "edit-ac-web-0.0.0.tgz",
+          "integrity": "sha512-cdK/2yHY8GFM7CfSv69Cm8si2uhwvUr80QYkhAotcnjcOasRI38kCBY5ywONJac4Zna1naNF1ZZEL0NcTtkAZA==",
+          "shasum": "6d2fad3453a99674196ebb56fb42294113bc42fc",
+          "sha256": "2b587bf8a69d1bbc9c38ffd6b34270093e863ea9e6aaf61f27d342b5f2c1a59e"
+        },
+        {
+          "name": "markdown",
+          "filename": "edit-ac-markdown-0.0.0.tgz",
+          "integrity": "sha512-H+L97BLXi6W+HtM/YjwIOYbKYqS2Jhbcrpxhux80If+3Ej1RrllWXSnlWK+rzB581v8FVbY2L0yE/tPZ9kllbg==",
+          "shasum": "6b696fafbe7fb0d482b0534ac81880caecfdd25a",
+          "sha256": "8075ef2ac25cb5b27f37e40547b8af2621f226338559eaac8d9bfc173829aa59"
+        }
+      ]
+    }
+  },
+  "implementation": {
+    "scripts/architecture-layers.mjs": "59c7f18e326871f7f2ff450fa99545d6cc5cf66f2e0bc06226bed5387639cbc4",
+    "scripts/check-architecture.mjs": "bde9e1c38e3883a61d9ab5547359599e171634f10aafc085d9b48653742278a5",
+    "scripts/test-toolchain.mjs": "82546890ad57ba64eb0e7440967a65cc100ac71e78a31a43c4829377d66d3717",
+    "tests/architecture/loading/loading.test.mjs": "aa6de2dfd618f0e1209e027725258f1c02895f05ed1cc70a79d76af4dd87e2d5",
+    "scripts/consumers-loading.mjs": "fc40ef7fd8ad3719d738a46d324ed2345b59c125740a77bfedcbf550ef975a07",
+    "scripts/browser-size-contract.mjs": "5adcec40f188867c6ae67fc106dc688fc3f4f04c07a8a47ca53d03def1965992",
+    "scripts/check-browser-size.mjs": "5675fa1757d4b6b28483825af1e107cfc9a105cc2152628fe779ca20c4b64170",
+    "scripts/minify-task.mjs": "d103df8f9ebbd8c36fece1f2688726c41081693b26673c33e307aca681bf17da",
+    "scripts/share-wasm-glue.mjs": "f15975d08a26d286e13a8b32e4e843fae4f64272eca0436346b2c3b927461c4f",
+    "scripts/build-wasm.mjs": "f1c9c473626972102c8ecbf7faa3d0bd7c333632c8a6293ef587f7c70c20363f",
+    "tests/browser-size-runtime.test.mjs": "c561202e39d97bccde4e052a18e6ea17919a60f6ca554ce515e04468de1c2868",
+    "tests/packed-consumers.test.mjs": "2b9c6462882ceb27b7985888e5be6501bf62097a4865d8ab7a69665f2964e006",
+    "crates/editac-ffi/tests/native_abi.rs": "933069b18a59cea08d0e445bd4e3068b47ef61233162b12fff165b0c6254f1b9",
+    "tests/native/fixtures/bounded-abi.json": "51d3d6317ebacc4121702640682a7783e410d0609374eaf866bcb9f695a265c9",
+    "tests/architecture/loading/README.md": "c2f8b5c39ad1737d716995ee478202ba33db2d3d3681c19601d084146590d19b",
+    "contracts/profiles/portable-editor-v5.json": "9af204e61db7017381f57fdf8a625f01e1bcd1e98f72d682e229a08ae9af732c",
+    "Cargo.toml": "8548a141c4506f46eb7274163a4e929ccb0f85dd392feb9076f8fd6c8be6b541",
+    "Cargo.lock": "a5f7fc8c2fdc3cfd9fbecb25949bb77ce75022584617dfa47851a9b3160868bc",
+    "package-lock.json": "5273ea685692bdb01a99dd8b300d64904abf533c59da6fb325fc820b0d9f19fd"
+  },
+  "profile": {
+    "path": "contracts/profiles/portable-editor-v5.json",
+    "sha256": "9af204e61db7017381f57fdf8a625f01e1bcd1e98f72d682e229a08ae9af732c"
+  },
+  "compiledNativeConsumer": {
+    "path": "architecture-results/fit-1.6-20261014/validation-2/native-abi-executable",
+    "sha256": "98b55cf5bc8f18759c28f1bb223498a59bcd7ef7e22291925191ee8e8a2323ef"
+  },
+  "failedEvidence": {
+    "path": "architecture-results/fit-1.6-20261014/validation-1/receipt.json",
+    "sha256": "d4aa514c2be454a076811809a0daad4e6e755b4ea61a3ff1ed1e067106605021"
+  },
+  "limits": "Default only: 524288 total / 32768 JS gzip hard; 256000 / 16000 decimal preferred; both preferred missed. Enabled Markdown combined/incremental reporting only. No pending-provider costs invented. JS hard-cap margin is 3 bytes.",
+  "lastRelevantChange": "Canonical packed/byte graph admission, symlink-canonical temporary root, complete extension import map and explicit fixture-WASM prerequisite, 2026-10-14"
+}
