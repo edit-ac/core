@@ -1,0 +1,137 @@
+{
+  "task": "FIT-1.1",
+  "sourceRevision": "78b3fd484f3af6ca9ab61b5457cfb1aa45474dbba889a88e863949d9d631cb74",
+  "loadedPromptRevision": "2e18a98412c7",
+  "implementationReceipt": {
+    "version": 1,
+    "suite": "layers",
+    "command": [
+      "/Users/bpstr/.nvm/versions/node/v24.19.0/bin/node",
+      "--test",
+      "--test-reporter=tap",
+      "tests/architecture/layers/layers.test.mjs"
+    ],
+    "node": "v24.19.0",
+    "revision": "8f1eec24a4c3863a31cc00e6d91384b23f2c2355",
+    "manifestHash": "8386a2fdd5e60e5160c2bf20576a0894e9d125a7107b7cfce6646b96c5d2405f",
+    "exit": 0,
+    "counts": {
+      "tests": 72,
+      "pass": 72,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "errors": [],
+    "artifacts": {
+      "tests.tap": "9d35b0f86ed0d81a06232559cac2b90a3099603eaba107dc8d8a0abf654405c3",
+      "layers-graph.json": "cd9b151282a280f5e38de19cf53d34515bcbf33200dc47a823cbfc55c6b127c6"
+    },
+    "implementation": {
+      "scripts/architecture-layers.mjs": "59c7f18e326871f7f2ff450fa99545d6cc5cf66f2e0bc06226bed5387639cbc4",
+      "scripts/check-architecture.mjs": "2181ba798e4c2f3674e13fc4582b23f1dc27a300a450f96e2951c0e80ea7cdce",
+      "scripts/test-toolchain.mjs": "82546890ad57ba64eb0e7440967a65cc100ac71e78a31a43c4829377d66d3717",
+      "tests/architecture/layers/layers.test.mjs": "15dd60726d6d46c031b7d43f1c21275a48ea908fa3c8bdc310195825b8650f9a",
+      "tests/architecture/layers/fixtures/production-graph.json": "684be452279b960445e108a1feb0edb16a6d0905660eedf9f812d92edab2fcf6",
+      "tests/architecture/layers/fixtures/forbidden-layer.json": "43c5694abc96ad3f662f786b7a48106ad87af8c20cbb44833461eed85d570db7"
+    }
+  },
+  "command": "node scripts/check-architecture.mjs --suite layers",
+  "environment": {
+    "node": "24.19.0",
+    "rust": "1.97.1",
+    "cargo": "locked/offline",
+    "providers": "none"
+  },
+  "graphSummary": {
+    "cargoMembers": 7,
+    "cargoProductionEdges": 32,
+    "cargoDevEdges": 3,
+    "minimumClosures": {
+      "editac-core": 74,
+      "editac-wasm": 75
+    },
+    "jsMembers": 5,
+    "jsSourceFiles": 59,
+    "jsEdges": 276,
+    "inputHashes": 79
+  },
+  "upstreamEntryCheck": {
+    "path": "architecture-results/fit-1.1-20261014/upstream-entry-check.json",
+    "sha256": "29a0f4419ef4b872ffd678f413dd3bb8a19047808ff82b09046edeafae827bef",
+    "result": "08/12/21 progress hashes match COMPLETE/zero unchecked; integrated core/cli/architecture revisions ancestral in these checkouts"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "exit": 1,
+      "counts": {
+        "tests": 62,
+        "pass": 39,
+        "fail": 23,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "reason": "Pinned TypeScript 7 has no legacy compiler AST API; repaired by using the already locked Babel parser as an explicit dev dependency.",
+      "artifacts": {
+        "architecture-results/fit-1.1-20261014/validation-1/receipt.json": "77f9a8b72c473228384ee2bf20f74c2aaeb12ed915fc9ba06c74a839b206db39",
+        "architecture-results/fit-1.1-20261014/validation-1/tests.tap": "4facc80fcd51c1da6ceb70750b2b73688a10b24b4a72c272322644e145dff6b4"
+      }
+    },
+    {
+      "attempt": 2,
+      "exit": 1,
+      "counts": {
+        "tests": 62,
+        "pass": 59,
+        "fail": 3,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "reason": "Canonical macOS /private temp path mismatch and existing statically bounded fixture URL alias; repaired root normalization and bounded immutable alias handling.",
+      "artifacts": {
+        "architecture-results/fit-1.1-20261014/validation-2/receipt.json": "0b1197c981822f7507150aed7965429b32e52fb25e013c228da01a04420b6c1c",
+        "architecture-results/fit-1.1-20261014/validation-2/tests.tap": "c4acebd289b8763a4c4cd89ae09a124e03a59047857476b6ace882f199d78b49"
+      }
+    },
+    {
+      "attempt": 3,
+      "exit": 1,
+      "counts": {
+        "tests": 66,
+        "pass": 65,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "reason": "Existing KaTeX asset is generated into dist, not src; added explicit hash/version-checked optional web vendor ownership.",
+      "artifacts": {
+        "architecture-results/fit-1.1-20261014/validation-3/receipt.json": "f33aa034bbdc5d3803e60f4b0fbd17fb1c9d8f799fc9972d7b819f805843bc99",
+        "architecture-results/fit-1.1-20261014/validation-3/tests.tap": "f663dd8f717bd9dd13ffc3145bd7915fe2ede9191a140ba1551da7dab4d4a7bf"
+      }
+    },
+    {
+      "attempt": 4,
+      "exit": 0,
+      "counts": {
+        "tests": 72,
+        "pass": 72,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "reason": "Final repaired batch passes; no runtime/platform/release claim.",
+      "artifacts": {
+        "architecture-results/fit-1.1-20261014/validation-4/layers-graph.json": "cd9b151282a280f5e38de19cf53d34515bcbf33200dc47a823cbfc55c6b127c6",
+        "architecture-results/fit-1.1-20261014/validation-4/receipt.json": "0453bed95f9a7e9e62c5d9a0acc93c3430cb636641d68a89ff75eff4c699a47f",
+        "architecture-results/fit-1.1-20261014/validation-4/tests.tap": "9d35b0f86ed0d81a06232559cac2b90a3099603eaba107dc8d8a0abf654405c3"
+      }
+    }
+  ],
+  "qualification": "Source dependency ownership only; generated WASM artifacts/packed loading, platform runtime, performance and release qualification remain owning gates."
+}

@@ -1,0 +1,6 @@
+{
+  "fromPackage": "engine",
+  "toPackage": "companion",
+  "kind": null,
+  "reason": "A semantic engine cannot acquire the optional companion runtime, even through a renamed dependency."
+}

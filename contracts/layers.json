@@ -1,0 +1,317 @@
+{
+  "version": 1,
+  "authority": "../architecture/specs/ecosystem-maintainability.md#dependency-direction-and-ownership",
+  "suites": {
+    "layers": {
+      "tests": [
+        "tests/architecture/layers/layers.test.mjs"
+      ],
+      "inputs": [
+        "tests/architecture/layers/fixtures/production-graph.json",
+        "tests/architecture/layers/fixtures/forbidden-layer.json"
+      ],
+      "artifacts": [
+        "layers-graph.json"
+      ]
+    },
+    "profiles": {
+      "tests": [
+        "tests/architecture/profiles/profiles.test.mjs",
+        "tests/architecture/profiles/extensions.test.mjs"
+      ],
+      "inputs": [
+        "contracts/capabilities.schema.json",
+        "contracts/profiles/portable-editor-v5.json",
+        "scripts/contract-schema.mjs",
+        "scripts/capability-contract.mjs",
+        "scripts/check-extension-capabilities.mjs",
+        "fixtures/extensions/capabilities.json",
+        "fixtures/extensions/capabilities.schema.json",
+        "tests/architecture/profiles/fixtures/profile.json",
+        "tests/architecture/profiles/fixtures/prepared-proof.json",
+        "fixtures/schema-v5/profile.json",
+        "packages/core/package.json",
+        "crates/editac-ffi/src/lib.rs",
+        "packages/core/src/extensions/profiles.ts",
+        "packages/core/src/extensions/registry.ts",
+        "contracts/profiles/README.md",
+        "tests/extension-capabilities.test.mjs"
+      ],
+      "artifacts": [
+        "profiles-inventory.json"
+      ]
+    }
+  },
+  "components": [
+    {
+      "name": "editac-core",
+      "ecosystem": "cargo",
+      "layer": "semantic-engine",
+      "manifest": "crates/editac-core/Cargo.toml",
+      "allowedInternal": [],
+      "allowedExternal": [
+        "serde",
+        "serde_json",
+        "unicode-segmentation",
+        "url",
+        "yrs"
+      ]
+    },
+    {
+      "name": "editac-diff",
+      "ecosystem": "cargo",
+      "layer": "portable-companion",
+      "manifest": "crates/editac-diff/Cargo.toml",
+      "allowedInternal": [
+        "editac-core"
+      ],
+      "allowedExternal": [
+        "serde",
+        "serde_json",
+        "sha2",
+        "yrs"
+      ]
+    },
+    {
+      "name": "editac-ffi",
+      "ecosystem": "cargo",
+      "layer": "native-bridge",
+      "manifest": "crates/editac-ffi/Cargo.toml",
+      "allowedInternal": [
+        "editac-core"
+      ],
+      "allowedExternal": [
+        "serde",
+        "serde_json",
+        "thiserror",
+        "uniffi",
+        "yrs"
+      ]
+    },
+    {
+      "name": "editac-markdown",
+      "ecosystem": "cargo",
+      "layer": "portable-companion",
+      "manifest": "crates/editac-markdown/Cargo.toml",
+      "allowedInternal": [
+        "editac-core"
+      ],
+      "allowedExternal": [
+        "pulldown-cmark"
+      ]
+    },
+    {
+      "name": "editac-markdown-wasm",
+      "ecosystem": "cargo",
+      "layer": "optional-bridge",
+      "manifest": "crates/editac-markdown-wasm/Cargo.toml",
+      "allowedInternal": [
+        "editac-core",
+        "editac-markdown"
+      ],
+      "allowedExternal": [
+        "serde",
+        "serde_json",
+        "wasm-bindgen"
+      ]
+    },
+    {
+      "name": "editac-session",
+      "ecosystem": "cargo",
+      "layer": "portable-companion",
+      "manifest": "crates/editac-session/Cargo.toml",
+      "allowedInternal": [
+        "editac-core",
+        "editac-diff",
+        "editac-markdown"
+      ],
+      "allowedExternal": [
+        "rusqlite",
+        "serde",
+        "serde_json",
+        "sha2"
+      ]
+    },
+    {
+      "name": "editac-wasm",
+      "ecosystem": "cargo",
+      "layer": "minimum-sdk",
+      "manifest": "crates/editac-wasm/Cargo.toml",
+      "allowedInternal": [
+        "editac-core"
+      ],
+      "allowedExternal": [
+        "serde",
+        "serde_json",
+        "wasm-bindgen",
+        "yrs"
+      ]
+    },
+    {
+      "name": "@edit-ac/astro",
+      "ecosystem": "js",
+      "layer": "client-adapter",
+      "manifest": "packages/astro/package.json",
+      "allowedInternal": [
+        "@edit-ac/web"
+      ],
+      "allowedExternal": [
+        "astro"
+      ]
+    },
+    {
+      "name": "@edit-ac/core",
+      "ecosystem": "js",
+      "layer": "minimum-sdk",
+      "manifest": "packages/core/package.json",
+      "allowedInternal": [
+        "editac-wasm"
+      ],
+      "allowedExternal": []
+    },
+    {
+      "name": "@edit-ac/markdown",
+      "ecosystem": "js",
+      "layer": "optional-companion",
+      "manifest": "packages/markdown/package.json",
+      "allowedInternal": [
+        "@edit-ac/core",
+        "@edit-ac/web",
+        "editac-markdown-wasm"
+      ],
+      "allowedExternal": []
+    },
+    {
+      "name": "@edit-ac/react",
+      "ecosystem": "js",
+      "layer": "client-adapter",
+      "manifest": "packages/react/package.json",
+      "allowedInternal": [
+        "@edit-ac/web"
+      ],
+      "allowedExternal": [
+        "react"
+      ]
+    },
+    {
+      "name": "@edit-ac/web",
+      "ecosystem": "js",
+      "layer": "client-adapter",
+      "manifest": "packages/web/package.json",
+      "allowedInternal": [
+        "@edit-ac/core"
+      ],
+      "allowedExternal": [
+        "katex"
+      ]
+    }
+  ],
+  "minimumCargoRoots": [
+    "editac-core",
+    "editac-wasm"
+  ],
+  "minimumCargoExternal": [
+    "arc-swap",
+    "async-lock",
+    "async-trait",
+    "bitflags",
+    "bumpalo",
+    "cfg-if",
+    "crossbeam-utils",
+    "dashmap",
+    "displaydoc",
+    "event-listener",
+    "event-listener-strategy",
+    "fastrand",
+    "form_urlencoded",
+    "getrandom",
+    "hashbrown",
+    "icu_collections",
+    "icu_locale_core",
+    "icu_normalizer",
+    "icu_normalizer_data",
+    "icu_properties",
+    "icu_properties_data",
+    "icu_provider",
+    "idna",
+    "idna_adapter",
+    "itoa",
+    "js-sys",
+    "libc",
+    "litemap",
+    "lock_api",
+    "memchr",
+    "once_cell",
+    "parking",
+    "parking_lot_core",
+    "percent-encoding",
+    "pin-project-lite",
+    "potential_utf",
+    "proc-macro2",
+    "quote",
+    "r-efi",
+    "redox_syscall",
+    "rustversion",
+    "scopeguard",
+    "serde",
+    "serde_core",
+    "serde_derive",
+    "serde_json",
+    "smallstr",
+    "smallvec",
+    "stable_deref_trait",
+    "syn",
+    "synstructure",
+    "thiserror",
+    "thiserror-impl",
+    "tinystr",
+    "unicode-ident",
+    "unicode-segmentation",
+    "url",
+    "utf8_iter",
+    "wasm-bindgen",
+    "wasm-bindgen-macro",
+    "wasm-bindgen-macro-support",
+    "wasm-bindgen-shared",
+    "windows-link",
+    "writeable",
+    "yoke",
+    "yoke-derive",
+    "yrs",
+    "zerofrom",
+    "zerofrom-derive",
+    "zerotrie",
+    "zerovec",
+    "zerovec-derive",
+    "zmij"
+  ],
+  "generatedBindings": [
+    {
+      "importer": "packages/core/src/index.ts",
+      "specifier": "./wasm/editac_runtime.js",
+      "producer": "editac-wasm"
+    },
+    {
+      "importer": "packages/markdown/src/index.ts",
+      "specifier": "./wasm/editac_markdown_wasm.js",
+      "producer": "editac-markdown-wasm"
+    },
+    {
+      "importer": "packages/core/src/fixture.ts",
+      "specifier": "./wasm-fixture/editac_wasm.js",
+      "producer": "editac-wasm",
+      "variant": "foundation-fixture"
+    }
+  ],
+  "generatedVendors": [
+    {
+      "importer": "packages/web/src/modules/math-renderer.ts",
+      "specifier": "./vendor/katex.mjs",
+      "package": "katex",
+      "version": "0.19.0",
+      "source": "node_modules/katex/dist/katex.mjs",
+      "sha256": "e5bc26598084ad869939ecaa262673814f26ed586312a409b5f8427c01e4f681",
+      "builder": "scripts/build-math-assets.mjs"
+    }
+  ]
+}

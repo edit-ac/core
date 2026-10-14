@@ -1,0 +1,166 @@
+{
+  "policy": {
+    "version": 1,
+    "components": [
+      {
+        "name": "engine",
+        "ecosystem": "cargo",
+        "layer": "semantic-engine",
+        "manifest": "crates/engine/Cargo.toml",
+        "allowedInternal": [],
+        "allowedExternal": [
+          "primitive"
+        ]
+      },
+      {
+        "name": "sdk",
+        "ecosystem": "cargo",
+        "layer": "minimum-sdk",
+        "manifest": "crates/sdk/Cargo.toml",
+        "allowedInternal": [
+          "engine"
+        ],
+        "allowedExternal": []
+      },
+      {
+        "name": "companion",
+        "ecosystem": "cargo",
+        "layer": "portable-companion",
+        "manifest": "crates/companion/Cargo.toml",
+        "allowedInternal": [
+          "engine"
+        ],
+        "allowedExternal": []
+      },
+      {
+        "name": "@fixture/core",
+        "ecosystem": "js",
+        "layer": "minimum-sdk",
+        "manifest": "packages/core/package.json",
+        "allowedInternal": [
+          "sdk"
+        ],
+        "allowedExternal": []
+      },
+      {
+        "name": "@fixture/web",
+        "ecosystem": "js",
+        "layer": "client-adapter",
+        "manifest": "packages/web/package.json",
+        "allowedInternal": [
+          "@fixture/core"
+        ],
+        "allowedExternal": []
+      }
+    ],
+    "minimumCargoRoots": [
+      "engine",
+      "sdk"
+    ],
+    "minimumCargoExternal": [
+      "primitive"
+    ],
+    "generatedBindings": [
+      {
+        "importer": "packages/core/src/runtime.ts",
+        "specifier": "./wasm/runtime.js",
+        "producer": "sdk"
+      }
+    ]
+  },
+  "metadata": {
+    "workspace_root": "/fixture",
+    "workspace_members": [
+      "engine",
+      "sdk",
+      "companion"
+    ],
+    "packages": [
+      {
+        "id": "engine",
+        "name": "engine",
+        "version": "1.0.0",
+        "source": null,
+        "manifest_path": "/fixture/crates/engine/Cargo.toml",
+        "dependencies": []
+      },
+      {
+        "id": "sdk",
+        "name": "sdk",
+        "version": "1.0.0",
+        "source": null,
+        "manifest_path": "/fixture/crates/sdk/Cargo.toml",
+        "dependencies": []
+      },
+      {
+        "id": "companion",
+        "name": "companion",
+        "version": "1.0.0",
+        "source": null,
+        "manifest_path": "/fixture/crates/companion/Cargo.toml",
+        "dependencies": []
+      },
+      {
+        "id": "primitive",
+        "name": "primitive",
+        "version": "1.0.0",
+        "source": "registry+fixture",
+        "manifest_path": "/fixture/crates/primitive/Cargo.toml",
+        "dependencies": []
+      }
+    ],
+    "resolve": {
+      "nodes": [
+        {
+          "id": "engine",
+          "deps": [
+            {
+              "pkg": "primitive",
+              "name": "primitive",
+              "dep_kinds": [
+                {
+                  "kind": null,
+                  "target": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "sdk",
+          "deps": [
+            {
+              "pkg": "engine",
+              "name": "engine",
+              "dep_kinds": [
+                {
+                  "kind": null,
+                  "target": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "companion",
+          "deps": [
+            {
+              "pkg": "engine",
+              "name": "engine",
+              "dep_kinds": [
+                {
+                  "kind": null,
+                  "target": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "primitive",
+          "deps": []
+        }
+      ]
+    }
+  }
+}

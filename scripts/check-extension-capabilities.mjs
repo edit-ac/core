@@ -1,3 +1,6 @@
+import { validateSchema } from './contract-schema.mjs';
+export { validateSchema } from './contract-schema.mjs';
+import { extensionCapabilityState } from './capability-contract.mjs';
 import { readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { resolve, relative, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -40,36 +43,6 @@ export const digest = (bytes) => createHash('sha256').update(bytes).digest('hex'
 const json = (path) => JSON.parse(readFileSync(path, 'utf8'));
 export function loadMatrix() { return json(resolve(core, 'fixtures/extensions/capabilities.json')); }
 
-// Execute the schema vocabulary used by the checked-in, dependency-free v1 schema.
-// Unsupported schema keywords fail closed rather than silently being ignored.
-export function validateSchema(value, schema, path = '$') {
-  const supported = new Set(['$schema', '$id', 'title', 'type', 'const', 'enum', 'minLength', 'pattern', 'minItems', 'uniqueItems', 'items', 'properties', 'required', 'additionalProperties']);
-  for (const keyword of Object.keys(schema)) demand(supported.has(keyword), `unsupported schema keyword ${keyword}`);
-  if ('const' in schema) demand(value === schema.const, `${path}: const`);
-  if (schema.enum) demand(schema.enum.includes(value), `${path}: enum`);
-  if (schema.type) {
-    const matches = schema.type === 'object' ? value !== null && typeof value === 'object' && !Array.isArray(value)
-      : schema.type === 'array' ? Array.isArray(value) : typeof value === schema.type;
-    demand(matches, `${path}: type ${schema.type}`);
-  }
-  if (typeof value === 'string') {
-    if (schema.minLength) demand(value.trim().length >= schema.minLength, `${path}: empty string`);
-    if (schema.pattern) demand(new RegExp(schema.pattern, 'u').test(value), `${path}: pattern`);
-  }
-  if (Array.isArray(value)) {
-    demand(value.length >= (schema.minItems ?? 0), `${path}: minItems`);
-    if (schema.uniqueItems) demand(new Set(value.map(x => JSON.stringify(x))).size === value.length, `${path}: duplicate array item`);
-    value.forEach((item, i) => validateSchema(item, schema.items, `${path}[${i}]`));
-  } else if (schema.type === 'object') {
-    for (const key of schema.required ?? []) demand(Object.hasOwn(value, key), `${path}: missing ${key}`);
-    for (const [key, item] of Object.entries(value)) {
-      const property = schema.properties?.[key];
-      if (property) validateSchema(item, property, `${path}.${key}`);
-      else if (schema.additionalProperties === false) fail(`${path}: unexpected ${key}`);
-      else if (typeof schema.additionalProperties === 'object') validateSchema(item, schema.additionalProperties, `${path}.${key}`);
-    }
-  }
-}
 const sameSet = (a, b) => a.length === b.length && [...a].sort().join('\0') === [...b].sort().join('\0');
 function boundedPath(path) {
   demand(!isAbsolute(path) && /^(core|architecture)\//u.test(path) && !path.split('/').some(p => ['..', '.', ''].includes(p)) && !path.includes('\\'), `unsupported evidence path: ${path}`);
@@ -151,12 +124,13 @@ export function validateCapabilities(matrix, { read = readFileSync } = {}) {
     for (const fixture of cell.presenterFixtures) { demand(matrix.evidence[fixture]?.kind === 'headless-protocol', `missing presenter fixture: ${cell.id}`); used.add(fixture); }
     const evidence = cell.evidence.map(id => { used.add(id); demand(matrix.evidence[id], `unsupported evidence reference: ${cell.id}/${id}`); return matrix.evidence[id]; });
     demand(cell.fallback.behavior === matrix.modules.find(m => m.id === cell.module).fallback, `contradictory fallback: ${cell.id}`);
-    if (cell.status === 'browser-mechanics-qualified') {
+    const sharedState = extensionCapabilityState(cell);
+    if (sharedState.qualified && cell.status === 'browser-mechanics-qualified') {
       const capability = { view: 'read', rendering: 'read', edit: 'edit', copy: 'copy' }[cell.capability];
       demand(cell.host === 'browser' && capability && evidence.length > 0 && evidence.every(e => e.kind === 'browser-proof' && e.module === cell.module && e.capability === capability), `unsupported browser claim: ${cell.id}`);
       const engines = new Set(evidence.map(e => e.engine)); demand(['chromium', 'firefox', 'webkit'].every(e => engines.has(e)), `missing browser engines: ${cell.id}`);
       demand(cell.required === 'rich-parity', `contradictory browser parity: ${cell.id}`);
-    } else if (cell.status === 'portable-qualified') {
+    } else if (sharedState.qualified) {
       if (cell.capability === 'preservation') {
         demand(evidence.some(e => e.fixtureId === 'unknown-type'), `missing unknown preservation: ${cell.id}`);
         const builtin = { references: 'builtin-reference', images: 'builtin-image', tables: 'builtin-table', math: 'builtin-math' }[cell.module];
