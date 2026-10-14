@@ -905,6 +905,111 @@ fn reg05_trigger_delete_explicit_bold_marks() {
     delete_trigger_and_type(true);
 }
 
+// Matches C18's empty-destination committed state. Pending toggles/rejection
+// are editor-local and remain packed-driver assertions, never native claims.
+#[test]
+fn reg05_empty_destination_committed_vector() {
+    let mut d = documents(&["a", ""]);
+    let nodes = d.snapshot().unwrap().visible;
+    let first = nodes[0].id.clone();
+    let empty = nodes[1].id.clone();
+    let origin = TextOrigin::new("local:rgs:empty-destination").unwrap();
+    let plan = d
+        .prepare_editor(
+            &[EditorCommand::MarkAt {
+                owner: first.clone(),
+                from: U(0),
+                to: U(1),
+                mark: Mark::Bold,
+                action: FormatAction::Apply,
+                href: None,
+            }],
+            &origin,
+        )
+        .unwrap();
+    d.commit_editor(plan).unwrap();
+    d.clear_history();
+    let original = d.snapshot().unwrap().visible;
+    let before = frozen(&d);
+    let count = Rc::new(Cell::new(0));
+    let seen = count.clone();
+    let _sub = d
+        .subscribe(PatchScope::All, move |_, _| {
+            seen.set(seen.get() + 1);
+            Ok(())
+        })
+        .unwrap();
+    for (owner, offset) in [(&first, 1), (&empty, 0), (&first, 1), (&empty, 0)] {
+        let anchor = d.anchor(owner, U(offset), Bias::Right).unwrap();
+        match d.resolve_anchor(&anchor).unwrap() {
+            Resolution::Position(p) => {
+                assert_eq!(&p.node, owner);
+                assert_eq!(p.offset, U(offset));
+                assert_eq!(p.bias, Bias::Right);
+            }
+            _ => panic!("missing revisit position"),
+        }
+        assert_eq!(frozen(&d), before);
+        assert_eq!(count.get(), 0);
+    }
+    let point = || EditorPosition {
+        owner: empty.clone(),
+        offset: U(1),
+        bias: Bias::Right,
+    };
+    let plan = d
+        .prepare_editor(
+            &[
+                EditorCommand::ReplaceAt {
+                    owner: empty.clone(),
+                    from: U(0),
+                    to: U(0),
+                    text: "X".into(),
+                },
+                EditorCommand::SelectionAt {
+                    anchor: point(),
+                    focus: point(),
+                },
+            ],
+            &origin,
+        )
+        .unwrap();
+    assert_eq!(frozen(&d), before);
+    assert_eq!(count.get(), 0);
+    let result = d.commit_editor(plan).unwrap();
+    assert_eq!(count.get(), 1);
+    assert_eq!(d.revision(), before.2 + 1);
+    assert_eq!(d.history_state().undo_groups, 1);
+    let after = d.snapshot().unwrap().visible;
+    assert_eq!(after.len(), 2);
+    assert_eq!(after[0].id, first);
+    assert_eq!(after[0].runs, original[0].runs);
+    assert_eq!(after[0].block_attributes, original[0].block_attributes);
+    assert_eq!(after[0].spans[0].source, original[0].spans[0].source);
+    assert_eq!(after[1].id, empty);
+    assert_eq!(after[1].block_attributes, original[1].block_attributes);
+    assert_eq!(
+        after[1]
+            .runs
+            .iter()
+            .map(|r| r.text.as_str())
+            .collect::<String>(),
+        "X"
+    );
+    assert!(after[1].runs.iter().all(|r| r.attributes.is_empty()));
+    let selection = result.result_selection.unwrap();
+    for token in [&selection.anchor, &selection.focus] {
+        match d.resolve_anchor(token).unwrap() {
+            Resolution::Position(p) => {
+                assert_eq!(p.node, empty);
+                assert_eq!(p.offset, U(1));
+                assert_eq!(p.bias, Bias::Right);
+            }
+            _ => panic!("missing empty-destination result"),
+        }
+    }
+}
+
 // G03: retain the actual result tokens through a real unrelated replica delta.
 // Authored oracles are shared with packed WASM, never recorded from execution.
 fn g03_remote_result(id: &str) {

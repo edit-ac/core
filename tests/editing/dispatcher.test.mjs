@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process';
 // Admission must fail before loading a runtime. These failures cannot become
 // an accidental successful zero-test qualification of a misspelled case group.
 for (const [name, args] of [
+  ['variant storage selector on fixtures', ['--group', 'fixtures', '--cases', 'variant-storage']],
   ['selection storage selector on fixtures', ['--group', 'fixtures', '--cases', 'selection-storage']],
   ['recipe storage selector on fixtures', ['--group', 'fixtures', '--cases', 'recipe-storage']],
   ['Unicode storage selector on fixtures', ['--group', 'fixtures', '--cases', 'unicode-storage']],
@@ -105,6 +106,13 @@ test('canonical recipe storage proof is mandatory in semantic dispatch', () => {
 test('selection storage proof is mandatory in canonical semantic dispatch', () => {
   const selected = editingSuites('semantic', 'selection-storage');
   assert.deepEqual(selected, ['tests/editing/selection-storage.test.mjs']);
+  assert.equal(editingSuites('semantic').filter(path => path === selected[0]).length, 1);
+  assert.ok(existsSync(selected[0]));
+});
+
+test('variant storage proof is mandatory in canonical semantic dispatch', () => {
+  const selected = editingSuites('semantic', 'variant-storage');
+  assert.deepEqual(selected, ['tests/editing/variant-storage.test.mjs']);
   assert.equal(editingSuites('semantic').filter(path => path === selected[0]).length, 1);
   assert.ok(existsSync(selected[0]));
 });

@@ -15,6 +15,7 @@ const semantic = [
   'tests/editing/unicode-storage.test.mjs',
   'tests/editing/recipe-storage.test.mjs',
   'tests/editing/selection-storage.test.mjs',
+  'tests/editing/variant-storage.test.mjs',
 ];
 const selected = {
   'regression-variants': semantic[1],
@@ -31,6 +32,7 @@ const selected = {
   'unicode-storage': semantic[12],
   'recipe-storage': semantic[13],
   'selection-storage': semantic[14],
+  'variant-storage': semantic[15],
 };
 export const caseSelectors = Object.freeze(Object.keys(selected));
 export function editingSuites(group, selector) {
