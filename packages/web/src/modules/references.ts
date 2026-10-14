@@ -1,3 +1,5 @@
+import { ServiceLifecycle } from '../services/lifecycle.js';
+import type { ServiceClock, ServiceScope, ServiceFailure } from '../services/lifecycle.js';
 import type { FragmentBlock, PrepareRequest } from '@edit-ac/core';
 import type { RetainedSelection } from '../dom/selection.js';
 import type { SlashContext } from './slash.js';
@@ -25,6 +27,12 @@ export interface ReferenceHostV1 {
   subscribe(listener: () => void): { dispose(): void };
 }
 
+export interface ReferenceLookupOptions {
+  /** Owning document/session/revision, supplied by the presenter or native host. */
+  context?: () => Readonly<{ document: string; session: string; revision: string }>;
+  clock?: ServiceClock;
+}
+let lookupSequence = 0;
 /** Bounded host search admission, reusable by headless/native presenters.
  * Constructing, reading stored atoms and disposal never call resolve/catalog. */
 export class ReferenceLookupSession {
@@ -32,13 +40,22 @@ export class ReferenceLookupSession {
   private accepted: string | undefined;
   private targets: readonly Readonly<ReferenceTarget>[] = [];
   private disposed = false;
+  private readonly defaultSession = `reference-${++lookupSequence}`;
+  private readonly service: ServiceLifecycle;
+  private acceptedScope: Readonly<ServiceScope> | undefined;
+  lastOutcome: 'ready' | ServiceFailure | undefined;
   private readonly subscription: { dispose(): void };
-  constructor(private readonly host: ReferenceHostV1, invalidate: () => void = () => {}) {
+  constructor(private readonly host: ReferenceHostV1, invalidate: () => void = () => {}, private readonly options: ReferenceLookupOptions = {}) {
     if (host.version !== 1 || ['permission', 'catalog', 'resolve', 'subscribe'].some(k => typeof host[k as keyof ReferenceHostV1] !== 'function')) throw Error('Invalid reference host');
-    this.subscription = host.subscribe(() => { if (this.disposed) return; this.cancel(); invalidate(); });
-    if (!this.subscription || typeof this.subscription.dispose !== 'function') throw Error('Invalid reference subscription');
+    const session = this.defaultSession;
+    this.service = new ServiceLifecycle(() => {
+      const permission = this.permission();
+      return { ...(this.options.context?.() ?? { document: session, session, revision: '1' }), permission: permission.revision, authorized: permission.lookup };
+    }, { concurrency: 2, queue: 0, bytes: 512, items: 1, deadlineMs: 10000 }, options.clock);
+    this.subscription = host.subscribe(() => { if (this.disposed) return; this.service.revalidate(); this.cancel(); invalidate(); });
+    if (!this.subscription || typeof this.subscription.dispose !== 'function') { this.service.dispose(); throw Error('Invalid reference subscription'); }
   }
-  cancel(): void { this.pending?.abort(); this.pending = undefined; this.accepted = undefined; this.targets = []; }
+  cancel(): void { this.service.cancel(); this.acceptedScope = undefined; this.pending?.abort(); this.pending = undefined; this.accepted = undefined; this.targets = []; }
   private permission(): Readonly<ReferencePermissionV1> {
     const value = this.host.permission();
     if (!valid(value.revision) || typeof value.lookup !== 'boolean' || typeof value.insert !== 'boolean') throw Error('Invalid reference permission');
@@ -65,14 +82,20 @@ export class ReferenceLookupSession {
     const abort = () => controller.abort(); request.signal.addEventListener('abort', abort, { once: true });
     const current = () => { if (this.disposed || controller.signal.aborted || this.pending !== controller) return false; const now = this.permission(); return now.lookup && now.revision === permission.revision; };
     try {
-      const response = await this.host.resolve(Object.freeze({ query: request.query, requestId: request.requestId, signal: controller.signal }));
-      if (!current()) return [];
+      const scope = { ...(this.options.context?.() ?? { document: this.defaultSession, session: this.defaultSession, revision: '1' }), permission: permission.revision, authorized: permission.lookup };
+      const now = this.options.clock?.now() ?? performance.now();
+      const result = await this.service.run({ scope, bytes: new TextEncoder().encode(request.query).length, items: 1, deadline: now + 10000, signal: controller.signal },
+        signal => this.host.resolve(Object.freeze({ query: request.query, requestId: request.requestId, signal })));
+      this.lastOutcome = result.status;
+      if (result.status === 'provider-failed') throw Error('Reference resolver failed');
+      if (result.status !== 'ready' || !current()) return [];
+      const response = result.value;
       if (!Array.isArray(response) || response.length > 64) throw Error('Reference response exceeds limits');
       const ids = new Set<string>();
       const targets = response.map(target => { const value = this.target(target); if (ids.has(value.targetId)) throw Error('Duplicate reference target'); ids.add(value.targetId); return value; });
       // Host callbacks may re-enter policy/catalog replacement.
-      if (!current()) return [];
-      this.accepted = permission.revision; this.targets = Object.freeze(targets);
+      if (!current() || this.service.check(result.scope)) return [];
+      this.acceptedScope = result.scope; this.accepted = permission.revision; this.targets = Object.freeze(targets);
       return this.targets;
     } finally {
       request.signal.removeEventListener('abort', abort);
@@ -83,13 +106,13 @@ export class ReferenceLookupSession {
     if (this.disposed) return undefined;
     try {
       const before = this.permission();
-      if (this.disposed || this.accepted === undefined || before.revision !== this.accepted || !before.lookup || !before.insert) return undefined;
+      if (!this.acceptedScope || this.service.check(this.acceptedScope) || this.disposed || this.accepted === undefined || before.revision !== this.accepted || !before.lookup || !before.insert) return undefined;
       if (!this.targets.some(value => value.targetId === target.targetId && value.label === target.label)) return undefined;
       const value = this.target(target), after = this.permission();
-      return !this.disposed && after.revision === this.accepted && after.lookup && after.insert ? value : undefined;
+      return !this.disposed && !this.service.check(this.acceptedScope) && after.revision === this.accepted && after.lookup && after.insert ? value : undefined;
     } catch { return undefined; }
   }
-  dispose(): void { if (this.disposed) return; this.disposed = true; this.cancel(); try { this.subscription.dispose(); } catch { /* teardown cannot reactivate a disposed lookup */ } }
+  dispose(): void { if (this.disposed) return; this.disposed = true; this.service.dispose(); this.cancel(); try { this.subscription.dispose(); } catch { /* teardown cannot reactivate a disposed lookup */ } }
 }
 export type ReferenceFactory = (context: SlashContext) => ReferencePresenter;
 const valid = (value: unknown): value is string => typeof value === 'string' && value.length > 0 && value.length <= 512 && !/[\u0000-\u001f\u007f-\u009f]/u.test(value);
@@ -111,6 +134,7 @@ export class ReferencePresenter {
   private readonly items: HTMLElement;
   private readonly status: HTMLElement;
   private session: Session | undefined;
+  private sessionGeneration = 0;
   private captured: RetainedSelection | undefined;
   private pending: AbortController | undefined;
   private requestId = 0;
@@ -148,7 +172,8 @@ export class ReferencePresenter {
     this.listen(this.items, 'focusin', event => { const index = Number((event.target as HTMLElement).dataset.reference); if (Number.isInteger(index)) this.active = index; });
     this.listen(doc, 'focusin', () => { if (!this.inside(doc.activeElement)) { this.clearCapture(); this.dismiss(); } });
     this.listen(doc, 'selectionchange', () => { if (this.session && !this.menu.contains(doc.activeElement)) this.dismiss(); });
-    try { this.lookup = typeof resolve === 'function' ? undefined : new ReferenceLookupSession(resolve, () => this.dismiss()); }
+    try { this.lookup = new ReferenceLookupSession(typeof resolve === 'function' ? { version: 1, permission: () => ({ revision: 'local:1', lookup: true, insert: true }), catalog: targetId => ({ targetId, status: 'cached' }), resolve, subscribe: () => ({ dispose() {} }) } : resolve, () => this.dismiss(), { context: () => { // The node subscription invalidates relevant work; unrelated node edits preserve anchors.
+      const snapshot = context.engine.read(); return { document: JSON.stringify(snapshot.identity), session: `${this.menu.id}:${this.sessionGeneration}`, revision: String(this.requestId) }; } }); }
     catch { this.dispose(); throw Error('Reference host unavailable'); }
     this.resolve = this.lookup ? request => this.lookup!.search(request) : resolve as ReferenceResolver;
   }
@@ -164,7 +189,7 @@ export class ReferencePresenter {
     const a = this.context.engine.resolve(target.range.anchor), b = this.context.engine.resolve(target.range.focus);
     if (a.type !== 'position' || b.type !== 'position' || a.node !== b.node) { target.dispose(); return; }
     const subscription = this.context.engine.subscribe({ type: 'nodes', ids: [a.node] }, () => { if (!this.committing) this.dismiss(); });
-    this.session = { target, node: a.node, subscription };
+    this.sessionGeneration++; this.session = { target, node: a.node, subscription };
     this.search.value = ''; this.menu.hidden = false; this.control.setAttribute('aria-expanded', 'true'); this.search.focus();
     void this.query();
   }

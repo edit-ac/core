@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "producers": [
+    {
+      "profile": {
+        "repository": "core",
+        "path": "contracts/profiles/portable-editor-v5.json",
+        "sha256": "9af204e61db7017381f57fdf8a625f01e1bcd1e98f72d682e229a08ae9af732c"
+      },
+      "observation": null,
+      "qualification": null
+    },
+    {
+      "profile": {
+        "repository": "core",
+        "path": "native/ios/capability.json",
+        "sha256": "0bbf4b96965ee1044cf2e1fe465fc6bcea528adba6debcde311f7ab557a41f39"
+      },
+      "observation": {
+        "adapter": "nat-ios-preparation-v1",
+        "source": {
+          "repository": "architecture",
+          "path": "evidence/native-preparation/nat-1.5-20261013-anchor-fixed/receipt.json",
+          "sha256": "5e97de06ea4276e6de2381de22b72814c759ba542ea7b9809301feb759c112c9"
+        }
+      },
+      "qualification": null
+    },
+    {
+      "profile": {
+        "repository": "core",
+        "path": "native/android/capability.json",
+        "sha256": "028c3b35329f333f24afda7ffc1d2e67773604a8f5f8f51c00719eca330bdc60"
+      },
+      "observation": {
+        "adapter": "nat-android-preparation-v1",
+        "source": {
+          "repository": "architecture",
+          "path": "evidence/native-preparation/nat-1.6-20261013-patch-fixed/receipt.json",
+          "sha256": "a0c67f6630af1218491e3dd03641dd87dc6aa46c05bcb25e38065c36046885d2"
+        }
+      },
+      "qualification": null
+    },
+    {
+      "profile": {
+        "repository": "core",
+        "path": "native/desktop/capability.json",
+        "sha256": "72966cf9be08dbab75d3ea0585f10a7bef3e3f614c1b21ba37293f67327a9281"
+      },
+      "observation": null,
+      "qualification": null
+    }
+  ]
+}

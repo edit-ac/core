@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "owner": "16-ios-sdk",
+  "platform": "swift-ios",
+  "identity": "99642cfc5427f47ba486a50772f7d60e9d4f26d204fb84149913046931a737b5",
+  "runtime": {
+    "kind": "simulator",
+    "target": "CONTRACT FIXTURE ONLY - iPhone simulator",
+    "os": "iOS fixture"
+  },
+  "requirements": [
+    {
+      "capability": "editor.read",
+      "cases": [
+        "native-read"
+      ]
+    },
+    {
+      "capability": "editor.write",
+      "cases": [
+        "native-write"
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "repository": "core",
+      "path": "tests/architecture/profile-producers/fixtures/package.json",
+      "sha256": "820b9b5e67095b5a029928632a86080b83ac3dc124d8b7b682ce6a332f7a6de2"
+    },
+    {
+      "repository": "core",
+      "path": "tests/architecture/profile-producers/fixtures/native-read.json",
+      "sha256": "497232b1f159b81ecab05eb0c575e5d9675033243732496367b4a37ba7e133b9"
+    },
+    {
+      "repository": "core",
+      "path": "tests/architecture/profile-producers/fixtures/native-write.json",
+      "sha256": "48ebfecfaa4364b958aab6965a86f0caac2ac7ba01a2c824b216a1543db906e8"
+    }
+  ],
+  "packageArtifact": {
+    "repository": "core",
+    "path": "tests/architecture/profile-producers/fixtures/package.json",
+    "sha256": "820b9b5e67095b5a029928632a86080b83ac3dc124d8b7b682ce6a332f7a6de2"
+  }
+}

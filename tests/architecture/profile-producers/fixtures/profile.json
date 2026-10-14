@@ -1,0 +1,111 @@
+{
+  "contractVersion": 1,
+  "id": "fixture.native.ios.contract-only",
+  "implementation": {
+    "revision": "6134c12355b0ba6c8bf59ae7a8cee6a5f7ba768b",
+    "package": "editac-ffi",
+    "version": "0.0.0"
+  },
+  "versions": {
+    "semanticSchema": "editac.registry.editor.v5",
+    "updateSync": "editac.yrs-yjs.editor.v5",
+    "updateEncoding": 1,
+    "extensionDescriptor": 1,
+    "publicApi": 1,
+    "nativeAbi": 1,
+    "sourceDialect": "editac.internal"
+  },
+  "platform": "swift-ios",
+  "resources": {
+    "qualified": false,
+    "limits": {
+      "bytes": 16777216,
+      "sources": 4096,
+      "operations": 4096,
+      "spans": 8192,
+      "textBytes": 1048576,
+      "sourceUtf16": 262144,
+      "depth": 128,
+      "jsonDepth": 32,
+      "cutBytes": 256,
+      "controls": 8192,
+      "hierarchyDepth": 128,
+      "registrations": 4096,
+      "edgeVisits": 16777216,
+      "idBytes": 96,
+      "anyValues": 262144,
+      "structs": 262144,
+      "containerEntries": 8192,
+      "allocationClock": 2097152
+    },
+    "evidence": []
+  },
+  "capabilities": [
+    {
+      "id": "editor.read",
+      "state": {
+        "available": true,
+        "enabled": false,
+        "authorized": null,
+        "qualified": true
+      },
+      "permissions": [],
+      "evidence": [
+        "fixture.proof"
+      ]
+    },
+    {
+      "id": "editor.write",
+      "state": {
+        "available": true,
+        "enabled": false,
+        "authorized": null,
+        "qualified": true
+      },
+      "permissions": [
+        "document.write"
+      ],
+      "evidence": [
+        "fixture.proof"
+      ]
+    }
+  ],
+  "converters": [],
+  "inputs": [
+    {
+      "path": "fixtures/schema-v5/profile.json",
+      "sha256": "d0a68db300d2953de29ff8208a4d1208d6ec13cba0544cbf7302ee24acd6b5f9"
+    },
+    {
+      "path": "crates/editac-ffi/src/lib.rs",
+      "sha256": "a3c71871cad4e78731aaadc74074a01cf8864885abbb8dacc087928bd7cbcecc"
+    },
+    {
+      "path": "native/ios/probe/UIKit/Probe.swift",
+      "sha256": "0b9eac086632e00573a66fdff32babe5f7a3c85cc5cb73868f1a5ebfd0932853"
+    },
+    {
+      "path": "Cargo.toml",
+      "sha256": "8548a141c4506f46eb7274163a4e929ccb0f85dd392feb9076f8fd6c8be6b541"
+    },
+    {
+      "path": "crates/editac-ffi/Cargo.toml",
+      "sha256": "d836adc149f0b34a7e6484a7efae7c2e64f32c98098194fa6316fe50d451d6b8"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "fixture.proof",
+      "path": "tests/architecture/profile-producers/fixtures/receipt.json",
+      "sha256": "e5e371042b5e675d4a76b22c1e056a955777472d46d6b3b94e9bb4f56d3dafae",
+      "revision": "e5e371042b5e675d4a76b22c1e056a955777472d46d6b3b94e9bb4f56d3dafae",
+      "implementationRevision": "6134c12355b0ba6c8bf59ae7a8cee6a5f7ba768b",
+      "scopes": [
+        "native.sdk",
+        "editor.read",
+        "editor.write"
+      ],
+      "provenance": "target-runtime-virtual"
+    }
+  ]
+}

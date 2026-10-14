@@ -1,0 +1,290 @@
+{
+  "gate": "FIT-1.3",
+  "sourceRevision": "78b3fd484f3af6ca9ab61b5457cfb1aa45474dbba889a88e863949d9d631cb74",
+  "loadedPromptRevision": "2e18a98412c7",
+  "implementationBaseRevision": "6134c12355b0ba6c8bf59ae7a8cee6a5f7ba768b",
+  "state": "implemented and verified producer boundary; no deployment or new native runtime qualification",
+  "command": "node scripts/check-architecture.mjs --suite profile-producers",
+  "checks": [
+    {
+      "path": "architecture-results/fit-1.3-20261014/validation-1/receipt.json",
+      "sha256": "d4bfe0297c10c39e2efa28bba1bd12dbc6a7dcf727b1c90ac913f69a1c5c271f",
+      "suite": "profile-producers",
+      "exit": 0,
+      "counts": {
+        "tests": 78,
+        "pass": 78,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "artifactHashes": {
+        "tests.tap": "99b173f035acc9c9950db7e438536db2c41a8e39c623a49ec7a112060c6d60ea",
+        "profile-producers-inventory.json": "02a61ec49ea547208e528ec436cfe42ecf1e8570dcec39cae6dfd795725415ef",
+        "release-profile.json": "09614ed79303a97d7dd1603608106c6de14f76ee39c335130c700fbbdf200ac8"
+      },
+      "current": false,
+      "note": "superseded by desktop producer and exact native crate pins"
+    },
+    {
+      "path": "architecture-results/fit-1.3-20261014/validation-2/receipt.json",
+      "sha256": "ffc90920fda6481c5ef220ba6d012d4f86d1b1df687d4a06954b059b78c21233",
+      "suite": "profile-producers",
+      "exit": 0,
+      "counts": {
+        "tests": 80,
+        "pass": 80,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "artifactHashes": {
+        "tests.tap": "bcbea26d1475ed95494e035094082b5a24f136eade579c428991aa07797a9798",
+        "profile-producers-inventory.json": "039085a333c70e295c2e807ce8109aa971fddf1b501ec09c1b2e6f82058b5e7e",
+        "release-profile.json": "c0f2ea060d8afccf45d0af20d971892aa1a1cadcf9fd92c0e84d0742aa3bdc1c"
+      },
+      "current": true,
+      "note": "current verified inputs"
+    },
+    {
+      "path": "architecture-results/fit-1.3-20261014/profiles-regression/receipt.json",
+      "sha256": "324a92836b597854d74b93593114c0731a0e82ab554a8fb9c77ccda8f2062b36",
+      "suite": "profiles",
+      "exit": 0,
+      "counts": {
+        "tests": 342,
+        "pass": 342,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "artifactHashes": {
+        "tests.tap": "9065f809403c3352ae3e7682bdeda0151715d47e5088284220b31c7b808c229b",
+        "profiles-inventory.json": "97a75188ff41c7271b1f5d82c690afeb233ba0e1328d082158b493c85b5d5055"
+      },
+      "current": true,
+      "note": "current verified inputs"
+    },
+    {
+      "path": "architecture-results/fit-1.3-20261014/layers-regression/receipt.json",
+      "sha256": "0dc48005a606f0384311f368687ee0c061f2d13fec2141280176abd07b447a8e",
+      "suite": "layers",
+      "exit": 0,
+      "counts": {
+        "tests": 72,
+        "pass": 72,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "artifactHashes": {
+        "tests.tap": "421d7b1eb07ebf40b25816b2ecf0061da50f5a27ad846b73d1bb7b8719111fd1",
+        "layers-graph.json": "451db1a8632bd9feb122531f5fa71d8e95938bf0d56053c3b2c1ad817ec36423"
+      },
+      "current": true,
+      "note": "current verified inputs"
+    }
+  ],
+  "releaseRecord": {
+    "path": "architecture-results/fit-1.3-20261014/validation-2/release-profile.json",
+    "sha256": "c0f2ea060d8afccf45d0af20d971892aa1a1cadcf9fd92c0e84d0742aa3bdc1c",
+    "contentRevision": "817c7ab7cba979c4a38953d3639db64f49f08160dd0a1fdf8dc72ef179f1d1d0",
+    "producerImplementation": {
+      "capabilities.schema.json": "511c81b8fa97fca1dfc5130cd66b383166b346965a48a837db626559c894b5d4",
+      "capability-contract.mjs": "dc7e0703e4b3ed1613938c8decaaaf3227e3a6658b7568ef05b6adda7c731ae3",
+      "contract-schema.mjs": "04a669a4a6bb0b2c51afba598c35df20c8bcd48099d03f3c8b1490837f15705e",
+      "profile-producers.mjs": "6876215d1b618ce0c9e3631799de0f22b91bd479c7f2680df0f4e1bdcd9d68bb",
+      "release-profile.mjs": "2ac31728bb1f35bb7ebb273cdc17ae3039833ab439686b2a0834aa8185d98374"
+    }
+  },
+  "profiles": [
+    {
+      "id": "portable.editor.v5",
+      "source": {
+        "path": "contracts/profiles/portable-editor-v5.json",
+        "repository": "core",
+        "sha256": "9af204e61db7017381f57fdf8a625f01e1bcd1e98f72d682e229a08ae9af732c"
+      },
+      "implementation": {
+        "package": "@edit-ac/core",
+        "revision": "72f900e5a8526e5cee96643a29c48d038376c6c7",
+        "version": "0.0.0"
+      },
+      "versions": {
+        "extensionDescriptor": 1,
+        "nativeAbi": 1,
+        "publicApi": 1,
+        "semanticSchema": "editac.registry.editor.v5",
+        "sourceDialect": "editac.internal",
+        "updateEncoding": 1,
+        "updateSync": "editac.yrs-yjs.editor.v5"
+      },
+      "support": {
+        "reason": "owning-qualification-missing",
+        "scope": "portable.inventory",
+        "state": "pending"
+      }
+    },
+    {
+      "id": "native.ios.pending.v1",
+      "source": {
+        "path": "native/ios/capability.json",
+        "repository": "core",
+        "sha256": "0bbf4b96965ee1044cf2e1fe465fc6bcea528adba6debcde311f7ab557a41f39"
+      },
+      "implementation": {
+        "package": "editac-ffi",
+        "revision": "6134c12355b0ba6c8bf59ae7a8cee6a5f7ba768b",
+        "version": "0.0.0"
+      },
+      "versions": {
+        "extensionDescriptor": 1,
+        "nativeAbi": 1,
+        "publicApi": 1,
+        "semanticSchema": "editac.registry.editor.v5",
+        "sourceDialect": "editac.internal",
+        "updateEncoding": 1,
+        "updateSync": "editac.yrs-yjs.editor.v5"
+      },
+      "support": {
+        "reason": "owning-qualification-missing",
+        "scope": "native.sdk",
+        "state": "pending"
+      }
+    },
+    {
+      "id": "native.android.pending.v1",
+      "source": {
+        "path": "native/android/capability.json",
+        "repository": "core",
+        "sha256": "028c3b35329f333f24afda7ffc1d2e67773604a8f5f8f51c00719eca330bdc60"
+      },
+      "implementation": {
+        "package": "editac-ffi",
+        "revision": "6134c12355b0ba6c8bf59ae7a8cee6a5f7ba768b",
+        "version": "0.0.0"
+      },
+      "versions": {
+        "extensionDescriptor": 1,
+        "nativeAbi": 1,
+        "publicApi": 1,
+        "semanticSchema": "editac.registry.editor.v5",
+        "sourceDialect": "editac.internal",
+        "updateEncoding": 1,
+        "updateSync": "editac.yrs-yjs.editor.v5"
+      },
+      "support": {
+        "reason": "owning-qualification-missing",
+        "scope": "native.sdk",
+        "state": "pending"
+      }
+    },
+    {
+      "id": "native.desktop.pending.v1",
+      "source": {
+        "path": "native/desktop/capability.json",
+        "repository": "core",
+        "sha256": "72966cf9be08dbab75d3ea0585f10a7bef3e3f614c1b21ba37293f67327a9281"
+      },
+      "implementation": {
+        "package": "editac-ffi",
+        "revision": "6134c12355b0ba6c8bf59ae7a8cee6a5f7ba768b",
+        "version": "0.0.0"
+      },
+      "versions": {
+        "extensionDescriptor": 1,
+        "nativeAbi": 1,
+        "publicApi": 1,
+        "semanticSchema": "editac.registry.editor.v5",
+        "sourceDialect": "editac.internal",
+        "updateEncoding": 1,
+        "updateSync": "editac.yrs-yjs.editor.v5"
+      },
+      "support": {
+        "reason": "owning-qualification-missing",
+        "scope": "native.sdk",
+        "state": "pending"
+      }
+    }
+  ],
+  "existingProducerEvidence": [
+    {
+      "source": {
+        "path": "evidence/native-preparation/nat-1.5-20261013-anchor-fixed/receipt.json",
+        "repository": "architecture",
+        "sha256": "5e97de06ea4276e6de2381de22b72814c759ba542ea7b9809301feb759c112c9"
+      },
+      "runtime": {
+        "kind": "simulator",
+        "os": "com.apple.CoreSimulator.SimRuntime.iOS-26-5",
+        "target": "com.apple.CoreSimulator.SimDeviceType.iPhone-17"
+      },
+      "counts": {
+        "executed": 7,
+        "failed": 0,
+        "passed": 7,
+        "skipped": 0
+      },
+      "qualification": "historical preparation only; changed source inputs; no supported SDK claim",
+      "inputDrift": [
+        "Cargo.lock",
+        "crates/editac-core/Cargo.toml",
+        "crates/editac-core/src/anchors.rs",
+        "crates/editac-core/src/clipboard.rs",
+        "crates/editac-core/src/commands/blocks.rs",
+        "crates/editac-core/src/commands/editor.rs",
+        "crates/editac-core/src/commands/format.rs",
+        "crates/editac-core/src/commands/text.rs",
+        "crates/editac-core/src/history.rs",
+        "crates/editac-core/src/modules/content.rs",
+        "crates/editac-core/src/modules/mod.rs",
+        "crates/editac-core/src/projection.rs",
+        "crates/editac-wasm/src/bridge.rs"
+      ]
+    },
+    {
+      "source": {
+        "path": "evidence/native-preparation/nat-1.6-20261013-patch-fixed/receipt.json",
+        "repository": "architecture",
+        "sha256": "a0c67f6630af1218491e3dd03641dd87dc6aa46c05bcb25e38065c36046885d2"
+      },
+      "runtime": {
+        "kind": "emulator",
+        "os": "Android API 36",
+        "target": "system-images;android-36;google_apis;arm64-v8a"
+      },
+      "counts": {
+        "executed": 8,
+        "failed": 0,
+        "passed": 8,
+        "skipped": 0
+      },
+      "qualification": "historical preparation only; changed source inputs; no supported SDK claim",
+      "inputDrift": [
+        "Cargo.lock",
+        "crates/editac-core/Cargo.toml",
+        "crates/editac-core/src/anchors.rs",
+        "crates/editac-core/src/clipboard.rs",
+        "crates/editac-core/src/commands/blocks.rs",
+        "crates/editac-core/src/commands/editor.rs",
+        "crates/editac-core/src/commands/format.rs",
+        "crates/editac-core/src/commands/text.rs",
+        "crates/editac-core/src/history.rs",
+        "crates/editac-core/src/modules/content.rs",
+        "crates/editac-core/src/modules/mod.rs",
+        "crates/editac-core/src/projection.rs",
+        "crates/editac-wasm/src/bridge.rs"
+      ]
+    }
+  ],
+  "limits": [
+    "80 deterministic producer tests include prepared future-admission contracts, actual historical receipt adaptation and real CLI/shared consumer execution. No SDK runtime was executed by this suite.",
+    "Production registry includes portable inventory and pending iOS, Android and desktop; supportedNative=0.",
+    "Physical hardware is optional; reviewed exact-runtime/equivalent qualification and packaged artifacts remain mandatory.",
+    "Existing FIT-1.1 upstream 08/12/21 entry evidence retained unchanged in architecture-results/fit-1.1-20261014/upstream-entry-check.json."
+  ]
+}

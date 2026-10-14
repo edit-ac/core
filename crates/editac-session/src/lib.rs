@@ -19,3 +19,6 @@ pub mod operations;
 pub mod history_store;
 
 pub mod review_apply;
+
+/// Optional derived-work admission, independent of store/transport durability.
+pub mod service_lifecycle;

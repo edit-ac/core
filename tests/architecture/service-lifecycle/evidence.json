@@ -1,0 +1,239 @@
+{
+  "version": 1,
+  "gate": "FIT-1.4",
+  "sourceRevision": "78b3fd484f3af6ca9ab61b5457cfb1aa45474dbba889a88e863949d9d631cb74",
+  "scope": "Bounded derived-service lifecycle in Rust/TypeScript, production reference lookup and packed presenters. Highlight/async asset/conversion providers are prepared contract registrations only, pending owning runtime tracks. No semantic-store rewrite, native/resource/runtime/provider-quality or release claim.",
+  "toolchain": {
+    "node": "24.19.0"
+  },
+  "registry": {
+    "path": "contracts/services.json",
+    "sha256": "cd99e0f3bea96ca6a86ab593eca0419ec8e8b5d2a932be0c6d46b2ef93797f35"
+  },
+  "validation": [
+    {
+      "path": "architecture-results/fit-1.4-20261014/validation-1/receipt.json",
+      "sha256": "85a3a27ecc1399f6beb62415196495ea72352acd0cb24247f78f92394308b6c7",
+      "suite": "service-lifecycle",
+      "exit": 1,
+      "counts": {
+        "tests": 71,
+        "pass": 70,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "errors": [
+        "Incomplete architecture tests: {\"tests\":71,\"pass\":70,\"fail\":1,\"cancelled\":0,\"skipped\":0,\"todo\":0}"
+      ],
+      "implementationBaseline": "69aeb60eb0e60492722a3a199f74a7d5a64fdf4a",
+      "implementationSnapshotSha256": "3b74ad3bea83ec7cd1628a36feda10a57a2643d243701ae577ae9687a1a348d1"
+    },
+    {
+      "path": "architecture-results/fit-1.4-20261014/validation-2/receipt.json",
+      "sha256": "22e15f02db5d284b20d4c29a1ad5a71801e7bedb841bdb194f540995b9514b53",
+      "suite": "service-lifecycle",
+      "exit": 0,
+      "counts": {
+        "tests": 72,
+        "pass": 72,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "errors": [],
+      "implementationBaseline": "69aeb60eb0e60492722a3a199f74a7d5a64fdf4a",
+      "implementationSnapshotSha256": "7b8f143a2e09ca3b7a9340de994a4102019425c8777e98eb5fc77df726d6987e"
+    },
+    {
+      "path": "architecture-results/fit-1.4-20261014/validation-3/receipt.json",
+      "sha256": "53a0be38723254444785ca057d8b8be20dbfa642908e86e7da567a1e72011a40",
+      "suite": "service-lifecycle",
+      "exit": 0,
+      "counts": {
+        "tests": 72,
+        "pass": 72,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "errors": [],
+      "implementationBaseline": "69aeb60eb0e60492722a3a199f74a7d5a64fdf4a",
+      "implementationSnapshotSha256": "5414d36d1b9c37e86db4d238bb285afc8b8569f7f2f2ebdcf050dd16a4336993"
+    },
+    {
+      "path": "architecture-results/fit-1.4-20261014/profiles-regression/receipt.json",
+      "sha256": "2bb46933f85780bc6605893c48fd1e94e128b4d3307ac3b336ad978526accf57",
+      "suite": "profiles",
+      "exit": 0,
+      "counts": {
+        "tests": 342,
+        "pass": 342,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "errors": [],
+      "implementationBaseline": "69aeb60eb0e60492722a3a199f74a7d5a64fdf4a",
+      "implementationSnapshotSha256": "cc2b7aef63a1e6ca80e6402ea8a1d535723afccc8c5c812640d8a2bf12ffd2cd"
+    },
+    {
+      "path": "architecture-results/fit-1.4-20261014/layers-regression/receipt.json",
+      "sha256": "4461433c53df8c4017ac613b033bf1bd82aca60e71d8059aebf9565ce6559a20",
+      "suite": "layers",
+      "exit": 0,
+      "counts": {
+        "tests": 72,
+        "pass": 72,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "errors": [],
+      "implementationBaseline": "69aeb60eb0e60492722a3a199f74a7d5a64fdf4a",
+      "implementationSnapshotSha256": "385ad7a9b1420824a9918572ac6b162f55362fe86325b3ec4b84c1dc55f20c30"
+    }
+  ],
+  "rustLifecycle": {
+    "path": "architecture-results/fit-1.4-20261014/validation-3/rust-lifecycle.json",
+    "sha256": "aef239cd88096e2ec0b8be877522cde565e28bf6fd30fef3ed325acfe6d519d9",
+    "counts": {
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "filtered": 0
+    }
+  },
+  "resolverIntegration": [
+    {
+      "command": "cargo test -p editac-core --test extension_references --locked --offline",
+      "exit": 0,
+      "counts": {
+        "passed": 2,
+        "failed": 0,
+        "skipped": 0,
+        "filtered": 0
+      },
+      "path": "architecture-results/fit-1.4-20261014/resolver-integration/core.log",
+      "sha256": "29932763f0c1bbfa53f77525a5a705970c332571798c875aa1b9207e80ceec64"
+    },
+    {
+      "command": "cargo test -p editac-session --test extension_reference_catalog --locked --offline",
+      "exit": 0,
+      "counts": {
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0,
+        "filtered": 0
+      },
+      "path": "architecture-results/fit-1.4-20261014/resolver-integration/catalog.log",
+      "sha256": "52bbc2c33a02f7da4bb5124126f82628a379d2cb94502339b0d91e9079eccc27"
+    },
+    {
+      "command": "node --test --test-reporter=tap tests/extension-references.test.mjs",
+      "exit": 0,
+      "counts": {
+        "tests": 18,
+        "pass": 18,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "path": "architecture-results/fit-1.4-20261014/resolver-integration/web.tap",
+      "sha256": "bbc0474743481be118f49432b8e97c8fcb5bdcc74b664603e7253a68b410475e",
+      "environment": "isolated EDITAC_EXTENSION_REFERENCES_OUTPUT populated by real engine/catalog Rust targets above"
+    }
+  ],
+  "browsers": [
+    {
+      "path": "architecture/evidence/architecture-fitness/service-lifecycle/browser-1/chromium/receipt.json",
+      "sha256": "fd1d6e1bd7caaecf535db90db2d7e6c86542fd37582f26b84cad09a7c21222e2",
+      "engine": "chromium",
+      "counts": {
+        "executed": 27,
+        "passed": 27,
+        "failed": 0,
+        "skipped": 0
+      },
+      "cleanup": {
+        "browserExited": true,
+        "serverClosed": true,
+        "consumerRemoved": true
+      }
+    },
+    {
+      "path": "architecture/evidence/architecture-fitness/service-lifecycle/browser-1/firefox/receipt.json",
+      "sha256": "1630868a4531de3c308e3b6c5e9f71ab3b47aa7c86adad145c81b7100c9d0854",
+      "engine": "firefox",
+      "counts": {
+        "executed": 27,
+        "passed": 27,
+        "failed": 0,
+        "skipped": 0
+      },
+      "cleanup": {
+        "browserExited": true,
+        "serverClosed": true,
+        "consumerRemoved": true
+      }
+    },
+    {
+      "path": "architecture/evidence/architecture-fitness/service-lifecycle/browser-1/webkit/receipt.json",
+      "sha256": "1b8e6b028134c6498c02e92c356c1ecc42dbc827bf2511d2e98d908704e51962",
+      "engine": "webkit",
+      "counts": {
+        "executed": 27,
+        "passed": 27,
+        "failed": 0,
+        "skipped": 0
+      },
+      "cleanup": {
+        "browserExited": true,
+        "serverClosed": true,
+        "consumerRemoved": true
+      }
+    }
+  ],
+  "otherChecks": [
+    {
+      "command": "npm run build --workspace @edit-ac/core --workspace @edit-ac/web",
+      "exit": 0,
+      "log": "architecture-results/fit-1.4-20261014/build-3.log",
+      "sha256": "1067f10623a5b3814d00c59eb81754335d9ebcd4c0e0719910c46588d7e1d4f9"
+    },
+    {
+      "command": "cargo fmt --all -- --check",
+      "exit": 0,
+      "log": "architecture-results/fit-1.4-20261014/format-2.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "retainedFailures": [
+    {
+      "path": "architecture-results/fit-1.4-20261014/validation-1/receipt.json",
+      "reason": "Rust test assertion required equality on ServiceRequest; repaired comparison to terminal error tuple."
+    },
+    {
+      "path": "architecture-results/fit-1.4-20261014/format.log",
+      "sha256": "90a11ee13362a226fc9a5c78c54be5defe23187624db6527410d0f0c8b5b34d5",
+      "reason": "New Rust file initially formatted with default edition; repaired to workspace edition 2024."
+    }
+  ],
+  "qualificationLimits": {
+    "pendingFamilies": [
+      "highlight",
+      "asset",
+      "conversion"
+    ],
+    "resolverResourcePolicy": "2 concurrent / 0 queued / 512 UTF-8 query bytes / 1 item / 10s deadline; existing 64 target and identifier/label bounds retained",
+    "durability": "Actual Rust local session acknowledgment survives derived cancellation/disposal; prepared memory store does not qualify process-crash durability",
+    "paidInference": false,
+    "publication": false
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "kind": "target-runtime-case",
+  "caseId": "native-write",
+  "identity": "99642cfc5427f47ba486a50772f7d60e9d4f26d204fb84149913046931a737b5",
+  "runtime": {
+    "kind": "simulator",
+    "target": "CONTRACT FIXTURE ONLY - iPhone simulator",
+    "os": "iOS fixture"
+  },
+  "mode": "virtual-equivalent",
+  "counts": {
+    "executed": 1,
+    "passed": 1,
+    "failed": 0,
+    "skipped": 0
+  },
+  "observation": "Prepared admission-contract fixture; no target runtime executed",
+  "fallback": "Prepared equivalent/fallback contract field; no platform qualification"
+}
