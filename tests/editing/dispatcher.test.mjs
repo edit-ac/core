@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process';
 // Admission must fail before loading a runtime. These failures cannot become
 // an accidental successful zero-test qualification of a misspelled case group.
 for (const [name, args] of [
+  ['pending selector on fixtures', ['--group', 'fixtures', '--cases', 'pending']],
   ['Unicode selector on fixtures', ['--group', 'fixtures', '--cases', 'unicode']],
   ['mixed selector on fixtures', ['--group', 'fixtures', '--cases', 'mixed-batch']],
   ['schema selector on fixtures', ['--group', 'fixtures', '--cases', 'schema-rejection']],
@@ -35,6 +36,13 @@ test('mixed proof is mandatory in the canonical semantic group and has a real su
 test('Unicode proof is mandatory in canonical semantic dispatch', () => {
   const selected = editingSuites('semantic', 'unicode');
   assert.deepEqual(selected, ['tests/editing/unicode.test.mjs']);
+  assert.equal(editingSuites('semantic').filter(path => path === selected[0]).length, 1);
+  assert.ok(existsSync(selected[0]));
+});
+
+test('pending proof is mandatory in canonical semantic dispatch', () => {
+  const selected = editingSuites('semantic', 'pending');
+  assert.deepEqual(selected, ['tests/editing/pending.test.mjs']);
   assert.equal(editingSuites('semantic').filter(path => path === selected[0]).length, 1);
   assert.ok(existsSync(selected[0]));
 });

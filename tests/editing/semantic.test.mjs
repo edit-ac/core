@@ -91,24 +91,7 @@ caseTest('G02/G03/G04/G06 independent checkpoint negative controls', fact => {
     assertCheckpoint(actual, expected); expected.state.selection = select(1, 4); assert.throws(() => assertCheckpoint(actual, expected), assert.AssertionError); facts.negativeControls.push('G03-direction'); fact.checkpoints++;
   });
 });
-caseTest('REG-05 pending empty/context, movement and code rejection', fact => {
-  const initial = { blocks: [block('p1', 'a', 'paragraph', [{ from: 0, to: 1, type: 'bold' }]), block('p2', '', 'code')], selection: select(1), pendingMarks: null };
-  driver(initial, d => {
-    const old = d.frozen(); const off = d.act({ type: 'toggleMark', mark: 'bold' }); assert.deepEqual(off.state.pendingMarks, []); assert.deepEqual(Buffer.from(d.engine.stateVector()), old.vector); assert.deepEqual(d.engine.history({ type: 'state' }), old.history);
-    const plain = d.act({ type: 'insertText', text: 'x' }); assertCheckpoint(plain, { outcome: 'applied', effects: { localCommits: 1, remoteCommits: 0 }, state: { ...initial, blocks: [block('p1', 'ax', 'paragraph', initial.blocks[0].marks), initial.blocks[1]], selection: select(2), pendingMarks: [] } });
-    d.act({ type: 'setSelection', selection: select(0, 0, 'forward', 'p2') }); const before = d.frozen(); assert.equal(d.act({ type: 'toggleMark', mark: 'bold' }).outcome, 'rejected'); assert.deepEqual(d.frozen(), before);
-    d.act({ type: 'setSelection', selection: select(1, 1, 'backward') }); const derive = d.act({ type: 'insertText', text: 'Y' }); assert.equal(derive.state.pendingMarks, null); assert.deepEqual(derive.state.blocks[0], block('p1', 'aYx', 'paragraph', [{ from: 0, to: 2, type: 'bold' }]));
-    fact.checkpoints += 4;
-  });
-});
-caseTest('REG-05 pending override survives split and clears on movement', fact => driver(state('', 0), d => {
-  d.act({ type: 'toggleMark', mark: 'bold' }); d.act({ type: 'insertText', text: 'X' });
-  const split = d.act({ type: 'insertParagraph', newBlockId: 'p2' });
-  assertCheckpoint(split, { outcome: 'applied', effects: { localCommits: 1, remoteCommits: 0 }, state: { blocks: [block('p1', 'X', 'paragraph', [{ from: 0, to: 1, type: 'bold' }]), block('p2', '')], selection: select(0, 0, 'forward', 'p2'), pendingMarks: ['bold'] } });
-  const typed = d.act({ type: 'insertText', text: 'Y' }); assert.deepEqual(typed.state.blocks[1], block('p2', 'Y', 'paragraph', [{ from: 0, to: 1, type: 'bold' }]));
-  d.act({ type: 'setSelection', selection: select(1) }); const moved = d.act({ type: 'setSelection', selection: select(1, 1, 'forward', 'p2') }); assert.equal(moved.state.pendingMarks, null);
-  const context = d.act({ type: 'insertText', text: 'Z' }); assert.deepEqual(context.state.blocks[1], block('p2', 'YZ', 'paragraph', [{ from: 0, to: 2, type: 'bold' }])); fact.checkpoints += 4;
-}));
+// Complete G04 owning assertions live in pending.test.mjs, included by canonical dispatch.
 caseTest('REG-06 schema crossing rejects without stripping bold suffix', fact => {
   const initial = { blocks: [block('p1', 'ab', 'code'), block('p2', 'cd', 'paragraph', [{ from: 0, to: 2, type: 'bold' }])], selection: { anchor: { block: 'p2', offset: 1 }, focus: { block: 'p1', offset: 1 }, affinity: 'forward' }, pendingMarks: null };
   driver(initial, d => {
