@@ -414,3 +414,15 @@ searches document text or nested attributes for field names. An independent
 diagnostic-like keys, escaped strings, Unicode and each empty/nonempty delta
 combination. This removes the second full run traversal while preserving the
 first-read diagnostics and the existing detached-read/invalidation contract.
+
+Surface input activation reuses the renderer's admitted projection rather than
+reading and retaining another full engine snapshot. The input text lookup reads
+model runs, including the latest deferred patch while composition holds a DOM
+block. Removed/hidden nodes yield no baseline; uncommitted native DOM mutations
+cannot become the source of truth. The lookup belongs to the same live engine
+and becomes empty when the renderer is disposed. This removes the input adapter's
+duplicate text map and patch subscription. Packed browser regressions compare the
+lookup with independent engine reads, exercise held updates/removal, and commit
+observer-only native input. The full loading producer still measures the original
+Task/Long corpus, oracle work, exact restoration and unchanged startup limits;
+this optimization alone does not qualify startup or the full performance gate.
