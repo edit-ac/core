@@ -56,6 +56,10 @@ func prepare(_ s: NativeSession, _ text: String) throws -> String {
 func text(_ s: NativeSession) throws -> String { try s.read(now: 0).nodes[0].text }
 var cases: [[String: Any]] = []
 func test(_ id: String, _ body: () throws -> Void) {
+    let selectors = CommandLine.arguments.enumerated().compactMap { index, arg in
+        arg == "--case" && index + 1 < CommandLine.arguments.count ? CommandLine.arguments[index + 1] : nil
+    }
+    if !selectors.isEmpty && !selectors.contains(id) { return }
     do { try body(); cases.append(["id": id, "passed": true]) }
     catch { cases.append(["id": id, "passed": false, "error": String(describing: error)]) }
 }
@@ -204,6 +208,9 @@ test("ordered-dispose-versus-accepted-commit") {
     let reopened = try NativeSession.open(options: o); defer { try? reopened.dispose() }
     let t = try text(reopened)
     try require((result.outcomes.contains("commit") && t == "AxB") || (result.outcomes.contains("disposed") && t == "A🦀B"), "dispose did not await accepted commit")
+}
+if let index = CommandLine.arguments.firstIndex(of: "--rich-fixture") {
+    runRichCases(CommandLine.arguments[index + 1])
 }
 if instrumented {
     test("generated-buffer-and-handle-cleanup") {

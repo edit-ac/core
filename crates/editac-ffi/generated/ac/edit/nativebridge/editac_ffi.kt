@@ -713,6 +713,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_cancel_edits(
     ): Int
+    external fun uniffi_editac_ffi_checksum_method_nativesession_capture_anchors(
+    ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_commit_edits(
     ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_dispose(
@@ -727,7 +729,15 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_redo(
     ): Int
+    external fun uniffi_editac_ffi_checksum_method_nativesession_release_anchor(
+    ): Int
+    external fun uniffi_editac_ffi_checksum_method_nativesession_resolve_anchor(
+    ): Int
+    external fun uniffi_editac_ffi_checksum_method_nativesession_rich_snapshot(
+    ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_set_permission(
+    ): Int
+    external fun uniffi_editac_ffi_checksum_method_nativesession_take_rich_patches(
     ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_undo(
     ): Int
@@ -811,6 +821,8 @@ internal object UniffiLib {
     ): Long
     external fun uniffi_editac_ffi_fn_method_nativesession_cancel_edits(`ptr`: Long,`token`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
+    external fun uniffi_editac_ffi_fn_method_nativesession_capture_anchors(`ptr`: Long,`revision`: RustBuffer.ByValue,`inputs`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
     external fun uniffi_editac_ffi_fn_method_nativesession_commit_edits(`ptr`: Long,`token`: RustBuffer.ByValue,`now`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     external fun uniffi_editac_ffi_fn_method_nativesession_dispose(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
@@ -825,8 +837,16 @@ internal object UniffiLib {
     ): RustBuffer.ByValue
     external fun uniffi_editac_ffi_fn_method_nativesession_redo(`ptr`: Long,`revision`: RustBuffer.ByValue,`now`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
+    external fun uniffi_editac_ffi_fn_method_nativesession_release_anchor(`ptr`: Long,`token`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
+    external fun uniffi_editac_ffi_fn_method_nativesession_resolve_anchor(`ptr`: Long,`token`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_editac_ffi_fn_method_nativesession_rich_snapshot(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
     external fun uniffi_editac_ffi_fn_method_nativesession_set_permission(`ptr`: Long,`writable`: Byte,`expiresAt`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
+    external fun uniffi_editac_ffi_fn_method_nativesession_take_rich_patches(`ptr`: Long,`afterSequence`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
     external fun uniffi_editac_ffi_fn_method_nativesession_undo(`ptr`: Long,`revision`: RustBuffer.ByValue,`now`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     external fun uniffi_editac_ffi_fn_func_abi_version(uniffi_out_err: UniffiRustCallStatus, 
@@ -1007,6 +1027,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_editac_ffi_checksum_method_nativesession_cancel_edits() and 0xFFFF) != 14748) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if ((lib.uniffi_editac_ffi_checksum_method_nativesession_capture_anchors() and 0xFFFF) != 33574) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_editac_ffi_checksum_method_nativesession_commit_edits() and 0xFFFF) != 20568) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -1028,7 +1051,19 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_editac_ffi_checksum_method_nativesession_redo() and 0xFFFF) != 43503) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if ((lib.uniffi_editac_ffi_checksum_method_nativesession_release_anchor() and 0xFFFF) != 30069) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_editac_ffi_checksum_method_nativesession_resolve_anchor() and 0xFFFF) != 59413) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_editac_ffi_checksum_method_nativesession_rich_snapshot() and 0xFFFF) != 43350) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_editac_ffi_checksum_method_nativesession_set_permission() and 0xFFFF) != 8942) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_editac_ffi_checksum_method_nativesession_take_rich_patches() and 0xFFFF) != 44957) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_editac_ffi_checksum_method_nativesession_undo() and 0xFFFF) != 34245) {
@@ -2023,6 +2058,12 @@ public interface NativeSessionInterface {
     fun `cancelEdits`(`token`: kotlin.String)
     
     /**
+     * Capture all endpoints against one observed revision. Validate every target
+     * before retaining anything, so an invalid endpoint cannot leak anchor slots.
+     */
+    fun `captureAnchors`(`revision`: kotlin.ByteArray, `inputs`: List<AnchorInput>): List<NativeSessionAnchor>
+    
+    /**
      * Single use, including failed admission. Current permission/revision is checked
      * again by EditService. Cancellation cannot interrupt an accepted commit.
      */
@@ -2049,9 +2090,32 @@ public interface NativeSessionInterface {
     fun `redo`(`revision`: kotlin.ByteArray, `now`: kotlin.ULong): NativeSessionCommit?
     
     /**
+     * Idempotent for unknown/foreign tokens; cleanup is available during recovery.
+     */
+    fun `releaseAnchor`(`token`: kotlin.String)
+    
+    /**
+     * Resolve the retained shared sticky position against the current committed
+     * revision, including deleted and unresolvable outcomes without local fallback.
+     */
+    fun `resolveAnchor`(`token`: kotlin.String): NativeSessionAnchorRead
+    
+    /**
+     * Establish/reset this handle's incremental cursor. Recovery-required state
+     * cannot mint an acknowledged projection; salvage remains recoveryExport.
+     */
+    fun `richSnapshot`(): NativeSessionProjection
+    
+    /**
      * Trusted host permission replacement, serialized with every prepared admission.
      */
     fun `setPermission`(`writable`: kotlin.Boolean, `expiresAt`: kotlin.ULong?)
+    
+    /**
+     * A single bounded consumer shared by all aliases. Failed reads never drain.
+     * Overflow requires richSnapshot; no event is silently omitted or coalesced.
+     */
+    fun `takeRichPatches`(`afterSequence`: kotlin.ULong): NativeSessionPatches
     
     fun `undo`(`revision`: kotlin.ByteArray, `now`: kotlin.ULong): NativeSessionCommit?
     
@@ -2182,6 +2246,26 @@ open class NativeSession: Disposable, AutoCloseable, NativeSessionInterface
 
     
     /**
+     * Capture all endpoints against one observed revision. Validate every target
+     * before retaining anything, so an invalid endpoint cannot leak anchor slots.
+     */
+    @Throws(NativeSessionException::class)override fun `captureAnchors`(`revision`: kotlin.ByteArray, `inputs`: List<AnchorInput>): List<NativeSessionAnchor> {
+            return FfiConverterSequenceTypeNativeSessionAnchor.lift(
+    callWithHandle {
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_method_nativesession_capture_anchors(
+        it,
+        
+        FfiConverterByteArray.lower(`revision`),
+        FfiConverterSequenceTypeAnchorInput.lower(`inputs`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
      * Single use, including failed admission. Current permission/revision is checked
      * again by EditService. Cancellation cannot interrupt an accepted commit.
      */
@@ -2299,6 +2383,60 @@ open class NativeSession: Disposable, AutoCloseable, NativeSessionInterface
 
     
     /**
+     * Idempotent for unknown/foreign tokens; cleanup is available during recovery.
+     */
+    @Throws(NativeSessionException::class)override fun `releaseAnchor`(`token`: kotlin.String)
+        = 
+    callWithHandle {
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_method_nativesession_release_anchor(
+        it,
+        
+        FfiConverterString.lower(`token`),_status)
+}
+    }
+    
+    
+
+    
+    /**
+     * Resolve the retained shared sticky position against the current committed
+     * revision, including deleted and unresolvable outcomes without local fallback.
+     */
+    @Throws(NativeSessionException::class)override fun `resolveAnchor`(`token`: kotlin.String): NativeSessionAnchorRead {
+            return FfiConverterTypeNativeSessionAnchorRead.lift(
+    callWithHandle {
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_method_nativesession_resolve_anchor(
+        it,
+        
+        FfiConverterString.lower(`token`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Establish/reset this handle's incremental cursor. Recovery-required state
+     * cannot mint an acknowledged projection; salvage remains recoveryExport.
+     */
+    @Throws(NativeSessionException::class)override fun `richSnapshot`(): NativeSessionProjection {
+            return FfiConverterTypeNativeSessionProjection.lift(
+    callWithHandle {
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_method_nativesession_rich_snapshot(
+        it,
+        _status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
      * Trusted host permission replacement, serialized with every prepared admission.
      */
     @Throws(NativeSessionException::class)override fun `setPermission`(`writable`: kotlin.Boolean, `expiresAt`: kotlin.ULong?)
@@ -2313,6 +2451,25 @@ open class NativeSession: Disposable, AutoCloseable, NativeSessionInterface
 }
     }
     
+    
+
+    
+    /**
+     * A single bounded consumer shared by all aliases. Failed reads never drain.
+     * Overflow requires richSnapshot; no event is silently omitted or coalesced.
+     */
+    @Throws(NativeSessionException::class)override fun `takeRichPatches`(`afterSequence`: kotlin.ULong): NativeSessionPatches {
+            return FfiConverterTypeNativeSessionPatches.lift(
+    callWithHandle {
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_method_nativesession_take_rich_patches(
+        it,
+        
+        FfiConverterULong.lower(`afterSequence`),_status)
+}
+    }
+    )
+    }
     
 
     
@@ -2541,6 +2698,105 @@ public object FfiConverterTypeBatchResult: FfiConverterRustBuffer<BatchResult> {
 
 
 
+/**
+ * Opaque worker-owned anchor, with immutable capture lineage and revision.
+ */
+data class NativeSessionAnchor (
+    var `token`: kotlin.String
+    , 
+    var `documentId`: kotlin.String
+    , 
+    var `epoch`: kotlin.String
+    , 
+    var `revision`: kotlin.ByteArray
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeSessionAnchor: FfiConverterRustBuffer<NativeSessionAnchor> {
+    override fun read(buf: ByteBuffer): NativeSessionAnchor {
+        return NativeSessionAnchor(
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterByteArray.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: NativeSessionAnchor) = (
+            FfiConverterString.allocationSize(value.`token`) +
+            FfiConverterString.allocationSize(value.`documentId`) +
+            FfiConverterString.allocationSize(value.`epoch`) +
+            FfiConverterByteArray.allocationSize(value.`revision`)
+    )
+
+    override fun write(value: NativeSessionAnchor, buf: ByteBuffer) {
+            FfiConverterString.write(value.`token`, buf)
+            FfiConverterString.write(value.`documentId`, buf)
+            FfiConverterString.write(value.`epoch`, buf)
+            FfiConverterByteArray.write(value.`revision`, buf)
+    }
+}
+
+
+
+data class NativeSessionAnchorRead (
+    var `documentId`: kotlin.String
+    , 
+    var `epoch`: kotlin.String
+    , 
+    var `revision`: kotlin.ByteArray
+    , 
+    var `resolution`: NativeAnchorResolution
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeSessionAnchorRead: FfiConverterRustBuffer<NativeSessionAnchorRead> {
+    override fun read(buf: ByteBuffer): NativeSessionAnchorRead {
+        return NativeSessionAnchorRead(
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterByteArray.read(buf),
+            FfiConverterTypeNativeAnchorResolution.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: NativeSessionAnchorRead) = (
+            FfiConverterString.allocationSize(value.`documentId`) +
+            FfiConverterString.allocationSize(value.`epoch`) +
+            FfiConverterByteArray.allocationSize(value.`revision`) +
+            FfiConverterTypeNativeAnchorResolution.allocationSize(value.`resolution`)
+    )
+
+    override fun write(value: NativeSessionAnchorRead, buf: ByteBuffer) {
+            FfiConverterString.write(value.`documentId`, buf)
+            FfiConverterString.write(value.`epoch`, buf)
+            FfiConverterByteArray.write(value.`revision`, buf)
+            FfiConverterTypeNativeAnchorResolution.write(value.`resolution`, buf)
+    }
+}
+
+
+
 data class NativeSessionCommit (
     var `writer`: kotlin.UInt
     , 
@@ -2734,6 +2990,103 @@ public object FfiConverterTypeNativeSessionOptions: FfiConverterRustBuffer<Nativ
             FfiConverterString.write(value.`epoch`, buf)
             FfiConverterBoolean.write(value.`writable`, buf)
             FfiConverterOptionalULong.write(value.`permissionExpiresAt`, buf)
+    }
+}
+
+
+
+/**
+ * Ordered original range patches since the last snapshot/drain on this handle.
+ */
+data class NativeSessionPatches (
+    var `revision`: kotlin.ByteArray
+    , 
+    var `afterSequence`: kotlin.ULong
+    , 
+    var `sequence`: kotlin.ULong
+    , 
+    var `patchesJson`: List<kotlin.String>
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeSessionPatches: FfiConverterRustBuffer<NativeSessionPatches> {
+    override fun read(buf: ByteBuffer): NativeSessionPatches {
+        return NativeSessionPatches(
+            FfiConverterByteArray.read(buf),
+            FfiConverterULong.read(buf),
+            FfiConverterULong.read(buf),
+            FfiConverterSequenceString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: NativeSessionPatches) = (
+            FfiConverterByteArray.allocationSize(value.`revision`) +
+            FfiConverterULong.allocationSize(value.`afterSequence`) +
+            FfiConverterULong.allocationSize(value.`sequence`) +
+            FfiConverterSequenceString.allocationSize(value.`patchesJson`)
+    )
+
+    override fun write(value: NativeSessionPatches, buf: ByteBuffer) {
+            FfiConverterByteArray.write(value.`revision`, buf)
+            FfiConverterULong.write(value.`afterSequence`, buf)
+            FfiConverterULong.write(value.`sequence`, buf)
+            FfiConverterSequenceString.write(value.`patchesJson`, buf)
+    }
+}
+
+
+
+/**
+ * Detached authoritative rich wire snapshot, paired with a committed revision.
+ */
+data class NativeSessionProjection (
+    var `revision`: kotlin.ByteArray
+    , 
+    var `sequence`: kotlin.ULong
+    , 
+    var `snapshotJson`: kotlin.String
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeSessionProjection: FfiConverterRustBuffer<NativeSessionProjection> {
+    override fun read(buf: ByteBuffer): NativeSessionProjection {
+        return NativeSessionProjection(
+            FfiConverterByteArray.read(buf),
+            FfiConverterULong.read(buf),
+            FfiConverterString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: NativeSessionProjection) = (
+            FfiConverterByteArray.allocationSize(value.`revision`) +
+            FfiConverterULong.allocationSize(value.`sequence`) +
+            FfiConverterString.allocationSize(value.`snapshotJson`)
+    )
+
+    override fun write(value: NativeSessionProjection, buf: ByteBuffer) {
+            FfiConverterByteArray.write(value.`revision`, buf)
+            FfiConverterULong.write(value.`sequence`, buf)
+            FfiConverterString.write(value.`snapshotJson`, buf)
     }
 }
 
@@ -2964,6 +3317,136 @@ public object FfiConverterTypeAnchorBias: FfiConverterRustBuffer<AnchorBias> {
 
     override fun write(value: AnchorBias, buf: ByteBuffer) {
         buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+/**
+ * Direct translation of the authoritative shared anchor resolution.
+ */
+sealed class NativeAnchorResolution {
+    
+    data class Position(
+        val `node`: kotlin.String, 
+        val `offsetUtf16`: kotlin.UInt, 
+        val `source`: kotlin.String, 
+        val `sourceOffsetUtf16`: kotlin.UInt, 
+        val `bias`: ac.edit.nativebridge.AnchorBias) : NativeAnchorResolution()
+        
+    {
+        
+
+        companion object
+    }
+    
+    data class Deleted(
+        val `source`: kotlin.String, 
+        val `owner`: kotlin.String) : NativeAnchorResolution()
+        
+    {
+        
+
+        companion object
+    }
+    
+    data class Unresolvable(
+        val `reason`: kotlin.String) : NativeAnchorResolution()
+        
+    {
+        
+
+        companion object
+    }
+    
+
+    
+
+    
+    
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeAnchorResolution : FfiConverterRustBuffer<NativeAnchorResolution>{
+    override fun read(buf: ByteBuffer): NativeAnchorResolution {
+        return when(buf.getInt()) {
+            1 -> NativeAnchorResolution.Position(
+                FfiConverterString.read(buf),
+                FfiConverterUInt.read(buf),
+                FfiConverterString.read(buf),
+                FfiConverterUInt.read(buf),
+                FfiConverterTypeAnchorBias.read(buf),
+                )
+            2 -> NativeAnchorResolution.Deleted(
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                )
+            3 -> NativeAnchorResolution.Unresolvable(
+                FfiConverterString.read(buf),
+                )
+            else -> throw RuntimeException("invalid enum value, something is very wrong!!")
+        }
+    }
+
+    override fun allocationSize(value: NativeAnchorResolution): ULong = when(value) {
+        is NativeAnchorResolution.Position -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`node`)
+                + FfiConverterUInt.allocationSize(value.`offsetUtf16`)
+                + FfiConverterString.allocationSize(value.`source`)
+                + FfiConverterUInt.allocationSize(value.`sourceOffsetUtf16`)
+                + FfiConverterTypeAnchorBias.allocationSize(value.`bias`)
+            )
+        }
+        is NativeAnchorResolution.Deleted -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`source`)
+                + FfiConverterString.allocationSize(value.`owner`)
+            )
+        }
+        is NativeAnchorResolution.Unresolvable -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`reason`)
+            )
+        }
+    }
+
+    override fun write(value: NativeAnchorResolution, buf: ByteBuffer) {
+        when(value) {
+            is NativeAnchorResolution.Position -> {
+                buf.putInt(1)
+                FfiConverterString.write(value.`node`, buf)
+                FfiConverterUInt.write(value.`offsetUtf16`, buf)
+                FfiConverterString.write(value.`source`, buf)
+                FfiConverterUInt.write(value.`sourceOffsetUtf16`, buf)
+                FfiConverterTypeAnchorBias.write(value.`bias`, buf)
+                Unit
+            }
+            is NativeAnchorResolution.Deleted -> {
+                buf.putInt(2)
+                FfiConverterString.write(value.`source`, buf)
+                FfiConverterString.write(value.`owner`, buf)
+                Unit
+            }
+            is NativeAnchorResolution.Unresolvable -> {
+                buf.putInt(3)
+                FfiConverterString.write(value.`reason`, buf)
+                Unit
+            }
+        }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
     }
 }
 
@@ -3343,6 +3826,32 @@ sealed class NativeSessionException: kotlin.Exception() {
             get() = "message=${ `message` }"
     }
     
+    class ProjectionResyncRequired(
+        ) : NativeSessionException() {
+        override val message
+            get() = ""
+    }
+    
+    class InvalidProjectionCursor(
+        ) : NativeSessionException() {
+        override val message
+            get() = ""
+    }
+    
+    class InvalidAnchor(
+        ) : NativeSessionException() {
+        override val message
+            get() = ""
+    }
+    
+    class AnchorTarget(
+        
+        val `message`: kotlin.String
+        ) : NativeSessionException() {
+        override val message
+            get() = "message=${ `message` }"
+    }
+    
     class InvalidPlan(
         ) : NativeSessionException() {
         override val message
@@ -3419,9 +3928,15 @@ public object FfiConverterTypeNativeSessionError : FfiConverterRustBuffer<Native
             20 -> NativeSessionException.Operation(
                 FfiConverterString.read(buf),
                 )
-            21 -> NativeSessionException.InvalidPlan()
-            22 -> NativeSessionException.Disposed()
-            23 -> NativeSessionException.ExecutorUnavailable()
+            21 -> NativeSessionException.ProjectionResyncRequired()
+            22 -> NativeSessionException.InvalidProjectionCursor()
+            23 -> NativeSessionException.InvalidAnchor()
+            24 -> NativeSessionException.AnchorTarget(
+                FfiConverterString.read(buf),
+                )
+            25 -> NativeSessionException.InvalidPlan()
+            26 -> NativeSessionException.Disposed()
+            27 -> NativeSessionException.ExecutorUnavailable()
             else -> throw RuntimeException("invalid error enum value, something is very wrong!!")
         }
     }
@@ -3514,6 +4029,23 @@ public object FfiConverterTypeNativeSessionError : FfiConverterRustBuffer<Native
                 + FfiConverterString.allocationSize(value.`message`)
             )
             is NativeSessionException.Operation -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.`message`)
+            )
+            is NativeSessionException.ProjectionResyncRequired -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+            )
+            is NativeSessionException.InvalidProjectionCursor -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+            )
+            is NativeSessionException.InvalidAnchor -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+            )
+            is NativeSessionException.AnchorTarget -> (
                 // Add the size for the Int that specifies the variant plus the size needed for all fields
                 4UL
                 + FfiConverterString.allocationSize(value.`message`)
@@ -3625,16 +4157,33 @@ public object FfiConverterTypeNativeSessionError : FfiConverterRustBuffer<Native
                 FfiConverterString.write(value.`message`, buf)
                 Unit
             }
-            is NativeSessionException.InvalidPlan -> {
+            is NativeSessionException.ProjectionResyncRequired -> {
                 buf.putInt(21)
                 Unit
             }
-            is NativeSessionException.Disposed -> {
+            is NativeSessionException.InvalidProjectionCursor -> {
                 buf.putInt(22)
                 Unit
             }
-            is NativeSessionException.ExecutorUnavailable -> {
+            is NativeSessionException.InvalidAnchor -> {
                 buf.putInt(23)
+                Unit
+            }
+            is NativeSessionException.AnchorTarget -> {
+                buf.putInt(24)
+                FfiConverterString.write(value.`message`, buf)
+                Unit
+            }
+            is NativeSessionException.InvalidPlan -> {
+                buf.putInt(25)
+                Unit
+            }
+            is NativeSessionException.Disposed -> {
+                buf.putInt(26)
+                Unit
+            }
+            is NativeSessionException.ExecutorUnavailable -> {
+                buf.putInt(27)
                 Unit
             }
         }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
@@ -3809,6 +4358,90 @@ public object FfiConverterOptionalTypeNativeStoreFailure: FfiConverterRustBuffer
         } else {
             buf.put(1)
             FfiConverterTypeNativeStoreFailure.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceString: FfiConverterRustBuffer<List<kotlin.String>> {
+    override fun read(buf: ByteBuffer): List<kotlin.String> {
+        val len = buf.getInt()
+        return List<kotlin.String>(len) {
+            FfiConverterString.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<kotlin.String>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterString.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<kotlin.String>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterString.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceTypeAnchorInput: FfiConverterRustBuffer<List<AnchorInput>> {
+    override fun read(buf: ByteBuffer): List<AnchorInput> {
+        val len = buf.getInt()
+        return List<AnchorInput>(len) {
+            FfiConverterTypeAnchorInput.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<AnchorInput>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeAnchorInput.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<AnchorInput>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeAnchorInput.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceTypeNativeSessionAnchor: FfiConverterRustBuffer<List<NativeSessionAnchor>> {
+    override fun read(buf: ByteBuffer): List<NativeSessionAnchor> {
+        val len = buf.getInt()
+        return List<NativeSessionAnchor>(len) {
+            FfiConverterTypeNativeSessionAnchor.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<NativeSessionAnchor>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeNativeSessionAnchor.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<NativeSessionAnchor>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeNativeSessionAnchor.write(it, buf)
         }
     }
 }

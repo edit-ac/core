@@ -373,6 +373,11 @@ uint64_t uniffi_editac_ffi_fn_constructor_nativesession_open(RustBuffer options,
 void uniffi_editac_ffi_fn_method_nativesession_cancel_edits(uint64_t ptr, RustBuffer token, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_CAPTURE_ANCHORS
+#define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_CAPTURE_ANCHORS
+RustBuffer uniffi_editac_ffi_fn_method_nativesession_capture_anchors(uint64_t ptr, RustBuffer revision, RustBuffer inputs, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_COMMIT_EDITS
 #define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_COMMIT_EDITS
 RustBuffer uniffi_editac_ffi_fn_method_nativesession_commit_edits(uint64_t ptr, RustBuffer token, uint64_t now, RustCallStatus *_Nonnull out_status
@@ -408,9 +413,29 @@ RustBuffer uniffi_editac_ffi_fn_method_nativesession_recovery_export(uint64_t pt
 RustBuffer uniffi_editac_ffi_fn_method_nativesession_redo(uint64_t ptr, RustBuffer revision, uint64_t now, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_RELEASE_ANCHOR
+#define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_RELEASE_ANCHOR
+void uniffi_editac_ffi_fn_method_nativesession_release_anchor(uint64_t ptr, RustBuffer token, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_RESOLVE_ANCHOR
+#define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_RESOLVE_ANCHOR
+RustBuffer uniffi_editac_ffi_fn_method_nativesession_resolve_anchor(uint64_t ptr, RustBuffer token, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_RICH_SNAPSHOT
+#define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_RICH_SNAPSHOT
+RustBuffer uniffi_editac_ffi_fn_method_nativesession_rich_snapshot(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_SET_PERMISSION
 #define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_SET_PERMISSION
 void uniffi_editac_ffi_fn_method_nativesession_set_permission(uint64_t ptr, int8_t writable, RustBuffer expires_at, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_TAKE_RICH_PATCHES
+#define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_TAKE_RICH_PATCHES
+RustBuffer uniffi_editac_ffi_fn_method_nativesession_take_rich_patches(uint64_t ptr, uint64_t after_sequence, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_UNDO
@@ -798,6 +823,12 @@ uint16_t uniffi_editac_ffi_checksum_method_nativesession_cancel_edits(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_CAPTURE_ANCHORS
+#define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_CAPTURE_ANCHORS
+uint16_t uniffi_editac_ffi_checksum_method_nativesession_capture_anchors(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_COMMIT_EDITS
 #define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_COMMIT_EDITS
 uint16_t uniffi_editac_ffi_checksum_method_nativesession_commit_edits(void
@@ -840,9 +871,33 @@ uint16_t uniffi_editac_ffi_checksum_method_nativesession_redo(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_RELEASE_ANCHOR
+#define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_RELEASE_ANCHOR
+uint16_t uniffi_editac_ffi_checksum_method_nativesession_release_anchor(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_RESOLVE_ANCHOR
+#define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_RESOLVE_ANCHOR
+uint16_t uniffi_editac_ffi_checksum_method_nativesession_resolve_anchor(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_RICH_SNAPSHOT
+#define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_RICH_SNAPSHOT
+uint16_t uniffi_editac_ffi_checksum_method_nativesession_rich_snapshot(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_SET_PERMISSION
 #define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_SET_PERMISSION
 uint16_t uniffi_editac_ffi_checksum_method_nativesession_set_permission(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_TAKE_RICH_PATCHES
+#define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_TAKE_RICH_PATCHES
+uint16_t uniffi_editac_ffi_checksum_method_nativesession_take_rich_patches(void
     
 );
 #endif
