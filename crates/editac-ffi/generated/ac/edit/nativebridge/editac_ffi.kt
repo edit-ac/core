@@ -711,13 +711,25 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_editac_ffi_checksum_method_nativeengine_take_patch(
     ): Int
+    external fun uniffi_editac_ffi_checksum_method_nativesession_cancel_commands(
+    ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_cancel_edits(
     ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_capture_anchors(
     ): Int
+    external fun uniffi_editac_ffi_checksum_method_nativesession_check_commands(
+    ): Int
+    external fun uniffi_editac_ffi_checksum_method_nativesession_command_catalog(
+    ): Int
+    external fun uniffi_editac_ffi_checksum_method_nativesession_commit_commands(
+    ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_commit_edits(
     ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_dispose(
+    ): Int
+    external fun uniffi_editac_ffi_checksum_method_nativesession_history_state(
+    ): Int
+    external fun uniffi_editac_ffi_checksum_method_nativesession_prepare_commands(
     ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_prepare_edits(
     ): Int
@@ -819,14 +831,26 @@ internal object UniffiLib {
     ): Long
     external fun uniffi_editac_ffi_fn_constructor_nativesession_open(`options`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Long
+    external fun uniffi_editac_ffi_fn_method_nativesession_cancel_commands(`ptr`: Long,`token`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
     external fun uniffi_editac_ffi_fn_method_nativesession_cancel_edits(`ptr`: Long,`token`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     external fun uniffi_editac_ffi_fn_method_nativesession_capture_anchors(`ptr`: Long,`revision`: RustBuffer.ByValue,`inputs`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_editac_ffi_fn_method_nativesession_check_commands(`ptr`: Long,`revision`: RustBuffer.ByValue,`commandsJson`: RustBuffer.ByValue,`origin`: RustBuffer.ByValue,`now`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
+    external fun uniffi_editac_ffi_fn_method_nativesession_command_catalog(`ptr`: Long,`now`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_editac_ffi_fn_method_nativesession_commit_commands(`ptr`: Long,`token`: RustBuffer.ByValue,`now`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     external fun uniffi_editac_ffi_fn_method_nativesession_commit_edits(`ptr`: Long,`token`: RustBuffer.ByValue,`now`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     external fun uniffi_editac_ffi_fn_method_nativesession_dispose(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
+    external fun uniffi_editac_ffi_fn_method_nativesession_history_state(`ptr`: Long,`now`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_editac_ffi_fn_method_nativesession_prepare_commands(`ptr`: Long,`revision`: RustBuffer.ByValue,`commandsJson`: RustBuffer.ByValue,`origin`: RustBuffer.ByValue,`now`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
     external fun uniffi_editac_ffi_fn_method_nativesession_prepare_edits(`ptr`: Long,`revision`: RustBuffer.ByValue,`edits`: RustBuffer.ByValue,`origin`: RustBuffer.ByValue,`now`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     external fun uniffi_editac_ffi_fn_method_nativesession_read(`ptr`: Long,`now`: Long,uniffi_out_err: UniffiRustCallStatus, 
@@ -1024,16 +1048,34 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_editac_ffi_checksum_method_nativeengine_take_patch() and 0xFFFF) != 5782) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if ((lib.uniffi_editac_ffi_checksum_method_nativesession_cancel_commands() and 0xFFFF) != 33457) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_editac_ffi_checksum_method_nativesession_cancel_edits() and 0xFFFF) != 14748) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_editac_ffi_checksum_method_nativesession_capture_anchors() and 0xFFFF) != 33574) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if ((lib.uniffi_editac_ffi_checksum_method_nativesession_check_commands() and 0xFFFF) != 44493) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_editac_ffi_checksum_method_nativesession_command_catalog() and 0xFFFF) != 31932) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_editac_ffi_checksum_method_nativesession_commit_commands() and 0xFFFF) != 32785) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_editac_ffi_checksum_method_nativesession_commit_edits() and 0xFFFF) != 20568) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_editac_ffi_checksum_method_nativesession_dispose() and 0xFFFF) != 7672) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_editac_ffi_checksum_method_nativesession_history_state() and 0xFFFF) != 58856) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_editac_ffi_checksum_method_nativesession_prepare_commands() and 0xFFFF) != 64259) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_editac_ffi_checksum_method_nativesession_prepare_edits() and 0xFFFF) != 9326) {
@@ -2052,6 +2094,8 @@ public object FfiConverterTypeNativeEngine: FfiConverter<NativeEngine, Long> {
  */
 public interface NativeSessionInterface {
     
+    fun `cancelCommands`(`token`: kotlin.String)
+    
     /**
      * Ordered idempotent release of an uncommitted plan. After disposal: Disposed.
      */
@@ -2064,6 +2108,18 @@ public interface NativeSessionInterface {
     fun `captureAnchors`(`revision`: kotlin.ByteArray, `inputs`: List<AnchorInput>): List<NativeSessionAnchor>
     
     /**
+     * Exact current target applicability via the authoritative planner; retains no plan.
+     */
+    fun `checkCommands`(`revision`: kotlin.ByteArray, `commandsJson`: kotlin.String, `origin`: kotlin.String, `now`: kotlin.ULong)
+    
+    /**
+     * Detached current metadata. Target-specific enablement requires check_commands.
+     */
+    fun `commandCatalog`(`now`: kotlin.ULong): NativeCommandCatalog
+    
+    fun `commitCommands`(`token`: kotlin.String, `now`: kotlin.ULong): NativeSessionCommit?
+    
+    /**
      * Single use, including failed admission. Current permission/revision is checked
      * again by EditService. Cancellation cannot interrupt an accepted commit.
      */
@@ -2074,6 +2130,19 @@ public interface NativeSessionInterface {
      * all plans and native store on the owning executor before returning.
      */
     fun `dispose`()
+    
+    /**
+     * Exact stack availability for native menus/keys. The observation is advisory:
+     * undo/redo still recheck current permission, admission and the supplied revision.
+     * Disposal returns Disposed, as with every other read on this handle.
+     */
+    fun `historyState`(`now`: kotlin.ULong): NativeSessionHistory
+    
+    /**
+     * Same portable EditorCommand array and anchor tokens as the shared engine.
+     * All parsing, anchor lookup and EditService validation precede retaining a plan.
+     */
+    fun `prepareCommands`(`revision`: kotlin.ByteArray, `commandsJson`: kotlin.String, `origin`: kotlin.String, `now`: kotlin.ULong): NativePreparedCommands
     
     /**
      * Whole-edit batches use the existing atomic EditService planner. Revision bytes
@@ -2228,6 +2297,20 @@ open class NativeSession: Disposable, AutoCloseable, NativeSessionInterface
     }
 
     
+    @Throws(NativeSessionException::class)override fun `cancelCommands`(`token`: kotlin.String)
+        = 
+    callWithHandle {
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_method_nativesession_cancel_commands(
+        it,
+        
+        FfiConverterString.lower(`token`),_status)
+}
+    }
+    
+    
+
+    
     /**
      * Ordered idempotent release of an uncommitted plan. After disposal: Disposed.
      */
@@ -2258,6 +2341,60 @@ open class NativeSession: Disposable, AutoCloseable, NativeSessionInterface
         
         FfiConverterByteArray.lower(`revision`),
         FfiConverterSequenceTypeAnchorInput.lower(`inputs`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Exact current target applicability via the authoritative planner; retains no plan.
+     */
+    @Throws(NativeSessionException::class)override fun `checkCommands`(`revision`: kotlin.ByteArray, `commandsJson`: kotlin.String, `origin`: kotlin.String, `now`: kotlin.ULong)
+        = 
+    callWithHandle {
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_method_nativesession_check_commands(
+        it,
+        
+        FfiConverterByteArray.lower(`revision`),
+        FfiConverterString.lower(`commandsJson`),
+        FfiConverterString.lower(`origin`),
+        FfiConverterULong.lower(`now`),_status)
+}
+    }
+    
+    
+
+    
+    /**
+     * Detached current metadata. Target-specific enablement requires check_commands.
+     */
+    @Throws(NativeSessionException::class)override fun `commandCatalog`(`now`: kotlin.ULong): NativeCommandCatalog {
+            return FfiConverterTypeNativeCommandCatalog.lift(
+    callWithHandle {
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_method_nativesession_command_catalog(
+        it,
+        
+        FfiConverterULong.lower(`now`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    @Throws(NativeSessionException::class)override fun `commitCommands`(`token`: kotlin.String, `now`: kotlin.ULong): NativeSessionCommit? {
+            return FfiConverterOptionalTypeNativeSessionCommit.lift(
+    callWithHandle {
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_method_nativesession_commit_commands(
+        it,
+        
+        FfiConverterString.lower(`token`),
+        FfiConverterULong.lower(`now`),_status)
 }
     }
     )
@@ -2299,6 +2436,48 @@ open class NativeSession: Disposable, AutoCloseable, NativeSessionInterface
 }
     }
     
+    
+
+    
+    /**
+     * Exact stack availability for native menus/keys. The observation is advisory:
+     * undo/redo still recheck current permission, admission and the supplied revision.
+     * Disposal returns Disposed, as with every other read on this handle.
+     */
+    @Throws(NativeSessionException::class)override fun `historyState`(`now`: kotlin.ULong): NativeSessionHistory {
+            return FfiConverterTypeNativeSessionHistory.lift(
+    callWithHandle {
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_method_nativesession_history_state(
+        it,
+        
+        FfiConverterULong.lower(`now`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Same portable EditorCommand array and anchor tokens as the shared engine.
+     * All parsing, anchor lookup and EditService validation precede retaining a plan.
+     */
+    @Throws(NativeSessionException::class)override fun `prepareCommands`(`revision`: kotlin.ByteArray, `commandsJson`: kotlin.String, `origin`: kotlin.String, `now`: kotlin.ULong): NativePreparedCommands {
+            return FfiConverterTypeNativePreparedCommands.lift(
+    callWithHandle {
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_method_nativesession_prepare_commands(
+        it,
+        
+        FfiConverterByteArray.lower(`revision`),
+        FfiConverterString.lower(`commandsJson`),
+        FfiConverterString.lower(`origin`),
+        FfiConverterULong.lower(`now`),_status)
+}
+    }
+    )
+    }
     
 
     
@@ -2698,6 +2877,197 @@ public object FfiConverterTypeBatchResult: FfiConverterRustBuffer<BatchResult> {
 
 
 
+data class NativeCommandCatalog (
+    var `revision`: kotlin.ByteArray?
+    , 
+    var `schema`: kotlin.String
+    , 
+    var `profile`: kotlin.String
+    , 
+    var `routes`: List<NativeCommandRoute>
+    , 
+    var `profiles`: List<NativeCommandProfile>
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeCommandCatalog: FfiConverterRustBuffer<NativeCommandCatalog> {
+    override fun read(buf: ByteBuffer): NativeCommandCatalog {
+        return NativeCommandCatalog(
+            FfiConverterOptionalByteArray.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterSequenceTypeNativeCommandRoute.read(buf),
+            FfiConverterSequenceTypeNativeCommandProfile.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: NativeCommandCatalog) = (
+            FfiConverterOptionalByteArray.allocationSize(value.`revision`) +
+            FfiConverterString.allocationSize(value.`schema`) +
+            FfiConverterString.allocationSize(value.`profile`) +
+            FfiConverterSequenceTypeNativeCommandRoute.allocationSize(value.`routes`) +
+            FfiConverterSequenceTypeNativeCommandProfile.allocationSize(value.`profiles`)
+    )
+
+    override fun write(value: NativeCommandCatalog, buf: ByteBuffer) {
+            FfiConverterOptionalByteArray.write(value.`revision`, buf)
+            FfiConverterString.write(value.`schema`, buf)
+            FfiConverterString.write(value.`profile`, buf)
+            FfiConverterSequenceTypeNativeCommandRoute.write(value.`routes`, buf)
+            FfiConverterSequenceTypeNativeCommandProfile.write(value.`profiles`, buf)
+    }
+}
+
+
+
+data class NativeCommandProfile (
+    /**
+     * Existing FIRST_PARTY_PROFILES / FIRST_PARTY_FEATURES IDs.
+     */
+    var `id`: kotlin.String
+    , 
+    var `available`: kotlin.Boolean
+    , 
+    var `reason`: kotlin.String
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeCommandProfile: FfiConverterRustBuffer<NativeCommandProfile> {
+    override fun read(buf: ByteBuffer): NativeCommandProfile {
+        return NativeCommandProfile(
+            FfiConverterString.read(buf),
+            FfiConverterBoolean.read(buf),
+            FfiConverterString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: NativeCommandProfile) = (
+            FfiConverterString.allocationSize(value.`id`) +
+            FfiConverterBoolean.allocationSize(value.`available`) +
+            FfiConverterString.allocationSize(value.`reason`)
+    )
+
+    override fun write(value: NativeCommandProfile, buf: ByteBuffer) {
+            FfiConverterString.write(value.`id`, buf)
+            FfiConverterBoolean.write(value.`available`, buf)
+            FfiConverterString.write(value.`reason`, buf)
+    }
+}
+
+
+
+data class NativeCommandRoute (
+    /**
+     * Exact EditorCommand.type from packages/core/src/engine.ts.
+     */
+    var `id`: kotlin.String
+    , 
+    var `available`: kotlin.Boolean
+    , 
+    /**
+     * Admission only. Target applicability must pass check_commands/prepare_commands.
+     */
+    var `canPrepare`: kotlin.Boolean
+    , 
+    var `reason`: kotlin.String
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeCommandRoute: FfiConverterRustBuffer<NativeCommandRoute> {
+    override fun read(buf: ByteBuffer): NativeCommandRoute {
+        return NativeCommandRoute(
+            FfiConverterString.read(buf),
+            FfiConverterBoolean.read(buf),
+            FfiConverterBoolean.read(buf),
+            FfiConverterString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: NativeCommandRoute) = (
+            FfiConverterString.allocationSize(value.`id`) +
+            FfiConverterBoolean.allocationSize(value.`available`) +
+            FfiConverterBoolean.allocationSize(value.`canPrepare`) +
+            FfiConverterString.allocationSize(value.`reason`)
+    )
+
+    override fun write(value: NativeCommandRoute, buf: ByteBuffer) {
+            FfiConverterString.write(value.`id`, buf)
+            FfiConverterBoolean.write(value.`available`, buf)
+            FfiConverterBoolean.write(value.`canPrepare`, buf)
+            FfiConverterString.write(value.`reason`, buf)
+    }
+}
+
+
+
+data class NativePreparedCommands (
+    var `token`: kotlin.String
+    , 
+    var `revision`: kotlin.ByteArray
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativePreparedCommands: FfiConverterRustBuffer<NativePreparedCommands> {
+    override fun read(buf: ByteBuffer): NativePreparedCommands {
+        return NativePreparedCommands(
+            FfiConverterString.read(buf),
+            FfiConverterByteArray.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: NativePreparedCommands) = (
+            FfiConverterString.allocationSize(value.`token`) +
+            FfiConverterByteArray.allocationSize(value.`revision`)
+    )
+
+    override fun write(value: NativePreparedCommands, buf: ByteBuffer) {
+            FfiConverterString.write(value.`token`, buf)
+            FfiConverterByteArray.write(value.`revision`, buf)
+    }
+}
+
+
+
 /**
  * Opaque worker-owned anchor, with immutable capture lineage and revision.
  */
@@ -2888,6 +3258,79 @@ public object FfiConverterTypeNativeSessionEdit: FfiConverterRustBuffer<NativeSe
             FfiConverterUInt.write(value.`fromUtf16`, buf)
             FfiConverterUInt.write(value.`toUtf16`, buf)
             FfiConverterString.write(value.`text`, buf)
+    }
+}
+
+
+
+/**
+ * Current shared history stacks and admission, read atomically on the Session owner.
+ * Counts remain observable when permission or recovery prevents history mutation.
+ */
+data class NativeSessionHistory (
+    /**
+     * None while recovery-required, matching the acknowledged read revision.
+     */
+    var `revision`: kotlin.ByteArray?
+    , 
+    var `undoGroups`: kotlin.ULong
+    , 
+    var `redoGroups`: kotlin.ULong
+    , 
+    /**
+     * General history admission; does not imply either stack is nonempty.
+     */
+    var `canHistory`: kotlin.Boolean
+    , 
+    var `canUndo`: kotlin.Boolean
+    , 
+    var `canRedo`: kotlin.Boolean
+    , 
+    var `recoveryRequired`: kotlin.Boolean
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeSessionHistory: FfiConverterRustBuffer<NativeSessionHistory> {
+    override fun read(buf: ByteBuffer): NativeSessionHistory {
+        return NativeSessionHistory(
+            FfiConverterOptionalByteArray.read(buf),
+            FfiConverterULong.read(buf),
+            FfiConverterULong.read(buf),
+            FfiConverterBoolean.read(buf),
+            FfiConverterBoolean.read(buf),
+            FfiConverterBoolean.read(buf),
+            FfiConverterBoolean.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: NativeSessionHistory) = (
+            FfiConverterOptionalByteArray.allocationSize(value.`revision`) +
+            FfiConverterULong.allocationSize(value.`undoGroups`) +
+            FfiConverterULong.allocationSize(value.`redoGroups`) +
+            FfiConverterBoolean.allocationSize(value.`canHistory`) +
+            FfiConverterBoolean.allocationSize(value.`canUndo`) +
+            FfiConverterBoolean.allocationSize(value.`canRedo`) +
+            FfiConverterBoolean.allocationSize(value.`recoveryRequired`)
+    )
+
+    override fun write(value: NativeSessionHistory, buf: ByteBuffer) {
+            FfiConverterOptionalByteArray.write(value.`revision`, buf)
+            FfiConverterULong.write(value.`undoGroups`, buf)
+            FfiConverterULong.write(value.`redoGroups`, buf)
+            FfiConverterBoolean.write(value.`canHistory`, buf)
+            FfiConverterBoolean.write(value.`canUndo`, buf)
+            FfiConverterBoolean.write(value.`canRedo`, buf)
+            FfiConverterBoolean.write(value.`recoveryRequired`, buf)
     }
 }
 
@@ -3870,6 +4313,14 @@ sealed class NativeSessionException: kotlin.Exception() {
             get() = "message=${ `message` }"
     }
     
+    class CommandInput(
+        
+        val `message`: kotlin.String
+        ) : NativeSessionException() {
+        override val message
+            get() = "message=${ `message` }"
+    }
+    
 
     
 
@@ -3935,6 +4386,9 @@ public object FfiConverterTypeNativeSessionError : FfiConverterRustBuffer<Native
             25 -> NativeSessionException.InvalidProjectionCursor()
             26 -> NativeSessionException.InvalidAnchor()
             27 -> NativeSessionException.AnchorTarget(
+                FfiConverterString.read(buf),
+                )
+            28 -> NativeSessionException.CommandInput(
                 FfiConverterString.read(buf),
                 )
             else -> throw RuntimeException("invalid error enum value, something is very wrong!!")
@@ -4062,6 +4516,11 @@ public object FfiConverterTypeNativeSessionError : FfiConverterRustBuffer<Native
                 4UL
                 + FfiConverterString.allocationSize(value.`message`)
             )
+            is NativeSessionException.CommandInput -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.`message`)
+            )
         }
     }
 
@@ -4183,6 +4642,11 @@ public object FfiConverterTypeNativeSessionError : FfiConverterRustBuffer<Native
             }
             is NativeSessionException.AnchorTarget -> {
                 buf.putInt(27)
+                FfiConverterString.write(value.`message`, buf)
+                Unit
+            }
+            is NativeSessionException.CommandInput -> {
+                buf.putInt(28)
                 FfiConverterString.write(value.`message`, buf)
                 Unit
             }
@@ -4414,6 +4878,62 @@ public object FfiConverterSequenceTypeAnchorInput: FfiConverterRustBuffer<List<A
         buf.putInt(value.size)
         value.iterator().forEach {
             FfiConverterTypeAnchorInput.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceTypeNativeCommandProfile: FfiConverterRustBuffer<List<NativeCommandProfile>> {
+    override fun read(buf: ByteBuffer): List<NativeCommandProfile> {
+        val len = buf.getInt()
+        return List<NativeCommandProfile>(len) {
+            FfiConverterTypeNativeCommandProfile.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<NativeCommandProfile>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeNativeCommandProfile.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<NativeCommandProfile>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeNativeCommandProfile.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceTypeNativeCommandRoute: FfiConverterRustBuffer<List<NativeCommandRoute>> {
+    override fun read(buf: ByteBuffer): List<NativeCommandRoute> {
+        val len = buf.getInt()
+        return List<NativeCommandRoute>(len) {
+            FfiConverterTypeNativeCommandRoute.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<NativeCommandRoute>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeNativeCommandRoute.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<NativeCommandRoute>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeNativeCommandRoute.write(it, buf)
         }
     }
 }

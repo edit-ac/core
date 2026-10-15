@@ -933,6 +933,8 @@ public func FfiConverterTypeNativeEngine_lower(_ value: NativeEngine) -> UInt64 
  */
 public protocol NativeSessionProtocol: AnyObject, Sendable {
     
+    func cancelCommands(token: String) throws 
+    
     /**
      * Ordered idempotent release of an uncommitted plan. After disposal: Disposed.
      */
@@ -945,6 +947,18 @@ public protocol NativeSessionProtocol: AnyObject, Sendable {
     func captureAnchors(revision: Data, inputs: [AnchorInput]) throws  -> [NativeSessionAnchor]
     
     /**
+     * Exact current target applicability via the authoritative planner; retains no plan.
+     */
+    func checkCommands(revision: Data, commandsJson: String, origin: String, now: UInt64) throws 
+    
+    /**
+     * Detached current metadata. Target-specific enablement requires check_commands.
+     */
+    func commandCatalog(now: UInt64) throws  -> NativeCommandCatalog
+    
+    func commitCommands(token: String, now: UInt64) throws  -> NativeSessionCommit?
+    
+    /**
      * Single use, including failed admission. Current permission/revision is checked
      * again by EditService. Cancellation cannot interrupt an accepted commit.
      */
@@ -955,6 +969,19 @@ public protocol NativeSessionProtocol: AnyObject, Sendable {
      * all plans and native store on the owning executor before returning.
      */
     func dispose() throws 
+    
+    /**
+     * Exact stack availability for native menus/keys. The observation is advisory:
+     * undo/redo still recheck current permission, admission and the supplied revision.
+     * Disposal returns Disposed, as with every other read on this handle.
+     */
+    func historyState(now: UInt64) throws  -> NativeSessionHistory
+    
+    /**
+     * Same portable EditorCommand array and anchor tokens as the shared engine.
+     * All parsing, anchor lookup and EditService validation precede retaining a plan.
+     */
+    func prepareCommands(revision: Data, commandsJson: String, origin: String, now: UInt64) throws  -> NativePreparedCommands
     
     /**
      * Whole-edit batches use the existing atomic EditService planner. Revision bytes
@@ -1080,6 +1107,15 @@ public static func `open`(options: NativeSessionOptions)throws  -> NativeSession
     
 
     
+open func cancelCommands(token: String)throws   {try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_cancel_commands(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(token),uniffiCallStatus
+    )
+}
+}
+    
     /**
      * Ordered idempotent release of an uncommitted plan. After disposal: Disposed.
      */
@@ -1103,6 +1139,45 @@ open func captureAnchors(revision: Data, inputs: [AnchorInput])throws  -> [Nativ
             self.uniffiCloneHandle(),
         FfiConverterData.lower(revision),
         FfiConverterSequenceTypeAnchorInput.lower(inputs),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Exact current target applicability via the authoritative planner; retains no plan.
+     */
+open func checkCommands(revision: Data, commandsJson: String, origin: String, now: UInt64)throws   {try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_check_commands(
+            self.uniffiCloneHandle(),
+        FfiConverterData.lower(revision),
+        FfiConverterString.lower(commandsJson),
+        FfiConverterString.lower(origin),
+        FfiConverterUInt64.lower(now),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Detached current metadata. Target-specific enablement requires check_commands.
+     */
+open func commandCatalog(now: UInt64)throws  -> NativeCommandCatalog  {
+    return try  FfiConverterTypeNativeCommandCatalog_lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_command_catalog(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(now),uniffiCallStatus
+    )
+})
+}
+    
+open func commitCommands(token: String, now: UInt64)throws  -> NativeSessionCommit?  {
+    return try  FfiConverterOptionTypeNativeSessionCommit.lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_commit_commands(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(token),
+        FfiConverterUInt64.lower(now),uniffiCallStatus
     )
 })
 }
@@ -1132,6 +1207,38 @@ open func dispose()throws   {try rustCallWithError(FfiConverterTypeNativeSession
             self.uniffiCloneHandle(),uniffiCallStatus
     )
 }
+}
+    
+    /**
+     * Exact stack availability for native menus/keys. The observation is advisory:
+     * undo/redo still recheck current permission, admission and the supplied revision.
+     * Disposal returns Disposed, as with every other read on this handle.
+     */
+open func historyState(now: UInt64)throws  -> NativeSessionHistory  {
+    return try  FfiConverterTypeNativeSessionHistory_lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_history_state(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(now),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Same portable EditorCommand array and anchor tokens as the shared engine.
+     * All parsing, anchor lookup and EditService validation precede retaining a plan.
+     */
+open func prepareCommands(revision: Data, commandsJson: String, origin: String, now: UInt64)throws  -> NativePreparedCommands  {
+    return try  FfiConverterTypeNativePreparedCommands_lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_prepare_commands(
+            self.uniffiCloneHandle(),
+        FfiConverterData.lower(revision),
+        FfiConverterString.lower(commandsJson),
+        FfiConverterString.lower(origin),
+        FfiConverterUInt64.lower(now),uniffiCallStatus
+    )
+})
 }
     
     /**
@@ -1502,6 +1609,264 @@ public func FfiConverterTypeBatchResult_lower(_ value: BatchResult) -> RustBuffe
 }
 
 
+public struct NativeCommandCatalog: Equatable, Hashable {
+    public var revision: Data?
+    public var schema: String
+    public var profile: String
+    public var routes: [NativeCommandRoute]
+    public var profiles: [NativeCommandProfile]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(revision: Data?, schema: String, profile: String, routes: [NativeCommandRoute], profiles: [NativeCommandProfile]) {
+        self.revision = revision
+        self.schema = schema
+        self.profile = profile
+        self.routes = routes
+        self.profiles = profiles
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NativeCommandCatalog: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeCommandCatalog: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeCommandCatalog {
+        return
+            try NativeCommandCatalog(
+                revision: FfiConverterOptionData.read(from: &buf), 
+                schema: FfiConverterString.read(from: &buf), 
+                profile: FfiConverterString.read(from: &buf), 
+                routes: FfiConverterSequenceTypeNativeCommandRoute.read(from: &buf), 
+                profiles: FfiConverterSequenceTypeNativeCommandProfile.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NativeCommandCatalog, into buf: inout [UInt8]) {
+        FfiConverterOptionData.write(value.revision, into: &buf)
+        FfiConverterString.write(value.schema, into: &buf)
+        FfiConverterString.write(value.profile, into: &buf)
+        FfiConverterSequenceTypeNativeCommandRoute.write(value.routes, into: &buf)
+        FfiConverterSequenceTypeNativeCommandProfile.write(value.profiles, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeCommandCatalog_lift(_ buf: RustBuffer) throws -> NativeCommandCatalog {
+    return try FfiConverterTypeNativeCommandCatalog.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeCommandCatalog_lower(_ value: NativeCommandCatalog) -> RustBuffer {
+    return FfiConverterTypeNativeCommandCatalog.lower(value)
+}
+
+
+public struct NativeCommandProfile: Equatable, Hashable {
+    /**
+     * Existing FIRST_PARTY_PROFILES / FIRST_PARTY_FEATURES IDs.
+     */
+    public var id: String
+    public var available: Bool
+    public var reason: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Existing FIRST_PARTY_PROFILES / FIRST_PARTY_FEATURES IDs.
+         */id: String, available: Bool, reason: String) {
+        self.id = id
+        self.available = available
+        self.reason = reason
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NativeCommandProfile: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeCommandProfile: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeCommandProfile {
+        return
+            try NativeCommandProfile(
+                id: FfiConverterString.read(from: &buf), 
+                available: FfiConverterBool.read(from: &buf), 
+                reason: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NativeCommandProfile, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterBool.write(value.available, into: &buf)
+        FfiConverterString.write(value.reason, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeCommandProfile_lift(_ buf: RustBuffer) throws -> NativeCommandProfile {
+    return try FfiConverterTypeNativeCommandProfile.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeCommandProfile_lower(_ value: NativeCommandProfile) -> RustBuffer {
+    return FfiConverterTypeNativeCommandProfile.lower(value)
+}
+
+
+public struct NativeCommandRoute: Equatable, Hashable {
+    /**
+     * Exact EditorCommand.type from packages/core/src/engine.ts.
+     */
+    public var id: String
+    public var available: Bool
+    /**
+     * Admission only. Target applicability must pass check_commands/prepare_commands.
+     */
+    public var canPrepare: Bool
+    public var reason: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Exact EditorCommand.type from packages/core/src/engine.ts.
+         */id: String, available: Bool, 
+        /**
+         * Admission only. Target applicability must pass check_commands/prepare_commands.
+         */canPrepare: Bool, reason: String) {
+        self.id = id
+        self.available = available
+        self.canPrepare = canPrepare
+        self.reason = reason
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NativeCommandRoute: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeCommandRoute: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeCommandRoute {
+        return
+            try NativeCommandRoute(
+                id: FfiConverterString.read(from: &buf), 
+                available: FfiConverterBool.read(from: &buf), 
+                canPrepare: FfiConverterBool.read(from: &buf), 
+                reason: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NativeCommandRoute, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterBool.write(value.available, into: &buf)
+        FfiConverterBool.write(value.canPrepare, into: &buf)
+        FfiConverterString.write(value.reason, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeCommandRoute_lift(_ buf: RustBuffer) throws -> NativeCommandRoute {
+    return try FfiConverterTypeNativeCommandRoute.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeCommandRoute_lower(_ value: NativeCommandRoute) -> RustBuffer {
+    return FfiConverterTypeNativeCommandRoute.lower(value)
+}
+
+
+public struct NativePreparedCommands: Equatable, Hashable {
+    public var token: String
+    public var revision: Data
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(token: String, revision: Data) {
+        self.token = token
+        self.revision = revision
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NativePreparedCommands: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativePreparedCommands: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativePreparedCommands {
+        return
+            try NativePreparedCommands(
+                token: FfiConverterString.read(from: &buf), 
+                revision: FfiConverterData.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NativePreparedCommands, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.token, into: &buf)
+        FfiConverterData.write(value.revision, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativePreparedCommands_lift(_ buf: RustBuffer) throws -> NativePreparedCommands {
+    return try FfiConverterTypeNativePreparedCommands.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativePreparedCommands_lower(_ value: NativePreparedCommands) -> RustBuffer {
+    return FfiConverterTypeNativePreparedCommands.lower(value)
+}
+
+
 /**
  * Opaque worker-owned anchor, with immutable capture lineage and revision.
  */
@@ -1750,6 +2115,96 @@ public func FfiConverterTypeNativeSessionEdit_lift(_ buf: RustBuffer) throws -> 
 #endif
 public func FfiConverterTypeNativeSessionEdit_lower(_ value: NativeSessionEdit) -> RustBuffer {
     return FfiConverterTypeNativeSessionEdit.lower(value)
+}
+
+
+/**
+ * Current shared history stacks and admission, read atomically on the Session owner.
+ * Counts remain observable when permission or recovery prevents history mutation.
+ */
+public struct NativeSessionHistory: Equatable, Hashable {
+    /**
+     * None while recovery-required, matching the acknowledged read revision.
+     */
+    public var revision: Data?
+    public var undoGroups: UInt64
+    public var redoGroups: UInt64
+    /**
+     * General history admission; does not imply either stack is nonempty.
+     */
+    public var canHistory: Bool
+    public var canUndo: Bool
+    public var canRedo: Bool
+    public var recoveryRequired: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * None while recovery-required, matching the acknowledged read revision.
+         */revision: Data?, undoGroups: UInt64, redoGroups: UInt64, 
+        /**
+         * General history admission; does not imply either stack is nonempty.
+         */canHistory: Bool, canUndo: Bool, canRedo: Bool, recoveryRequired: Bool) {
+        self.revision = revision
+        self.undoGroups = undoGroups
+        self.redoGroups = redoGroups
+        self.canHistory = canHistory
+        self.canUndo = canUndo
+        self.canRedo = canRedo
+        self.recoveryRequired = recoveryRequired
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NativeSessionHistory: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeSessionHistory: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeSessionHistory {
+        return
+            try NativeSessionHistory(
+                revision: FfiConverterOptionData.read(from: &buf), 
+                undoGroups: FfiConverterUInt64.read(from: &buf), 
+                redoGroups: FfiConverterUInt64.read(from: &buf), 
+                canHistory: FfiConverterBool.read(from: &buf), 
+                canUndo: FfiConverterBool.read(from: &buf), 
+                canRedo: FfiConverterBool.read(from: &buf), 
+                recoveryRequired: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NativeSessionHistory, into buf: inout [UInt8]) {
+        FfiConverterOptionData.write(value.revision, into: &buf)
+        FfiConverterUInt64.write(value.undoGroups, into: &buf)
+        FfiConverterUInt64.write(value.redoGroups, into: &buf)
+        FfiConverterBool.write(value.canHistory, into: &buf)
+        FfiConverterBool.write(value.canUndo, into: &buf)
+        FfiConverterBool.write(value.canRedo, into: &buf)
+        FfiConverterBool.write(value.recoveryRequired, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeSessionHistory_lift(_ buf: RustBuffer) throws -> NativeSessionHistory {
+    return try FfiConverterTypeNativeSessionHistory.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeSessionHistory_lower(_ value: NativeSessionHistory) -> RustBuffer {
+    return FfiConverterTypeNativeSessionHistory.lower(value)
 }
 
 
@@ -2754,6 +3209,8 @@ enum NativeSessionError: Swift.Error, Equatable, Hashable, Foundation.LocalizedE
     case InvalidAnchor
     case AnchorTarget(message: String
     )
+    case CommandInput(message: String
+    )
 
     
 
@@ -2829,6 +3286,9 @@ public struct FfiConverterTypeNativeSessionError: FfiConverterRustBuffer {
         case 25: return .InvalidProjectionCursor
         case 26: return .InvalidAnchor
         case 27: return .AnchorTarget(
+            message: try FfiConverterString.read(from: &buf)
+            )
+        case 28: return .CommandInput(
             message: try FfiConverterString.read(from: &buf)
             )
 
@@ -2959,6 +3419,11 @@ public struct FfiConverterTypeNativeSessionError: FfiConverterRustBuffer {
         
         case let .AnchorTarget(message):
             writeInt(&buf, Int32(27))
+            FfiConverterString.write(message, into: &buf)
+            
+        
+        case let .CommandInput(message):
+            writeInt(&buf, Int32(28))
             FfiConverterString.write(message, into: &buf)
             
         }
@@ -3258,6 +3723,56 @@ fileprivate struct FfiConverterSequenceTypeAnchorInput: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeNativeCommandProfile: FfiConverterRustBuffer {
+    typealias SwiftType = [NativeCommandProfile]
+
+    public static func write(_ value: [NativeCommandProfile], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeNativeCommandProfile.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [NativeCommandProfile] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [NativeCommandProfile]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeNativeCommandProfile.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeNativeCommandRoute: FfiConverterRustBuffer {
+    typealias SwiftType = [NativeCommandRoute]
+
+    public static func write(_ value: [NativeCommandRoute], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeNativeCommandRoute.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [NativeCommandRoute] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [NativeCommandRoute]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeNativeCommandRoute.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeNativeSessionAnchor: FfiConverterRustBuffer {
     typealias SwiftType = [NativeSessionAnchor]
 
@@ -3431,16 +3946,34 @@ private let initializationResult: InitializationResult = {
     if (uniffi_editac_ffi_checksum_method_nativeengine_take_patch() != 5782) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_editac_ffi_checksum_method_nativesession_cancel_commands() != 33457) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_editac_ffi_checksum_method_nativesession_cancel_edits() != 14748) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_editac_ffi_checksum_method_nativesession_capture_anchors() != 33574) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_editac_ffi_checksum_method_nativesession_check_commands() != 44493) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_command_catalog() != 31932) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_commit_commands() != 32785) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_editac_ffi_checksum_method_nativesession_commit_edits() != 20568) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_editac_ffi_checksum_method_nativesession_dispose() != 7672) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_history_state() != 58856) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_prepare_commands() != 64259) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_editac_ffi_checksum_method_nativesession_prepare_edits() != 9326) {
