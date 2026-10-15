@@ -24,10 +24,17 @@ static int usage(pid_t pid, struct rusage_info_v4 *r) {
   return proc_pid_rusage(pid, RUSAGE_INFO_V4, (rusage_info_t *)r);
 }
 static void fields(pid_t pid, const struct rusage_info_v4 *r) {
-  printf("{\"pid\":%d,\"startIdentity\":\"%llu\",\"residentBytes\":%llu,\"footprintBytes\":%llu,\"lifetimePeakFootprintBytes\":%llu}",
+  printf("{\"pid\":%d,\"startIdentity\":\"%llu\",\"residentBytes\":%llu,\"footprintBytes\":%llu,\"lifetimePeakFootprintBytes\":%llu",
     pid, (unsigned long long)r->ri_proc_start_abstime,
     (unsigned long long)r->ri_resident_size, (unsigned long long)r->ri_phys_footprint,
     (unsigned long long)r->ri_lifetime_max_phys_footprint);
+  // The running process may allocate while the kernel fills rusage fields.
+  // Retain the first raw counters and independently confirm the peak afterward.
+  struct rusage_info_v4 confirmation;
+  if (usage(pid, &confirmation)) printf(",\"confirmationError\":%d}", errno);
+  else printf(",\"confirmationStartIdentity\":\"%llu\",\"confirmedLifetimePeakFootprintBytes\":%llu}",
+    (unsigned long long)confirmation.ri_proc_start_abstime,
+    (unsigned long long)confirmation.ri_lifetime_max_phys_footprint);
 }
 static int sample(pid_t root) {
   pid_t pids[MAX_PROCESSES] = { root };

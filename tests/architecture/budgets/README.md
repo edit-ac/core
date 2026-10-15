@@ -452,3 +452,13 @@ miss short-lived processes; neither measure qualifies a simultaneous browser-tre
 cycle-local or JS-allocation true peak. Post-disposal GC samples and seven live
 JS/backing/DOM phases remain separate. Plateau limits remain null/unreviewed;
 optional decoders and native editor runtimes remain unqualified.
+
+Each process sample retains the initial current/lifetime values and a second
+ordered OS peak read with its process start identity. Three samples in the
+first complete child-tree run reported current footprint 16 KiB above the first
+lifetime counter; that failed run remains retained. The second read must confirm
+a peak at least as large as the first current value and preserve process identity.
+Admission rejects unresolved inconsistency, missing confirmation and decreasing
+counters. The raw first counters are never overwritten; summaries count these
+initial inconsistencies. This protocol still cannot establish cycle-local or
+simultaneous browser-tree peak qualification.

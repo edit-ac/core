@@ -40,9 +40,10 @@ export function inspectProcessMemory(record) {
     for (const pid of requiredPids) require(sample.processes.some(p => p.pid === pid), 'Missing browser/renderer sample');
     for (const p of sample.processes) {
       require(positive(p.pid) && p.pid !== record.samplerPid && p.error === undefined && typeof p.startIdentity === 'string' && /^[1-9][0-9]*$/.test(p.startIdentity), 'Unavailable process accounting/identity');
-      require([p.residentBytes, p.footprintBytes, p.lifetimePeakFootprintBytes].every(positive) && p.lifetimePeakFootprintBytes >= p.footprintBytes, 'Missing/invalid process-memory bytes');
+      require([p.residentBytes, p.footprintBytes, p.lifetimePeakFootprintBytes, p.confirmedLifetimePeakFootprintBytes].every(positive), 'Missing/invalid process-memory bytes');
+      require(p.confirmationError === undefined && p.confirmationStartIdentity === p.startIdentity && p.confirmedLifetimePeakFootprintBytes >= Math.max(p.footprintBytes, p.lifetimePeakFootprintBytes), 'Unconfirmed/inconsistent process peak');
       const old = identities.get(p.pid);
-      if (old) require(p.startIdentity === old.startIdentity && p.lifetimePeakFootprintBytes >= old.lifetimePeakFootprintBytes, 'Reused PID or decreasing OS peak');
+      if (old) require(p.startIdentity === old.startIdentity && p.lifetimePeakFootprintBytes >= old.lifetimePeakFootprintBytes && p.confirmedLifetimePeakFootprintBytes >= old.confirmedLifetimePeakFootprintBytes, 'Reused PID or decreasing OS peak');
       identities.set(p.pid, p);
     }
   }

@@ -5,8 +5,9 @@ import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 
 export const processMemoryPolicy = Object.freeze({
-  version: 1, method: 'macos-proc-pid-rusage-v4-browser-tree-v1',
+  version: 2, method: 'macos-proc-pid-rusage-v4-browser-tree-confirmed-v2',
   intervalMs: 20, maximumGapMs: 250,
+  counterReads: 'current-and-reported-peak/confirm-reported-peak-v1',
   scope: 'Browser tree sampled resident/physical-footprint bytes; OS-maintained per-process lifetime maximum physical footprint. Not a simultaneous tree peak, cycle-local peak, JS allocation peak or plateau qualification.',
 });
 
@@ -74,11 +75,12 @@ export function summarizeProcessMemory(samples) {
     const key = `${p.pid}/${p.startIdentity}`, previous = perProcess.get(key);
     perProcess.set(key, { pid: p.pid, startIdentity: p.startIdentity,
       sampledMaxFootprintBytes: Math.max(previous?.sampledMaxFootprintBytes ?? 0, p.footprintBytes),
-      lifetimePeakFootprintBytes: Math.max(previous?.lifetimePeakFootprintBytes ?? 0, p.lifetimePeakFootprintBytes) });
+      lifetimePeakFootprintBytes: Math.max(previous?.lifetimePeakFootprintBytes ?? 0, p.lifetimePeakFootprintBytes, p.confirmedLifetimePeakFootprintBytes) });
   }
   return { sampleCount: samples.length,
     durationMs: samples.at(-1).endMs - samples[0].atMs,
     maximumGapMs: Math.max(0, ...samples.slice(1).map((s, i) => s.atMs - samples[i].atMs)),
     sampledTreeHighWaterBytes: Math.max(...samples.map(s => s.processes.reduce((sum, p) => sum + (p.footprintBytes ?? 0), 0))),
+    initialCounterLagSamples: samples.reduce((sum, s) => sum + s.processes.filter(p => p.lifetimePeakFootprintBytes < p.footprintBytes).length, 0),
     perProcess: [...perProcess.values()] };
 }
