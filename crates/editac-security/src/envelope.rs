@@ -95,6 +95,11 @@ impl<P: OpenMlsProvider> Admission<P> {
         })
     }
 
+    /// Compare the pinned MLS binding before attaching a prepared transport.
+    pub(crate) fn matches_context(&self, context: &Context) -> bool {
+        &self.context == context
+    }
+
     /// Any restore/crash/fork notification permanently retires this session.
     /// No ciphertext is emitted and no plaintext is returned while locked.
     pub(crate) fn retire_after_restore(&mut self) {

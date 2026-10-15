@@ -33,6 +33,7 @@ ed25519-dalek = "=2.2.0"
 rand_chacha = "=0.3.1"
 rand_core = "=0.6.4"
 serde_json = "=1.0.152"
+sha2 = "=0.10.9"
 tls_codec = "=0.5.0"
 zeroize = "=1.9.1"
 

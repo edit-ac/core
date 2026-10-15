@@ -1,5 +1,15 @@
 # Optional security qualification
 
+SEC-1.6 adds `src/sync.rs` and canonical `tests/encrypted_sync.rs`. It composes
+real MLS, protected SQLite session stores and an opaque persistent relay for
+encrypted bootstrap and offline convergence. Exact profile negotiation fails
+closed. Ciphertext receipts bind scope and bytes; they never become plaintext
+`DurableReceipt`s or prune the session outbox. Retry reuses retained ciphertext;
+restored senders remain locked. Run `cargo test -p editac-security --test
+encrypted_sync --locked`. See sibling `architecture/evidence/encrypted-sync.md`
+for limits and distinct host-authentication, rejoin, platform and review gaps.
+The adapter remains absent from production builds.
+
 SEC-1.5 adds `src/store.rs`, an actual session `LocalStore` wrapper qualified over
 standard age files, protected durable `SessionStore` writer reservations and a real SQLite WAL ciphertext host (`src/store_native.rs`).
 Run `cargo test -p editac-security --test protected_store --locked`. The harness
