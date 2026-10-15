@@ -56,10 +56,8 @@ public final class NativeEditorView: NSView {
         scrollView.documentView = textView
         scrollView.autoresizingMask = [.width, .height]
         addSubview(scrollView)
-        scrollView.frame = NSRect(x: 0, y: 22, width: bounds.width, height: max(0, bounds.height - 22))
-        self.storage.statusLabel.frame = NSRect(x: 4, y: 2, width: max(0, bounds.width - 8), height: 18)
-        self.storage.statusLabel.autoresizingMask = [.width, .maxYMargin]
-        addSubview(self.storage.statusLabel)
+        scrollView.frame = bounds
+        _ = self.storage
         session.onProjection = { [weak self] result in
             guard let self, !self.isDisposed else { return }
             guard !self.composition.isActive else { return }

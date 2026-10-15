@@ -12,6 +12,11 @@ identity and cached permission. No account or network is needed. The same shared
 Session owns the SQLite journal/checkpoint/outbox. Every native edit, command and
 history action passes through that owner and its durable commit boundary.
 
+The embedding host may place `view.storage.statusLabel` beside the editor in its
+native document chrome. The label is exposed separately so it does not alter
+editor geometry, responder ownership or retain a released editor through AppKit
+control layout work. Its text and accessibility label update on the main actor.
+
 Call `view.storage.bind(window:now:)` to observe native window close and application
 backgrounding. Supply the Session's explicit clock; the binding never substitutes
 wall time or resets permission expiry. Backgrounding refreshes state; commits

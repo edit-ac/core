@@ -63,6 +63,16 @@ final class DurabilityTests: XCTestCase {
     func testActualNativeInputAcknowledgmentAndOfflineReopenWithoutAccount() async throws {
         let (root, options) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
         let view = NativeEditorView(frame: NSRect(x: 0, y: 0, width: 500, height: 300))
+        let window = NSWindow(contentRect: view.frame, styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        let chrome = NSView(frame: view.frame)
+        view.frame = NSRect(x: 0, y: 24, width: 500, height: 276)
+        view.storage.statusLabel.frame = NSRect(x: 4, y: 2, width: 492, height: 20)
+        chrome.addSubview(view); chrome.addSubview(view.storage.statusLabel)
+        window.contentView = chrome
+        defer { window.contentView = nil; window.close() }
+        XCTAssertTrue(view.storage.statusLabel.window === window)
+        XCTAssertFalse(view.frame.intersects(view.storage.statusLabel.frame))
         let before = try await open(view, options)
         view.input.now = { 0 }
         let result: Result<Void, NativeInputFailure> = await withCheckedContinuation { c in
@@ -100,6 +110,15 @@ final class DurabilityTests: XCTestCase {
                 if case .success = $0 { committed = true } else { XCTFail("accepted commit failed") }
             }
         XCTAssertEqual(view.storage.status.phase, .pending)
+        let observe = view.session.onStorageStatus
+        var reentrantAdmissionChecked = false
+        view.session.onStorageStatus = { [weak view] status in
+            observe?(status)
+            guard let view, view.storage.isClosing, !reentrantAdmissionChecked else { return }
+            reentrantAdmissionChecked = true
+            do { try view.session.submit(.read(now: 0)); XCTFail("observer bypassed close admission") }
+            catch NativeSessionFailure.closing {} catch { XCTFail("\(error)") }
+        }
         let result: Result<Void, NativeSessionFailure> = await withCheckedContinuation { c in
             view.storage.close { c.resume(returning: $0) }
             do { try view.session.submit(.read(now: 0)); XCTFail("close admitted a request") }
@@ -107,6 +126,7 @@ final class DurabilityTests: XCTestCase {
             gate.signal()
         }
         try result.get(); XCTAssertTrue(committed); XCTAssertTrue(view.isDisposed)
+        XCTAssertTrue(reentrantAdmissionChecked)
         let restored = NativeEditorView(frame: .zero); let after = try await open(restored, options, create: false)
         XCTAssertEqual(after.nodes[0].text, "AqueuedB"); XCTAssertEqual(after.pendingUpload, before.pendingUpload + 1)
         try await close(restored)
