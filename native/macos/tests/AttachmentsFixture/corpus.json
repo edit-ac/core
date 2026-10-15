@@ -1,0 +1,59 @@
+[
+  {
+    "runs": [
+      {
+        "text": "Before \ud83e\udd80 \u05d0\u05d1",
+        "marks": []
+      }
+    ],
+    "attributes": {
+      "type": "paragraph"
+    }
+  },
+  {
+    "runs": [],
+    "attributes": {
+      "type": "content",
+      "tuple": [
+        "module:editac.image",
+        1,
+        {
+          "url": "https://assets.example.invalid/a.png",
+          "alt": "A crab \ud83e\udd80",
+          "title": "Fixture image",
+          "source": "![A crab](https://assets.example.invalid/a.png)"
+        }
+      ]
+    }
+  },
+  {
+    "runs": [
+      {
+        "text": "Reference \u05d0\u05d1",
+        "marks": []
+      }
+    ],
+    "attributes": {
+      "type": "content",
+      "tuple": [
+        "module:editac.reference",
+        1,
+        {
+          "targetId": "ac://fixture/document",
+          "label": "Reference \u05d0\u05d1"
+        }
+      ]
+    }
+  },
+  {
+    "runs": [
+      {
+        "text": "After",
+        "marks": []
+      }
+    ],
+    "attributes": {
+      "type": "paragraph"
+    }
+  }
+]

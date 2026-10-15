@@ -108,6 +108,9 @@ extension NativeTextProjection {
                 tables[node.id] = try NativeTableDescriptor(tuple)
             }
         }
+        for node in next.values {
+            if let tuple = node.wire["blockAttributes"] as? [Any] { _ = try NativeAttachmentDescriptor(tuple) }
+        }
         let ordered = next.values.filter { $0.kind == "block" }.sorted { $0.order == $1.order ? $0.id < $1.id : $0.order < $1.order }
         // Text-only mapper remains the coordinate implementation, with one native
         // attachment unit per shared atom. It never edits the shared document.
@@ -221,10 +224,18 @@ extension NativeTextProjection {
 
     func anchorInputs(for target: NativeTextSelectionTarget) throws -> [AnchorInput] {
         _ = try range(for: target)
-        return [target.anchor, target.focus].map {
-            AnchorInput(node: $0.node,
-                offsetUtf16: richNodes[$0.node]?.attachment == true ? 0 : UInt32($0.offsetUTF16),
-                bias: richNodes[$0.node]?.attachment == true && $0.offsetUTF16 == 0 ? .left : .right)
+        return [target.anchor, target.focus].map { endpoint in
+            let atom = richNodes[endpoint.node]?.attachment == true
+            var offset = endpoint.offsetUTF16
+            if atom {
+                let runs = richNodes[endpoint.node]!.runs
+                let semanticLength: Int = runs.reduce(0) { total, run in
+                    total + (run["text"] as! String).utf16.count
+                }
+                offset = endpoint.offsetUTF16 == 0 ? 0 : semanticLength
+            }
+            return AnchorInput(node: endpoint.node, offsetUtf16: UInt32(offset),
+                bias: atom && endpoint.offsetUTF16 == 0 ? .left : .right)
         }
     }
 }

@@ -15,6 +15,7 @@ public final class NativeEditorView: NSView {
     private var selectionGeneration: UInt64 = 0
     private var selectionWaiters: [UUID: CheckedContinuation<NativeSessionResponse, Error>] = [:]
     public private(set) lazy var commands = NativeCommands(view: self)
+    public private(set) lazy var attachments = NativeAttachments(view: self)
     public private(set) lazy var tables = NativeTableEditing(view: self)
     public private(set) lazy var input = NativeCommittedInput(view: self)
     public private(set) lazy var composition = NativeComposition(view: self)
@@ -66,6 +67,7 @@ public final class NativeEditorView: NSView {
             }
             guard case let .success(update) = result else {
                 if case let .failure(error) = result { self.projectionSessionFailure = error }
+                self.attachments.cancelAll()
                 self.projectionFailure = .unavailableRevision
                 self.projection.revision = nil
                 self.projection.invalidateAnchoredSelection()
@@ -79,8 +81,10 @@ public final class NativeEditorView: NSView {
                     self.commands.observe(catalog: catalog, history: history)
                 }
                 self.projectionFailure = nil
+                try self.attachments.reconcile()
                 self.textView.setAccessibilityLabel("Editor (native projection)")
             } catch {
+                self.attachments.cancelAll()
                 self.projectionFailure = error as? NativeProjectionFailure ?? .malformedRichProjection
                 self.projection.revision = nil
                 self.projection.invalidateAnchoredSelection()
@@ -137,6 +141,7 @@ public final class NativeEditorView: NSView {
     /// The embedding host calls this when its editor/document is closed.
     public func dispose(completion: @escaping @MainActor @Sendable () -> Void = {}) {
         isDisposed = true
+        attachments.dispose()
         commands.dispose()
         composition.dispose()
         input.dispose()
