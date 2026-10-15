@@ -1,6 +1,18 @@
-# Optional security dependency probes
+# Optional security qualification
 
-This unpublishable crate is the SEC-1.2 compile-only candidate boundary. Default features are empty and the semantic engine does not depend on it. The private `protocol-probe` module type-checks OpenMLS group creation, application messages, processing, membership and epoch operations without executing them. No production encryption API is exposed.
+This unpublishable crate holds SEC-1.2 dependency probes and SEC-1.3 prepared admission mechanics. Default features are empty and the semantic engine does not depend on it. The private `protocol-probe` module type-checks OpenMLS APIs. `src/envelope.rs` is included directly by the prepared integration harness; it is absent from production builds. No production encryption API is exposed.
+
+SEC-1.3 uses real MLS private messages and signature-key-pinned writer policy, authenticates document/document epoch/schema/key epoch/operation context, bounds inputs and operation sets, and returns plaintext only after admission. Membership messages never merge through this path. Semantic validation and durable application acknowledgement remain host/store obligations. See `architecture/evidence/envelope-admission.md` in the sibling architecture repository for fixture provenance, exact limits and remaining gates.
+
+Run its canonical check from core:
+
+```sh
+cargo test -p editac-security --test envelopes --locked
+```
+
+The committed fixture snapshots contain deliberately public disposable secrets for one prepared MLS group and an unrelated group with matching public identities. Tests load fixed snapshots, use fixed Ed25519 keys and a seeded ChaCha20 application RNG, and assert byte-reproducible application messages. They do not bootstrap groups or record fixtures automatically. The example `prepare-envelope-fixtures` is an explicit offline maintenance utility requiring an output directory; HPKE bootstrap entropy is captured once in the snapshots. Never use these identities, providers or snapshots for real content.
+
+Fresh prepared state is a harness trust root, not evidence of host freshness. Every restored session locks sending and receiving unconditionally, has no unlock/resume operation, and requires a future authorized fresh-sender rejoin. Memory storage does not provide transactional persistence. The admission object is neither clonable nor serializable; snapshot/fork/crash detection, protected storage, identity binding, cleanup, rotation and independent review must be qualified at their owning gates before a host API can exist.
 
 Run from the core root with the pinned Node/Rust toolchains:
 

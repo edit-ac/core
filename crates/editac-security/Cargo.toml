@@ -22,3 +22,15 @@ getrandom = { version = "=0.2.17", optional = true, features = ["js"] }
 
 [lints]
 workspace = true
+
+# Prepared qualification only. These do not enable a production encryption API.
+[dev-dependencies]
+openmls = "=0.9.1"
+openmls_rust_crypto = "=0.6.0"
+openmls_basic_credential = "=0.6.0"
+openmls_traits = "=0.6.0"
+ed25519-dalek = "=2.2.0"
+rand_chacha = "=0.3.1"
+rand_core = "=0.6.4"
+serde_json = "=1.0.152"
+tls_codec = "=0.5.0"
