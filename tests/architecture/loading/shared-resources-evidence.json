@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "gate": "FIT-1.6-I2-A",
+  "sourceRevision": "c353c87f04046a451645445cf3b8d7c05fdd2b43d4cc683bf44c1b9cf2e6a11a",
+  "scope": "Actual same-page packed core/web/Markdown and optional MathML sharing prerequisite; prepared admission/graph negatives; not full SHR-01\u201308, performance, native, deployment or release qualification",
+  "receipt": {
+    "path": "architecture-results/fit-1.6-20261015/shared-resources-1/delivery-receipt.json",
+    "sha256": "b921c5cc0a62defe5f757121ff1241cfbc15489ff8660812cf99955147a29a6e"
+  },
+  "implementation": {
+    "contracts/layers.json": "f1bc2ea04c92ff6a6163c7060a3ade410f40c95260d1b6c9d6e7e3b83579d143",
+    "scripts/test-browser.mjs": "4630efd193beadeba10b9285e26828276f586a0a7ce3ff69f1d159846a079d63",
+    "scripts/shared-resource-contract.mjs": "0e6981643a93f4718f63f0ca5e62d1790ea00a5637ebfc06de57a273468c1883",
+    "scripts/collect-shared-resources.mjs": "e7a004b70173d3e86f50fc2bf2e30b2f7f99004b807211c6db3cf8febcd1c160",
+    "tests/architecture/layers/layers.test.mjs": "62fbc4f1633d09bda57c3de01313fa410984edb7309c8a0cc0fece310527de9e",
+    "tests/architecture/loading/README.md": "6646b29c46b2365363c2c8ad905969e330b3262a3df6bf501f5674187d8881fa",
+    "tests/architecture/loading/loading.test.mjs": "80c0290914f1164cde90b51ad7661c94ecd57402ae4fefe632207ec2079e1c9a",
+    "tests/browser/browser-harness.ts": "48d4a5d5be1e9c7fd573c8f72913d2a9bc20b127b9d442024d94f7d48b89674c",
+    "tests/browser/fixture-server.mjs": "9c35e286d1e1d8c6206f885f8771ea819ab96f78c69b1f3860e4da61a6b6b680",
+    "tests/browser/shared-editor-resources.spec.ts": "63d08d4396f1df964db9ede8f5855d098d4c598a99591035451da209612a6e3f",
+    "tests/consumers/shared-resources/index.html": "94d8919f7d5a9cdf38fff6369b92cd3e6d7e212075943eb112c3df384dc073a0",
+    "tests/consumers/shared-resources/session.mjs": "f02e56b10e1d55ee6d238125d2c78407364800f9a2caea14807b551b815a114e",
+    "tests/shared-editor-resources.test.mjs": "ee6836d970e4f7c013c08e0474abeb2a7cb7660603d0b90d3798a277efecabcc"
+  },
+  "counts": {
+    "node": 27,
+    "samePageBrowsers": 39,
+    "optionalMarkdownRegression": 18,
+    "lifecycleRegression": 27,
+    "layersRegression": 72,
+    "failures": 0,
+    "skips": 0
+  },
+  "remaining": [
+    "SHR-04/plain",
+    "SHR-04/react",
+    "SHR-04/astro",
+    "SHR-04/mixed-bindings",
+    "SHR-04/ssr",
+    "SHR-05/client-task-document-back",
+    "SHR-06/cold-full-navigation",
+    "SHR-06/warm-full-navigation",
+    "SHR-06/cache-disabled-full-navigation",
+    "SHR-07/incompatible-build",
+    "SHR-07/duplicate-detector",
+    "SHR-07/eager-detector",
+    "SHR-07/version-rollover"
+  ],
+  "canonicalLoading": "Pending full SDK-1.10 SHR-04\u201307; parent/I2/V1 remain open"
+}

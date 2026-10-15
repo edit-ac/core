@@ -205,8 +205,11 @@ test('Dispatcher: absent counts reject', () => assert.throws(() => testCounts(''
 test('Repository: locked/offline Cargo and actual JS production graphs satisfy layer ownership', async () => {
   const policy = JSON.parse(await readFile(resolve(root, 'contracts/layers.json')));
   const result = await checkLayers(root, policy);
-  assert.equal(result.cargo.members, 7); assert.equal(result.js.members, 5);
+  assert.equal(result.cargo.members, 8); assert.equal(result.js.members, 5);
   assert.ok(result.js.files > 0); assert.ok(result.cargo.edges.length > 0); assert.ok(result.js.edges.length > 0);
+  for (const closure of Object.values(result.cargo.closures)) assert(!closure.some(c => ['editac-session', 'editac-ffi', 'editac-security'].includes(c.name)), 'Native/session/security companions remain outside minimum roots');
+  assert.ok(result.cargo.edges.some(e => e.from === 'editac-ffi' && e.to === 'editac-session'));
+  assert.ok(result.cargo.edges.some(e => e.from === 'editac-session' && e.to === 'url'));
   assert.ok(result.cargo.devEdges.some(e => e.from === 'editac-core' && e.to === 'editac-markdown'));
   const output = process.env.EDITAC_ARCHITECTURE_OUTPUT;
   if (output) await writeFile(resolve(output, 'layers-graph.json'), JSON.stringify(result, null, 2) + '\n');

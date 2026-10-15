@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os';
 import { hash, checkLayers } from '../../../scripts/architecture-layers.mjs';
 import { testCounts } from '../../../scripts/check-architecture.mjs';
 import { auditConsumerGraph, admitMeasuredConsumer } from '../../../scripts/consumers-loading.mjs';
+import { admitSharedReceipt } from '../../../scripts/shared-resource-contract.mjs';
 import { budgets } from '../../../scripts/browser-size-contract.mjs';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
@@ -64,6 +65,16 @@ for (const [profile, dir] of [['default', 'default-task'], ['markdown', 'markdow
     assert.equal(facts.commands.at(-1).counts.tests, 3, 'All browser engines must execute');
   });
 }
+test('SHR-01–08 exact packed site receipt is required for shared-resource qualification', async () => {
+  const directory = process.env.EDITAC_SHARED_RESOURCES_RECEIPT;
+  assert(directory, 'Missing SDK-1.10 consolidated SHR-01–08 receipt; same-page observations alone cannot pass FIT-1.6-I2');
+  const receipt = await admitSharedReceipt(directory, root);
+  assert.equal(receipt.defaultGzip.total, facts.profiles.default.result.total.bytes, 'Shared receipt must match current default inventory');
+  assert.equal(receipt.defaultGzip.editorJs, facts.profiles.default.result.js.bytes, 'Shared receipt must match current default JS inventory');
+  assert.deepEqual(receipt.defaultAssets.map(a => [a.sha256, a.bytes]).sort(), facts.profiles.default.assets.map(a => [a.sha256, a.raw]).sort(), 'Shared receipt must use exact current default delivered artifacts');
+  for (const pack of facts.profiles.default.packs) assert(receipt.packages.some(value => value.name === `@edit-ac/${pack.name}` && value.sha256 === pack.sha256), 'Shared receipt package differs from current default pack');
+  facts.sharedResources = { directory: relative(root, directory), artifact: 'shared-receipt.json', sha256: hash(await readFile(join(directory, 'shared-receipt.json'))) };
+});
 test('independent tarball public ESM, declarations, React, Astro static/SSR and browser consumers work without aliases', () => {
   const directory = join(output, 'packed-consumers');
   node('packed-consumers', ['--test', '--test-reporter=tap', 'tests/packed-consumers.test.mjs'], { EDITAC_PACKED_OUTPUT: directory }, true);

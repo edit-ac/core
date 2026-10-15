@@ -43,3 +43,41 @@ The canonical receipt records outer counts and hashes. The linked
 source pins, package hashes and every preserved artifact/log hash. Failures and
 skips fail qualification. Existing harness teardown closes its browsers/servers
 and removes isolated consumers even on failure; preserved artifacts are evidence.
+
+The amended FIT-1.6-I2 gate requires `EDITAC_SHARED_RESOURCES_RECEIPT` to name
+SDK-1.10's retained `shared-receipt.json` directory. The canonical command rejects
+missing/incomplete/stale SHR-01–08 evidence; historical single-consumer passes
+retain their earlier scope. `scripts/shared-resource-contract.mjs` checks the
+required matrix, exact current source and retained evidence identities, duplicate
+asset bytes/URLs, compatible generated owners and disabled-only optional absence.
+Default gzip results must match the canonical shared counting harness.
+
+Same-page preparation uses the existing installed-package browser harness:
+
+```sh
+node --test tests/wasm-runtime-loader.test.mjs tests/shared-editor-resources.test.mjs
+EDITAC_SHARED_RESOURCES_OUTPUT=<retained-output> npm run test:browser -- shared-resources
+node scripts/collect-shared-resources.mjs <retained-output>
+```
+
+The collector writes `same-page-receipt.json` with `complete:false` and every
+missing SHR case. It cannot be supplied as a consolidated receipt. These actual
+browser cases exercise real production core/Markdown WASM, IndexedDB recovery,
+flush/report, history and permission isolation, deferred/disposed recovery,
+shared failures/retries, bounded repeated mounts and optional math lifetimes.
+Fetch/instantiation counters are separate from issued/released sessions and
+actual generated `Engine.restore`/`free` observations; the observer delegates
+to the unchanged packed implementation and counts post-reload handles only;
+seed creation occurs before a fresh realm used for each sharing observation.
+The MathML renderer installs no CSS/fonts: static style count is zero rather than
+an invented stylesheet ref-count test. Browser input is deterministic and does
+not qualify OS clipboard, assistive technology or universal performance.
+
+Pending SDK-1.10 continuation extends `tests/packed-consumers.test.mjs` and its
+existing plain/React/Astro builders, rather than adding another framework harness:
+produce a common split graph and stable versioned asset manifest, both route
+navigation modes, cold/cache-disabled/controlled-warm server/browser evidence,
+rollover/conflicting build controls and duplicate/eager detector injections.
+Retain the common gzip inventory, preferred results, union/incremental costs,
+first-visible/edit and per-instance resources. Same-page loader success does not
+stand in for that production-build/cache matrix.

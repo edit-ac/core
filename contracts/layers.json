@@ -242,7 +242,14 @@
         "contracts/profiles/portable-editor-v5.json",
         "Cargo.toml",
         "Cargo.lock",
-        "package-lock.json"
+        "package-lock.json",
+        "scripts/shared-resource-contract.mjs",
+        "scripts/collect-shared-resources.mjs",
+        "tests/shared-editor-resources.test.mjs",
+        "tests/wasm-runtime-loader.test.mjs",
+        "tests/browser/shared-editor-resources.spec.ts",
+        "tests/consumers/shared-resources/index.html",
+        "tests/consumers/shared-resources/session.mjs"
       ],
       "artifacts": [
         "consumers-loading-inventory.json",
@@ -446,7 +453,8 @@
       "layer": "native-bridge",
       "manifest": "crates/editac-ffi/Cargo.toml",
       "allowedInternal": [
-        "editac-core"
+        "editac-core",
+        "editac-session"
       ],
       "allowedExternal": [
         "serde",
@@ -484,6 +492,20 @@
       ]
     },
     {
+      "name": "editac-security",
+      "ecosystem": "cargo",
+      "layer": "optional-service",
+      "manifest": "crates/editac-security/Cargo.toml",
+      "allowedInternal": [],
+      "allowedExternal": [
+        "getrandom",
+        "openmls",
+        "openmls_basic_credential",
+        "openmls_rust_crypto",
+        "openmls_traits"
+      ]
+    },
+    {
       "name": "editac-session",
       "ecosystem": "cargo",
       "layer": "portable-companion",
@@ -497,7 +519,8 @@
         "rusqlite",
         "serde",
         "serde_json",
-        "sha2"
+        "sha2",
+        "url"
       ]
     },
     {
@@ -592,6 +615,13 @@
     "event-listener-strategy",
     "fastrand",
     "form_urlencoded",
+    "futures-channel",
+    "futures-core",
+    "futures-io",
+    "futures-macro",
+    "futures-sink",
+    "futures-task",
+    "futures-util",
     "getrandom",
     "hashbrown",
     "icu_collections",
@@ -618,6 +648,7 @@
     "proc-macro2",
     "quote",
     "r-efi",
+    "rand_core",
     "redox_syscall",
     "rustversion",
     "scopeguard",
@@ -625,6 +656,7 @@
     "serde_core",
     "serde_derive",
     "serde_json",
+    "slab",
     "smallstr",
     "smallvec",
     "stable_deref_trait",
