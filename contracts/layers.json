@@ -284,6 +284,7 @@
         "tests/architecture/budgets/workloads.test.mjs",
         "tests/architecture/budgets/lifecycle.test.mjs",
         "tests/architecture/budgets/loading.test.mjs",
+        "tests/architecture/budgets/rendering.test.mjs",
         "tests/architecture/budgets/native-input.test.mjs"
       ],
       "inputs": [
@@ -348,6 +349,8 @@
         "scripts/lifecycle-evidence.mjs",
         "benchmarks/profiles/loading-v1.json",
         "benchmarks/profiles/loading-evidence.json",
+        "benchmarks/profiles/loading-render-evidence.json",
+        "scripts/loading-render-attribution.mjs",
         "benchmarks/loading-client.mjs",
         "scripts/bench-loading.mjs",
         "scripts/loading-evidence.mjs",

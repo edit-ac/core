@@ -1,4 +1,5 @@
 import { inspectStartup } from '../benchmarks/loading-startup-attribution.mjs';
+import { inspectRenderTrace } from './loading-render-attribution.mjs';
 import { summarizeCommand } from '../benchmarks/loading-command-attribution.mjs';
 import { spawnSync } from 'node:child_process';
 import { fixture } from '../benchmarks/fixtures.mjs';
@@ -9,7 +10,7 @@ const tracked = spawnSync('git', ['ls-files', 'crates', 'packages', 'Cargo.toml'
 if (tracked.status !== 0) throw Error('Cannot inventory runtime closure');
 export const loadingInputs = [...new Set([...tracked.stdout.trim().split('\n'),
   'crates/editac-core/src/fitness.rs', 'scripts/build-wasm.mjs', 'benchmarks/config.json', 'benchmarks/presets.mjs', 'benchmarks/profiles/loading-v1.json', 'benchmarks/loading-client.mjs', 'benchmarks/loading-command-attribution.mjs', 'benchmarks/fixtures.mjs',
-  'scripts/startup-instrumentation.mjs', 'benchmarks/loading-startup-attribution.mjs', 'scripts/loading-evidence.mjs', 'scripts/bench-loading.mjs', 'scripts/check-browser-size.mjs', 'scripts/consumers-loading.mjs', 'scripts/browser-size-contract.mjs', 'scripts/minify-task.mjs', 'scripts/architecture-budgets.mjs', 'scripts/test-toolchain.mjs', 'scripts/fitness-instrumentation.mjs', 'benchmarks/attribution.mjs', '.node-version', 'examples/task-editor/index.html'])];
+  'scripts/loading-render-attribution.mjs', 'scripts/startup-instrumentation.mjs', 'benchmarks/loading-startup-attribution.mjs', 'scripts/loading-evidence.mjs', 'scripts/bench-loading.mjs', 'scripts/check-browser-size.mjs', 'scripts/consumers-loading.mjs', 'scripts/browser-size-contract.mjs', 'scripts/minify-task.mjs', 'scripts/architecture-budgets.mjs', 'scripts/test-toolchain.mjs', 'scripts/fitness-instrumentation.mjs', 'benchmarks/attribution.mjs', '.node-version', 'examples/task-editor/index.html'])];
 const finite = v => Number.isFinite(v) && v >= 0;
 const phaseNames = ['module','wasmInit','editorCreate','editorReady','firstFrame','initialRead','initialProjection','initialHash','expectedFixture','expectedHash','targetRead','targetSelect','editAnchors','editCommand','editRelease','editVerify','restoreAnchors','restoreCommand','restoreRelease','finalRead','finalProjection','finalHash','flush'];
 const coldPhases = ['checkpointFetch','checkpointDecode','checkpointOpen','checkpointPublish','checkpointClose'];
@@ -49,6 +50,8 @@ export function inspectLoading(profile, record, item, kind) {
     check(pair.index === index && pair.databaseDeleted, 'Missing/reordered replay or leaked database');
     for (const mode of ['cold','warm']) {
       const raw = pair[mode];
+      if (record.metadata.renderAttribution === 'cdp-rendering-v1') inspectRenderTrace(raw?.renderTrace, raw);
+      else check(!raw?.renderTrace && [undefined, 'none'].includes(record.metadata.renderAttribution), 'Mislabeled rendering evidence');
       check(raw?.sourcePreserved && raw.persisted && raw.initialHash === raw.finalHash && /^[0-9a-f]{64}$/.test(raw.initialHash), 'Lost source or acknowledgment');
       if (traced) {
         inspectStartup(raw.startupTrace);

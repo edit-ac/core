@@ -190,6 +190,19 @@ rejects missing cycles, resource leaks, idle polling, late mutation, lost recove
 mutated artifacts and invented qualification; this receipt cannot close FIT-1.8.
 
 PRF-06 uses `node scripts/bench-loading.mjs --seed-directory <retained-owning-directory> --output <unique-directory>`.
+
+`EDITAC_LOADING_RENDER_TRACE=1` adds Chromium main-thread `UpdateLayoutTree`,
+`Layout`, `PrePaint`, `Paint` and `Layerize` events to that same packed replay.
+Only closed event names and numeric navigation-relative start/duration clocks
+are retained; trace arguments, stacks, URLs and content are discarded. The
+window ends at the existing second RAF observation. Trace collection adds
+overhead and does not establish compositor presentation. Event costs are
+inclusive within each kind; do not add nested kinds as an exclusive total.
+Pair with `EDITAC_LOADING_COMMAND_TRACE=1` to correlate recovery/surface/frame
+milestones, and retain a separate production matrix. The profile, fixtures,
+sample counts, accepted edit, exact restoration and limits are unchanged.
+`tests/architecture/budgets/rendering.test.mjs` admits the pinned diagnostic
+matrix and rejects missing, mislabeled and content-bearing rendering evidence.
 The fixed `loading-v1.json` policy retains twelve cold/warm pairs per Task/Long ×
 baseline/Task combination. The shared SDK-1.8 size producer packs and installs
 public artifacts into a clean offline consumer, audits every input and required

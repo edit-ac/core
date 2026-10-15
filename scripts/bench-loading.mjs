@@ -11,12 +11,14 @@ import { inspectLoading, loadingInputs, summarizeLoading } from './loading-evide
 import { presets } from '../benchmarks/presets.mjs';
 import { fixture } from '../benchmarks/fixtures.mjs';
 import { requireTestNode } from './test-toolchain.mjs';
+import { startRenderTrace } from './loading-render-attribution.mjs';
 const root = fileURLToPath(new URL('../', import.meta.url)); process.chdir(root); await requireTestNode();
 const args = process.argv.slice(2);
 if (args.length !== 4 || args[0] !== '--seed-directory' || args[2] !== '--output') throw Error('Expected --seed-directory <retained owning directory> --output <unique directory>');
 const seeds = resolve(args[1]), output = resolve(args[3]);
 const commandTrace = process.env.EDITAC_LOADING_COMMAND_TRACE === '1';
 const engineTrace = process.env.EDITAC_LOADING_ENGINE_TRACE === '1';
+const renderTrace = process.env.EDITAC_LOADING_RENDER_TRACE === '1';
 if (engineTrace && !commandTrace) throw Error('Internal attribution requires the command observer');
 if (!relative(root, output) || relative(root, output).startsWith('..')) throw Error('Retain output inside repository');
 await mkdir(output, { recursive: false });
@@ -25,6 +27,7 @@ const record = { version: 1, qualification: 'unqualified', profileHash: digest(p
   startedAt: new Date().toISOString(), command: [process.execPath, ...process.argv.slice(1)], revision: spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout.trim(),
   cpu: cpus()[0].model, cores: cpus().length, memoryBytes: totalmem(), hostOS: `${platform()}/${release()}/${arch()}`, provenance: 'headless-browser-on-host', node: process.version,
   commandAttribution: commandTrace ? 'packed-observer-exports-v1' : 'none', engineAttribution: engineTrace ? 'fitness-preparation-v1' : 'none',
+  renderAttribution: renderTrace ? 'cdp-rendering-v1' : 'none',
   phaseAttribution: profile.phaseAttribution, phaseScope: profile.phaseScope, replay: profile.replay, cacheScope: profile.cacheScope, timingScope: profile.timingScope, coverageMethod: profile.coverageMethod, warmupPolicy: profile.warmupPolicy, sampleOrder: profile.sampleOrder },
   counts: { executed: 0, passed: 0, failed: 0, skipped: 24 }, cases: [], sourceInputs: {}, artifacts: {}, errors: [], cleanup: {} };
 for (const path of loadingInputs) record.sourceInputs[path] = digest(await readFile(path));
@@ -85,6 +88,7 @@ try {
       try {
         const page = await context.newPage(); page.setDefaultTimeout(120000); const cdp = await context.newCDPSession(page);
         await cdp.send('Network.enable'); await cdp.send('Profiler.enable');
+        if (renderTrace) await cdp.send('Performance.enable');
         const requests = [], responses = [];
         cdp.on('Network.requestWillBeSent', e => requests.push({ url: e.request.url, type: e.type }));
         cdp.on('Network.responseReceived', e => responses.push({ url: new URL(e.response.url).pathname, status: e.response.status, fromDiskCache: !!e.response.fromDiskCache, fromServiceWorker: !!e.response.fromServiceWorker }));
@@ -92,11 +96,13 @@ try {
         const pair = { index }; await writeFile(join(output, 'progress.json'), JSON.stringify({ fixture: name, preset, index, at: new Date().toISOString() })); item.pairs.push(pair);
         for (const mode of ['cold','warm']) {
           requests.length = responses.length = 0;
+          const finishRender = renderTrace ? await startRenderTrace(cdp) : undefined;
           // Best-effort coverage avoids recompiling/instrumenting the WASM engine during startup.
           await page.goto(`${origin}/?name=${name}&preset=${preset}&mode=${mode}&database=prf06-${name}-${preset}-${index}`);
           await page.waitForFunction(() => !!window.loadingRun);
           let deadline;
           const raw = await Promise.race([page.evaluate(() => window.loadingRun), new Promise((_, fail) => { deadline = setTimeout(() => fail(Error(`Loading deadline: ${name}/${preset}/${index}/${mode}`)), profile.pageDeadlineMs); })]).finally(() => clearTimeout(deadline));
+          if (finishRender) raw.renderTrace = await finishRender(raw);
           const coverage = await cdp.send('Profiler.getBestEffortCoverage');
           raw.scripts = coverage.result.filter(s => s.url.startsWith(origin) && s.functions.some(f => f.ranges.some(r => r.count > 0))).map(s => ({ url: new URL(s.url).pathname, hash: record.artifacts[s.url.includes('/diagnostic/') ? 'diagnostic/' + new URL(s.url).pathname.split('/diagnostic/')[1] : s.url.includes('/assets/') ? 'packed/artifacts/' + new URL(s.url).pathname.split('/assets/')[1] : 'harness/' + new URL(s.url).pathname.split('/harness/')[1]] })); raw.requests = [...requests]; raw.responses = [...responses];
           raw.coverage = coverage.result.filter(s => s.url.startsWith(origin)).map(s => ({ url: new URL(s.url).pathname, functions: s.functions.map(f => ({ ranges: f.ranges })) }));
