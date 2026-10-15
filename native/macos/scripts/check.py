@@ -15,7 +15,8 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 CORE = ROOT.parents[1]
 SUITES = {
-    "projection": ("EditacMacOSProjectionTests.ProjectionTests", 10),
+    "edits": ("EditacMacOSEditsTests.EditsTests", 10),
+    "projection": ("EditacMacOSProjectionTests.ProjectionTests", 22),
     "bootstrap": ("EditacMacOSBootstrapTests.BootstrapTests", 1),
     "session": ("EditacMacOSSessionTests.SessionTests", 12),
     "toolkit": ("EditacMacOSToolkitTests.ToolkitTests", 6),
@@ -47,7 +48,7 @@ def xctest_counts(log, expected):
 
 def main():
     if len(sys.argv) != 2 or sys.argv[1] not in SUITES:
-        print("Usage: bash native/macos/scripts/check.sh {bootstrap|toolkit|session|projection}; unknown/unimplemented suite", file=sys.stderr)
+        print("Usage: bash native/macos/scripts/check.sh {bootstrap|toolkit|session|projection|edits}; unknown/unimplemented suite", file=sys.stderr)
         return 2
     suite = sys.argv[1]
     signal.signal(signal.SIGTERM, interrupted)
@@ -155,6 +156,23 @@ def main():
         receipt["ffiLibraries"] = ffi_libraries
         receipt["generatedBindings"] = {str(p.relative_to(CORE)): hashlib.sha256(p.read_bytes()).hexdigest()
             for p in (CORE / "crates/editac-ffi/generated").glob("EditacNative*") if p.is_file()}
+        if suite == "projection":
+            fixture_root = output / "rich-fixture"
+            fixture_root.mkdir()
+            env["EDITAC_NATIVE_SESSION_EVIDENCE"] = str(fixture_root)
+            fixture_log = run("rich-fixture", [str(Path.home() / ".cargo/bin/cargo"), "+1.97.1", "run",
+                "-p", "editac-ffi", "--example", "session_rich_fixture", "--locked", "--offline",
+                "--target", {"arm64": "aarch64-apple-darwin", "x86_64": "x86_64-apple-darwin"}[actual["cpu"]],
+                "--target-dir", str(CORE / "target/native-macos-ffi")], timeout=300)
+            manifest = Path(fixture_log.strip().splitlines()[-1])
+            env["EDITAC_MACOS_RICH_FIXTURE"] = str(manifest)
+            fixture = json.loads(manifest.read_text())
+            receipt["richFixture"] = {"manifest": str(manifest),
+                "manifestSha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
+                "storeSha256": hashlib.sha256(Path(fixture["path"]).read_bytes()).hexdigest(),
+                "factory": fixture["factory"], "providerCalls": fixture["providerCalls"]}
+            for relative in ["crates/editac-ffi/examples/session_rich_fixture.rs", "crates/editac-ffi/tests/support/rich_fixture.rs"]:
+                receipt["sharedSourceHashes"][relative] = hashlib.sha256((CORE / relative).read_bytes()).hexdigest()
         cpu = actual["cpu"]
         env["EDITAC_MACOS_FFI_LIBRARY_DIR"] = str(Path(ffi_libraries[cpu]["path"]).parent)
         arguments = ["--package-path", str(ROOT), "--scratch-path", str(scratch / cpu),

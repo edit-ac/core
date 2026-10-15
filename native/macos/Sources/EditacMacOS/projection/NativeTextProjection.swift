@@ -3,15 +3,16 @@ import AppKit
 public enum NativeProjectionFailure: Error, Equatable {
     case disposed, unavailableRevision, staleTarget, invalidRange, duplicateIdentity
     case unsupportedKind(String)
+    case malformedRichProjection, invalidCursor
 }
 
 /// Presentation identity only. The shared Session remains the only document.
 @MainActor
 public final class NativeTextNodeProjection {
     public let id: String
-    public fileprivate(set) var text: String
-    public fileprivate(set) var range: NSRange
-    fileprivate init(id: String, text: String, range: NSRange) {
+    public internal(set) var text: String
+    public internal(set) var range: NSRange
+    init(id: String, text: String, range: NSRange) {
         self.id = id; self.text = text; self.range = range
     }
 }
@@ -22,9 +23,9 @@ public struct NativeTextEndpoint: Equatable, Sendable {
 }
 
 /// A revision-scoped coordinate, deliberately not a CRDT/stable anchor. Changed
-/// revisions are rejected until the shared Session exposes its own anchor port.
+/// revisions are rejected; the view captures shared anchors before async work.
 public struct NativeTextSelectionTarget: Equatable, Sendable {
-    fileprivate let owner: UUID
+    let owner: UUID
     public let revision: Data
     public let anchor: NativeTextEndpoint
     public let focus: NativeTextEndpoint
@@ -36,19 +37,25 @@ public struct NativeTextStoragePatch: Equatable {
     public let replacement: String
 }
 
-/// Text-only prerequisite for DSK-1.4, not a rich-content or attachment adapter.
+/// Native UTF-16 coordinate and storage projection, fed by rich Session patches.
 /// Reads actual Session values; never constructs an engine or issues a command.
 @MainActor
 public final class NativeTextProjection {
-    private let textView: NSTextView
-    private let owner = UUID()
-    private var disposed = false
-    private var revision: Data?
-    private var selectedTarget: NativeTextSelectionTarget?
-    public private(set) var nodes: [NativeTextNodeProjection] = []
-    public private(set) var lastPatch: NativeTextStoragePatch?
-    public private(set) var selectionInvalidated = false
+    let textView: NSTextView
+    let owner = UUID()
+    var disposed = false
+    var revision: Data?
+    var selectedTarget: NativeTextSelectionTarget?
+    public internal(set) var nodes: [NativeTextNodeProjection] = []
+    public internal(set) var lastPatch: NativeTextStoragePatch?
+    public internal(set) var selectionInvalidated = false
     public var selection: NativeTextSelectionTarget? { selectedTarget }
+    var richNodes: [String: RichProjectionNode] = [:]
+    var richSequence: UInt64?
+    var richIdentity: Data?
+    var anchoredSelection = false
+    public internal(set) var selectionResolutions: [NativeSessionAnchorRead] = []
+    public internal(set) var attachmentIdentities: [String: NSTextAttachment] = [:]
 
     public init(textView: NSTextView) { self.textView = textView }
 
@@ -148,11 +155,15 @@ public final class NativeTextProjection {
         let range = try range(for: target)
         textView.setSelectedRange(range, affinity: target.affinity, stillSelecting: false)
         selectedTarget = target
+        anchoredSelection = false
     }
 
-    public func dispose() { disposed = true; selectedTarget = nil; revision = nil }
+    public func dispose() {
+        disposed = true; selectedTarget = nil; revision = nil
+        richNodes = [:]; attachmentIdentities = [:]; anchoredSelection = false
+    }
 
-    private func endpoint(at offset: Int) -> NativeTextEndpoint? {
+    func endpoint(at offset: Int) -> NativeTextEndpoint? {
         for node in nodes where offset >= node.range.location && offset <= NSMaxRange(node.range) {
             let local = offset - node.range.location
             guard Self.isBoundary(local, in: node.text) else { return nil }
@@ -161,7 +172,7 @@ public final class NativeTextProjection {
         return nil
     }
 
-    private static func isBoundary(_ offset: Int, in text: String) -> Bool {
+    static func isBoundary(_ offset: Int, in text: String) -> Bool {
         let units = Array(text.utf16)
         guard offset >= 0, offset <= units.count else { return false }
         return offset == 0 || offset == units.count ||
@@ -169,7 +180,7 @@ public final class NativeTextProjection {
     }
 
     /// Scalar-aligned presentation diff, not a semantic edit or anchor transform.
-    private static func patch(from old: String, to new: String) -> NativeTextStoragePatch? {
+    static func patch(from old: String, to new: String) -> NativeTextStoragePatch? {
         guard !old.unicodeScalars.elementsEqual(new.unicodeScalars) else { return nil }
         let left = Array(old.unicodeScalars), right = Array(new.unicodeScalars)
         var prefix = 0, suffix = 0

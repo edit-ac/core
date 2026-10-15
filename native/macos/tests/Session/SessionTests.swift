@@ -72,7 +72,7 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(snapshot.nodes.first?.text, "A🦀B")
         XCTAssertEqual(snapshot.localDurability, .processCrash)
         XCTAssertTrue(snapshot.locallyCommitted)
-        XCTAssertFalse(view.textView.isEditable) // Input owner is a later gate.
+        XCTAssertTrue(view.textView.isEditable) // Shared Session admits committed input.
         await withCheckedContinuation { continuation in view.dispose { continuation.resume() } }
         XCTAssertNil(view.sessionSnapshot)
         XCTAssertEqual(snapshot.nodes.first?.text, "A🦀B") // Owned after disposal.

@@ -13,6 +13,10 @@ public enum NativeSessionFailure: Error, Sendable {
 /// Requests reuse the shared Session's owned values, revision and admission rules.
 public enum NativeSessionRequest: Sendable {
     case read(now: UInt64)
+    case retainSelection(revision: Data, inputs: [AnchorInput])
+    case releaseSelection
+    case resyncProjection
+    case nativeEdit(revision: Data, edits: [NativeSessionEdit], now: UInt64)
     case prepare(revision: Data, edits: [NativeSessionEdit], origin: String, now: UInt64)
     case commit(token: String, now: UInt64)
     case cancelPrepared(token: String)
@@ -29,6 +33,13 @@ public enum NativeSessionResponse: Sendable {
     case committed(NativeSessionCommit?)
     case recovery(NativeSessionRecovery)
     case completed
+    case anchors([NativeSessionAnchor])
+}
+
+public struct NativeProjectionUpdate: Sendable {
+    public let snapshot: NativeSessionProjection?
+    public let patches: NativeSessionPatches?
+    public let selection: [NativeSessionAnchorRead]
 }
 
 /// Cancellation only prevents work that has not started. Once accepted, a shared
@@ -58,7 +69,34 @@ public final class NativeSessionOperation: @unchecked Sendable {
 /// never exposed to callers, and destruction is also submitted to that queue.
 private final class SessionState: @unchecked Sendable {
     var session: NativeSession?
+    var projectionSequence: UInt64?
+    var selection: [NativeSessionAnchor] = []
+
+    func projection() throws -> NativeProjectionUpdate {
+        guard let session else { throw NativeSessionFailure.notOpen }
+        let snapshot: NativeSessionProjection?
+        let patches: NativeSessionPatches?
+        if let sequence = projectionSequence {
+            do {
+                patches = try session.takeRichPatches(afterSequence: sequence)
+                snapshot = nil
+            } catch NativeSessionError.ProjectionResyncRequired {
+                snapshot = try session.richSnapshot(); patches = nil
+            }
+        } else {
+            snapshot = try session.richSnapshot(); patches = nil
+        }
+        projectionSequence = snapshot?.sequence ?? patches?.sequence
+        return NativeProjectionUpdate(snapshot: snapshot, patches: patches,
+            selection: try selection.map { try session.resolveAnchor(token: $0.token) })
+    }
+
+    func releaseSelection() throws {
+        for anchor in selection { try session?.releaseAnchor(token: anchor.token) }
+        selection = []
+    }
     func close() {
+        selection = []; projectionSequence = nil
         try? session?.dispose()
         session = nil
     }
@@ -92,6 +130,7 @@ public final class NativeSessionExecutor {
     private var completions: [UInt64: Completion] = [:]
     private var operations: [UInt64: NativeSessionOperation] = [:]
     public var onResult: Completion?
+    public var onProjection: (@MainActor @Sendable (Result<NativeProjectionUpdate, NativeSessionFailure>) -> Void)?
 
     public init() {}
 
@@ -125,6 +164,25 @@ public final class NativeSessionExecutor {
             guard let session = state.session else { throw NativeSessionFailure.notOpen }
             switch request {
             case let .read(now): return .snapshot(try session.read(now: now))
+            case let .retainSelection(revision, inputs):
+                let anchors = try session.captureAnchors(revision: revision, inputs: inputs)
+                try state.releaseSelection()
+                state.selection = anchors
+                return .anchors(anchors)
+            case .releaseSelection: try state.releaseSelection()
+            case .resyncProjection: state.projectionSequence = nil
+            case let .nativeEdit(revision, edits, now):
+                // One queued operation owns prepare/commit/read; no UI callback or
+                // unrelated request can interleave between these shared calls.
+                let token = try session.prepareEdits(revision: revision, edits: edits,
+                    origin: "appkit-native-input", now: now)
+                do {
+                    _ = try session.commitEdits(token: token, now: now)
+                    return .snapshot(try session.read(now: now))
+                } catch {
+                    try? session.cancelEdits(token: token)
+                    throw error
+                }
             case let .prepare(revision, edits, origin, now):
                 return .prepared(try session.prepareEdits(revision: revision, edits: edits, origin: origin, now: now))
             case let .commit(token, now): return .committed(try session.commitEdits(token: token, now: now))
@@ -147,6 +205,7 @@ public final class NativeSessionExecutor {
         operations.removeAll()
         completions.removeAll()
         onResult = nil
+        onProjection = nil
         worker.close(completion)
     }
 
@@ -160,9 +219,17 @@ public final class NativeSessionExecutor {
         if let completion { completions[id] = completion }
         worker.queue.async { [weak self, state = worker.state] in
             let result: Result<NativeSessionResponse, NativeSessionFailure>
+            var projection: Result<NativeProjectionUpdate, NativeSessionFailure>?
             do {
                 guard operation.begin() else { throw NativeSessionFailure.cancelled }
-                result = .success(try work(state))
+                let response = try work(state)
+                if case .snapshot = response {
+                    do { projection = .success(try state.projection()) }
+                    catch let error as NativeSessionError { projection = .failure(.native(error)) }
+                    catch let error as NativeSessionFailure { projection = .failure(error) }
+                    catch { projection = .failure(.unexpected(String(describing: error))) }
+                }
+                result = .success(response)
             } catch let error as NativeSessionFailure {
                 result = .failure(error)
             } catch let error as NativeSessionError {
@@ -172,8 +239,10 @@ public final class NativeSessionExecutor {
             }
             // One FIFO queue delivers directly to the main queue; no unstructured
             // tasks can reorder results. Never capture the view or owner strongly.
+            let update = projection
             DispatchQueue.main.async { [weak self] in
                 guard let self, !self.disposed else { return }
+                if let update { self.onProjection?(update) }
                 self.operations.removeValue(forKey: id)
                 let completion = self.completions.removeValue(forKey: id)
                 self.onResult?(result)
