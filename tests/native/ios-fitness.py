@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import plistlib
 import shlex
 import shutil
 import subprocess
@@ -114,7 +115,15 @@ def main():
         run('xcode-build',['xcodebuild','build-for-testing','-project',output/'NativeFitness.xcodeproj','-scheme','NativeFitness','-configuration','Release','-destination','generic/platform=iOS Simulator','-derivedDataPath',derived,'CODE_SIGNING_ALLOWED=NO'],timeout=900)
         simulator = run('simulator-create',['xcrun','simctl','create','editac-PRF07-'+str(os.getpid()),profile['device'],profile['runtime']]).strip()
         record['metadata']['simulator'] = {'udid':simulator,'device':profile['device'],'runtime':profile['runtime'],'ownership':'created by this harness'}
-        run('simulator-boot',['xcrun','simctl','boot',simulator]); run('simulator-ready',['xcrun','simctl','bootstatus',simulator,'-b'],timeout=300)
+        # Configure only this new, private simulator before first boot. Actual
+        # UITextInputMode and marked calls must independently prove admission.
+        preferences = Path.home()/'Library/Developer/CoreSimulator/Devices'/simulator/'data/Library/Preferences/.GlobalPreferences.plist'
+        values = plistlib.loads(preferences.read_bytes()) if preferences.exists() else {}
+        values['AppleKeyboards'] = ['en_US', profile['cjk']['keyboard']]
+        values['AppleLanguages'] = ['en-US', 'zh-Hans']
+        preferences.parent.mkdir(parents=True, exist_ok=True); preferences.write_bytes(plistlib.dumps(values))
+        shutil.copy2(preferences, output/'simulator-keyboard-preferences.plist')
+        run('simulator-boot' ,['xcrun','simctl','boot',simulator]); run('simulator-ready',['xcrun','simctl','bootstatus',simulator,'-b'],timeout=300)
         # Actual XCUITest injects OS keyboard events and queries/actions OS accessibility.
         run('xctest',['xcodebuild','test-without-building','-project',output/'NativeFitness.xcodeproj','-scheme','NativeFitness','-configuration','Release','-destination','platform=iOS Simulator,id='+simulator,'-derivedDataPath',derived,'-resultBundlePath',output/'NativeFitness.xcresult','-parallel-testing-enabled','NO','CODE_SIGNING_ALLOWED=NO'],timeout=900,allowFailure=True)
         xctest = record['checks'][-1]
@@ -122,25 +131,33 @@ def main():
         containerText = run('container',['xcrun','simctl','get_app_container',simulator,BUNDLE,'data'],allowFailure=True).strip()
         resultPath = Path(containerText)/'Documents/result.json' if record['checks'][-1]['exit'] == 0 else None
         result = None
+        cjkResult = None
         if resultPath is not None and (resultPath.parent/'partial.json').is_file(): shutil.copy2(resultPath.parent/'partial.json',output/'partial.json')
         if resultPath is not None and resultPath.is_file():
             shutil.copy2(resultPath,output/'native-result.json')
             result = json.loads((output/'native-result.json').read_text())
             record['counts'] = result['counts']
-        run('xcresult-summary',['xcrun','xcresulttool','get','test-results','summary','--path',output/'NativeFitness.xcresult','--format','json'],allowFailure=True)
+        if resultPath is not None:
+            for name in ['cjk-partial.json','cjk-result.json']:
+                if (resultPath.parent/name).is_file(): shutil.copy2(resultPath.parent/name,output/name)
+            if (output/'cjk-result.json').is_file():
+                cjkResult = json.loads((output/'cjk-result.json').read_text()); record['cjkCounts'] = cjkResult['counts']
+        run('xcresult-summary' ,['xcrun','xcresulttool','get','test-results','summary','--path',output/'NativeFitness.xcresult','--format','json'],allowFailure=True)
         if record['checks'][-1]['exit'] == 0:
             summary = json.loads((output/'xcresult-summary.log').read_text())
             record['xctestCounts'] = {k:summary.get(k) for k in ['totalTestCount','passedTests','failedTests','skippedTests']}
         run('attachments',['xcrun','xcresulttool','export','attachments','--path',output/'NativeFitness.xcresult','--output-path',output/'attachments'],allowFailure=True)
-        matches = []
+        matches = []; cjkMatches = []
         if (output/'attachments').exists():
             for p in (output/'attachments').rglob('*'):
                 if p.is_file():
                     try:
                         value = json.loads(p.read_text())
                         if isinstance(value,dict) and value.get('client') == 'XCTest XCUIElement OS accessibility query/action': matches.append(value)
+                        if isinstance(value,dict) and value.get('client') == 'XCTest OS Pinyin candidate accessibility query/action': cjkMatches.append(value)
                     except (ValueError,UnicodeError): pass
         if len(matches) == 1: (output/'accessibility.json').write_text(json.dumps(matches[0],indent=2)+'\n')
+        if len(cjkMatches) == 1: (output/'cjk-accessibility.json').write_text(json.dumps(cjkMatches[0],indent=2,ensure_ascii=False)+'\n')
         executable = derived/'Build/Products/Release-iphonesimulator/NativeFitness.app/NativeFitness'
         if executable.exists():
             shutil.copy2(executable,output/'NativeFitness')
@@ -149,8 +166,10 @@ def main():
         assert xctest['exit'] == 0 and not xctest['timeout'], 'XCTest failed; retained result/summary/attachments'
         assert result is not None, 'actual native app result missing'
         assert result['counts'] == {'executed':5,'passed':5,'failed':0,'skipped':0}, result['counts']
-        assert record.get('xctestCounts') == {'totalTestCount':1,'passedTests':1,'failedTests':0,'skippedTests':0}, record.get('xctestCounts')
+        assert record.get('xctestCounts') == {'totalTestCount':2,'passedTests':2,'failedTests':0,'skippedTests':0}, record.get('xctestCounts')
         assert len(matches) == 1, 'missing actual XCTest accessibility attachment'
+        assert cjkResult is not None and cjkResult['counts'] == {'executed':6,'passed':6,'failed':0,'skipped':0}, record.get('cjkCounts')
+        assert len(cjkMatches) == 1, 'missing OS CJK candidate accessibility attachment'
         record['state'] = 'diagnostic-delivered'
     except Exception as error:
         record['state'] = 'failed'; record['error'] = str(error)

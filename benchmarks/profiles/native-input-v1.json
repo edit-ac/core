@@ -1,7 +1,7 @@
 {
   "version": 1,
   "id": "native-input-v1",
-  "reviewedAt": "2026-10-15T03:12:05.459467+00:00",
+  "reviewedAt": "2026-10-15T03:32:05.102047+00:00",
   "parent": "FIT-1.8-I1-B/PRF-07",
   "scenario": "ascii-keyboard-append/native-marked-cancel/checkpoint-reopen/accessibility-query-v1",
   "device": "com.apple.CoreSimulator.SimDeviceType.iPhone-17",
@@ -30,5 +30,24 @@
   "owningCommand": "python3 tests/native/ios-fitness.py --output <unique-directory>",
   "runtimeBuildVersion": "23F77",
   "initialTextUtf8Bytes": 9,
-  "initialUtf16Units": 6
+  "initialUtf16Units": 6,
+  "cjk": {
+    "scenario": "os-pinyin-ni-candidate-commit/hao-host-cancel/checkpoint-reopen-v1",
+    "keyboard": "zh_Hans-Pinyin",
+    "inputMode": "zh-Hans",
+    "commitKeys": [
+      "n",
+      "i"
+    ],
+    "candidate": "你",
+    "cancelKeys": [
+      "h",
+      "a",
+      "o"
+    ],
+    "committed": "A😀éZ你",
+    "samples": 1,
+    "composition": "OS keyboard marked calls, candidate AX selection, native host cancellation; no simulated marked input",
+    "candidateGeometry": "XCTest OS candidate accessibility frame plus native UITextInput marked/caret rects; no compositor claim"
+  }
 }

@@ -228,3 +228,24 @@ Simulator thermal state proves no physical thermal behavior. Twelve samples leav
 p95/p99 null under the unchanged100-sample minimum; Task/Long and remaining PRF-07
 coverage stay open. Canonical budgets admits exact native receipt/source/artifact
 pins and rejects missing, mutated, skipped or relabeled observations.
+
+The same owning command additionally runs the frozen `profile.cjk` scenario on
+that private simulator, configured with English and Simplified Chinese Pinyin.
+An instrumented UITextView observes outermost actual OS marked/unmark/insert
+calls. Provisional text stays in UIKit; selecting `你` commits one append through
+the generated Swift/Rust boundary. XCTest taps the native `n`,`i` keyboard keys,
+queries the candidate's OS accessibility frame and action, selects it, then types
+`h`,`a`,`o` and invokes the host's cancellation action. Intermediate accessibility
+queries verify the committed source never contains provisional text. Native
+observations include marked/caret geometry, exact checkpoint recovery, thermal
+state and one commit/display callback. The candidate screenshot and accessibility
+tree are retained separately from native anchor geometry. This qualifies only the
+named diagnostic; one commit cannot qualify tails, all CJK input, VoiceOver or a
+native SDK. Canonical admission requires both the retained twelve-edit ASCII
+scenario and this CJK scenario, rejecting missing, skipped or corrupted evidence.
+
+CJK timings begin in the public native callback after UIKit mutates provisional
+text, then cover Rust acknowledgment and the next display callback. They exclude
+the preceding OS projection and cannot measure end-to-visible latency. The
+independent XCTest candidate dispatch/accessibility interval includes transport
+and is not joined to the app clock. Raw callback diagnostics keep tails null.
