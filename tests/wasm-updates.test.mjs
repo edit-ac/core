@@ -68,6 +68,21 @@ check('native Rust checkpoint restores in compiled WASM without defaults or writ
   const e=restore();assert.deepEqual(semantic(e.read()),semantic(native.initial));assert.equal(text(e),'a😀b');assert.notEqual(e.checkpoint().writerId,native.checkpoint.writerId);assert.equal(e.history({type:'state'}).undoGroups,0);
   const other=restore();assert.notEqual(e.checkpoint().writerId,other.checkpoint().writerId);
 });
+check('settled packed reads stay detached and refresh before reentrant local, history and remote observers',()=>{
+  const e=restore(), peer=restore();
+  const snapshot=e.read(), original=structuredClone(snapshot);
+  snapshot.visible[0].runs[0].text='caller mutation';snapshot.identity.schema='caller mutation';snapshot.changedNodes.push('caller mutation');
+  assert.deepEqual(semantic(e.read()),semantic(original));
+  assert.deepEqual(e.read().changedNodes,[]);assert.deepEqual(e.read().touchedRanges,[]);
+  const seen=[];e.subscribe({type:'all'},()=>{seen.push(text(e));assert.deepEqual(semantic(e.read()),semantic(restore(e.checkpoint()).read()));});
+  insert(e,'Q');assert.equal(text(e),'aQ😀b');
+  e.history({type:'undo'});assert.equal(text(e),'a😀b');
+  e.history({type:'redo'});assert.equal(text(e),'aQ😀b');
+  const vector=e.stateVector();peer.applyUpdate(e.encodeUpdate());insert(peer,'R');e.applyUpdate(peer.encodeUpdate(vector));
+  assert.equal(text(e),'aRQ😀b');assert.deepEqual(seen,['aQ😀b','a😀b','aQ😀b','aRQ😀b']);
+  rejectAtomic(e,()=>e.applyUpdate({identity:e.checkpoint().identity,bytes:Uint8Array.of(255)}));
+  e.dispose();assert.throws(()=>e.read(),x=>x instanceof EngineError&&x.code==='Disposed');
+});
 check('native journal replay, duplicates and dependent reordered restore match Rust snapshot',()=>{
   const e=restore(cp(),[upd(native.journal[1]),upd(native.journal[0]),upd(native.journal[0])]);assert.deepEqual(semantic(e.read()),semantic(native.snapshot));assert.equal(text(e),'a😀XYb');assert.equal(e.history({type:'state'}).undoGroups,0);
 });

@@ -90,12 +90,11 @@ impl Engine {
     pub fn read(&self) -> Result<String, JsValue> {
         #[cfg(feature = "fitness-trace")]
         let _span = crate::fitness::Span::new("engine.read");
-        output(
-            self.inner
-                .as_ref()
-                .ok_or_else(|| disposed("read"))
-                .and_then(Bridge::read),
-        )
+        self.inner
+            .as_ref()
+            .ok_or_else(|| disposed("read"))
+            .and_then(Bridge::read_json)
+            .map_err(error_value)
     }
     pub fn validate_fragment(&self, input: &str) -> Result<String, JsValue> {
         output(

@@ -20,6 +20,7 @@ use editac_core::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use std::cell::RefCell;
 use std::collections::BTreeMap;
 
 const MAX_PLANS: usize = 128;
@@ -177,6 +178,7 @@ enum Plan {
 
 pub(crate) struct Bridge {
     doc: Document,
+    settled_read: RefCell<Option<(u64, String)>>,
     plans: BTreeMap<String, Plan>,
     anchors: BTreeMap<String, Anchor>,
     counter: u32,
@@ -215,6 +217,7 @@ impl Bridge {
             .map_err(|e| kernel("create", e))?;
         Ok(Self {
             doc,
+            settled_read: RefCell::new(None),
             plans: BTreeMap::new(),
             anchors: BTreeMap::new(),
             counter: 0,
@@ -258,6 +261,7 @@ impl Bridge {
             .map_err(|e| kernel("restore", e))?;
         Ok(Self {
             doc,
+            settled_read: RefCell::new(None),
             plans: BTreeMap::new(),
             anchors: BTreeMap::new(),
             counter: 0,
@@ -668,6 +672,91 @@ impl Bridge {
     }
     pub fn read(&self) -> Result<Value> {
         editac_core::interchange::projection_snapshot(&self.doc)
+    }
+    /// One detached wire snapshot per observed revision. The first read still
+    /// consumes the projection's dirty ranges; only its settled successor is
+    /// retained. Anchors/plans do not change projection state. Local, remote and
+    /// history writes advance the owning Document revision before the next read.
+    pub fn read_json(&self) -> Result<String> {
+        let revision = self.doc.revision();
+        if let Some((cached_revision, json)) = self.settled_read.borrow().as_ref() {
+            if *cached_revision == revision {
+                return Ok(json.clone());
+            }
+        }
+        let mut snapshot = self.read()?;
+        let first = snapshot.to_string();
+        let dirty = snapshot["changedNodes"]
+            .as_array()
+            .is_some_and(|v| !v.is_empty())
+            || snapshot["touchedRanges"]
+                .as_array()
+                .is_some_and(|v| !v.is_empty());
+        let settled = if dirty {
+            snapshot["changedNodes"] = json!([]);
+            snapshot["touchedRanges"] = json!([]);
+            snapshot.to_string()
+        } else {
+            first.clone()
+        };
+        *self.settled_read.borrow_mut() = Some((revision, settled));
+        Ok(first)
+    }
+}
+#[cfg(test)]
+mod settled_read_tests {
+    use super::*;
+
+    fn check_reads(b: &Bridge) -> Value {
+        let first: Value = serde_json::from_str(&b.read_json().unwrap()).unwrap();
+        assert_eq!(first["revision"], b.doc.revision());
+        let settled = b.read().unwrap();
+        assert_eq!(settled["changedNodes"], json!([]));
+        assert_eq!(settled["touchedRanges"], json!([]));
+        for _ in 0..3 {
+            assert_eq!(
+                serde_json::from_str::<Value>(&b.read_json().unwrap()).unwrap(),
+                settled
+            );
+        }
+        first
+    }
+
+    #[test]
+    fn settled_wire_reads_follow_text_structure_history_remote_and_rejection() {
+        let mut b = Bridge::create(&json!({"profile":"v5","documentId":"42600000-0000-4000-8000-000000000201","epoch":"42600000-0000-4000-9000-000000000201","nodes":[{"text":"a😀b"}]}).to_string()).unwrap();
+        let initial = check_reads(&b);
+        let owner = initial["visible"][0]["id"].as_str().unwrap();
+        let request = json!({"kind":"editor","origin":"cache","commands":[{"type":"replaceAt","owner":owner,"from":1,"to":3,"text":"Z"}]}).to_string();
+        let plan = b.prepare(&request).unwrap();
+        b.commit(plan["token"].as_str().unwrap()).unwrap();
+        let edited = check_reads(&b);
+        assert_ne!(edited["revision"], initial["revision"]);
+        assert_eq!(edited["visible"][0]["runs"][0]["text"], "aZb");
+        b.history(r#"{"type":"undo"}"#).unwrap();
+        assert_eq!(check_reads(&b)["visible"], initial["visible"]);
+        b.history(r#"{"type":"redo"}"#).unwrap();
+        assert_eq!(check_reads(&b)["visible"], edited["visible"]);
+        let settled = b.read_json().unwrap();
+        assert!(b.prepare(&request.replace("replaceAt", "unknown")).is_err());
+        assert_eq!(b.read_json().unwrap(), settled);
+        let checkpoint = b.doc.checkpoint();
+        let id = identity(b.doc.identity());
+        let mut peer = Bridge::restore(&json!({"expected":id,"identity":id,"initialized":true,"writerId":checkpoint.writer_id,"journal":[]}).to_string(), &checkpoint.bytes).unwrap();
+        let vector = b.doc.state_vector_v1();
+        let edit = peer.prepare(&json!({"kind":"editor","origin":"remote","commands":[{"type":"replaceAt","owner":owner,"from":0,"to":0,"text":"R"}]}).to_string()).unwrap();
+        peer.commit(edit["token"].as_str().unwrap()).unwrap();
+        b.apply(&id.to_string(), &peer.update(&vector).unwrap())
+            .unwrap();
+        assert_eq!(check_reads(&b)["visible"][0]["runs"][0]["text"], "RaZb");
+        let at = b
+            .capture(&json!({"node":owner,"offset":2,"bias":"right"}).to_string())
+            .unwrap();
+        let split = b.prepare(&json!({"kind":"editor","origin":"split","commands":[{"type":"split","owner":owner,"at":at["token"]}]}).to_string()).unwrap();
+        b.commit(split["token"].as_str().unwrap()).unwrap();
+        assert_eq!(check_reads(&b)["visible"].as_array().unwrap().len(), 2);
+        b.history(r#"{"type":"undo"}"#).unwrap();
+        assert_eq!(check_reads(&b)["visible"].as_array().unwrap().len(), 1);
     }
 }
 #[cfg(test)]

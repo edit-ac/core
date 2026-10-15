@@ -393,3 +393,15 @@ sources, missing sources and immutable base changes still reject; no source text
 marks or replay data are omitted from stage qualification. v4/v5 regressions
 compare both validators after Unicode edits and hostile changes, including changes
 after cache population. This optimization changes no encoded edit or public API.
+
+The production WASM bridge retains at most one serialized settled snapshot per
+engine. Its key is the owning Document's local revision, including local, remote
+and history writes. The first read still consumes and returns projection change
+diagnostics; cached reads have empty changed-node and touched-range arrays, just
+as a fresh settled projection read does. Public JavaScript reads parse owned
+objects, so caller mutation cannot poison the retained string. Dropping the engine
+drops this cache. The retained bytes are additional memory, not a peak/plateau
+qualification. Native bridge and compiled-WASM regressions cover repeated reads,
+UTF-16 replacement, structural/history/remote invalidation, rejection, observer
+reentrancy and disposal. Production loading measurements include the cache cost
+and retain the complete fixture, independent oracle reads and original limits.
