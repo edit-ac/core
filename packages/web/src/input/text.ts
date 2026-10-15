@@ -1,5 +1,5 @@
 import { errorMessage } from '../errors.js';
-import type { AnchorToken, CommitResult, EngineHandle, PatchSubscription, PrepareRequest, StableRange } from '@edit-ac/core';
+import type { AnchorToken, CommitResult, EngineHandle, PrepareRequest, StableRange } from '@edit-ac/core';
 import type { DOMRenderer } from '../dom/render.js';
 import type { DOMSelection } from '../dom/selection.js';
 import { literalShortcuts, type TypingShortcutAdapter } from './shortcuts.js';
@@ -31,8 +31,7 @@ export class TextInput {
   readonly trace: Trace[] = [];
   readonly recovery: (NativeRecovery & { intent: string; generation: number })[] = [];
   readonly #scope: string;
-  readonly #content = new Map<string, string>();
-  readonly #subscription: PatchSubscription;
+  readonly #content: { get(id: string): string | undefined };
   readonly #observer: MutationObserver;
   readonly #events = new WeakMap<Event, TextIntent>();
   readonly #listeners: [string, EventListener][] = [];
@@ -67,16 +66,10 @@ export class TextInput {
     this.#commit = commit;
     validateClipboardCodecs(clipboardCodecs);
     if (renderer.patchBoundary) throw new Error('Input owner already attached');
-    const snapshot = engine.read();
-    this.#scope = `${snapshot.identity.documentId}/${snapshot.identity.epoch}/${++editorSequence}`;
-    for (const node of snapshot.visible) this.#content.set(node.id, node.runs.map(run => run.text).join(''));
+    const content = renderer.textInputState(engine);
+    this.#scope = `${content.scope}/${++editorSequence}`;
+    this.#content = content;
     this.#readOnly = renderer.root.contentEditable === 'false';
-    this.#subscription = engine.subscribe({ type: 'all' }, patch => {
-      for (const change of patch.nodes) {
-        if (change.type === 'visible') this.#content.set(change.node.id, change.node.runs.map(run => run.text).join(''));
-        else this.#content.delete(change.type === 'removed' ? change.id : change.node.id);
-      }
-    });
     this.#composition = new CompositionInput(renderer, selection, engine, {
       begin: () => {
         this.#flushNative();
@@ -380,11 +373,10 @@ export class TextInput {
     if (this.#disposed) return;
     this.reorder?.dispose(); this.slash?.dispose(); this.references?.dispose();
     this.#composition.finish('dispose'); this.#composition.dispose(); this.keyboard.dispose(); this.clipboard.dispose();
-    this.#disposed = true; this.#generation++; this.#observer.disconnect(); this.#subscription.dispose();
+    this.#disposed = true; this.#generation++; this.#observer.disconnect();
     this.#renderer.patchBoundary = undefined; this.#renderer.setReadOnly(true);
     for (const [type, listener] of this.#listeners) this.#renderer.root.removeEventListener(type, listener);
     for (const job of this.#jobs.splice(0)) { job.intent.disposition = 'disposed'; this.#release(job.range); }
     for (const intent of this.intents) if (intent.disposition === 'native-pending') intent.disposition = 'disposed';
-    this.#content.clear();
   }
 }

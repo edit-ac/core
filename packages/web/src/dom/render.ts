@@ -26,6 +26,7 @@ export class DOMRenderer {
   readonly #deferred = new Map<string, Patch["nodes"][number]>();
   patchBoundary: { before(): void; after(): void } | undefined;
   #revision: number;
+  readonly #identity: { documentId: string; epoch: string };
   readonly #modules: ModuleRegistry | undefined;
   readonly moduleRuntime: ModuleRuntime | undefined;
   readonly #engine: EngineHandle;
@@ -38,12 +39,25 @@ export class DOMRenderer {
     this.#modules?.validate(snapshot.visible);
     this.moduleRuntime = options.modules || options.moduleRuntime ? new ModuleRuntime(engine, options.moduleRuntime) : undefined;
     this.#revision = snapshot.revision;
+    this.#identity = snapshot.identity;
     root.replaceChildren();
     root.contentEditable = options.readOnly ? "false" : "true";
     const nodes = new Map(snapshot.visible.map(node => [node.id, node]));
     for (const node of snapshot.visible) this.#update(node, nodes.get(node.parent));
     this.#arrange();
     this.#subscription = engine.subscribe({ type: "all" }, patch => this.#apply(patch));
+  }
+  /** Input reads admitted model text, including updates held during native
+   * composition. DOM text is temporary input, never the baseline authority.
+   * Reuse this projection instead of reading/copying the whole engine again. */
+  textInputState(engine: EngineHandle): { scope: string; get(id: string): string | undefined } {
+    if (this.#disposed || engine !== this.#engine) throw Error('Invalid input owner');
+    return { scope: `${this.#identity.documentId}/${this.#identity.epoch}`, get: id => {
+      if (this.#disposed) return undefined;
+      const change = this.#deferred.get(id);
+      const node = change ? (change.type === 'visible' ? change.node : undefined) : this.#entries.get(id)?.node;
+      return node?.runs.map(run => run.text).join('');
+    } };
   }
   getBlock(id: string): HTMLElement | undefined { return this.#entries.get(id)?.content; }
   /** Only adapter-created view decorations own asynchronous DOM mutations.

@@ -75,7 +75,7 @@ function nativeOffset(block: HTMLElement, point: Node | null, offset: number): n
 }
 
 /** Mutation ownership is established by the caller before comparing text. */
-export function reconcileMutation(renderer: DOMRenderer, content: ReadonlyMap<string, string>, records: readonly MutationRecord[]): NativeMutation {
+export function reconcileMutation(renderer: DOMRenderer, content: { get(id: string): string | undefined }, records: readonly MutationRecord[]): NativeMutation {
   const bounded = records.slice(0, MAX_RECORDS);
   const owners = new Set(bounded.map(record => renderer.getNodeId(record.target)));
   const nodes = [...owners].filter((id): id is string => id !== undefined);

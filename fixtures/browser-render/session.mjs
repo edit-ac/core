@@ -2,6 +2,8 @@ import { init } from '@edit-ac/core';
 import { recoverLocalDocument } from '/web/entry.js';
 import { CheckpointStorage } from '/web/storage/checkpoint.js';
 import { DOMRenderer } from '/web/dom/render.js';
+import { DOMSelection } from '/web/dom/selection.js';
+import { TextInput } from '/web/input/text.js';
 const identity = { documentId: '45678901-4567-4567-8567-45678901abcd', epoch: '56789012-5678-4678-8678-56789012abcd', schema: 'editac.registry.editor.v5', offsets: 'utf16', profile: 'editac.yrs-yjs.editor.v5', protocolVersion: 1, updateEncoding: 1 };
 const root = document.querySelector('#projection');
 let session, renderer, ids;
@@ -42,4 +44,4 @@ async function edit(id,offset,text) {
 async function command(commands) { session.storage.commit({kind:'editor',origin:'render-fixture',commands}); await session.storage.flush({target:'local'}); return session.writer.engine.read(); }
 async function format(id, level) { session.storage.commit({kind:'format',origin:'render-fixture',marks:[],blocks:[{targets:[id],attributes:{type:'heading',level},action:'apply'}]}); await session.storage.flush({target:'local'}); }
 async function destroy() { renderer?.dispose(); await session?.storage.destroy({policy:'flush'}); }
-window.renderFixture={mount,edit,command,format,destroy,get renderer(){return renderer},get engine(){return session.writer.engine},get ids(){return ids}};
+window.renderFixture={DOMRenderer,DOMSelection,TextInput,mount,edit,command,format,destroy,get renderer(){return renderer},get engine(){return session.writer.engine},get ids(){return ids}};

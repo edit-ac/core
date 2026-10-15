@@ -247,3 +247,44 @@ test('renderer rebuilds disposable maps from authoritative recovered state',asyn
     const matches=before===rebuilt.root.innerHTML,mapped=rebuilt.getNodeId(rebuilt.getBlock(f.ids[0]).firstChild)===f.ids[0];rebuilt.dispose();return {matches,mapped};
   });assert.equal(result.matches,true);assert.equal(result.mapped,true);
 }));
+
+test('input reuses the renderer projection without another full read or observer', async () => withContext('shared-input-state', async context => {
+  const page = await open(context); await page.evaluate(() => window.renderFixture.mount());
+  const result = await page.evaluate(async () => {
+    const f = window.renderFixture, root = document.createElement('div'); document.body.append(root);
+    let reads = 0, subscriptions = 0;
+    const engine = { ...f.engine, read() { reads++; return f.engine.read(); }, subscribe(...args) { subscriptions++; return f.engine.subscribe(...args); } };
+    const renderer = new f.DOMRenderer(root, engine), selection = new f.DOMSelection(renderer, engine);
+    const input = new f.TextInput(renderer, selection, engine, request => engine.commit(engine.prepare(request)));
+    try {
+      const activation = { reads, subscriptions }, id = f.ids[0];
+      const before = f.engine.read().visible.find(n => n.id === id).runs.map(r => r.text).join('');
+      renderer.positions(id)[0].node.insertData(0, 'Z'); await input.settle();
+      const after = f.engine.read().visible.find(n => n.id === id).runs.map(r => r.text).join('');
+      return { activation, before, after, recovery: input.recovery, committed: input.intents.some(i => i.disposition === 'committed') };
+    } finally { input.dispose(); selection.dispose(); renderer.dispose(); root.remove(); }
+  });
+  assert.deepEqual(result.activation, { reads: 1, subscriptions: 2 });
+  assert.equal(result.after, `Z${result.before}`); assert.equal(result.committed, true); assert.deepEqual(result.recovery, []);
+}));
+
+test('input model text follows held updates, removals and disposal', async () => withContext('held-input-state', async context => {
+  const page = await open(context); await page.evaluate(() => window.renderFixture.mount());
+  const result = await page.evaluate(async () => {
+    const f = window.renderFixture, r = f.renderer, state = r.textInputState(f.engine);
+    const matches = () => f.engine.read().visible.every(n => state.get(n.id) === n.runs.map(run => run.text).join(''));
+    const initial = matches(), id = f.ids[0], domBefore = r.getBlock(id).textContent;
+    r.hold(id); await f.edit(id, 0, 'held😀'); await f.edit(id, 0, 'again');
+    const held = matches(), unchangedDOM = r.getBlock(id).textContent === domBefore;
+    r.resume(id); const resumed = matches();
+    r.getBlock(id).textContent = 'uncommitted'; const modelOnly = matches(); r.resume(id, true);
+    const separator = f.engine.read().visible.find(n => n.blockAttributes?.[0] === 'separator').id;
+    r.hold(separator); await f.command([{ type: 'deleteSeparator', owner: separator }]);
+    const removed = state.get(separator) === undefined; r.resume(separator);
+    let mismatch = false; try { r.textInputState({ ...f.engine }); } catch { mismatch = true; }
+    r.dispose(); const disposed = state.get(id) === undefined;
+    let rejected = false; try { r.textInputState(f.engine); } catch { rejected = true; }
+    return { initial, held, unchangedDOM, resumed, modelOnly, removed, mismatch, disposed, rejected };
+  });
+  assert.deepEqual(result, { initial: true, held: true, unchangedDOM: true, resumed: true, modelOnly: true, removed: true, mismatch: true, disposed: true, rejected: true });
+}));
