@@ -72,3 +72,28 @@ model. SwiftPM uses `EDITAC_MACOS_FFI_LIBRARY_DIR` to link the dispatcher-built 
 slice. Clean distributable consumer packaging belongs to DSK-2.1/2.2. This suite
 uses deterministic content and native protocol calls; it qualifies no IME,
 physical device, full SDK or release support.
+
+## Text projection prerequisite (DSK-1.4-P1)
+
+`bash native/macos/scripts/check.sh projection` runs the text-only projection
+prerequisite against the actual generated Swift Session, Rust/SQLite and mounted
+AppKit control. Eight cases exercise real Session reads/commits and native storage;
+two cases inject malformed/unacknowledged DTOs to test presentation guards. The
+suite does **not** close DSK-1.4 or qualify rich content, attachments or IMEs.
+
+`NativeEditorView.projection` consumes the owned Session read on MainActor. It
+keeps presentation objects by node ID and replaces only the scalar-aligned changed
+storage range. Public coordinates use UTF-16; surrogate splits and overflowing
+ranges fail before selection changes. The input owner must supply anchor/focus
+direction separately from AppKit caret affinity. Targets are scoped to one view
+and exact observed revision. Reusing a stale/cross-view target is an error.
+
+Selections survive updates to other nodes. A change to a selected node explicitly
+invalidates its coordinates and collapses the native selection; this conservative
+behavior remains a gap against the full parent's stable-anchor preservation
+criteria. The current Session read contains only node ID/kind/plain text and has
+no rich patch or anchor API. Completing DSK-1.4 requires those ports from the same
+shared Session, followed by rich/attachment and anchor integration. Creating a
+second NativeEngine for the view would violate model ownership. Unsupported node
+kinds fail before storage changes. All delivery capability claims remain
+unqualified and native editing stays disabled.

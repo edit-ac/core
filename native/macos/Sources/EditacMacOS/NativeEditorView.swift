@@ -1,7 +1,7 @@
 import AppKit
 
-/// Native control with an owned shared-session executor. Rich projection and
-/// native editing are added by their subsequent roadmap gates.
+/// Native control with an owned shared-session executor and a text-only projection.
+/// Rich projection and native editing remain subsequent roadmap work.
 @MainActor
 public final class NativeEditorView: NSView {
     public let session = NativeSessionExecutor()
@@ -9,6 +9,8 @@ public final class NativeEditorView: NSView {
     public private(set) var sessionFailure: NativeSessionFailure?
     public private(set) var sessionDeliveryCount = 0
     public private(set) var isDisposed = false
+    public private(set) lazy var projection = NativeTextProjection(textView: textView)
+    public private(set) var projectionFailure: NativeProjectionFailure?
     public let scrollView: NSScrollView
     public let textView: NSTextView
 
@@ -50,7 +52,14 @@ public final class NativeEditorView: NSView {
             case let .success(.snapshot(snapshot)):
                 self.sessionSnapshot = snapshot
                 self.sessionFailure = nil
-                self.textView.setAccessibilityLabel("Editor")
+                do {
+                    try self.projection.apply(snapshot)
+                    self.projectionFailure = nil
+                    self.textView.setAccessibilityLabel("Editor (text projection)")
+                } catch let failure as NativeProjectionFailure {
+                    self.projectionFailure = failure
+                    self.textView.setAccessibilityLabel("Editor (projection unavailable)")
+                } catch { preconditionFailure("Unexpected projection failure: \(error)") }
             case let .failure(error): self.sessionFailure = error
             default: break
             }
@@ -63,6 +72,7 @@ public final class NativeEditorView: NSView {
         sessionSnapshot = nil
         sessionFailure = nil
         textView.isEditable = false
+        projection.dispose()
         session.dispose(completion: completion)
     }
 
