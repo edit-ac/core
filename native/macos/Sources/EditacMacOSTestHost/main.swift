@@ -12,7 +12,17 @@ final class HostDelegate: NSObject, NSApplicationDelegate {
         window.isReleasedWhenClosed = false
         window.title = "Editac native SDK test host — unqualified"
         let editor = NativeEditorView(frame: window.contentView!.bounds)
-        window.contentView = editor
+        let chrome = NSView(frame: window.contentView!.bounds)
+        editor.frame = NSRect(x: 0, y: 44, width: chrome.bounds.width, height: chrome.bounds.height - 44)
+        editor.autoresizingMask = [.width, .height]
+        editor.storage.statusLabel.frame = NSRect(x: 6, y: 2, width: chrome.bounds.width - 12, height: 20)
+        editor.collaboration.statusLabel.frame = NSRect(x: 6, y: 22, width: chrome.bounds.width - 12, height: 20)
+        editor.storage.statusLabel.autoresizingMask = [.width]
+        editor.collaboration.statusLabel.autoresizingMask = [.width]
+        chrome.addSubview(editor)
+        chrome.addSubview(editor.storage.statusLabel)
+        chrome.addSubview(editor.collaboration.statusLabel)
+        window.contentView = chrome
         self.window = window
         if let index = CommandLine.arguments.firstIndex(of: "--yield-activation"),
            CommandLine.arguments.count > index + 2,

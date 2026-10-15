@@ -39,6 +39,16 @@ public enum NativeSessionRequest: Sendable {
     case releaseAttachment(token: String)
     case reservePeerWriter(UInt32)
     case pendingUpdates
+    case hostAttach(options: NativeHostTransportOptions, now: UInt64)
+    case hostDetach(token: String)
+    case hostDisconnect
+    case hostFlush(token: String, after: NativeHostReceipt?, maxFrames: UInt32, now: UInt64)
+    case hostFrames(token: String, maxFrames: UInt32, now: UInt64)
+    case hostReceipt(token: String, receipt: NativeHostReceipt, now: UInt64)
+    case hostSetPresence(token: String, revision: Data?, inputs: [AnchorInput], present: Bool, now: UInt64)
+    case hostFlushPresence(token: String, now: UInt64)
+    case hostPresenceFrames(token: String, maxFrames: UInt32, now: UInt64)
+    case hostPresence(token: String, now: UInt64)
     case recover
     case recoveryExport
 }
@@ -53,6 +63,10 @@ public enum NativeSessionResponse: Sendable {
     case completed
     case anchors([NativeSessionAnchor])
     case peerUpdates([NativeSessionPeerUpdate])
+    case hostConnection(String)
+    case hostFrames([NativeHostFrame])
+    case hostReceipt(NativeHostReceiptResult)
+    case hostPresence([NativePeerPresence])
 }
 
 public struct NativeProjectionUpdate: Sendable {
@@ -95,6 +109,7 @@ public final class NativeSessionOperation: @unchecked Sendable {
 /// never exposed to callers, and destruction is also submitted to that queue.
 private final class SessionState: @unchecked Sendable {
     var session: NativeSession?
+    var hostToken: String?
     var lastCommit: NativeSessionCommit?
     var now: UInt64 = 0
     var projectionSequence: UInt64?
@@ -126,6 +141,7 @@ private final class SessionState: @unchecked Sendable {
         selection = []
     }
     func close() {
+        hostToken = nil
         selection = []; inputTargets = [:]; projectionSequence = nil; lastCommit = nil
         try? session?.dispose()
         session = nil
@@ -354,6 +370,42 @@ public final class NativeSessionExecutor {
                 return .snapshot(try session.read(now: state.now))
             case let .reservePeerWriter(writer): try session.reservePeerWriter(writer: writer)
             case .pendingUpdates: return .peerUpdates(try session.pendingUpdates())
+            case let .hostAttach(options, now):
+                state.now = now
+                let token = try session.attachHostTransport(options: options, now: now)
+                state.hostToken = token
+                return .hostConnection(token)
+            case let .hostDetach(token):
+                try session.detachHostTransport(token: token)
+                if state.hostToken == token { state.hostToken = nil }
+            case .hostDisconnect:
+                if let token = state.hostToken { try session.detachHostTransport(token: token) }
+                state.hostToken = nil
+            case let .hostFlush(token, after, maxFrames, now):
+                state.now = now
+                _ = try session.flushHostTransportPage(token: token, after: after, maxFrames: maxFrames, now: now)
+            case let .hostFrames(token, maxFrames, now):
+                state.now = now
+                return .hostFrames(try session.takeHostFrames(token: token, maxFrames: maxFrames, now: now))
+            case let .hostReceipt(token, receipt, now):
+                state.now = now
+                return .hostReceipt(try session.acceptHostReceipt(token: token, receipt: receipt, now: now))
+            case let .hostSetPresence(token, revision, inputs, present, now):
+                state.now = now
+                guard inputs.isEmpty || (inputs.count == 2 && revision != nil) else { throw NativeSessionFailure.cancelled }
+                let anchors = try inputs.isEmpty ? [] : session.captureAnchors(revision: revision!, inputs: inputs)
+                defer { for a in anchors { try? session.releaseAnchor(token: a.token) } }
+                try session.setHostPresence(token: token, anchor: anchors.first?.token,
+                    focus: anchors.last?.token, present: present, now: now)
+            case let .hostFlushPresence(token, now):
+                state.now = now
+                _ = try session.flushHostPresence(token: token, now: now)
+            case let .hostPresenceFrames(token, maxFrames, now):
+                state.now = now
+                return .hostFrames(try session.takeHostPresenceFrames(token: token, maxFrames: maxFrames, now: now))
+            case let .hostPresence(token, now):
+                state.now = now
+                return .hostPresence(try session.hostPresence(token: token, now: now))
             case .recover:
                 try session.recover()
                 state.projectionSequence = nil
@@ -377,6 +429,34 @@ public final class NativeSessionExecutor {
             guard let session = state.session else { throw NativeSessionFailure.notOpen }
             state.lastCommit = try session.receivePeer(update: update)
             return .snapshot(try session.read(now: state.now))
+        }
+    }
+
+    /// The trusted host authenticates its envelope before queue admission. The
+    /// shared worker then rechecks the exact connection token and lease at use.
+    @discardableResult
+    public func receiveHostPeer(token: String, update: NativeSessionPeerUpdate, now: UInt64,
+                                admitting: (NativeSessionPeerUpdate) throws -> Void,
+                                completion: Completion? = nil) throws -> NativeSessionOperation {
+        try admitting(update)
+        return try enqueue(completion: completion) { state in
+            guard let session = state.session else { throw NativeSessionFailure.notOpen }
+            state.now = now
+            state.lastCommit = try session.receiveHostPeer(token: token, update: update, now: now)
+            return .snapshot(try session.read(now: now))
+        }
+    }
+
+    @discardableResult
+    public func receiveHostPresence(token: String, frame: NativeHostFrame, now: UInt64,
+                                    admitting: (NativeHostFrame) throws -> Void,
+                                    completion: Completion? = nil) throws -> NativeSessionOperation {
+        try admitting(frame)
+        return try enqueue(completion: completion) { state in
+            guard let session = state.session else { throw NativeSessionFailure.notOpen }
+            state.now = now
+            try session.receiveHostPresence(token: token, frame: frame, now: now)
+            return .hostPresence(try session.hostPresence(token: token, now: now))
         }
     }
 

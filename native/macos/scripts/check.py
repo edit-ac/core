@@ -16,6 +16,7 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 CORE = ROOT.parents[1]
 SUITES = {
+    "collaboration": ("EditacMacOSCollaborationTests.CollaborationTests", 16),
     "collaboration-lifecycle": ("EditacMacOSCollaborationLifecycleTests.CollaborationLifecycleTests", 13),
     "accessibility-text": ("EditacMacOSAccessibilityTextTests.AccessibilityTextTests", 10),
     "durability": ("EditacMacOSDurabilityTests.DurabilityTests", 10),
@@ -99,7 +100,7 @@ def stop_command_tree(process):
 
 def main():
     if len(sys.argv) != 2 or sys.argv[1] not in SUITES:
-        print("Usage: bash native/macos/scripts/check.sh {collaboration-lifecycle|accessibility-text|durability|bootstrap|toolkit|session|projection|edits|composition|commands|styles|table-projection|table-editing|attachments}; unknown/unimplemented suite", file=sys.stderr)
+        print("Usage: bash native/macos/scripts/check.sh {collaboration|collaboration-lifecycle|accessibility-text|durability|bootstrap|toolkit|session|projection|edits|composition|commands|styles|table-projection|table-editing|attachments}; unknown/unimplemented suite", file=sys.stderr)
         return 2
     suite = sys.argv[1]
     signal.signal(signal.SIGTERM, interrupted)
