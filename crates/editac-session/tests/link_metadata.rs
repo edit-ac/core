@@ -483,3 +483,12 @@ fn diagnostics_redact_page_and_asset_secrets() {
         assert!(!debug.contains(secret));
     }
 }
+
+#[test]
+fn repeated_entity_prefixes_remain_bounded_at_html_ceiling() {
+    let html = format!("<title>{}</title>", "&".repeat(MAX_HTML_BYTES - 15));
+    assert_eq!(html.len(), MAX_HTML_BYTES);
+    let out = parsed_str(&html);
+    assert!(!out.fallback);
+    assert_eq!(out.display.title, "&".repeat(MAX_TEXT));
+}

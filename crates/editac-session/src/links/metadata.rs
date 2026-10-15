@@ -175,7 +175,12 @@ fn entities(raw: &str) -> String {
     while let Some(i) = rest.find('&') {
         out.push_str(&rest[..i]);
         rest = &rest[i..];
-        let end = rest.find(';').filter(|n| *n <= 16);
+        // Bound each entity probe as well as the whole input: repeated '&'
+        // without semicolons must remain linear work.
+        let end = rest
+            .char_indices()
+            .take(17)
+            .find_map(|(i, c)| (c == ';' && i <= 16).then_some(i));
         let decoded = end.and_then(|n| {
             let e = &rest[1..n];
             match e {
