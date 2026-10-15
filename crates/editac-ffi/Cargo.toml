@@ -13,6 +13,8 @@ crate-type = ["lib", "cdylib", "staticlib"]
 
 [features]
 bindgen = ["uniffi/cli"]
+# Diagnostic JSON spans only; never part of a distributed default artifact.
+fitness-trace = []
 
 [[bin]]
 name = "editac-uniffi-bindgen"

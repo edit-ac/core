@@ -229,7 +229,32 @@ impl NativeEngine {
     /// One prepared atomic command batch, one boundary call, one detached patch.
     pub fn execute_batch(&self, commands_json: String) -> Result<BatchResult> {
         self.call(move |b| {
+            #[cfg(feature = "fitness-trace")]
+            let started = std::time::Instant::now();
             let plan = b.prepare(&commands_json)?;
+            #[cfg(feature = "fitness-trace")]
+            {
+                let prepared = started.elapsed().as_secs_f64() * 1000.0;
+                let mut result = b.commit(plan["token"].as_str().expect("bridge token"))?;
+                let committed = started.elapsed().as_secs_f64() * 1000.0;
+                let patch = b.take_patch();
+                let patched = started.elapsed().as_secs_f64() * 1000.0;
+                let patch_json = patch.to_string();
+                let serialized_patch = started.elapsed().as_secs_f64() * 1000.0;
+                // Serialize the production result before adding diagnostic metadata.
+                // Swift's enclosing span includes this instrumentation overhead.
+                let _production_result = result.to_string();
+                let serialized_result = started.elapsed().as_secs_f64() * 1000.0;
+                result["fitnessTrace"] = serde_json::json!({"version":1,
+                    "prepareMs":prepared,"commitMs":committed-prepared,
+                    "patchBuildMs":patched-committed,"patchJsonMs":serialized_patch-patched,
+                    "resultJsonMs":serialized_result-serialized_patch});
+                return Ok(BatchResult {
+                    result_json: result.to_string(),
+                    patch_json,
+                });
+            }
+            #[cfg(not(feature = "fitness-trace"))]
             batch(b, plan["token"].as_str().expect("bridge token"))
         })
     }

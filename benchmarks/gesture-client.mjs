@@ -41,7 +41,9 @@ export async function prepare(name, preset, frozen) {
   check(baseline === JSON.stringify(expectedSemantics(fixture(name))), 'Retained fixture semantics mismatch');
   check(PerformanceObserver.supportedEntryTypes.includes('longtask'), 'Long-task observer unavailable');
   const timestamps = [];
-  for (let i = 0; i < 32; i++) { await frame(); timestamps.push(performance.now()); }
+  // Retain the refresh callback's timestamp, not the later microtask clock.
+  // Delayed/catch-up callbacks can resume at the same performance.now() value.
+  for (let i = 0; i < 32; i++) timestamps.push(await frame());
   return { chars: fixture(name).chars, blocks: fixture(name).blocks.length, refreshTimestamps: timestamps,
     semantics: baseline, runtime: navigator.userAgent, devicePixelRatio, viewport: { width: innerWidth, height: innerHeight } };
 }

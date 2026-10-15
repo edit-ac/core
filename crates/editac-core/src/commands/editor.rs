@@ -1381,19 +1381,28 @@ impl Document {
                     }
                 }
                 EditorCommand::Text(command) => {
-                    // Reuse the exact text preparation path on disposable state. Its
-                    // plans cannot notify live observers or reserve live identities.
-                    let checkpoint = crate::document::InitializedCheckpoint {
-                        identity: self.identity().clone(),
-                        initialized: true,
-                        writer_id: self.writer_id(),
-                        bytes: m::bytes(&stage),
+                    // Text preparation is read-only; only application touches disposable
+                    // staged state. No live observer or identity is changed.
+                    let plan = if expanded == 1 {
+                        // Before the first command, the staged and live bytes are
+                        // identical. Read-only preparation on the original avoids
+                        // restoring/validating a second whole document. Application
+                        // still rebinds every source to the disposable stage below.
+                        self.prepare_text(command, origin)
+                            .map_err(EditorError::Text)?
+                    } else {
+                        let checkpoint = crate::document::InitializedCheckpoint {
+                            identity: self.identity().clone(),
+                            initialized: true,
+                            writer_id: self.writer_id(),
+                            bytes: m::bytes(&stage),
+                        };
+                        let text_stage = Document::restore(self.identity(), &checkpoint, &[])
+                            .map_err(EditorError::Admission)?;
+                        text_stage
+                            .prepare_text(command, origin)
+                            .map_err(EditorError::Text)?
                     };
-                    let text_stage = Document::restore(self.identity(), &checkpoint, &[])
-                        .map_err(EditorError::Admission)?;
-                    let plan = text_stage
-                        .prepare_text(command, origin)
-                        .map_err(EditorError::Text)?;
                     super::text::apply_prepared_to_stage(&stage, plan);
                 }
                 EditorCommand::Split { owner, at } | EditorCommand::HeadingEnd { owner, at } => {
@@ -2083,6 +2092,95 @@ mod transaction_tests {
     use crate::document::{CreationPermit, InitialNode};
     use std::sync::{Arc, Mutex};
     use yrs::Origin;
+    #[test]
+    fn initial_text_reuses_read_only_plan_but_later_text_observes_staged_state() {
+        use crate::{
+            Utf16Offset,
+            anchors::{Bias, Selection},
+            commands::text::TextCommand,
+        };
+        for stable in [false, true] {
+            let document_id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa68";
+            let epoch = if stable {
+                "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb69"
+            } else {
+                "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb68"
+            };
+            let identity = if stable {
+                DocumentIdentity::v5(document_id, epoch)
+            } else {
+                DocumentIdentity::v4(document_id, epoch)
+            }
+            .unwrap();
+            let mut d = Document::create(
+                CreationPermit::authorize_new(identity).unwrap(),
+                &[InitialNode {
+                    kind: "block".into(),
+                    text: "A😀e\u{301}Z".into(),
+                }],
+            )
+            .unwrap();
+            let id = d.snapshot().unwrap().visible[0].id.clone();
+            let at = d.anchor(&id, Utf16Offset(0), Bias::Right).unwrap();
+            let a = d.anchor(&id, Utf16Offset(1), Bias::Right).unwrap();
+            let b = d.anchor(&id, Utf16Offset(3), Bias::Left).unwrap();
+            let replace = EditorCommand::Text(TextCommand::Replace {
+                selection: Selection {
+                    anchor: a,
+                    focus: b,
+                },
+                text: "é".into(),
+            });
+            let noop = EditorCommand::Text(TextCommand::Insert {
+                at,
+                text: "".into(),
+            });
+            let origin = TextOrigin::new("initial-text-equivalence").unwrap();
+            d.enable_history(crate::history::HistoryConfig::default())
+                .unwrap();
+            let before = d.checkpoint().bytes;
+            let fast = d.prepare_editor(&[replace.clone()], &origin).unwrap();
+            // A preceding no-op exercises the full staged restore path with the
+            // same bytes. The encoded semantic update must be byte-identical.
+            let staged = d.prepare_editor(&[noop, replace.clone()], &origin).unwrap();
+            assert_eq!(fast.update, staged.update);
+            assert_eq!(d.checkpoint().bytes, before, "preparation is silent");
+            let invalid = [
+                replace,
+                EditorCommand::Block {
+                    target: "missing".into(),
+                    tuple: m::arr(vec![Any::from("paragraph")]),
+                },
+            ];
+            assert!(d.prepare_editor(&invalid, &origin).is_err());
+            assert_eq!(d.checkpoint().bytes, before, "later rejection is atomic");
+            d.commit_editor(fast).unwrap();
+            assert!(matches!(
+                d.commit_editor(staged),
+                Err(EditorError::Text(TextError::StalePlan))
+            ));
+            let text: String = d.snapshot().unwrap().visible[0]
+                .runs
+                .iter()
+                .map(|r| r.text.as_str())
+                .collect();
+            assert_eq!(text, "Aée\u{301}Z");
+            d.undo().unwrap();
+            let text: String = d.snapshot().unwrap().visible[0]
+                .runs
+                .iter()
+                .map(|r| r.text.as_str())
+                .collect();
+            assert_eq!(text, "A😀e\u{301}Z");
+            d.redo().unwrap();
+            let text: String = d.snapshot().unwrap().visible[0]
+                .runs
+                .iter()
+                .map(|r| r.text.as_str())
+                .collect();
+            assert_eq!(text, "Aée\u{301}Z");
+        }
+    }
     #[test]
     fn v4_whole_batch_preparation_is_silent_commit_is_one_origin_and_only_local_writer() {
         let identity = DocumentIdentity::v4(
