@@ -1,0 +1,48 @@
+{
+  "age@0.11.4": {
+    "license": "MIT OR Apache-2.0",
+    "file": "scripts/licenses/protected-store/age@0.11.4.MIT.txt",
+    "sha256": "fe56c030c2d8c3404a37fe711cebb27ebea13d0aacf7e3524db4198335ad8cd1",
+    "url": "https://raw.githubusercontent.com/str4d/rage/2f5c9cdeb2d79873ca32645b1fb106b140f4e292/LICENSE-MIT"
+  },
+  "age-core@0.11.0": {
+    "license": "MIT OR Apache-2.0",
+    "file": "scripts/licenses/protected-store/age-core@0.11.0.MIT.txt",
+    "sha256": "fe56c030c2d8c3404a37fe711cebb27ebea13d0aacf7e3524db4198335ad8cd1",
+    "url": "https://raw.githubusercontent.com/str4d/rage/17446612f865c705e44fe392d9d41dd102fed137/LICENSE-MIT"
+  },
+  "fluent-langneg@0.13.1": {
+    "license": "Apache-2.0 OR MIT",
+    "file": "scripts/licenses/protected-store/fluent-langneg@0.13.1.MIT.txt",
+    "sha256": "016fcc02048817d628b04b140c54db290fd9d29a5e8a55b77871194e810716ac",
+    "url": "https://raw.githubusercontent.com/projectfluent/fluent-langneg-rs/7fdc590466ea63ca2367ac10fb1b881fe561f1a8/LICENSE-MIT"
+  },
+  "cookie-factory@0.3.3": {
+    "license": "MIT",
+    "file": "scripts/licenses/protected-store/cookie-factory@0.3.3.MIT.txt",
+    "sha256": "d09216dc1ea5f273997667935a8d6514d80f00b89fb6954ecc3a43e0a6e360de",
+    "url": "https://raw.githubusercontent.com/rust-bakery/cookie-factory/d36b805dbd7dd65f2df947235c5bcc573afe2c76/LICENSES/MIT.txt",
+    "note": "Pinned upstream package license"
+  },
+  "intl_pluralrules@7.0.2": {
+    "license": "Apache-2.0/MIT",
+    "file": "scripts/licenses/protected-store/intl_pluralrules@7.0.2.MIT.txt",
+    "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+    "url": "https://raw.githubusercontent.com/zbraniecki/pluralrules/d0715d5b7cca72e228d6e6c4de154bd30dfdd06a/intl_pluralrules/LICENSE-MIT",
+    "note": "Pinned upstream package license"
+  },
+  "io_tee@0.1.1": {
+    "license": "MIT OR Apache-2.0",
+    "file": "scripts/licenses/protected-store/io_tee@0.1.1.Apache-2.0.txt",
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+    "note": "Official Apache text selected under the package manifest SPDX grant; package omits separate license text"
+  },
+  "bech32@0.9.1": {
+    "license": "MIT",
+    "file": "scripts/licenses/protected-store/bech32@0.9.1.MIT.txt",
+    "sha256": "74375f18b087dc11b0d356d423601acf4bcfc2bc86ac95dc72336d362f869f0d",
+    "url": "https://github.com/rust-bitcoin/rust-bech32/blob/d12513f1e3768a7f2a2e1b4d650139eb92a4ae9b/src/lib.rs",
+    "note": "Full copyright and MIT grant from source header; normalized final newline"
+  }
+}

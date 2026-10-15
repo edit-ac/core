@@ -1,5 +1,20 @@
 # Optional security qualification
 
+SEC-1.5 adds `src/store.rs`, an actual session `LocalStore` wrapper qualified over
+standard age files, protected durable `SessionStore` writer reservations and a real SQLite WAL ciphertext host (`src/store_native.rs`).
+Run `cargo test -p editac-security --test protected_store --locked`. The harness
+covers protected creation, journal/checkpoint/outbox recovery, key failures,
+tamper/context/size rejection, lost acknowledgements and abrupt process death
+before/after commits. Its public disposable keys and qualification KDF settings
+must never be used for actual content. Acknowledged document data can recover;
+restoring it never resumes an old MLS sender.
+
+Native and asynchronous browser transaction contracts keep plaintext out of host
+storage. `examples/check-protected-store-ports.rs` is a WASM compile probe, not
+IndexedDB runtime evidence. These modules remain absent from production builds;
+see sibling `architecture/evidence/protected-store.md` for format, durability,
+freshness, resource limits and platform/review obligations.
+
 SEC-1.4 adds prepared host-key ports in `src/keys.rs`, included only by
 `tests/key_lifecycle.rs`. Run `cargo test -p editac-security --test key_lifecycle
 --locked`. The provider owns authenticated wrapping, unlock, recovery and

@@ -35,3 +35,11 @@ rand_core = "=0.6.4"
 serde_json = "=1.0.152"
 tls_codec = "=0.5.0"
 zeroize = "=1.9.1"
+
+# SEC-1.5 qualification adapters; default library remains crypto-free.
+age = "=0.11.4"
+serde = { version = "=1.0.229", features = ["derive"] }
+editac-session = { path = "../editac-session" }
+editac-core = { path = "../editac-core" }
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+rusqlite = { version = "=0.40.2", features = ["bundled"] }
