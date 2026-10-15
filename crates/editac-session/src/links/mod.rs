@@ -3,6 +3,7 @@
 //! Hosts compose these records with ServiceLifecycle and the existing Catalog.
 pub mod egress;
 pub mod metadata;
+pub mod private_cache;
 pub mod private_resolver;
 pub mod public_resolver;
 pub mod public_url;

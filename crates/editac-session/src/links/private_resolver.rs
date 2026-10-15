@@ -72,11 +72,17 @@ impl<'a, H: PrivateEndpoint> PrivateResolver<'a, H> {
             connectivity,
         }
     }
+    pub(super) fn connectivity(&self) -> Connectivity {
+        self.connectivity
+    }
+    pub(super) fn set_connectivity(&mut self, connectivity: Connectivity) {
+        self.connectivity = connectivity;
+    }
     pub fn into_endpoint(self) -> H {
         self.endpoint
     }
 
-    fn check(
+    pub(super) fn check(
         &mut self,
         request: &LinkRequest,
         activation: bool,
