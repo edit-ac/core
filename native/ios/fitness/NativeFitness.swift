@@ -22,13 +22,16 @@ private func expect(_ b: Bool, _ message: String) throws { if !b { throw CheckFa
 final class FitnessTextView: UITextView {
     var cjk = false
     var changed: ((String) -> Void)?
+    var inputObserved: ((String, Bool) -> Void)?
     var depth = 0
     override var textInputMode: UITextInputMode? {
         let language = cjk ? "zh-Hans" : "en-US"
         return UITextInputMode.activeInputModes.first { $0.primaryLanguage == language } ?? super.textInputMode
     }
     func mutation(_ kind: String, _ body: () -> Void) {
+        if depth == 0 { inputObserved?(kind, true) }
         depth += 1; body(); depth -= 1
+        if depth == 0 { inputObserved?(kind, false) }
         if depth == 0 && cjk { changed?(kind) }
     }
     override func setMarkedText(_ markedText: String?, selectedRange: NSRange) {
@@ -422,9 +425,10 @@ final class WorkloadController: UIViewController, UITextViewDelegate {
     var resources: [[String: Any]] = []
     var setup: [String: Any] = [:]
     var attempts: [[String: Any]] = []
+    var inputEvents: [[String: Any]] = []
     var focusRequests = 0
     func partial() {
-        let value: [String: Any] = ["name": name, "setup": setup, "attempts": attempts,
+        let value: [String: Any] = ["name": name, "setup": setup, "attempts": attempts, "inputEvents": inputEvents,
             "samples": samples, "resources": resources, "typed": typed, "focusRequests": focusRequests, "errors": errors,
             "selectionUtf16": editor.selectedRange.location, "projectedUtf16": editor.textStorage.length,
             "firstResponder": editor.isFirstResponder, "inputMode": editor.textInputMode?.primaryLanguage ?? "unavailable"]
@@ -451,12 +455,16 @@ final class WorkloadController: UIViewController, UITextViewDelegate {
         (node["runs"] as! [[String: Any]]).map { $0["text"] as! String }.joined()
     }
     override func viewDidLoad() {
-        super.viewDidLoad(); view.backgroundColor = .systemBackground
+        super.viewDidLoad()
+        editor.layoutManager.allowsNonContiguousLayout = true; view.backgroundColor = .systemBackground
         editor.frame = CGRect(x: 20, y: 80, width: view.bounds.width - 40, height: 260)
         editor.accessibilityIdentifier = "workload-editor"
         editor.autocorrectionType = .no; editor.spellCheckingType = .no; editor.autocapitalizationType = .none
         editor.smartQuotesType = .no; editor.smartDashesType = .no; editor.font = .systemFont(ofSize: 16)
         editor.delegate = self
+        editor.inputObserved = { [weak self] kind, entering in
+            self?.inputEvents.append(["kind": kind, "entering": entering, "at": CACurrentMediaTime()])
+        }
         status.accessibilityIdentifier = "workload-status"; status.text = "preparing"
         let button = UIButton(type: .system); button.accessibilityIdentifier = "workload-verify"
         button.setTitle("Verify workload", for: .normal); button.addTarget(self, action: #selector(verify), for: .touchUpInside)
@@ -495,6 +503,7 @@ final class WorkloadController: UIViewController, UITextViewDelegate {
             setup = ["restoreStartAt": start, "restoredAt": restored, "projectionLayoutDoneAt": CACurrentMediaTime(),
                 "checkpointBytes": bytes.count, "blocks": nodes.count, "textUtf8Bytes": nodes.map(nodeText).reduce(0) { $0 + $1.utf8.count },
                 "textUtf16Units": nodes.map(nodeText).reduce(0) { $0 + $1.utf16.count }, "projectedUtf16Units": initial.utf16.count,
+                "allowsNonContiguousLayout": editor.layoutManager.allowsNonContiguousLayout,
                 "fullSnapshotRestored": true, "targetOffsetUtf16": targetOffset, "nodeOffsetUtf16": nodeOffset, "originalTarget": originalTarget]
             resources.append(memory("after-projection-layout")); status.text = "ready"
         } catch { errors.append(String(describing: error)); status.text = "failed" }
@@ -552,11 +561,16 @@ final class WorkloadController: UIViewController, UITextViewDelegate {
             try expect(changed.count == 1 && (changed[0]["node"] as! [String: Any])["id"] as? String == nodeID, "one changed block in full corpus")
             let decoded = CACurrentMediaTime()
             textView.textStorage.replaceCharacters(in: range, with: replacement)
-            textView.selectedRange = NSRange(location: targetOffset, length: 1); textView.scrollRangeToVisible(textView.selectedRange)
+            let storageDone = CACurrentMediaTime()
+            textView.selectedRange = NSRange(location: targetOffset, length: 1)
+            let selectionDone = CACurrentMediaTime()
+            textView.scrollRangeToVisible(textView.selectedRange)
+            let scrollDone = CACurrentMediaTime()
             typed += replacement
             pending = ["inputAt": start, "engineDoneAt": done, "projectionDoneAt": CACurrentMediaTime(),
                 "anchorDoneAt": anchorDone, "focusDoneAt": focusDone, "batchStartAt": batchStart,
-                "decodedAt": decoded, "rustTrace": trace,
+                "decodedAt": decoded, "storageDoneAt": storageDone, "selectionDoneAt": selectionDone,
+                "scrollDoneAt": scrollDone, "rustTrace": trace,
                 "rangeUtf16": range.location, "replacementUtf16": 1, "removedUtf16": 1, "changedBlocks": changed.count,
                 "thermal": ProcessInfo.processInfo.thermalState.rawValue, "firstResponder": textView.isFirstResponder, "inputMode": textView.textInputMode?.primaryLanguage ?? "unavailable"]
             display?.isPaused = false
@@ -566,7 +580,11 @@ final class WorkloadController: UIViewController, UITextViewDelegate {
     @objc func frame(_ link: CADisplayLink) {
         guard var sample = pending else { return }
         sample["layoutStartAt"] = CACurrentMediaTime()
-        editor.layoutManager.ensureLayout(for: editor.textContainer)
+        // The full corpus remains in TextKit. Ordinary input invalidates only
+        // its changed range; forcing the entire container hides that boundary.
+        let changed = NSRange(location: targetOffset, length: 1)
+        editor.layoutManager.ensureLayout(forCharacterRange: changed)
+        sample["layoutRangeUtf16"] = [changed.location, changed.length]
         sample["layoutDoneAt"] = CACurrentMediaTime(); sample["displayTimestamp"] = link.timestamp; sample["targetTimestamp"] = link.targetTimestamp
         sample["caretRect"] = rect(editor.caretRect(for: editor.selectedTextRange!.end)); sample["firstResponderAtFrame"] = editor.isFirstResponder
         samples.append(sample); resources.append(memory("input-\(samples.count)")); pending = nil; display?.isPaused = true
@@ -620,6 +638,7 @@ final class WorkloadController: UIViewController, UITextViewDelegate {
         let record: [String: Any] = ["version": 1, "name": name, "qualification": "unqualified", "setup": setup, "cases": cases,
             "counts": ["executed": cases.count, "passed": cases.count - failed, "failed": failed, "skipped": 0],
             "samples": samples, "resources": resources, "errors": errors, "typed": typed, "focusRequests": focusRequests,
+            "inputEvents": inputEvents,
             "host": ["system": UIDevice.current.systemVersion, "physical": false, "refreshMaximum": UIScreen.main.maximumFramesPerSecond],
             "gaps": ["plain-text projection; mixed-block native renderer not qualified", "callback is not compositor", "12 samples below 100-sample tail minimum", "sampled resident memory is not peak or plateau", "no VoiceOver or physical thermal claim"]]
         do {

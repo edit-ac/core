@@ -67,7 +67,7 @@
     "samples": 12,
     "warmups": 0,
     "projection": "all block text joined by newline in TextKit1; mixed semantics retained in engine",
-    "measurement": "OS UITextViewDelegate entry, native command, bounded TextStorage overwrite, next display callback forced layout; sampled task resident bytes",
+    "measurement": "OS UITextViewDelegate entry, native command, bounded TextStorage overwrite, next display callback changed-character layout; sampled task resident bytes",
     "limits": {
       "inputVisiblePhoneMs": 33
     },
@@ -76,7 +76,9 @@
     "scenario": "os-keyboard-overwrite-fixed-corpus-v1",
     "target": "last ASCII letter of final block; replace one UTF-16 unit at constant corpus bytes, matching browser overwrite policy",
     "reviewedAt": "2026-10-15T05:32:00Z",
-    "attribution": "monotonic Swift anchor/focus/request/execute/decode/TextStorage/layout timestamps; opt-in Rust prepare/commit/patch-build/patch-JSON/result-JSON durations; FFI residual includes executor, transfer and diagnostic overhead, not zero-copy or compositor",
-    "attributionReviewedAt": "2026-10-15T05:58:00Z"
+    "attribution": "monotonic Swift anchor/focus/request/execute/decode/TextStorage/layout timestamps; opt-in Rust prepare/commit/patch-build/patch-JSON/result-JSON durations; FFI residual includes executor, transfer and diagnostic overhead, not zero-copy or compositor; explicit TextStorage mutation, selection and scroll spans",
+    "attributionReviewedAt": "2026-10-15T05:58:00Z",
+    "layout": "TextKit1 noncontiguous layout enabled; initial full container layout outside input window; measured one-unit changed-character layout with retained full corpus and caret geometry",
+    "layoutReviewedAt": "2026-10-15T07:52:16.931535+00:00"
   }
 }

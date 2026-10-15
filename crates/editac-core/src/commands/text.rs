@@ -120,6 +120,26 @@ impl Document {
         command: &TextCommand,
         origin: &TextOrigin,
     ) -> Result<PreparedTextEdit, TextError> {
+        self.prepare_text_inner(command, origin, None)
+    }
+    /// The enclosing editor owns the disposable stage and validates its complete
+    /// resulting hierarchy, immutable structure and encoded size before admission.
+    /// Reuse that validation rather than cloning a second whole document here.
+    /// This plan must only be applied to that stage, never committed directly.
+    pub(super) fn prepare_text_for_editor(
+        &self,
+        command: &TextCommand,
+        origin: &TextOrigin,
+        baseline_bytes: usize,
+    ) -> Result<PreparedTextEdit, TextError> {
+        self.prepare_text_inner(command, origin, Some(baseline_bytes))
+    }
+    fn prepare_text_inner(
+        &self,
+        command: &TextCommand,
+        origin: &TextOrigin,
+        editor_baseline_bytes: Option<usize>,
+    ) -> Result<PreparedTextEdit, TextError> {
         let (a, b, inserted) = match command {
             TextCommand::Insert { at, text } => (at, at, text.as_str()),
             TextCommand::Delete { selection } => (&selection.anchor, &selection.focus, ""),
@@ -241,9 +261,13 @@ impl Document {
         }
         // Bound the exact state token too. Restore already bounds admitted input;
         // later edits may grow it, so reject an over-budget plan before mutation.
-        let state = txn.encode_state_as_update_v1(&StateVector::default());
-        if state
-            .len()
+        let state = if editor_baseline_bytes.is_some() {
+            Vec::new() // only the enclosing editor's exact baseline is committed
+        } else {
+            txn.encode_state_as_update_v1(&StateVector::default())
+        };
+        if editor_baseline_bytes
+            .unwrap_or(state.len())
             .checked_add(inserted.len())
             .filter(|n| *n <= MAX_RESTORE_BYTES)
             .is_none()
@@ -258,7 +282,7 @@ impl Document {
                 .then(b.start.cmp(&a.start))
                 .then(b.end.cmp(&a.end))
         });
-        if self.identity().has_structure() {
+        if self.identity().has_structure() && editor_baseline_bytes.is_none() {
             self.validate_general_mutation(|t| {
                 for edit in &edits {
                     let Some(Out::YXmlText(text)) =

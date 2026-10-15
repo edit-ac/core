@@ -1386,9 +1386,11 @@ impl Document {
                     let plan = if expanded == 1 {
                         // Before the first command, the staged and live bytes are
                         // identical. Read-only preparation on the original avoids
-                        // restoring/validating a second whole document. Application
-                        // still rebinds every source to the disposable stage below.
-                        self.prepare_text(command, origin)
+                        // restoring/validating a second whole document. The enclosing
+                        // editor validates the complete staged result below; text
+                        // preparation retains range/kind/UTF-16/resource checks.
+                        // Application rebinds every source to the disposable stage.
+                        self.prepare_text_for_editor(command, origin, baseline.len())
                             .map_err(EditorError::Text)?
                     } else {
                         let checkpoint = crate::document::InitializedCheckpoint {

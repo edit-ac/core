@@ -26,10 +26,20 @@ final class NativeFitnessUITests: XCTestCase {
         XCTAssertEqual(status.label, "ready")
         focus(app, button: app.buttons["workload-focus"], status: status, value: "keyboard-ready")
         awaitValue("keyboard-ready")
+        var dispatches: [[String: Any]] = []
         for (i, letter) in "abcdefghijkl".enumerated() {
             let key = app.keys[String(letter)]; XCTAssertTrue(key.waitForExistence(timeout: 5)); XCTAssertTrue(key.isHittable)
-            key.press(forDuration: 0.1); awaitValue("samples-\(i + 1)")
+            // The retained Long failure lost its second 100ms touch before its
+            // text-delegate callback. Use one deliberate OS press, never replay a
+            // lost edit or insert through a host-control shortcut.
+            let before = ProcessInfo.processInfo.systemUptime
+            key.press(forDuration: 0.2); awaitValue("samples-\(i + 1)")
+            dispatches.append(["key": String(letter), "before": before, "after": ProcessInfo.processInfo.systemUptime])
         }
+        let data = try JSONSerialization.data(withJSONObject: ["client": "XCTest OS workload key press", "name": name,
+            "pressDurationSeconds": 0.2, "clock": "ProcessInfo.systemUptime; no cross-process join", "dispatches": dispatches], options: [.sortedKeys])
+        let attachment = XCTAttachment(data: data, uniformTypeIdentifier: "public.json")
+        attachment.name = name + " OS dispatches"; attachment.lifetime = .keepAlways; add(attachment)
         app.buttons["workload-verify"].tap()
         let p = NSPredicate(format: "label == %@", "verified")
         XCTAssertTrue(p.evaluate(with: status) || XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: p, object: status)], timeout: 30) == .completed)
@@ -50,9 +60,11 @@ final class NativeFitnessUITests: XCTestCase {
         XCTAssertEqual(editor.value as? String, initial)
         focus(app, button: app.buttons["focus-append"], status: app.staticTexts["scenario-status"], value: "ascii-ready")
         // A fresh OS image presents its swipe-typing tutorial above the keys.
-        let tutorial = app.staticTexts["Continue"]
+        let tutorial = app.buttons["Continue"]
         if tutorial.waitForExistence(timeout: 5) {
-            tutorial.tap()
+            // Dispatch to the actual system button, not its StaticText child.
+            XCTAssertTrue(tutorial.isHittable)
+            tutorial.press(forDuration: 0.1)
             XCTAssertTrue(tutorial.waitForNonExistence(timeout: 10))
             // Continue dismisses system UI, which is not proof that the text
             // service is rebound to our editor. Request fresh UIKit focus

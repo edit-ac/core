@@ -167,6 +167,9 @@ export function inspectNativeWorkload(profile, receipt, result, fixture, initial
   assert.deepEqual(p.textUtf8Bytes,[10240,1048576]); assert.equal(p.samples,12); assert.equal(p.warmups,0);
   assert.equal(p.minimumTailSamples,100); assert.deepEqual(p.limits,{inputVisiblePhoneMs:33});
   assert.equal(p.qualification,'unqualified'); assert.equal(result.qualification,'unqualified');
+  assert.equal(p.layout,'TextKit1 noncontiguous layout enabled; initial full container layout outside input window; measured one-unit changed-character layout with retained full corpus and caret geometry');
+  assert(Number.isFinite(Date.parse(p.layoutReviewedAt))&&Date.parse(p.layoutReviewedAt)<=Date.parse(receipt.startedUtc));
+  assert.equal(result.setup.allowsNonContiguousLayout,true,'missing incremental TextKit mode');
   assert.equal(receipt.state,'diagnostic-delivered'); assert.equal(receipt.cleanup.simulatorDeleted,true);
   assert.equal(receipt.metadata.physical,false); assert.equal(receipt.metadata.runtime.identifier,profile.runtime);
   const counts={executed:3,passed:3,failed:0,skipped:0};
@@ -195,13 +198,14 @@ export function inspectNativeWorkload(profile, receipt, result, fixture, initial
   for(const [j,s] of result.samples.entries()) {
     const times=['inputAt','engineDoneAt','projectionDoneAt','layoutStartAt','layoutDoneAt'].map(k=>s[k]);
     assert(times.every(finite)&&times.every((t,k)=>k===0||t>=times[k-1]));
-    const spans=['inputAt','anchorDoneAt','focusDoneAt','batchStartAt','engineDoneAt','decodedAt','projectionDoneAt'].map(k=>s[k]);
+    const spans=['inputAt','anchorDoneAt','focusDoneAt','batchStartAt','engineDoneAt','decodedAt','storageDoneAt','selectionDoneAt','scrollDoneAt','projectionDoneAt'].map(k=>s[k]);
     assert(spans.every(finite)&&spans.every((t,k)=>k===0||t>=spans[k-1]),'native attribution timeline');
     assert.equal(s.rustTrace?.version,1,'missing native Rust trace version');
     const rustKeys=['prepareMs','commitMs','patchBuildMs','patchJsonMs','resultJsonMs'];
     assert(rustKeys.every(k=>finite(s.rustTrace[k])),'missing native Rust span');
     const rustTotal=rustKeys.reduce((sum,k)=>sum+s.rustTrace[k],0);
     assert(rustTotal<=(s.engineDoneAt-s.batchStartAt)*1000+0.1,'Rust spans exceed enclosing actual FFI call');
+    assert.deepEqual(s.layoutRangeUtf16,[setup.targetOffsetUtf16,1],'changed-character layout range');
     assert.equal(s.changedBlocks,1); assert.equal(s.replacementUtf16,1); assert.equal(s.rangeUtf16,setup.targetOffsetUtf16); assert.equal(s.removedUtf16,1);
     assert.equal(s.firstResponder,true); assert.equal(s.firstResponderAtFrame,true); assert.equal(s.inputMode,'en-US');
     assert(geometry(s.caretRect)); assert([0,1,2,3].includes(s.thermal)); assert(s.targetTimestamp>s.displayTimestamp);
@@ -226,6 +230,9 @@ export function inspectNativeWorkload(profile, receipt, result, fixture, initial
     ffiExecutorAndInstrumentationResidualMs:rawSummary(result.samples.map(s=>Math.max(0,(s.engineDoneAt-s.batchStartAt)*1000-['prepareMs','commitMs','patchBuildMs','patchJsonMs','resultJsonMs'].reduce((sum,k)=>sum+s.rustTrace[k],0))),100),
     decodeMs:rawSummary(result.samples.map(s=>(s.decodedAt-s.engineDoneAt)*1000),100),
     projectionMs:rawSummary(result.samples.map(s=>(s.projectionDoneAt-s.decodedAt)*1000),100),
+    storageMutationMs:rawSummary(result.samples.map(s=>(s.storageDoneAt-s.decodedAt)*1000),100),
+    selectionMs:rawSummary(result.samples.map(s=>(s.selectionDoneAt-s.storageDoneAt)*1000),100),
+    scrollMs:rawSummary(result.samples.map(s=>(s.scrollDoneAt-s.selectionDoneAt)*1000),100),
     layoutMs:rawSummary(result.samples.map(s=>(s.layoutDoneAt-s.layoutStartAt)*1000),100),
     resources:result.resources,gaps:result.gaps};
 }
