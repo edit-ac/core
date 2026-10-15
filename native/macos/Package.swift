@@ -1,5 +1,10 @@
 // swift-tools-version: 6.3
 import PackageDescription
+import Foundation
+
+let libraryDirectory = ProcessInfo.processInfo.environment["EDITAC_MACOS_FFI_LIBRARY_DIR"]
+    ?? URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+        .appendingPathComponent("../../target/debug").standardized.path
 
 let package = Package(
     name: "EditacMacOS",
@@ -9,13 +14,20 @@ let package = Package(
         .executable(name: "EditacMacOSTestHost", targets: ["EditacMacOSTestHost"]),
     ],
     targets: [
-        .target(name: "EditacMacOS"),
+        .systemLibrary(name: "EditacNativeFFI", path: "Bindings/FFI"),
+        .target(name: "EditacNative", dependencies: ["EditacNativeFFI"], path: "Bindings/Swift",
+                swiftSettings: [.swiftLanguageMode(.v5)],
+                linkerSettings: [.unsafeFlags(["-L", libraryDirectory, "-leditac_ffi",
+                                               "-Xlinker", "-rpath", "-Xlinker", libraryDirectory])]),
+        .target(name: "EditacMacOS", dependencies: ["EditacNative"]),
         .executableTarget(name: "EditacMacOSTestHost", dependencies: ["EditacMacOS"]),
         // Internal feasibility harness; not an SDK product or semantic adapter.
         .target(name: "EditacMacOSProbe", dependencies: ["EditacMacOS"],
                 path: "probe/Sources"),
         .testTarget(name: "EditacMacOSToolkitTests", dependencies: ["EditacMacOS", "EditacMacOSProbe"],
                     path: "tests/Toolkit"),
+        .testTarget(name: "EditacMacOSSessionTests", dependencies: ["EditacMacOS"],
+                    path: "tests/Session"),
         .testTarget(name: "EditacMacOSBootstrapTests", dependencies: ["EditacMacOS"],
                     path: "tests/Bootstrap"),
     ],
