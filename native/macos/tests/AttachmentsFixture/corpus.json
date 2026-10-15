@@ -27,7 +27,12 @@
     }
   },
   {
-    "runs": [],
+    "runs": [
+      {
+        "text": "Reference \u05d0\u05d1",
+        "marks": []
+      }
+    ],
     "attributes": {
       "type": "content",
       "tuple": [

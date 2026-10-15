@@ -226,7 +226,9 @@ extension NativeTextProjection {
         _ = try range(for: target)
         return [target.anchor, target.focus].map {
             AnchorInput(node: $0.node,
-                offsetUtf16: richNodes[$0.node]?.attachment == true ? 0 : UInt32($0.offsetUTF16),
+                offsetUtf16: richNodes[$0.node]?.attachment == true
+                    ? ($0.offsetUTF16 == 0 ? 0 : UInt32(richNodes[$0.node]!.runs.reduce(0) { $0 + ($1["text"] as! String).utf16.count }))
+                    : UInt32($0.offsetUTF16),
                 bias: richNodes[$0.node]?.attachment == true && $0.offsetUTF16 == 0 ? .left : .right)
         }
     }

@@ -186,7 +186,12 @@ final class AttachmentsTests: XCTestCase {
                 XCTAssertEqual(view.textView.selectedRange().length, 1)
                 XCTAssertEqual(view.projection.selection?.anchor.node, id)
                 XCTAssertTrue(view.projection.anchoredSelection)
+                _ = try await self.read(view)
                 XCTAssertEqual(view.projection.selectionResolutions.count, 2)
+                if case let .position(_, offset, _, _, _) = view.projection.selectionResolutions.last?.resolution {
+                    let expected = key == "reference" ? (try self.atom(view, manifest, key)).descriptor.label.utf16.count : 0
+                    XCTAssertEqual(Int(offset), expected)
+                } else { XCTFail("Missing shared endpoint resolution") }
             }
         }
     }
