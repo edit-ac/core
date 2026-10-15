@@ -3,17 +3,18 @@
   "gate": "FIT-1.6-I2",
   "state": "implemented-and-verified",
   "sourceRevision": "c353c87f04046a451645445cf3b8d7c05fdd2b43d4cc683bf44c1b9cf2e6a11a",
+  "implementationRevision": "9959484eef8cecfbab6c503c5d0d41c5bc9169c0",
   "deliveryReceipt": {
-    "path": "architecture-results/fit-1.6-20261015/delivery-1/delivery-receipt.json",
-    "sha256": "cf28c3c941906d559f9d8e1728ae48c1a8489146ff2a8b1de852b48a8be22180"
+    "path": "architecture-results/fit-1.6-20261016/current-shared-1/delivery-receipt.json",
+    "sha256": "8084a3bbcb9b9818bfba791c8ca2b3e8b9d575c57260e50d8ba817e190c81a21"
   },
   "sharedReceipt": {
-    "path": "architecture-results/fit-1.6-20261015/consolidated-4/shared-receipt.json",
-    "sha256": "bd7219e7be526ef61bcb5f7727675d9bb08eb193ea4170f5dcbe9b49e2cc4a25"
+    "path": "architecture-results/fit-1.6-20261016/current-shared-1/consolidated/shared-receipt.json",
+    "sha256": "1c79cec3222c5d76bccde93b11608b4b0fbcc623f069de482a89c02d0bca077e"
   },
   "canonicalReceipt": {
-    "path": "architecture-results/fit-1.6-20261015/validation-5/receipt.json",
-    "sha256": "02f1401617d588c9b040ebcf5492e6ac29fcf85453ee8917de515834fe97d11c"
+    "path": "architecture-results/fit-1.6-20261016/current-shared-1/canonical/receipt.json",
+    "sha256": "3832f8d9d79febbcff999369af86b74758253c76bdb8d97e77854019d35b97f8"
   },
   "counts": {
     "canonical": {
@@ -26,7 +27,7 @@
     },
     "samePage": 39,
     "productionSite": 39,
-    "receiptControls": 30,
+    "receiptControls": 39,
     "packedConsumers": 15,
     "measuredRuntime": 6,
     "portableFfi": 8,
