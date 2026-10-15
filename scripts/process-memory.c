@@ -9,6 +9,7 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/resource.h>
+#include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -35,8 +36,9 @@ static int sample(pid_t root) {
   for (int i = 0; i < count; i++) {
     pid_t children[MAX_PROCESSES];
     int n = proc_listchildpids(pids[i], children, sizeof(children));
-    if (n < 0 || n >= (int)sizeof(children)) return -1;
-    for (int j = 0; j < n / (int)sizeof(pid_t); j++) {
+    // Unlike proc_listpids, proc_listchildpids returns a PID count, not bytes.
+    if (n < 0 || n >= MAX_PROCESSES) return -1;
+    for (int j = 0; j < n; j++) {
       if (children[j] <= 0) continue;
       int found = 0;
       for (int k = 0; k < count; k++) if (pids[k] == children[j]) found = 1;
@@ -65,8 +67,36 @@ static int control(void) {
   printf(",\"afterFree\":"); fields(getpid(), &after); puts("}");
   return 0;
 }
+static int tree_control(void) {
+  int ready[2], release[2];
+  if (pipe(ready) || pipe(release)) return 1;
+  pid_t child = fork();
+  if (child < 0) return 1;
+  if (child == 0) {
+    close(ready[0]); close(release[1]);
+    const size_t bytes = 48 * 1024 * 1024;
+    volatile unsigned char *p = mmap(NULL, bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+    if (p == MAP_FAILED) _exit(1);
+    for (size_t i = 0; i < bytes; i += (size_t)getpagesize()) p[i] = 1;
+    char command = 'r';
+    if (write(ready[1], &command, 1) != 1 || read(release[0], &command, 1) != 1) _exit(1);
+    _exit(0);
+  }
+  close(ready[1]); close(release[0]);
+  char command;
+  int result = read(ready[0], &command, 1) != 1;
+  if (!result) {
+    printf("{\"childPid\":%d,\"allocatedBytes\":%d}\n", child, 48 * 1024 * 1024);
+    result = sample(getpid()) != 0;
+  }
+  command = 'q'; if (write(release[1], &command, 1) != 1) result = 1;
+  close(release[1]); close(ready[0]);
+  int status; if (waitpid(child, &status, 0) != child || !WIFEXITED(status) || WEXITSTATUS(status)) result = 1;
+  return result;
+}
 int main(int argc, char **argv) {
   if (argc == 2 && strcmp(argv[1], "--allocation-control") == 0) return control();
+  if (argc == 2 && strcmp(argv[1], "--tree-control") == 0) return tree_control();
   if (argc != 3) return 2;
   char *end;
   long pid = strtol(argv[1], &end, 10); if (*end || pid <= 1) return 2;

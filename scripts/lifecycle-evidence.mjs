@@ -64,6 +64,7 @@ export function inspectLifecycles(profile, record) {
   require(Date.parse(record.metadata.startedAt) > Date.parse(profile.reviewedAt) && record.metadata.replay === profile.replay && record.metadata.memoryMethod === profile.memoryMethod, 'Missing preregistration/runtime method');
   require(record.metadata.liveMemoryMethod === profile.liveMemoryMethod, 'Missing live memory method');
   inspectProcessMemoryMethod(profile, record.metadata.processMemory);
+  require(record.artifacts?.['harness/process-memory'] === record.metadata.processMemory.binaryHash, 'Process-memory collector binary mismatch');
   require(Date.parse(record.metadata.startedAt) > Date.parse(profile.processMemoryReviewedAt), 'Process-memory coverage policy not preregistered');
   require(record.counts?.executed === 24 && record.counts.passed === 24 && record.counts.failed === 0 && record.counts.skipped === 0 && record.cases?.length === 4 && record.errors?.length === 0, 'Incomplete lifecycle matrix');
   require(record.cleanup?.browserExited && record.cleanup.serverClosed && record.cleanup.temporaryRemoved, 'Leaked harness process');

@@ -19,8 +19,11 @@ export async function prepareProcessMemory(directory) {
   if (version.status !== 0) throw Error('Missing process-memory compiler identity');
   const control = spawnSync(binary, ['--allocation-control'], { encoding: 'utf8' });
   if (control.status !== 0) throw Error('Process-memory allocation control failed');
+  const tree = spawnSync(binary, ['--tree-control'], { encoding: 'utf8', timeout: 10000 });
+  if (tree.status !== 0) throw Error('Process-memory child-tree control failed');
+  const [treeControl, sample] = tree.stdout.trim().split('\n').map(line => JSON.parse(line));
   const metadata = { policy: processMemoryPolicy, compiler: version.stdout.trim(),
-    binaryHash: createHash('sha256').update(await readFile(binary)).digest('hex'), control: JSON.parse(control.stdout) };
+    binaryHash: createHash('sha256').update(await readFile(binary)).digest('hex'), control: JSON.parse(control.stdout), treeControl: { ...treeControl, sample } };
   return { binary, metadata };
 }
 
@@ -45,6 +48,7 @@ export async function startProcessMemory(binary, browserPid) {
     }
   });
   child.on('error', error => { failure = error; firstReject(error); });
+  child.stdin.on('error', error => { failure = error; });
   const completion = once(child, 'close').then(([code, signal]) => {
     if (!samples.length) firstReject(Error(`Process-memory helper exited before sampling: ${code}/${signal}`));
     return { code, signal };

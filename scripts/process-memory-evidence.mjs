@@ -11,6 +11,10 @@ export function inspectProcessMemoryMethod(profile, metadata) {
   require(c?.allocatedBytes === 48 * 1024 * 1024 && positive(c.before?.pid) && c.before.pid === c.afterFree?.pid && c.before.startIdentity === c.afterFree.startIdentity, 'Missing actual allocation control');
   require([c.before, c.afterFree].every(p => positive(p.footprintBytes) && positive(p.lifetimePeakFootprintBytes) && p.lifetimePeakFootprintBytes >= p.footprintBytes), 'Invalid allocation accounting');
   require(c.afterFree.lifetimePeakFootprintBytes - c.before.lifetimePeakFootprintBytes >= c.allocatedBytes * .9 && c.afterFree.lifetimePeakFootprintBytes - c.afterFree.footprintBytes >= c.allocatedBytes * .9, 'OS peak detector missed freed allocation');
+  const tree = metadata.treeControl;
+  require(positive(tree?.childPid) && tree.allocatedBytes === c.allocatedBytes && tree.sample?.processes.length >= 2, 'Missing executable child-tree control');
+  const child = tree.sample.processes.find(p => p.pid === tree.childPid);
+  require(child?.footprintBytes >= tree.allocatedBytes * .9 && child.lifetimePeakFootprintBytes >= child.footprintBytes, 'Process enumeration missed live child allocation');
 }
 
 export function inspectProcessMemory(record) {

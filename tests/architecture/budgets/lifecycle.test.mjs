@@ -27,6 +27,13 @@ test('actual editor disposal/canceled-transfer/unload matrix pins full source, r
   for (const name of profile.fixtures) { const pair = record.cases.filter(c => c.fixture === name); assert.equal(pair.length, 2); assert.equal(pair[0].checkpointHash, pair[1].checkpointHash); }
   evidence.observations = inspectLifecycles(profile, record); evidence.artifacts[`${index.directory}/results.json`] = index.resultsHash;
 });
+test('every external process stream matches its retained raw artifact', async () => {
+  for (const item of record.cases) for (const cycle of item.cycles) {
+    const path = `process-memory/${item.fixture}-${item.preset}-${cycle.index}.json`;
+    assert.equal(digest(JSON.stringify(cycle.processMemory)), record.artifacts[path]);
+    assert.equal(digest(await read(`${index.directory}/${path}`)), record.artifacts[path]);
+  }
+});
 for (const [name, change] of [
   ['blind worker probe', r => r.cases[0].probeControl.active.workers = 0], ['blind idle probe', r => r.cases[0].probeControl.polling.callbacks = 0], ['missing backing sample', r => delete r.cases[0].cycles[0].memory.heap.backingStorageSize],
   ['missing cycle', r => r.cases[0].cycles.pop()], ['reordered cycle', r => r.cases[0].cycles[0].index++],
@@ -50,6 +57,8 @@ for (const [name, change] of [
   ['missing process-memory policy', r => delete r.metadata.processMemory],
   ['false OS peak detector', r => r.metadata.processMemory.control.afterFree.lifetimePeakFootprintBytes = r.metadata.processMemory.control.before.lifetimePeakFootprintBytes],
   ['missing collector binary identity', r => delete r.metadata.processMemory.binaryHash],
+  ['mismatched collector binary', r => r.metadata.processMemory.binaryHash = '0'.repeat(64)],
+  ['blind child-tree detector', r => r.metadata.processMemory.treeControl.sample.processes = []],
   ['missing process samples', r => delete r.cases[0].cycles[0].processMemory],
   ['phase-only process sampling', r => r.cases[0].cycles[0].processMemory.samples.splice(1, 100000)],
   ['truncated process stream', r => r.cases[0].cycles[0].processMemory.stopped = 'timeout'],
