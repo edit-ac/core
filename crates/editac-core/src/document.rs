@@ -676,6 +676,14 @@ impl Document {
     ) -> Result<crate::projection::Snapshot, crate::projection::ProjectionError> {
         self.projection.inspect()
     }
+    /// Called immediately after applying our exact checkpoint to a fresh editor
+    /// stage. Neither replica can change through this shared Document borrow.
+    pub(crate) fn editor_stage_projection(
+        &self,
+        stage: &Doc,
+    ) -> Result<crate::projection::ProjectionIndex, crate::projection::ProjectionError> {
+        self.projection.fork_encoded_replica(stage)
+    }
     pub(crate) fn write(&mut self, origin: &str) -> yrs::TransactionMut<'_> {
         self.doc.transact_mut_with(origin)
     }

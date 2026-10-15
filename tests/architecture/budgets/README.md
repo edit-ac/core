@@ -406,6 +406,20 @@ UTF-16 replacement, structural/history/remote invalidation, rejection, observer
 reentrancy and disposal. Production loading measurements include the cache cost
 and retain the complete fixture, independent oracle reads and original limits.
 
+Editor preparation seeds its disposable stage from the live projection admitted
+for the exact checkpoint just applied to that stage. This private transfer is
+valid only before either replica changes. It inspects without consuming live
+changed-node/range evidence, clones immutable derived values, and rebinds every
+source text handle after checking its CRDT identity. New stage observers own all
+later invalidation. Text-only changes reuse clean source runs after full ownership
+replay; structural changes still rebuild conservatively. Final hierarchy,
+immutable structure, selection, encoded-size and stale-plan checks remain in
+place. Independent v4/v5 fresh-index tests cover unread, settled and locally or
+remotely dirty originals, stage-only Unicode/deletion/structural changes, failed
+admission and mismatched source identities. Existing encoded-update, history,
+packed restoration and startup checks remain required; this prerequisite does
+not qualify original startup limits or the complete performance parent.
+
 Changed-revision wire reads serialize the projection only once. The writer
 records byte spans for nonempty root `changedNodes` and `touchedRanges` values;
 the settled cache replaces exactly those spans with empty arrays. It never

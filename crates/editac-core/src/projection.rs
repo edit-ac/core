@@ -1,10 +1,10 @@
 //! Disposable read indexes over the frozen registry. Observers collect dirtiness
 //! only; projection reads happen after the Yrs mutation transaction has ended.
-use crate::document::{parse_block_tuple, BlockAttributes, BLOCK_ATTRIBUTES, ROOTS};
+use crate::document::{BLOCK_ATTRIBUTES, BlockAttributes, ROOTS, parse_block_tuple};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{
-    atomic::{AtomicU64, Ordering},
     Arc, Mutex,
+    atomic::{AtomicU64, Ordering},
 };
 use yrs::types::{Delta, Event, PathSegment};
 use yrs::updates::decoder::Decode;
@@ -206,17 +206,28 @@ impl ProjectionIndex {
     pub(crate) fn with_identity(doc: &Doc, identity: &crate::document::DocumentIdentity) -> Self {
         Self::with_profile(doc, identity.has_stable_presentation())
     }
-    /// Restore-only transfer after encoding this admitted replica and applying
-    /// those exact bytes to a fresh writer, with no intervening writes. Cache
-    /// values are derived, but source text handles and root observers belong to
-    /// staging and must be rebound; never transfer staging observer branches.
-    pub(crate) fn into_restored_replica(
-        self,
-        doc: &Doc,
-        snapshot: Snapshot,
-    ) -> Result<Self, ProjectionError> {
+    /// Private editor-stage transfer. The caller has just applied this Document's
+    /// exact checkpoint to `doc`, with no intervening writes on either replica.
+    /// Inspect without consuming the live index's pending public-read evidence.
+    /// Only immutable derived values cross replicas; observers and text handles
+    /// belong to the new stage. Its later writes still require normal admission.
+    pub(crate) fn fork_encoded_replica(&self, doc: &Doc) -> Result<Self, ProjectionError> {
+        self.inspect()?;
+        let mut cache = {
+            let cached = self.cache.lock().unwrap();
+            let inspected = self.inspected.lock().unwrap();
+            inspected
+                .as_ref()
+                .map_or(&*cached, |(cache, _)| cache)
+                .clone()
+        };
+        Self::rebind_sources(&mut cache, doc)?;
         let next = Self::with_profile(doc, self.stable_presentation);
-        let mut cache = std::mem::take(&mut *self.cache.lock().unwrap());
+        *next.cache.lock().unwrap() = cache;
+        *next.pending.lock().unwrap() = Pending::default();
+        Ok(next)
+    }
+    fn rebind_sources(cache: &mut Cache, doc: &Doc) -> Result<(), ProjectionError> {
         let txn = doc.transact();
         let texts = txn
             .get_map(ROOTS[1])
@@ -230,6 +241,20 @@ impl ProjectionIndex {
             }
             source.text = text;
         }
+        Ok(())
+    }
+    /// Restore-only transfer after encoding this admitted replica and applying
+    /// those exact bytes to a fresh writer, with no intervening writes. Cache
+    /// values are derived, but source text handles and root observers belong to
+    /// staging and must be rebound; never transfer staging observer branches.
+    pub(crate) fn into_restored_replica(
+        self,
+        doc: &Doc,
+        snapshot: Snapshot,
+    ) -> Result<Self, ProjectionError> {
+        let next = Self::with_profile(doc, self.stable_presentation);
+        let mut cache = std::mem::take(&mut *self.cache.lock().unwrap());
+        Self::rebind_sources(&mut cache, doc)?;
         // Keep initial change/range evidence for the first public read. Before
         // that read any observed write clears this result and structural=true
         // forces a fresh admission, exactly like an uninitialized index.
@@ -1225,6 +1250,157 @@ mod source_reuse_tests {
                 #[test]
                 fn failed_refresh_preserves_cache() {
                     check($stable, 4);
+                }
+            }
+        };
+    }
+    cases!(v4_profile, false);
+    cases!(v5_profile, true);
+}
+
+#[cfg(test)]
+mod editor_replica_tests {
+    use super::*;
+    use crate::{editor_mapping as v4, stable_editor_mapping as v5};
+    use yrs::{Text, XmlTextPrelim};
+
+    fn check(stable: bool, scenario: u8) {
+        let doc = if stable { v5::seed() } else { v4::seed() };
+        let live = ProjectionIndex::with_profile(&doc, stable);
+        let oracle = ProjectionIndex::with_profile(&doc, stable);
+        let id = "n:11:1";
+        if scenario != 0 {
+            live.read().unwrap();
+            oracle.read().unwrap();
+        }
+        if scenario == 2 || scenario == 3 {
+            let target = if scenario == 3 {
+                v4::fork(&doc, 91)
+            } else {
+                doc.clone()
+            };
+            v4::text(&target, id).insert(&mut target.transact_mut(), 0, "😀e\u{301}");
+            if scenario == 3 {
+                v4::apply(&doc, &v4::bytes(&target)).unwrap();
+            }
+        }
+        let before = v4::bytes(&doc);
+        let stage = v4::fork(&doc, 92);
+        if scenario == 7 {
+            let mut txn = stage.transact_mut();
+            txn.get_map(ROOTS[1]).unwrap().insert(
+                &mut txn,
+                id,
+                XmlTextPrelim::new("different identity"),
+            );
+            drop(txn);
+            assert_eq!(
+                live.fork_encoded_replica(&stage).unwrap_err(),
+                ProjectionError::InvalidOwnership
+            );
+        } else {
+            let index = live.fork_encoded_replica(&stage).unwrap();
+            let initial = index.read().unwrap();
+            assert_eq!(initial.source_reads, 0);
+            assert!(!initial.structure_rebuilt);
+            let sources = index.cache.lock().unwrap().sources.clone();
+            for (key, source) in &sources {
+                let cached = live.cache.lock().unwrap();
+                let inspected = live.inspected.lock().unwrap();
+                let origin = inspected.as_ref().map_or(&*cached, |(cache, _)| cache);
+                assert!(Arc::ptr_eq(&source.runs, &origin.sources[key].runs));
+            }
+            match scenario {
+                0..=3 => {
+                    v4::text(&stage, id).insert(&mut stage.transact_mut(), 0, "stage😀");
+                }
+                4 => {
+                    v4::text(&stage, id).remove_range(&mut stage.transact_mut(), 0, 1);
+                }
+                5 => {
+                    crate::editor::split(&stage, stable, "o:92:1", id, 0, 1).unwrap();
+                }
+                6 => {
+                    let mut txn = stage.transact_mut();
+                    txn.get_map(ROOTS[1]).unwrap().remove(&mut txn, id);
+                }
+                _ => unreachable!(),
+            }
+            let actual = index.read();
+            let fresh = ProjectionIndex::with_profile(&stage, stable).read();
+            if scenario == 6 {
+                assert_eq!(actual.unwrap_err(), fresh.unwrap_err());
+                for (key, source) in &sources {
+                    assert!(Arc::ptr_eq(
+                        &source.runs,
+                        &index.cache.lock().unwrap().sources[key].runs
+                    ));
+                }
+            } else {
+                let actual = actual.unwrap();
+                let fresh = fresh.unwrap();
+                assert_eq!(actual.visible, fresh.visible);
+                assert_eq!(actual.recovery, fresh.recovery);
+                assert_eq!(actual.retained_structure, fresh.retained_structure);
+                assert_eq!(
+                    actual.source_reads,
+                    if scenario == 5 { sources.len() } else { 1 }
+                );
+                assert_eq!(actual.structure_rebuilt, scenario == 5);
+                assert_eq!(index.read().unwrap().source_reads, 0);
+            }
+        }
+        assert_eq!(
+            v4::bytes(&doc),
+            before,
+            "stage work must not mutate the original replica"
+        );
+        let actual = live.read().unwrap();
+        let expected = oracle.read().unwrap();
+        assert_eq!(actual.visible, expected.visible);
+        assert_eq!(actual.recovery, expected.recovery);
+        assert_eq!(actual.retained_structure, expected.retained_structure);
+        assert_eq!(actual.changed_nodes, expected.changed_nodes);
+        assert_eq!(actual.touched_ranges, expected.touched_ranges);
+        assert_eq!(actual.source_reads, expected.source_reads);
+        assert_eq!(actual.structure_rebuilt, expected.structure_rebuilt);
+        assert_eq!(live.read().unwrap().source_reads, 0);
+    }
+    macro_rules! cases {
+        ($name:ident, $stable:expr) => {
+            mod $name {
+                use super::*;
+                #[test]
+                fn unread_original() {
+                    check($stable, 0);
+                }
+                #[test]
+                fn clean_original() {
+                    check($stable, 1);
+                }
+                #[test]
+                fn pending_local_unicode() {
+                    check($stable, 2);
+                }
+                #[test]
+                fn pending_remote_unicode() {
+                    check($stable, 3);
+                }
+                #[test]
+                fn deletion_only_stage() {
+                    check($stable, 4);
+                }
+                #[test]
+                fn structural_stage_replays() {
+                    check($stable, 5);
+                }
+                #[test]
+                fn invalid_stage_preserves_cache() {
+                    check($stable, 6);
+                }
+                #[test]
+                fn source_identity_mismatch_rejects() {
+                    check($stable, 7);
                 }
             }
         };

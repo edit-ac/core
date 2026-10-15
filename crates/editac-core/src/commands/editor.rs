@@ -1286,8 +1286,9 @@ impl Document {
         drop(_phase);
         #[cfg(feature = "fitness-trace")]
         let _phase = crate::fitness::Span::new("engine.editor.projection");
-        let text_projection =
-            crate::projection::ProjectionIndex::with_identity(&stage, self.identity());
+        let text_projection = self
+            .editor_stage_projection(&stage)
+            .map_err(|_| EditorError::InvalidCommand)?;
         #[cfg(feature = "fitness-trace")]
         drop(_phase);
         #[cfg(feature = "fitness-trace")]
