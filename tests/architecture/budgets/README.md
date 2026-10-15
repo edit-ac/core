@@ -335,3 +335,14 @@ workload acknowledgments are retained on their workload records. Negative ASCII
 and workload controls first validate their unchanged current runtime contrast,
 then mutate one fault. The canonical inventory retains their rejection reasons;
 trace-field controls require the intended timing/trace rejection specifically.
+
+The `navigation-phases-v1` loading attribution retains contiguous raw intervals
+from navigation through flush. It separates checkpoint fetch/decode/publish,
+editor creation and recovery/surface readiness, double RAF, independent oracle
+reads/projection/hashes, anchor creation, public commit and anchor release, and
+exact restoration. The summary exposes oracle overhead and public edit duration
+without subtracting either from the preserved accepted-edit budget. Admission
+rejects absent, reordered, overlapping, gapped or metric-inconsistent intervals.
+Module timing includes transfer/evaluation; WASM init includes fetch/compile/
+instantiate and editor-ready includes recovery/surface binding. These combined
+phases require further instrumentation before attributing their internal costs.

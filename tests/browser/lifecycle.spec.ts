@@ -47,3 +47,33 @@ test('initialization failure leaves accessible read-only preview and observable 
 }));
 test('ready and actual localCommitted are distinct, scoped observable events',()=>probe('commit-state',async(page,fact)=>{await prepareEditor(page);const s=await page.evaluate(async()=>{const e=window.activeEditor=window.mountBrowserEditor(window.inputFixture.root,window.editorOptions);await e.ready;const initial=e.state;window.states=[];const unsubscribe=e.subscribe(s=>window.states.push({phase:s.phase,commit:!!s.localCommitted,error:!!s.error}));window.selectEditor(0,5);e.paste({getData:t=>t==='text/plain'?'saved':''},{literal:true});await e.flush({target:'local'});unsubscribe();return {initial,final:e.state,states:window.states};});fact.snapshots.push(s);assert.equal(s.initial.ready,true);assert.equal(s.initial.localCommitted,null);assert.ok(s.final.localCommitted);assert.ok(s.states.some(s=>s.commit));}));
 test('mount read-only, pre-ready transition and duplicate mount preserve authority',()=>probe('readonly-mount',async(page,fact)=>{await prepareEditor(page);const s=await page.evaluate(async()=>{const root=window.inputFixture.root,e=window.activeEditor=window.mountBrowserEditor(root,{...window.editorOptions,readOnly:false});e.setReadOnly(true);let duplicate;try{window.mountBrowserEditor(root,window.editorOptions);}catch(error){duplicate=error.message;}await e.ready;return {state:e.state,editable:root.contentEditable,duplicate,paste:e.paste({getData:()=> 'bad'})};});fact.snapshots.push(s);assert.equal(s.state.readOnly,true);assert.equal(s.editable,'false');assert.equal(s.paste.disposition,'rejected');assert.equal(s.duplicate,'Editor already mounted on this surface');}));
+
+test('ordinary activation avoids the preview-only full projection while preview admission remains canonical', () => probe('activation-projections', async (page, fact) => {
+  await prepareEditor(page);
+  const observations = await page.evaluate(async () => {
+    const { recoverLocalDocument } = await import('/web/entry.js');
+    const rows = [];
+    for (const preview of [undefined, { identity: window.editorOptions.identity, revision: 0 }, { identity: { ...window.editorOptions.identity, documentId: 'wrong' }, revision: 0 }]) {
+      let reads = 0;
+      const root = document.createElement('div'); root.textContent = 'untrusted preview'; document.body.append(root);
+      const editor = window.activeEditor = window.mountBrowserEditor(root, { ...window.editorOptions, preview,
+        recover: async options => {
+          const session = await recoverLocalDocument(options), engine = session.writer.engine, read = engine.read.bind(engine);
+          // Engine handles are frozen; observe through a forwarding port instead
+          // of assigning a method that browsers may silently leave unchanged.
+          const observedEngine = new Proxy({}, { get: (_, key) => key === 'read' ? () => { reads++; return read(); } : Reflect.get(engine, key, engine) });
+          const writer = new Proxy(session.writer, { get: (target, key) => key === 'engine' ? observedEngine : Reflect.get(target, key, target) });
+          return { ...session, writer };
+        } });
+      try { await editor.ready; rows.push({ reads, preview: editor.state.preview, text: root.textContent, ready: editor.state.ready }); }
+      finally { await editor.destroy({ policy: 'flush' }); root.remove(); }
+    }
+    return rows;
+  });
+  fact.snapshots.push(observations);
+  assert.deepEqual(observations.map(r => r.preview), ['none', 'matched', 'replaced']);
+  assert.equal(observations[0].reads > 0, true);
+  assert.equal(observations[1].reads, observations[0].reads + 1);
+  assert.equal(observations[2].reads, observations[0].reads + 1);
+  for (const row of observations) { assert.equal(row.ready, true); assert.match(row.text, /alpha/); assert.doesNotMatch(row.text, /untrusted/); }
+}));

@@ -154,8 +154,13 @@ export class BrowserEditor {
       this.#cancelActivation = undefined;
       if (this.#closing || this.#destroyed) { await session.storage.destroy({ policy: 'report' }); throw Error('Editor initialization canceled'); }
       this.#session = session;
-      const snapshot = session.writer.engine.read();
-      const preview = options.preview ? previewMatches(options.preview, snapshot.identity, snapshot.revision) ? 'matched' : 'replaced' : 'none';
+      // Only preview admission needs this projection. The surface reads the
+      // canonical document itself; avoid serializing it twice on ordinary open.
+      let preview: 'matched' | 'replaced' | 'none' = 'none';
+      if (options.preview) {
+        const snapshot = session.writer.engine.read();
+        preview = previewMatches(options.preview, snapshot.identity, snapshot.revision) ? 'matched' : 'replaced';
+      }
       // Always bind fresh canonical mappings, including matching preview content.
       // Raw host DOM is never reused as an authoritative editable projection.
       this.#surface = bindEditorSurface(this.root, session.writer.engine, {

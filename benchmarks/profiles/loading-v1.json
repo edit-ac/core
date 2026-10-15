@@ -1,7 +1,7 @@
 {
   "version": 1,
   "id": "loading-v1",
-  "reviewedAt": "2026-10-15T02:43:23.858366+00:00",
+  "reviewedAt": "2026-10-15T08:40:00.889093+00:00",
   "scope": "PRF-06 packed public distribution, baseline/Task feature-cost diagnostics; no release or optional-provider qualification",
   "fixtures": [
     "Task",
@@ -35,5 +35,7 @@
   "warmupPolicy": "none; every cold sample starts a fresh context, then exactly one acknowledged same-context warm restore",
   "sampleOrder": "Task baseline, Task task, Long baseline, Long task; paired cold then warm",
   "pageDeadlineMs": 120000,
-  "samplingDecision": "12 fixed pairs per combination within bounded source session; 100 minimum tail samples remains unchanged, tails inconclusive; earlier 100-pair attempts retained as interrupted evidence"
+  "samplingDecision": "12 fixed pairs per combination within bounded source session; 100 minimum tail samples remains unchanged, tails inconclusive; earlier 100-pair attempts retained as interrupted evidence",
+  "phaseAttribution": "navigation-phases-v1",
+  "phaseScope": "Contiguous navigation-clock intervals, including checkpoint fetch/decode/publish, editor construction/recovery+surface, double RAF, independent oracle reads/projection/hashes, public anchors/commit/release, exact restoration and flush. No oracle subtraction from navigation-to-first-accepted-edit. Resource timings observe transfer/cache; WASM compilation/instantiation and recovery/surface subphases remain combined."
 }
