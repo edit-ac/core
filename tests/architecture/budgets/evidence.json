@@ -10,8 +10,8 @@
   "sourceRevision": "78b3fd484f3af6ca9ab61b5457cfb1aa45474dbba889a88e863949d9d631cb74",
   "implementationReceipt": "architecture-results/fit-1.8-20261015/iteration-2/delivery-receipt.json",
   "implementationReceiptHash": "af6da8a6a966160edd7a57801d139a562bd2ef2572ce024200e04c895c05b328",
-  "currentCanonicalReceipt": "architecture-results/fit-1.8-20261015/iteration-2/budgets-prf04-1/receipt.json",
-  "canonicalReceiptHash": "cfb61f65c84df0af73c1067972a26d66cbe2c2cfc8ea7a008e932a3ba239e425",
+  "currentCanonicalReceipt": "architecture-results/fit-1.8-20261015/iteration-3/budgets-prf05-1/receipt.json",
+  "canonicalReceiptHash": "94e0bdba20c0a21a32794a36f86d30ef4f453a67545fad43315515146a258c92",
   "profileHash": "22aaa4b74df2064c44f791b62c977be07ecca00e77b148052ae6536fe1c59122",
   "baselineIndexHash": "e5cf8e8b729f90c8f504090c0ea30514f9513bfd321b45bddea227875508acfc",
   "previousEvidence": "eda439dcbd6f2a2610153e42dcc009efc8d8f2f7:tests/architecture/budgets/evidence.json",
@@ -78,14 +78,14 @@
       "screen-reader",
       "non-drag-pointer"
     ],
-    "next": "FIT-1.8-I1-B / PRF-05: implement the actual-editor repeated mount/dispose and feature unload/canceled-transfer replay, with fixed iterations, resource counts, idle scheduling and raw memory plateau inputs. Reuse unchanged PRF-02/03/04 receipts. Full reviewed tails/peak/accessibility/optional/target-runtime criteria remain open."
+    "next": "FIT-1.8-I1-B / PRF-06 external packed consumer cold/warm/disabled loading and shared gzip assertions; retain unqualified memory/tails/optional/accessibility/platform criteria"
   },
-  "priorCanonicalReceipt": "architecture-results/fit-1.8-20261015/recovery-1/budgets-1/receipt.json",
-  "priorCanonicalReceiptHash": "24b056370d6382e2b0a99e54bac396e38959e202cf2160815b5330dae3a48619",
+  "priorCanonicalReceipt": "architecture-results/fit-1.8-20261015/iteration-2/budgets-prf04-1/receipt.json",
+  "priorCanonicalReceiptHash": "cfb61f65c84df0af73c1067972a26d66cbe2c2cfc8ea7a008e932a3ba239e425",
   "gestureReceipt": "architecture-results/fit-1.8-20261015/iteration-5/gestures-3/results.json",
   "gestureReceiptHash": "df94f73d6912b9b8e97d5b961809587c0cdc22c785c72b15d0633bf01115d6a5",
   "gestureScope": "16/16 actual-public-editor ordinary-pointer diagnostics: exact thin-glyph range endpoints, canceled native text drag, prose/code nested autoscroll across unchanged Task/Long \u00d7 baseline/Task, bounded native controls and cancellation. No full performance/platform qualification or new checked child.",
-  "currentDeliveryReceipt": "architecture-results/fit-1.8-20261015/iteration-2/prf04-delivery-receipt.json",
+  "currentDeliveryReceipt": "architecture-results/fit-1.8-20261015/iteration-3/prf05-delivery-receipt.json",
   "serviceReceipt": "architecture-results/fit-1.8-20261015/recovery-1/services-4/results.json",
   "serviceReceiptHash": "5066dabdbee31c30ef37557515f2c44dd874078e4277f1509996f071ebfef53b",
   "serviceScope": "16/16 actual-public-editor/lifecycle/resolver/sync diagnostic observations across unchanged full Task/Long \u00d7 baseline/Task. Prepared noncooperative host responses; constant-size atomic replacements, bounded queue/stale-result invalidation, exact local/remote commit and DOM node scopes, convergence and cleanup. Highlight/asset/conversion runtimes pending; no full PRF-03/performance/platform qualification or new checked child.",
@@ -109,6 +109,26 @@
       "Programmatic native selection/public-command replay excludes trusted input and compositor attribution",
       "Observed heap boundaries include harness allocations; native decoder/process peaks remain unobserved",
       "Remaining PRF/accessibility/target-platform criteria remain required"
+    ]
+  },
+  "prf05": {
+    "state": "diagnostic-prerequisite; parent remains open",
+    "owningResults": "architecture-results/fit-1.8-20261015/iteration-3/lifecycle-5/results.json",
+    "resultsHash": "f2ceafa50be4f6d2ea066cf4ac5211b1743d494ee9a0f7b5ea9fde221614b8d0",
+    "counts": {
+      "executed": 24,
+      "passed": 24,
+      "failed": 0,
+      "skipped": 0
+    },
+    "cycles": 48,
+    "profileHash": "64593db6ecfffab8242228387d9fb39e45ba005f1c36a5fba720aaf2e185c666",
+    "deliveryReceipt": "architecture-results/fit-1.8-20261015/iteration-3/prf05-delivery-receipt.json",
+    "deliveryHash": "1b45e9b1a953b22d79cf765807e271f2c9e0caa5aca39e4c6ace08e11c0bbb57",
+    "gaps": [
+      "Memory plateau limits unreviewed; GC-assisted JS heap/DOM only",
+      "Native/process/decoder peak memory and optional runtime not observed",
+      "Other PRF/accessibility/platform criteria remain open"
     ]
   }
 }

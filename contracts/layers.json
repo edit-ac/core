@@ -281,7 +281,8 @@
         "tests/architecture/budgets/gestures.test.mjs",
         "tests/architecture/budgets/trace.test.mjs",
         "tests/architecture/budgets/services.test.mjs",
-        "tests/architecture/budgets/workloads.test.mjs"
+        "tests/architecture/budgets/workloads.test.mjs",
+        "tests/architecture/budgets/lifecycle.test.mjs"
       ],
       "inputs": [
         "scripts/architecture-budgets.mjs",
@@ -336,13 +337,20 @@
         "benchmarks/workload-image.png",
         "scripts/workload-evidence.mjs",
         "scripts/bench-workloads.mjs",
-        "tests/architecture/budgets/workloads.test.mjs"
+        "tests/architecture/budgets/workloads.test.mjs",
+        "benchmarks/profiles/lifecycle-v1.json",
+        "benchmarks/profiles/lifecycle-evidence.json",
+        "benchmarks/lifecycle-client.mjs",
+        "benchmarks/resource-probe.mjs",
+        "scripts/bench-lifecycle.mjs",
+        "scripts/lifecycle-evidence.mjs"
       ],
       "artifacts": [
         "budgets-inventory.json",
         "gestures-inventory.json",
         "services-inventory.json",
-        "workloads-inventory.json"
+        "workloads-inventory.json",
+        "lifecycle-inventory.json"
       ]
     },
     "diagnostics": {

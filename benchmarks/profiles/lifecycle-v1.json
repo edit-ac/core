@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "id": "lifecycle-v1",
+  "parent": "FIT-1.8-I1-B",
+  "case": "PRF-05",
+  "reviewedAt": "2026-10-15T01:49:43.498588+00:00",
+  "scope": "Actual browser editor/resolver/clipboard diagnostics; prepared host and scheduler; no optional-runtime or memory qualification",
+  "fixtures": [
+    "Task",
+    "Long"
+  ],
+  "presets": [
+    "baseline",
+    "task"
+  ],
+  "cycles": 12,
+  "idleMs": 200,
+  "requiredObservations": [
+    "disposal",
+    "canceled-transfer",
+    "unload",
+    "memory-plateau",
+    "resources",
+    "idle"
+  ],
+  "performanceLimits": null,
+  "memoryMethod": "CDP HeapProfiler.collectGarbage then Performance.getMetrics, Runtime.getHeapUsage and Memory.getDOMCounters; post-disposal; no process/native peak claim",
+  "replay": "positive-paste-undo/cancel-paste/unload-resolver/destroy/late-complete/reopen/destroy/delete-v1",
+  "resourceBounds": {
+    "listeners": 0,
+    "observers": 0,
+    "workers": 0,
+    "timers": 0,
+    "frames": 0
+  },
+  "owningCommand": "node scripts/bench-lifecycle.mjs --seed-directory <retained-owning-directory> --output <unique-directory>"
+}

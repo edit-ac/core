@@ -167,3 +167,24 @@ in a separate closed browser context. Both fresh preset contexts initialize
 WASM before the mount timer, and retain all twelve sequential replays. Two
 animation callbacks may share a refresh timestamp; keep those raw duplicates
 without inferring separate presented frames.
+
+PRF-05 uses `node scripts/bench-lifecycle.mjs --seed-directory <retained-owning-directory> --output <unique-directory>`.
+`lifecycle-v1.json` fixes Task/Long × baseline/Task, twelve cycles and a 200 ms
+idle window before measurement. Each cycle proves a live paste target with an
+actual committed paste/undo, cancels deferred clipboard preparation, unloads the
+production resolver with an abort-ignoring prepared host, destroys the editor,
+releases late completions and reopens acknowledged storage to check source
+preservation. All databases are deleted, roots cleared and handles released.
+Weak-reference probes record listener, timer, animation frame, observer and worker
+registrations without retaining discarded targets. Post-GC CDP heap and DOM
+samples cover browser backing-storage endpoints. Native/process/WASM peaks remain
+unobserved.
+Executable controls deliberately register every resource and run idle polling,
+then require detection and cleanup before the fixed replay. Retired probe entries
+are pruned; workers require explicit termination even after handle collection.
+Observer accounting is conservative until disconnect (unobserve is not inferred).
+Idle checks count scheduled callbacks, not event-driven browser internals, OS work,
+property event handlers or unobserved ports. Optional providers are absent.
+Memory plateau has no reviewed limit and remains inconclusive. Canonical admission
+rejects missing cycles, resource leaks, idle polling, late mutation, lost recovery,
+mutated artifacts and invented qualification; this receipt cannot close FIT-1.8.
