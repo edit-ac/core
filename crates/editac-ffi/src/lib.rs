@@ -4,6 +4,8 @@
 #[allow(dead_code)]
 mod bridge;
 
+mod session_commands;
+pub use session_commands::*;
 mod session;
 pub use session::*;
 

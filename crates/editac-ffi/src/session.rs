@@ -1,5 +1,6 @@
 //! Durable shared Session on the existing UniFFI boundary. No foreign callbacks or
 //! mutable engine escape. This is an ownership/translation adapter, not a replica.
+use crate::session_commands::*;
 use editac_core::{
     Utf16Offset,
     anchors::{Anchor, Bias, Resolution},
@@ -122,6 +123,8 @@ pub enum NativeSessionError {
     InvalidAnchor,
     #[error("anchor target: {message}")]
     AnchorTarget { message: String },
+    #[error("command input: {message}")]
+    CommandInput { message: String },
 }
 type Result<T> = std::result::Result<T, NativeSessionError>;
 impl From<PortError> for NativeSessionError {
@@ -395,6 +398,67 @@ impl State {
             projection,
             _projection_subscription: subscription,
         })
+    }
+    fn retain_plan(&mut self, plan: PreparedEdit) -> Result<String> {
+        let next = self
+            .next_plan
+            .checked_add(1)
+            .ok_or(NativeSessionError::ResourceLimit)?;
+        let token = format!(
+            "session:{}:{}:{next}",
+            self.service.session().document().writer_id(),
+            self.anchor_owner
+        );
+        self.next_plan = next;
+        self.plans.insert(token.clone(), plan);
+        Ok(token)
+    }
+    fn prepare_command_json(
+        &self,
+        revision: &[u8],
+        input: &str,
+        origin: &str,
+        now: u64,
+    ) -> Result<PreparedEdit> {
+        use editac_core::interchange::{Command, err, parse};
+        if input.len() > 1_048_576 {
+            return Err(NativeSessionError::ResourceLimit);
+        }
+        let commands: Vec<Command> = parse(input, "prepareCommands").map_err(command_error)?;
+        if commands.len() > 128 {
+            return Err(NativeSessionError::ResourceLimit);
+        }
+        let commands = commands
+            .into_iter()
+            .map(|c| {
+                c.translate(|id| {
+                    self.anchors.get(id).cloned().ok_or_else(|| {
+                        err(
+                            "InvalidHandle",
+                            "anchor",
+                            "unknown or foreign Session anchor",
+                        )
+                    })
+                })
+                .map_err(command_error)
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let expected = ObservedRevision::from_bytes(revision)?;
+        let origin = TextOrigin::new(origin).map_err(|e| NativeSessionError::Text {
+            message: format!("{e:?}"),
+        })?;
+        Ok(self
+            .service
+            .prepare_commands(&expected, &commands, &origin, now)?)
+    }
+}
+fn command_error(e: editac_core::interchange::Error) -> NativeSessionError {
+    match e.code {
+        "ResourceLimit" => NativeSessionError::ResourceLimit,
+        "InvalidHandle" => NativeSessionError::InvalidAnchor,
+        _ => NativeSessionError::CommandInput {
+            message: format!("{}: {}", e.operation, e.message),
+        },
     }
 }
 type Task = Box<dyn FnOnce(&mut State) + Send>;
@@ -776,17 +840,114 @@ impl NativeSession {
             let plan = state
                 .service
                 .prepare_commands(&revision, &commands, &origin, now)?;
-            let next = state
-                .next_plan
-                .checked_add(1)
-                .ok_or(NativeSessionError::ResourceLimit)?;
-            let token = format!(
-                "session:{}:{next}",
-                state.service.session().document().writer_id()
-            );
-            state.next_plan = next;
-            state.plans.insert(token.clone(), plan);
-            Ok(token)
+            state.retain_plan(plan)
+        })
+    }
+    /// Same portable EditorCommand array and anchor tokens as the shared engine.
+    /// All parsing, anchor lookup and EditService validation precede retaining a plan.
+    pub fn prepare_commands(
+        &self,
+        revision: Vec<u8>,
+        commands_json: String,
+        origin: String,
+        now: u64,
+    ) -> Result<NativePreparedCommands> {
+        self.call(move |state| {
+            if state.plans.len() >= 128 {
+                return Err(NativeSessionError::ResourceLimit);
+            }
+            let plan = state.prepare_command_json(&revision, &commands_json, &origin, now)?;
+            let token = state.retain_plan(plan)?;
+            Ok(NativePreparedCommands { token, revision })
+        })
+    }
+    /// Exact current target applicability via the authoritative planner; retains no plan.
+    pub fn check_commands(
+        &self,
+        revision: Vec<u8>,
+        commands_json: String,
+        origin: String,
+        now: u64,
+    ) -> Result<()> {
+        self.call(move |state| {
+            state.prepare_command_json(&revision, &commands_json, &origin, now)?;
+            Ok(())
+        })
+    }
+    pub fn commit_commands(&self, token: String, now: u64) -> Result<Option<NativeSessionCommit>> {
+        self.commit_edits(token, now)
+    }
+    pub fn cancel_commands(&self, token: String) -> Result<()> {
+        self.cancel_edits(token)
+    }
+    /// Detached current metadata. Target-specific enablement requires check_commands.
+    pub fn command_catalog(&self, now: u64) -> Result<NativeCommandCatalog> {
+        self.call(move |state| {
+            let session = state.service.session();
+            let revision = match session.observed_revision() {
+                Ok(r) => Some(r.to_bytes().to_vec()),
+                Err(SessionError::RecoveryRequired) => None,
+                Err(e) => return Err(e.into()),
+            };
+            let caps = state.service.capabilities(now);
+            let identity = session.document().identity();
+            let routes = editac_core::interchange::Command::TYPES
+                .iter()
+                .map(|id| {
+                    let available =
+                        identity.has_editor() && (*id != "tableCell" || caps.policy.codecs.tables);
+                    NativeCommandRoute {
+                        id: (*id).into(),
+                        available,
+                        can_prepare: available && caps.can_prepare,
+                        reason: if !available {
+                            "unsupported-module"
+                        } else if !caps.can_prepare {
+                            "admission-denied"
+                        } else {
+                            "target-check-required"
+                        }
+                        .into(),
+                    }
+                })
+                .collect();
+            let mut profiles = vec![NativeCommandProfile {
+                id: "editac.core".into(),
+                available: identity.has_editor(),
+                reason: "portable-editor-commands".into(),
+            }];
+            for (id, reason) in [
+                (
+                    "editac.document-tools",
+                    "requires-host-presenters-resolver-and-pending-search",
+                ),
+                (
+                    "editac.code-tools",
+                    "requires-host-presenters-and-pending-code-pairs",
+                ),
+                ("editac.slash", "host-presenter-required"),
+                ("editac.references", "host-resolver-required"),
+                ("editac.reorder", "host-presenter-required-use-move-command"),
+                ("editac.images", "host-asset-and-transfer-ports-required"),
+                ("editac.tables", "optional-module-not-enabled"),
+                ("editac.math", "host-renderer-required"),
+                ("editac.search", "contract-fixture-only"),
+                ("editac.code", "contract-fixture-only"),
+                ("editac.pairs", "contract-fixture-only"),
+            ] {
+                profiles.push(NativeCommandProfile {
+                    id: id.into(),
+                    available: false,
+                    reason: reason.into(),
+                });
+            }
+            Ok(NativeCommandCatalog {
+                revision,
+                schema: identity.schema.clone(),
+                profile: identity.profile.clone(),
+                routes,
+                profiles,
+            })
         })
     }
     /// Single use, including failed admission. Current permission/revision is checked
@@ -1261,6 +1422,248 @@ mod tests {
         reopened.dispose().unwrap();
     }
     #[test]
+    fn commands_current_shared_policy_rechecks_resource_limits_at_commit() {
+        let f = Fixture::new();
+        let s = f.session();
+        let r = s.read(0).unwrap();
+        let node = r.nodes[0].id.clone();
+        let p = s.prepare_commands(r.revision.clone().unwrap(), serde_json::json!([{"type":"replaceAt","owner":node,"from":0,"to":4,"text":"replacement"}]).to_string(), "policy".into(), 0).unwrap();
+        s.call(|state| {
+            state.service.set_policy(HostPolicy {
+                max_input_bytes: 1,
+                ..HostPolicy::default()
+            });
+            Ok(())
+        })
+        .unwrap();
+        assert!(matches!(
+            s.commit_commands(p.token.clone(), 0),
+            Err(NativeSessionError::ResourceLimit)
+        ));
+        assert!(matches!(
+            s.commit_commands(p.token, 0),
+            Err(NativeSessionError::InvalidPlan)
+        ));
+        let after = s.read(0).unwrap();
+        assert_eq!(after.revision, r.revision);
+        assert_eq!(after.nodes[0].text, "seed");
+        assert_eq!(after.pending_upload, 0);
+        s.dispose().unwrap();
+    }
+    #[test]
+    fn commands_disposal_drops_actual_worker_plans_and_shared_anchors() {
+        let f = Fixture::new();
+        let s = f.session();
+        let owners = Arc::strong_count(&f.store);
+        let r = s.read(0).unwrap();
+        let anchors = s
+            .capture_anchors(
+                r.revision.clone().unwrap(),
+                vec![crate::AnchorInput {
+                    node: r.nodes[0].id.clone(),
+                    offset_utf16: 2,
+                    bias: crate::AnchorBias::Right,
+                }],
+            )
+            .unwrap();
+        let p = s
+            .prepare_commands(
+                r.revision.unwrap(),
+                serde_json::json!([{"type":"insert","at":anchors[0].token,"text":"!"}]).to_string(),
+                "lifetime".into(),
+                0,
+            )
+            .unwrap();
+        assert_eq!(
+            s.call(|state| Ok((state.plans.len(), state.anchors.len())))
+                .unwrap(),
+            (1, 1)
+        );
+        let alias = s.clone();
+        drop(s);
+        assert_eq!(Arc::strong_count(&f.store), owners);
+        drop(alias);
+        assert_eq!(Arc::strong_count(&f.store), owners - 1);
+        let reopened = reopen(&f);
+        assert!(matches!(
+            reopened.commit_commands(p.token, 0),
+            Err(NativeSessionError::InvalidPlan)
+        ));
+        reopened.dispose().unwrap();
+    }
+    // The original zero-mutation assertion is retained as a failing acceptance
+    // receipt. This regression qualifies the unchanged shared recovery contract
+    // required by the corrected NCB-1.1 source; it changes no durability semantics.
+    fn command_quota_recovery(sqlite_page_limit: bool) {
+        let f = Fixture::new();
+        let s = f.session();
+        let before = s.read(0).unwrap();
+        let replacement = if sqlite_page_limit {
+            "🦀אב".repeat(8192)
+        } else {
+            "quota-command".into()
+        };
+        let plan = s
+            .prepare_commands(
+                before.revision.clone().unwrap(),
+                serde_json::json!([{"type":"replaceAt","owner":before.nodes[0].id,
+                "from":0,"to":4,"text":replacement}])
+                .to_string(),
+                "quota-command".into(),
+                0,
+            )
+            .unwrap();
+        if sqlite_page_limit {
+            f.store
+                .set_max_pages(f.store.page_count().unwrap())
+                .unwrap();
+        } else {
+            f.store
+                .inject_once(InjectedFault {
+                    boundary: FaultBoundary::BeforeCommit,
+                    error: PortError::Quota,
+                })
+                .unwrap();
+        }
+        assert!(matches!(
+            s.commit_commands(plan.token.clone(), 0),
+            Err(NativeSessionError::Store {
+                reason: NativeStoreFailure::Quota
+            })
+        ));
+        assert!(matches!(
+            s.commit_commands(plan.token, 0),
+            Err(NativeSessionError::InvalidPlan)
+        ));
+        let after = s.read(0).unwrap();
+        assert_eq!(after.nodes[0].text, replacement);
+        assert!(after.recovery_required && !after.can_apply && !after.can_history);
+        assert!(!after.locally_committed && after.revision.is_none());
+        assert_eq!(after.pending_upload, 0);
+        let catalog = s.command_catalog(0).unwrap();
+        assert!(catalog.revision.is_none());
+        assert!(catalog.routes.iter().all(|r| !r.can_prepare));
+        assert!(matches!(
+            s.check_commands(before.revision.unwrap(), "[]".into(), "frozen".into(), 0),
+            Err(NativeSessionError::RecoveryRequired)
+        ));
+        let salvage = s.recovery_export().unwrap();
+        assert!(!salvage.locally_committed && salvage.unjournaled_update.is_some());
+        let durable = reopen(&f);
+        assert_eq!(durable.read(0).unwrap().nodes[0].text, "seed");
+        durable.dispose().unwrap();
+        if sqlite_page_limit {
+            f.store.set_max_pages(1_000_000).unwrap();
+        }
+        // A prepared host transport must not be admitted while recovery is frozen.
+        struct PreparedTransport;
+        impl editac_session::ports::Transport for PreparedTransport {
+            fn state(&self) -> editac_session::ports::ConnectionState {
+                editac_session::ports::ConnectionState::Authorized
+            }
+            fn capabilities(&self) -> editac_session::ports::TransportCapabilities {
+                panic!("frozen Session must reject before transport capability access")
+            }
+            fn send(
+                &mut self,
+                _: editac_session::ports::TransportFrame,
+            ) -> std::result::Result<(), PortError> {
+                panic!("frozen Session must not publish")
+            }
+            fn receive(
+                &mut self,
+            ) -> std::result::Result<Option<editac_session::ports::TransportFrame>, PortError>
+            {
+                panic!("frozen Session must not receive")
+            }
+        }
+        let retained = s
+            .call(|state| {
+                assert!(matches!(
+                    state
+                        .service
+                        .attach_transport(Box::new(PreparedTransport), 100, 0),
+                    Err(SessionError::RecoveryRequired)
+                ));
+                let retained = state
+                    .service
+                    .session()
+                    .recovery_export()
+                    .unjournaled
+                    .unwrap();
+                assert!(matches!(
+                    state.service.flush_pending(0),
+                    Err(SessionError::RecoveryRequired)
+                ));
+                assert!(matches!(
+                    state.service.accept_receipt(
+                        editac_session::ports::DurableReceipt {
+                            protocol: editac_session::ports::ReceiptCapability::DurableV1,
+                            update: retained.id().clone(),
+                        },
+                        0
+                    ),
+                    Err(SessionError::RecoveryRequired)
+                ));
+                assert_eq!(
+                    state
+                        .service
+                        .session()
+                        .document()
+                        .history_state()
+                        .undo_groups,
+                    1
+                );
+                Ok(retained)
+            })
+            .unwrap();
+        // Settlement retries the admitted update even after its write lease expires.
+        s.set_permission(false, Some(0)).unwrap();
+        s.recover().unwrap();
+        s.recover().unwrap();
+        let pending = f.store.pending(&f.id).unwrap();
+        assert_eq!(pending.len(), 1);
+        assert_eq!(pending[0].id(), retained.id());
+        assert_eq!(pending[0].bytes(), retained.bytes());
+        assert_eq!(pending[0].origin(), retained.origin());
+        let recovered = s.read(0).unwrap();
+        assert_eq!(recovered.nodes[0].text, replacement);
+        assert!(recovered.locally_committed && !recovered.recovery_required);
+        assert_eq!(recovered.pending_upload, 1);
+        s.call(|state| {
+            assert_eq!(
+                state
+                    .service
+                    .session()
+                    .document()
+                    .history_state()
+                    .undo_groups,
+                1
+            );
+            Ok(())
+        })
+        .unwrap();
+        s.set_permission(true, None).unwrap();
+        s.undo(recovered.revision.unwrap(), 0).unwrap().unwrap();
+        assert_eq!(s.read(0).unwrap().nodes[0].text, "seed");
+        let after_undo = s.read(0).unwrap().revision.unwrap();
+        assert!(s.undo(after_undo.clone(), 0).unwrap().is_none());
+        s.redo(after_undo, 0).unwrap().unwrap();
+        assert_eq!(s.read(0).unwrap().nodes[0].text, replacement);
+        s.dispose().unwrap();
+        let restored = reopen(&f);
+        assert_eq!(restored.read(0).unwrap().nodes[0].text, replacement);
+        restored.dispose().unwrap();
+    }
+    #[test]
+    fn commands_injected_quota_retains_shared_recovery_contract() {
+        command_quota_recovery(false);
+    }
+    #[test]
+    fn commands_sqlite_page_quota_retains_shared_recovery_contract() {
+        command_quota_recovery(true);
+    }
+    #[test]
     fn session_error_tags_preserve_admitted_swift_abi() {
         use uniffi::Lower;
         for (error, expected) in [
@@ -1275,6 +1678,12 @@ mod tests {
                     message: "owned diagnostic".into(),
                 },
                 27,
+            ),
+            (
+                NativeSessionError::CommandInput {
+                    message: "owned diagnostic".into(),
+                },
+                28,
             ),
         ] {
             let mut bytes = vec![];
