@@ -210,3 +210,21 @@ The preserved startup targets remain diagnostic and misses must stay visible.
 The 100-sample tail minimum stays unchanged; twelve samples are inconclusive.
 Canonical admission rejects missing samples, cache/evaluation proof, optional
 resources, changed artifacts/source, relaxed limits, lost recovery and leaks.
+
+PRF-07 native diagnostic: `python3 tests/native/ios-fitness.py --output
+architecture-results/fit-1.8-20261015/native-input-N` builds the real native FFI in
+release mode and a standalone UIKit app plus XCTest UI runner. A private iPhone17 /
+iOS26.5 Simulator receives twelve OS keyboard edits. The adapter commits Rust
+before bounded UTF-16 projection; XCTest queries/actions the OS accessibility tree.
+The app records keyboard notifications, UITextInput caret/marked rectangles,
+CADisplayLink callbacks, native commit intervals, locale and simulator thermal
+metadata, pauses measurement callbacks whenever no input awaits a frame, then verifies marked-text cancellation, source-preserving checkpoint
+reopen and disposal. The fixed Unicode corpus and profile are frozen before runs.
+
+This is one bounded diagnostic, with no SDK/support claim. Callback timing excludes
+XCTest dispatch and cannot prove compositor paint. Native marked-text API execution
+is not CJK candidate selection. XCTest accessibility is not VoiceOver exploration.
+Simulator thermal state proves no physical thermal behavior. Twelve samples leave
+p95/p99 null under the unchanged100-sample minimum; Task/Long and remaining PRF-07
+coverage stay open. Canonical budgets admits exact native receipt/source/artifact
+pins and rejects missing, mutated, skipped or relabeled observations.
