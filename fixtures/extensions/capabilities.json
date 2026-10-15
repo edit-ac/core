@@ -111,7 +111,7 @@
     }
   ],
   "inputs": {
-    "architecture/evidence/modules-matrix/capabilities.json": "f8596db9f1ad7a13f8d67c3c6518aa56a165939c3f0f12c9cc0c863bb8446e75",
+    "architecture/evidence/modules-matrix/capabilities.json": "6731dd2bc5c1236836ff5be7a5333807593e7c1c8e40aa82d711dd5d4b63df74",
     "core/fixtures/extensions/entry-map.json": "6c08f3429cdab83286f26f80c535004f6fcae0cdfba1be00204e682635977079",
     "core/fixtures/extensions/conformance.json": "608d4dcff4ae3da9ef76df5d5407c07830c1936582bd51de0644826b9a7e2eeb",
     "core/fixtures/extensions/versions/conformance.json": "184a9bab5b51096f8bfbbcf4adc2e0147649217b355cb0e487baac3236c323bd",
@@ -120,7 +120,7 @@
     "architecture/specs/extension-presenters.md": "4fef2220b62700ccaaed0da3b9b7cb5f1354b2bc53453fcfbb3bf89da273e738",
     "architecture/specs/client-contracts.md": "a1f3ff08c6e1748daa93c4e6a688eaf4b4d628ac36dcb76d58d70c9426f97a62",
     "core/packages/web/src/modules/slash.ts": "8f116c22e247cfca693d2a4bc950ed100065debfd85b09f37d223540a52c36e6",
-    "core/packages/web/src/modules/references.ts": "6fcd18b1dcfaf8cb0ef8a76c1ce0ba21403a32480d8d0f9f2f2eed680bbaa2c4",
+    "core/packages/web/src/modules/references.ts": "01dc9b0d6c0a61e161db566901cb6a975193517d6f8161eb5cda5d0a48d7c4d5",
     "core/packages/web/src/modules/reorder.ts": "8c541590f9d0900b0dcaeaf5741353e20e787849a1b5a0596f3a65ef8630f473",
     "core/packages/web/src/modules/content.ts": "270980980d8040d1501eb216cfcfa3d2640f64e1df20e8733082b92e79e93553",
     "core/packages/web/src/modules/math.ts": "3acd59796c36f36a2c248561ad08a047e067cc65f22bac2372e2f6c0bf50eb48",
@@ -130,7 +130,7 @@
     "architecture/roadmaps/17-android-sdk.md": "237797b0087beed05599a62997d91bec712af51de3d0497e8e4922edc35b3095",
     "architecture/roadmaps/18-desktop-native.md": "8d97d88778dcffdacdebd83ff1d932fd5b7b1b071c56cdbafe1d6fd5c5cf5bf1",
     "core/fixtures/browser-reorder/index.html": "53afc310a1b3927759512c8a515b962f10bbb0a4914853c410d80eedb4595543",
-    "core/packages/web/src/modules/index.ts": "61c421591b30e30ee1995a97d615e18bb2666540be91dae0473172fb055f7491",
+    "core/packages/web/src/modules/index.ts": "4320f8f487f57bad90b7daa44f22be4e556d17a9cdec3bec9067743415d8b340",
     "core/tests/browser/browser-harness.ts": "1b828fc2f7a7b0efe65ea1454eeff64048c617174fe3f4ea962be828f99412b8",
     "core/packages/web/src/services/lifecycle.ts": "a15f0b350b24b6540ed632fc8d1ca7836e4020ab640cc7e9429a3850734d3ddb",
     "core/contracts/services.json": "cd99e0f3bea96ca6a86ab593eca0419ec8e8b5d2a932be0c6d46b2ef93797f35"
@@ -425,8 +425,8 @@
       "engine": "webkit"
     },
     "MOD-references-read-no-implicit-chromium": {
-      "path": "architecture/evidence/architecture-fitness/service-lifecycle/browser-1/chromium/receipt.json",
-      "sha256": "fd1d6e1bd7caaecf535db90db2d7e6c86542fd37582f26b84cad09a7c21222e2",
+      "path": "architecture/evidence/link-upstream-qualification/lqr-1.3-source-impact-v3-20261015/references-current/chromium/receipt.json",
+      "sha256": "b8f6634a8f50dc422ff967e001f4ee2153116971421c785a8d5e744533143af4",
       "kind": "browser-proof",
       "fixtureId": "no-implicit",
       "module": "references",
@@ -434,8 +434,8 @@
       "engine": "chromium"
     },
     "MOD-references-read-recovery-fallback-chromium": {
-      "path": "architecture/evidence/architecture-fitness/service-lifecycle/browser-1/chromium/receipt.json",
-      "sha256": "fd1d6e1bd7caaecf535db90db2d7e6c86542fd37582f26b84cad09a7c21222e2",
+      "path": "architecture/evidence/link-upstream-qualification/lqr-1.3-source-impact-v3-20261015/references-current/chromium/receipt.json",
+      "sha256": "b8f6634a8f50dc422ff967e001f4ee2153116971421c785a8d5e744533143af4",
       "kind": "browser-proof",
       "fixtureId": "recovery-fallback",
       "module": "references",
@@ -443,8 +443,8 @@
       "engine": "chromium"
     },
     "MOD-references-edit-stale-query-chromium": {
-      "path": "architecture/evidence/architecture-fitness/service-lifecycle/browser-1/chromium/receipt.json",
-      "sha256": "fd1d6e1bd7caaecf535db90db2d7e6c86542fd37582f26b84cad09a7c21222e2",
+      "path": "architecture/evidence/link-upstream-qualification/lqr-1.3-source-impact-v3-20261015/references-current/chromium/receipt.json",
+      "sha256": "b8f6634a8f50dc422ff967e001f4ee2153116971421c785a8d5e744533143af4",
       "kind": "browser-proof",
       "fixtureId": "stale-query",
       "module": "references",
@@ -452,8 +452,8 @@
       "engine": "chromium"
     },
     "MOD-references-edit-keyboard-history-chromium": {
-      "path": "architecture/evidence/architecture-fitness/service-lifecycle/browser-1/chromium/receipt.json",
-      "sha256": "fd1d6e1bd7caaecf535db90db2d7e6c86542fd37582f26b84cad09a7c21222e2",
+      "path": "architecture/evidence/link-upstream-qualification/lqr-1.3-source-impact-v3-20261015/references-current/chromium/receipt.json",
+      "sha256": "b8f6634a8f50dc422ff967e001f4ee2153116971421c785a8d5e744533143af4",
       "kind": "browser-proof",
       "fixtureId": "keyboard-history",
       "module": "references",
@@ -461,8 +461,8 @@
       "engine": "chromium"
     },
     "MOD-references-edit-anchored-selection-chromium": {
-      "path": "architecture/evidence/architecture-fitness/service-lifecycle/browser-1/chromium/receipt.json",
-      "sha256": "fd1d6e1bd7caaecf535db90db2d7e6c86542fd37582f26b84cad09a7c21222e2",
+      "path": "architecture/evidence/link-upstream-qualification/lqr-1.3-source-impact-v3-20261015/references-current/chromium/receipt.json",
+      "sha256": "b8f6634a8f50dc422ff967e001f4ee2153116971421c785a8d5e744533143af4",
       "kind": "browser-proof",
       "fixtureId": "anchored-selection",
       "module": "references",
@@ -470,8 +470,8 @@
       "engine": "chromium"
     },
     "MOD-references-copy-clipboard-fallback-chromium": {
-      "path": "architecture/evidence/architecture-fitness/service-lifecycle/browser-1/chromium/receipt.json",
-      "sha256": "fd1d6e1bd7caaecf535db90db2d7e6c86542fd37582f26b84cad09a7c21222e2",
+      "path": "architecture/evidence/link-upstream-qualification/lqr-1.3-source-impact-v3-20261015/references-current/chromium/receipt.json",
+      "sha256": "b8f6634a8f50dc422ff967e001f4ee2153116971421c785a8d5e744533143af4",
       "kind": "browser-proof",
       "fixtureId": "clipboard-fallback",
       "module": "references",
@@ -479,8 +479,8 @@
       "engine": "chromium"
     },
     "MOD-references-disabled-recovery-fallback-chromium": {
-      "path": "architecture/evidence/architecture-fitness/service-lifecycle/browser-1/chromium/receipt.json",
-      "sha256": "fd1d6e1bd7caaecf535db90db2d7e6c86542fd37582f26b84cad09a7c21222e2",
+      "path": "architecture/evidence/link-upstream-qualification/lqr-1.3-source-impact-v3-20261015/references-current/chromium/receipt.json",
+      "sha256": "b8f6634a8f50dc422ff967e001f4ee2153116971421c785a8d5e744533143af4",
       "kind": "browser-proof",
       "fixtureId": "recovery-fallback",
       "module": "references",
@@ -488,8 +488,8 @@
       "engine": "chromium"
     },
     "MOD-references-read-no-implicit-firefox": {
-      "path": "architecture/evidence/architecture-fitness/service-lifecycle/browser-1/firefox/receipt.json",
-      "sha256": "1630868a4531de3c308e3b6c5e9f71ab3b47aa7c86adad145c81b7100c9d0854",
+      "path": "architecture/evidence/link-upstream-qualification/lqr-1.3-source-impact-v3-20261015/references-current/firefox/receipt.json",
+      "sha256": "ec2c4c1021fe996f2a17172f9ee8dfd209e3a96480eb6d7035cb3945b4335a63",
       "kind": "browser-proof",
       "fixtureId": "no-implicit",
       "module": "references",
@@ -497,8 +497,8 @@
       "engine": "firefox"
     },
     "MOD-references-read-recovery-fallback-firefox": {
-      "path": "architecture/evidence/architecture-fitness/service-lifecycle/browser-1/firefox/receipt.json",
-      "sha256": "1630868a4531de3c308e3b6c5e9f71ab3b47aa7c86adad145c81b7100c9d0854",
+      "path": "architecture/evidence/link-upstream-qualification/lqr-1.3-source-impact-v3-20261015/references-current/firefox/receipt.json",
+      "sha256": "ec2c4c1021fe996f2a17172f9ee8dfd209e3a96480eb6d7035cb3945b4335a63",
       "kind": "browser-proof",
       "fixtureId": "recovery-fallback",
       "module": "references",
@@ -506,8 +506,8 @@
       "engine": "firefox"
     },
     "MOD-references-edit-stale-query-firefox": {
-      "path": "architecture/evidence/architecture-fitness/service-lifecycle/browser-1/firefox/receipt.json",
-      "sha256": "1630868a4531de3c308e3b6c5e9f71ab3b47aa7c86adad145c81b7100c9d0854",
+      "path": "architecture/evidence/link-upstream-qualification/lqr-1.3-source-impact-v3-20261015/references-current/firefox/receipt.json",
+      "sha256": "ec2c4c1021fe996f2a17172f9ee8dfd209e3a96480eb6d7035cb3945b4335a63",
       "kind": "browser-proof",
       "fixtureId": "stale-query",
       "module": "references",
@@ -515,8 +515,8 @@
       "engine": "firefox"
     },
     "MOD-references-edit-keyboard-history-firefox": {
-      "path": "architecture/evidence/architecture-fitness/service-lifecycle/browser-1/firefox/receipt.json",
-      "sha256": "1630868a4531de3c308e3b6c5e9f71ab3b47aa7c86adad145c81b7100c9d0854",
+      "path": "architecture/evidence/link-upstream-qualification/lqr-1.3-source-impact-v3-20261015/references-current/firefox/receipt.json",
+      "sha256": "ec2c4c1021fe996f2a17172f9ee8dfd209e3a96480eb6d7035cb3945b4335a63",
       "kind": "browser-proof",
       "fixtureId": "keyboard-history",
       "module": "references",
@@ -524,8 +524,8 @@
       "engine": "firefox"
     },
     "MOD-references-edit-anchored-selection-firefox": {
-      "path": "architecture/evidence/architecture-fitness/service-lifecycle/browser-1/firefox/receipt.json",
-      "sha256": "1630868a4531de3c308e3b6c5e9f71ab3b47aa7c86adad145c81b7100c9d0854",
+      "path": "architecture/evidence/link-upstream-qualification/lqr-1.3-source-impact-v3-20261015/references-current/firefox/receipt.json",
+      "sha256": "ec2c4c1021fe996f2a17172f9ee8dfd209e3a96480eb6d7035cb3945b4335a63",
       "kind": "browser-proof",
       "fixtureId": "anchored-selection",
       "module": "references",
@@ -533,8 +533,8 @@
       "engine": "firefox"
     },
     "MOD-references-copy-clipboard-fallback-firefox": {
-      "path": "architecture/evidence/architecture-fitness/service-lifecycle/browser-1/firefox/receipt.json",
-      "sha256": "1630868a4531de3c308e3b6c5e9f71ab3b47aa7c86adad145c81b7100c9d0854",
+      "path": "architecture/evidence/link-upstream-qualification/lqr-1.3-source-impact-v3-20261015/references-current/firefox/receipt.json",
+      "sha256": "ec2c4c1021fe996f2a17172f9ee8dfd209e3a96480eb6d7035cb3945b4335a63",
       "kind": "browser-proof",
       "fixtureId": "clipboard-fallback",
       "module": "references",
@@ -542,8 +542,8 @@
       "engine": "firefox"
     },
     "MOD-references-disabled-recovery-fallback-firefox": {
-      "path": "architecture/evidence/architecture-fitness/service-lifecycle/browser-1/firefox/receipt.json",
-      "sha256": "1630868a4531de3c308e3b6c5e9f71ab3b47aa7c86adad145c81b7100c9d0854",
+      "path": "architecture/evidence/link-upstream-qualification/lqr-1.3-source-impact-v3-20261015/references-current/firefox/receipt.json",
+      "sha256": "ec2c4c1021fe996f2a17172f9ee8dfd209e3a96480eb6d7035cb3945b4335a63",
       "kind": "browser-proof",
       "fixtureId": "recovery-fallback",
       "module": "references",
@@ -551,8 +551,8 @@
       "engine": "firefox"
     },
     "MOD-references-read-no-implicit-webkit": {
-      "path": "architecture/evidence/architecture-fitness/service-lifecycle/browser-1/webkit/receipt.json",
-      "sha256": "1b8e6b028134c6498c02e92c356c1ecc42dbc827bf2511d2e98d908704e51962",
+      "path": "architecture/evidence/link-upstream-qualification/lqr-1.3-source-impact-v3-20261015/references-current/webkit/receipt.json",
+      "sha256": "314054a7823d72db40677e925bdd37604f8cc49802422f6b71c794831c5565d6",
       "kind": "browser-proof",
       "fixtureId": "no-implicit",
       "module": "references",
@@ -560,8 +560,8 @@
       "engine": "webkit"
     },
     "MOD-references-read-recovery-fallback-webkit": {
-      "path": "architecture/evidence/architecture-fitness/service-lifecycle/browser-1/webkit/receipt.json",
-      "sha256": "1b8e6b028134c6498c02e92c356c1ecc42dbc827bf2511d2e98d908704e51962",
+      "path": "architecture/evidence/link-upstream-qualification/lqr-1.3-source-impact-v3-20261015/references-current/webkit/receipt.json",
+      "sha256": "314054a7823d72db40677e925bdd37604f8cc49802422f6b71c794831c5565d6",
       "kind": "browser-proof",
       "fixtureId": "recovery-fallback",
       "module": "references",
@@ -569,8 +569,8 @@
       "engine": "webkit"
     },
     "MOD-references-edit-stale-query-webkit": {
-      "path": "architecture/evidence/architecture-fitness/service-lifecycle/browser-1/webkit/receipt.json",
-      "sha256": "1b8e6b028134c6498c02e92c356c1ecc42dbc827bf2511d2e98d908704e51962",
+      "path": "architecture/evidence/link-upstream-qualification/lqr-1.3-source-impact-v3-20261015/references-current/webkit/receipt.json",
+      "sha256": "314054a7823d72db40677e925bdd37604f8cc49802422f6b71c794831c5565d6",
       "kind": "browser-proof",
       "fixtureId": "stale-query",
       "module": "references",
@@ -578,8 +578,8 @@
       "engine": "webkit"
     },
     "MOD-references-edit-keyboard-history-webkit": {
-      "path": "architecture/evidence/architecture-fitness/service-lifecycle/browser-1/webkit/receipt.json",
-      "sha256": "1b8e6b028134c6498c02e92c356c1ecc42dbc827bf2511d2e98d908704e51962",
+      "path": "architecture/evidence/link-upstream-qualification/lqr-1.3-source-impact-v3-20261015/references-current/webkit/receipt.json",
+      "sha256": "314054a7823d72db40677e925bdd37604f8cc49802422f6b71c794831c5565d6",
       "kind": "browser-proof",
       "fixtureId": "keyboard-history",
       "module": "references",
@@ -587,8 +587,8 @@
       "engine": "webkit"
     },
     "MOD-references-edit-anchored-selection-webkit": {
-      "path": "architecture/evidence/architecture-fitness/service-lifecycle/browser-1/webkit/receipt.json",
-      "sha256": "1b8e6b028134c6498c02e92c356c1ecc42dbc827bf2511d2e98d908704e51962",
+      "path": "architecture/evidence/link-upstream-qualification/lqr-1.3-source-impact-v3-20261015/references-current/webkit/receipt.json",
+      "sha256": "314054a7823d72db40677e925bdd37604f8cc49802422f6b71c794831c5565d6",
       "kind": "browser-proof",
       "fixtureId": "anchored-selection",
       "module": "references",
@@ -596,8 +596,8 @@
       "engine": "webkit"
     },
     "MOD-references-copy-clipboard-fallback-webkit": {
-      "path": "architecture/evidence/architecture-fitness/service-lifecycle/browser-1/webkit/receipt.json",
-      "sha256": "1b8e6b028134c6498c02e92c356c1ecc42dbc827bf2511d2e98d908704e51962",
+      "path": "architecture/evidence/link-upstream-qualification/lqr-1.3-source-impact-v3-20261015/references-current/webkit/receipt.json",
+      "sha256": "314054a7823d72db40677e925bdd37604f8cc49802422f6b71c794831c5565d6",
       "kind": "browser-proof",
       "fixtureId": "clipboard-fallback",
       "module": "references",
@@ -605,8 +605,8 @@
       "engine": "webkit"
     },
     "MOD-references-disabled-recovery-fallback-webkit": {
-      "path": "architecture/evidence/architecture-fitness/service-lifecycle/browser-1/webkit/receipt.json",
-      "sha256": "1b8e6b028134c6498c02e92c356c1ecc42dbc827bf2511d2e98d908704e51962",
+      "path": "architecture/evidence/link-upstream-qualification/lqr-1.3-source-impact-v3-20261015/references-current/webkit/receipt.json",
+      "sha256": "314054a7823d72db40677e925bdd37604f8cc49802422f6b71c794831c5565d6",
       "kind": "browser-proof",
       "fixtureId": "recovery-fallback",
       "module": "references",
