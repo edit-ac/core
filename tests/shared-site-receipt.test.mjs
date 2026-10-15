@@ -1,6 +1,29 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { auditSiteGraph, routeTransfers, siteCosts } from '../scripts/shared-site-receipt.mjs';
+import { auditSiteGraph, routeTransfers, siteCosts, assertCurrentSharedConsumers } from '../scripts/shared-site-receipt.mjs';
+
+function consumers() {
+  const asset = (name, kind, hash, raw, gzip) => ({ name, kind, sha256: hash.repeat(64), raw, gzip });
+  const core = { name: 'core', sha256: 'a'.repeat(64) }, web = { name: 'web', sha256: 'b'.repeat(64) };
+  return {
+    default: { assets: [asset('task.js', 'js', 'c', 20, 10), asset('core.wasm', 'wasm', 'd', 100, 50)], packs: [core, web] },
+    markdown: { assets: [asset('task.js', 'js', 'e', 30, 15), asset('markdown.wasm', 'wasm', 'f', 200, 100)], packs: [core, web, { name: 'markdown', sha256: '1'.repeat(64) }] },
+  };
+}
+test('shared admission matches both rebuilt profiles independent of inventory order', () => {
+  const retained = consumers();
+  for (const value of Object.values(retained)) { value.assets.reverse(); value.packs.reverse(); }
+  assertCurrentSharedConsumers(retained, consumers());
+});
+for (const profile of ['default', 'markdown']) for (const [name, change, message] of [
+  ['same-sized stale artifact', value => { value.assets[0].sha256 = '0'.repeat(64); }, 'artifacts'],
+  ['missing artifact', value => { value.assets.pop(); }, 'artifacts'],
+  ['stale package', value => { value.packs.at(-1).sha256 = '0'.repeat(64); }, 'packages'],
+  ['missing profile', (_, retained) => { delete retained[profile]; }, 'Missing current shared profile'],
+]) test(`current ${profile} admission rejects ${name}`, () => {
+  const retained = consumers(); change(retained[profile], retained);
+  assert.throws(() => assertCurrentSharedConsumers(retained, consumers()), new RegExp(message));
+});
 
 const profile = 'isolated-persistent-http-profile';
 function routes() {

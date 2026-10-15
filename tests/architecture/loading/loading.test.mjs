@@ -67,12 +67,12 @@ for (const [profile, dir] of [['default', 'default-task'], ['markdown', 'markdow
 }
 test('shared site receipt controls reject invalid cache, union and common-module evidence', () => {
   node('shared-site-contracts', ['--test', '--test-reporter=tap', 'tests/shared-site-receipt.test.mjs', 'tests/shared-editor-resources.test.mjs'], {}, true);
-  assert.equal(facts.commands.at(-1).counts.tests, 30);
+  assert.equal(facts.commands.at(-1).counts.tests, 39);
 });
 test('SHR-01–08 exact packed site receipt is required for shared-resource qualification', async () => {
   const directory = process.env.EDITAC_SHARED_RESOURCES_RECEIPT;
   assert(directory, 'Missing SDK-1.10 consolidated SHR-01–08 receipt; same-page observations alone cannot pass FIT-1.6-I2');
-  const receipt = await admitSharedSite(directory, root);
+  const receipt = await admitSharedSite(directory, root, { currentProfiles: facts.profiles });
   assert.equal(receipt.defaultGzip.total, facts.profiles.default.result.total.bytes, 'Shared receipt must match current default inventory');
   assert.equal(receipt.defaultGzip.editorJs, facts.profiles.default.result.js.bytes, 'Shared receipt must match current default JS inventory');
   assert.deepEqual(receipt.defaultAssets.map(a => [a.sha256, a.bytes]).sort(), facts.profiles.default.assets.map(a => [a.sha256, a.raw]).sort(), 'Shared receipt must use exact current default delivered artifacts');

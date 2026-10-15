@@ -119,3 +119,7 @@ The canonical suite independently rebuilds the current packages and rejects
 receipts that differ from its current standalone artifacts. Prepared receipt
 controls qualify admission sensitivity only; production behavior comes from the
 retained packed-browser observations.
+
+Canonical admission compares both rebuilt default and enabled Markdown asset
+inventories and tarball identities with the retained consumers. Equal gzip sizes
+alone cannot admit an older optional runtime or package.

@@ -79,12 +79,22 @@ export function routeTransfers(cases, cacheProfile) {
 
 // Additional admission ties the consolidated summary to actual emitted bytes,
 // navigation observations and the existing measured-consumer counting harness.
-export async function admitSharedSite(directory, root) {
+export function assertCurrentSharedConsumers(retained, current) {
+  for (const profile of ['default', 'markdown']) {
+    assert(retained[profile] && current[profile], `Missing current shared profile: ${profile}`);
+    const assets = value => value.assets.map(asset => [asset.name, asset.kind, asset.sha256, asset.raw, asset.gzip]).sort();
+    assert.deepEqual(assets(retained[profile]), assets(current[profile]), `Shared ${profile} artifacts differ from current consumer`);
+    assert.deepEqual(packIdentity(retained[profile].packs), packIdentity(current[profile].packs), `Shared ${profile} packages differ from current consumer`);
+  }
+}
+
+export async function admitSharedSite(directory, root, { currentProfiles } = {}) {
   const receipt = await admitSharedReceipt(directory, root);
   assert.equal(receipt.complete, true);
   assert.deepEqual(receipt.compression, compression);
   const measured = await admitMeasuredConsumer(join(directory, 'default-task'));
   const optional = await admitMeasuredConsumer(join(directory, 'markdown-enabled'), { markdown: true });
+  if (currentProfiles) assertCurrentSharedConsumers({ default: measured, markdown: optional }, currentProfiles);
   assert.deepEqual(receipt.defaultGzip, totals(measured.assets));
   assert.deepEqual(receipt.optionalGzip, { combined: totals(optional.assets), incremental: { total: totals(optional.assets).total - totals(measured.assets).total, editorJs: totals(optional.assets).editorJs - totals(measured.assets).editorJs } });
   for (const pack of [...measured.packs, ...optional.packs]) assert(receipt.packages.some(value => value.name === '@edit-ac/' + pack.name && value.sha256 === pack.sha256), 'Measured package differs from site runtime');
