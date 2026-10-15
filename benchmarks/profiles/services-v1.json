@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "id": "services-v1",
+  "parent": "FIT-1.8-I1-B",
+  "case": "PRF-03",
+  "scope": "browser-runtime diagnostics; prepared host responses; no highlighting runtime or performance qualification",
+  "fixtures": [
+    "Task",
+    "Long"
+  ],
+  "presets": [
+    "baseline",
+    "task"
+  ],
+  "limits": {
+    "concurrency": 1,
+    "queue": 2,
+    "bytes": 512,
+    "items": 1,
+    "deadlineMs": 10000
+  },
+  "resolverLimits": {
+    "concurrency": 2,
+    "queue": 0
+  },
+  "burst": 24,
+  "localEdits": 8,
+  "remoteEdits": 8,
+  "performanceLimits": null,
+  "requiredObservations": [
+    "queue",
+    "resolver-storm",
+    "edit-invalidation",
+    "collaboration"
+  ],
+  "reviewedAt": "2026-10-15T01:09:58.304551+00:00",
+  "sourceRequirement": "architecture/tests/desktop-editing-cases.md#PRF-03",
+  "owningCommand": "node scripts/bench-services.mjs --seed-directory <retained-owning-directory> --output <unique-directory>",
+  "limitStatus": "Resource bounds fixed before measurement; performance thresholds unreviewed; existing fitness-v1 budgets preserved",
+  "editMethod": "atomic-one-ASCII-unit-replacement; constant full-corpus size"
+}

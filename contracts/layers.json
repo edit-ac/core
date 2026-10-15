@@ -279,7 +279,8 @@
       "tests": [
         "tests/architecture/budgets/budgets.test.mjs",
         "tests/architecture/budgets/gestures.test.mjs",
-        "tests/architecture/budgets/trace.test.mjs"
+        "tests/architecture/budgets/trace.test.mjs",
+        "tests/architecture/budgets/services.test.mjs"
       ],
       "inputs": [
         "scripts/architecture-budgets.mjs",
@@ -318,11 +319,20 @@
         "scripts/bench-gestures.mjs",
         "scripts/gesture-evidence.mjs",
         "scripts/gesture-instrumentation.mjs",
-        "tests/architecture/budgets/trace.test.mjs"
+        "tests/architecture/budgets/trace.test.mjs",
+        "benchmarks/profiles/services-v1.json",
+        "benchmarks/profiles/service-evidence.json",
+        "benchmarks/service-client.mjs",
+        "scripts/bench-services.mjs",
+        "scripts/service-evidence.mjs",
+        "scripts/browser-source-reuse.mjs",
+        "benchmarks/profiles/browser-source-reuse.json",
+        "tests/architecture/budgets/services.test.mjs"
       ],
       "artifacts": [
         "budgets-inventory.json",
-        "gestures-inventory.json"
+        "gestures-inventory.json",
+        "services-inventory.json"
       ]
     },
     "diagnostics": {

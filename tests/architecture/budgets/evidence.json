@@ -10,12 +10,12 @@
   "sourceRevision": "78b3fd484f3af6ca9ab61b5457cfb1aa45474dbba889a88e863949d9d631cb74",
   "implementationReceipt": "architecture-results/fit-1.8-20261015/iteration-2/delivery-receipt.json",
   "implementationReceiptHash": "af6da8a6a966160edd7a57801d139a562bd2ef2572ce024200e04c895c05b328",
-  "currentCanonicalReceipt": "architecture-results/fit-1.8-20261015/iteration-5/budgets-2/receipt.json",
-  "canonicalReceiptHash": "afaee2c9f6fb8711b21b4efd51cb067844778001d9fcf3f2c5a5af74cca6a022",
+  "currentCanonicalReceipt": "architecture-results/fit-1.8-20261015/recovery-1/budgets-1/receipt.json",
+  "canonicalReceiptHash": "24b056370d6382e2b0a99e54bac396e38959e202cf2160815b5330dae3a48619",
   "profileHash": "22aaa4b74df2064c44f791b62c977be07ecca00e77b148052ae6536fe1c59122",
   "baselineIndexHash": "e5cf8e8b729f90c8f504090c0ea30514f9513bfd321b45bddea227875508acfc",
   "previousEvidence": "eda439dcbd6f2a2610153e42dcc009efc8d8f2f7:tests/architecture/budgets/evidence.json",
-  "priorDeliveryReceipt": "architecture-results/fit-1.8-20261014/iteration-9/delivery-receipt.json",
+  "priorDeliveryReceipt": "architecture-results/fit-1.8-20261015/iteration-5/delivery-receipt.json",
   "remaining": {
     "requiredCases": {
       "PRF-01": [
@@ -78,12 +78,17 @@
       "screen-reader",
       "non-drag-pointer"
     ],
-    "next": "FIT-1.8-I1-B / PRF-03: implement raw queue/cancellation/changed-region producer using actual available lifecycle/resolver/highlight adapters and prepared edit/stale-result bursts, then owning receipt and canonical budgets admission. Pending adapters stay explicit. PRF-02 ordinary-pointer repair delivered; reuse gestures-3, do not repeat unchanged gesture matrices."
+    "next": "FIT-1.8-I1-B / PRF-04: implement an owning raw long-line/table/selection/image/bidi workload and peak-memory producer against actual available public editor/renderer adapters. Fix workload/size policy before measurement, preserve existing limits and full semantic input; missing adapters remain explicit. Reuse PRF-02/03 receipts; do not rerun unchanged matrices."
   },
-  "priorCanonicalReceipt": "architecture-results/fit-1.8-20261015/iteration-4/budgets/receipt.json",
-  "priorCanonicalReceiptHash": "628977ccd9dddbfb6b3cc8bc5fd58a46f03e862fc21e5b2d6d12ff6931e1fa04",
+  "priorCanonicalReceipt": "architecture-results/fit-1.8-20261015/iteration-5/budgets-2/receipt.json",
+  "priorCanonicalReceiptHash": "afaee2c9f6fb8711b21b4efd51cb067844778001d9fcf3f2c5a5af74cca6a022",
   "gestureReceipt": "architecture-results/fit-1.8-20261015/iteration-5/gestures-3/results.json",
   "gestureReceiptHash": "df94f73d6912b9b8e97d5b961809587c0cdc22c785c72b15d0633bf01115d6a5",
   "gestureScope": "16/16 actual-public-editor ordinary-pointer diagnostics: exact thin-glyph range endpoints, canceled native text drag, prose/code nested autoscroll across unchanged Task/Long \u00d7 baseline/Task, bounded native controls and cancellation. No full performance/platform qualification or new checked child.",
-  "currentDeliveryReceipt": "architecture-results/fit-1.8-20261015/iteration-5/delivery-receipt.json"
+  "currentDeliveryReceipt": "architecture-results/fit-1.8-20261015/recovery-1/delivery-receipt.json",
+  "serviceReceipt": "architecture-results/fit-1.8-20261015/recovery-1/services-4/results.json",
+  "serviceReceiptHash": "5066dabdbee31c30ef37557515f2c44dd874078e4277f1509996f071ebfef53b",
+  "serviceScope": "16/16 actual-public-editor/lifecycle/resolver/sync diagnostic observations across unchanged full Task/Long \u00d7 baseline/Task. Prepared noncooperative host responses; constant-size atomic replacements, bounded queue/stale-result invalidation, exact local/remote commit and DOM node scopes, convergence and cleanup. Highlight/asset/conversion runtimes pending; no full PRF-03/performance/platform qualification or new checked child.",
+  "browserSourceReusePolicy": "benchmarks/profiles/browser-source-reuse.json",
+  "browserSourceReusePolicyHash": "e51aee7d130d17bd862b2009488291c19b2236418a47eb38eed3ee6b7e57dae9"
 }

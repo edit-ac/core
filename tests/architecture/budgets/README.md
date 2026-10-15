@@ -105,3 +105,27 @@ The application-only bundle transform counts actual DOMSelection mapping and DOM
 A successful owning receipt may be pinned in `benchmarks/profiles/gesture-evidence.json`. Canonical budgets verify current source, fixture/preset/checkpoint, harness/WASM and receipt hashes, exact 16/16 counts, all four cases on four fixture/preset combinations, raw refresh/frame/long-task inputs, cancellation and cleanup. Contract negatives reject missing/synthetic/overflowed input, scan fallback, mutation, continued scrolling, missing drag and leaked resources. Failed owning directories remain retained; fix the corresponding implementation/setup before another feature run.
 
 The earlier ordinary-pointer/code-start failures and narrower Shift/prose receipt remain immutable historical diagnostics. The current receipt must independently prove ordinary-pointer endpoints, code/prose nested scroll movement and cancellation in all four unchanged fixture/preset combinations before admission. Neither receipt qualifies gesture thresholds, browser internals, compositor presentation or full FIT-1.8 acceptance.
+
+PRF-03 diagnostics use `node scripts/bench-services.mjs --seed-directory
+<retained-owning-directory> --output <unique-directory>`. The same full Task/Long
+checkpoints and baseline/Task presets run through the public editor, real WASM
+engine, production service lifecycle, reference lookup and sync adapter/transport.
+Host results are prepared deferred promises, including providers that ignore
+abort. Raw observations retain 24-request admission/cancellation and resolver
+storms, eight local and eight remote atomic replacements, patch and DOM mutation
+IDs, sync frame bytes/queue snapshots, command and pump timings, convergence and
+resource teardown. Replacement targets are recorded ASCII UTF-16 positions;
+whole-corpus size stays constant, including Long at its existing text limit.
+Each replacement is one public compound commit. Timing excludes anchor setup and
+does not observe paint; no tail or performance qualification is inferred.
+Highlight/asset/conversion adapters remain pending. Resource limits are fixed in
+`services-v1.json` before measurement; performance thresholds remain unreviewed.
+
+The monitor's native link/session integration changed broad source pins in older
+browser receipts without changing the browser dependency closure. The bounded
+`browser-source-reuse.json` policy admits only those exact before/after Git
+identities: the native session manifest/module and its lock dependency edge.
+All other old pins must still match; WASM dependencies exclude the session crate,
+current production WASM bytes must match retained artifacts, and the gesture SDK
+is rebuilt for byte identity. This preserves historical measurements without
+asserting that a different executable was measured. Any further drift fails.
