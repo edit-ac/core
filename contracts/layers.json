@@ -356,6 +356,7 @@
         "benchmarks/profiles/native-input-v1.json",
         "benchmarks/profiles/native-input-evidence.json",
         "scripts/native-input-evidence.mjs",
+        "scripts/prepare-native-workloads.mjs",
         "native/ios/fitness/NativeFitness.swift",
         "native/ios/fitness/NativeFitnessUITests.swift",
         "tests/native/ios-fitness.py"

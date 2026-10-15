@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { digest, verifyPins } from '../../../scripts/architecture-budgets.mjs';
-import { inspectNativeInput, inspectNativeCJK, inspectNativeBuild } from '../../../scripts/native-input-evidence.mjs';
+import { inspectNativeInput, inspectNativeCJK, inspectNativeBuild, inspectNativeWorkload } from '../../../scripts/native-input-evidence.mjs';
 const root = fileURLToPath(new URL('../../../',import.meta.url));
 const read = p => readFile(resolve(root,p));
 const profileBytes = await read('benchmarks/profiles/native-input-v1.json'), profile = JSON.parse(profileBytes);
@@ -18,6 +18,7 @@ const accessibility = JSON.parse(await read(index.directory+'/accessibility.json
 const cjk = JSON.parse(await read(index.directory+'/cjk-result.json'));
 const cjkAX = JSON.parse(await read(index.directory+'/cjk-accessibility.json'));
 let observations, cjkObservations;
+const workloadObservations=[];
 const nativeBuild = Object.fromEntries(await Promise.all([
   ['graph','native-target-graph.log'],['rustc','native-rustc.log'],['library','libeditac_ffi.a'],['app','NativeFitness']
 ].map(async([key,path])=>[key,await read(index.directory+'/'+path)])));
@@ -63,7 +64,7 @@ test('native OS keyboard, accessibility client, semantic preservation and displa
   assert.equal(digest(bytes), index.receiptHash); assert.equal(digest(profileBytes),receipt.profileHash);
   const fitness = JSON.parse(await read('benchmarks/profiles/fitness-v1.json'));
   assert.equal(profile.limits.inputVisiblePhoneMs,fitness.limits.phone['input-visible']);
-  const sources=['benchmarks/profiles/native-input-v1.json','tests/native/ios-fitness.py','native/ios/fitness/NativeFitness.swift',
+  const sources=['.node-version','scripts/prepare-native-workloads.mjs','benchmarks/fixtures.mjs','crates/editac-ffi/examples/fitness-seed.rs','fixtures/schema-v5/mapping.rs','fixtures/schema-v5/seed.json','benchmarks/profiles/native-input-v1.json','tests/native/ios-fitness.py','native/ios/fitness/NativeFitness.swift',
     'native/ios/fitness/NativeFitnessUITests.swift','tests/native/fixtures/bounded-abi.json','Cargo.toml','Cargo.lock'];
   for (const crate of ['editac-core','editac-ffi','editac-wasm']) {
     sources.push(`crates/${crate}/Cargo.toml`);
@@ -140,4 +141,30 @@ test('native diagnostic cannot lower tail bar or reduce the fixed scenario',()=>
     const p=structuredClone(profile); mutate(p); assert.throws(()=>inspectNativeInput(p,receipt,result,accessibility));
   }
 });
-after(async()=>{if(process.env.EDITAC_ARCHITECTURE_OUTPUT) await writeFile(resolve(process.env.EDITAC_ARCHITECTURE_OUTPUT,'native-input-inventory.json'),JSON.stringify({version:1,parent:'FIT-1.8',receiptHash:index.receiptHash,observations,cjkObservations},null,2));});
+after(async()=>{if(process.env.EDITAC_ARCHITECTURE_OUTPUT) await writeFile(resolve(process.env.EDITAC_ARCHITECTURE_OUTPUT,'native-input-inventory.json'),JSON.stringify({version:1,parent:'FIT-1.8',receiptHash:index.receiptHash,observations,cjkObservations,workloadObservations},null,2));});
+
+for (const name of ['Task','Long']) {
+  const load=async p=>JSON.parse(await read(index.directory+'/'+p));
+  const inputs=[profile,receipt,await load(name+'-result.json'),await load('fixtures/'+name+'.json'),
+    await load('fixtures/'+name+'.native-snapshot.json'),await load(name+'-final-snapshot.json'),await load(name+'-reopened-snapshot.json'),
+    await read(index.directory+'/'+name+'-checkpoint.bin'),await load(name+'-checkpoint-metadata.json')];
+  test(name+' full native workload, exact restoration and raw resource envelope',()=>{
+    workloadObservations.push(inspectNativeWorkload(...inputs));
+  });
+  const mutations={
+    'source loss':v=>v[5].visible.pop(),
+    'reopen mismatch':v=>v[6].visible.pop(),
+    'skipped workload':v=>v[2].counts.skipped++,
+    'missing sample':v=>v[2].samples.pop(),
+    'missing resources':v=>v[2].resources.pop(),
+    'failed memory probe':v=>v[2].resources[0].status=1,
+    'broadened mutation':v=>v[2].samples[0].changedBlocks=2,
+    'clock reversal':v=>v[2].samples[0].layoutDoneAt=0,
+    'false size':v=>v[2].setup.textUtf8Bytes--,
+    'lower tail bar':v=>v[0].workloads.minimumTailSamples=12,
+    'empty checkpoint':v=>v[7]=Buffer.alloc(0)
+  };
+  for(const [label,mutate] of Object.entries(mutations)) test(name+' native workload rejects '+label,()=>{
+    const copy=structuredClone(inputs); mutate(copy); assert.throws(()=>inspectNativeWorkload(...copy));
+  });
+}

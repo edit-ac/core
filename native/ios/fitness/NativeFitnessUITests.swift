@@ -1,6 +1,29 @@
 import XCTest
 
 final class NativeFitnessUITests: XCTestCase {
+    func workload(_ name: String) throws {
+        continueAfterFailure = false
+        let app = XCUIApplication(bundleIdentifier: "ac.edit.nativefitness")
+        app.launchArguments = ["--workload", name]; app.launch()
+        addTeardownBlock { let a = XCTAttachment(screenshot: app.screenshot()); a.name = name + " workload"; a.lifetime = .keepAlways; self.add(a) }
+        let editor = app.textViews["workload-editor"], status = app.staticTexts["workload-status"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 60))
+        func awaitValue(_ value: String) {
+            let p = NSPredicate(format: "value == %@", value)
+            XCTAssertTrue(p.evaluate(with: status) || XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: p, object: status)], timeout: 30) == .completed)
+        }
+        XCTAssertEqual(status.label, "ready"); editor.tap()
+        awaitValue("keyboard-ready")
+        for (i, letter) in "abcdefghijkl".enumerated() {
+            let key = app.keys[String(letter)]; XCTAssertTrue(key.waitForExistence(timeout: 5)); XCTAssertTrue(key.isHittable)
+            key.press(forDuration: 0.1); awaitValue("samples-\(i + 1)")
+        }
+        app.buttons["workload-verify"].tap()
+        let p = NSPredicate(format: "label == %@", "verified")
+        XCTAssertTrue(p.evaluate(with: status) || XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: p, object: status)], timeout: 30) == .completed)
+    }
+    func testTaskWorkload() throws { try workload("Task") }
+    func testLongWorkload() throws { try workload("Long") }
     func testKeyboardAccessibilityCancellationAndSource() throws {
         continueAfterFailure = false
         let app = XCUIApplication(bundleIdentifier: "ac.edit.nativefitness")
@@ -28,6 +51,8 @@ final class NativeFitnessUITests: XCTestCase {
             XCTAssertTrue(key.waitForExistence(timeout: 5)); XCTAssertTrue(key.isHittable)
             let before = ProcessInfo.processInfo.systemUptime
             key.press(forDuration: 0.1); prefix += String(letter)
+            let committed = NSPredicate(format: "value == %@", prefix)
+            XCTAssertTrue(committed.evaluate(with: editor) || XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: committed, object: editor)], timeout: 10) == .completed)
             let observed = editor.value as? String ?? ""
             XCTAssertEqual(observed, prefix)
             driverSamples.append(["before": before, "after": ProcessInfo.processInfo.systemUptime, "value": observed])

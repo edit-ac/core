@@ -48,7 +48,8 @@ def project(directory, library):
     def phase(name, kind, sources):
         builds = [obj(name+str(i), '{isa=PBXBuildFile; fileRef='+source+';}') for i,source in enumerate(sources)]
         return obj(name, '{isa='+kind+'; buildActionMask=2147483647; files='+refs(builds)+'; runOnlyForDeploymentPostprocessing=0;}')
-    appPhases = [phase('app-sources','PBXSourcesBuildPhase',[appSource,bridge]),phase('app-resources','PBXResourcesBuildPhase',[fixture])]
+    workloads = [file('workload-'+name+suffix, directory.parent/'fixtures'/(name+suffix+'.json'), 'text.json') for name in ['Task','Long'] for suffix in ['', '.native-checkpoint', '.native-snapshot']]
+    appPhases = [phase('app-sources','PBXSourcesBuildPhase',[appSource,bridge]),phase('app-resources','PBXResourcesBuildPhase',[fixture]+workloads)]
     testPhases = [phase('tests-sources','PBXSourcesBuildPhase',[testSource])]
     app = obj('app-target','{isa=PBXNativeTarget; buildConfigurationList='+appConfigs+'; buildPhases='+refs(appPhases)+'; buildRules=(); dependencies=(); name=NativeFitness; productName=NativeFitness; productReference='+appProduct+'; productType="com.apple.product-type.application";}')
     dep = obj('test-dependency','{isa=PBXTargetDependency; target='+app+';}')
@@ -87,6 +88,8 @@ def main():
         if (done.returncode or timedOut) and not allowFailure: raise RuntimeError(f'{name}: exit {done.returncode}, timeout={timedOut}; {log}')
         return log.read_text()
     try:
+        record['metadata']['node'] = run('node-version',['node','--version']).strip()
+        assert record['metadata']['node'] == 'v'+(CORE/'.node-version').read_text().strip()
         record['metadata']['revision'] = run('revision',['git','rev-parse','HEAD']).strip()
         record['metadata']['cpu'] = run('cpu',['sysctl','-n','machdep.cpu.brand_string']).strip()
         record['metadata']['memoryBytes'] = int(run('memory',['sysctl','-n','hw.memsize']).strip())
@@ -100,7 +103,7 @@ def main():
         record['metadata']['swift'] = run('swift',['xcrun','swiftc','--version']).strip()
         sdk = run('sdk',['xcrun','--sdk','iphonesimulator','--show-sdk-path']).strip(); env['SDKROOT'] = sdk; env['IPHONEOS_DEPLOYMENT_TARGET'] = '26.5'
         assert run('sdk-version',['xcrun','--sdk','iphonesimulator','--show-sdk-version']).strip() == '26.5'
-        sources = [profilePath,Path(__file__),CORE/'native/ios/fitness/NativeFitness.swift',CORE/'native/ios/fitness/NativeFitnessUITests.swift',CORE/'tests/native/fixtures/bounded-abi.json',CORE/'Cargo.toml',CORE/'Cargo.lock']
+        sources = [CORE/'.node-version', CORE/'scripts/prepare-native-workloads.mjs', CORE/'benchmarks/fixtures.mjs', CORE/'crates/editac-ffi/examples/fitness-seed.rs', CORE/'fixtures/schema-v5/mapping.rs', CORE/'fixtures/schema-v5/seed.json', profilePath,Path(__file__),CORE/'native/ios/fitness/NativeFitness.swift',CORE/'native/ios/fitness/NativeFitnessUITests.swift',CORE/'tests/native/fixtures/bounded-abi.json',CORE/'Cargo.toml',CORE/'Cargo.lock']
         for crate in ['editac-core','editac-ffi','editac-wasm']:
             sources += [CORE/f'crates/{crate}/Cargo.toml'] + sorted((CORE/f'crates/{crate}/src').rglob('*.rs'))
         sources += sorted((CORE/'crates/editac-ffi/generated').glob('*'))
@@ -120,6 +123,9 @@ def main():
         record['nativeBuild'] = {'target':'aarch64-apple-ios-sim','package':'editac-ffi','profile':'release','features':'default',
                                  'graphHash':digest(output/'native-target-graph.log'),'rustcHash':digest(output/'native-rustc.log'),
                                  'libraryHash':record['libraryHash'],'measurementReuse':False}
+        run('seed-build',cargo+['build','-p','editac-ffi','--example','fitness-seed','--release','--locked','--offline'],timeout=600)
+        shutil.copy2(CORE/'target/release/examples/fitness-seed',output/'fitness-seed')
+        run('workload-seeds',['node','scripts/prepare-native-workloads.mjs',output/'fixtures',output/'fitness-seed'],timeout=900)
         project(output/'NativeFitness.xcodeproj',library)
         run('xcode-build',['xcodebuild','build-for-testing','-project',output/'NativeFitness.xcodeproj','-scheme','NativeFitness','-configuration','Release','-destination','generic/platform=iOS Simulator','-derivedDataPath',derived,'CODE_SIGNING_ALLOWED=NO'],timeout=900)
         simulator = run('simulator-create',['xcrun','simctl','create','editac-PRF07-'+str(os.getpid()),profile['device'],profile['runtime']]).strip()
@@ -147,7 +153,7 @@ def main():
             result = json.loads((output/'native-result.json').read_text())
             record['counts'] = result['counts']
         if resultPath is not None:
-            for name in ['cjk-partial.json','cjk-result.json']:
+            for name in ['cjk-partial.json','cjk-result.json','Task-result.json','Long-result.json','Task-partial.json','Long-partial.json'] + [n+'-'+suffix for n in ['Task','Long'] for suffix in ['final-snapshot.json','reopened-snapshot.json','checkpoint.bin','checkpoint-metadata.json']]:
                 if (resultPath.parent/name).is_file(): shutil.copy2(resultPath.parent/name,output/name)
             if (output/'cjk-result.json').is_file():
                 cjkResult = json.loads((output/'cjk-result.json').read_text()); record['cjkCounts'] = cjkResult['counts']
@@ -175,10 +181,15 @@ def main():
         assert xctest['exit'] == 0 and not xctest['timeout'], 'XCTest failed; retained result/summary/attachments'
         assert result is not None, 'actual native app result missing'
         assert result['counts'] == {'executed':5,'passed':5,'failed':0,'skipped':0}, result['counts']
-        assert record.get('xctestCounts') == {'totalTestCount':2,'passedTests':2,'failedTests':0,'skippedTests':0}, record.get('xctestCounts')
+        assert record.get('xctestCounts') == {'totalTestCount':4,'passedTests':4,'failedTests':0,'skippedTests':0}, record.get('xctestCounts')
         assert len(matches) == 1, 'missing actual XCTest accessibility attachment'
         assert cjkResult is not None and cjkResult['counts'] == {'executed':6,'passed':6,'failed':0,'skipped':0}, record.get('cjkCounts')
         assert len(cjkMatches) == 1, 'missing OS CJK candidate accessibility attachment'
+        record['workloadCounts'] = {}
+        for name in profile['workloads']['names']:
+            value = json.loads((output/(name+'-result.json')).read_text())
+            record['workloadCounts'][name] = value['counts']
+            assert value['counts'] == {'executed':3,'passed':3,'failed':0,'skipped':0}, value
         record['state'] = 'diagnostic-delivered'
     except Exception as error:
         record['state'] = 'failed'; record['error'] = str(error)

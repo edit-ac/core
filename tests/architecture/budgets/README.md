@@ -225,8 +225,8 @@ This is one bounded diagnostic, with no SDK/support claim. Callback timing exclu
 XCTest dispatch and cannot prove compositor paint. Native marked-text API execution
 is not CJK candidate selection. XCTest accessibility is not VoiceOver exploration.
 Simulator thermal state proves no physical thermal behavior. Twelve samples leave
-p95/p99 null under the unchanged100-sample minimum; Task/Long and remaining PRF-07
-coverage stay open. Canonical budgets admits exact native receipt/source/artifact
+p95/p99 null under the unchanged100-sample minimum; full Task/Long and remaining PRF-07
+qualification stay open. Canonical budgets admits exact native receipt/source/artifact
 pins and rejects missing, mutated, skipped or relabeled observations.
 
 Fresh native runs also retain the exact iOS-simulator normal/build dependency
@@ -266,3 +266,31 @@ text, then cover Rust acknowledgment and the next display callback. They exclude
 the preceding OS projection and cannot measure end-to-visible latency. The
 independent XCTest candidate dispatch/accessibility interval includes transport
 and is not joined to the app clock. Raw callback diagnostics keep tails null.
+
+
+The same owning command also executes named Task and Long workloads on that
+private iOS simulator. `scripts/prepare-native-workloads.mjs` generates the exact
+existing 20-block/10,240-byte and 2,000-block/1,048,576-byte schema-v5 corpora,
+checks the independent semantic oracle and retains the producer executable,
+checkpoints, full snapshots and logs. The app restores the complete native
+engine state, verifies every generated block and projects all block text joined
+by newlines into TextKit1. Mixed-block native rendering remains unqualified.
+
+XCTest presses twelve actual English OS keys per size, overwriting the last
+ASCII letter of the final block at a fixed UTF-16 range. This matches the browser
+corpus-bound policy: Long already reaches the engine's 1 MiB text cap, so an append
+is correctly rejected. Corpus bytes remain constant; no resource limit is raised. Raw native observations
+separate engine acknowledgment, bounded TextStorage overwrite and the next display
+callback's forced layout. Every edit must change exactly one block and preserve
+focus. All generated source text and the full mixed snapshot must survive
+checkpoint/reopen exactly. Comparison excludes only the session-local read
+fields `revision`, `changedNodes` and `touchedRanges`; all remaining fields,
+including identity, full visible nodes/runs/spans/attributes and recovery, must
+match. Both unmodified raw snapshots are retained. Final/reopened snapshots, checkpoint bytes and
+metadata are retained. `mach_task_basic_info` records raw resident/virtual bytes
+before restore, after initial projection, after each edit and around disposal.
+These samples are not continuous peaks, footprint or plateau proof. The profile
+preserves the phone 33 ms target and minimum 100 tail samples; twelve-edit summaries
+remain inconclusive. No compositor, full SDK, VoiceOver or physical thermal claim
+follows from this text-service envelope. Canonical admission rejects incomplete
+workload/corpus/resource/restoration evidence in addition to ASCII/Pinyin checks.

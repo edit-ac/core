@@ -3,18 +3,19 @@
   "parent": "FIT-1.8",
   "verifiedChildren": [
     "FIT-1.8-I1-A",
-    "FIT-1.8-I1-B1"
+    "FIT-1.8-I1-B1",
+    "FIT-1.8-I1-B2"
   ],
   "state": "implemented-and-verified-prerequisite",
   "qualification": "Original FIT-1.8 / I1 / I1-B / V1 remain unqualified and unchecked",
   "sourceRevision": "78b3fd484f3af6ca9ab61b5457cfb1aa45474dbba889a88e863949d9d631cb74",
-  "implementationReceipt": "architecture-results/fit-1.8-20261015/prf06-delivery-1/delivery-receipt.json",
-  "implementationReceiptHash": "234a6a0fac49406133ba75ae412e1a431cab8f01204bf082359c9e61b6d3d005",
-  "currentCanonicalReceipt": "architecture-results/fit-1.8-20261015/current-source-1/budgets-2/receipt.json",
-  "canonicalReceiptHash": "29a882a762a321ec020afcbc7e26d6e89d966842a506b271ef775f9c632f3f8c",
+  "implementationReceipt": "architecture-results/fit-1.8-20261015/native-workloads-1/delivery-receipt.json",
+  "implementationReceiptHash": "37f0f2c0894151cdede1772448ec53584cc364dfdd51699bee949d075d8b4db6",
+  "currentCanonicalReceipt": "architecture-results/fit-1.8-20261015/native-workloads-1/budgets-2/receipt.json",
+  "canonicalReceiptHash": "553802eeb65b07686c57d4e60ef8e21c465b273dbb066e0b5ace32bec4a658fe",
   "profileHash": "22aaa4b74df2064c44f791b62c977be07ecca00e77b148052ae6536fe1c59122",
-  "baselineIndexHash": "ecf6a10a87197a9a9e4d8b6530cdf974348a36ea5f1c51e1de2b6fdd5baa4dbe",
-  "previousEvidence": "d6144b16fc0ac019c8cde15fa21a2e7e99e25efb:tests/architecture/budgets/evidence.json",
+  "baselineIndexHash": "91bac3bd19be877abdb48f3cd433eaed55750371018dce901b0667779fb42f63",
+  "previousEvidence": "efa173313713b8a91f5ea26baf2c3e804c8e641f:tests/architecture/budgets/evidence.json",
   "priorDeliveryReceipt": "architecture-results/fit-1.8-20261015/iteration-3/prf05-delivery-receipt.json",
   "remaining": {
     "requiredCases": {
@@ -80,15 +81,15 @@
     ],
     "next": "FIT-1.8-I1-B / PRF-07 actual native text-service/candidate-geometry/IME/accessibility target-runtime evidence; retain PRF-06 startup misses and all other unqualified criteria"
   },
-  "priorCanonicalReceipt": "architecture-results/fit-1.8-20261015/source-refresh-1/budgets-1/receipt.json",
-  "priorCanonicalReceiptHash": "7c37551c058c0ee1f48c782b9e5369a87554f28aa31ab3f7525e936811186dc0",
+  "priorCanonicalReceipt": "architecture-results/fit-1.8-20261015/current-source-1/budgets-2/receipt.json",
+  "priorCanonicalReceiptHash": "29a882a762a321ec020afcbc7e26d6e89d966842a506b271ef775f9c632f3f8c",
   "gestureReceipt": "architecture-results/fit-1.8-20261015/source-refresh-1/gestures-1/results.json",
   "gestureReceiptHash": "ed461eb185b454a4973a4ce2305b1db672e93d67ff1460ad995d11485fa175c6",
-  "gestureScope": "16/16 actual-public-editor ordinary-pointer diagnostics: exact thin-glyph range endpoints, canceled native text drag, prose/code nested autoscroll across unchanged Task/Long × baseline/Task, bounded native controls and cancellation. No full performance/platform qualification or new checked child.",
-  "currentDeliveryReceipt": "architecture-results/fit-1.8-20261015/native-cjk-delivery-1/delivery-receipt.json",
+  "gestureScope": "16/16 actual-public-editor ordinary-pointer diagnostics: exact thin-glyph range endpoints, canceled native text drag, prose/code nested autoscroll across unchanged Task/Long \u00d7 baseline/Task, bounded native controls and cancellation. No full performance/platform qualification or new checked child.",
+  "currentDeliveryReceipt": "architecture-results/fit-1.8-20261015/native-workloads-1/delivery-receipt.json",
   "serviceReceipt": "architecture-results/fit-1.8-20261015/source-refresh-1/services-1/results.json",
   "serviceReceiptHash": "ac8448b57c0b2287dd5e7ef1c4ad9f73881b94771712eb9d9157843712598b95",
-  "serviceScope": "16/16 actual-public-editor/lifecycle/resolver/sync diagnostic observations across unchanged full Task/Long × baseline/Task. Prepared noncooperative host responses; constant-size atomic replacements, bounded queue/stale-result invalidation, exact local/remote commit and DOM node scopes, convergence and cleanup. Highlight/asset/conversion runtimes pending; no full PRF-03/performance/platform qualification or new checked child.",
+  "serviceScope": "16/16 actual-public-editor/lifecycle/resolver/sync diagnostic observations across unchanged full Task/Long \u00d7 baseline/Task. Prepared noncooperative host responses; constant-size atomic replacements, bounded queue/stale-result invalidation, exact local/remote commit and DOM node scopes, convergence and cleanup. Highlight/asset/conversion runtimes pending; no full PRF-03/performance/platform qualification or new checked child.",
   "prf04": {
     "state": "diagnostic-prerequisite; parent remains open",
     "owningResults": "architecture-results/fit-1.8-20261015/source-refresh-1/workloads-1/results.json",
@@ -132,15 +133,20 @@
   "loadingReceipt": "architecture-results/fit-1.8-20261015/loading-4/results.json",
   "loadingReceiptHash": "bb9ce3bc8d7252ca7d68109373540399257faa51035853a8286a4434c55450ea",
   "loadingScope": "24/24 diagnostics,48 paired replays/96 navigations; clean public packs, warm cache/IndexedDB recovery, disabled import/evaluation traces and shared hard gzip caps. Preferred sizes and startup targets miss;12-sample tails inconclusive. No original gate closed.",
-  "nativeCJKDelivery": {
-    "path": "architecture-results/fit-1.8-20261015/native-cjk-delivery-1/delivery-receipt.json",
-    "sha256": "766e44d76ff8d4effca9e0f3e1ea0c2743e495587e8cd8aa601c497974b9d487"
-  },
+  "nativeCJKDelivery": "architecture-results/fit-1.8-20261015/native-workloads-1/delivery-receipt.json",
   "nativeCJKScope": "Existing ASCII plus actual OS Simplified Chinese Pinyin ni candidate commit and hao host cancellation; exact source isolation, AX candidate geometry/action, checkpoint, display callback and disposal diagnostics only",
-  "nativeCJKRemaining": "Native Task/Long and broader optional/accessibility/text-service runtime envelopes, reviewed comparable tails, compositor attribution, peak/plateau memory, retained startup/Long/Brotli findings. One CJK commit remains below unchanged100-sample tail bar.",
+  "nativeCJKRemaining": "CJK remains one commit, below100-sample tails; full native renderer, peak/plateau, compositor, optional/accessibility/target-runtime and startup/Long/Brotli qualification remain. Task/Long diagnostic workloads are now delivered, with measured Long misses.",
   "currentSourceRefresh": {
-    "path": "architecture-results/fit-1.8-20261015/current-source-1/delivery-receipt.json",
-    "sha256": "e1d737a38653ee0b047218d2eb47893da0c89d054cdb90006b16c7f34b0303c1"
+    "path": "architecture-results/fit-1.8-20261015/native-workloads-1/delivery-receipt.json",
+    "sha256": "37f0f2c0894151cdede1772448ec53584cc364dfdd51699bee949d075d8b4db6"
   },
-  "currentSourceRefreshScope": "Fresh current-source diagnostic producer admission after main synchronization; not full FIT, SDK, release, latency, tail, resource or accessibility qualification"
+  "currentSourceRefreshScope": "Current-profile admission: actual native Task/Long plus preserved ASCII/Pinyin and refreshed browser baseline; remaining producer source closures unchanged and canonical330/330. Diagnostic prerequisite only.",
+  "nativeWorkloads": {
+    "receipt": {
+      "path": "architecture-results/fit-1.8-20261015/native-workloads-1/owning-3/receipt.json",
+      "sha256": "b7ca3a86638c634a8c2fd8e2ba5c96fb02eb121b0260cfd59c243d70979e5197"
+    },
+    "scope": "Actual fixed-corpus Task/Long iOS Simulator OS keyboard overwrite, full committed checkpoint/reopen, native input/layout and sampled task memory. No full native renderer, tail, compositor, peak/plateau, SDK or release qualification.",
+    "remaining": "Original FIT-1.8/I1/I1-B/V1 open. Long native median575.7ms and input/layout911.6ms miss phone33ms;12-sample tails inconclusive under unchanged100 minimum. Full mixed native renderer, comparable tails/compositor, peak/plateau, full optional/table/highlighter/accessibility/target-runtime criteria and retained startup/Long/Brotli findings remain. Next: causal Long native commit/FFI/projection scaling repair before another feature measurement."
+  }
 }

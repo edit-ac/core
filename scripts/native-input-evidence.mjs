@@ -1,3 +1,4 @@
+import { expectedSemantics, projectedSemantics, overwriteTarget } from '../benchmarks/fixtures.mjs';
 import assert from 'node:assert/strict';
 import { rawSummary, digest } from './architecture-budgets.mjs';
 const finite = n => Number.isFinite(n) && n >= 0;
@@ -45,7 +46,7 @@ export function inspectNativeInput(profile, receipt, result, accessibility) {
   assert.equal(receipt.metadata.simulator.device, profile.device); assert.equal(receipt.metadata.simulator.runtime, profile.runtime);
   assert.equal(receipt.cleanup.simulatorDeleted, true);
   assert.deepEqual(receipt.counts, {executed:5,passed:5,failed:0,skipped:0}); assert.deepEqual(result.counts, receipt.counts);
-  assert.deepEqual(receipt.xctestCounts, {totalTestCount:2,passedTests:2,failedTests:0,skippedTests:0});
+  assert.deepEqual(receipt.xctestCounts, {totalTestCount:4,passedTests:4,failedTests:0,skippedTests:0});
   for (const id of ['native-build','xcode-build','xctest','xcresult-summary','attachments','simulator-shutdown','simulator-delete']) assert(receipt.checks.some(c => c.id === id && c.exit === 0 && c.timeout === false && Number.isSafeInteger(c.pid) && c.pid > 0));
   assert.deepEqual(result.cases.map(c => c.id), ['os-keyboard-committed-source','response-frame-and-caret','marked-text-cancellation-source-preservation','native-checkpoint-reopen','disposal']);
   assert(result.cases.every(c => c.state === 'passed')); assert.deepEqual(result.errors, []);
@@ -101,7 +102,7 @@ export function inspectNativeCJK(profile, receipt, result, ax) {
   assert(Date.parse(profile.reviewedAt) <= Date.parse(receipt.startedUtc));
   assert.equal(receipt.state,'diagnostic-delivered'); assert.equal(receipt.metadata.physical,false);
   assert.equal(receipt.metadata.runtime.identifier,profile.runtime); assert.equal(receipt.cleanup.simulatorDeleted,true);
-  assert.deepEqual(receipt.xctestCounts,{totalTestCount:2,passedTests:2,failedTests:0,skippedTests:0});
+  assert.deepEqual(receipt.xctestCounts,{totalTestCount:4,passedTests:4,failedTests:0,skippedTests:0});
   assert.deepEqual(receipt.cjkCounts,{executed:6,passed:6,failed:0,skipped:0}); assert.deepEqual(result.counts,receipt.cjkCounts);
   assert.equal(result.qualification,'unqualified'); assert.deepEqual(result.errors,[]);
   assert.deepEqual(result.cases.map(c=>c.id),['os-pinyin-marked-isolation','os-candidate-committed-source','os-composition-cancellation','cjk-response-frame-and-caret','cjk-checkpoint-reopen','cjk-disposal']);
@@ -148,4 +149,61 @@ export function inspectNativeCJK(profile, receipt, result, ax) {
     comparison:'native callback after UIKit mutation -> Rust acknowledgment -> display callback; OS projection precedes this clock span; driver dispatch/AX is separate and not clock-calibrated',
     postMutationToCallbackMs:rawSummary([(s.frameCallbackAt-s.inputAt)*1000],100),nativeCommitMs:rawSummary([(s.engineDoneAt-s.inputAt)*1000],100),
     candidateDispatchAndAXMs:rawSummary([(ax.candidateAXAfter-ax.candidateDispatchBefore)*1000],100),gaps:result.gaps};
+}
+
+// Actual Task/Long runtime proof; twelve samples remain diagnostic. A receipt
+// with only the small keyboard fixture cannot satisfy this envelope.
+export function inspectNativeWorkload(profile, receipt, result, fixture, initial, final, reopened, checkpoint, metadata) {
+  const p = profile.workloads, i = p.names.indexOf(result.name);
+  assert(i >= 0); assert.deepEqual(p.names,['Task','Long']); assert.deepEqual(p.blocks,[20,2000]);
+  assert.deepEqual(p.textUtf8Bytes,[10240,1048576]); assert.equal(p.samples,12); assert.equal(p.warmups,0);
+  assert.equal(p.minimumTailSamples,100); assert.deepEqual(p.limits,{inputVisiblePhoneMs:33});
+  assert.equal(p.qualification,'unqualified'); assert.equal(result.qualification,'unqualified');
+  assert.equal(receipt.state,'diagnostic-delivered'); assert.equal(receipt.cleanup.simulatorDeleted,true);
+  assert.equal(receipt.metadata.physical,false); assert.equal(receipt.metadata.runtime.identifier,profile.runtime);
+  const counts={executed:3,passed:3,failed:0,skipped:0};
+  assert.deepEqual(result.counts,counts); assert.deepEqual(receipt.workloadCounts[result.name],counts);
+  assert.deepEqual(result.cases.map(c=>[c.id,c.state]),['full-corpus-os-keyboard','exact-checkpoint-reopen','resources-and-disposal'].map(id=>[id,'passed']));
+  assert.deepEqual(result.errors,[]); assert.equal(result.typed,profile.typed);
+  assert.deepEqual(projectedSemantics(initial),expectedSemantics(fixture));
+  const expected=expectedSemantics(fixture), last=expected.at(-1);
+  const target=overwriteTarget(last.text,'end');
+  assert.equal(result.setup.nodeOffsetUtf16,target.at); assert.equal(result.setup.originalTarget,target.original);
+  last.text=last.text.slice(0,target.at)+'l'+last.text.slice(target.at+1); last.runs[0].text=last.text;
+  assert.deepEqual(projectedSemantics(final),expected); const committed=v=>Object.fromEntries(Object.entries(v).filter(([k])=>!['revision','changedNodes','touchedRanges'].includes(k)));
+  assert.deepEqual(committed(reopened),committed(final)); assert.equal(final.revision,12); assert.equal(reopened.revision,0);
+  assert(checkpoint.length>0); assert.deepEqual(metadata.identity,final.identity);
+  const setup=result.setup, text=fixture.blocks.map(b=>b.runs.map(r=>r.text).join(''));
+  assert.equal(setup.blocks,p.blocks[i]); assert.equal(fixture.blocks.length,p.blocks[i]);
+  assert.equal(setup.textUtf8Bytes,p.textUtf8Bytes[i]); assert.equal(setup.textUtf8Bytes,text.reduce((n,t)=>n+Buffer.byteLength(t),0));
+  assert.equal(setup.textUtf16Units,text.reduce((n,t)=>n+t.length,0)); assert.equal(setup.projectedUtf16Units,text.join('\n').length);
+  assert.equal(setup.targetOffsetUtf16,text.join('\n').length-text.at(-1).length+target.at);
+  assert.equal(p.scenario,'os-keyboard-overwrite-fixed-corpus-v1');
+  assert(Number.isFinite(Date.parse(p.reviewedAt))&&Date.parse(p.reviewedAt)<=Date.parse(receipt.startedUtc));
+  assert.equal(receipt.metadata.node,'v24.19.0');
+  assert.equal(setup.fullSnapshotRestored,true); assert(setup.checkpointBytes>0);
+  assert(finite(setup.restoreStartAt)&&setup.restoreStartAt<=setup.restoredAt&&setup.restoredAt<=setup.projectionLayoutDoneAt);
+  assert.equal(result.samples.length,12);
+  for(const [j,s] of result.samples.entries()) {
+    const times=['inputAt','engineDoneAt','projectionDoneAt','layoutStartAt','layoutDoneAt'].map(k=>s[k]);
+    assert(times.every(finite)&&times.every((t,k)=>k===0||t>=times[k-1]));
+    assert.equal(s.changedBlocks,1); assert.equal(s.replacementUtf16,1); assert.equal(s.rangeUtf16,setup.targetOffsetUtf16); assert.equal(s.removedUtf16,1);
+    assert.equal(s.firstResponder,true); assert.equal(s.firstResponderAtFrame,true); assert.equal(s.inputMode,'en-US');
+    assert(geometry(s.caretRect)); assert([0,1,2,3].includes(s.thermal)); assert(s.targetTimestamp>s.displayTimestamp);
+  }
+  assert.deepEqual(result.resources.map(r=>r.phase),['before-restore','after-projection-layout',...Array.from({length:12},(_,i)=>`input-${i+1}`),'before-disposal','after-disposal']);
+  for(const [j,r] of result.resources.entries()) {
+    assert.equal(r.status,0); assert(Number.isSafeInteger(r.residentBytes)&&r.residentBytes>0);
+    assert(Number.isSafeInteger(r.virtualBytes)&&r.virtualBytes>=r.residentBytes); assert(finite(r.at));
+    assert(j===0||r.at>=result.resources[j-1].at);
+  }
+  assert.equal(result.host.physical,false); assert.equal(result.host.system,'26.5'); assert(result.host.refreshMaximum>0);
+  assert.deepEqual(result.gaps,['plain-text projection; mixed-block native renderer not qualified','callback is not compositor','12 samples below 100-sample tail minimum','sampled resident memory is not peak or plateau','no VoiceOver or physical thermal claim']);
+  return {qualification:'unqualified',name:result.name,sizes:setup,limits:p.limits,
+    restoration:{scope:'every snapshot field except session-local revision/changedNodes/touchedRanges; raw snapshots retained',beforeRevision:final.revision,reopenedRevision:reopened.revision},
+    inputToLayoutCallbackMs:rawSummary(result.samples.map(s=>(s.layoutDoneAt-s.inputAt)*1000),100),
+    nativeCommitMs:rawSummary(result.samples.map(s=>(s.engineDoneAt-s.inputAt)*1000),100),
+    projectionMs:rawSummary(result.samples.map(s=>(s.projectionDoneAt-s.engineDoneAt)*1000),100),
+    layoutMs:rawSummary(result.samples.map(s=>(s.layoutDoneAt-s.layoutStartAt)*1000),100),
+    resources:result.resources,gaps:result.gaps};
 }

@@ -1,4 +1,5 @@
 import UIKit
+import Darwin
 
 private func fitnessJSON(_ value: Any) throws -> String {
     String(decoding: try JSONSerialization.data(withJSONObject: value, options: [.sortedKeys]), as: UTF8.self)
@@ -390,7 +391,208 @@ final class FitnessController: UIViewController, UITextViewDelegate {
 @main final class NativeFitnessApp: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
     func application(_ application: UIApplication, didFinishLaunchingWithOptions options: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
-        let w = UIWindow(frame: UIScreen.main.bounds); w.rootViewController = FitnessController(); w.makeKeyAndVisible(); window = w
+        let w = UIWindow(frame: UIScreen.main.bounds); w.rootViewController = ProcessInfo.processInfo.arguments.contains("--workload") ? WorkloadController() : FitnessController(); w.makeKeyAndVisible(); window = w
         return true
+    }
+}
+
+// The same frozen corpus as the browser producer, restored by the real native
+// engine. Plain-text TextKit projection isolates the OS text-service envelope;
+// this does not claim full mixed-block native renderer qualification.
+final class WorkloadController: UIViewController, UITextViewDelegate {
+    let editor = FitnessTextView(usingTextLayoutManager: false)
+    let status = UILabel()
+    var engine: NativeEngine!
+    var document: [String: Any] = [:]
+    var samples: [[String: Any]] = []
+    var pending: [String: Any]?
+    var display: CADisplayLink?
+    var errors: [String] = []
+    var typed = ""
+    var initial = ""
+    var nodeID = ""
+    var nodeOffset = 0
+    var targetOffset = 0
+    var originalTarget = ""
+    var resources: [[String: Any]] = []
+    var setup: [String: Any] = [:]
+    var attempts: [[String: Any]] = []
+    func partial() {
+        let value: [String: Any] = ["name": name, "setup": setup, "attempts": attempts,
+            "samples": samples, "resources": resources, "typed": typed, "errors": errors,
+            "selectionUtf16": editor.selectedRange.location, "projectedUtf16": editor.textStorage.length,
+            "firstResponder": editor.isFirstResponder, "inputMode": editor.textInputMode?.primaryLanguage ?? "unavailable"]
+        let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent(name + "-partial.json")
+        if let bytes = try? fitnessJSON(value) { try? Data(bytes.utf8).write(to: url, options: .atomic) }
+    }
+    let name = ProcessInfo.processInfo.arguments.last!
+    func memory(_ phase: String) -> [String: Any] {
+        var info = mach_task_basic_info()
+        var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size / MemoryLayout<natural_t>.size)
+        let result = withUnsafeMutablePointer(to: &info) { ptr in
+            ptr.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                task_info(mach_task_self_, task_flavor_t(MACH_TASK_BASIC_INFO), $0, &count)
+            }
+        }
+        return ["phase": phase, "at": CACurrentMediaTime(), "status": result,
+            "residentBytes": info.resident_size, "virtualBytes": info.virtual_size,
+            "scope": "sampled task resident/virtual bytes; not peak footprint or plateau"]
+    }
+    func blocks(_ snapshot: [String: Any]) -> [[String: Any]] {
+        (snapshot["visible"] as! [[String: Any]]).filter { $0["kind"] as? String == "block" }
+    }
+    func nodeText(_ node: [String: Any]) -> String {
+        (node["runs"] as! [[String: Any]]).map { $0["text"] as! String }.joined()
+    }
+    override func viewDidLoad() {
+        super.viewDidLoad(); view.backgroundColor = .systemBackground
+        editor.frame = CGRect(x: 20, y: 80, width: view.bounds.width - 40, height: 260)
+        editor.accessibilityIdentifier = "workload-editor"
+        editor.autocorrectionType = .no; editor.spellCheckingType = .no; editor.autocapitalizationType = .none
+        editor.smartQuotesType = .no; editor.smartDashesType = .no; editor.font = .systemFont(ofSize: 16)
+        editor.delegate = self
+        status.accessibilityIdentifier = "workload-status"; status.text = "preparing"
+        let button = UIButton(type: .system); button.accessibilityIdentifier = "workload-verify"
+        button.setTitle("Verify workload", for: .normal); button.addTarget(self, action: #selector(verify), for: .touchUpInside)
+        view.addSubview(editor); view.addSubview(status); view.addSubview(button)
+        do {
+            resources.append(memory("before-restore"))
+            let start = CACurrentMediaTime()
+            func load(_ suffix: String) throws -> [String: Any] {
+                try JSONSerialization.jsonObject(with: Data(contentsOf: Bundle.main.url(forResource: name + suffix, withExtension: "json")!)) as! [String: Any]
+            }
+            document = try load("")
+            let frozen = try load(".native-checkpoint")
+            var cp = frozen["checkpoint"] as! [String: Any]
+            let bytes = (cp.removeValue(forKey: "bytes") as! [Int]).map { UInt8($0) }
+            cp["expected"] = frozen["identity"]!; cp["journal"] = [Any]()
+            engine = try NativeEngine.restore(inputJson: fitnessJSON(cp), bytes: Data(bytes))
+            let restored = CACurrentMediaTime()
+            let snapshot = try decode(engine.read())
+            try expect(try fitnessJSON(snapshot) == fitnessJSON(load(".native-snapshot")), "full restored snapshot equals native producer")
+            let nodes = blocks(snapshot)
+            let fixtureBlocks = document["blocks"] as! [[String: Any]]
+            try expect(nodes.count == fixtureBlocks.count, "full corpus block count")
+            for (node, expected) in zip(nodes, fixtureBlocks) {
+                try expect(nodeText(node) == nodeText(expected), "independent generated text oracle")
+            }
+            initial = nodes.map(nodeText).joined(separator: "\n")
+            nodeID = nodes.last!["id"] as! String
+            let units = Array(nodeText(nodes.last!).utf16)
+            nodeOffset = units.indices.reversed().first { (65...90).contains(units[$0]) || (97...122).contains(units[$0]) }!
+            targetOffset = initial.utf16.count - units.count + nodeOffset
+            originalTarget = String(UnicodeScalar(units[nodeOffset])!)
+            editor.text = initial; editor.selectedRange = NSRange(location: initial.utf16.count, length: 0)
+            editor.layoutManager.ensureLayout(for: editor.textContainer)
+            setup = ["restoreStartAt": start, "restoredAt": restored, "projectionLayoutDoneAt": CACurrentMediaTime(),
+                "checkpointBytes": bytes.count, "blocks": nodes.count, "textUtf8Bytes": nodes.map(nodeText).reduce(0) { $0 + $1.utf8.count },
+                "textUtf16Units": nodes.map(nodeText).reduce(0) { $0 + $1.utf16.count }, "projectedUtf16Units": initial.utf16.count,
+                "fullSnapshotRestored": true, "targetOffsetUtf16": targetOffset, "nodeOffsetUtf16": nodeOffset, "originalTarget": originalTarget]
+            resources.append(memory("after-projection-layout")); status.text = "ready"
+        } catch { errors.append(String(describing: error)); status.text = "failed" }
+        display = CADisplayLink(target: self, selector: #selector(frame(_:))); display?.add(to: .main, forMode: .common); display?.isPaused = true
+        partial()
+    }
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        let top = max(80, view.safeAreaInsets.top + 8)
+        editor.frame = CGRect(x: 20, y: top, width: view.bounds.width - 40, height: 260)
+        status.frame = CGRect(x: 20, y: top + 265, width: 350, height: 40)
+        view.subviews.compactMap { $0 as? UIButton }.first?.frame = CGRect(x: 20, y: top + 310, width: 350, height: 40)
+    }
+    func textViewDidBeginEditing(_ textView: UITextView) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.editor.selectedRange = NSRange(location: self.targetOffset, length: 1)
+            self.editor.scrollRangeToVisible(self.editor.selectedRange)
+            self.status.accessibilityValue = self.editor.isFirstResponder ? "keyboard-ready" : "focus-failed"
+        }
+    }
+    func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText replacement: String) -> Bool {
+        let start = CACurrentMediaTime()
+        attempts.append(["rangeUtf16": range.location, "removedUtf16": range.length, "replacement": replacement, "pending": pending != nil])
+        do {
+            try expect(pending == nil && textView.isFirstResponder && range.length == 1 && range.location == targetOffset && replacement.utf16.count == 1, "single OS overwrite with continuous focus at fixed corpus bound")
+            let anchor = try engine.captureAnchor(input: AnchorInput(node: nodeID, offsetUtf16: UInt32(nodeOffset), bias: .right))
+            let focus = try engine.captureAnchor(input: AnchorInput(node: nodeID, offsetUtf16: UInt32(nodeOffset + 1), bias: .left))
+            defer { try? engine.releaseAnchor(token: anchor); try? engine.releaseAnchor(token: focus) }
+            let result = try engine.executeBatch(commandsJson: fitnessJSON(["kind": "editor", "origin": "prf07-workload-os-keyboard", "commands": [["type": "replace", "range": ["anchor": anchor, "focus": focus], "text": replacement]]]))
+            let done = CACurrentMediaTime()
+            let patch = try decode(result.patchJson)
+            let changed = patch["nodes"] as! [[String: Any]]
+            try expect(changed.count == 1 && (changed[0]["node"] as! [String: Any])["id"] as? String == nodeID, "one changed block in full corpus")
+            textView.textStorage.replaceCharacters(in: range, with: replacement)
+            textView.selectedRange = NSRange(location: targetOffset, length: 1); textView.scrollRangeToVisible(textView.selectedRange)
+            typed += replacement
+            pending = ["inputAt": start, "engineDoneAt": done, "projectionDoneAt": CACurrentMediaTime(),
+                "rangeUtf16": range.location, "replacementUtf16": 1, "removedUtf16": 1, "changedBlocks": changed.count,
+                "thermal": ProcessInfo.processInfo.thermalState.rawValue, "firstResponder": textView.isFirstResponder, "inputMode": textView.textInputMode?.primaryLanguage ?? "unavailable"]
+            display?.isPaused = false
+        } catch { errors.append(String(describing: error)); status.text = "failed"; partial() }
+        return false
+    }
+    @objc func frame(_ link: CADisplayLink) {
+        guard var sample = pending else { return }
+        sample["layoutStartAt"] = CACurrentMediaTime()
+        editor.layoutManager.ensureLayout(for: editor.textContainer)
+        sample["layoutDoneAt"] = CACurrentMediaTime(); sample["displayTimestamp"] = link.timestamp; sample["targetTimestamp"] = link.targetTimestamp
+        sample["caretRect"] = rect(editor.caretRect(for: editor.selectedTextRange!.end)); sample["firstResponderAtFrame"] = editor.isFirstResponder
+        samples.append(sample); resources.append(memory("input-\(samples.count)")); pending = nil; display?.isPaused = true
+        status.accessibilityValue = "samples-\(samples.count)"
+        partial()
+    }
+    @objc func verify() {
+        var cases: [[String: Any]] = []
+        func check(_ id: String, _ body: () throws -> Void) {
+            do { try body(); cases.append(["id": id, "state": "passed"]) }
+            catch { cases.append(["id": id, "state": "failed", "error": String(describing: error)]) }
+        }
+        check("full-corpus-os-keyboard") {
+            try expect(errors.isEmpty && typed == "abcdefghijkl" && samples.count == 12 && pending == nil, "twelve real keyboard callbacks")
+            let snapshot = try decode(engine.read()), nodes = blocks(snapshot), expected = document["blocks"] as! [[String: Any]]
+            for (i, node) in nodes.enumerated() {
+                let original = nodeText(expected[i]) as NSString
+                let wanted = i == nodes.count - 1 ? original.replacingCharacters(in: NSRange(location: nodeOffset, length: 1), with: "l") : original as String
+                try expect(nodeText(node) == wanted, "all generated text preserved outside one-character overwrite")
+            }
+            try expect(editor.text == (initial as NSString).replacingCharacters(in: NSRange(location: targetOffset, length: 1), with: "l"), "full native projection oracle")
+        }
+        check("exact-checkpoint-reopen") {
+            let before = try decode(engine.read()), cp = try engine.checkpoint()
+            var metadata = try decode(cp.metadataJson); metadata["expected"] = before["identity"]!; metadata["journal"] = [Any]()
+            let restored = try NativeEngine.restore(inputJson: fitnessJSON(metadata), bytes: cp.bytes)
+            defer { try? restored.dispose() }
+            let reopened = try decode(restored.read())
+            let directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            for (suffix, value) in [("final-snapshot", before), ("reopened-snapshot", reopened)] {
+                try Data(fitnessJSON(value).utf8).write(to: directory.appendingPathComponent(name + "-" + suffix + ".json"), options: .atomic)
+            }
+            try cp.bytes.write(to: directory.appendingPathComponent(name + "-checkpoint.bin"), options: .atomic)
+            try Data(cp.metadataJson.utf8).write(to: directory.appendingPathComponent(name + "-checkpoint-metadata.json"), options: .atomic)
+            // Revision and last-change diagnostics are session-local read metadata,
+            // not committed document state. Preserve raw snapshots and compare
+            // every remaining field, including identity, spans and recovery.
+            func committed(_ value: [String: Any]) -> [String: Any] {
+                var result = value
+                for key in ["revision", "changedNodes", "touchedRanges"] { result.removeValue(forKey: key) }
+                return result
+            }
+            try expect(try fitnessJSON(committed(reopened)) == fitnessJSON(committed(before)), "full committed mixed snapshot checkpoint equality")
+        }
+        check("resources-and-disposal") {
+            resources.append(memory("before-disposal")); try engine.dispose(); display?.invalidate(); display = nil
+            resources.append(memory("after-disposal"))
+            try expect(resources.allSatisfy { ($0["status"] as? Int32) == KERN_SUCCESS && ($0["residentBytes"] as? UInt64 ?? 0) > 0 }, "executed task memory observations")
+        }
+        let failed = cases.filter { $0["state"] as? String == "failed" }.count
+        let record: [String: Any] = ["version": 1, "name": name, "qualification": "unqualified", "setup": setup, "cases": cases,
+            "counts": ["executed": cases.count, "passed": cases.count - failed, "failed": failed, "skipped": 0],
+            "samples": samples, "resources": resources, "errors": errors, "typed": typed,
+            "host": ["system": UIDevice.current.systemVersion, "physical": false, "refreshMaximum": UIScreen.main.maximumFramesPerSecond],
+            "gaps": ["plain-text projection; mixed-block native renderer not qualified", "callback is not compositor", "12 samples below 100-sample tail minimum", "sampled resident memory is not peak or plateau", "no VoiceOver or physical thermal claim"]]
+        do {
+            let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent(name + "-result.json")
+            try Data(fitnessJSON(record).utf8).write(to: url, options: .atomic); status.text = failed == 0 ? "verified" : "failed"
+        } catch { status.text = "write failed" }
     }
 }

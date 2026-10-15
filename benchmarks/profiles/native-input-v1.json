@@ -39,15 +39,41 @@
       "n",
       "i"
     ],
-    "candidate": "你",
+    "candidate": "\u4f60",
     "cancelKeys": [
       "h",
       "a",
       "o"
     ],
-    "committed": "A😀éZ你",
+    "committed": "A\ud83d\ude00e\u0301Z\u4f60",
     "samples": 1,
     "composition": "OS keyboard marked calls, candidate AX selection, native host cancellation; no simulated marked input",
     "candidateGeometry": "XCTest OS candidate accessibility frame plus native UITextInput marked/caret rects; no compositor claim"
+  },
+  "workloads": {
+    "names": [
+      "Task",
+      "Long"
+    ],
+    "blocks": [
+      20,
+      2000
+    ],
+    "textUtf8Bytes": [
+      10240,
+      1048576
+    ],
+    "samples": 12,
+    "warmups": 0,
+    "projection": "all block text joined by newline in TextKit1; mixed semantics retained in engine",
+    "measurement": "OS UITextViewDelegate entry, native command, bounded TextStorage overwrite, next display callback forced layout; sampled task resident bytes",
+    "limits": {
+      "inputVisiblePhoneMs": 33
+    },
+    "minimumTailSamples": 100,
+    "qualification": "unqualified",
+    "scenario": "os-keyboard-overwrite-fixed-corpus-v1",
+    "target": "last ASCII letter of final block; replace one UTF-16 unit at constant corpus bytes, matching browser overwrite policy",
+    "reviewedAt": "2026-10-15T05:32:00Z"
   }
 }
