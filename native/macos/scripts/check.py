@@ -287,6 +287,21 @@ def main():
         smoke = run("host-smoke", [str(host), "--smoke"], timeout=30)
         if "EDITAC_NATIVE_HOST_SMOKE_PASS" not in smoke:
             raise RuntimeError("Native executable host did not mount its AppKit control")
+        # LaunchServices gives this local fixture app real foreground authority;
+        # it cooperatively yields activation to this invocation's XCTest process.
+        import plistlib
+        app = output / "EditacNativeActivation.app"
+        executable = app / "Contents/MacOS/EditacMacOSTestHost"
+        executable.parent.mkdir(parents=True)
+        shutil.copy2(host, executable)
+        with (app / "Contents/Info.plist").open("wb") as stream:
+            plistlib.dump({"CFBundleIdentifier": "ac.editac.native.activation." + output.name,
+                "CFBundleExecutable": executable.name, "CFBundleName": "Editac Native Test Activation",
+                "CFBundlePackageType": "APPL", "LSUIElement": False}, stream)
+        env["EDITAC_MACOS_ACTIVATION_HELPER"] = str(app)
+        env["EDITAC_MACOS_ACTIVATION_EVIDENCE"] = str(output / "activation-receipts")
+        receipt["activationHelper"] = {"app":str(app), "executableSha256":hashlib.sha256(executable.read_bytes()).hexdigest(),
+            "plistSha256":hashlib.sha256((app / "Contents/Info.plist").read_bytes()).hexdigest()}
         log = run("xctest", ["xcrun", "swift", "test", *arguments, "--skip-build", "--filter", SUITES[suite][0]])
         receipt["counts"] = xctest_counts(log, SUITES[suite][1])
         receipt["artifacts"] = {str(p.relative_to(scratch)): hashlib.sha256(p.read_bytes()).hexdigest()

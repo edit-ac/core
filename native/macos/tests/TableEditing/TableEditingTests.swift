@@ -83,6 +83,20 @@ final class TableEditingTests: XCTestCase {
         view.commands.now = { 0 }
         _ = try await send(view, .tablePolicy(enabled: true))
         _ = try await read(view)
+        if let helper = ProcessInfo.processInfo.environment["EDITAC_MACOS_ACTIVATION_HELPER"],
+           let evidence = ProcessInfo.processInfo.environment["EDITAC_MACOS_ACTIVATION_EVIDENCE"] {
+            let directory = URL(fileURLWithPath: evidence)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let receipt = directory.appendingPathComponent(UUID().uuidString + ".json")
+            let process = Process(); process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+            process.arguments = ["-n", "-W", helper, "--args", "--yield-activation",
+                String(ProcessInfo.processInfo.processIdentifier), receipt.path]
+            try process.run(); process.waitUntilExit()
+            let value = try JSONSerialization.jsonObject(with: Data(contentsOf: receipt)) as! [String: Any]
+            XCTAssertEqual(process.terminationStatus, 0)
+            XCTAssertEqual(value["activeBeforeYield"] as? Bool, true)
+            XCTAssertEqual(value["targetPID"] as? Int32, ProcessInfo.processInfo.processIdentifier)
+        }
         NSApp.activate(ignoringOtherApps: true)
         guard let window = view.window else { throw FixtureError() }
         window.makeKeyAndOrderFront(nil)
