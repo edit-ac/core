@@ -734,6 +734,7 @@ dependencies = [
  "rand_core 0.6.4",
  "serde_json",
  "tls_codec",
+ "zeroize",
 ]
 
 [[package]]

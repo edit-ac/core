@@ -1,5 +1,13 @@
 # Optional security qualification
 
+SEC-1.4 adds prepared host-key ports in `src/keys.rs`, included only by
+`tests/key_lifecycle.rs`. Run `cargo test -p editac-security --test key_lifecycle
+--locked`. The provider owns authenticated wrapping, unlock, recovery and
+retention; scoped decoded buffers zeroize on drop. The deterministic provider
+uses opaque lookup handles, not a cipher. See the sibling architecture
+`evidence/key-lifecycle.md` for cleanup ownership, failure states and limits.
+No OS/browser keystore or production encryption is qualified by these tests.
+
 This unpublishable crate holds SEC-1.2 dependency probes and SEC-1.3 prepared admission mechanics. Default features are empty and the semantic engine does not depend on it. The private `protocol-probe` module type-checks OpenMLS APIs. `src/envelope.rs` is included directly by the prepared integration harness; it is absent from production builds. No production encryption API is exposed.
 
 SEC-1.3 uses real MLS private messages and signature-key-pinned writer policy, authenticates document/document epoch/schema/key epoch/operation context, bounds inputs and operation sets, and returns plaintext only after admission. Membership messages never merge through this path. Semantic validation and durable application acknowledgement remain host/store obligations. See `architecture/evidence/envelope-admission.md` in the sibling architecture repository for fixture provenance, exact limits and remaining gates.
