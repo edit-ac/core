@@ -89,16 +89,22 @@ final class TableEditingTests: XCTestCase {
         // Wait for actual OS activation instead of assuming it arrives in 50ms.
         // This is an AppKit event-loop wait, with an asserted bounded deadline.
         var attempts = 0
-        Timer.scheduledTimer(withTimeInterval: 0.02, repeats: true) { timer in MainActor.assumeIsolated {
+        let textView = view.textView
+        Timer.scheduledTimer(withTimeInterval: 0.02, repeats: true) { timer in
+            let stop = MainActor.assumeIsolated {
             attempts += 1
             NSApp.activate(ignoringOtherApps: true)
-            window.makeKeyAndOrderFront(nil); window.makeFirstResponder(view.textView)
+            window.makeKeyAndOrderFront(nil); window.makeFirstResponder(textView)
             if window.isKeyWindow || attempts >= 100 {
-                timer.invalidate(); NSApp.stop(nil)
+                NSApp.stop(nil)
                 NSApp.postEvent(NSEvent.otherEvent(with: .applicationDefined, location: .zero, modifierFlags: [],
                     timestamp: 0, windowNumber: 0, context: nil, subtype: 0, data1: 0, data2: 0)!, atStart: true)
+                return true
             }
-        } }
+            return false
+            }
+            if stop { timer.invalidate() }
+        }
         NSApp.run(); window.makeKey()
         XCTAssertTrue(window.isKeyWindow)
     }
