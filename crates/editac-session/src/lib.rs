@@ -25,3 +25,6 @@ pub mod service_lifecycle;
 
 /// Bounded support artifacts without document content or credentials.
 pub mod diagnostics;
+
+/// Host-owned public/private link contracts; no IO or semantic transactions.
+pub mod links;
