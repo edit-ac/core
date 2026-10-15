@@ -437,7 +437,8 @@ impl<S: SessionStore> Session<S> {
             None => Ok(None),
         }
     }
-    pub(crate) fn compare_revision(
+    /// Read-only equality validation for native position capture on this Session.
+    pub fn compare_revision(
         &self,
         expected: &crate::revision::ObservedRevision,
     ) -> Result<(), SessionError> {

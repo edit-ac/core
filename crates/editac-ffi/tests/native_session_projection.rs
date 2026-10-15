@@ -362,3 +362,262 @@ fn alias_cursor_and_undo_redo_share_ordered_authoritative_patches() {
     assert_eq!(json(&patches.patches_json[0])["operation"], "Undo");
     assert_eq!(json(&patches.patches_json[1])["operation"], "Redo");
 }
+
+fn anchor_input(node: &str, offset: u32, bias: AnchorBias) -> AnchorInput {
+    AnchorInput {
+        node: node.into(),
+        offset_utf16: offset,
+        bias,
+    }
+}
+fn capture(s: &NativeSession, inputs: Vec<AnchorInput>) -> Vec<NativeSessionAnchor> {
+    s.capture_anchors(s.read(0).unwrap().revision.unwrap(), inputs)
+        .unwrap()
+}
+fn anchor_position(
+    s: &NativeSession,
+    token: &str,
+    node: &str,
+    offset: u32,
+    right: bool,
+) -> NativeSessionAnchorRead {
+    let read = s.resolve_anchor(token.into()).unwrap();
+    assert_eq!(Some(read.revision.clone()), s.read(0).unwrap().revision);
+    match &read.resolution {
+        NativeAnchorResolution::Position {
+            node: actual,
+            offset_utf16,
+            bias,
+            source,
+            ..
+        } => {
+            assert_eq!(actual, node);
+            assert_eq!(*offset_utf16, offset);
+            assert_eq!(matches!(bias, AnchorBias::Right), right);
+            assert!(!source.is_empty());
+        }
+        other => panic!("expected position, got {other:?}"),
+    }
+    read
+}
+#[test]
+fn anchors_move_selected_unicode_bidi_nodes_with_both_biases_and_owned_lineage() {
+    let f = Fixture::new();
+    let s = f.open();
+    let nodes = s.read(0).unwrap().nodes;
+    let a = capture(
+        &s,
+        vec![
+            anchor_input(&nodes[0].id, 3, AnchorBias::Left),
+            anchor_input(&nodes[0].id, 3, AnchorBias::Right),
+            anchor_input(&nodes[2].id, 8, AnchorBias::Right),
+        ],
+    );
+    for anchor in &a {
+        assert_eq!(anchor.document_id, f.options.document_id);
+        assert_eq!(anchor.epoch, f.options.epoch);
+        assert!(anchor.token.contains(&f.options.document_id));
+        assert!(anchor.token.contains(&f.options.epoch));
+        assert_eq!(Some(anchor.revision.clone()), s.read(0).unwrap().revision);
+    }
+    commit(&s, &nodes[0].id, 3, 3, "😀");
+    commit(&s, &nodes[2].id, 0, 0, "אב");
+    anchor_position(&s, &a[0].token, &nodes[0].id, 3, false);
+    anchor_position(&s, &a[1].token, &nodes[0].id, 5, true);
+    let detached = anchor_position(&s, &a[2].token, &nodes[2].id, 10, true);
+    assert_ne!(a[0].revision, detached.revision);
+    s.dispose().unwrap();
+    assert_eq!(detached.document_id, f.options.document_id);
+    assert!(matches!(
+        detached.resolution,
+        NativeAnchorResolution::Position {
+            offset_utf16: 10,
+            ..
+        }
+    ));
+}
+#[test]
+fn anchors_unicode_combining_bidi_and_attachment_boundaries_use_shared_rules() {
+    let f = Fixture::new();
+    let s = f.open();
+    let nodes = s.read(0).unwrap().nodes;
+    for (index, boundaries) in [
+        (0, vec![0, 1, 3, 4, 5]),
+        (1, vec![0]),
+        (2, vec![0, 5, 6, 7, 8, 9, 10, 11, 12]),
+    ] {
+        for offset in boundaries {
+            for bias in [AnchorBias::Left, AnchorBias::Right] {
+                let right = matches!(bias, AnchorBias::Right);
+                let a = capture(&s, vec![anchor_input(&nodes[index].id, offset, bias)]);
+                anchor_position(&s, &a[0].token, &nodes[index].id, offset, right);
+                s.release_anchor(a[0].token.clone()).unwrap();
+            }
+        }
+    }
+    let rev = s.read(0).unwrap().revision.unwrap();
+    for (node, offset) in [(&nodes[0].id, 2), (&nodes[0].id, 6), (&nodes[1].id, 1)] {
+        assert!(matches!(
+            s.capture_anchors(
+                rev.clone(),
+                vec![anchor_input(node, offset, AnchorBias::Right)]
+            ),
+            Err(NativeSessionError::AnchorTarget { .. })
+        ));
+    }
+}
+#[test]
+fn anchors_deleted_text_collapses_without_caret_diff_and_undo_redo_follow_shared_history() {
+    let f = Fixture::new();
+    let s = f.open();
+    let node = s.read(0).unwrap().nodes[0].id.clone();
+    let a = capture(&s, vec![anchor_input(&node, 3, AnchorBias::Right)]);
+    commit(&s, &node, 1, 5, "");
+    anchor_position(&s, &a[0].token, &node, 1, true);
+    s.undo(s.read(0).unwrap().revision.unwrap(), 0)
+        .unwrap()
+        .unwrap();
+    // Shared sticky positions whose characters were deleted stay collapsed at
+    // the surviving boundary; history does not retarget this retained anchor.
+    anchor_position(&s, &a[0].token, &node, 1, true);
+    s.redo(s.read(0).unwrap().revision.unwrap(), 0)
+        .unwrap()
+        .unwrap();
+    anchor_position(&s, &a[0].token, &node, 1, true);
+}
+#[test]
+fn anchors_stale_cross_document_and_malformed_capture_are_atomic() {
+    let f = Fixture::new();
+    let s = f.open();
+    let other = Fixture::new();
+    let foreign = other.open();
+    let before = s.rich_snapshot().unwrap();
+    let node = s.read(0).unwrap().nodes[0].id.clone();
+    let input = || vec![anchor_input(&node, 1, AnchorBias::Left)];
+    assert!(matches!(
+        s.capture_anchors(foreign.read(0).unwrap().revision.unwrap(), input()),
+        Err(NativeSessionError::Revision {
+            reason: NativeRevisionFailure::ScopeMismatch,
+            ..
+        })
+    ));
+    assert!(matches!(
+        s.capture_anchors(vec![0; 65], input()),
+        Err(NativeSessionError::Revision {
+            reason: NativeRevisionFailure::InvalidToken,
+            ..
+        })
+    ));
+    commit(&s, &node, 1, 3, ""); // deletion-only changes must stale the capture revision
+    let checkpoint = s.recovery_export().unwrap().checkpoint.bytes;
+    assert!(matches!(
+        s.capture_anchors(before.revision, input()),
+        Err(NativeSessionError::Revision {
+            reason: NativeRevisionFailure::Stale,
+            ..
+        })
+    ));
+    assert_eq!(checkpoint, s.recovery_export().unwrap().checkpoint.bytes);
+    s.dispose().unwrap();
+    foreign.dispose().unwrap();
+}
+#[test]
+fn anchors_atomic_capture_bounded_slots_release_and_never_reuse_tokens() {
+    let f = Fixture::new();
+    let s = f.open();
+    let node = s.read(0).unwrap().nodes[0].id.clone();
+    let projection = s.rich_snapshot().unwrap();
+    let checkpoint = s.recovery_export().unwrap().checkpoint.bytes;
+    let input = || anchor_input(&node, 1, AnchorBias::Right);
+    let revision = projection.revision.clone();
+    assert!(matches!(
+        s.capture_anchors(
+            revision.clone(),
+            vec![input(), anchor_input("absent", 0, AnchorBias::Left)]
+        ),
+        Err(NativeSessionError::AnchorTarget { .. })
+    ));
+    assert!(matches!(
+        s.capture_anchors(revision.clone(), vec![input(); 129]),
+        Err(NativeSessionError::ResourceLimit)
+    ));
+    let mut anchors = vec![];
+    for _ in 0..8 {
+        anchors.extend(capture(&s, vec![input(); 128]));
+    }
+    assert_eq!(anchors.len(), 1024);
+    assert!(matches!(
+        s.capture_anchors(revision.clone(), vec![input()]),
+        Err(NativeSessionError::ResourceLimit)
+    ));
+    let old = anchors.remove(0);
+    s.release_anchor(old.token.clone()).unwrap();
+    s.release_anchor(old.token.clone()).unwrap();
+    assert!(matches!(
+        s.resolve_anchor(old.token.clone()),
+        Err(NativeSessionError::InvalidAnchor)
+    ));
+    let replacement = capture(&s, vec![input()]).remove(0);
+    assert_ne!(replacement.token, old.token);
+    for a in anchors {
+        s.release_anchor(a.token).unwrap();
+    }
+    s.release_anchor(replacement.token).unwrap();
+    assert_eq!(checkpoint, s.recovery_export().unwrap().checkpoint.bytes);
+    assert!(
+        s.take_rich_patches(projection.sequence)
+            .unwrap()
+            .patches_json
+            .is_empty()
+    );
+}
+#[test]
+fn anchors_cross_worker_same_store_alias_cancellation_and_disposal_ownership() {
+    let f = Fixture::new();
+    let s = f.open();
+    let other = f.open();
+    let alias = s.clone();
+    let node = s.read(0).unwrap().nodes[0].id.clone();
+    let a = capture(&s, vec![anchor_input(&node, 3, AnchorBias::Right)]).remove(0);
+    let b = capture(&other, vec![anchor_input(&node, 3, AnchorBias::Right)]).remove(0);
+    assert_ne!(a.token, b.token);
+    assert!(matches!(
+        other.resolve_anchor(a.token.clone()),
+        Err(NativeSessionError::InvalidAnchor)
+    ));
+    other.release_anchor(a.token.clone()).unwrap();
+    s.cancel_edits(edit(&s, &node, 0, 0, "cancelled")).unwrap();
+    let detached = anchor_position(&alias, &a.token, &node, 3, true);
+    assert_eq!(detached.revision, a.revision);
+    alias.release_anchor(a.token.clone()).unwrap();
+    assert!(matches!(
+        s.resolve_anchor(a.token.clone()),
+        Err(NativeSessionError::InvalidAnchor)
+    ));
+    s.dispose().unwrap();
+    alias.dispose().unwrap();
+    assert!(matches!(
+        alias.capture_anchors(a.revision.clone(), vec![]),
+        Err(NativeSessionError::Disposed)
+    ));
+    assert!(matches!(
+        alias.resolve_anchor(a.token.clone()),
+        Err(NativeSessionError::Disposed)
+    ));
+    assert!(matches!(
+        alias.release_anchor(a.token),
+        Err(NativeSessionError::Disposed)
+    ));
+    anchor_position(&other, &b.token, &node, 3, true);
+    other.dispose().unwrap();
+    let reopened = f.open();
+    let a_token_for_reopen = b.token.clone();
+    assert!(matches!(
+        reopened.resolve_anchor(b.token),
+        Err(NativeSessionError::InvalidAnchor)
+    ));
+    let fresh = capture(&reopened, vec![anchor_input(&node, 3, AnchorBias::Right)]).remove(0);
+    assert_ne!(fresh.token, a_token_for_reopen);
+    reopened.dispose().unwrap();
+    assert_eq!(detached.document_id, f.options.document_id);
+}
