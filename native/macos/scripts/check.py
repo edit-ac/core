@@ -15,6 +15,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 CORE = ROOT.parents[1]
 SUITES = {
+    "projection": ("EditacMacOSProjectionTests.ProjectionTests", 10),
     "bootstrap": ("EditacMacOSBootstrapTests.BootstrapTests", 1),
     "session": ("EditacMacOSSessionTests.SessionTests", 12),
     "toolkit": ("EditacMacOSToolkitTests.ToolkitTests", 6),
@@ -46,7 +47,7 @@ def xctest_counts(log, expected):
 
 def main():
     if len(sys.argv) != 2 or sys.argv[1] not in SUITES:
-        print("Usage: bash native/macos/scripts/check.sh {bootstrap|toolkit|session}; unknown/unimplemented suite", file=sys.stderr)
+        print("Usage: bash native/macos/scripts/check.sh {bootstrap|toolkit|session|projection}; unknown/unimplemented suite", file=sys.stderr)
         return 2
     suite = sys.argv[1]
     signal.signal(signal.SIGTERM, interrupted)

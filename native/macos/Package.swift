@@ -26,6 +26,8 @@ let package = Package(
                 path: "probe/Sources"),
         .testTarget(name: "EditacMacOSToolkitTests", dependencies: ["EditacMacOS", "EditacMacOSProbe"],
                     path: "tests/Toolkit"),
+        .testTarget(name: "EditacMacOSProjectionTests", dependencies: ["EditacMacOS"],
+                    path: "tests/Projection"),
         .testTarget(name: "EditacMacOSSessionTests", dependencies: ["EditacMacOS"],
                     path: "tests/Session"),
         .testTarget(name: "EditacMacOSBootstrapTests", dependencies: ["EditacMacOS"],
