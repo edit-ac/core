@@ -311,6 +311,15 @@ pub struct CommandRange {
     pub anchor: String,
     pub focus: String,
 }
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TableAction {
+    InsertRow,
+    DeleteRow,
+    InsertColumn,
+    DeleteColumn,
+}
+
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
 pub enum Command {
@@ -336,12 +345,24 @@ pub enum Command {
         anchor: CommandPosition,
         focus: CommandPosition,
     },
+    AtomicContent {
+        owner: String,
+        expected: Value,
+        at: String,
+        replacement: Option<Value>,
+    },
     TableCell {
         owner: String,
         expected: Value,
         row: usize,
         column: usize,
         text: String,
+    },
+    TableStructure {
+        owner: String,
+        expected: Value,
+        action: TableAction,
+        index: usize,
     },
     Insert {
         at: String,
@@ -499,7 +520,9 @@ impl Command {
         "markAt",
         "selectionAt",
         "historySelectionAt",
+        "atomicContent",
         "tableCell",
+        "tableStructure",
         "insert",
         "delete",
         "replace",
@@ -560,6 +583,32 @@ impl Command {
                 anchor: anchor.native(),
                 focus: focus.native(),
             },
+            Command::AtomicContent {
+                owner,
+                expected,
+                at,
+                replacement,
+            } => {
+                let expected = Any::from_json(&expected.to_string())
+                    .map_err(|e| kernel("atomicContent", e))?;
+                let replacement = replacement
+                    .map(|value| {
+                        let tuple = Any::from_json(&value.to_string())
+                            .map_err(|e| kernel("atomicContent", e))?;
+                        crate::modules::content::Content::from_tuple(&tuple)
+                            .map_err(|e| kernel("atomicContent", e))?
+                            .ok_or_else(|| {
+                                err("InvalidInput", "atomicContent", "unregistered content")
+                            })
+                    })
+                    .transpose()?;
+                EditorCommand::AtomicContent {
+                    target: owner,
+                    expected,
+                    at: anchor(&at)?,
+                    replacement,
+                }
+            }
             Command::TableCell {
                 owner,
                 expected,
@@ -573,6 +622,23 @@ impl Command {
                 row,
                 column,
                 text,
+            },
+            Command::TableStructure {
+                owner,
+                expected,
+                action,
+                index,
+            } => EditorCommand::TableStructure {
+                target: owner,
+                expected: Any::from_json(&expected.to_string())
+                    .map_err(|e| kernel("tableStructure", e))?,
+                action: match action {
+                    TableAction::InsertRow => crate::commands::table::TableAction::InsertRow,
+                    TableAction::DeleteRow => crate::commands::table::TableAction::DeleteRow,
+                    TableAction::InsertColumn => crate::commands::table::TableAction::InsertColumn,
+                    TableAction::DeleteColumn => crate::commands::table::TableAction::DeleteColumn,
+                },
+                index,
             },
             Command::Insert { at, text } => EditorCommand::Text(TextCommand::Insert {
                 at: anchor(&at)?,

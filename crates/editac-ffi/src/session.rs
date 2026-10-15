@@ -216,6 +216,29 @@ pub struct NativeSessionSeed {
     pub kind: String,
     pub text: String,
 }
+/// An exact admitted journal record, not a raw network frame or authenticated identity.
+/// Only a trusted host may supply this after its existing authentication/admission.
+#[derive(Clone, Debug, uniffi::Record)]
+pub struct NativeSessionPeerUpdate {
+    pub identity_json: String,
+    pub writer: u32,
+    pub sequence: u64,
+    pub checksum: Vec<u8>,
+    pub origin: String,
+    pub bytes: Vec<u8>,
+}
+impl From<&editac_session::ports::JournalEntry> for NativeSessionPeerUpdate {
+    fn from(entry: &editac_session::ports::JournalEntry) -> Self {
+        Self {
+            identity_json: editac_core::interchange::identity(&entry.id().identity).to_string(),
+            writer: entry.id().writer,
+            sequence: entry.id().sequence,
+            checksum: entry.id().checksum.to_vec(),
+            origin: entry.origin().to_owned(),
+            bytes: entry.bytes().to_vec(),
+        }
+    }
+}
 /// Minimal text presentation DTO, not a writable projection or full rich SDK view.
 #[derive(Clone, Debug, uniffi::Record)]
 pub struct NativeSessionNode {
@@ -388,6 +411,8 @@ struct State {
     next_anchor: u64,
     projection: Rc<RefCell<ProjectionQueue>>,
     _projection_subscription: editac_core::patches::Subscription,
+    host_transport: Option<session_collaboration::HostConnection>,
+    next_connection: u64,
 }
 impl State {
     fn new(mut session: Session<Arc<NativeStore>>) -> Result<Self> {
@@ -411,7 +436,52 @@ impl State {
             next_anchor: 0,
             projection,
             _projection_subscription: subscription,
+            host_transport: None,
+            next_connection: 0,
         })
+    }
+    fn receive_peer_update(
+        &mut self,
+        update: NativeSessionPeerUpdate,
+    ) -> Result<NativeSessionCommit> {
+        use editac_session::ports::{JournalEntry, UpdateId};
+        // Bound input before parsing or semantic staging; preserve the original digest.
+        if update.identity_json.len() > 4096
+            || update.bytes.len() > StoreLimits::default().max_record_bytes
+            || update.origin.len() > 1024
+        {
+            return Err(NativeSessionError::ResourceLimit);
+        }
+        let session = self.service.session();
+        session.observed_revision()?;
+        let identity = session.document().identity().clone();
+        let supplied: serde_json::Value =
+            serde_json::from_str(&update.identity_json).map_err(|_| NativeSessionError::Store {
+                reason: NativeStoreFailure::InvalidRecord,
+            })?;
+        if supplied != editac_core::interchange::identity(&identity) {
+            return Err(NativeSessionError::Incompatible);
+        }
+        if update.writer == session.document().writer_id() {
+            return Err(PortError::Permission.into());
+        }
+        let checksum = update
+            .checksum
+            .try_into()
+            .map_err(|_| NativeSessionError::Store {
+                reason: NativeStoreFailure::InvalidRecord,
+            })?;
+        let entry = JournalEntry::from_stored(
+            UpdateId {
+                identity,
+                writer: update.writer,
+                sequence: update.sequence,
+                checksum,
+            },
+            update.origin,
+            update.bytes,
+        )?;
+        Ok(self.service.receive_peer(entry)?.into())
     }
     fn retain_plan(&mut self, plan: PreparedEdit) -> Result<String> {
         let next = self
@@ -619,6 +689,27 @@ impl NativeSession {
             )?);
             State::new(Session::open(store, &id, permission(&options))?)
         })
+    }
+    /// Trusted host reserves an actual peer writer once, never an authentication grant.
+    pub fn reserve_peer_writer(&self, writer: u32) -> Result<()> {
+        self.call(move |state| Ok(state.service.session().reserve_peer_writer(writer)?))
+    }
+    /// Owned committed outbox records; frozen Sessions cannot publish pending updates.
+    pub fn pending_updates(&self) -> Result<Vec<NativeSessionPeerUpdate>> {
+        self.call(|state| {
+            Ok(state
+                .service
+                .session()
+                .pending_updates()?
+                .iter()
+                .map(Into::into)
+                .collect())
+        })
+    }
+    /// Trusted-host ingress over the actual EditService/Session, after host security admission.
+    /// This accepts neither unauthenticated network frames nor encrypted packets.
+    pub fn receive_peer(&self, update: NativeSessionPeerUpdate) -> Result<NativeSessionCommit> {
+        self.call(move |state| state.receive_peer_update(update))
     }
     pub fn read(&self, now: u64) -> Result<NativeSessionRead> {
         self.call(move |state| {
@@ -932,8 +1023,12 @@ impl NativeSession {
             let routes = editac_core::interchange::Command::TYPES
                 .iter()
                 .map(|id| {
-                    let available =
-                        identity.has_editor() && (*id != "tableCell" || caps.policy.codecs.tables);
+                    let available = identity.has_editor()
+                        && (!matches!(*id, "tableCell" | "tableStructure")
+                            || caps.policy.codecs.tables)
+                        && (*id != "atomicContent"
+                            || caps.policy.codecs.images
+                            || caps.policy.references);
                     NativeCommandRoute {
                         id: (*id).into(),
                         available,
@@ -973,10 +1068,26 @@ impl NativeSession {
                 ("editac.code", "contract-fixture-only"),
                 ("editac.pairs", "contract-fixture-only"),
             ] {
+                let atomic = (id == "editac.images" && caps.policy.codecs.images)
+                    || (id == "editac.references" && caps.policy.references);
                 profiles.push(NativeCommandProfile {
                     id: id.into(),
-                    available: false,
-                    reason: reason.into(),
+                    available: identity.has_editor()
+                        && (atomic
+                            || id == "editac.tables"
+                                && identity.has_editor()
+                                && caps.policy.codecs.tables),
+                    reason: if atomic && identity.has_editor() {
+                        "bounded-inert-replacement-removal-host-resolution-target-check-required"
+                    } else if id == "editac.tables"
+                        && identity.has_editor()
+                        && caps.policy.codecs.tables
+                    {
+                        "bounded-v1-v2-cell-unmerged-structure-target-check-required"
+                    } else {
+                        reason
+                    }
+                    .into(),
                 });
             }
             Ok(NativeCommandCatalog {
@@ -1032,6 +1143,27 @@ impl NativeSession {
             Ok(())
         })
     }
+    /// Trusted host table codec policy, independent of write permission. Defaults
+    /// to disabled on every create/open. Retained plans recheck it at commit.
+    pub fn set_table_policy(&self, enabled: bool) -> Result<()> {
+        self.call(move |state| {
+            let mut policy = state.service.capabilities(0).policy;
+            policy.codecs.tables = enabled;
+            state.service.set_policy(policy);
+            Ok(())
+        })
+    }
+    /// Trusted host opt-in for bounded inert image/reference edits. This grants
+    /// neither write permission nor network/resolver authority, and is not stored.
+    pub fn set_atomic_content_policy(&self, images: bool, references: bool) -> Result<()> {
+        self.call(move |state| {
+            let mut policy = state.service.capabilities(0).policy;
+            policy.codecs.images = images;
+            policy.references = references;
+            state.service.set_policy(policy);
+            Ok(())
+        })
+    }
     pub fn recover(&self) -> Result<()> {
         self.call(|state| {
             state.service.recover()?;
@@ -1060,6 +1192,10 @@ impl NativeSession {
         Ok(())
     }
 }
+
+#[cfg(test)]
+#[path = "session_table_tests.rs"]
+mod table_policy_tests;
 
 #[cfg(test)]
 mod tests {
@@ -1891,3 +2027,7 @@ mod tests {
         }
     }
 }
+
+#[path = "session_collaboration.rs"]
+mod session_collaboration;
+pub use session_collaboration::*;

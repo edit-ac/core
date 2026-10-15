@@ -15,6 +15,7 @@ pub mod import;
 pub mod modules;
 mod ownership;
 pub mod patches;
+pub mod presence;
 // One faithful v4 replay implementation shared with the preserved qualification
 // fixtures. Production never uses its fixed seed/envelope or fixture admission.
 mod editor;

@@ -21,10 +21,18 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--rich-fixture', type=Path)
+    parser.add_argument('--table-fixture', type=Path)
+    parser.add_argument('--attachment-fixture', type=Path)
+    parser.add_argument('--authority-fixture', type=Path)
     parser.add_argument('--case', action='append', default=[])
+    parser.add_argument('--host-transport', action='store_true', help='compose STB-1.4 host transport cases with the table harness')
     parser.add_argument('--fixture-writer', type=Path)
     parser.add_argument('--reuse-legacy', type=Path)
     args = parser.parse_args()
+    if args.authority_fixture and not args.host_transport:
+        parser.error('--authority-fixture requires --host-transport')
+    if args.host_transport and not args.table_fixture:
+        parser.error("--host-transport requires --table-fixture")
     out = args.output.resolve()
     out.mkdir(parents=True, exist_ok=True)
     attempt = out / ('attempt-' + str(1 + len(list(out.glob('attempt-*')))))
@@ -73,20 +81,53 @@ def main():
                 '-L', library.parent, '-leditac_ffi', '-Xlinker', '-rpath', '-Xlinker', library.parent]
             canonical = CORE / 'tests/native/session-probe/main.swift'
             host = work / 'main.swift'
-            host.write_text(canonical.read_text().replace('if let index = CommandLine.arguments.firstIndex(of: \"--rich-fixture\") {', 'runCommandCases()\nif let index = CommandLine.arguments.firstIndex(of: \"--rich-fixture\") {'))
+            extra_entry = 'runTablePolicyCases()\nrunRemoteCases()\n' if args.table_fixture else ''
+            if args.attachment_fixture:
+                extra_entry += 'runAtomicContentCases()\n'
+            if args.host_transport:
+                extra_entry += 'runHostTransportCases()\nrunPresenceCases()\n'
+            if args.authority_fixture:
+                extra_entry += 'runAuthorityLifecycleCases()\n'
+            marker = 'if let index = CommandLine.arguments.firstIndex(of: "--rich-fixture") {'
+            host.write_text(canonical.read_text().replace(marker, 'runCommandCases()\n' + extra_entry + marker))
             command_source = CORE / 'tests/native/session-command-proof/CommandCases.swift'
             receipt['composedHostSha256'] = digest(host)
             (attempt / 'main.swift').write_bytes(host.read_bytes())
             rich_source = CORE / 'tests/native/session-probe/RichCases.swift'
+            table_sources = [CORE / 'tests/native/table-session-proof/TablePolicyCases.swift', CORE / 'tests/native/table-session-proof/RemoteCases.swift'] if args.table_fixture else []
+            if args.attachment_fixture:
+                table_sources.append(CORE / 'tests/native/table-session-proof/AtomicContentCases.swift')
+                receipt['sourceHashes']['tests/native/table-session-proof/AtomicContentCases.swift'] = digest(table_sources[-1])
+                receipt['attachmentFixtureManifestSha256'] = digest(args.attachment_fixture)
+                receipt['attachmentFixtureStoreSha256'] = digest(Path(json.loads(args.attachment_fixture.read_text())['path']))
+            if args.host_transport:
+                table_sources.extend([CORE / 'tests/native/table-session-proof/HostTransportCases.swift', CORE / 'tests/native/table-session-proof/PresenceCases.swift'])
+                for p in ['crates/editac-core/src/presence.rs', 'crates/editac-ffi/src/session_presence.rs']:
+                    receipt['sourceHashes'][p] = digest(CORE / p)
+                receipt['sourceHashes']['crates/editac-ffi/src/session_collaboration.rs'] = digest(CORE / 'crates/editac-ffi/src/session_collaboration.rs')
+            if args.authority_fixture:
+                table_sources.append(CORE / 'tests/native/table-session-proof/AuthorityLifecycleCases.swift')
+                receipt['authorityFixtureSha256'] = digest(args.authority_fixture)
+            if args.table_fixture:
+                receipt['tableFixtureManifestSha256'] = digest(args.table_fixture)
+                receipt['tableFixtureStoreSha256'] = digest(Path(json.loads(args.table_fixture.read_text())['path']))
+                for source in table_sources:
+                    receipt['sourceHashes'][str(source.relative_to(CORE))] = digest(source)
             rich_args = ['--rich-fixture', args.rich_fixture.resolve()] if args.rich_fixture else []
+            if args.attachment_fixture:
+                rich_args += ['--attachment-fixture', args.attachment_fixture.resolve()]
             if args.fixture_writer:
                 rich_args += ['--fixture-writer', args.fixture_writer.resolve()]
                 receipt['fixtureWriterSha256'] = digest(args.fixture_writer)
             if args.rich_fixture:
                 receipt['fixtureManifestSha256'] = digest(args.rich_fixture)
                 receipt['fixtureStoreSha256Before'] = digest(Path(json.loads(args.rich_fixture.read_text())['path']))
+            if args.table_fixture:
+                rich_args += ['--table-fixture', args.table_fixture.resolve()]
+            if args.authority_fixture:
+                rich_args += ['--authority-fixture', args.authority_fixture.resolve()]
             binary = work / 'session-probe'
-            run('session-build', base + [generated / 'EditacNative.swift', host, rich_source, command_source, '-o', binary])
+            run('session-build', base + [generated / 'EditacNative.swift', host, rich_source, command_source, *table_sources, '-o', binary])
             receipt['binarySha256'] = digest(binary)
             (attempt / 'session-probe').write_bytes(binary.read_bytes())
             result = run('session-runtime', [binary, attempt / 'stores', *rich_args, *[arg for case in args.case for arg in ['--case', case]]])
@@ -108,7 +149,7 @@ def main():
             receipt['instrumentedGeneratedSha256'] = digest(instrumented)
             (attempt / 'MeasuredBindings.swift').write_text(swift)
             measured = work / 'session-buffers'
-            run('session-instrumented-build', base + [instrumented, host, rich_source, command_source, '-o', measured])
+            run('session-instrumented-build', base + [instrumented, host, rich_source, command_source, *table_sources, '-o', measured])
             receipt['instrumentedBinarySha256'] = digest(measured)
             (attempt / 'session-buffers').write_bytes(measured.read_bytes())
             result = run('session-buffer-runtime', [measured, attempt / 'measured-stores', '--instrumented', *rich_args])

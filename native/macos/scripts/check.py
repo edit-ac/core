@@ -16,10 +16,11 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 CORE = ROOT.parents[1]
 SUITES = {
+    "collaboration-lifecycle": ("EditacMacOSCollaborationLifecycleTests.CollaborationLifecycleTests", 13),
     "accessibility-text": ("EditacMacOSAccessibilityTextTests.AccessibilityTextTests", 10),
     "durability": ("EditacMacOSDurabilityTests.DurabilityTests", 10),
     "attachments": ("EditacMacOSAttachmentsTests.AttachmentsTests", 15),
-    "table-editing": ("EditacMacOSTableEditingTests.TableEditingTests", 11),
+    "table-editing": ("EditacMacOSTableEditingTests.TableEditingTests", 17),
     "table-projection": ("EditacMacOSTableProjectionTests.TableProjectionTests", 14),
     "styles": ("EditacMacOSStylesTests.StylesTests", 12),
     "commands": ("EditacMacOSCommandsTests.CommandsTests", 36),
@@ -98,7 +99,7 @@ def stop_command_tree(process):
 
 def main():
     if len(sys.argv) != 2 or sys.argv[1] not in SUITES:
-        print("Usage: bash native/macos/scripts/check.sh {accessibility-text|durability|bootstrap|toolkit|session|projection|edits|composition|commands|styles|table-projection|table-editing|attachments}; unknown/unimplemented suite", file=sys.stderr)
+        print("Usage: bash native/macos/scripts/check.sh {collaboration-lifecycle|accessibility-text|durability|bootstrap|toolkit|session|projection|edits|composition|commands|styles|table-projection|table-editing|attachments}; unknown/unimplemented suite", file=sys.stderr)
         return 2
     suite = sys.argv[1]
     signal.signal(signal.SIGTERM, interrupted)
@@ -130,6 +131,7 @@ def main():
         return log.read_text()
 
     env = os.environ.copy()
+    env["NSUnbufferedIO"] = "YES"
     try:
         if platform.system() != "Darwin":
             raise RuntimeError("Requires macOS OS host/VM with pinned Xcode and a GUI login session")
@@ -191,6 +193,11 @@ def main():
                               "-p", "editac-ffi", "--lib", "--locked", "--offline",
                               "--target", triple, "--target-dir", str(ffi_target)], timeout=300)
             library = ffi_target / triple / "debug/libeditac_ffi.dylib"
+            retained = output / "runtime" / cpu / library.name
+            retained.parent.mkdir(parents=True, exist_ok=True)
+            import shutil
+            shutil.copy2(library, retained)
+            library = retained
             ffi_libraries[cpu] = {"path": str(library),
                                   "sha256": hashlib.sha256(library.read_bytes()).hexdigest()}
             env["EDITAC_MACOS_FFI_LIBRARY_DIR"] = str(library.parent)
@@ -262,7 +269,7 @@ def main():
             env["EDITAC_MACOS_TABLE_FIXTURE"] = str(manifest)
             env["EDITAC_MACOS_TABLE_EVIDENCE"] = str(output)
             fixture = json.loads(manifest.read_text())
-            receipt["tableEditingScope"] = "native-prerequisite-only; shared-policy-and-structure-pending" if suite == "table-editing" else None
+            receipt["tableEditingScope"] = "actual-native-v1-v2-cell-structure-authorized-sqlite-peer-history" if suite == "table-editing" else None
             receipt["tableFixture"] = {"manifest": str(manifest),
                 "manifestSha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
                 "storeSha256": hashlib.sha256(Path(fixture["path"]).read_bytes()).hexdigest(),

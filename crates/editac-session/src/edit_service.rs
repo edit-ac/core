@@ -175,6 +175,15 @@ impl<S: SessionStore> EditService<S> {
     pub fn flush_pending(&mut self, now: u64) -> Result<usize, SessionError> {
         self.session.flush_pending(now)
     }
+    /// Thin forwarding port; cursor/pending/transport admission stay on the Session.
+    pub fn flush_pending_page(
+        &mut self,
+        after: Option<&crate::ports::UpdateId>,
+        limit: usize,
+        now: u64,
+    ) -> Result<usize, SessionError> {
+        self.session.flush_pending_page(after, limit, now)
+    }
     pub fn accept_receipt(
         &mut self,
         receipt: crate::ports::DurableReceipt,
@@ -293,7 +302,25 @@ impl<S: SessionStore> EditService<S> {
                     Content::Reference { .. } => requirements.references = true,
                     Content::InertExtension { .. } => {}
                 },
-                EditorCommand::TableCell { .. } => requirements.tables = true,
+                EditorCommand::AtomicContent {
+                    expected,
+                    replacement,
+                    ..
+                } => {
+                    let old = Content::from_tuple(expected)
+                        .map_err(|_| ServiceError::Engine(EditorError::InvalidCommand))?
+                        .ok_or(ServiceError::Engine(EditorError::UnsupportedTarget))?;
+                    for content in std::iter::once(&old).chain(replacement.iter()) {
+                        match content {
+                            Content::Image { .. } => requirements.images = true,
+                            Content::Reference { .. } => requirements.references = true,
+                            _ => return Err(ServiceError::Engine(EditorError::UnsupportedTarget)),
+                        }
+                    }
+                }
+                EditorCommand::TableCell { .. } | EditorCommand::TableStructure { .. } => {
+                    requirements.tables = true
+                }
                 _ => {}
             }
         }
