@@ -144,6 +144,7 @@ public final class NativeAttachments {
         for id in Array(views.keys) where descriptors[id] == nil {
             cancel(id); views.removeValue(forKey: id)?.removeFromSuperview()
         }
+        guard !disposed, !view.isDisposed else { return }
         for (id, descriptor) in descriptors {
             let child = views[id] ?? NativeAttachmentView(nodeID: id, descriptor: descriptor)
             child.owner = self; child.update(descriptor)
@@ -156,7 +157,9 @@ public final class NativeAttachments {
         guard let view, !view.isDisposed, !disposed, view.projectionFailure == nil,
               let revision = view.projection.revision, let child = views[nodeID] else { return }
         cancel(nodeID)
-        guard !disposed, !view.isDisposed else { return }
+        guard !disposed, !view.isDisposed, pending[nodeID] == nil,
+              view.projection.revision == revision,
+              currentDescriptor(nodeID) == child.descriptor else { return }
         let request = NativeAttachmentRequest(id: UUID(), nodeID: nodeID, descriptor: child.descriptor, revision: revision)
         pending[nodeID] = request; child.setState(.loading)
         switch child.descriptor.kind {
@@ -182,12 +185,17 @@ public final class NativeAttachments {
             }
         }
     }
+    private func currentDescriptor(_ nodeID: String) -> NativeAttachmentDescriptor? {
+        guard let tuple = view?.projection.richNodes[nodeID]?.wire["blockAttributes"] as? [Any] else { return nil }
+        return try? NativeAttachmentDescriptor(tuple)
+    }
     private func accept(_ request: NativeAttachmentRequest) -> NativeAttachmentView? {
         guard !disposed, let view, !view.isDisposed, view.projectionFailure == nil,
               pending[request.nodeID]?.id == request.id else { return nil }
         pending.removeValue(forKey: request.nodeID)
         guard view.projection.revision == request.revision,
-              let child = views[request.nodeID], child.descriptor == request.descriptor else { return nil }
+              let child = views[request.nodeID], child.descriptor == request.descriptor,
+              currentDescriptor(request.nodeID) == request.descriptor else { return nil }
         return child
     }
     private func finishUnavailable(_ request: NativeAttachmentRequest) { accept(request)?.setState(.failed("Host resolver unavailable")) }

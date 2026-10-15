@@ -224,12 +224,18 @@ extension NativeTextProjection {
 
     func anchorInputs(for target: NativeTextSelectionTarget) throws -> [AnchorInput] {
         _ = try range(for: target)
-        return [target.anchor, target.focus].map {
-            AnchorInput(node: $0.node,
-                offsetUtf16: richNodes[$0.node]?.attachment == true
-                    ? ($0.offsetUTF16 == 0 ? 0 : UInt32(richNodes[$0.node]!.runs.reduce(0) { $0 + ($1["text"] as! String).utf16.count }))
-                    : UInt32($0.offsetUTF16),
-                bias: richNodes[$0.node]?.attachment == true && $0.offsetUTF16 == 0 ? .left : .right)
+        return [target.anchor, target.focus].map { endpoint in
+            let atom = richNodes[endpoint.node]?.attachment == true
+            var offset = endpoint.offsetUTF16
+            if atom {
+                let runs = richNodes[endpoint.node]!.runs
+                let semanticLength: Int = runs.reduce(0) { total, run in
+                    total + (run["text"] as! String).utf16.count
+                }
+                offset = endpoint.offsetUTF16 == 0 ? 0 : semanticLength
+            }
+            return AnchorInput(node: endpoint.node, offsetUtf16: UInt32(offset),
+                bias: atom && endpoint.offsetUTF16 == 0 ? .left : .right)
         }
     }
 }

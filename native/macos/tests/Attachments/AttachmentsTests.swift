@@ -252,4 +252,22 @@ final class AttachmentsTests: XCTestCase {
             let after = try await self.read(view); XCTAssertEqual(before.revision, after.revision)
         }
     }
+    func testReentrantHostCancellationKeepsNewestRequestAndCancelsExactlyOnce() async throws {
+        try await fixture { view, manifest in
+            let child = try self.atom(view, manifest)
+            var callbacks: [@MainActor (Result<NSImage, Error>) -> Void] = []
+            var cancellations = 0
+            view.attachments.imageResolver = { _, complete in callbacks.append(complete) }
+            view.attachments.cancelHostRequest = { _ in
+                cancellations += 1
+                if cancellations == 1 { view.attachments.resolve(child.nodeID) }
+            }
+            view.attachments.resolve(child.nodeID)
+            view.attachments.resolve(child.nodeID)
+            XCTAssertEqual(callbacks.count, 2); XCTAssertEqual(cancellations, 1)
+            let latest = self.image(); callbacks[1](.success(latest)); callbacks[0](.success(self.image()))
+            XCTAssertTrue(child.imageView.image === latest)
+        }
+    }
+
 }
