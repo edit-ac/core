@@ -14,6 +14,8 @@ public final class NativeEditorView: NSView {
     public private(set) var projectionSessionFailure: NativeSessionFailure?
     private var selectionGeneration: UInt64 = 0
     private var selectionWaiters: [UUID: CheckedContinuation<NativeSessionResponse, Error>] = [:]
+    public private(set) lazy var input = NativeCommittedInput(view: self)
+    var applyingProjection = false
     public let scrollView: NSScrollView
     public let textView: NSTextView
 
@@ -30,6 +32,7 @@ public final class NativeEditorView: NSView {
         layout.addTextContainer(container)
         textView = NSTextView(frame: localFrame, textContainer: container)
         super.init(frame: frameRect)
+        textView.delegate = input
 
         textView.isRichText = true
         textView.isEditable = false
@@ -50,6 +53,11 @@ public final class NativeEditorView: NSView {
         scrollView.frame = bounds
         session.onProjection = { [weak self] result in
             guard let self, !self.isDisposed else { return }
+            self.applyingProjection = true
+            defer {
+                self.applyingProjection = false
+                self.textView.isEditable = self.projectionFailure == nil && !self.input.isPending
+            }
             guard case let .success(update) = result else {
                 if case let .failure(error) = result { self.projectionSessionFailure = error }
                 self.projectionFailure = .unavailableRevision
@@ -77,6 +85,7 @@ public final class NativeEditorView: NSView {
             case let .success(.snapshot(snapshot)):
                 self.sessionSnapshot = snapshot
                 self.sessionFailure = nil
+                self.textView.isEditable = snapshot.canApply && self.projectionFailure == nil && !self.input.isPending
 
             case let .failure(error): self.sessionFailure = error
             default: break
@@ -116,6 +125,8 @@ public final class NativeEditorView: NSView {
     /// The embedding host calls this when its editor/document is closed.
     public func dispose(completion: @escaping @MainActor @Sendable () -> Void = {}) {
         isDisposed = true
+        input.dispose()
+        textView.delegate = nil
         selectionGeneration += 1
         for waiter in selectionWaiters.values { waiter.resume(throwing: NativeProjectionFailure.disposed) }
         selectionWaiters = [:]

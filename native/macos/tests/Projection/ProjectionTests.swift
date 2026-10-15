@@ -66,7 +66,7 @@ final class ProjectionTests: XCTestCase {
             XCTAssertEqual(view.textView.string, "A🦀e\u{301}\nאבג العربية")
             XCTAssertEqual(view.projection.nodes.map(\.id), snapshot.nodes.map(\.id))
             XCTAssertEqual(view.projection.nodes[1].range.location, 6)
-            XCTAssertFalse(view.textView.isEditable)
+            XCTAssertTrue(view.textView.isEditable)
             XCTAssertFalse(view.textView.allowsUndo)
             XCTAssertEqual(view.sessionSnapshot, snapshot)
         }

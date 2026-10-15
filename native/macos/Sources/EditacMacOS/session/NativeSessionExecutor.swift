@@ -16,6 +16,7 @@ public enum NativeSessionRequest: Sendable {
     case retainSelection(revision: Data, inputs: [AnchorInput])
     case releaseSelection
     case resyncProjection
+    case nativeEdit(revision: Data, edits: [NativeSessionEdit], now: UInt64)
     case prepare(revision: Data, edits: [NativeSessionEdit], origin: String, now: UInt64)
     case commit(token: String, now: UInt64)
     case cancelPrepared(token: String)
@@ -170,6 +171,18 @@ public final class NativeSessionExecutor {
                 return .anchors(anchors)
             case .releaseSelection: try state.releaseSelection()
             case .resyncProjection: state.projectionSequence = nil
+            case let .nativeEdit(revision, edits, now):
+                // One queued operation owns prepare/commit/read; no UI callback or
+                // unrelated request can interleave between these shared calls.
+                let token = try session.prepareEdits(revision: revision, edits: edits,
+                    origin: "appkit-native-input", now: now)
+                do {
+                    _ = try session.commitEdits(token: token, now: now)
+                    return .snapshot(try session.read(now: now))
+                } catch {
+                    try? session.cancelEdits(token: token)
+                    throw error
+                }
             case let .prepare(revision, edits, origin, now):
                 return .prepared(try session.prepareEdits(revision: revision, edits: edits, origin: origin, now: now))
             case let .commit(token, now): return .committed(try session.commitEdits(token: token, now: now))
