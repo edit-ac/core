@@ -101,7 +101,7 @@ extension NativeTextProjection {
         } else { throw NativeProjectionFailure.malformedRichProjection }
         // Containers are retained shared structure, not editable text rows.
         // Their child block IDs/ranges remain stable through list/quote commands;
-        // attributed paragraph/list presentation belongs to the styles owner.
+        // attributed paragraph/list presentation uses the shared descriptor registry.
         let ordered = next.values.filter { $0.kind == "block" }.sorted { $0.order == $1.order ? $0.id < $1.id : $0.order < $1.order }
         // Text-only mapper remains the coordinate implementation, with one native
         // attachment unit per shared atom. It never edits the shared document.
@@ -158,6 +158,23 @@ extension NativeTextProjection {
                         offset += runRange.length
                     }
                 }
+            }
+        }
+        // Container-only patches (style/indent/number) also affect descendants.
+        // Update only presentation keys, retaining wire metadata and host attributes.
+        styleRegistry.retainContainers(in: next)
+        (textView.layoutManager as? NativeStyledLayoutManager)?.trailingPresentation = [:]
+        for (index, node) in ordered.enumerated() {
+            let range = nodes[index].range
+            let paragraphRange = NSRange(location: range.location,
+                length: range.length + (index + 1 < ordered.count ? 1 : 0))
+            let typing = styleRegistry.apply(node, nodes: next, range: range,
+                                                   paragraphRange: paragraphRange, storage: storage)
+            if range.length == 0 && textView.selectedRange().location == range.location {
+                textView.typingAttributes = typing
+            }
+            if index + 1 == ordered.count && range.length == 0 {
+                (textView.layoutManager as? NativeStyledLayoutManager)?.trailingPresentation = typing
             }
         }
         storage.endEditing()

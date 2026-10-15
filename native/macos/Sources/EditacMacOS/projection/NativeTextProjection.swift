@@ -50,6 +50,7 @@ public final class NativeTextProjection {
     public internal(set) var lastPatch: NativeTextStoragePatch?
     public internal(set) var selectionInvalidated = false
     public var selection: NativeTextSelectionTarget? { selectedTarget }
+    let styleRegistry = NativeStyleRegistry()
     var richNodes: [String: RichProjectionNode] = [:]
     var richSequence: UInt64?
     var richIdentity: Data?
@@ -160,6 +161,7 @@ public final class NativeTextProjection {
 
     public func dispose() {
         disposed = true; selectedTarget = nil; revision = nil
+        styleRegistry.dispose()
         richNodes = [:]; attachmentIdentities = [:]; anchoredSelection = false
     }
 

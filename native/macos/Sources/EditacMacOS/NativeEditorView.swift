@@ -27,7 +27,7 @@ public final class NativeEditorView: NSView {
         // Explicit TextKit 1 graph: no implicit TextKit 2 compatibility fallback.
         // DSK-1.2 probes this same path for composition and native child views.
         let storage = NSTextStorage()
-        let layout = NSLayoutManager()
+        let layout = NativeStyledLayoutManager()
         let container = NSTextContainer(containerSize: NSSize(
             width: localFrame.width, height: CGFloat.greatestFiniteMagnitude))
         storage.addLayoutManager(layout)
