@@ -26,7 +26,7 @@ const record = { version: gestureVersion, qualification: 'unqualified', profileH
     revision: spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout.trim(),
     cpu: cpus()[0].model, cores: cpus().length, memoryBytes: totalmem(), hostOS: `${platform()}/${release()}/${arch()}`,
     provenance: 'headless-browser-on-host', node: process.version, input: profile.input },
-  counts: { executed: 0, passed: 0, failed: 0, skipped: 12 }, cases: [], sourceInputs: {}, artifacts: {}, errors: [], cleanup: {} };
+  counts: { executed: 0, passed: 0, failed: 0, skipped: profile.fixtures.length * profile.presets.length * profile.gestures.length }, cases: [], sourceInputs: {}, artifacts: {}, errors: [], cleanup: {} };
 const tracked = spawnSync('git', ['ls-files', 'crates', 'packages', 'fixtures/schema-v5', 'Cargo.lock', 'Cargo.toml', 'package-lock.json', 'package.json', 'scripts/build-wasm.mjs'], { encoding: 'utf8' });
 if (tracked.status !== 0) throw Error('Cannot pin source closure');
 const inputs = [...new Set([...tracked.stdout.trim().split('\n'), profilePath, 'benchmarks/gesture-trace.mjs', 'benchmarks/gesture-client.mjs',
@@ -75,11 +75,20 @@ try {
         const prepared = await page.evaluate(({ name, preset, frozen }) => window.gestures.prepare(name, preset, frozen), { name, preset, frozen });
         item.semanticHash = digest(prepared.semantics); delete prepared.semantics; Object.assign(item, prepared);
         for (const kind of profile.gestures) {
-          const points = await page.evaluate(kind => window.gestures.setup(kind), kind);
+          let points = await page.evaluate(kind => window.gestures.setup(kind), kind);
+          // Retain the former fractional midpoint as a trusted native control,
+          // outside the measured repaired gesture. Reset before measurement.
+          const fractional = points.start.fractionalControl;
+          await page.mouse.move(fractional.x, fractional.y); await page.mouse.down();
+          const fractionalDown = await page.evaluate(() => window.gestures.endpoint());
+          await page.mouse.up();
+          const replayControl = { requested: fractional, afterDown: fractionalDown };
+          points = await page.evaluate(kind => window.gestures.setup(kind), kind);
           await page.mouse.move(points.start.x, points.start.y);
           await page.evaluate(kind => window.gestures.begin(kind), kind);
-          if (kind === 'autoscroll') await page.keyboard.down('Shift');
+
           await page.mouse.down();
+          const afterDown = await page.evaluate(() => window.gestures.endpoint());
           if (kind === 'drag') await page.waitForTimeout(200);
           for (let i = 1; i <= profile.pointerSteps; i++) {
             const target = kind === 'selection' ? { x: points.start.x + (points.end.x - points.start.x) * i / profile.pointerSteps, y: points.end.y }
@@ -90,10 +99,10 @@ try {
           }
           const beforeCancel = await page.evaluate(() => window.gestures.state());
           await page.keyboard.press('Escape'); await page.mouse.up();
-          if (kind === 'autoscroll') await page.keyboard.up('Shift');
+
           await page.evaluate(() => window.gestures.frames(3));
           const trace = await page.evaluate(() => window.gestures.finish());
-          Object.assign(trace, { setup: points, beforeCancel, cancel: { escape: true, mouseReleased: true } }); item.gestures.push(trace);
+          Object.assign(trace, { setup: points, replayControl, afterDown, beforeCancel, cancel: { escape: true, mouseReleased: true } }); item.gestures.push(trace);
           record.counts.executed++; record.counts.skipped--;
           try { inspectGesture(profile, item, trace); record.counts.passed++; }
           catch (error) { record.counts.failed++; record.errors.push(`${name}/${preset}/${kind}: ${error.message}`); }

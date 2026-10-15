@@ -1,10 +1,10 @@
 {
   "version": 1,
-  "id": "prf-02-diagnostics-v1",
+  "id": "prf-02-diagnostics-v2",
   "parent": "FIT-1.8-I1-B",
   "sourceRequirement": "architecture/tests/desktop-editing-cases.md#PRF-02",
   "scope": "Browser callback/frame and application geometry diagnostics; no compositor, native-internal geometry, tail or full FIT qualification",
-  "reviewedAt": "2026-10-15T00:33:58Z",
+  "reviewedAt": "2026-10-15T00:46:06.845560+00:00",
   "fixtures": [
     "Task",
     "Long"
@@ -16,7 +16,8 @@
   "gestures": [
     "selection",
     "drag",
-    "autoscroll"
+    "autoscroll",
+    "autoscroll-code"
   ],
   "pointerSteps": 120,
   "settleFrames": 24,
@@ -27,8 +28,7 @@
   "geometryScope": "Executed application DOMSelection mapping, DOMRenderer positions/full-document fallback, Element/Range rect calls; browser internals unobservable",
   "owningCommand": "node scripts/bench-gestures.mjs --seed-directory <retained-owning-directory> --output <unique-directory>",
   "autoscrollSetup": "full-corpus-end-boundary-320px-v1",
-  "autoscrollContent": "Editable prose start; code/table/highlight-specific gestures remain outside this diagnostic receipt",
-  "autoscrollModifiers": [
-    "Shift"
-  ]
+  "autoscrollContent": "Full-corpus prose and final code block, ordinary pointer; narrowest native-verified integral glyph pixel",
+  "autoscrollModifiers": [],
+  "endpointMethod": "integral-exact-caret-v1"
 }

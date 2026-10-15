@@ -25,8 +25,15 @@ test('owning trusted-input gesture matrix has current source/artifact/fixture id
       assert.equal(trace.setup.initialSelection.collapsed, trace.kind !== 'drag');
       for (const point of [trace.setup.start, trace.setup.end]) {
         assert(point.glyphWidth > 0 && Number.isFinite(point.x) && Number.isFinite(point.y));
-        assert([point.offset, point.offset + 1].includes(point.nativeOffset));
+        assert.equal(point.nativeOffset, point.offset);
+        assert(Number.isInteger(point.x) && Number.isInteger(point.y));
+        assert(point.endpoint && Array.isArray(point.endpoint.path));
       }
+      assert(trace.replayControl.afterDown.lastMouse.trusted);
+      assert.equal(trace.replayControl.afterDown.lastMouse.type, 'mousedown');
+      assert.equal(trace.replayControl.afterDown.lastMouse.x, Math.floor(trace.replayControl.requested.x));
+      assert.equal(trace.replayControl.afterDown.lastMouse.y, Math.floor(trace.replayControl.requested.y));
+      assert.deepEqual(trace.replayControl.afterDown.lastMouse.hit, trace.replayControl.requested.dispatchedHit);
       if (trace.kind !== 'drag') assert(trace.frames.some(f => f.positions > 0));
     }
   }
@@ -39,6 +46,14 @@ test('owning trusted-input gesture matrix has current source/artifact/fixture id
 });
 const change = mutate => { const r = structuredClone(record); mutate(r); return r; };
 for (const [name, mutate] of [
+  ['native endpoint overflow', r => r.cases[0].gestures[0].endpointDropped++],
+  ['missing endpoints', r => delete r.cases[0].gestures[0].nativeEndpoints],
+  ['dispatched coordinate mismatch', r => r.cases[0].gestures[0].nativeEndpoints.find(e => e.type === 'mousedown').x++],
+  ['native caret mismatch', r => r.cases[0].gestures[0].nativeEndpoints.find(e => e.type === 'mousedown').hit.offset++],
+  ['wrong anchor', r => r.cases[0].gestures[0].afterDown.anchorMatches = false],
+  ['wrong final focus', r => r.cases[0].gestures[0].endpointOracle.focusMatches = false],
+  ['wrong independent range', r => r.cases[0].gestures[0].endpointOracle.expectedLength++],
+  ['missing code autoscroll', r => r.cases[0].gestures.pop()],
   ['skipped runtime', r => r.counts.skipped++], ['failed runtime', r => r.counts.failed++], ['zero cases', r => r.counts.executed = 0],
   ['duplicate preset', r => r.cases[1].preset = r.cases[0].preset], ['unknown fixture', r => r.cases[0].fixture = 'small'],
   ['missing hardware', r => delete r.metadata.cpu], ['missing refresh', r => r.cases[0].refreshTimestamps = []],
@@ -57,7 +72,7 @@ test('gesture-specific limits remain explicitly unreviewed', () => {
   const p = structuredClone(profile); p.performanceLimits = { frameMs: 999 }; assert.throws(() => inspectGestures(p, record));
 });
 test('changing native modifier or replay matrix invalidates the diagnostic profile', () => {
-  for (const mutate of [p => p.autoscrollModifiers = [], p => p.fixtures = ['Task'], p => p.pointerSteps = 5]) {
+  for (const mutate of [p => p.autoscrollModifiers = ['Shift'], p => p.fixtures = ['Task'], p => p.pointerSteps = 5]) {
     const p = structuredClone(profile); mutate(p); assert.throws(() => inspectGestures(p, record));
   }
 });
