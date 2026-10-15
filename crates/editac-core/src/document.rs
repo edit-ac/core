@@ -507,7 +507,7 @@ impl Document {
             txn.apply_update(Update::merge_updates(decoded))
                 .map_err(|_| DocumentError::InvalidUpdate)?;
         }
-        if expected.has_structure() {
+        let baseline = if expected.has_structure() && !journal.is_empty() {
             let baseline = crate::new_document();
             register_profile_roots(&baseline, expected);
             baseline
@@ -516,30 +516,33 @@ impl Document {
                 .map_err(|_| DocumentError::InvalidUpdate)?;
             crate::editor::project(&baseline, expected.has_stable_presentation())
                 .map_err(ownership_error)?;
-            // Qualify each replica once. The generic validator would replay
-            // both complete ownership projections again, and the later root
-            // check would replay staging a third time. No writes occur between
-            // qualification and the immutable source-identity comparison.
+            // A journal must not repair an invalid checkpoint or replace an
+            // immutable source. With no journal, staging IS the checkpoint;
+            // its complete projection admission below qualifies that corpus.
             validate_immutable_maps(&baseline, &staging)?;
-            crate::editor::project(&staging, expected.has_stable_presentation())
-                .map_err(ownership_error)?;
-            validate_immutable_projected_structure(&baseline, &staging)?;
-        }
+            Some(baseline)
+        } else {
+            None
+        };
         let txn = staging.transact();
         if txn.store().pending_update().is_some() || txn.store().pending_ds().is_some() {
             return Err(DocumentError::IncompleteRestore);
         }
-        // Structural ownership was fully qualified above; this read-only
-        // pending-state inspection cannot invalidate that admission.
+        // Structured profiles receive complete projection admission below.
         if !expected.has_structure() {
             validate_roots(&txn, expected.has_blocks())?;
         }
         // The v2 profile qualifies the inherited ownership descriptor as well as
         // its tuples. Never publish/admit a split with corrupt binary anchors.
-        if expected.has_blocks() {
-            crate::projection::ProjectionIndex::with_identity(&staging, expected)
-                .read()
-                .map_err(|_| DocumentError::UnsupportedSchema)?;
+        let qualified_projection = if expected.has_blocks() {
+            let projection = crate::projection::ProjectionIndex::with_identity(&staging, expected);
+            let snapshot = projection.read_restore(expected.has_structure())?;
+            Some((projection, snapshot))
+        } else {
+            None
+        };
+        if let Some(baseline) = baseline {
+            validate_immutable_projected_structure(&baseline, &staging)?;
         }
         let mut excluded: HashSet<u32> = txn
             .state_vector()
@@ -556,13 +559,21 @@ impl Document {
         doc.transact_mut_with("restore")
             .apply_update(Update::decode_v1(&bytes).map_err(|_| DocumentError::InvalidUpdate)?)
             .map_err(|_| DocumentError::InvalidUpdate)?;
+        // This replica contains exactly the admitted staging state. Its only
+        // difference is the fresh local writer lease; no local write occurred.
+        let projection = match qualified_projection {
+            Some((projection, snapshot)) => projection
+                .into_restored_replica(&doc, snapshot)
+                .map_err(|_| DocumentError::UnsupportedSchema)?,
+            None => crate::projection::ProjectionIndex::with_identity(&doc, expected),
+        };
         CREATED
             .get_or_init(Default::default)
             .lock()
             .map_err(|_| DocumentError::WriterUnavailable)?
             .insert((expected.document_id.clone(), expected.epoch.clone()), true);
         Ok(Self {
-            projection: crate::projection::ProjectionIndex::with_identity(&doc, expected),
+            projection,
             doc,
             identity: expected.clone(),
             _writer: writer,

@@ -638,6 +638,111 @@ fn malformed_immutable_root_source_tuple_and_resource_updates_are_atomic() {
         )
     });
 }
+
+#[test]
+fn restored_projection_retains_first_read_evidence_and_fresh_writer_isolation() {
+    let mut live = engine();
+    let checkpoint = live.checkpoint();
+    let update = insert(&mut live, A, 1, "😀e\u{301}");
+    let expected = live.snapshot().unwrap();
+    for (checkpoint, journal) in [
+        (live.checkpoint(), vec![]),
+        (checkpoint, vec![update.clone(), update.clone()]),
+    ] {
+        let restored = Document::restore(&identity(), &checkpoint, &journal).unwrap();
+        assert_ne!(restored.writer_id(), checkpoint.writer_id);
+        assert_ne!(restored.writer_id(), live.writer_id());
+        let before = restored.checkpoint().bytes;
+        let first = restored.snapshot().unwrap();
+        assert_eq!(first.visible, expected.visible);
+        assert_eq!(first.recovery, expected.recovery);
+        assert_eq!(first.retained_structure, expected.retained_structure);
+        assert!(first.structure_rebuilt && first.source_reads > 0);
+        assert!(first.changed_nodes.contains(&A.to_owned()));
+        let next = restored.snapshot().unwrap();
+        assert!(next.changed_nodes.is_empty() && next.touched_ranges.is_empty());
+        assert!(!next.structure_rebuilt && next.source_reads == 0);
+        assert!(std::sync::Arc::ptr_eq(&first.visible[0], &next.visible[0]));
+        assert_eq!(restored.checkpoint().bytes, before);
+    }
+}
+
+#[test]
+fn restored_projection_observers_invalidate_before_first_public_read() {
+    let mut live = engine();
+    let original = value(&live, A);
+    let checkpoint = live.checkpoint();
+    let mut local = Document::restore(&identity(), &checkpoint, &[]).unwrap();
+    // Anchor/prepare inspect the transferred admission without consuming it.
+    insert(&mut local, A, 1, "😀e\u{301}");
+    assert_eq!(
+        value(&local, A),
+        format!("{}😀e\u{301}{}", &original[..1], &original[1..])
+    );
+    let changed = local.snapshot().unwrap();
+    assert_eq!(local.snapshot().unwrap().source_reads, 0);
+    let fresh = restore(&local.checkpoint().bytes).snapshot().unwrap();
+    assert_eq!(changed.visible, fresh.visible);
+    assert_eq!(changed.retained_structure, fresh.retained_structure);
+
+    let mut remote = Document::restore(&identity(), &checkpoint, &[]).unwrap();
+    let update = insert(&mut live, A, 1, "remote");
+    remote.apply_replay(&update).unwrap();
+    let actual = remote.snapshot().unwrap();
+    let expected = live.snapshot().unwrap();
+    assert_eq!(actual.visible, expected.visible);
+    assert_eq!(actual.retained_structure, expected.retained_structure);
+    assert_eq!(remote.snapshot().unwrap().source_reads, 0);
+}
+
+#[test]
+fn journal_cannot_repair_invalid_checkpoint_or_replace_admitted_source() {
+    let raw = m::seed();
+    m::set(
+        &raw,
+        7,
+        L,
+        m::arr(vec![Any::from("ordered"), Any::from(0u32)]),
+    );
+    let invalid = InitializedCheckpoint {
+        identity: identity(),
+        initialized: true,
+        writer_id: 11,
+        bytes: m::bytes(&raw),
+    };
+    let clock = raw.transact().state_vector();
+    m::set(
+        &raw,
+        7,
+        L,
+        m::arr(vec![Any::from("ordered"), Any::from(1u32)]),
+    );
+    let repaired = ReplayUpdate {
+        identity: identity(),
+        bytes: raw.transact().encode_state_as_update_v1(&clock),
+    };
+    assert!(Document::restore(&identity(), &invalid, &[]).is_err());
+    assert!(Document::restore(&identity(), &invalid, &[repaired]).is_err());
+    // The repaired final state is itself valid: the baseline rejection above
+    // must not be replaced by accepting only the final combined projection.
+    restore(&m::bytes(&raw));
+
+    let live = engine();
+    let checkpoint = live.checkpoint();
+    let raw = peer(&live);
+    let clock = raw.transact().state_vector();
+    raw.get_or_insert_map(m::ROOTS[1]).insert(
+        &mut raw.transact_mut(),
+        A,
+        XmlTextPrelim::new(value(&live, A)),
+    );
+    let replacement = ReplayUpdate {
+        identity: identity(),
+        bytes: raw.transact().encode_state_as_update_v1(&clock),
+    };
+    assert!(Document::restore(&identity(), &checkpoint, &[replacement]).is_err());
+    assert_eq!(live.checkpoint().bytes, checkpoint.bytes);
+}
 #[test]
 fn real_production_three_replica_move_move_edit_six_orders_and_duplicate_restore() {
     let seed = engine().checkpoint().bytes;

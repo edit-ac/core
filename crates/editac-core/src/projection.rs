@@ -204,6 +204,56 @@ impl ProjectionIndex {
     pub(crate) fn with_identity(doc: &Doc, identity: &crate::document::DocumentIdentity) -> Self {
         Self::with_profile(doc, identity.has_stable_presentation())
     }
+    /// Restore-only transfer after encoding this admitted replica and applying
+    /// those exact bytes to a fresh writer, with no intervening writes. Cache
+    /// values are derived, but source text handles and root observers belong to
+    /// staging and must be rebound; never transfer staging observer branches.
+    pub(crate) fn into_restored_replica(
+        self,
+        doc: &Doc,
+        snapshot: Snapshot,
+    ) -> Result<Self, ProjectionError> {
+        let next = Self::with_profile(doc, self.stable_presentation);
+        let mut cache = std::mem::take(&mut *self.cache.lock().unwrap());
+        let txn = doc.transact();
+        let texts = txn
+            .get_map(ROOTS[1])
+            .ok_or(ProjectionError::InvalidSchema)?;
+        for (id, source) in &mut cache.sources {
+            let Some(Out::YXmlText(text)) = texts.get(&txn, id) else {
+                return Err(ProjectionError::InvalidSchema);
+            };
+            if source.identity != format!("{:?}", XmlOut::Text(text.clone()).id()) {
+                return Err(ProjectionError::InvalidOwnership);
+            }
+            source.text = text;
+        }
+        // Keep initial change/range evidence for the first public read. Before
+        // that read any observed write clears this result and structural=true
+        // forces a fresh admission, exactly like an uninitialized index.
+        *next.inspected.lock().unwrap() = Some((cache, snapshot));
+        Ok(next)
+    }
+    /// Preserve restore's typed ownership/resource errors while using that same
+    /// admitted replay to build its projection rather than replaying it twice.
+    pub(crate) fn read_restore(
+        &self,
+        structured: bool,
+    ) -> Result<Snapshot, crate::document::DocumentError> {
+        if !structured {
+            return self
+                .read()
+                .map_err(|_| crate::document::DocumentError::UnsupportedSchema);
+        }
+        let admitted = crate::editor::projection(&self.doc, self.stable_presentation)
+            .map_err(crate::document::ownership_error)?;
+        self.refresh_general_admitted(
+            &mut self.pending.lock().unwrap(),
+            &mut self.cache.lock().unwrap(),
+            admitted,
+        )
+        .map_err(|_| crate::document::DocumentError::UnsupportedSchema)
+    }
     fn with_profile(doc: &Doc, stable_presentation: bool) -> Self {
         let txn = doc.transact();
         let roots: Vec<_> = ROOTS
@@ -523,9 +573,20 @@ impl ProjectionIndex {
         {
             return Ok(Self::unchanged_general(cache));
         }
-        let (view, retained, editor) =
-            crate::editor::projection(&self.doc, self.stable_presentation)
-                .map_err(|_| ProjectionError::InvalidOwnership)?;
+        let admitted = crate::editor::projection(&self.doc, self.stable_presentation)
+            .map_err(|_| ProjectionError::InvalidOwnership)?;
+        self.refresh_general_admitted(pending, cache, admitted)
+    }
+    fn refresh_general_admitted(
+        &self,
+        pending: &mut Pending,
+        cache: &mut Cache,
+        (view, retained, editor): (
+            crate::ownership::View,
+            Any,
+            Option<crate::editor_mapping::View>,
+        ),
+    ) -> Result<Snapshot, ProjectionError> {
         let txn = self.doc.transact();
         let texts = txn
             .get_map(ROOTS[1])
