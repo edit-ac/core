@@ -3,18 +3,18 @@
   "gate": "FIT-1.6-I2",
   "state": "implemented-and-verified",
   "sourceRevision": "c353c87f04046a451645445cf3b8d7c05fdd2b43d4cc683bf44c1b9cf2e6a11a",
-  "implementationRevision": "ce331ec5d0741587d1db108ef6dab25a74762dbe",
+  "implementationRevision": "eda13a57196e9adf6dc19856f58a0cf94e9115f0",
   "deliveryReceipt": {
-    "path": "architecture-results/fit-1.6-20261016/source-cache-refresh-1/delivery-receipt.json",
-    "sha256": "1b6bab8b3966dfa3ea75f5c86ac48d200b2ef7776c6c285ba3692afb8b33a118"
+    "path": "architecture-results/fit-1.6-20261016/stage-cache-refresh-1/delivery-receipt.json",
+    "sha256": "8d565fec38039e0894e40f423e6a1f0b600a26e000a3df9ee3ee738f0bb8cb2d"
   },
   "sharedReceipt": {
-    "path": "architecture-results/fit-1.6-20261016/source-cache-refresh-1/consolidated/shared-receipt.json",
-    "sha256": "1a602da8d14e79b94fddd01fc446fe860cd735e271772160d0decd09ba7dd7e4"
+    "path": "architecture-results/fit-1.6-20261016/stage-cache-refresh-1/consolidated/shared-receipt.json",
+    "sha256": "9809841979ed69f10ab220dcbf4951bc635b72219c7108e626a0703c8d0bc042"
   },
   "canonicalReceipt": {
-    "path": "architecture-results/fit-1.6-20261016/source-cache-refresh-1/canonical/receipt.json",
-    "sha256": "352a11dadb6b13b07d3e26fb713502cd560f3244efb148c76197a876f2aacdc9"
+    "path": "architecture-results/fit-1.6-20261016/stage-cache-refresh-1/canonical/receipt.json",
+    "sha256": "af1d38c814908bed92c89811063f101314030042e3c40014225b6f1de566e826"
   },
   "counts": {
     "canonical": {
