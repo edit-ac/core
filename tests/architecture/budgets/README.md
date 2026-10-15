@@ -362,3 +362,21 @@ rejects missing/overlapping/mislabeled phases, payload fields and dropped spans.
 The text-only path retains text admission and the final qualified hierarchy,
 immutable-structure and exact-size checks while avoiding redundant full replay
 between text steps. Structural commands still validate their intermediate view.
+
+PRF-06 final validation observations partition the qualified staged projection,
+selection/hierarchy checks, immutable base maps, before/after source ownership,
+and retained-source identity comparison. All six numeric subphases must occur
+once, in order, inside validation; payloads, overlaps and missing phases fail
+admission. Production WASM remains free of observer callbacks. Source-bound raw
+records distinguish full ownership replay from the optimized identity traversal.
+
+The editor's final ProjectionIndex admits the staged document before immutable
+comparison. Its internal validator re-reads the observed index so a mutation
+cannot reuse stale admission, shares the full validator's immutable base-map
+checks, and compares every original XmlText key and nested CRDT BranchID directly.
+The owning Document has already admitted the original replica. The generic full
+replay validator remains in place for other admission/history paths. Replaced
+sources, missing sources and immutable base changes still reject; no source text,
+marks or replay data are omitted from stage qualification. v4/v5 regressions
+compare both validators after Unicode edits and hostile changes, including changes
+after cache population. This optimization changes no encoded edit or public API.

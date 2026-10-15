@@ -205,6 +205,17 @@ impl ProjectionIndex {
         }
         self.refresh(&mut pending, &mut cache)
     }
+    /// Reuse qualified stage admission for immutable source comparison. Re-read
+    /// first so an intervening observed mutation can never use a stale cache.
+    /// `before` is the owning Document's already-admitted replica.
+    pub(crate) fn validate_immutable_structure(
+        &self,
+        before: &Doc,
+    ) -> Result<(), crate::document::DocumentError> {
+        self.read()
+            .map_err(|_| crate::document::DocumentError::UnsupportedSchema)?;
+        crate::document::validate_immutable_projected_structure(before, &self.doc)
+    }
     /// Inspect current semantics without consuming dirty ranges or publishing a cache.
     /// Prepared commands and applicability must not steal the next snapshot's evidence.
     pub(crate) fn inspect(&self) -> Result<Snapshot, ProjectionError> {
@@ -442,8 +453,9 @@ impl ProjectionIndex {
         {
             return Ok(Self::unchanged_general(cache));
         }
-        let (view, retained, editor) = crate::editor::projection(&self.doc, self.stable_presentation)
-            .map_err(|_| ProjectionError::InvalidOwnership)?;
+        let (view, retained, editor) =
+            crate::editor::projection(&self.doc, self.stable_presentation)
+                .map_err(|_| ProjectionError::InvalidOwnership)?;
         let txn = self.doc.transact();
         let texts = txn
             .get_map(ROOTS[1])
@@ -936,4 +948,98 @@ fn preorder(nodes: &BTreeMap<String, Arc<ProjectedNode>>) -> Vec<String> {
         ordered.push(id);
     }
     ordered
+}
+
+#[cfg(test)]
+mod immutable_stage_tests {
+    use super::*;
+    use crate::{document::DocumentError, editor_mapping as v4, stable_editor_mapping as v5};
+    use yrs::{GetString, XmlTextPrelim};
+
+    fn check(stable: bool, scenario: u8) {
+        let before = if stable { v5::seed() } else { v4::seed() };
+        let after = v4::fork(&before, 22);
+        let index = ProjectionIndex::with_profile(&after, stable);
+        index.read().unwrap(); // Deliberately populate a cache before mutation.
+        let id = "n:11:1";
+        match scenario {
+            0 => {
+                // Unicode text edits keep the same nested CRDT source.
+                let text = v4::text(&after, id);
+                text.insert(&mut after.transact_mut(), 0, "😀e\u{301}");
+            }
+            1 => {
+                // Valid local structure, but an existing immutable base changed.
+                v4::set(
+                    &after,
+                    2,
+                    id,
+                    v4::arr(vec![Any::from("@root"), Any::from(99)]),
+                );
+            }
+            2 => {
+                // Same text/key is insufficient: the CRDT source was replaced.
+                let content = v4::text(&after, id).get_string(&after.transact());
+                let mut t = after.transact_mut();
+                t.get_map(ROOTS[1])
+                    .unwrap()
+                    .insert(&mut t, id, XmlTextPrelim::new(content));
+            }
+            3 => {
+                // Full stage admission must still reject malformed ownership.
+                v4::set(&after, 0, id, Any::from("invalid-kind"));
+            }
+            4 => {
+                // Missing sources must not reuse a previously admitted cache.
+                let mut t = after.transact_mut();
+                t.get_map(ROOTS[1]).unwrap().remove(&mut t, id);
+            }
+            _ => unreachable!(),
+        }
+        let expected = crate::document::validate_immutable_structure(&before, &after, stable);
+        let bytes_before = v4::bytes(&before);
+        let bytes_after = v4::bytes(&after);
+        let result = index.validate_immutable_structure(&before);
+        assert_eq!(
+            result.is_ok(),
+            expected.is_ok(),
+            "stable={stable}, scenario={scenario}"
+        );
+        if scenario == 0 {
+            assert_eq!(result, Ok(()));
+        } else {
+            assert_eq!(result, Err(DocumentError::UnsupportedSchema));
+        }
+        assert_eq!(v4::bytes(&before), bytes_before);
+        assert_eq!(v4::bytes(&after), bytes_after);
+    }
+    macro_rules! cases {
+        ($name:ident, $stable:expr) => {
+            mod $name {
+                use super::*;
+                #[test]
+                fn unicode_preserves_identity() {
+                    check($stable, 0);
+                }
+                #[test]
+                fn changed_immutable_base_rejects() {
+                    check($stable, 1);
+                }
+                #[test]
+                fn replaced_source_rejects() {
+                    check($stable, 2);
+                }
+                #[test]
+                fn malformed_ownership_rejects() {
+                    check($stable, 3);
+                }
+                #[test]
+                fn removed_source_invalidates_cache() {
+                    check($stable, 4);
+                }
+            }
+        };
+    }
+    cases!(v4_profile, false);
+    cases!(v5_profile, true);
 }

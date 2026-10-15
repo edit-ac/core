@@ -3,7 +3,8 @@
 // The existing callback probe observes renderer work in the derivative only.
 // No fixture runtime, production hooks or payload capture.
 const phases = ['baseline', 'stage', 'projection', 'planning', 'validation', 'size', 'encoding'].map(p => `engine.editor.${p}`);
-const internal = ['engine.prepare', ...phases, 'engine.editor.textSize'];
+const validation = ['projection', 'selectionHierarchy', 'immutableMaps', 'beforeOwnership', 'afterOwnership', 'sourceIdentity'].map(p => `engine.editor.validation.${p}`);
+const internal = ['engine.prepare', ...phases, ...validation, 'engine.editor.textSize'];
 const operations = ['storage.command', 'storage.commitPrepared', 'ffi.prepare', 'ffi.commit', 'ffi.take_patch', 'render.patch'];
 export function installCommandAttribution(sdk, clock = () => performance.now()) {
   if (!sdk.diagnosticEngine) return null;
@@ -50,16 +51,16 @@ export function summarizeCommand(trace) {
   for (const op of operations) check(trace.spans.filter(s => s.operation === op).length === 1, `missing/duplicate ${op}`);
   const engine = trace.spans.some(s => s.operation === 'engine.prepare');
   if (engine) {
-    for (const op of ['engine.prepare', ...phases]) check(trace.spans.filter(s => s.operation === op).length === 1, `missing/duplicate ${op}`);
-    for (let i = 1; i < phases.length; i++) {
-      const a = trace.spans.find(s => s.operation === phases[i-1]), b = trace.spans.find(s => s.operation === phases[i]);
+    for (const op of ['engine.prepare', ...phases, ...validation]) check(trace.spans.filter(s => s.operation === op).length === 1, `missing/duplicate ${op}`);
+    for (const sequence of [phases, validation]) for (let i = 1; i < sequence.length; i++) {
+      const a = trace.spans.find(s => s.operation === sequence[i-1]), b = trace.spans.find(s => s.operation === sequence[i]);
       check(a.startMs + a.durationMs <= b.startMs + .001, 'overlapping engine phases');
     }
   }
   for (const s of trace.spans) {
     check((operations.includes(s.operation) || engine && internal.includes(s.operation)) && Object.keys(s).sort().join() === 'durationMs,operation,startMs', 'operation/payload');
     check(Number.isFinite(s.startMs) && s.startMs >= 0 && Number.isFinite(s.durationMs) && s.durationMs >= 0 && s.startMs + s.durationMs <= trace.elapsedMs + .001, 'clock');
-    const parent = s.operation === 'engine.prepare' ? 'ffi.prepare' : phases.includes(s.operation) ? 'engine.prepare' : s.operation === 'engine.editor.textSize' ? 'engine.editor.planning' : s.operation === 'storage.command' ? null : s.operation === 'ffi.prepare' || s.operation === 'storage.commitPrepared' ? 'storage.command' : 'storage.commitPrepared';
+    const parent = s.operation === 'engine.prepare' ? 'ffi.prepare' : validation.includes(s.operation) ? 'engine.editor.validation' : phases.includes(s.operation) ? 'engine.prepare' : s.operation === 'engine.editor.textSize' ? 'engine.editor.planning' : s.operation === 'storage.command' ? null : s.operation === 'ffi.prepare' || s.operation === 'storage.commitPrepared' ? 'storage.command' : 'storage.commitPrepared';
     if (parent) check(trace.spans.some(p => p.operation === parent && p.startMs <= s.startMs + .001 && p.startMs + p.durationMs + .001 >= s.startMs + s.durationMs), 'orphan boundary');
   }
   const textSizes = trace.spans.filter(s => s.operation === 'engine.editor.textSize').sort((a,b) => a.startMs-b.startMs);
@@ -73,7 +74,7 @@ export function summarizeCommand(trace) {
   }
   const exclusiveMs = Object.fromEntries([...operations, ...(engine ? internal : []), 'other'].map(op => [op, 0]));
   const points = [...new Set([0, trace.elapsedMs, ...trace.spans.flatMap(s => [s.startMs, s.startMs + s.durationMs])])].sort((a,b) => a-b);
-  const priority = [...(engine ? ['engine.editor.textSize', ...phases, 'engine.prepare'] : []), 'render.patch', 'ffi.prepare', 'ffi.commit', 'ffi.take_patch', 'storage.commitPrepared', 'storage.command'];
+  const priority = [...(engine ? ['engine.editor.textSize', ...validation, ...phases, 'engine.prepare'] : []), 'render.patch', 'ffi.prepare', 'ffi.commit', 'ffi.take_patch', 'storage.commitPrepared', 'storage.command'];
   for (let i = 1; i < points.length; i++) {
     const middle = (points[i-1] + points[i]) / 2;
     const op = priority.find(op => trace.spans.some(s => s.operation === op && s.startMs <= middle && s.startMs + s.durationMs > middle)) ?? 'other';

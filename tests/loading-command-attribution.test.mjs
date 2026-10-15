@@ -10,7 +10,7 @@ test('packed command partition attributes actual prepare/commit/patch and render
   const result = summarizeCommand(sample());
   assert.deepEqual(result.exclusiveMs, { 'storage.command': 3, 'storage.commitPrepared': 10, 'ffi.prepare': 10,
     'ffi.commit': 20, 'ffi.take_patch': 5, 'render.patch': 50, other: 2 });
-  assert.equal(Object.values(result.exclusiveMs).reduce((a,b) => a+b), 100);
+  assert(Math.abs(Object.values(result.exclusiveMs).reduce((a,b) => a+b) - 100) < 1e-9);
   assert.equal(installCommandAttribution({}), null);
 });
 for (const [name, change] of Object.entries({
@@ -34,6 +34,8 @@ const internalSample = () => {
   for (const [i, phase] of ['baseline','stage','projection','planning','validation','size','encoding'].entries())
     t.spans.push({ operation: `engine.editor.${phase}`, startMs: 3+i, durationMs: 1 });
   t.spans.push({ operation: 'engine.editor.textSize', startMs: 6, durationMs: .5 });
+  for (const [i, phase] of ['projection','selectionHierarchy','immutableMaps','beforeOwnership','afterOwnership','sourceIdentity'].entries())
+    t.spans.push({ operation: `engine.editor.validation.${phase}`, startMs: 7 + i / 10, durationMs: .1 });
   return t;
 };
 test('internal preparation observations partition the enclosing FFI without double counting', () => {
@@ -42,13 +44,18 @@ test('internal preparation observations partition the enclosing FFI without doub
   assert.equal(result.exclusiveMs['engine.prepare'], 3);
   assert.equal(result.exclusiveMs['engine.editor.planning'], .5);
   assert.equal(result.exclusiveMs['engine.editor.textSize'], .5);
-  assert.equal(Object.values(result.exclusiveMs).reduce((a,b) => a+b), 100);
+  assert(Math.abs(Object.values(result.exclusiveMs).reduce((a,b) => a+b) - 100) < 1e-9);
 });
 for (const [name, change] of Object.entries({
   'missing internal phase': t => t.spans.splice(7, 1),
   'orphan internal phase': t => t.spans[7].startMs = 0,
   'overlapping internal phase': t => t.spans[7].durationMs = 2,
   'unknown internal phase': t => t.spans[7].operation = 'engine.editor.secret',
-  'overlapping text-size observations': t => t.spans.push({ ...t.spans.at(-1) }),
+  'overlapping text-size observations': t => t.spans.push({ ...t.spans.find(s => s.operation === 'engine.editor.textSize') }),
+  'missing validation phase': t => t.spans.pop(),
+  'duplicate validation phase': t => t.spans.push({ ...t.spans.at(-1) }),
+  'orphan validation phase': t => t.spans.at(-1).startMs = 8,
+  'overlapping validation phases': t => t.spans.at(-2).durationMs = .2,
+  'private validation payload': t => t.spans.at(-1).text = 'private',
   'private internal payload': t => t.spans[7].text = 'private',
 })) test(`internal preparation admission rejects ${name}`, () => { const t = internalSample(); change(t); assert.throws(() => summarizeCommand(t)); });

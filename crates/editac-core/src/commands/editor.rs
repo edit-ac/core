@@ -1984,12 +1984,21 @@ impl Document {
         drop(_phase);
         #[cfg(feature = "fitness-trace")]
         let _phase = crate::fitness::Span::new("engine.editor.validation");
+        #[cfg(feature = "fitness-trace")]
+        let _validation_phase = crate::fitness::Span::new("engine.editor.validation.projection");
         // Projection performs the same qualified ownership replay and validates
         // the final stage. A separate view immediately before it duplicates that
         // replay without observing any intervening mutation.
-        let hierarchy = crate::projection::ProjectionIndex::with_identity(&stage, self.identity())
+        let final_projection =
+            crate::projection::ProjectionIndex::with_identity(&stage, self.identity());
+        let hierarchy = final_projection
             .read()
             .map_err(|_| EditorError::InvalidCommand)?;
+        #[cfg(feature = "fitness-trace")]
+        drop(_validation_phase);
+        #[cfg(feature = "fitness-trace")]
+        let _validation_phase =
+            crate::fitness::Span::new("engine.editor.validation.selectionHierarchy");
         if let Some(caret) = &result_caret {
             match crate::anchors::resolve(&stage.transact(), self.identity(), &hierarchy, caret) {
                 crate::anchors::Resolution::Position(p)
@@ -2023,7 +2032,10 @@ impl Document {
                 EditorError::InvalidCommand
             }
         })?;
-        crate::document::validate_immutable_structure(&self.doc, &stage, stable)
+        #[cfg(feature = "fitness-trace")]
+        drop(_validation_phase);
+        final_projection
+            .validate_immutable_structure(&self.doc)
             .map_err(EditorError::Admission)?;
         #[cfg(feature = "fitness-trace")]
         drop(_phase);

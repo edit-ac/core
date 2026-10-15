@@ -157,10 +157,10 @@
     "state": "PARTIAL",
     "scope": "Validated Rust preparation/trace prerequisite plus actual native observations and current browser refresh. Native ASCII first key failed; original FIT and B3 remain open. No native family is canonically admitted from a failed suite."
   },
-  "currentCanonicalState": "PENDING: native Long OS-keyboard/restoration remains incomplete. Current packed internal-preparation repair has focused production/observer admission only; historical native/other producer pins do not qualify current source.",
+  "currentCanonicalState": "PENDING: native Long OS-keyboard/restoration remains incomplete. Current qualified-stage immutable-source startup repair has focused production/observer admission only; stale other producer records do not qualify current source.",
   "activeChild": "FIT-1.8-I1-B5",
   "nativeProfileHash": "5e80df8d90c38acd6ca191b2856c5d6c66ea9630ec87e5f943fe0e42a99d4fd9",
-  "lastRelevantChange": "2026-10-15: engine-internal PRF-06 preparation attribution and redundant text-stage/pre-projection ownership replay repair; native/current canonical and original parent remain unfinished.",
+  "lastRelevantChange": "2026-10-15: final-validation phase attribution and qualified-stage immutable source identity comparison eliminate repeated before/after ownership replay; native/current canonical and original parent remain unfinished.",
   "startupAttributionPartial": {
     "path": "architecture-results/fit-1.8-20261015/startup-phases-1/partial-delivery-receipt.json",
     "sha256": "fa192635d3fa520b1303eb8d9521e7aa3493269a034a43521927460e202806ab",
@@ -172,8 +172,8 @@
     "state": "PARTIAL"
   },
   "startupInternalPartial": {
-    "path": "architecture-results/fit-1.8-20261015/startup-internal-2/partial-delivery-receipt.json",
-    "sha256": "f20925d8bff88b1d5c32f43da4f7863f5258b411b2dd3e2f1377e339c2199f37",
-    "state": "Implemented/verified internal preparation attribution and redundant ownership-replay repair prerequisite. Current production24/24 and observer24/24, Rust1713/1713, focused29/29 plus integrity20/20; retained before-source352/current359 snapshots. No startup/native/full FIT qualification."
+    "path": "architecture-results/fit-1.8-20261015/startup-validation-1/partial-delivery-receipt.json",
+    "sha256": "fb24e5e5db497e4817e6e8d96a936bf022898fe352880e48899de1a07c4328c0",
+    "state": "Implemented/verified final-validation attribution and qualified-stage immutable-source repair prerequisite; Rust1723, render30/lifecycle27, production24+observer24 and focused54 pass with zero final failures/skips. Parent/B5/startup/native/full FIT qualification remain open."
   }
 }

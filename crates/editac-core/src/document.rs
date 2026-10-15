@@ -861,6 +861,35 @@ pub(crate) fn validate_immutable_structure(
     after: &Doc,
     stable: bool,
 ) -> Result<(), DocumentError> {
+    validate_immutable_maps(before, after)?;
+    #[cfg(feature = "fitness-trace")]
+    let _phase = crate::fitness::Span::new("engine.editor.validation.beforeOwnership");
+    let old = crate::editor::project(before, stable).map_err(ownership_error)?;
+    #[cfg(feature = "fitness-trace")]
+    drop(_phase);
+    #[cfg(feature = "fitness-trace")]
+    let _phase = crate::fitness::Span::new("engine.editor.validation.afterOwnership");
+    let new = crate::editor::project(after, stable).map_err(ownership_error)?;
+    #[cfg(feature = "fitness-trace")]
+    drop(_phase);
+    #[cfg(feature = "fitness-trace")]
+    let _phase = crate::fitness::Span::new("engine.editor.validation.sourceIdentity");
+    for (key, value) in old.sources {
+        let Any::Map(v) = value else { unreachable!() };
+        let Some(Any::Map(w)) = new.sources.get(&key) else {
+            return Err(DocumentError::UnsupportedSchema);
+        };
+        if v["identity"] != w["identity"] {
+            return Err(DocumentError::UnsupportedSchema);
+        }
+    }
+    Ok(())
+}
+
+// Shared by the full replay validator and the already-qualified editor stage.
+fn validate_immutable_maps(before: &Doc, after: &Doc) -> Result<(), DocumentError> {
+    #[cfg(feature = "fitness-trace")]
+    let _phase = crate::fitness::Span::new("engine.editor.validation.immutableMaps");
     let a = before.transact();
     let b = after.transact();
     for root in if a.get_map(crate::editor_mapping::ROOTS[9]).is_some() {
@@ -876,14 +905,48 @@ pub(crate) fn validate_immutable_structure(
             }
         }
     }
-    let old = crate::editor::project(before, stable).map_err(ownership_error)?;
-    let new = crate::editor::project(after, stable).map_err(ownership_error)?;
-    for (key, value) in old.sources {
-        let Any::Map(v) = value else { unreachable!() };
-        let Some(Any::Map(w)) = new.sources.get(&key) else {
-            return Err(DocumentError::UnsupportedSchema);
-        };
-        if v["identity"] != w["identity"] {
+    Ok(())
+}
+
+/// Only ProjectionIndex calls this after qualifying the current staged replica.
+/// The owning Document has already admitted `before`. Identity comparison needs
+/// neither source text serialization nor a second complete ownership replay.
+pub(super) fn validate_immutable_projected_structure(
+    before: &Doc,
+    after: &Doc,
+) -> Result<(), DocumentError> {
+    validate_immutable_maps(before, after)?;
+    fn sources(
+        doc: &Doc,
+    ) -> Result<std::collections::BTreeMap<String, yrs::branch::BranchID>, DocumentError> {
+        let t = doc.transact();
+        let texts = t
+            .get_map(crate::ownership::ROOTS[1])
+            .ok_or(DocumentError::UnsupportedSchema)?;
+        texts
+            .iter(&t)
+            .map(|(key, value)| {
+                let Out::YXmlText(text) = value else {
+                    return Err(DocumentError::UnsupportedSchema);
+                };
+                Ok((key.to_owned(), yrs::XmlOut::Text(text).id()))
+            })
+            .collect()
+    }
+    #[cfg(feature = "fitness-trace")]
+    let _phase = crate::fitness::Span::new("engine.editor.validation.beforeOwnership");
+    let old = sources(before)?;
+    #[cfg(feature = "fitness-trace")]
+    drop(_phase);
+    #[cfg(feature = "fitness-trace")]
+    let _phase = crate::fitness::Span::new("engine.editor.validation.afterOwnership");
+    let new = sources(after)?;
+    #[cfg(feature = "fitness-trace")]
+    drop(_phase);
+    #[cfg(feature = "fitness-trace")]
+    let _phase = crate::fitness::Span::new("engine.editor.validation.sourceIdentity");
+    for (key, value) in old {
+        if new.get(&key) != Some(&value) {
             return Err(DocumentError::UnsupportedSchema);
         }
     }
