@@ -11,6 +11,34 @@ public struct NativeReplacementTarget: Sendable {
 /// marked text is written locally; committed content always enters the Session.
 @MainActor
 final class NativeInputTextView: NSTextView {
+    override func accessibilityLabel() -> String? { editor?.accessibility.label }
+    override func accessibilityHelp() -> String? { editor?.accessibility.help }
+    override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? { editor?.accessibility.actions }
+    override func setAccessibilityValue(_ value: Any?) {
+        guard let text = value as? String else { return }
+        editor?.accessibility.replace(text, range: NSRange(location: 0, length: string.utf16.count))
+    }
+    override func setAccessibilitySelectedText(_ text: String?) {
+        guard let text else { return }
+        editor?.accessibility.replace(text, range: selectedRange())
+    }
+    override func setAccessibilitySelectedTextRange(_ range: NSRange) { editor?.accessibility.select(range) }
+    override func setAccessibilitySelectedTextRanges(_ ranges: [NSValue]?) {
+        guard let ranges, ranges.count == 1 else { return }
+        editor?.accessibility.select(ranges[0].rangeValue)
+    }
+    override func accessibilityString(for range: NSRange) -> String? {
+        guard editor?.accessibility.valid(range) == true else { return nil }
+        return super.accessibilityString(for: range)
+    }
+    override func accessibilityAttributedString(for range: NSRange) -> NSAttributedString? {
+        guard editor?.accessibility.valid(range) == true else { return nil }
+        return super.accessibilityAttributedString(for: range)
+    }
+    override func accessibilityFrame(for range: NSRange) -> NSRect {
+        guard editor?.accessibility.valid(range) == true else { return .zero }
+        return super.accessibilityFrame(for: range)
+    }
     override func layout() {
         super.layout()
         editor?.projection.layoutTables()

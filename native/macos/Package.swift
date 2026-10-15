@@ -28,6 +28,8 @@ let package = Package(
                     path: "tests/Toolkit"),
         .testTarget(name: "EditacMacOSDurabilityTests", dependencies: ["EditacMacOS"],
                     path: "tests/Durability"),
+        .testTarget(name: "EditacMacOSAccessibilityTextTests", dependencies: ["EditacMacOS"],
+                    path: "tests/AccessibilityText"),
         .testTarget(name: "EditacMacOSCommandsTests", dependencies: ["EditacMacOS"],
                     path: "tests/Commands"),
         .testTarget(name: "EditacMacOSAttachmentsTests", dependencies: ["EditacMacOS"],

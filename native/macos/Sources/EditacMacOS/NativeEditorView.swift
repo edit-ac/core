@@ -5,6 +5,7 @@ import AppKit
 @MainActor
 public final class NativeEditorView: NSView {
     public let session = NativeSessionExecutor()
+    public private(set) lazy var accessibility = NativeTextAccessibility(view: self)
     public private(set) lazy var storage = NativeDocumentLifecycle(view: self)
     public private(set) var sessionSnapshot: NativeSessionRead?
     public private(set) var sessionFailure: NativeSessionFailure?
@@ -78,6 +79,7 @@ public final class NativeEditorView: NSView {
             }
             self.projectionSessionFailure = nil
             do {
+                let previousText = self.textView.string
                 try self.projection.apply(update)
                 if let catalog = update.commandCatalog, let history = update.history {
                     self.commands.observe(catalog: catalog, history: history)
@@ -85,6 +87,9 @@ public final class NativeEditorView: NSView {
                 self.projectionFailure = nil
                 try self.attachments.reconcile()
                 self.textView.setAccessibilityLabel("Editor (native projection)")
+                if previousText != self.textView.string {
+                    NSAccessibility.post(element: self.textView, notification: .valueChanged)
+                }
             } catch {
                 self.attachments.cancelAll()
                 self.projectionFailure = error as? NativeProjectionFailure ?? .malformedRichProjection
