@@ -76,6 +76,30 @@ test('paste plus beforeinput and input is deduplicated; repeated same payload st
 }));
 test('clipboard write failure cannot cut content or add history',()=>probe('write-failure',async(page,fact)=>{await select(page,0,0,0,5);const result=await page.evaluate(()=>window.inputFixture.protocol.clipboard.copy({getData:()=>'',setData:()=>{throw Error('denied');}},true));assert.equal(result.disposition,'rejected');const s=await state(page,fact);assert.equal(s.text[0],'alpha');assert.equal(s.journal.length,0);assert.equal(s.history.undoGroups,0);}));
 test('read-only and active composition reject paste with zero updates',()=>probe('readonly-composition',async(page,fact)=>{await page.evaluate(()=>window.inputFixture.protocol.setReadOnly(true));assert.equal((await paste(page,{'text/plain':'bad'})).disposition,'rejected');await page.evaluate(()=>{const f=window.inputFixture;f.protocol.setReadOnly(false);f.event('compositionstart',{data:''});});assert.equal((await paste(page,{'text/plain':'bad'})).disposition,'rejected');const s=await state(page,fact);assert.equal(s.text[0],'alpha');assert.equal(s.journal.length,0);}));
+test('full plain copy exceeds import bounds without admitting oversized paste or cut',()=>probe('large-copy',async(page,fact)=>{
+  await page.evaluate(async()=>{
+    const f=window.inputFixture;await f.destroy();
+    // Each source stays inside creation's UTF-16 bound; their UTF-8 bytes plus
+    // the canonical inter-block newline exceed the clipboard import bound.
+    await f.mount('é'.repeat(262144),'ö'.repeat(262144));
+  });
+  const end=await page.evaluate(()=>window.inputFixture.engine.read().visible.filter(n=>n.kind==='block').at(-1).runs.reduce((n,r)=>n+r.text.length,0));
+  await select(page,0,0,1,end);
+  const result=await page.evaluate(()=>{
+    const f=window.inputFixture,expected=f.engine.read().visible.filter(n=>n.kind==='block').map(n=>n.runs.map(r=>r.text).join('')).join('\n');
+    const before=f.engine.checkpoint().bytes,history=f.engine.history({type:'state'}),flavors={},cutFlavors={};let updates=0;
+    const subscription=f.engine.subscribe({type:'updates'},()=>updates++);
+    const data=store=>({getData:m=>store[m]??'',setData:(m,v)=>store[m]=v});
+    const copied=f.protocol.clipboard.copy(data(flavors));
+    const cut=f.protocol.clipboard.copy(data(cutFlavors),true);
+    const pasted=f.protocol.clipboard.paste({getData:m=>m==='text/plain'?flavors[m]:''},{literal:true});
+    const after=f.engine.checkpoint().bytes;subscription.dispose();
+    return {copied,cut,pasted,bytes:new TextEncoder().encode(expected).length,exact:flavors['text/plain']===expected,flavors:Object.keys(flavors),cutFlavors:Object.keys(cutFlavors),unchanged:before.length===after.length&&before.every((b,i)=>b===after[i]),historyUnchanged:JSON.stringify(history)===JSON.stringify(f.engine.history({type:'state'})),updates};
+  });
+  fact.copyBounds=result;
+  assert(result.bytes>1048576);assert.equal(result.copied.disposition,'handled');assert.equal(result.exact,true);assert.deepEqual(result.flavors,['text/plain']);assert.deepEqual(result.cutFlavors,[]);assert.equal(result.cut.reason,'clipboard-limit');assert.equal(result.pasted.reason,'clipboard-limit');assert.equal(result.unchanged,true);assert.equal(result.historyUnchanged,true);assert.equal(result.updates,0);
+}));
+
 test('empty/unavailable clipboard never erases a replacement selection',()=>probe('empty',async(page,fact)=>{await select(page,0,0,0,5);assert.equal((await paste(page,{})).disposition,'rejected');const s=await state(page,fact);assert.equal(s.text[0],'alpha');assert.equal(s.journal.length,0);}));
 test('explicit plain command captures stable target before OS permission and preserves later selection',()=>probe('async-plain',async(page,fact)=>{
   await page.evaluate(()=>{const f=window.inputFixture;window.pendingPlain=f.protocol.clipboard.pastePlainText(()=>new Promise(resolve=>window.finishRead=resolve));f.select(f.ids[1],2);});await page.evaluate(()=>window.finishRead('plain'));assert.equal((await page.evaluate(()=>window.pendingPlain)).disposition,'committed');const s=await state(page,fact);assert.equal(s.text[0],'alphaplain');assert.equal(s.caret.node,s.ids[1]);assert.equal(s.caret.offset,2);

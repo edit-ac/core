@@ -1,5 +1,5 @@
 import { errorMessage, rejected } from '../errors.js';
-import type { CommitResult, EngineHandle, FragmentBlock, FragmentRun, PrepareRequest, ProjectedNode } from '@edit-ac/core';
+import type { CommitResult, EngineHandle, FragmentBlock, FragmentRun, PrepareRequest, ProjectedNode, Snapshot } from '@edit-ac/core';
 import { PendingPaste } from './pending.js';
 import type { DOMRenderer } from '../dom/render.js';
 import type { DOMSelection, RetainedSelection } from '../dom/selection.js';
@@ -8,6 +8,7 @@ import { inlineMarks } from '../dom/marks.js';
 
 export const FRAGMENT_MIME = 'application/x-edit-ac-fragment+json';
 const LIMIT = 1024 * 1024;
+const exceedsLimit = (text: string): boolean => new TextEncoder().encode(text).length > LIMIT;
 const names = new Set<string>([...inlineMarks, 'link']);
 export interface Fragment { version: 1; schema: string; blocks: readonly FragmentBlock[] }
 export interface ClipboardData { getData(type: string): string; setData(type: string, value: string): void }
@@ -19,7 +20,7 @@ export function validateClipboardCodecs(codecs:readonly ClipboardCodec[]):void {
       if(codecs.length>16)throw Error('clipboard-codec-limit');
 }
 export function decodeFragment(raw: string, engine: EngineHandle): Fragment {
-  if (new TextEncoder().encode(raw).length > LIMIT) throw Error('fragment-limit');
+  if (exceedsLimit(raw)) throw Error('fragment-limit');
   // Preserve browser JSON syntax diagnostics; Rust owns the bounded shape check.
   const value: unknown = JSON.parse(raw);
   engine.validateFragment(raw);
@@ -111,17 +112,16 @@ export class ClipboardInput {
     catch(error) { return this.last=rejected(errorMessage(error)); }
     finally {target.dispose();}
   }
-  #prepareData(target: RetainedSelection, data: Pick<ClipboardData,'getData'>, options: {literal?:boolean}): readonly FragmentBlock[] {
+  #prepareData(target: RetainedSelection, data: Pick<ClipboardData,'getData'>, options: {literal?:boolean}, snapshot: Snapshot = this.#engine.read()): readonly FragmentBlock[] {
       const a = this.#engine.resolve(target.range.anchor), b = this.#engine.resolve(target.range.focus);
       if (a.type !== 'position' || b.type !== 'position') throw Error('clipboard-target');
-      const nodes = this.#engine.read().visible;
-      const node = nodes.find(n => n.id === a.node);
+      const node = snapshot.visible.find(n => n.id === a.node);
       let runOffset = 0;
       const inlineCode = node?.runs.some(run => { const start = runOffset; runOffset += run.text.length; return run.attributes.code === true && a.offset >= start && a.offset < runOffset; });
       const literal = options.literal || (Array.isArray(node?.blockAttributes) && node.blockAttributes[0] === 'code') || inlineCode;
       let blocks: readonly FragmentBlock[] | undefined;
       if(!literal)for(const mime of ['text/rtf','application/rtf','text/tab-separated-values']){
-        const raw=data.getData(mime);if(raw&&!this.#codecs.some(c=>c.mime===mime)&&new TextEncoder().encode(raw).length<=LIMIT){this.#diagnose(`${mime}-codec-unavailable`);this.#recoverSource(mime,raw,`${mime}-codec-unavailable`);}
+        const raw=data.getData(mime);if(raw&&!this.#codecs.some(c=>c.mime===mime)&&!exceedsLimit(raw)){this.#diagnose(`${mime}-codec-unavailable`);this.#recoverSource(mime,raw,`${mime}-codec-unavailable`);}
       }
       if (!literal) {
         const raw = data.getData(FRAGMENT_MIME);
@@ -131,25 +131,25 @@ export class ClipboardInput {
           blocks = candidate;
           if (candidate.some(b => b.attributes?.type === 'content' && Array.isArray(b.attributes.tuple) && b.attributes.tuple[0] === 'module:editac.inert-extension')) this.#diagnose('inert-extension-source-fallback');
         }
-        catch (error) { const reason=errorMessage(error);this.#diagnose(reason);if(new TextEncoder().encode(raw).length<=LIMIT)this.#recoverSource(FRAGMENT_MIME,raw,reason); }
+        catch (error) { const reason=errorMessage(error);this.#diagnose(reason);if(!exceedsLimit(raw))this.#recoverSource(FRAGMENT_MIME,raw,reason); }
       }
       if (!blocks && !literal) {
         for (const mime of ['text/markdown', 'text/x-markdown', 'text/html', ...this.#codecs.map(c => c.mime)]) {
           const raw = data.getData(mime); if (!raw) continue;
           try {
-            if (new TextEncoder().encode(raw).length > LIMIT) throw Error('clipboard-limit');
+            if (exceedsLimit(raw)) throw Error('clipboard-limit');
             const codec = this.#codecs.find(c => c.mime === mime);
             if (codec) blocks = codec.prepare(raw);
             else if (mime === 'text/html') blocks = importHTML(this.#renderer.root.ownerDocument, raw, code => { this.#diagnose(code); this.#recoverSource(mime, raw, code); });
             else if (mime === 'text/markdown' || mime === 'text/x-markdown') blocks = this.#markdown(raw, mime);
             else throw Error(`${mime}-importer-unavailable`);
-            blocks = decodeFragment(JSON.stringify({ version: 1, schema: this.#engine.read().identity.schema, blocks }), this.#engine).blocks;
+            blocks = decodeFragment(JSON.stringify({ version: 1, schema: snapshot.identity.schema, blocks }), this.#engine).blocks;
             if (!this.#engine.can({ kind: 'fragment', origin: `clipboard:${this.#sequence+1}`, range: target.range, blocks })) throw Error(`${mime}-semantics`);
             break;
           } catch (error) {
             blocks = undefined;
             const reason = errorMessage(error); this.#diagnose(reason);
-            if (new TextEncoder().encode(raw).length <= LIMIT) {
+            if (!exceedsLimit(raw)) {
               this.recovery.push({ mime, raw, reason }); if (this.recovery.length > 4) this.recovery.shift();
             }
           }
@@ -158,7 +158,7 @@ export class ClipboardInput {
       if (!blocks) {
         const text = data.getData('text/plain');
         if (!text) throw Error('clipboard-empty');
-        if (new TextEncoder().encode(text).length > LIMIT) throw Error('clipboard-limit');
+        if (exceedsLimit(text)) throw Error('clipboard-limit');
         if (!literal && this.plainTextPolicy === 'markdown' && !this.#engine.markdownAvailable) {
           this.#diagnose('markdown-codec-unavailable'); this.#recoverSource('text/plain', text, 'markdown-codec-unavailable');
         }
@@ -173,17 +173,22 @@ export class ClipboardInput {
     const source: Record<string,string>={};
     const mimes=[FRAGMENT_MIME,'text/markdown','text/x-markdown','text/html',...this.#codecs.map(c=>c.mime),'text/plain'];
     if(mimes.length>32) throw Error('clipboard-codec-limit');
-    for(const mime of new Set(mimes)) {const raw=data.getData(mime);if(raw) {if(new TextEncoder().encode(raw).length>LIMIT) throw Error('clipboard-limit');source[mime]=raw;}}
+    for(const mime of new Set(mimes)) {const raw=data.getData(mime);if(raw) {if(exceedsLimit(raw)) throw Error('clipboard-limit');source[mime]=raw;}}
     const target=this.#selection.retain(), generation=this.#generation;
-    const opening=target?[target.range.anchor,target.range.focus].map(anchor=>{const at=this.#engine.resolve(anchor);if(at.type!=='position')throw Error('clipboard-target');return {node:at.node,parent:this.#engine.read().visible.find(n=>n.id===at.node)?.parent,version:this.#engine.read().visible.find(n=>n.id===at.node)?.editor?.version};}):[];
+    const nodes=target?this.#engine.read().visible:[];
+    const opening=target?[target.range.anchor,target.range.focus].map(anchor=>{const at=this.#engine.resolve(anchor);if(at.type!=='position')throw Error('clipboard-target');const node=nodes.find(n=>n.id===at.node);return {node:at.node,parent:node?.parent,version:node?.editor?.version};}):[];
     const job=new PendingPaste(this.#renderer.root.ownerDocument,source,async job=>{
       await (options.schedule?.()??new Promise<void>(resolve=>setTimeout(resolve,0)));
       if(!job.active||generation!==this.#generation||this.#disposed||this.#blocked()||!target?.active) return rejected('clipboard-canceled');
+      // One fresh projection after the asynchronous gap; never reuse opening
+      // state for current target admission or clipboard preparation.
+      const snapshot=this.#engine.read();
       for(const [i,anchor] of [target.range.anchor,target.range.focus].entries()) {
         const at=this.#engine.resolve(anchor);
-        if(at.type!=='position'||at.node!==opening[i]?.node||this.#engine.read().visible.find(n=>n.id===at.node)?.parent!==opening[i]?.parent||this.#engine.read().visible.find(n=>n.id===at.node)?.editor?.version!==opening[i]?.version) return rejected('clipboard-target-changed');
+        const node=at.type==='position'?snapshot.visible.find(n=>n.id===at.node):undefined;
+        if(at.type!=='position'||at.node!==opening[i]?.node||node?.parent!==opening[i]?.parent||node?.editor?.version!==opening[i]?.version) return rejected('clipboard-target-changed');
       }
-      const start=performance.now(), blocks=this.#prepareData(target,{getData:m=>source[m]??''},options);job.timings.preparationMs=performance.now()-start;
+      const start=performance.now(), blocks=this.#prepareData(target,{getData:m=>source[m]??''},options,snapshot);job.timings.preparationMs=performance.now()-start;
       if(!job.active||generation!==this.#generation||this.#disposed||this.#blocked()||!target.active||!job.beginApply()) return rejected('clipboard-canceled');
       const current=this.#selection.retain(), applying=performance.now();
       try {return this.last=this.#apply(target,blocks);}
@@ -221,7 +226,7 @@ export class ClipboardInput {
         if (generation !== this.#generation || this.#disposed) throw Error('clipboard-canceled'); return read();
       }), cancellation]);
       if (generation !== this.#generation || this.#disposed || this.#blocked() || !target.active) return this.last = rejected('clipboard-canceled');
-      if (!text || new TextEncoder().encode(text).length > LIMIT) return this.last = rejected(text ? 'clipboard-limit' : 'clipboard-empty');
+      if (!text || exceedsLimit(text)) return this.last = rejected(text ? 'clipboard-limit' : 'clipboard-empty');
       // Preserve a user's later selection for an asynchronous result.
       const current = this.#selection.retain();
       try { return this.last = this.#apply(target, [{ runs: [{ text, marks: [] }], attributes: null }]); }
@@ -246,10 +251,14 @@ export class ClipboardInput {
       const inert = selected.some(n => Array.isArray(n.blockAttributes) && n.blockAttributes[0] === 'module:editac.inert-extension');
       const clipped = selected.map((node, index) => ({ node, start: index === 0 ? from : 0, end: index === selected.length - 1 ? to : node.runs.reduce((n, r) => n + r.text.length, 0) }));
       const plain = clipped.map(({node, start, end}) => node.runs.map(run => run.text).join('').slice(start, end)).join('\n');
-      if (new TextEncoder().encode(plain).length > LIMIT) throw Error('clipboard-limit');
+      const oversized = exceedsLimit(plain);
+      // Copy can export the already admitted document as plain text. Import
+      // and structured-fragment bounds still apply; an oversized cut cannot
+      // promise a restorable fragment and must leave the document untouched.
+      if (cut && oversized) throw Error('clipboard-limit');
       data.setData('text/plain', plain);
       if (cut && data.getData('text/plain') !== plain) throw Error('clipboard-write-failed');
-      try {
+      if (!oversized) try {
         const fragment: Fragment = { version: 1, schema: snapshot.identity.schema,
           blocks: clipped.map(({node, start, end}) => {
             const containers: NonNullable<FragmentBlock['containers']>[number][] = [];
@@ -318,7 +327,7 @@ export class ClipboardInput {
         this.#pending = { type: 'paste', phase: 'beforeinput', nodes: this.#renderer.textBlockIds() };
       } else {
         const target = this.#selection.retain();
-        if (target && text && !this.#blocked() && new TextEncoder().encode(text).length <= LIMIT) {
+        if (target && text && !this.#blocked() && !exceedsLimit(text)) {
           const nodes = this.#renderer.textBlockIds();
           this.#pending = { type: 'paste', phase: 'beforeinput', target, text, nodes };
           for (const node of nodes) this.#renderer.hold(node);

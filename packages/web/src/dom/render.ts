@@ -124,10 +124,13 @@ export class DOMRenderer {
     if (this.#disposed || patch.revision < this.#revision) return;
     if (patch.projectionError) throw new Error(`DOM projection failed: ${patch.projectionError}`);
     this.#revision = patch.revision;
-    let structure = false;
+    let structure = false, parentStyle = false;
     // Apply metadata first so children see their new parent presentation.
     const changed = new Map<string, ProjectedNode>();
-    for (const change of patch.nodes) if (change.type === "visible") changed.set(change.node.id, change.node);
+    for (const change of patch.nodes) if (change.type === "visible") {
+      changed.set(change.node.id, change.node);
+      parentStyle ||= change.node.kind === "list";
+    }
     const parentOf = (node: ProjectedNode) => changed.get(node.parent) ?? this.#entries.get(node.parent)?.node;
     for (const change of patch.nodes) {
       const owner = change.type === "removed" ? change.id : change.node.id;
@@ -144,10 +147,12 @@ export class DOMRenderer {
         structure ||= previousOuter !== this.#entries.get(change.node.id)?.outer;
       }
     }
-    // Parent style changes may alter child wrappers/checklist metadata.
-    if (structure || patch.operation === "Editor" || patch.operation === "Structure") {
-      for (const entry of this.#entries.values()) if (!this.#held.has(entry.node.id)) this.#update(entry.node, parentOf(entry.node));
-      this.#arrange();
+    // Parent style changes may alter child wrappers/checklist metadata. An
+    // ordinary editor text patch has already refreshed its own nodes above;
+    // unrelated blocks must not pay another run diff or DOM arrangement.
+    if (structure || parentStyle) {
+      for (const entry of this.#entries.values()) if (!this.#held.has(entry.node.id) && (structure || changed.has(entry.node.parent))) this.#update(entry.node, parentOf(entry.node));
+      if (structure) this.#arrange();
     }
   }
   #update(node: ProjectedNode, parent: ProjectedNode | undefined): void {
@@ -206,18 +211,18 @@ export class DOMRenderer {
     this.#patchRuns(entry, node.runs, tag === "pre");
   }
   #arrange(): void {
-    const groups = new Map<HTMLElement, HTMLElement[]>();
+    const groups = new Map<HTMLElement, Set<HTMLElement>>();
     for (const entry of [...this.#entries.values()].sort((a, b) => a.node.order - b.node.order)) {
       const parent = this.#entries.get(entry.node.parent);
       // Nested containers follow a list item's paragraph, never sit inside it.
       const target = parent ? (parent.node.kind === "block" && parent.outer !== parent.content ? parent.outer : parent.content) : this.root;
-      const children = groups.get(target) ?? []; children.push(entry.outer); groups.set(target, children);
+      const children = groups.get(target) ?? new Set<HTMLElement>(); children.add(entry.outer); groups.set(target, children);
     }
     for (const [parent, children] of groups) {
       let cursor: ChildNode | null = parent.firstChild;
       for (const child of children) {
         // Skip a list item's own text and static marker when arranging nested lists.
-        while (cursor && !children.includes(cursor as HTMLElement)) cursor = cursor.nextSibling;
+        while (cursor && !children.has(cursor as HTMLElement)) cursor = cursor.nextSibling;
         if (child !== cursor) parent.insertBefore(child, cursor);
         cursor = child.nextSibling;
       }
