@@ -14,6 +14,7 @@ function iconAsset(handle){
  if(assetMode==='huge')return new Blob([new Uint8Array(32769)],{type:'image/png'});
  return new Blob([Uint8Array.from(atob('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'),c=>c.charCodeAt(0))],{type:'image/gif'});
 }
+let initialCheckpoint;
 let engine, surface, links, ids, policy='local-paste', pending=[], commands=[], patches=[], listeners=new Set(), released=0, host;
 const url='https://example.com/path?private=query';
 function mount(text='alpha') {
@@ -21,7 +22,7 @@ function mount(text='alpha') {
  host={principal:'alice',tenant:'team',authority:null,scope:{document:documentId,session:'session1',revision:'policy:1',permission:'permission1',authorized:true},policyRevision:'1',readonly:false,
  capabilities:{publicMetadata:true,privateLookup:false,title:true,icon:true,preview:true,activate:true,publishMetadata:true}};
  engine.subscribe({type:'all'},p=>patches.push({operation:p.operation,origin:p.origin}));
- bind();select(ids[0],text.length);engine.history({type:'clear'});
+ bind();select(ids[0],text.length);engine.history({type:'clear'});initialCheckpoint=engine.checkpoint();
 }
 function bind(){surface=mountEditorSurface(root,engine,{links:linkEnrichment({iconAsset,attached:p=>{links=p;},policy:()=>policy,context:()=>{if(!contextAvailable)throw Error('Prepared host unavailable');return host;},subscribe:cb=>{listeners.add(cb);return()=>{listeners.delete(cb);released++;};},ports:{publicMetadata:(request,signal)=>new Promise((resolve,reject)=>pending.push({request,signal,resolve,reject}))}}),commit:r=>{commands.push(r);return engine.commit(engine.prepare(r));}});}
 function select(node,offset=0,to=offset){
@@ -52,5 +53,6 @@ function mutate(action){
  }
 }
 function replay(){const checkpoint=engine.checkpoint();surface.dispose();engine.dispose();engine=runtime.restoreEngine(checkpoint.identity,checkpoint);ids=engine.read().visible.map(n=>n.id);bind();}
+function reset(){surface.dispose();engine.dispose();engine=runtime.restoreEngine(initialCheckpoint.identity,initialCheckpoint);ids=engine.read().visible.map(n=>n.id);bind();select(ids[0],5);engine.history({type:'clear'});}
 function state(){return {assetUrls,revokedAssets,nodes:engine.read().visible,revision:engine.read().revision,history:engine.history({type:'state'}),commands,patches,requests:pending.map(p=>p.request),aborted:pending.map(p=>p.signal.aborted),preview:links.element.textContent,views:links.element.childElementCount,released,listeners:listeners.size,errors:engine.takeObserverErrors?.()??[]};}
-window.inputFixture={mount,get engine(){return engine;},get surface(){return surface;},get ids(){return ids;},select,paste,respond,mutate,state,replay,assetMode:mode=>{assetMode=mode;},unavailableContext:()=>{contextAvailable=false;},silentReadonly:()=>{host={...host,readonly:true};},silentSession:()=>{host={...host,scope:{...host.scope,session:'silent-session2'}};},setPolicy:p=>{policy=p;for(const cb of listeners)cb();},refresh:()=>links.refresh(ids[0]),commit:()=>links.commitMetadata(pending.at(-1).request.requestId),remount:()=>{surface.dispose();bind();},destroy:()=>{surface.dispose();engine.dispose();}};
+window.inputFixture={mount,reset,get engine(){return engine;},get surface(){return surface;},get ids(){return ids;},select,paste,respond,mutate,state,replay,assetMode:mode=>{assetMode=mode;},unavailableContext:()=>{contextAvailable=false;},silentReadonly:()=>{host={...host,readonly:true};},silentSession:()=>{host={...host,scope:{...host.scope,session:'silent-session2'}};},setPolicy:p=>{policy=p;for(const cb of listeners)cb();},refresh:()=>links.refresh(ids[0]),commit:()=>links.commitMetadata(pending.at(-1).request.requestId),remount:()=>{surface.dispose();bind();},destroy:()=>{surface.dispose();engine.dispose();}};

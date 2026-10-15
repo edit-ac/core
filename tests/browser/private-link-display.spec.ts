@@ -125,3 +125,18 @@ test('pending refresh times out and aborts the host without stealing focus', () 
   const s = await state(page, fact); empty(s.viewers.alice); assert.equal(s.viewers.alice.busy, false); assert.deepEqual(s.viewers.alice.commands, []);
   assert.equal(await page.locator('#alice button').evaluate(e => e === document.activeElement), true);
 }, { cache: false }));
+
+test('qualification keeps private refresh, stale completion and transport errors out of ordinary browser logs',()=>probe('qualification-log-secrecy',async(page,fact)=>{
+ const logs=[];page.on('console',message=>logs.push({type:message.type(),text:message.text()}));
+ const before=await state(page,fact);
+ await page.evaluate(()=>{const f=window.inputFixture;f.refresh('alice');f.respond('alice');});
+ await page.waitForFunction(()=>!window.inputFixture.state().viewers.alice.busy);
+ let s=await state(page,fact);assert.deepEqual(s.viewers.alice.titles,['Secret Alice title']);unchanged(before,s);
+ await page.evaluate(()=>{const f=window.inputFixture;f.refresh('alice');f.respond('alice','reject');});
+ await page.waitForFunction(()=>!window.inputFixture.state().viewers.alice.busy);
+ await page.evaluate(()=>{const f=window.inputFixture;f.refresh('alice');f.change('alice','revoke');f.respond('alice');});
+ await page.waitForTimeout(0);s=await state(page,fact);empty(s.viewers.alice);unchanged(before,s);
+ for(const message of logs)assert.ok(!/Secret|secret-image|secret-icon|Bearer|credential/i.test(message.text),'private content in ordinary console output');
+ // Retain only redacted diagnostic metadata, never console message contents.
+ fact.logSecrecy={available:true,rejected:true,revokedLateResult:true,consoleEvents:logs.length,privateFieldsFound:0};
+},{cache:false}));
