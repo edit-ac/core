@@ -22,6 +22,26 @@ test('100 KiB preparation captures once, preserves later selection and commits o
 test('accessible cancel retains exact source with zero effects and ignores late completion',()=>probe('cancel',async(page,fact)=>{
   const raw='# canceled 😀';await start(page,raw);const before=await page.evaluate(()=>Array.from(window.inputFixture.engine.checkpoint().bytes));await page.getByRole('button',{name:'Cancel paste'}).click();assert.equal((await page.evaluate(()=>window.pasteJob.result)).reason,'clipboard-canceled');await finish(page);const s=await state(page,fact);assert.equal(s.journal.length,0);assert.equal(s.history.undoGroups,0);assert.equal(s.recovery[0].raw,raw);assert.deepEqual(await page.evaluate(()=>Array.from(window.inputFixture.engine.checkpoint().bytes)),before);assert.equal(await page.getByRole('button',{name:'Cancel paste'}).count(),0);
 }));
+test('deferred paste reads one projection per boundary and preserves rich paste and undo',()=>probe('projection-boundaries',async(page,fact)=>{
+  const result=await page.evaluate(async()=>{
+    const f=window.inputFixture,{ClipboardInput}=await import('/web/clipboard/fragment.js');
+    let reads=0,release;
+    const engine={...f.engine,read(){reads++;return f.engine.read();}};
+    const clipboard=new ClipboardInput(f.renderer,f.selection,engine,request=>{
+      const plan=f.engine.prepare(request);try{return f.engine.commit(plan);}finally{f.engine.releasePlan(plan);}
+    },()=>false);
+    const before=f.engine.read().visible.map(n=>n.runs.map(r=>r.text).join(''));
+    f.select(f.ids[0],5);
+    const job=clipboard.pasteDeferred({getData:m=>m==='text/html'?'<b>fresh</b>':m==='text/plain'?'fresh':''},{schedule:()=>new Promise(resolve=>release=resolve)});
+    const openingReads=reads;await Promise.resolve();release();const outcome=await job.result;
+    const totalReads=reads,after=f.engine.read().visible.map(n=>n.runs.map(r=>r.text).join(''));
+    const history=f.engine.history({type:'state'});f.engine.history({type:'undo'});
+    const restored=f.engine.read().visible.map(n=>n.runs.map(r=>r.text).join(''));
+    clipboard.dispose();return {openingReads,totalReads,outcome,before,after,restored,history};
+  });
+  fact.projections=result;
+  assert.equal(result.openingReads,1);assert.equal(result.totalReads,2);assert.equal(result.outcome.disposition,'committed');assert.deepEqual(result.after,['alphafresh','independent']);assert.deepEqual(result.restored,result.before);assert.equal(result.history.undoGroups,1);
+}));
 test('deleted target rejects rather than redirecting to an adjacent owner',()=>probe('delete',async(page,fact)=>{
   await start(page,'**recover**',1);await page.evaluate(async()=>{const f=window.inputFixture,{init}=await import('@edit-ac/core'),runtime=await init('/core/wasm/editac_wasm_bg.wasm'),local=f.engine,vector=local.stateVector(),peer=runtime.restoreEngine(local.read().identity,local.checkpoint()),nodes=peer.read().visible.filter(n=>n.kind==='block');try{peer.commit(peer.prepare({kind:'editor',origin:'remote-delete',commands:[{type:'join',first:nodes[0].id,second:nodes[1].id}]}));local.applyUpdate(peer.encodeUpdate(vector));}finally{peer.dispose();}});
   const before=await state(page,fact);assert.equal((await finish(page)).disposition,'rejected');const after=await state(page,fact);assert.deepEqual(after.text,before.text);assert.equal(after.journal.length,before.journal.length);assert.equal(after.history.undoGroups,0);assert.equal(after.recovery[0].raw,'**recover**');

@@ -204,6 +204,28 @@ test('structural patches preserve node identity while changing headings and movi
   assert.equal(result.heading,'H3');assert.equal(result.same,true);assert.equal(result.itemSame,true);assert.equal(result.nestedItem,null);assert.equal(result.all,true);
 }));
 
+test('editor text patches leave unrelated list DOM untouched and container styles refresh children',async()=>withContext('incremental-editor',async (context,fact)=>{
+  const page=await open(context);await page.evaluate(()=>window.renderFixture.mount());
+  const result=await page.evaluate(async()=>{
+    const f=window.renderFixture,r=f.renderer,block=r.getBlock(f.ids[5]),item=block.parentElement;
+    const mutations=[];const observer=new MutationObserver(records=>mutations.push(...records));
+    observer.observe(item,{attributes:true,childList:true,characterData:true,subtree:true});
+    const at=f.engine.anchor(f.ids[0],0,'right');
+    try {await f.command([{type:'insert',at,text:'Z'}]);} finally {f.engine.releaseAnchor(at);}
+    mutations.push(...observer.takeRecords());observer.disconnect();
+    const unrelatedWrites=mutations.length,container=f.engine.read().visible.find(n=>n.id===f.ids[5]).parent;
+    await f.command([{type:'setStyle',container,style:{type:'unordered'}}]);
+    const removed=!item.querySelector('[data-check-marker]');
+    await f.command([{type:'setStyle',container,style:{type:'checklist'}}]);
+    const restored=item.querySelector('[data-check-marker]')?.getAttribute('aria-label');
+    const end=f.engine.anchor(f.ids[0],1,'left'),start=f.engine.anchor(f.ids[0],0,'right');
+    try {await f.command([{type:'delete',range:{anchor:start,focus:end}}]);} finally {f.engine.releaseAnchor(start);f.engine.releaseAnchor(end);}
+    return {unrelatedWrites,removed,restored,same:block===r.getBlock(f.ids[5]),text:r.getBlock(f.ids[0]).textContent,errors:f.engine.takeObserverErrors()};
+  });
+  fact.incremental=result;
+  assert.equal(result.unrelatedWrites,0);assert.equal(result.removed,true);assert.equal(result.restored,'Checked');assert.equal(result.same,true);assert.equal(result.text,'alpha😀');assert.deepEqual(result.errors,[]);
+}));
+
 test('hard-break UTF-16 maps and literal code newlines survive patches',async()=>withContext('offsets',async context=>{
   const page=await open(context);await page.evaluate(()=>window.renderFixture.mount());
   const result=await page.evaluate(async()=>{
