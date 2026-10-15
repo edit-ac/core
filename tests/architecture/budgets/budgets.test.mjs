@@ -140,7 +140,7 @@ test('optional loading consumes the existing pinned artifact/cap proof without a
   assert.equal(incremental.js, inventory.profiles.markdown.result.js.incrementalBytes);
   assert.equal(baseline.total.preferredPass, false); assert.equal(baseline.js.preferredPass, false);
   evidence.optionalLoading = { scope: index.optionalLoading.scope, baseline, enabled, incremental,
-    remaining: 'Cold/warm packed startup and official presets remain unmeasured for PRF-06' };
+    remaining: 'Optional enabled-runtime/target-platform costs remain unqualified; PRF-06 cold/warm packed observations are admitted by loading.test.mjs' };
 });
 
 after(async () => { await mkdir(output, { recursive: true }); await writeFile(resolve(output, 'budgets-inventory.json'), JSON.stringify(evidence, null, 2) + '\n'); });

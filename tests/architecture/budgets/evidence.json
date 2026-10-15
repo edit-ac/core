@@ -8,13 +8,13 @@
   "state": "implemented-and-verified-prerequisite",
   "qualification": "Original FIT-1.8 / I1 / I1-B / V1 remain unqualified and unchecked",
   "sourceRevision": "78b3fd484f3af6ca9ab61b5457cfb1aa45474dbba889a88e863949d9d631cb74",
-  "implementationReceipt": "architecture-results/fit-1.8-20261015/source-refresh-1/delivery-receipt.json",
-  "implementationReceiptHash": "9866bb6c8f7ae7a2fceb34b119d9e4ca3cb82507223a9fcf363a2a6a6cb944da",
-  "currentCanonicalReceipt": "architecture-results/fit-1.8-20261015/source-refresh-1/budgets-1/receipt.json",
-  "canonicalReceiptHash": "7c37551c058c0ee1f48c782b9e5369a87554f28aa31ab3f7525e936811186dc0",
+  "implementationReceipt": "architecture-results/fit-1.8-20261015/prf06-delivery-1/delivery-receipt.json",
+  "implementationReceiptHash": "234a6a0fac49406133ba75ae412e1a431cab8f01204bf082359c9e61b6d3d005",
+  "currentCanonicalReceipt": "architecture-results/fit-1.8-20261015/prf06-delivery-1/budgets-1/receipt.json",
+  "canonicalReceiptHash": "aadb5e81ec245a2c3df00ee75290d7fe829638e9c808c30ea77869f2cc5a095a",
   "profileHash": "22aaa4b74df2064c44f791b62c977be07ecca00e77b148052ae6536fe1c59122",
   "baselineIndexHash": "b101d832b3193f74203d25924abfba0cd56dd3fde42fb120ebbe747b09e13560",
-  "previousEvidence": "8d10687c8b1a7cb14ededaab5339ee7e30c8b381:tests/architecture/budgets/evidence.json",
+  "previousEvidence": "d6144b16fc0ac019c8cde15fa21a2e7e99e25efb:tests/architecture/budgets/evidence.json",
   "priorDeliveryReceipt": "architecture-results/fit-1.8-20261015/iteration-3/prf05-delivery-receipt.json",
   "remaining": {
     "requiredCases": {
@@ -78,14 +78,14 @@
       "screen-reader",
       "non-drag-pointer"
     ],
-    "next": "FIT-1.8-I1-B / PRF-06 external packed consumer cold/warm/disabled loading and shared gzip assertions; retain unqualified memory/tails/optional/accessibility/platform criteria"
+    "next": "FIT-1.8-I1-B / PRF-07 actual native text-service/candidate-geometry/IME/accessibility target-runtime evidence; retain PRF-06 startup misses and all other unqualified criteria"
   },
-  "priorCanonicalReceipt": "architecture-results/fit-1.8-20261015/iteration-3/budgets-prf05-1/receipt.json",
-  "priorCanonicalReceiptHash": "94e0bdba20c0a21a32794a36f86d30ef4f453a67545fad43315515146a258c92",
+  "priorCanonicalReceipt": "architecture-results/fit-1.8-20261015/source-refresh-1/budgets-1/receipt.json",
+  "priorCanonicalReceiptHash": "7c37551c058c0ee1f48c782b9e5369a87554f28aa31ab3f7525e936811186dc0",
   "gestureReceipt": "architecture-results/fit-1.8-20261015/source-refresh-1/gestures-1/results.json",
   "gestureReceiptHash": "ed461eb185b454a4973a4ce2305b1db672e93d67ff1460ad995d11485fa175c6",
   "gestureScope": "16/16 actual-public-editor ordinary-pointer diagnostics: exact thin-glyph range endpoints, canceled native text drag, prose/code nested autoscroll across unchanged Task/Long \u00d7 baseline/Task, bounded native controls and cancellation. No full performance/platform qualification or new checked child.",
-  "currentDeliveryReceipt": "architecture-results/fit-1.8-20261015/source-refresh-1/delivery-receipt.json",
+  "currentDeliveryReceipt": "architecture-results/fit-1.8-20261015/prf06-delivery-1/delivery-receipt.json",
   "serviceReceipt": "architecture-results/fit-1.8-20261015/source-refresh-1/services-1/results.json",
   "serviceReceiptHash": "ac8448b57c0b2287dd5e7ef1c4ad9f73881b94771712eb9d9157843712598b95",
   "serviceScope": "16/16 actual-public-editor/lifecycle/resolver/sync diagnostic observations across unchanged full Task/Long \u00d7 baseline/Task. Prepared noncooperative host responses; constant-size atomic replacements, bounded queue/stale-result invalidation, exact local/remote commit and DOM node scopes, convergence and cleanup. Highlight/asset/conversion runtimes pending; no full PRF-03/performance/platform qualification or new checked child.",
@@ -128,5 +128,8 @@
       "Native/process/decoder peak memory and optional runtime not observed",
       "Other PRF/accessibility/platform criteria remain open"
     ]
-  }
+  },
+  "loadingReceipt": "architecture-results/fit-1.8-20261015/loading-4/results.json",
+  "loadingReceiptHash": "bb9ce3bc8d7252ca7d68109373540399257faa51035853a8286a4434c55450ea",
+  "loadingScope": "24/24 diagnostics,48 paired replays/96 navigations; clean public packs, warm cache/IndexedDB recovery, disabled import/evaluation traces and shared hard gzip caps. Preferred sizes and startup targets miss;12-sample tails inconclusive. No original gate closed."
 }

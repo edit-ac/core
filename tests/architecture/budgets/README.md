@@ -188,3 +188,25 @@ property event handlers or unobserved ports. Optional providers are absent.
 Memory plateau has no reviewed limit and remains inconclusive. Canonical admission
 rejects missing cycles, resource leaks, idle polling, late mutation, lost recovery,
 mutated artifacts and invented qualification; this receipt cannot close FIT-1.8.
+
+PRF-06 uses `node scripts/bench-loading.mjs --seed-directory <retained-owning-directory> --output <unique-directory>`.
+The fixed `loading-v1.json` policy retains twelve cold/warm pairs per Task/Long ×
+baseline/Task combination. The shared SDK-1.8 size producer packs and installs
+public artifacts into a clean offline consumer, audits every input and required
+lazy root, and applies the existing gzip hard caps and preferred sizes. Both
+presets use this same public bundle; runtime feature costs are separate from
+artifact delivery costs. No optional provider is enabled or qualified.
+
+Each pair opens a fresh incognito context, transfers its exact checkpoint,
+acknowledges a public edit/restoration, destroys the editor, then navigates in
+the same context to restore IndexedDB with the HTTP cache warm. Raw resource
+entries prove cold delivery and warm cache hits; CDP script and best-effort coverage
+traces accompany the static packed import audit. Storage is deleted and contexts
+are closed after every pair. Timings include the small fixture projection oracle
+module, page instrumentation and browser scheduling. These are navigation-to-ready,
+first-animation-frame and public-command acceptance observations, not trusted
+input, compositor, OS-process cold start or uninstrumented release qualification.
+The preserved startup targets remain diagnostic and misses must stay visible.
+The 100-sample tail minimum stays unchanged; twelve samples are inconclusive.
+Canonical admission rejects missing samples, cache/evaluation proof, optional
+resources, changed artifacts/source, relaxed limits, lost recovery and leaks.
