@@ -25,7 +25,7 @@ receipts in the architecture evidence tree are the durable result.
 | Edit admission | `NSTextViewDelegate.shouldChangeTextIn` rejects a replacement; `textDidChange` observes native edits | DSK-1.3/1.5 serialize shared calls and reconcile rejected projection. No fixture edits count as engine commits. |
 | Selection | `setSelectedRange`, `textViewDidChangeSelection`, attachment range and `NSLayoutManager` glyph bounds | DSK-1.4 maps stable engine anchors and selection direction; stale ranges, scrolling, bidi and remote patches remain unqualified. |
 | Rich text | Font/link attributes coexist with a real `NSTextAttachment` | DSK-1.8 owns descriptor mapping and semantic equality; native attributes are not an engine schema. |
-| Tables | `NSGridView` owns four real `NativeEditorView` cell controls; cell-local insert/composition, independent text, explicit `nextKeyView` focus | Select native child controls rather than `NSTextTable` as an editable semantic model. DSK-1.9/1.10 must map engine cell IDs, bounds, row/column commands, remote patches, selection and undo. Fixed 2×2 fixture has no merged cells, virtualization or nested tables. |
+| Tables | `NSGridView` owns four real `NativeToolkitFixture` cell controls; cell-local insert/composition, independent text, explicit `nextKeyView` focus | Select native child controls rather than `NSTextTable` as an editable semantic model. DSK-1.9/1.10 must map engine cell IDs, bounds, row/column commands, remote patches, selection and undo. Fixed 2×2 fixture has no merged cells, virtualization or nested tables. |
 | Atoms | `NSTextAttachment` occupies one UTF-16 code unit; an editable `NSTextField` child overlays its measured glyph rect and edits through the OS field editor | DSK-1.11/1.12 own source commands, lifetime, disposal, unknown data and descriptor hooks. Fixed range/geometry demonstrates feasibility only; production must map IDs and re-layout after patch/scroll/resize. Source editing implies no math typesetting. |
 
 All required candidate routes have concrete tests; a failed route keeps this gate
@@ -40,3 +40,9 @@ Pins and deployment declarations remain in `../toolchain.json`. This is OS-host
 deterministic feasibility, with no physical keyboard/IME, screen-reader or
 performance qualification. Capability states stay unqualified. Roadmap 20 owns
 the actual physical or virtual platform runs.
+
+The raw toolkit fixture uses an explicit native TextKit1 NSTextView graph instead
+of the production Session-bound subclass. The latter intentionally rejects
+unowned composition; bypassing it is confined to this feasibility target and
+never changes production admission. Session/composition suites qualify the
+actual adapter. This separation was repaired during durability regression checks.

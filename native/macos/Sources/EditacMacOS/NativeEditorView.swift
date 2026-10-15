@@ -5,6 +5,8 @@ import AppKit
 @MainActor
 public final class NativeEditorView: NSView {
     public let session = NativeSessionExecutor()
+    public private(set) lazy var accessibility = NativeTextAccessibility(view: self)
+    public private(set) lazy var storage = NativeDocumentLifecycle(view: self)
     public private(set) var sessionSnapshot: NativeSessionRead?
     public private(set) var sessionFailure: NativeSessionFailure?
     public private(set) var sessionDeliveryCount = 0
@@ -56,6 +58,7 @@ public final class NativeEditorView: NSView {
         scrollView.autoresizingMask = [.width, .height]
         addSubview(scrollView)
         scrollView.frame = bounds
+        _ = self.storage
         session.onProjection = { [weak self] result in
             guard let self, !self.isDisposed else { return }
             guard !self.composition.isActive else { return }
@@ -76,6 +79,7 @@ public final class NativeEditorView: NSView {
             }
             self.projectionSessionFailure = nil
             do {
+                let previousText = self.textView.string
                 try self.projection.apply(update)
                 if let catalog = update.commandCatalog, let history = update.history {
                     self.commands.observe(catalog: catalog, history: history)
@@ -83,6 +87,9 @@ public final class NativeEditorView: NSView {
                 self.projectionFailure = nil
                 try self.attachments.reconcile()
                 self.textView.setAccessibilityLabel("Editor (native projection)")
+                if previousText != self.textView.string {
+                    NSAccessibility.post(element: self.textView, notification: .valueChanged)
+                }
             } catch {
                 self.attachments.cancelAll()
                 self.projectionFailure = error as? NativeProjectionFailure ?? .malformedRichProjection
@@ -141,6 +148,7 @@ public final class NativeEditorView: NSView {
     /// The embedding host calls this when its editor/document is closed.
     public func dispose(completion: @escaping @MainActor @Sendable () -> Void = {}) {
         isDisposed = true
+        storage.dispose()
         attachments.dispose()
         commands.dispose()
         composition.dispose()
