@@ -19,10 +19,13 @@ export async function startFixtureServer(options = {}) {
       const directory = resolve(root, mounts[mount]), target = resolve(directory, ...parts);
       if (!target.startsWith(directory + sep)) { response.writeHead(403).end(); return; }
       const body = await readFile(target);
-      if (options.recordRequests) requests.push({ url: request.url, status: 200, bodyBytes: body.length, sha256: createHash('sha256').update(body).digest('hex') });
-      response.writeHead(200, { 'Content-Type': target.endsWith('.wasm') ? 'application/wasm' :
-        target.endsWith('.svg') ? 'image/svg+xml' : target.endsWith('.html') ? 'text/html' : 'text/javascript', 'Cache-Control': 'no-store' });
-      response.end(body);
+      const etag = '"' + createHash('sha256').update(body).digest('hex') + '"';
+      const cache = options.cacheAssets && /\.(?:js|mjs|wasm|css)$/.test(target);
+      const status = cache && request.headers['if-none-match'] === etag ? 304 : 200;
+      if (options.recordRequests) requests.push({ url: request.url, status, bodyBytes: status === 304 ? 0 : body.length, etag, cacheControl: cache ? 'public, max-age=0, must-revalidate' : 'no-store', ifNoneMatch: request.headers['if-none-match'] ?? null, sha256: createHash('sha256').update(body).digest('hex') });
+      response.writeHead(status, { 'Content-Type': target.endsWith('.wasm') ? 'application/wasm' :
+        target.endsWith('.svg') ? 'image/svg+xml' : target.endsWith('.html') ? 'text/html' : 'text/javascript', 'Cache-Control': cache ? 'public, max-age=0, must-revalidate' : 'no-store', 'ETag': etag });
+      response.end(status === 304 ? undefined : body);
     } catch { if (options.recordRequests) requests.push({ url: request.url, status: 404, bodyBytes: 0 }); response.writeHead(404).end(); }
   });
   await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });

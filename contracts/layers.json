@@ -249,7 +249,14 @@
         "tests/wasm-runtime-loader.test.mjs",
         "tests/browser/shared-editor-resources.spec.ts",
         "tests/consumers/shared-resources/index.html",
-        "tests/consumers/shared-resources/session.mjs"
+        "tests/consumers/shared-resources/session.mjs",
+        "scripts/shared-site-receipt.mjs",
+        "tests/shared-site-receipt.test.mjs",
+        "tests/browser/shared-site-resources.spec.ts",
+        "tests/consumers/shared-resources/production.mjs",
+        "tests/consumers/shared-resources/site.mjs",
+        "tests/browser/browser-harness.ts",
+        "tests/browser/fixture-server.mjs"
       ],
       "artifacts": [
         "consumers-loading-inventory.json",

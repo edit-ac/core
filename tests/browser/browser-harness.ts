@@ -50,7 +50,7 @@ export function browserHarness(suite, fixtureDirectory = 'fixtures/browser-input
       if (name === 'core') assert.ok(pack.files.some(f => f.path === 'dist/wasm/editac_wasm_bg.wasm'));
       await run('tar', ['-xzf', join(directory, pack.filename), '-C', directory], `unpack-${name}.log`);
     }
-    const preparedFixture = options.prepareConsumer ? await options.prepareConsumer(consumer) : fixtureDirectory;
+    const preparedFixture = options.prepareConsumer ? await options.prepareConsumer(consumer, { output, facts, run }) : fixtureDirectory;
     server = await startFixtureServer({ fixtureDirectory: preparedFixture, ...options.serverOptions, coreDirectory: join(consumer, 'core/package/dist'), webDirectory: join(consumer, 'web/package/dist'), ...(markdownEnabled ? {markdownDirectory: join(consumer, 'markdown/package/dist')} : {}) });
     if (options.serverOptions?.recordRequests) facts.serverRequests = server.requests;
     facts.server = { pid: process.pid, port: server.port, workspace: process.cwd(), purpose: suite, log: output };
@@ -75,8 +75,14 @@ export function browserHarness(suite, fixtureDirectory = 'fixtures/browser-input
     }
   });
   async function probe(name, action, text = 'alpha') {
-    const context = await browser.newContext();
-    const fact = { name, passed: false, provenance: 'deterministic browser fixture; no physical device or OS clipboard claim', snapshots: [], errors: [], requests: [] };
+    const persistent = options.usePersistentContext?.(name) ?? false;
+    const profile = persistent ? await mkdtemp(join(consumer, 'http-cache-')) : undefined;
+    const context = persistent ? await browserType.launchPersistentContext(profile, { headless: true }) : await browser.newContext();
+    const owned = profile ? spawnSync('ps', ['-axo', 'pid=,ppid=,command='], { encoding: 'utf8' }).stdout.split('\n').filter(line => line.includes(profile)).map(line => ({ pid: Number(line.trim().split(/\s+/)[0]), command: line.trim().replace(/^\d+\s+\d+\s+/, '') })) : [];
+    facts.processes.push(...owned.map(value => ({ ...value, workspace: process.cwd(), purpose: suite + ' persistent HTTP cache', profile, log: output })));
+
+    const requestStart = server.requests.length;
+    const fact = { origin: server.url, name, cacheProfile: persistent ? 'isolated-persistent-http-profile' : 'temporary-context', passed: false, provenance: 'deterministic browser fixture; no physical device or OS clipboard claim', snapshots: [], errors: [], requests: [] };
     facts.cases.push(fact);
     const page = await context.newPage(); if (['history-review','review-concurrent','history-selection'].includes(suite)) page.setDefaultTimeout(5000); page.on('pageerror', e => fact.errors.push(e.message)); page.on('request', r=>fact.requests.push(r.url()));
     try {
@@ -95,13 +101,19 @@ export function browserHarness(suite, fixtureDirectory = 'fixtures/browser-input
           Object.defineProperty(event, 'clipboardData', { value: data }); return event;
         };
       });
-      await action(page, fact); assert.deepEqual(fact.errors, []); fact.passed = true;
+      await action(page, fact); fact.serverRequests = server.requests.slice(requestStart); assert.deepEqual(fact.errors, []); fact.passed = true;
     } catch (error) {
       fact.failure = { message: error.message, stack: error.stack };
       await writeFile(join(output, `${name}-failure.json`), JSON.stringify(fact, null, 2));
       throw error;
     } finally {
-      try { await options.cleanup?.(page); await page.evaluate(async () => { if (window.activeEditor) await window.activeEditor.destroy({policy:'report'}); if (!window.fixtureDisposed) await window.inputFixture?.destroy(); }); } finally { await context.close(); }
+      try { await options.cleanup?.(page); await page.evaluate(async () => { if (window.activeEditor) await window.activeEditor.destroy({policy:'report'}); if (!window.fixtureDisposed) await window.inputFixture?.destroy(); }); } finally { await context.close();
+        if (profile) {
+          const remaining = spawnSync('ps', ['-axo', 'pid=,command='], { encoding: 'utf8' }).stdout.split('\n').filter(line => line.includes(profile));
+          fact.persistentCleanup = { profile, closed: remaining.length === 0, owned };
+          assert.equal(remaining.length, 0, 'Persistent cache browser did not exit');
+        }
+      }
     }
   }
   return { probe, facts };
