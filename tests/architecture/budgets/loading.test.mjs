@@ -1,0 +1,63 @@
+import { test, after } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { digest, verifyPins } from '../../../scripts/architecture-budgets.mjs';
+import { inspectLoadings, loadingInputs, summarizeLoading } from '../../../scripts/loading-evidence.mjs';
+import { fixture } from '../../../benchmarks/fixtures.mjs';
+import { admitMeasuredConsumer } from '../../../scripts/consumers-loading.mjs';
+const root = fileURLToPath(new URL('../../../', import.meta.url));
+const read = p => readFile(resolve(root, p));
+const profileBytes = await read('benchmarks/profiles/loading-v1.json'), profile = JSON.parse(profileBytes);
+const index = JSON.parse(await read('benchmarks/profiles/loading-evidence.json'));
+assert.match(index.directory, /^architecture-results\/fit-1\.8-[a-z0-9/-]+$/); assert(!index.directory.includes('..'));
+const bytes = await read(`${index.directory}/results.json`), record = JSON.parse(bytes);
+const evidence = { version: 1, parent: 'FIT-1.8', scope: 'PRF-06 actual external packed cold/warm diagnostic', artifacts: {}, observations: null };
+test('packed real WASM cold/warm matrix admits exact profile/source/runtime/artifacts and cache/evaluation traces', async () => {
+  assert.equal(digest(bytes), index.resultsHash); assert.equal(record.profileHash, digest(profileBytes));
+  assert.deepEqual(Object.keys(record.sourceInputs).sort(), [...loadingInputs].sort());
+  evidence.sources = { runtime: await verifyPins(root, record.sourceInputs), artifacts: await verifyPins(resolve(root, index.directory), record.artifacts) };
+  assert.match(record.seedEvidence.directory, /^architecture-results\/fit-1\.8-[a-z0-9/-]+$/); assert(!record.seedEvidence.directory.includes('..'));
+  const seedBytes = await read(`${record.seedEvidence.directory}/results.json`); assert.equal(digest(seedBytes), record.seedEvidence.resultsHash);
+  const seed = JSON.parse(seedBytes);
+  for (const name of profile.fixtures) assert.equal(seed.artifacts[`fixtures/${name}.checkpoint.json`], record.artifacts[`fixtures/${name}.checkpoint.json`]);
+  assert.deepEqual(JSON.parse(await read(`${index.directory}/summary.json`)), summarizeLoading(profile, record));
+  for (const name of ['fixtures.mjs','loading-client.mjs']) assert.equal(digest(await read(`benchmarks/${name}`)), record.artifacts[`harness/${name}`]);
+  for (const [path, hash] of Object.entries(record.consumer.inputHashes)) if (path !== 'task.mjs') assert.equal(digest(await read(path.replace('node_modules/@edit-ac/', 'packages/'))), hash, `Current packed build differs: ${path}`);
+  assert.equal(digest(await read('packages/core/dist/wasm/editac_wasm_bg.wasm')), record.consumer.assets.find(a => a.name === 'wasm/editac_wasm_bg.wasm').sha256);
+  assert.deepEqual(record.consumer, await admitMeasuredConsumer(resolve(root, index.directory, 'packed')));
+  for (const item of record.cases) {
+    assert.equal(item.fixtureHash, digest(JSON.stringify(fixture(item.fixture))));
+    assert.equal(item.checkpointHash, record.artifacts[`fixtures/${item.fixture}.checkpoint.json`]);
+    assert.equal(digest(JSON.stringify(item)), record.artifacts[`raw/${item.fixture}-${item.preset}.json`]);
+  }
+  evidence.observations = inspectLoadings(profile, record); evidence.artifacts[index.directory + '/results.json'] = index.resultsHash;
+});
+const negatives = {
+  'missing hardware': r => delete r.metadata.cpu,
+  'invented feature set': r => r.cases[0].features.push('cloud'),
+  'wrong fixture size': r => r.cases[0].textBytes--,
+  'missing matrix': r => r.cases.pop(),
+  'duplicate matrix': r => r.cases[1] = structuredClone(r.cases[0]),
+  'skipped cases': r => r.counts.skipped++,
+  'invented qualification': r => r.qualification = 'qualified',
+  'leaked process': r => r.cleanup.browserExited = false,
+  'missing cold sample': r => r.cases[0].pairs[0].cold.samples.readyMs = null,
+  'changed source': r => r.cases[0].pairs[0].warm.finalHash = '0'.repeat(64),
+  'lost warm persistence': r => r.cases[0].pairs[0].warm.initialHash = '0'.repeat(64),
+  'optional evaluation': r => r.cases[0].pairs[0].cold.scripts.push({url:'/cloud.js',hash:'abc'}),
+  'missing evaluation': r => r.cases[0].pairs[0].cold.coverage = [],
+  'missing cache proof': r => r.cases[0].pairs[0].warm.resourceTimings = [],
+  'missing raw pairs': r => r.cases[0].pairs.pop(),
+  'leaked storage': r => r.cases[0].pairs[0].databaseDeleted = false,
+  'overrun gzip': r => r.consumer.assets[0].gzip = 524289
+};
+for (const [name, mutate] of Object.entries(negatives)) test(`loading admission rejects ${name}`, () => { const r = structuredClone(record); mutate(r); assert.throws(() => inspectLoadings(profile, r)); });
+test('loading admission rejects reduced matrix and relaxed premeasurement limits', () => { for (const mutate of [p => p.warmLimitsMs.Long++, p => p.fixtures.pop(), p => p.presets.pop(), p => p.requiredObservations.pop(), p => p.samplePairs--]) { const p = structuredClone(profile); mutate(p); assert.throws(() => inspectLoadings(p, record)); } });
+test('changed source and missing or mutated owning artifacts fail admission', async () => {
+  await assert.rejects(verifyPins(root, { 'benchmarks/loading-client.mjs': '0'.repeat(64) }));
+  await assert.rejects(verifyPins(resolve(root, index.directory), { 'summary.json': '0'.repeat(64) }));
+  await assert.rejects(verifyPins(resolve(root, index.directory), { 'missing.json': '0'.repeat(64) }));
+});
+after(async () => { if (process.env.EDITAC_ARCHITECTURE_OUTPUT) await writeFile(resolve(process.env.EDITAC_ARCHITECTURE_OUTPUT, 'loading-inventory.json'), JSON.stringify(evidence, null, 2)); });

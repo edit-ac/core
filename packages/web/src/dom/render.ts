@@ -8,7 +8,7 @@ import type { ContentFactory, ContentView } from '../modules/content.js';
 
 export interface DOMPosition { node: Node; start: number; length: number }
 type Run = ProjectedNode["runs"][number];
-interface RenderedRun { element: HTMLElement; key: string; contentKey: string; text: string; positions: DOMPosition[]; views: { key: string; version: number; kind: 'mark' | 'inline-atom'; view: ModuleView }[] }
+interface RenderedRun { element: HTMLElement; key: string | null; contentKey: string; text: string | null; positions: DOMPosition[]; views: { key: string; version: number; kind: 'mark' | 'inline-atom'; view: ModuleView }[] }
 interface Entry { node: ProjectedNode; outer: HTMLElement; content: HTMLElement; key: string; runs: RenderedRun[]; contentView?: ContentView; contentDescriptorKey?: string }
 const moduleAttributes = (run: Run) => Object.entries(run.attributes).filter(([key]) => key.startsWith('module:')).sort(([a], [b]) => a.localeCompare(b));
 const tuple = (value: Json | undefined): Json[] => Array.isArray(value) ? value : [];
@@ -91,7 +91,7 @@ export class DOMRenderer {
   }
   /** Temporary native ownership; resume projects the latest admitted patch only. */
   hold(id: string): void { this.#held.add(id); }
-  resume(id: string): void {
+  resume(id: string, rebuild?: boolean): void {
     this.#held.delete(id);
     let change = this.#deferred.get(id); this.#deferred.delete(id);
     if (this.#disposed) return;
@@ -102,12 +102,17 @@ export class DOMRenderer {
     }
     this.patchBoundary?.before();
     try {
+      const entry = this.#entries.get(id);
       if (change.type === "visible") {
-        const entry = this.#entries.get(id);
-        if (entry) for (const run of entry.runs) run.text = "\u0000native-owned";
+        // Composition may split native text nodes. Its finalization explicitly
+        // rebuilds this held block; ordinary text reconciliation keeps mappings.
+        if (entry) for (const run of entry.runs) {
+          run.text = null;
+          if (rebuild) run.key = null;
+        }
         this.#update(change.node, this.#entries.get(change.node.parent)?.node);
       }
-      else { const entry = this.#entries.get(id); if (entry) { this.#disposeRuns(entry); entry.outer.remove(); } this.#entries.delete(id); }
+      else { if (entry) { this.#disposeRuns(entry); entry.outer.remove(); } this.#entries.delete(id); }
       this.#arrange();
     } finally { this.patchBoundary?.after(); }
   }
@@ -147,9 +152,9 @@ export class DOMRenderer {
   }
   #update(node: ProjectedNode, parent: ProjectedNode | undefined): void {
     const block = tuple(node.blockAttributes), style = tuple(node.editor?.containerAttributes);
-    const isListItem = parent?.kind === "list";
+    const isListItem = parent?.kind === "list", isModule = typeof block[0] === "string" && block[0].startsWith("module:");
     const tag = node.kind === "list" ? (style[0] === "ordered" ? "ol" : "ul") : node.kind === "quote" ? "blockquote" :
-      this.#options.content && typeof block[0] === 'string' && block[0].startsWith('module:') ? 'div' : block[0] === "separator" ? "hr" : block[0] === "heading" && Number.isInteger(block[1]) && Number(block[1]) >= 1 && Number(block[1]) <= 6 ? `h${block[1]}` : block[0] === "code" ? "pre" : "p";
+      this.#options.content && isModule ? 'div' : block[0] === "separator" ? "hr" : block[0] === "heading" && Number.isInteger(block[1]) && Number(block[1]) >= 1 && Number(block[1]) <= 6 ? `h${block[1]}` : block[0] === "code" ? "pre" : "p";
     const key = `${tag}:${isListItem}`;
     let entry = this.#entries.get(node.id);
     if (!entry || entry.key !== key) {
@@ -167,7 +172,7 @@ export class DOMRenderer {
     if (this.#options.content) {
       const descriptorKey = JSON.stringify(node.blockAttributes);
       if (entry.contentView && entry.contentDescriptorKey !== descriptorKey && !entry.contentView.update(node)) { entry.contentView.dispose(); delete entry.contentView; entry.content.replaceChildren(); }
-      if (!entry.contentView && typeof block[0] === 'string' && block[0].startsWith('module:')) {
+      if (!entry.contentView && isModule) {
         const view = this.#options.content({ element: entry.content, node, engine: this.#engine,
           commit: this.#options.commit ?? (request => this.#engine.commit(this.#engine.prepare(request))),
           readOnly: this.root.contentEditable === 'false' });

@@ -1,8 +1,13 @@
-import { fixture, fixtureText } from './fixtures.mjs';
+import { fixture, fixtureText, expectedSemantics, projectedSemantics, overwriteTarget } from './fixtures.mjs';
+
+import { installAttribution, attributionVersion } from './attribution.mjs';
+const attribution = installAttribution();
+
+import { presets, presetOptions } from './presets.mjs';
 
 const root = document.querySelector('#editor');
 const assetUrl = '/fixture/wasm/editac_wasm_bg.wasm';
-let sdk, runtime, editor, session, databaseName, sequence = 0;
+let sdk, runtime, editor, session, databaseName, sequence = 0, activePreset = 'baseline';
 const check = (condition, message) => { if (!condition) throw Error(message); };
 const textOf = node => node.runs.map(run => run.text).join('');
 const blocks = () => editor.read().visible.filter(node => node.kind === 'block');
@@ -41,6 +46,51 @@ function input(inputType, data = null) {
   }
   root.dispatchEvent(event); check(event.defaultPrevented, `Editor did not own ${inputType}`);
 }
+async function compositionSample(id, before, at, position, sample) {
+  select(id, at, id, at + 1);
+  const replacement = before[at] === 'x' ? 'q' : 'x';
+  const revision = editor.read().revision;
+  const provisionalStart = performance.now();
+  root.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true, data: '' }));
+  root.dispatchEvent(new InputEvent('beforeinput', { bubbles: true, cancelable: true, inputType: 'insertCompositionText', data: replacement, isComposing: true }));
+  const nativeMutation = sample % 2 ? 'split-text-node' : 'mapped-character-data';
+  if (nativeMutation === 'split-text-node') {
+    const selection = document.getSelection(), nativeRange = selection.getRangeAt(0);
+    nativeRange.deleteContents();
+    const text = document.createTextNode(replacement); nativeRange.insertNode(text);
+    selection.setBaseAndExtent(text, 1, text, 1);
+  } else {
+  // Match the prepared characterData mutation used by the owning composition
+  // policy suite. Creating unmanaged sibling nodes is a different native shape.
+  const selection = document.getSelection();
+  const walker = document.createTreeWalker(element(id), NodeFilter.SHOW_TEXT);
+  let remaining = at, composing;
+  for (let text = walker.nextNode(); text; text = walker.nextNode()) {
+    if (text.parentElement.closest('[contenteditable="false"]')) continue;
+    if (remaining < text.length) { composing = text; break; }
+    remaining -= text.length;
+  }
+  check(composing?.data[remaining] === before[at], 'Unmapped composition character');
+  composing.replaceData(remaining, 1, replacement);
+  selection.setBaseAndExtent(composing, remaining + 1, composing, remaining + 1);
+  }
+  root.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertCompositionText', data: replacement, isComposing: true }));
+  const provisionalMs = performance.now() - provisionalStart;
+  check(editor.read().revision === revision, 'Composition committed provisional DOM');
+  attribution.begin();
+  const start = performance.now();
+  root.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: replacement }));
+  const dispatched = performance.now(), stages = attribution.end();
+  element(id).getBoundingClientRect(); const laidOut = performance.now();
+  await nextFrame(); const firstFrame = performance.now(); await nextFrame(); const secondFrame = performance.now();
+  check(editor.read().revision === revision + 1, 'Composition must commit exactly once');
+  check(element(id).textContent === before.slice(0, at) + replacement + before.slice(at + 1), 'Composition projection mismatch');
+  select(id, at, id, at + 1); input('insertText', before[at]);
+  check(element(id).textContent === before, 'Composition restoration mismatch');
+  return { position, sample, provenance: 'synthetic-dom-composition-finalization', nativeMutation, provisionalMs,
+    provisionalCommits: 0, finalCommits: 1, restored: true, stages, dispatchMs: dispatched - start,
+    layoutMs: laidOut - dispatched, firstFrameMs: firstFrame - start, secondFrameMs: secondFrame - start };
+}
 function timed(action, id) {
   const start = performance.now();
   const result = action();
@@ -58,11 +108,25 @@ function format(id, mark) {
     return timed(() => editor.commit({ kind: 'format', origin: 'benchmark:format', marks: [{ range: target.value, mark, action: 'toggle' }], blocks: [] }), id).ms;
   } finally { target.release(); }
 }
-async function seed(name) {
+function verifySemantics(snapshot, document, phase) {
+  const actual = projectedSemantics(snapshot), expected = expectedSemantics(document);
+  const mismatch = actual.findIndex((block, index) => JSON.stringify(block) !== JSON.stringify(expected[index]));
+  const brief = block => block && { ...block, text: block.text.slice(0, 40), runs: block.runs.map(run => ({ ...run, text: run.text.slice(0, 40) })) };
+  check(mismatch === -1 && actual.length === expected.length,
+    `${phase} semantic snapshot mismatch at ${mismatch}: actual=${JSON.stringify(brief(actual[mismatch]))} expected=${JSON.stringify(brief(expected[mismatch]))}`);
+}
+async function seed(name, frozen) {
+  if (frozen) {
+    databaseName = `editac-benchmark-${++sequence}`;
+    const storage = await sdk.CheckpointStorage.open(indexedDB, databaseName);
+    try { await storage.publish({ ...frozen.checkpoint, bytes: new Uint8Array(frozen.checkpoint.bytes) }, []); }
+    finally { storage.close(); }
+    return { identity: frozen.identity, document: fixture(name), frozen };
+  }
   const document = fixture(name);
   databaseName = `editac-benchmark-${++sequence}`;
   const engine = runtime.createEngine({ profile: 'v5', documentId: crypto.randomUUID(), epoch: crypto.randomUUID(),
-    nodes: document.blocks.map(block => ({ text: block.runs.map(run => run.text).join('') })) });
+    nodes: document.generator ? [{ text: '' }] : document.blocks.map(block => ({ text: block.runs.map(run => run.text).join('') })) });
   try {
     const initial = engine.read().visible.filter(node => node.kind === 'block');
     const identity = engine.read().identity;
@@ -71,6 +135,21 @@ async function seed(name) {
       try { const result = engine.commit(plan); if (result.caret) engine.releaseAnchor(result.caret); }
       finally { engine.releasePlan(plan); }
     }
+    if (document.generator) {
+      // Public fragment admission is capped at128 blocks. Keep a trailing empty
+      // destination between batches, so append cannot merge two fixture blocks.
+      //117 is nine complete13-block patterns; list groups never cross a batch.
+      for (let offset = 0; offset < document.blocks.length; offset += 117) {
+        const last = engine.read().visible.filter(node => node.kind === 'block').at(-1);
+        check(textOf(last) === '', 'Seed append destination must be empty');
+        const imported = document.blocks.slice(offset, offset + 117);
+        if (offset + 117 < document.blocks.length) imported.push({ runs: [{ text: '', marks: [] }], attributes: { type: 'paragraph' } });
+        const anchor = engine.anchor(last.id, 0, 'right'), focus = engine.anchor(last.id, 0, 'right');
+        try { commit({ kind: 'fragment', origin: 'benchmark:seed', range: { anchor, focus }, blocks: imported }); }
+        finally { engine.releaseAnchor(anchor); engine.releaseAnchor(focus); }
+        console.info('editac-benchmark-phase', name, 'seed fragment', offset, imported.length);
+      }
+    } else {
     // Public bulk creation admits these bounded documents. Apply structure using
     // the same public commands as hosts, outside all measurement windows.
     const headings = initial.filter((_, index) => document.blocks[index].attributes.type === 'heading').map(node => node.id);
@@ -88,23 +167,28 @@ async function seed(name) {
     for (let offset = 0; offset < commands.length; offset += 32) {
       commit({ kind: 'editor', origin: 'benchmark:seed', commands: commands.slice(offset, offset + 32) });
     }
+    }
+    if (document.generator) verifySemantics(engine.read(), document, 'Seed');
+    const checkpoint = engine.checkpoint();
+    const frozen = { identity, checkpoint: { ...checkpoint, bytes: Array.from(checkpoint.bytes) } };
     const storage = await sdk.CheckpointStorage.open(indexedDB, databaseName);
-    try { await storage.publish(engine.checkpoint(), []); } finally { storage.close(); }
-    return { identity, document };
+    try { await storage.publish(checkpoint, []); } finally { storage.close(); }
+    return { identity, document, frozen };
   } finally { engine.dispose(); }
 }
 async function mount(identity, start = performance.now()) {
   root.spellcheck = false;
   editor = sdk.createEditor(root, { assetUrl, databaseName, identity, indexedDB, locks: navigator.locks,
-    preset: 'minimal', typingShortcuts: false, plainPasteControl: false, plainTextPolicy: 'markdown',
+    ...presetOptions(activePreset, sdk),
     recover: async options => { session = await sdk.recoverLocalDocument(options); return session; } });
   await editor.ready;
   const first = blocks()[0], before = textOf(first);
-  select(first.id, 0);
+  const overwrite = overwriteTarget(before, 'start');
+  select(first.id, overwrite.at, first.id, overwrite.at + 1);
   input('insertText', 'x'); element(first.id).getBoundingClientRect();
   const elapsed = performance.now() - start;
-  check(element(first.id).textContent === `x${before}`, 'First edit was not projected');
-  input('deleteContentBackward');
+  check(element(first.id).textContent === before.slice(0, overwrite.at) + 'x' + before.slice(overwrite.at + 1), 'First edit was not projected');
+  input('deleteContentBackward'); input('insertText', overwrite.original);
   check(textOf(blocks()[0]) === before, 'First edit cleanup failed');
   await editor.flush({ target: 'local' });
   session.writer.engine.history({ type: 'clear' });
@@ -128,16 +212,28 @@ async function removeDatabase() {
   databaseName = undefined;
 }
 
-export async function prepareFixture(name) {
+export async function prepareFixture(name, frozen) {
   console.info('editac-benchmark-phase', name, 'seed');
   sdk = await import('./sdk.js'); runtime = await sdk.init(assetUrl);
-  const { identity } = await seed(name);
-  return { identity, databaseName };
+  const seeded = await seed(name, frozen);
+  return { identity: seeded.identity, databaseName, frozen: seeded.frozen };
 }
 
 export async function runScenario(name, config, prepared) {
   console.info('editac-benchmark-phase', name, 'cold/warm startup');
+  activePreset = config.preset ?? 'baseline';
+  check(presets[activePreset], 'Unknown configured preset');
   const metrics = {}, memory = {};
+  const fitness = config.fitness ? { version: 1, provenance: 'browser-synthetic-input', preset: activePreset, featureSet: presets[activePreset].featureSet, providers: presets[activePreset].providers,
+    endpoint: 'dispatch-layout-two-animation-frames-v1', replay: 'ascii-overwrite-delete-restore-v1', attribution: attributionVersion, composition: [], input: [], changedRegion: [], longTasks: [], disposal: [],
+    gaps: ['Compositor presentation unobserved', 'Rust bridge spans include JSON serialization; FFI spans include engine work; instrumentation overhead is not subtracted',
+      'Continuous drag/scroll and native text services unmeasured', 'Optional table/highlighter and accessibility unmeasured'] } : null;
+  let longTaskObserver;
+  if (fitness && PerformanceObserver.supportedEntryTypes.includes('longtask')) {
+    longTaskObserver = new PerformanceObserver(list => fitness.longTasks.push(...list.getEntries().map(e => ({ startTime: e.startTime, duration: e.duration }))));
+    longTaskObserver.observe({ type: 'longtask', buffered: true });
+    fitness.longTaskStatus = 'observed';
+  } else if (fitness) fitness.longTaskStatus = 'unavailable';
   const record = (key, value) => (metrics[key] ??= []).push(value);
   check(prepared?.identity && prepared.databaseName, 'Missing prepared checkpoint');
   databaseName = prepared.databaseName;
@@ -149,6 +245,7 @@ export async function runScenario(name, config, prepared) {
   try {
     record(`editable.${name}.cold`, await mount(identity, loadStart));
     check(allText() === expected, 'Fixture differs from its versioned source');
+    if (document.generator) verifySemantics(editor.read(), document, 'Restored');
     check(root.querySelector('h2') && root.querySelector('pre') && root.querySelector('ul'), 'Mixed structure was not rendered');
     await unmount(); record(`editable.${name}.warm`, await mount(identity));
     if (name === 'large') memory.loaded = await window.benchmarkHeap();
@@ -160,13 +257,39 @@ export async function runScenario(name, config, prepared) {
       const node = nodes[index], before = textOf(node);
       const offset = position === 'start' ? 0 : position === 'end' ? before.length : Math.floor(before.length / 2);
       // Avoid splitting a surrogate pair; fixture offsets and public boundaries are UTF-16.
-      const at = offset > 0 && /[\uDC00-\uDFFF]/.test(before[offset] ?? '') ? offset - 1 : offset;
+      const overwrite = document.generator ? overwriteTarget(before, position) : null;
+      const at = overwrite?.at ?? (offset > 0 && /[\uDC00-\uDFFF]/.test(before[offset] ?? '') ? offset - 1 : offset);
       for (let sample = 0; sample < config.samples; sample++) {
-        select(node.id, at);
-        record(`typing.${name}.${position}`, timed(() => input('insertText', 'x'), node.id).ms);
-        check(element(node.id).textContent === before.slice(0, at) + 'x' + before.slice(at), 'Typing projection mismatch');
+        select(node.id, at, node.id, at + (overwrite ? 1 : 0));
+        if (fitness) {
+          const mutations = new MutationObserver(() => {});
+          mutations.observe(root, { subtree: true, childList: true, characterData: true, attributes: true });
+          try {
+            attribution.begin();
+            const start = performance.now(); input('insertText', 'x'); const dispatched = performance.now();
+            const stages = attribution.end();
+            element(node.id).getBoundingClientRect(); const laidOut = performance.now();
+            const records = mutations.takeRecords();
+            const blockIds = new Set(nodes.map(n => n.id));
+            const touched = [...new Set(records.flatMap(r => {
+              const owner = r.target.nodeType === Node.ELEMENT_NODE ? r.target : r.target.parentElement;
+              const affected = [owner?.closest('[data-node-id]'), ...r.addedNodes, ...r.removedNodes];
+              return affected.flatMap(n => n?.nodeType === Node.ELEMENT_NODE ? [n.dataset?.nodeId, ...[...n.querySelectorAll('[data-node-id]')].map(el => el.dataset.nodeId)] : []);
+            }).filter(id => blockIds.has(id)))];
+            await nextFrame(); const firstFrame = performance.now(); await nextFrame(); const secondFrame = performance.now();
+            fitness.input.push({ position, sample, stages, dispatchMs: dispatched - start, layoutMs: laidOut - dispatched,
+              firstFrameMs: firstFrame - start, secondFrameMs: secondFrame - start });
+            fitness.changedRegion.push({ position, sample, documentBlocks: nodes.length, target: node.id, touched, mutationCount: records.length,
+              scope: 'DOM mutation observations; not engine invalidation or a full-document scan proof' });
+            record(`typing.${name}.${position}`, laidOut - start);
+          } finally { mutations.disconnect(); }
+        } else record(`typing.${name}.${position}`, timed(() => input('insertText', 'x'), node.id).ms);
+        check(element(node.id).textContent === before.slice(0, at) + 'x' + before.slice(at + (overwrite ? 1 : 0)), 'Typing projection mismatch');
         record(`delete.${name}.${position}`, timed(() => input('deleteContentBackward'), node.id).ms);
-        check(element(node.id).textContent === before, 'Backspace projection mismatch');
+        check(element(node.id).textContent === before.slice(0, at) + before.slice(at + (overwrite ? 1 : 0)), 'Backspace projection mismatch');
+        if (overwrite) input('insertText', overwrite.original);
+        check(element(node.id).textContent === before, 'Replay restoration mismatch');
+        if (fitness && overwrite) fitness.composition.push(await compositionSample(node.id, before, at, position, sample));
         await wait(config.interKeyDelayMs);
       }
       await window.benchmarkCheckpoint({ metrics });
@@ -188,14 +311,16 @@ export async function runScenario(name, config, prepared) {
       check(element(first.id).matches('h1') || element(first.id).querySelector('h1'), 'Heading projection mismatch');
       editor.commit(command({ type: 'paragraph' }));
       const before = element(first.id).textContent;
-      select(first.id, 0); session.writer.engine.history({ type: 'explicit' }); input('insertText', 'x');
+      const overwrite = overwriteTarget(before, 'start');
+      select(first.id, overwrite.at, first.id, overwrite.at + 1); session.writer.engine.history({ type: 'explicit' }); input('insertText', 'x');
       record(`undo.${name}`, timed(() => input('historyUndo'), first.id).ms);
       check(element(first.id).textContent === before, 'Undo mismatch');
       record(`redo.${name}`, timed(() => input('historyRedo'), first.id).ms);
-      check(element(first.id).textContent === `x${before}`, 'Redo mismatch');
-      select(first.id, 1); input('deleteContentBackward');
+      check(element(first.id).textContent === before.slice(0, overwrite.at) + 'x' + before.slice(overwrite.at + 1), 'Redo mismatch');
+      select(first.id, overwrite.at + 1); input('deleteContentBackward'); input('insertText', overwrite.original);
     }
     check(allText() === expected, 'Core edit scenarios changed fixture text');
+    if (document.generator) verifySemantics(editor.read(), document, 'After edits');
     await window.benchmarkCheckpoint({ metrics });
     if (name === 'large') {
       console.info('editac-benchmark-phase', name, 'large operations');
@@ -228,12 +353,29 @@ export async function runScenario(name, config, prepared) {
       }
       memory.notes = 'CDP JS heap and backing storage (includes buffers, not exclusively WASM); forced GC only at snapshots, outside latency samples. WASM can retain a high-water allocation. No absolute memory gate yet.';
     }
+    if (fitness) {
+      await editor.flush({ target: 'local' });
+      fitness.disposal.push({ phase: 'loaded', heap: await window.benchmarkHeap() });
+      for (let cycle = 0; cycle < config.mountCycles; cycle++) {
+        await unmount(); await mount(identity); await unmount();
+        fitness.disposal.push({ phase: 'disposed', cycle, childNodes: root.childNodes.length,
+          contentEditable: root.contentEditable, heap: await window.benchmarkHeap() });
+        check(root.childNodes.length === 0 && root.contentEditable === 'false', 'Disposed surface retained editor DOM');
+      }
+      fitness.memoryStatus = 'diagnostic; no reviewed absolute plateau budget';
+    }
     check(session?.writer.engine.takeObserverErrors().length === 0 || !session, 'Engine observer failed');
     await unmount();
-    return { fixture: name, chars: document.chars, metrics, memory, correctness: 'passed' };
+    return { fixture: name, chars: document.chars, metrics, memory, fitness, correctness: 'passed' };
   } catch (error) {
-    return { fixture: name, chars: document.chars, metrics, memory, correctness: 'failed', failure: error.stack ?? error.message };
-  } finally { await unmount(); await removeDatabase(); }
+    return { fixture: name, chars: document.chars, metrics, memory, fitness, correctness: 'failed', failure: error.stack ?? error.message };
+  } finally {
+    if (longTaskObserver) {
+      fitness.longTasks.push(...longTaskObserver.takeRecords().map(e => ({ startTime: e.startTime, duration: e.duration })));
+      longTaskObserver.disconnect();
+    }
+    await unmount(); await removeDatabase();
+  }
 }
 
 async function largeOperations(metrics, config) {

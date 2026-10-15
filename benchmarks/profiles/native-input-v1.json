@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "id": "native-input-v1",
+  "reviewedAt": "2026-10-15T03:32:05.102047+00:00",
+  "parent": "FIT-1.8-I1-B/PRF-07",
+  "scenario": "ascii-keyboard-append/native-marked-cancel/checkpoint-reopen/accessibility-query-v1",
+  "device": "com.apple.CoreSimulator.SimDeviceType.iPhone-17",
+  "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-5",
+  "fixture": "tests/native/fixtures/bounded-abi.json",
+  "features": [
+    "v5-native-engine",
+    "UITextView-TextKit1",
+    "generated-Swift-FFI",
+    "XCTest-OS-keyboard",
+    "XCTest-accessibility-client"
+  ],
+  "typed": "abcdefghijkl",
+  "samples": 12,
+  "minimumTailSamples": 100,
+  "warmups": 0,
+  "limits": {
+    "inputVisiblePhoneMs": 33
+  },
+  "limitsSource": "preserved fitness-v1 phone input-visible; callback diagnostics cannot qualify compositor latency",
+  "measurement": "UITextViewDelegate entry -> native Rust batch -> bounded UITextStorage append -> next CADisplayLink callback; no XCTest transport or compositor attribution",
+  "composition": "executed native UITextInput marked-text cancellation equivalent; OS CJK candidate selection remains unqualified",
+  "accessibility": "XCTest OS accessibility tree query/action; no VoiceOver claim",
+  "thermal": "record ProcessInfo thermalState on simulator; physical thermal behavior unavailable",
+  "qualification": "unqualified",
+  "owningCommand": "python3 tests/native/ios-fitness.py --output <unique-directory>",
+  "runtimeBuildVersion": "23F77",
+  "initialTextUtf8Bytes": 9,
+  "initialUtf16Units": 6,
+  "cjk": {
+    "scenario": "os-pinyin-ni-candidate-commit/hao-host-cancel/checkpoint-reopen-v1",
+    "keyboard": "zh_Hans-Pinyin",
+    "inputMode": "zh-Hans",
+    "commitKeys": [
+      "n",
+      "i"
+    ],
+    "candidate": "\u4f60",
+    "cancelKeys": [
+      "h",
+      "a",
+      "o"
+    ],
+    "committed": "A\ud83d\ude00e\u0301Z\u4f60",
+    "samples": 1,
+    "composition": "OS keyboard marked calls, candidate AX selection, native host cancellation; no simulated marked input",
+    "candidateGeometry": "XCTest OS candidate accessibility frame plus native UITextInput marked/caret rects; no compositor claim"
+  },
+  "workloads": {
+    "names": [
+      "Task",
+      "Long"
+    ],
+    "blocks": [
+      20,
+      2000
+    ],
+    "textUtf8Bytes": [
+      10240,
+      1048576
+    ],
+    "samples": 12,
+    "warmups": 0,
+    "projection": "all block text joined by newline in TextKit1; mixed semantics retained in engine",
+    "measurement": "OS UITextViewDelegate entry, native command, bounded TextStorage overwrite, next display callback forced layout; sampled task resident bytes",
+    "limits": {
+      "inputVisiblePhoneMs": 33
+    },
+    "minimumTailSamples": 100,
+    "qualification": "unqualified",
+    "scenario": "os-keyboard-overwrite-fixed-corpus-v1",
+    "target": "last ASCII letter of final block; replace one UTF-16 unit at constant corpus bytes, matching browser overwrite policy",
+    "reviewedAt": "2026-10-15T05:32:00Z"
+  }
+}

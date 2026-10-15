@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "id": "loading-v1",
+  "reviewedAt": "2026-10-15T02:43:23.858366+00:00",
+  "scope": "PRF-06 packed public distribution, baseline/Task feature-cost diagnostics; no release or optional-provider qualification",
+  "fixtures": [
+    "Task",
+    "Long"
+  ],
+  "presets": [
+    "baseline",
+    "task"
+  ],
+  "samplePairs": 12,
+  "minimumTailSamples": 100,
+  "replay": "fresh-context-cold-transfer/persist/reload-warm-restore/public-edit-restore-v1",
+  "cacheScope": "cold means new incognito context HTTP cache, not a new OS/browser process; warm means same-context HTTP cache and acknowledged IndexedDB restore",
+  "timingScope": "navigation to SDK ready/first frame/accepted public command; CDP best-effort executed-script coverage observations, without Debugger enablement or precise-coverage instrumentation; harness overhead included; no compositor or trusted-input claim",
+  "requiredObservations": [
+    "packed-baseline",
+    "packed-presets",
+    "cold",
+    "warm",
+    "disabled-imports",
+    "gzip-caps"
+  ],
+  "warmLimitsMs": {
+    "Task": 50,
+    "Long": 200
+  },
+  "legacyColdLimitMs": 300,
+  "limitsSource": "benchmarks/config.json and architecture/specs/verification.md; preserved diagnostic targets, never raised",
+  "owningCommand": "node scripts/bench-loading.mjs --seed-directory <retained checkpoint directory> --output <unique directory>",
+  "coverageMethod": "Profiler.getBestEffortCoverage after public edit; executed-script identities plus packed static graph and observed executed function ranges; no per-function exact call counts",
+  "warmupPolicy": "none; every cold sample starts a fresh context, then exactly one acknowledged same-context warm restore",
+  "sampleOrder": "Task baseline, Task task, Long baseline, Long task; paired cold then warm",
+  "pageDeadlineMs": 120000,
+  "samplingDecision": "12 fixed pairs per combination within bounded source session; 100 minimum tail samples remains unchanged, tails inconclusive; earlier 100-pair attempts retained as interrupted evidence"
+}

@@ -132,11 +132,11 @@ export class CompositionInput {
       if (text === session.selected) { intent.disposition = 'canceled'; return; }
       // Restore canonical mapping only at the finalization boundary. The engine
       // receives one prepared replace and one intentionally separate undo group.
-      this.#renderer.resume(node); projected = true; this.#selection.suspended = false;
+      this.#renderer.resume(node, true); projected = true; this.#selection.suspended = false;
       this.#hooks.apply(intent, target.range, text);
       if (intent.disposition === 'rejected') this.#hooks.recovery(intent, { reason: intent.reason ?? 'composition-commit-failed', node, text, truncated: false });
     } finally {
-      if (node && !projected) this.#renderer.resume(node);
+      if (node && !projected) this.#renderer.resume(node, true);
       this.#selection.suspended = false;
       if (intent.disposition === 'rejected') {
         const native = this.#renderer.root.ownerDocument.getSelection();

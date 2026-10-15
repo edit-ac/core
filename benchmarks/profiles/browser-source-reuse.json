@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "scope": "Reuse historical browser diagnostics after exact non-browser session/link integration; no new measurement or qualification",
+  "beforeRevision": "4b4ff02f9d1fbc117e0620fc2d9a347ad531d9f9",
+  "afterRevision": "3b3eeb16bcb48b17709fe92979fec441dc94aabb",
+  "changes": {
+    "Cargo.lock": {
+      "before": "a5f7fc8c2fdc3cfd9fbecb25949bb77ce75022584617dfa47851a9b3160868bc",
+      "after": "2a4e5100749b6a2f5ec516683d5ac190c9aa1c3d7370689559decdf2db771e74"
+    },
+    "crates/editac-session/Cargo.toml": {
+      "before": "438dbea7feed0dd22740f94c12bbc91c6e788a68c45be0b0d4e76458bf172b78",
+      "after": "525c28af1cd0a413429ecf0e21534103e9d8f8393409b0dee0891be403056190"
+    },
+    "crates/editac-session/src/lib.rs": {
+      "before": "03c7b725b63ed29ed4b24ef4e539ef04d4bb287c7046b0c8685dd3e1a91f2be8",
+      "after": "4ad0b3b159d2e8c7a5bf060056c802322b71bb6a1a584f0a9c26c600ceb3611d"
+    }
+  }
+}

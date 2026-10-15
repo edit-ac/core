@@ -1,5 +1,11 @@
 import { summarize, deltaPercent } from './statistics.mjs';
 
+export function scenarioCounts(cases, planned) {
+  if (!Number.isSafeInteger(planned) || planned < 1 || cases.length > planned) throw Error('Invalid scenario plan');
+  const passed = cases.filter(item => item.correctness === 'passed' && item.errors?.length === 0).length;
+  return { executed: cases.length, passed, failed: cases.length - passed, skipped: planned - cases.length };
+}
+
 export function compatible(current, baseline) {
   return current.version === baseline.version && JSON.stringify(current.signature) === JSON.stringify(baseline.signature);
 }
@@ -18,10 +24,11 @@ export function aggregate(result, config, baseline) {
   const comparable = baseline && compatible(result, baseline);
   const findings = [];
   for (const [name, metric] of Object.entries(metrics)) {
-    const budget = config.budgets[name] ?? (name.startsWith('typing.') ? config.budgets[name.split('.').slice(0, 2).join('.')]
-      : name.startsWith('load.') && name.endsWith('.cold') ? config.budgets['load.cold'] : undefined);
+    const budgetName = name.replace(/@(baseline|task)$/, '');
+    const budget = config.budgets[budgetName] ?? (budgetName.startsWith('typing.') ? config.budgets[budgetName.split('.').slice(0, 2).join('.')]
+      : budgetName.startsWith('load.') && budgetName.endsWith('.cold') ? config.budgets['load.cold'] : undefined);
     if (budget !== undefined && metric.p95 > budget) findings.push({ name, severity: 'budget', value: metric.p95, limit: budget });
-    if (name.startsWith('typing.large') && metric.p95 > config.hardTypingLimitMs) findings.push({ name, severity: 'hard', value: metric.p95, limit: config.hardTypingLimitMs });
+    if (budgetName.startsWith('typing.large') && metric.p95 > config.hardTypingLimitMs) findings.push({ name, severity: 'hard', value: metric.p95, limit: config.hardTypingLimitMs });
     metric.deltaPercent = comparable ? deltaPercent(metric.p95, baseline.metrics?.[name]?.p95) : null;
     if (metric.deltaPercent > config.latencyGrowthPercent) findings.push({ name, severity: 'regression', value: metric.deltaPercent, limit: config.latencyGrowthPercent });
   }

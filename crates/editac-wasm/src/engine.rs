@@ -78,6 +78,8 @@ impl Engine {
     }
     /// Pull the detached batch only after the semantic call has returned.
     pub fn take_patch(&mut self) -> Result<String, JsValue> {
+        #[cfg(feature = "fitness-trace")]
+        let _span = crate::fitness::Span::new("engine.patch");
         output(
             self.inner
                 .as_mut()
@@ -86,6 +88,8 @@ impl Engine {
         )
     }
     pub fn read(&self) -> Result<String, JsValue> {
+        #[cfg(feature = "fitness-trace")]
+        let _span = crate::fitness::Span::new("engine.read");
         output(
             self.inner
                 .as_ref()
@@ -112,6 +116,8 @@ impl Engine {
         )
     }
     pub fn anchor(&mut self, input: &str) -> Result<String, JsValue> {
+        #[cfg(feature = "fitness-trace")]
+        let _span = crate::fitness::Span::new("engine.anchor");
         output(
             self.inner
                 .as_mut()
@@ -136,6 +142,8 @@ impl Engine {
         )
     }
     pub fn resolve(&self, token: &str) -> Result<String, JsValue> {
+        #[cfg(feature = "fitness-trace")]
+        let _span = crate::fitness::Span::new("engine.resolve");
         output(
             self.inner
                 .as_ref()
@@ -144,6 +152,8 @@ impl Engine {
         )
     }
     pub fn prepare(&mut self, input: &str) -> Result<String, JsValue> {
+        #[cfg(feature = "fitness-trace")]
+        let _span = crate::fitness::Span::new("engine.prepare");
         output(
             self.inner
                 .as_mut()
@@ -152,6 +162,8 @@ impl Engine {
         )
     }
     pub fn commit(&mut self, token: &str) -> Result<String, JsValue> {
+        #[cfg(feature = "fitness-trace")]
+        let _span = crate::fitness::Span::new("engine.commit");
         output(
             self.inner
                 .as_mut()
@@ -160,6 +172,8 @@ impl Engine {
         )
     }
     pub fn can(&self, input: &str) -> Result<String, JsValue> {
+        #[cfg(feature = "fitness-trace")]
+        let _span = crate::fitness::Span::new("engine.can");
         output(
             self.inner
                 .as_ref()
@@ -168,6 +182,8 @@ impl Engine {
         )
     }
     pub fn history(&mut self, input: &str) -> Result<String, JsValue> {
+        #[cfg(feature = "fitness-trace")]
+        let _span = crate::fitness::Span::new("engine.history");
         output(
             self.inner
                 .as_mut()
@@ -176,6 +192,8 @@ impl Engine {
         )
     }
     pub fn release_anchor(&mut self, token: &str) -> Result<(), JsValue> {
+        #[cfg(feature = "fitness-trace")]
+        let _span = crate::fitness::Span::new("engine.release_anchor");
         self.inner
             .as_mut()
             .ok_or_else(|| {
@@ -185,6 +203,8 @@ impl Engine {
         Ok(())
     }
     pub fn release_plan(&mut self, token: &str) -> Result<(), JsValue> {
+        #[cfg(feature = "fitness-trace")]
+        let _span = crate::fitness::Span::new("engine.release_plan");
         self.inner
             .as_mut()
             .ok_or_else(|| {

@@ -112,6 +112,7 @@ struct Cache {
     visible: BTreeMap<String, Arc<ProjectedNode>>,
     recovery: BTreeMap<String, Arc<ProjectedNode>>,
     order: Vec<String>,
+    general_retained: Option<Arc<Any>>,
 }
 /// Attach once to a replica. Caches contain only derived values and shared-type
 /// references; snapshots cannot mutate the replica. Drop removes all observers.
@@ -124,6 +125,7 @@ pub struct ProjectionIndex {
     key: String,
     pending: Arc<Mutex<Pending>>,
     cache: Mutex<Cache>,
+    inspected: Arc<Mutex<Option<(Cache, Snapshot)>>>,
 }
 impl ProjectionIndex {
     pub fn new(doc: &Doc) -> Self {
@@ -156,10 +158,13 @@ impl ProjectionIndex {
             "editac-projection-{}",
             NEXT_INDEX.fetch_add(1, Ordering::Relaxed)
         );
+        let inspected = Arc::new(Mutex::new(None));
         for (i, map) in roots.iter().enumerate() {
             let pending = pending.clone();
+            let inspected = inspected.clone();
             map.observe_deep(key.clone(), move |txn, events| {
                 let mut p = pending.lock().unwrap();
+                *inspected.lock().unwrap() = None;
                 for event in events.iter() {
                     if i == 1 {
                         if let Event::Map(map) = event {
@@ -185,6 +190,7 @@ impl ProjectionIndex {
             key,
             pending,
             cache: Mutex::new(Cache::default()),
+            inspected,
         }
     }
     /// Call only outside a write transaction. Errors retain the previous cache
@@ -192,14 +198,39 @@ impl ProjectionIndex {
     pub fn read(&self) -> Result<Snapshot, ProjectionError> {
         let mut pending = self.pending.lock().unwrap();
         let mut cache = self.cache.lock().unwrap();
+        if let Some((next_cache, snapshot)) = self.inspected.lock().unwrap().take() {
+            *cache = next_cache;
+            *pending = Pending::default();
+            return Ok(snapshot);
+        }
         self.refresh(&mut pending, &mut cache)
     }
     /// Inspect current semantics without consuming dirty ranges or publishing a cache.
     /// Prepared commands and applicability must not steal the next snapshot's evidence.
     pub(crate) fn inspect(&self) -> Result<Snapshot, ProjectionError> {
-        let mut pending = self.pending.lock().unwrap().clone();
-        let mut cache = self.cache.lock().unwrap().clone();
-        self.refresh(&mut pending, &mut cache)
+        let pending_guard = self.pending.lock().unwrap();
+        let mut pending = pending_guard.clone();
+        let cached = self.cache.lock().unwrap();
+        if let Some((_, snapshot)) = self.inspected.lock().unwrap().as_ref() {
+            return Ok(snapshot.clone());
+        }
+        if cached.general_retained.is_some()
+            && !pending.structural
+            && pending.texts.is_empty()
+            && pending.ranges.is_empty()
+        {
+            return Ok(Self::unchanged_general(&cached));
+        }
+        let mut cache = cached.clone();
+        drop(cached);
+        let snapshot = self.refresh(&mut pending, &mut cache)?;
+        // Memoize a successful dirty inspection without publishing it or consuming
+        // its deltas. Public read adopts this exact result; every observed mutation
+        // invalidates it, including deletion-only and structural transactions.
+        if cache.general_retained.is_some() {
+            *self.inspected.lock().unwrap() = Some((cache, snapshot.clone()));
+        }
+        Ok(snapshot)
     }
     fn refresh(
         &self,
@@ -378,23 +409,41 @@ impl ProjectionIndex {
         pending.structural = false;
         Ok(snapshot)
     }
+    // No observer dirtiness means the canonical view is unchanged. Anchor
+    // inspection must not repeatedly rebuild the entire ownership/editor graph.
+    fn unchanged_general(cache: &Cache) -> Snapshot {
+        Snapshot {
+            visible: cache
+                .order
+                .iter()
+                .map(|id| cache.visible[id].clone())
+                .collect(),
+            recovery: {
+                let mut nodes: Vec<_> = cache.recovery.values().cloned().collect();
+                nodes.sort_by_key(|n| n.order);
+                nodes
+            },
+            changed_nodes: BTreeSet::new(),
+            touched_ranges: Vec::new(),
+            source_reads: 0,
+            structure_rebuilt: false,
+            retained_structure: cache.general_retained.as_ref().map(|v| v.as_ref().clone()),
+        }
+    }
     fn refresh_general(
         &self,
         pending: &mut Pending,
         cache: &mut Cache,
     ) -> Result<Snapshot, ProjectionError> {
-        let view = crate::editor::project(&self.doc, self.stable_presentation)
+        if cache.general_retained.is_some()
+            && !pending.structural
+            && pending.texts.is_empty()
+            && pending.ranges.is_empty()
+        {
+            return Ok(Self::unchanged_general(cache));
+        }
+        let (view, retained, editor) = crate::editor::projection(&self.doc, self.stable_presentation)
             .map_err(|_| ProjectionError::InvalidOwnership)?;
-        let retained = crate::editor::snapshot(&self.doc, self.stable_presentation)
-            .map_err(|_| ProjectionError::InvalidOwnership)?;
-        let editor = if crate::editor::is_editor(&self.doc) {
-            Some(
-                crate::editor::view(&self.doc, self.stable_presentation)
-                    .map_err(|_| ProjectionError::InvalidOwnership)?,
-            )
-        } else {
-            None
-        };
         let txn = self.doc.transact();
         let texts = txn
             .get_map(ROOTS[1])
@@ -407,6 +456,33 @@ impl ProjectionIndex {
         let mut recovery = BTreeMap::new();
         let mut order = vec![];
         let mut changed = BTreeSet::new();
+        // Index the qualified replay once. Searching (and allocating an Any ID)
+        // for every owner made a single changed block quadratic in document size.
+        let structural_nodes: BTreeMap<_, _> = editor
+            .iter()
+            .flat_map(|v| &v.owners)
+            .map(|owner| (owner.id.as_str(), owner))
+            .collect();
+        let mut editor_nodes = BTreeMap::new();
+        if editor.is_some() {
+            let Any::Map(raw) = &retained else {
+                return Err(ProjectionError::InvalidOwnership);
+            };
+            for (deleted, key) in [(false, "visible"), (true, "deleted")] {
+                let Some(Any::Array(nodes)) = raw.get(key) else {
+                    return Err(ProjectionError::InvalidOwnership);
+                };
+                for value in nodes.iter() {
+                    let Any::Map(node) = value else {
+                        return Err(ProjectionError::InvalidOwnership);
+                    };
+                    let Some(Any::String(id)) = node.get("id") else {
+                        return Err(ProjectionError::InvalidOwnership);
+                    };
+                    editor_nodes.insert((deleted, id.as_ref()), node);
+                }
+            }
+        }
         for (index, owner) in view.owners.iter().enumerate() {
             let mut runs = vec![];
             let mut spans = vec![];
@@ -420,23 +496,9 @@ impl ProjectionIndex {
                     end: span.end,
                 });
             }
-            let structural = editor
-                .as_ref()
-                .and_then(|v| v.owners.iter().find(|n| n.id == owner.id));
+            let structural = structural_nodes.get(owner.id.as_str()).copied();
             let editor_metadata = structural.map(|o| {
-                let Any::Map(raw) = &retained else {
-                    unreachable!()
-                };
-                let Any::Array(nodes) = &raw[if o.deleted { "deleted" } else { "visible" }] else {
-                    unreachable!()
-                };
-                let node = nodes
-                    .iter()
-                    .find_map(|n| match n {
-                        Any::Map(n) if n.get("id") == Some(&Any::from(o.id.clone())) => Some(n),
-                        _ => None,
-                    })
-                    .unwrap();
+                let node = editor_nodes[&(o.deleted, o.id.as_str())];
                 EditorMetadata {
                     version: o.version.clone(),
                     container_attributes: if o.id.starts_with("c:") {
@@ -502,6 +564,7 @@ impl ProjectionIndex {
                 changed.insert(id.clone());
             }
         }
+        cache.general_retained = Some(Arc::new(retained.clone()));
         let snapshot = Snapshot {
             visible: order.iter().map(|id| visible[id].clone()).collect(),
             recovery: {

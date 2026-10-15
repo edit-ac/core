@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "id": "prf-02-diagnostics-v2",
+  "parent": "FIT-1.8-I1-B",
+  "sourceRequirement": "architecture/tests/desktop-editing-cases.md#PRF-02",
+  "scope": "Browser callback/frame and application geometry diagnostics; no compositor, native-internal geometry, tail or full FIT qualification",
+  "reviewedAt": "2026-10-15T00:46:06.845560+00:00",
+  "fixtures": [
+    "Task",
+    "Long"
+  ],
+  "presets": [
+    "baseline",
+    "task"
+  ],
+  "gestures": [
+    "selection",
+    "drag",
+    "autoscroll",
+    "autoscroll-code"
+  ],
+  "pointerSteps": 120,
+  "settleFrames": 24,
+  "traceCapacity": 2048,
+  "performanceLimits": null,
+  "limitStatus": "Existing fitness-v1 limits preserved; gesture-specific frame and geometry thresholds require review before qualification",
+  "input": "Playwright Chromium trusted mouse; native contenteditable selection/drag/autoscroll; Escape and mouse release cancel",
+  "geometryScope": "Executed application DOMSelection mapping, DOMRenderer positions/full-document fallback, Element/Range rect calls; browser internals unobservable",
+  "owningCommand": "node scripts/bench-gestures.mjs --seed-directory <retained-owning-directory> --output <unique-directory>",
+  "autoscrollSetup": "full-corpus-end-boundary-320px-v1",
+  "autoscrollContent": "Full-corpus prose and final code block, ordinary pointer; narrowest native-verified integral glyph pixel",
+  "autoscrollModifiers": [],
+  "endpointMethod": "integral-exact-caret-v1"
+}
