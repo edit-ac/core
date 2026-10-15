@@ -5,9 +5,9 @@ import EditacMacOS
 /// Editing is enabled only here. Production still requires shared admission.
 @MainActor
 public final class ControlCandidateProbe: NSView, NSTextViewDelegate {
-    public let editor: NativeEditorView
+    public let editor: NativeToolkitFixture
     public let grid: NSGridView
-    public let cells: [NativeEditorView]
+    public let cells: [NativeToolkitFixture]
     public let atomSource: NSTextField
     public let atomRange = NSRange(location: 7, length: 1)
     public private(set) var editProposals: [NSRange] = []
@@ -16,9 +16,9 @@ public final class ControlCandidateProbe: NSView, NSTextViewDelegate {
     public var acceptsEdits = true
 
     public override init(frame frameRect: NSRect) {
-        editor = NativeEditorView(frame: NSRect(x: 0, y: 170, width: 600, height: 130))
+        editor = NativeToolkitFixture(frame: NSRect(x: 0, y: 170, width: 600, height: 130))
         cells = (0..<4).map { _ in
-            NativeEditorView(frame: NSRect(x: 0, y: 0, width: 240, height: 60))
+            NativeToolkitFixture(frame: NSRect(x: 0, y: 0, width: 240, height: 60))
         }
         grid = NSGridView(views: [[cells[0], cells[1]], [cells[2], cells[3]]])
         atomSource = NSTextField(string: "x²")
@@ -83,4 +83,29 @@ public final class ControlCandidateProbe: NSView, NSTextViewDelegate {
 
     public func textDidChange(_ notification: Notification) { textChangeCount += 1 }
     public func textViewDidChangeSelection(_ notification: Notification) { selectionChangeCount += 1 }
+}
+
+/// Raw AppKit candidate, deliberately independent of the Session-bound input
+/// subclass. Production composition is qualified by the composition suite; this
+/// earlier feasibility fixture must continue to exercise the toolkit itself.
+@MainActor
+public final class NativeToolkitFixture: NSView {
+    public let textView: NSTextView
+    public let scrollView: NSScrollView
+    public override init(frame: NSRect) {
+        let storage = NSTextStorage()
+        let layout = NSLayoutManager()
+        let container = NSTextContainer(containerSize: NSSize(width: frame.width, height: .greatestFiniteMagnitude))
+        storage.addLayoutManager(layout); layout.addTextContainer(container)
+        textView = NSTextView(frame: NSRect(origin: .zero, size: frame.size), textContainer: container)
+        scrollView = NSScrollView(frame: NSRect(origin: .zero, size: frame.size))
+        super.init(frame: frame)
+        textView.isRichText = true; textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false; textView.allowsUndo = false
+        textView.autoresizingMask = [.width]; container.widthTracksTextView = true
+        scrollView.documentView = textView; scrollView.autoresizingMask = [.width, .height]
+        addSubview(scrollView)
+    }
+    @available(*, unavailable)
+    public required init?(coder: NSCoder) { fatalError("Use init(frame:)") }
 }
