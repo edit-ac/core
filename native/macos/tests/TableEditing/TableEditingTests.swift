@@ -29,6 +29,7 @@ final class TableEditingTests: XCTestCase {
         }
         var manifest = try JSONSerialization.jsonObject(with: Data(contentsOf: URL(fileURLWithPath: path))) as! [String: Any]
         if unmerged {
+            manifest["documentId"] = manifest["unmergedDocumentId"]
             manifest["path"] = manifest["unmergedPath"]; manifest["table"] = manifest["unmergedTable"]
             manifest["richTable"] = manifest["unmergedRichTable"]
         }
