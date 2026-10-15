@@ -27,6 +27,7 @@ public enum NativeSessionRequest: Sendable {
     case undo(revision: Data, now: UInt64)
     case redo(revision: Data, now: UInt64)
     case permission(writable: Bool, expiresAt: UInt64?)
+    case commandPermission(writable: Bool, expiresAt: UInt64?, now: UInt64)
     case recover
     case recoveryExport
 }
@@ -242,6 +243,9 @@ public final class NativeSessionExecutor {
             case let .undo(revision, now): return .committed(try session.undo(revision: revision, now: now))
             case let .redo(revision, now): return .committed(try session.redo(revision: revision, now: now))
             case let .permission(writable, expiry): try session.setPermission(writable: writable, expiresAt: expiry)
+            case let .commandPermission(writable, expiry, now):
+                try session.setPermission(writable: writable, expiresAt: expiry)
+                return .snapshot(try session.read(now: now))
             case .recover: try session.recover()
             case .recoveryExport: return .recovery(try session.recoveryExport())
             }

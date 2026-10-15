@@ -11,10 +11,12 @@ import signal
 import subprocess
 import sys
 import tempfile
+import time
 
 ROOT = Path(__file__).resolve().parents[1]
 CORE = ROOT.parents[1]
 SUITES = {
+    "commands": ("EditacMacOSCommandsTests.CommandsTests", 19),
     "composition": ("EditacMacOSCompositionTests.CompositionTests", 22),
     "edits": ("EditacMacOSEditsTests.EditsTests", 10),
     "projection": ("EditacMacOSProjectionTests.ProjectionTests", 22),
@@ -47,9 +49,50 @@ def xctest_counts(log, expected):
     return counts
 
 
+def stop_command_tree(process):
+    """Stop exact owned descendants, including XCTest's separate process group."""
+    def inventory():
+        rows = subprocess.check_output(["ps", "-axo", "pid=,ppid=,command="], text=True)
+        result = {}
+        for row in rows.splitlines():
+            fields = row.strip().split(None, 2)
+            if len(fields) == 3:
+                result[int(fields[0])] = (int(fields[1]), fields[2])
+        return result
+    initial = inventory()
+    owned = [process.pid]
+    for pid in owned:
+        owned.extend(child for child, (parent, _) in initial.items()
+                     if parent == pid and child not in owned)
+    commands = {pid: initial[pid][1] for pid in owned if pid in initial}
+    def survivors():
+        current = inventory()
+        return [pid for pid in reversed(owned)
+                if pid in commands and pid in current and current[pid][1] == commands[pid]]
+    for pid in survivors():
+        if pid in survivors():
+            try: os.kill(pid, signal.SIGTERM)
+            except ProcessLookupError: pass
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        pass
+    deadline = time.monotonic() + 2
+    while survivors() and time.monotonic() < deadline:
+        time.sleep(0.05)
+    for pid in survivors():
+        if pid in survivors():
+            try: os.kill(pid, signal.SIGKILL)
+            except ProcessLookupError: pass
+    process.wait(timeout=5)
+    if survivors():
+        raise RuntimeError("Owned command descendants survived teardown")
+    return len(commands)
+
+
 def main():
     if len(sys.argv) != 2 or sys.argv[1] not in SUITES:
-        print("Usage: bash native/macos/scripts/check.sh {bootstrap|toolkit|session|projection|edits|composition}; unknown/unimplemented suite", file=sys.stderr)
+        print("Usage: bash native/macos/scripts/check.sh {bootstrap|toolkit|session|projection|edits|composition|commands}; unknown/unimplemented suite", file=sys.stderr)
         return 2
     suite = sys.argv[1]
     signal.signal(signal.SIGTERM, interrupted)
@@ -72,13 +115,7 @@ def main():
             try:
                 entry["exitCode"] = process.wait(timeout=timeout)
             except (subprocess.TimeoutExpired, KeyboardInterrupt):
-                # The group was created above solely for this tracked command.
-                os.killpg(process.pid, signal.SIGTERM)
-                try:
-                    process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    os.killpg(process.pid, signal.SIGKILL)
-                    process.wait()
+                entry["terminatedProcessCount"] = stop_command_tree(process)
                 entry["interruptedOrTimedOut"] = True
                 raise RuntimeError(f"{name} interrupted/timed out; see {log}")
         entry["sha256"] = hashlib.sha256(log.read_bytes()).hexdigest()
@@ -133,11 +170,11 @@ def main():
             raise RuntimeError(f"Capability tests missing/failed/skipped: {capability_counts}")
         dispatcher_log = run("dispatcher-tests", [sys.executable, "-m", "unittest", "discover",
                                                  "-s", "tests", "-p", "test_*.py"])
-        if not re.search(r"Ran 8 tests? in .+\n\nOK\s*$", dispatcher_log):
+        if not re.search(r"Ran 9 tests? in .+\n\nOK\s*$", dispatcher_log):
             raise RuntimeError("Dispatcher admission tests missing/failed/skipped")
         receipt["auxiliaryCounts"] = {
             "capability": dict(executed=2, passed=2, failed=0, skipped=0),
-            "dispatcher": dict(executed=8, passed=8, failed=0, skipped=0),
+            "dispatcher": dict(executed=9, passed=9, failed=0, skipped=0),
         }
         scratch = CORE / "target" / "native-macos" / output.name
         ffi_libraries = {}

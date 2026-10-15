@@ -37,7 +37,7 @@ public final class NativeCommittedInput: NSObject, NSTextViewDelegate {
     private func route(range: NSRange, replacement: String?) {
         guard let view, !view.isDisposed, !view.applyingProjection,
               view.projectionFailure == nil else { return }
-        guard !view.composition.isPending else { finish(.failure(.pending)); return }
+        guard !view.commands.isPending, !view.composition.isPending else { finish(.failure(.pending)); return }
         guard !isPending else { finish(.failure(.pending)); return }
         guard !view.textView.hasMarkedText() else { finish(.failure(.provisionalInput)); return }
         guard let replacement else { finish(.failure(.unsupportedRange)); return }
@@ -106,6 +106,7 @@ public final class NativeCommittedInput: NSObject, NSTextViewDelegate {
     }
 
     private func finish(_ result: Result<Void, NativeInputFailure>) {
+        view?.commands.refreshControls()
         if case let .failure(error) = result { lastFailure = error } else { lastFailure = nil }
         onResult?(result)
     }

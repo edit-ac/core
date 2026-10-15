@@ -30,11 +30,73 @@ final class NativeInputTextView: NSTextView {
             if selector == #selector(NSResponder.cancelOperation(_:)) { editor?.composition.cancel() }
             return
         }
+        if Self.sharedOnlyActions.contains(NSStringFromSelector(selector)) {
+            editor?.commands.perform(.structural); return
+        }
         super.doCommand(by: selector)
+    }
+    @objc func undo(_ sender: Any?) { editor?.commands.perform(.undo) }
+    @objc func redo(_ sender: Any?) { editor?.commands.perform(.redo) }
+    override func performFindPanelAction(_ sender: Any?) { editor?.commands.perform(.find) }
+    override func cut(_ sender: Any?) { editor?.commands.perform(.cut) }
+    override func paste(_ sender: Any?) { editor?.commands.perform(.paste) }
+    override func pasteAsPlainText(_ sender: Any?) { editor?.commands.perform(.pastePlainText) }
+    private static let commandActions: [String: NativeCommand] = [
+        "undo:": .undo, "redo:": .redo, "selectAll:": .selectAll, "copy:": .copy,
+        "cut:": .cut, "paste:": .paste, "pasteAsPlainText:": .pastePlainText,
+        "pasteAsRichText:": .paste, "performFindPanelAction:": .find]
+    private static let sharedOnlyActions: Set<String> = ["changeFont:", "changeAttributes:",
+        "changeColor:", "alignLeft:", "alignRight:", "alignCenter:", "alignJustified:",
+        "subscript:", "superscript:", "unscript:", "underline:"]
+    private func command(for action: Selector?) -> NativeCommand? {
+        guard let action else { return nil }
+        let name = NSStringFromSelector(action)
+        return Self.commandActions[name] ?? (Self.sharedOnlyActions.contains(name) ? .structural : nil)
+    }
+    override func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        if let command = command(for: item.action) {
+            return editor?.commands.availability(command) == .enabled
+        }
+        return super.validateMenuItem(item)
+    }
+    override func validateUserInterfaceItem(_ item: NSValidatedUserInterfaceItem) -> Bool {
+        if let command = command(for: item.action) {
+            return editor?.commands.availability(command) == .enabled
+        }
+        return super.validateUserInterfaceItem(item)
+    }
+    // AppKit must not modify attributed storage independently while the required
+    // shared formatting/structural catalog port is unavailable.
+    override func changeFont(_ sender: Any?) { editor?.commands.perform(.structural) }
+    override func changeAttributes(_ sender: Any?) { editor?.commands.perform(.structural) }
+    override func changeColor(_ sender: Any?) { editor?.commands.perform(.structural) }
+    override func alignLeft(_ sender: Any?) { editor?.commands.perform(.structural) }
+    override func alignRight(_ sender: Any?) { editor?.commands.perform(.structural) }
+    override func alignCenter(_ sender: Any?) { editor?.commands.perform(.structural) }
+    override func alignJustified(_ sender: Any?) { editor?.commands.perform(.structural) }
+    override func `subscript`(_ sender: Any?) { editor?.commands.perform(.structural) }
+    override func superscript(_ sender: Any?) { editor?.commands.perform(.structural) }
+    override func unscript(_ sender: Any?) { editor?.commands.perform(.structural) }
+    override func underline(_ sender: Any?) { editor?.commands.perform(.structural) }
+    override func pasteAsRichText(_ sender: Any?) { editor?.commands.perform(.paste) }
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        let flags = event.modifierFlags.intersection([.command, .shift, .option, .control])
+        guard event.charactersIgnoringModifiers?.lowercased() == "z",
+              flags == .command || flags == [.command, .shift],
+              window?.isKeyWindow == true, window?.firstResponder === self else { return super.performKeyEquivalent(with: event) }
+        editor?.commands.perform(flags.contains(.shift) ? .redo : .undo)
+        return true
+    }
+    override func becomeFirstResponder() -> Bool {
+        let result = super.becomeFirstResponder()
+        DispatchQueue.main.async { [weak self] in self?.editor?.commands.refreshControls() }
+        return result
     }
     override func resignFirstResponder() -> Bool {
         editor?.composition.unmark()
-        return super.resignFirstResponder()
+        let result = super.resignFirstResponder()
+        DispatchQueue.main.async { [weak self] in self?.editor?.commands.refreshControls() }
+        return result
     }
 }
 
@@ -64,7 +126,7 @@ public final class NativeComposition {
         (value as? NSAttributedString)?.string ?? value as? String
     }
     private func capture(_ range: NSRange) throws -> NativeReplacementTarget {
-        guard let view, !view.isDisposed, !isPending, !view.input.isPending,
+        guard let view, !view.isDisposed, !isPending, !view.input.isPending, !view.commands.isPending,
               view.sessionSnapshot?.canApply == true, view.projectionFailure == nil, targets.count < 128 else {
             throw NativeInputFailure.unavailable
         }
@@ -234,6 +296,7 @@ public final class NativeComposition {
         } catch { isPending = false; finish(.failure(.unavailable)) }
     }
     private func finish(_ result: Result<Void, NativeInputFailure>) {
+        view?.commands.refreshControls()
         if case let .failure(error) = result { lastFailure = error } else { lastFailure = nil }
         onResult?(result)
     }
