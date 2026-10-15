@@ -932,8 +932,9 @@ impl NativeSession {
             let routes = editac_core::interchange::Command::TYPES
                 .iter()
                 .map(|id| {
-                    let available =
-                        identity.has_editor() && (*id != "tableCell" || caps.policy.codecs.tables);
+                    let available = identity.has_editor()
+                        && (!matches!(*id, "tableCell" | "tableStructure")
+                            || caps.policy.codecs.tables);
                     NativeCommandRoute {
                         id: (*id).into(),
                         available,
@@ -982,7 +983,7 @@ impl NativeSession {
                         && identity.has_editor()
                         && caps.policy.codecs.tables
                     {
-                        "bounded-v1-cell-command-target-check-required"
+                        "bounded-v1-v2-cell-unmerged-structure-target-check-required"
                     } else {
                         reason
                     }

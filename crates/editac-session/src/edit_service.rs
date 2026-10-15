@@ -293,7 +293,9 @@ impl<S: SessionStore> EditService<S> {
                     Content::Reference { .. } => requirements.references = true,
                     Content::InertExtension { .. } => {}
                 },
-                EditorCommand::TableCell { .. } => requirements.tables = true,
+                EditorCommand::TableCell { .. } | EditorCommand::TableStructure { .. } => {
+                    requirements.tables = true
+                }
                 _ => {}
             }
         }

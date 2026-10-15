@@ -22,6 +22,48 @@ func tableCatalog(_ s: NativeSession, available: Bool, admitted: Bool = true, no
     try require(c.profiles.contains { $0.id == "editac.tables" && $0.available == available }, "table profile policy")
 }
 func runTablePolicyCases() {
+    test("table-structure-generated-v1-all-actions-history-reopen") {
+        let (o,s)=try tableSession(); defer {try? s.dispose()}
+        try s.setTablePolicy(enabled:true)
+        let before=try visible(s)
+        for action in ["insertRow","insertColumn","deleteRow","deleteColumn"] {
+            let table=try visible(s)[1]
+            let c:[[String:Any]]=[["type":"tableStructure","owner":table["id"]!,"expected":table["blockAttributes"]!,"action":action,"index":1]]
+            let p=try commandPlan(s,c)
+            try require(equivalent(try visible(s)[1],table),"structure prepare mutated")
+            _=try s.commitCommands(token:p.token,now:0)!
+        }
+        let after=try visible(s)
+        try require(equivalent(after[1]["blockAttributes"]!,before[1]["blockAttributes"]!) && equivalent(after[1]["id"]!,before[1]["id"]!) && equivalent(after[2],before[2]),"insert/delete did not retain exact rich payload")
+        try history(s,undo:4,redo:0)
+        for _ in 0..<4 {_=try s.undo(revision:s.read(now:0).revision!,now:0)}
+        try require(equivalent(try visible(s),before),"structure undo")
+        for _ in 0..<4 {_=try s.redo(revision:s.read(now:0).revision!,now:0)}
+        try require(equivalent(try visible(s),after),"structure redo")
+        try s.dispose();let reopened=try NativeSession.open(options:o);defer{try? reopened.dispose()}
+        try require(equivalent(try visible(reopened),after),"structure durable reopen")
+    }
+    test("table-v2-generated-cell-retains-span-and-rejects-geometry") {
+        let (_,s)=try tableSession();defer{try? s.dispose()};try s.setTablePolicy(enabled:true)
+        let before=try visible(s),t=before[2]
+        let c:[[String:Any]]=[["type":"tableCell","owner":t["id"]!,"expected":t["blockAttributes"]!,"row":0,"column":0,"text":"rich X😀"]]
+        _=try commandApply(s,c)
+        let after=try visible(s)
+        try require(!equivalent(after[2],t) && equivalent(after[1],before[1]),"v2 real edit/unaffected table")
+        do {
+            _=try commandPlan(s,[["type":"tableStructure","owner":t["id"]!,"expected":after[2]["blockAttributes"]!,"action":"insertRow","index":0]])
+            throw NSError(domain:"table-proof-unexpected-success",code:1)
+        } catch let error as NativeSessionError {
+            // The shared planner's unsupported geometry diagnostic is transported
+            // in the existing command error; no new ABI error tag is required.
+            try require(String(describing:error).contains("UnsupportedTarget"),"precise span rejection")
+        }
+        try require(equivalent(try visible(s),after),"rejected span structure mutated")
+        _=try s.undo(revision:s.read(now:0).revision!,now:0)
+        try require(equivalent(try visible(s),before),"v2 undo")
+        _=try s.redo(revision:s.read(now:0).revision!,now:0)
+        try require(equivalent(try visible(s),after),"v2 redo")
+    }
     test("table-policy-real-cell-cancel-history-reopen") {
         let (o, s) = try tableSession(); defer { try? s.dispose() }
         let before = try visible(s); let revision = try s.read(now: 0).revision!

@@ -20,6 +20,9 @@ struct Fixture {
 }
 impl Fixture {
     fn new() -> Self {
+        Self::with_unmerged_v2(false)
+    }
+    fn with_unmerged_v2(unmerged: bool) -> Self {
         static NEXT: AtomicU64 = AtomicU64::new(1);
         let n = NEXT.fetch_add(1, Ordering::Relaxed);
         let directory = std::env::var_os("EDITAC_NATIVE_SESSION_EVIDENCE")
@@ -42,10 +45,16 @@ impl Fixture {
         .unwrap();
         let owner = doc.snapshot().unwrap().visible[0].id.clone();
         let at = doc.anchor(&owner, Utf16Offset(0), Bias::Right).unwrap();
-        let corpus: Vec<TransferBlock> = serde_json::from_str(include_str!(
+        let mut corpus: Value = serde_json::from_str(include_str!(
             "../../../native/macos/tests/TablesFixture/corpus.json"
         ))
         .unwrap();
+        if unmerged {
+            let cell = json!({"paragraphs":[{"style":["heading",2],"runs":[["rich 😀",[["bold"]]]]}],"rowSpan":1,"columnSpan":1,"header":true});
+            corpus[2]["attributes"]["tuple"][2]["rows"] =
+                json!([[cell, cell, cell], [cell, cell, cell]]);
+        }
+        let corpus: Vec<TransferBlock> = serde_json::from_value(corpus).unwrap();
         let blocks = transfer_blocks(corpus).unwrap();
         let plan = doc
             .prepare_fragment(
@@ -117,11 +126,13 @@ fn prepare(s: &NativeSession, command: &Value) -> NativePreparedCommands {
 }
 fn assert_table_catalog(s: &NativeSession, available: bool, admitted: bool, now: u64) {
     let catalog = s.command_catalog(now).unwrap();
-    let route = catalog.routes.iter().find(|r| r.id == "tableCell").unwrap();
-    assert_eq!(
-        (route.available, route.can_prepare),
-        (available, available && admitted)
-    );
+    for id in ["tableCell", "tableStructure"] {
+        let route = catalog.routes.iter().find(|r| r.id == id).unwrap();
+        assert_eq!(
+            (route.available, route.can_prepare),
+            (available, available && admitted)
+        );
+    }
     let profile = catalog
         .profiles
         .iter()
@@ -131,7 +142,7 @@ fn assert_table_catalog(s: &NativeSession, available: bool, admitted: bool, now:
     if available {
         assert_eq!(
             profile.reason,
-            "bounded-v1-cell-command-target-check-required"
+            "bounded-v1-v2-cell-unmerged-structure-target-check-required"
         );
     }
 }
@@ -294,9 +305,10 @@ fn invalid_table_targets_tuples_indices_unicode_and_limits_are_zero_mutation() {
     c[0]["text"] = json!("x".repeat(1_048_577));
     cases.push(c.to_string());
     cases.push(valid.to_string().replace("valid", "\\ud800"));
-    // A valid v2 tuple is still not a supported v1 cell target.
+    // V2 covered positions remain unsupported cell targets.
     let mut c = valid.clone();
     c[0]["owner"] = before[2]["id"].clone();
+    c[0]["column"] = json!(2);
     c[0]["expected"] = before[2]["blockAttributes"].clone();
     cases.push(c.to_string());
     for c in cases {
@@ -413,4 +425,60 @@ fn table_append_quota_preserves_accepted_update_and_recovers_once() {
 #[test]
 fn table_lost_append_ack_recovers_without_duplicate_journal() {
     fault_recovery(PortError::CommitUnknown, FaultBoundary::AfterCommit);
+}
+
+#[test]
+fn portable_cell_and_structure_both_versions_commit_history_reopen_and_reject_stale_captures() {
+    for table_index in [1, 2] {
+        let f = Fixture::with_unmerged_v2(true);
+        let s = f.open();
+        s.set_table_policy(true).unwrap();
+        let original = visible(&s);
+        let table = &original[table_index];
+        let owner = table["id"].clone();
+        let captured = json!([{"type":"tableCell","owner":owner,"expected":table["blockAttributes"],"row":0,"column":0,"text":"rich X😀"}]);
+        let p = prepare(&s, &captured);
+        s.commit_commands(p.token, 0).unwrap().unwrap();
+        let edited = visible(&s);
+        assert_ne!(edited, original);
+        let mut receipts = 1;
+        for action in ["insertRow", "insertColumn", "deleteRow", "deleteColumn"] {
+            let before = visible(&s);
+            let t = &before[table_index];
+            let c = json!([{"type":"tableStructure","owner":owner,"expected":t["blockAttributes"],"action":action,"index":1}]);
+            let p = prepare(&s, &c);
+            assert_eq!(visible(&s), before);
+            let receipt = s.commit_commands(p.token, 0).unwrap().unwrap();
+            receipts += 1;
+            assert_eq!(receipt.sequence, receipts);
+            assert_eq!(visible(&s)[table_index]["id"], owner);
+        }
+        assert_eq!(visible(&s), edited);
+        assert_eq!(s.history_state(0).unwrap().undo_groups, 5);
+        assert!(
+            s.check_commands(revision(&s), captured.to_string(), "stale".into(), 0)
+                .is_err()
+        );
+        for _ in 0..5 {
+            s.undo(revision(&s), 0).unwrap().unwrap();
+        }
+        assert_eq!(visible(&s), original);
+        for _ in 0..5 {
+            s.redo(revision(&s), 0).unwrap().unwrap();
+        }
+        assert_eq!(visible(&s), edited);
+        let c = json!([{"type":"tableStructure","owner":owner,"expected":edited[table_index]["blockAttributes"],"action":"insertRow","index":0}]);
+        let p = prepare(&s, &c);
+        s.set_table_policy(false).unwrap();
+        assert!(matches!(
+            s.commit_commands(p.token, 0),
+            Err(NativeSessionError::UnsupportedModule)
+        ));
+        assert_eq!(visible(&s), edited);
+        s.dispose().unwrap();
+        let reopened = f.open();
+        assert_eq!(visible(&reopened), edited);
+        assert_table_catalog(&reopened, false, true, 0);
+        reopened.dispose().unwrap();
+    }
 }
