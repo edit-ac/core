@@ -2,7 +2,7 @@
   "contractVersion": 1,
   "id": "native.macos.pending.v1",
   "implementation": {
-    "revision": "b6d954426416df4684c8d227a6bad713000afee4",
+    "revision": "3a44e9d19c417ae2f7b41ecad34a398b0d9acc05",
     "package": "EditacMacOS",
     "version": "0.0.0"
   },
@@ -317,7 +317,7 @@
     },
     {
       "path": "native/macos/Package.swift",
-      "sha256": "4321fcb725275d1f865660c422cf58154e9232d4592921586b098a39e0a3d6fc"
+      "sha256": "4be6ef408338ca265c733bdc5abd445a75429281322e5312778c0748ff290608"
     },
     {
       "path": "native/macos/toolchain.json",
@@ -330,6 +330,22 @@
     {
       "path": "native/macos/tests/TableEditing/TableEditingTests.swift",
       "sha256": "4d6b92d03bcaf55847b6fef72c7c0ff34c512d9fa5ff5dfbecbabe10a7b3ef0a"
+    },
+    {
+      "path": "native/macos/Sources/EditacMacOS/transport/NativeCollaboration.swift",
+      "sha256": "3fdf5c1c08b5f42d752db786397a14166754cb863e2554e9bb9f4d51bc2e9ab4"
+    },
+    {
+      "path": "native/macos/Sources/EditacMacOS/session/NativeSessionExecutor.swift",
+      "sha256": "00a84d05dcd1948c132567be37e8a2fb517b2f6f8a066102ae9ecfd6209bdbeb"
+    },
+    {
+      "path": "native/macos/Sources/EditacMacOS/transport/NativeDocumentCoordinator.swift",
+      "sha256": "0758609768b5c19cf8b11659e04d8ef7c210f786db8a6baaf24c02455c2e6a46"
+    },
+    {
+      "path": "native/macos/tests/Collaboration/CollaborationTests.swift",
+      "sha256": "bbf9a988146cb8970dd61dc225fbc45560a722b0eb7398ad65be1701b3f48882"
     }
   ],
   "evidence": []
