@@ -1,10 +1,10 @@
 //! Disposable read indexes over the frozen registry. Observers collect dirtiness
 //! only; projection reads happen after the Yrs mutation transaction has ended.
-use crate::document::{BLOCK_ATTRIBUTES, BlockAttributes, ROOTS, parse_block_tuple};
+use crate::document::{parse_block_tuple, BlockAttributes, BLOCK_ATTRIBUTES, ROOTS};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{
-    Arc, Mutex,
     atomic::{AtomicU64, Ordering},
+    Arc, Mutex,
 };
 use yrs::types::{Delta, Event, PathSegment};
 use yrs::updates::decoder::Decode;
@@ -93,7 +93,9 @@ struct Source {
     text: XmlTextRef,
     identity: String,
     len: u32,
-    runs: Vec<AttributedRun>,
+    // Source snapshots are immutable. Speculative admission clones the cache,
+    // not its document-sized text; a changed source gets a fresh allocation.
+    runs: Arc<Vec<AttributedRun>>,
 }
 #[derive(Clone, Debug)]
 struct Placement {
@@ -172,7 +174,7 @@ impl EditorTextRefresh {
                 return Err(ProjectionError::InvalidSchema);
             }
             node.spans[0].end = value.len;
-            node.runs = value.runs;
+            node.runs = Arc::unwrap_or_clone(value.runs);
         }
         // No stale retained structure or public dirty-range evidence can escape
         // this planning-only view. The observed stage index remains untouched.
@@ -592,8 +594,23 @@ impl ProjectionIndex {
             .get_map(ROOTS[1])
             .ok_or(ProjectionError::InvalidSchema)?;
         let mut sources = BTreeMap::new();
+        let mut reads = 0;
         for id in view.sources.keys() {
-            sources.insert(id.clone(), read_source(&txn, &texts, id)?);
+            let reusable = cache.sources.get(id).filter(|source| {
+                cache.ready
+                    && !pending.structural
+                    && !pending.texts.contains(id)
+                    && matches!(texts.get(&txn, id), Some(Out::YXmlText(text))
+                        if source.identity == format!("{:?}", XmlOut::Text(text.clone()).id()))
+            });
+            let source = match reusable {
+                Some(source) => source.clone(),
+                None => {
+                    reads += 1;
+                    read_source(&txn, &texts, id)?
+                }
+            };
+            sources.insert(id.clone(), source);
         }
         let mut visible = BTreeMap::new();
         let mut recovery = BTreeMap::new();
@@ -717,7 +734,7 @@ impl ProjectionIndex {
             },
             changed_nodes: changed,
             touched_ranges: std::mem::take(&mut pending.ranges),
-            source_reads: sources.len(),
+            source_reads: reads,
             structure_rebuilt: pending.structural || !cache.ready,
             retained_structure: Some(retained),
         };
@@ -815,7 +832,7 @@ fn read_source<T: ReadTxn>(txn: &T, texts: &MapRef, id: &str) -> Result<Source, 
         identity: format!("{:?}", XmlOut::Text(text.clone()).id()),
         len: text.len(txn),
         text,
-        runs,
+        runs: Arc::new(runs),
     })
 }
 fn read_places<T: ReadTxn>(txn: &T) -> Result<BTreeMap<String, Placement>, ProjectionError> {
@@ -975,7 +992,7 @@ fn ownership<T: ReadTxn>(
 fn slice(source: &Source, start: u32, end: u32) -> Result<Vec<AttributedRun>, ProjectionError> {
     let mut pos = 0;
     let mut result = vec![];
-    for run in &source.runs {
+    for run in source.runs.iter() {
         let mut text = String::new();
         for c in run.text.chars() {
             let next = pos + c.len_utf16() as u32;
@@ -1079,6 +1096,141 @@ fn preorder(nodes: &BTreeMap<String, Arc<ProjectedNode>>) -> Vec<String> {
         ordered.push(id);
     }
     ordered
+}
+
+#[cfg(test)]
+mod source_reuse_tests {
+    use super::*;
+    use crate::{editor_mapping as v4, stable_editor_mapping as v5};
+    use yrs::{Text, XmlTextPrelim};
+
+    fn equivalent(index: &ProjectionIndex, doc: &Doc, stable: bool) -> Snapshot {
+        let actual = index.read().unwrap();
+        let fresh = ProjectionIndex::with_profile(doc, stable).read().unwrap();
+        assert_eq!(actual.visible, fresh.visible);
+        assert_eq!(actual.recovery, fresh.recovery);
+        assert_eq!(actual.retained_structure, fresh.retained_structure);
+        actual
+    }
+
+    fn check(stable: bool, scenario: u8) {
+        let doc = if stable { v5::seed() } else { v4::seed() };
+        let index = ProjectionIndex::with_profile(&doc, stable);
+        let initial = index.read().unwrap();
+        assert!(initial.source_reads > 1);
+        let cached = index.cache.lock().unwrap().clone();
+        let id = "n:11:1";
+        // Cloning a speculative cache shares immutable run storage.
+        for (id, source) in &cached.sources {
+            assert!(Arc::ptr_eq(
+                &source.runs,
+                &index.cache.lock().unwrap().sources[id].runs
+            ));
+        }
+        match scenario {
+            0 | 1 => {
+                let target = if scenario == 1 {
+                    v4::fork(&doc, 91)
+                } else {
+                    doc.clone()
+                };
+                let text = v4::text(&target, id);
+                text.insert(&mut target.transact_mut(), 0, "😀e\u{301}");
+                if scenario == 1 {
+                    v4::apply(&doc, &v4::bytes(&target)).unwrap();
+                }
+                let inspected = index.inspect().unwrap();
+                assert_eq!(inspected.source_reads, 1);
+                assert!(!inspected.touched_ranges.is_empty());
+                let actual = equivalent(&index, &doc, stable);
+                assert_eq!(actual.changed_nodes, inspected.changed_nodes);
+                assert_eq!(actual.touched_ranges, inspected.touched_ranges);
+                let next = index.cache.lock().unwrap().clone();
+                for (key, before) in &cached.sources {
+                    assert_eq!(
+                        Arc::ptr_eq(&before.runs, &next.sources[key].runs),
+                        key != id
+                    );
+                }
+                assert_eq!(index.read().unwrap().source_reads, 0);
+                // Delete-only invalidation must replace the source again.
+                v4::text(&doc, id).remove_range(&mut doc.transact_mut(), 0, 2);
+                assert_eq!(equivalent(&index, &doc, stable).source_reads, 1);
+            }
+            2 => {
+                // A structural replay is deliberately conservative, even when
+                // all source identities and text are unchanged.
+                crate::editor::split(&doc, stable, "o:91:1", id, 0, 1).unwrap();
+                let actual = equivalent(&index, &doc, stable);
+                assert_eq!(actual.source_reads, cached.sources.len());
+                assert!(actual.structure_rebuilt);
+            }
+            3 => {
+                // Same key/text with a new nested CRDT identity must never
+                // borrow old source storage, including after inspection.
+                index.inspect().unwrap();
+                {
+                    let mut txn = doc.transact_mut();
+                    txn.get_map(ROOTS[1]).unwrap().insert(
+                        &mut txn,
+                        id,
+                        XmlTextPrelim::new("replacement"),
+                    );
+                }
+                equivalent(&index, &doc, stable);
+                assert!(!Arc::ptr_eq(
+                    &cached.sources[id].runs,
+                    &index.cache.lock().unwrap().sources[id].runs
+                ));
+            }
+            4 => {
+                {
+                    let mut txn = doc.transact_mut();
+                    txn.get_map(ROOTS[1]).unwrap().remove(&mut txn, id);
+                }
+                assert!(index.inspect().is_err());
+                assert!(index.read().is_err());
+                assert!(ProjectionIndex::with_profile(&doc, stable).read().is_err());
+                // Failure cannot publish partially refreshed sources.
+                for (id, source) in &cached.sources {
+                    assert!(Arc::ptr_eq(
+                        &source.runs,
+                        &index.cache.lock().unwrap().sources[id].runs
+                    ));
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
+    macro_rules! cases {
+        ($name:ident, $stable:expr) => {
+            mod $name {
+                use super::*;
+                #[test]
+                fn local_unicode_and_delete() {
+                    check($stable, 0);
+                }
+                #[test]
+                fn remote_unicode_and_delete() {
+                    check($stable, 1);
+                }
+                #[test]
+                fn structural_replay() {
+                    check($stable, 2);
+                }
+                #[test]
+                fn replaced_source_identity() {
+                    check($stable, 3);
+                }
+                #[test]
+                fn failed_refresh_preserves_cache() {
+                    check($stable, 4);
+                }
+            }
+        };
+    }
+    cases!(v4_profile, false);
+    cases!(v5_profile, true);
 }
 
 #[cfg(test)]
