@@ -17,6 +17,7 @@ export interface EditorOptions extends RecoveryOptions {
   markdown?: import('./input/shortcuts.js').MarkdownAdapter;
   content?: import('./modules/content.js').ContentFactory;
   reorder?: import('./modules/reorder.js').ReorderFactory;
+  links?: import('./modules/links/enrichment.js').LinkEnrichmentFactory;
   references?: import('./modules/references.js').ReferenceFactory;
   slash?: import('./modules/slash.js').SlashFactory;
   moduleRuntime?: import('./modules/runtime.js').ModuleRuntimeOptions;
@@ -69,7 +70,6 @@ export class CommandChain {
     return this.#editor.commit(request);
   }
 }
-const mounts = new WeakMap<HTMLElement, BrowserEditor>();
 let editorSequence = 0;
 
 /** Browser input owner. All editing begins after authoritative local recovery.
@@ -107,10 +107,8 @@ export class BrowserEditor {
   #cancelActivation: (() => void) | undefined;
   #readOnly: boolean;
   constructor(readonly root: HTMLElement, options: EditorOptions) {
-    if (mounts.has(root)) throw Error('Editor already mounted on this surface');
     options.modules?.freeze();
     this.#releaseSurface = reserveEditorSurface(root);
-    mounts.set(root, this);
     const captured: EditorOptions = { ...options, identity: { ...options.identity },
       ...(options.preview ? { preview: { identity: { ...options.preview.identity }, revision: options.preview.revision } } : {}) };
     this.#recoveryOptions = captured;
@@ -285,7 +283,7 @@ export class BrowserEditor {
         const clipboard = this.clipboardRecovery;
         await this.ready.catch(() => {});
         const report = this.#session ? await this.#session.storage.destroy(options) : { unsaved: false, recovery: null };
-        this.#destroyed = true; this.#status.remove(); this.#plainButton?.remove(); this.root.setAttribute('aria-busy', 'false'); mounts.delete(this.root); this.#releaseSurface();
+        this.#destroyed = true; this.#status.remove(); this.#plainButton?.remove(); this.root.setAttribute('aria-busy', 'false'); this.#releaseSurface();
         const description = this.root.getAttribute('aria-describedby')?.split(/\s+/).filter(id => id !== this.#status.id).join(' ');
         if (description) this.root.setAttribute('aria-describedby', description); else this.root.removeAttribute('aria-describedby');
         this.#result = { ...report, provisional, clipboard }; this.lifecycle.dispose(); return this.#result;

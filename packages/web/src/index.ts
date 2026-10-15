@@ -34,3 +34,6 @@ export type { ChangeReviewOptions, ReviewSelection } from './review/view.js';
 export type { ReviewInput, ReviewLayout, ReviewMode, ReviewLimits, ReviewModel, PortableChangeModel } from './review/model.js';
 export { WebHistoryStore, HistoryRestorer, HistoryReview } from './review/history.js';
 export type { HistoryScope, RevisionProvenance, HistoricalRevision, HistoryRead, HistoryAccess, HistoryLimits, HistoryHost, RestoreResult, RestorePreview, HistoryReviewOptions } from './review/history.js';
+
+export { linkEnrichment } from './modules/links/enrichment.js';
+export type { LinkEnrichmentOptions, LinkEnrichmentFactory } from './modules/links/enrichment.js';

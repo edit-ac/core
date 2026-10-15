@@ -1,3 +1,4 @@
+import type { LinkEnrichment, LinkEnrichmentFactory } from './modules/links/enrichment.js';
 import type { CommitResult, EngineHandle, PrepareRequest } from '@edit-ac/core';
 import { DOMRenderer } from './dom/render.js';
 import { DOMSelection } from './dom/selection.js';
@@ -9,6 +10,7 @@ export interface EditorSurfaceOptions {
   markdown?: import('./input/shortcuts.js').MarkdownAdapter;
   content?: import('./modules/content.js').ContentFactory;
   reorder?: import('./modules/reorder.js').ReorderFactory;
+  links?: LinkEnrichmentFactory;
   references?: import('./modules/references.js').ReferenceFactory;
   slash?: import('./modules/slash.js').SlashFactory;
   moduleRuntime?: ModuleRuntimeOptions;
@@ -46,11 +48,13 @@ export function reserveEditorSurface(root: HTMLElement): () => void {
 
 /** Shared adapter assembly for recovered documents and host-owned replicas. */
 export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, options: EditorSurfaceOptions = {}) {
-  const renderer = new DOMRenderer(root, engine, { readOnly: true, ...(options.content ? { content: options.content } : {}), ...(options.commit ? { commit: options.commit } : {}), ...(options.modules ? { modules: options.modules } : {}), ...(options.moduleRuntime ? { moduleRuntime: options.moduleRuntime } : {}) });
+  const commit = options.commit ?? ((request: PrepareRequest) => engine.commit(engine.prepare(request)));
+  const renderer = new DOMRenderer(root, engine, { ...options, readOnly: true });
   let selection: DOMSelection | undefined, input: TextInput | undefined;
+  let links: LinkEnrichment | undefined;
   let markdown: import('@edit-ac/core').PatchSubscription | undefined;
   const disposeAdapters = (): void => {
-    try { input?.dispose(); } finally { try { selection?.dispose(); } finally { try { renderer.dispose(); } finally { markdown?.dispose(); } } }
+    try { links?.dispose(); } finally { try { input?.dispose(); } finally { try { selection?.dispose(); } finally { try { renderer.dispose(); } finally { markdown?.dispose(); } } } }
   };
   try {
     if (options.markdown) markdown = engine.registerMarkdown(options.markdown.codec);
@@ -58,12 +62,13 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
     root.setAttribute('aria-label', options.label ?? root.getAttribute('aria-label') ?? 'Document editor');
     if (!root.hasAttribute('tabindex')) root.tabIndex = 0;
     selection = new DOMSelection(renderer, engine);
+    links = options.links?.(root, engine, commit);
     input = new TextInput(renderer, selection, engine,
-      options.commit ?? (request => engine.commit(engine.prepare(request))), options.clipboardCodecs ?? []);
+      links?.commit ?? commit, options.clipboardCodecs ?? []);
     if (options.reorder) input.attachReorder(options.reorder);
     if (options.references) input.attachReferences(options.references);
     if (options.slash) input.attachSlash(options.slash);
-    if (options.markdown) input.shortcuts = options.markdown.createShortcuts(engine, options.commit ?? (request => engine.commit(engine.prepare(request))));
+    if (options.markdown) input.shortcuts = options.markdown.createShortcuts(engine, commit);
     input.shortcuts.enabled=options.typingShortcuts??true;
     input.clipboard.plainTextPolicy = options.plainTextPolicy ?? (options.preset === 'minimal' || !engine.markdownAvailable ? 'literal' : 'markdown');
     input.clipboard.contentCodecs = options.contentCodecs ?? {};
