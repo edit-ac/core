@@ -32,6 +32,14 @@ pub(crate) struct Scope {
     engine: Vec<String>,
 }
 impl Scope {
+    pub(crate) fn context(&self) -> Context {
+        Context {
+            document: self.document,
+            document_epoch: self.document_epoch,
+            schema: self.schema,
+            key_epoch: self.key_epoch,
+        }
+    }
     pub(crate) fn key_epoch(&self) -> u64 {
         self.key_epoch
     }
@@ -117,6 +125,9 @@ pub(crate) struct OpaqueRelay<H> {
     scope: Scope,
 }
 impl<H: BlobHost> OpaqueRelay<H> {
+    pub(crate) fn scope(&self) -> &Scope {
+        &self.scope
+    }
     pub(crate) fn new(host: H, scope: Scope) -> Result<Self, PortError> {
         let c = host.capabilities();
         if !scope.valid()
@@ -245,6 +256,13 @@ impl<P: OpenMlsProvider> EncryptedClient<P> {
     }
     pub(crate) fn scope(&self) -> &Scope {
         &self.scope
+    }
+    /// Metadata-only availability check. Does not acquire, unlock or delegate keys.
+    pub(crate) fn plaintext_available(&self, identity: &DocumentIdentity) -> bool {
+        !self.retired && &self.identity == identity
+    }
+    pub(crate) fn edit_available(&self) -> bool {
+        !self.retired && self.admission.authorize_writer(&self.signer).is_ok()
     }
     pub(crate) fn retire_after_restore(&mut self) {
         self.retired = true;

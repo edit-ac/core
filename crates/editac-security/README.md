@@ -85,3 +85,13 @@ error fallback. Ciphertext restore is create-only and preserves edit policy.
 See sibling `architecture/evidence/protected-assets.md` for bounds, disclosure,
 cleanup and platform/review limits. Default production builds still expose none
 of these qualification adapters; no production encryption claim is made.
+
+SEC-1.9 adds `src/capabilities.rs`, the prepared local plaintext endpoint router.
+Run `cargo test -p editac-security --test capabilities --locked`. Opaque relay
+MCP/search/preview/decrypt/diff/edit/export requests fail closed. An explicitly
+selected existing MLS/Session endpoint checks exact encrypted scope and current
+host action authority, shares ordinary EditService readonly/edit admission, and
+retains the SEC-1.8 fresh destination authorization for plaintext exports.
+Discovery returns only advisory booleans; it does not acquire/unlock/delegate
+keys. See sibling `architecture/evidence/plaintext-capabilities.md` for routing,
+actual native integration cases and host cleanup/production wiring limits.

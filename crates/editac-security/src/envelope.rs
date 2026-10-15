@@ -124,6 +124,19 @@ impl<P: OpenMlsProvider> Admission<P> {
         Ok(admission)
     }
 
+    /// Metadata-only writer policy shared by local capability routing and seal.
+    /// A host's writable flag cannot promote a key-holding reader's MLS leaf.
+    pub(crate) fn authorize_writer(&self, signer: &SignatureKeyPair) -> Result<(), Rejection> {
+        self.require_live()?;
+        let own = self.group.own_leaf_node().ok_or(Rejection::Locked)?;
+        if !self.writers.contains(own.signature_key().as_slice())
+            || own.signature_key().as_slice() != signer.to_public_vec()
+        {
+            return Err(Rejection::Unauthorized);
+        }
+        Ok(())
+    }
+
     pub(crate) fn seal(
         &mut self,
         signer: &SignatureKeyPair,
@@ -136,12 +149,7 @@ impl<P: OpenMlsProvider> Admission<P> {
         }
         // Check own pinned leaf as well as signer: passing another writer's key
         // must not authorize a reader's MLS leaf.
-        let own = self.group.own_leaf_node().ok_or(Rejection::Locked)?;
-        if !self.writers.contains(own.signature_key().as_slice())
-            || own.signature_key().as_slice() != signer.to_public_vec()
-        {
-            return Err(Rejection::Unauthorized);
-        }
+        self.authorize_writer(signer)?;
         if operation == [0; 16] || !self.emitted.insert(operation) {
             return Err(Rejection::Replay);
         }

@@ -183,6 +183,24 @@ pub(crate) struct ProtectedAssets<H, K> {
     gateway: KeySession,
 }
 impl<H: BlobHost, K: HostKeyProvider> ProtectedAssets<H, K> {
+    /// Routing check before any export authorization, key acquisition or decode.
+    /// An explicitly authorized old-key asset may belong to the same document.
+    pub(crate) fn belongs_to(
+        &self,
+        identity: &DocumentIdentity,
+        context: &crate::envelope::Context,
+    ) -> bool {
+        let b = &self.binding;
+        b.document_id == identity.document_id
+            && b.epoch == identity.epoch
+            && b.schema == identity.schema
+            && b.profile == identity.profile
+            && b.protocol == identity.protocol_version
+            && b.encoding == identity.update_encoding
+            && b.offsets == identity.offsets
+            && b.document == context.document
+            && b.document_epoch == context.document_epoch
+    }
     pub(crate) fn new(binding: AssetBinding, host: H, keys: K) -> Result<Self, AssetError> {
         let caps = host.capabilities();
         if !caps.atomic_transactions
