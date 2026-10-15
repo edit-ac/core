@@ -880,3 +880,421 @@ fn remote_native_accepted_ingress_finishes_before_dispose_and_cannot_be_cancelle
     reopened.dispose().unwrap();
     peer.dispose().unwrap();
 }
+
+fn host_options(s: &NativeSession) -> NativeHostTransportOptions {
+    let identity_json = s
+        .call(|state| {
+            Ok(
+                editac_core::interchange::identity(state.service.session().document().identity())
+                    .to_string(),
+            )
+        })
+        .unwrap();
+    NativeHostTransportOptions {
+        identity_json,
+        expires_at: 100,
+        durable_receipts: true,
+        max_frame_bytes: 1024 * 1024,
+        max_queue_bytes: 2 * 1024 * 1024,
+        max_queue_frames: 32,
+    }
+}
+fn host_attach(s: &NativeSession) -> String {
+    s.attach_host_transport(host_options(s), 0).unwrap()
+}
+fn host_receipt(update: &NativeSessionPeerUpdate) -> NativeHostReceipt {
+    NativeHostReceipt {
+        identity_json: update.identity_json.clone(),
+        writer: update.writer,
+        sequence: update.sequence,
+        checksum: update.checksum.clone(),
+    }
+}
+
+#[test]
+fn host_transport_distinct_sqlite_table_frames_converge_receipt_reconnect_and_reopen() {
+    for (table, structural) in [(1, false), (2, false), (1, true), (2, true)] {
+        let f = Fixture::with_unmerged_v2(true);
+        let local = f.open();
+        let (_, peer) = remote_peer(&f);
+        let left = host_attach(&local);
+        let right = host_attach(&peer);
+        let update = remote_edit(&peer, table, structural);
+        local.reserve_peer_writer(update.writer).unwrap();
+        assert_eq!(peer.flush_host_transport(right.clone(), 0).unwrap(), 1);
+        let frames = peer.take_host_frames(right.clone(), 32, 0).unwrap();
+        assert_eq!(frames.len(), 1);
+        assert_eq!(frames[0].identity_json, update.identity_json);
+        assert_eq!(frames[0].bytes[0], 2); // Existing y-protocols update frame.
+        assert!(frames[0].bytes.ends_with(&update.bytes));
+        assert_eq!(peer.pending_updates().unwrap().len(), 1); // send is not durability
+        let commit = local
+            .receive_host_peer(left.clone(), update.clone(), 0)
+            .unwrap();
+        assert_eq!(
+            (commit.writer, commit.sequence, commit.checksum),
+            (update.writer, update.sequence, update.checksum.clone())
+        );
+        assert_eq!(visible(&local)[table], visible(&peer)[table]);
+        // Reconnect without an ack replays the same durable entry; no new edit/history.
+        peer.detach_host_transport(right.clone()).unwrap();
+        let replacement = host_attach(&peer);
+        assert_ne!(right, replacement);
+        assert!(peer.flush_host_transport(right, 0).is_err());
+        assert_eq!(
+            peer.flush_host_transport(replacement.clone(), 0).unwrap(),
+            1
+        );
+        local.receive_host_peer(left, update.clone(), 0).unwrap();
+        assert_eq!(f.store.recover(&f.id).unwrap().journal.len(), 1);
+        assert_eq!(
+            peer.accept_host_receipt(replacement.clone(), host_receipt(&update), 0)
+                .unwrap(),
+            NativeHostReceiptResult::RemoteCommitted
+        );
+        assert!(peer.pending_updates().unwrap().is_empty());
+        assert_eq!(
+            peer.accept_host_receipt(replacement.clone(), host_receipt(&update), 0)
+                .unwrap(),
+            NativeHostReceiptResult::RemoteCommitted
+        );
+        assert_eq!(peer.flush_host_transport(replacement, 0).unwrap(), 0);
+        local.dispose().unwrap();
+        let reopened = f.open();
+        assert_eq!(visible(&reopened)[table], visible(&peer)[table]);
+        assert_eq!(reopened.history_state(0).unwrap().undo_groups, 0);
+    }
+}
+
+#[test]
+fn host_transport_invalid_attach_preserves_connection_and_old_tokens_never_affect_new_lease() {
+    let f = Fixture::new();
+    let local = f.open();
+    let token = host_attach(&local);
+    let before = visible(&local);
+    for invalid in 0..8 {
+        let mut options = host_options(&local);
+        match invalid {
+            0 => options.identity_json = "{}".into(),
+            1 => options.identity_json = "[".into(),
+            2 => options.expires_at = 0,
+            3 => options.max_frame_bytes = 0,
+            4 => options.max_queue_bytes = 33 * 1024 * 1024,
+            5 => options.max_queue_frames = 33,
+            6 => options.max_frame_bytes = 17 * 1024 * 1024,
+            _ => options.max_queue_bytes = 1,
+        }
+        assert!(local.attach_host_transport(options, 0).is_err());
+        assert_eq!(local.flush_host_transport(token.clone(), 0).unwrap(), 0);
+    }
+    let new = host_attach(&local);
+    assert!(local.detach_host_transport(token.clone()).is_err());
+    assert!(local.take_host_frames(token, 32, 0).is_err());
+    assert_eq!(local.flush_host_transport(new.clone(), 0).unwrap(), 0);
+    let other = f.open();
+    assert!(other.flush_host_transport(new, 0).is_err());
+    assert_eq!(visible(&local), before);
+    assert!(f.store.recover(&f.id).unwrap().journal.is_empty());
+}
+
+#[test]
+fn host_transport_exclusive_expiry_revocation_rejoin_and_local_permission_are_independent() {
+    let f = Fixture::new();
+    let local = f.open();
+    let (_, peer) = remote_peer(&f);
+    let token = host_attach(&local);
+    let update = remote_edit(&peer, 1, false);
+    local.reserve_peer_writer(update.writer).unwrap();
+    assert!(local.flush_host_transport(token.clone(), 99).is_ok());
+    assert!(matches!(
+        local.flush_host_transport(token.clone(), 100),
+        Err(NativeSessionError::Unauthorized)
+    ));
+    assert!(local.take_host_frames(token.clone(), 1, 100).is_err());
+    assert!(
+        local
+            .receive_host_peer(token.clone(), update.clone(), 100)
+            .is_err()
+    );
+    assert!(
+        local
+            .accept_host_receipt(token.clone(), host_receipt(&update), 100)
+            .is_err()
+    );
+    local.detach_host_transport(token.clone()).unwrap(); // expired lease can be revoked
+    assert!(local.receive_host_peer(token, update.clone(), 0).is_err());
+    let mut options = host_options(&local);
+    options.expires_at = 200;
+    let new = local.attach_host_transport(options, 100).unwrap();
+    local.set_permission(false, None).unwrap();
+    local
+        .receive_host_peer(new.clone(), update.clone(), 100)
+        .unwrap();
+    assert_eq!(visible(&local)[1], visible(&peer)[1]);
+    assert!(!local.read(100).unwrap().can_apply);
+    local.set_permission(true, Some(100)).unwrap();
+    local.receive_host_peer(new.clone(), update, 101).unwrap();
+    assert!(!local.read(101).unwrap().can_apply);
+    local.dispose().unwrap();
+    assert!(matches!(
+        local.flush_host_transport(new, 0),
+        Err(NativeSessionError::Disposed)
+    ));
+}
+
+#[test]
+fn host_transport_backpressure_keeps_prefix_and_durable_outbox_and_receipts_are_exact() {
+    let f = Fixture::new();
+    let s = f.open();
+    s.set_table_policy(true).unwrap();
+    let first = remote_edit(&s, 1, false);
+    let _second = remote_edit(&s, 2, false);
+    let mut options = host_options(&s);
+    options.max_queue_frames = 1;
+    options.durable_receipts = false;
+    let token = s.attach_host_transport(options, 0).unwrap();
+    assert!(matches!(
+        s.flush_host_transport(token.clone(), 0),
+        Err(NativeSessionError::Store {
+            reason: NativeStoreFailure::Backpressure
+        })
+    ));
+    assert_eq!(s.pending_updates().unwrap().len(), 2);
+    assert!(s.take_host_frames(token.clone(), 0, 0).is_err());
+    assert!(s.take_host_frames(token.clone(), 33, 0).is_err());
+    assert_eq!(s.take_host_frames(token.clone(), 32, 0).unwrap().len(), 1);
+    assert!(s.take_host_frames(token.clone(), 1, 0).unwrap().is_empty());
+    assert_eq!(
+        s.accept_host_receipt(token.clone(), host_receipt(&first), 0)
+            .unwrap(),
+        NativeHostReceiptResult::CapabilityUnavailable
+    );
+    let new = host_attach(&s);
+    let mut wrong = host_receipt(&first);
+    wrong.sequence += 999;
+    assert_eq!(
+        s.accept_host_receipt(new.clone(), wrong, 0).unwrap(),
+        NativeHostReceiptResult::UnknownUpdate
+    );
+    let mut wrong = host_receipt(&first);
+    wrong.checksum[0] ^= 1;
+    assert_eq!(
+        s.accept_host_receipt(new.clone(), wrong, 0).unwrap(),
+        NativeHostReceiptResult::UnknownUpdate
+    );
+    let mut wrong = host_receipt(&first);
+    wrong.identity_json = "{}".into();
+    assert!(s.accept_host_receipt(new.clone(), wrong, 0).is_err());
+    assert_eq!(s.pending_updates().unwrap().len(), 2);
+    assert_eq!(
+        s.accept_host_receipt(new, host_receipt(&first), 0).unwrap(),
+        NativeHostReceiptResult::RemoteCommitted
+    );
+    assert_eq!(s.pending_updates().unwrap().len(), 1);
+}
+
+#[test]
+fn host_transport_frame_and_scope_guards_reject_before_mutation() {
+    let f = Fixture::new();
+    let local = f.open();
+    let (_, peer) = remote_peer(&f);
+    let update = remote_edit(&peer, 1, false);
+    local.reserve_peer_writer(update.writer).unwrap();
+    let mut options = host_options(&local);
+    options.max_frame_bytes = 1;
+    let token = local.attach_host_transport(options, 0).unwrap();
+    let before = visible(&local);
+    assert!(matches!(
+        local.receive_host_peer(token.clone(), update.clone(), 0),
+        Err(NativeSessionError::ResourceLimit)
+    ));
+    assert_eq!(visible(&local), before);
+    let token = host_attach(&local);
+    for invalid in 0..3 {
+        let mut changed = update.clone();
+        match invalid {
+            0 => changed.identity_json = "{}".into(),
+            1 => changed.checksum[0] ^= 1,
+            _ => changed.bytes = vec![255],
+        }
+        assert!(local.receive_host_peer(token.clone(), changed, 0).is_err());
+    }
+    assert_eq!(visible(&local), before);
+    assert!(f.store.recover(&f.id).unwrap().journal.is_empty());
+    let right = host_attach(&peer);
+    let mut options = host_options(&peer);
+    options.max_frame_bytes = 1;
+    let small = peer.attach_host_transport(options, 0).unwrap();
+    assert!(peer.flush_host_transport(small.clone(), 0).is_err());
+    assert!(peer.take_host_frames(small, 32, 0).unwrap().is_empty());
+    assert!(peer.take_host_frames(right, 32, 0).is_err());
+    assert_eq!(peer.pending_updates().unwrap().len(), 1);
+}
+
+#[test]
+fn host_transport_remote_append_failure_freezes_all_ports_and_recovers_idempotently() {
+    for (boundary, error) in [
+        (FaultBoundary::BeforeCommit, PortError::Quota),
+        (FaultBoundary::AfterCommit, PortError::CommitUnknown),
+    ] {
+        let f = Fixture::new();
+        let local = f.open();
+        let (_, peer) = remote_peer(&f);
+        let token = host_attach(&local);
+        let update = remote_edit(&peer, 1, false);
+        local.reserve_peer_writer(update.writer).unwrap();
+        f.store
+            .inject_once(InjectedFault { boundary, error })
+            .unwrap();
+        assert!(
+            local
+                .receive_host_peer(token.clone(), update.clone(), 0)
+                .is_err()
+        );
+        assert!(local.read(0).unwrap().recovery_required);
+        assert!(local.take_host_frames(token.clone(), 32, 0).is_err());
+        assert!(local.flush_host_transport(token.clone(), 0).is_err());
+        assert!(
+            local
+                .accept_host_receipt(token.clone(), host_receipt(&update), 0)
+                .is_err()
+        );
+        assert!(
+            local
+                .attach_host_transport(host_options(&local), 0)
+                .is_err()
+        );
+        assert_eq!(
+            f.store.recover(&f.id).unwrap().journal.len(),
+            usize::from(boundary == FaultBoundary::AfterCommit)
+        );
+        local.recover().unwrap();
+        local
+            .receive_host_peer(token.clone(), update.clone(), 0)
+            .unwrap();
+        local.receive_host_peer(token, update, 0).unwrap();
+        assert_eq!(f.store.recover(&f.id).unwrap().journal.len(), 1);
+        assert_eq!(visible(&local)[1], visible(&peer)[1]);
+    }
+}
+
+#[test]
+fn host_transport_receipt_transaction_failure_freezes_and_preserves_exact_ack_on_recovery() {
+    for (boundary, error) in [
+        (FaultBoundary::BeforeCommit, PortError::Quota),
+        (FaultBoundary::AfterCommit, PortError::CommitUnknown),
+    ] {
+        let f = Fixture::new();
+        let s = f.open();
+        s.set_table_policy(true).unwrap();
+        let update = remote_edit(&s, 1, false);
+        let token = host_attach(&s);
+        f.store
+            .inject_once(InjectedFault { boundary, error })
+            .unwrap();
+        assert!(
+            s.accept_host_receipt(token.clone(), host_receipt(&update), 0)
+                .is_err()
+        );
+        assert!(s.read(0).unwrap().recovery_required);
+        assert!(s.take_host_frames(token.clone(), 32, 0).is_err());
+        s.recover().unwrap();
+        assert_eq!(
+            s.pending_updates().unwrap().len(),
+            usize::from(boundary == FaultBoundary::BeforeCommit)
+        );
+        assert_eq!(
+            s.accept_host_receipt(token, host_receipt(&update), 0)
+                .unwrap(),
+            NativeHostReceiptResult::RemoteCommitted
+        );
+        assert!(s.pending_updates().unwrap().is_empty());
+    }
+}
+
+#[test]
+fn host_transport_pages_progress_without_receipts_and_reject_stale_or_foreign_cursors() {
+    let f = Fixture::new();
+    let local = f.open();
+    let (_, peer) = remote_peer(&f);
+    let left = host_attach(&local);
+    let mut options = host_options(&peer);
+    options.max_queue_frames = 1;
+    options.durable_receipts = false;
+    let right = peer.attach_host_transport(options, 0).unwrap();
+    let entries: Vec<_> = (0..3).map(|_| remote_edit(&peer, 1, false)).collect();
+    local.reserve_peer_writer(entries[0].writer).unwrap();
+    let mut cursor = None;
+    for entry in &entries {
+        assert_eq!(
+            peer.flush_host_transport_page(right.clone(), cursor, 1, 0)
+                .unwrap(),
+            1
+        );
+        let frames = peer.take_host_frames(right.clone(), 1, 0).unwrap();
+        assert_eq!(frames.len(), 1);
+        assert!(frames[0].bytes.ends_with(&entry.bytes));
+        local
+            .receive_host_peer(left.clone(), entry.clone(), 0)
+            .unwrap();
+        cursor = Some(host_receipt(entry));
+    }
+    assert_eq!(
+        peer.flush_host_transport_page(right.clone(), cursor, 1, 0)
+            .unwrap(),
+        0
+    );
+    assert_eq!(peer.pending_updates().unwrap().len(), 3);
+    assert_eq!(visible(&local)[1], visible(&peer)[1]);
+    assert_eq!(f.store.recover(&f.id).unwrap().journal.len(), 3);
+    for limit in [0, 33] {
+        assert!(
+            peer.flush_host_transport_page(right.clone(), None, limit, 0)
+                .is_err()
+        );
+    }
+    let mut wrong = host_receipt(&entries[0]);
+    wrong.checksum[0] ^= 1;
+    assert!(matches!(
+        peer.flush_host_transport_page(right.clone(), Some(wrong), 1, 0),
+        Err(NativeSessionError::Store {
+            reason: NativeStoreFailure::Conflict
+        })
+    ));
+    let mut wrong = host_receipt(&entries[0]);
+    wrong.identity_json = "{}".into();
+    assert!(
+        peer.flush_host_transport_page(right.clone(), Some(wrong), 1, 0)
+            .is_err()
+    );
+    let mut wrong = host_receipt(&entries[0]);
+    wrong.checksum.clear();
+    assert!(
+        peer.flush_host_transport_page(right.clone(), Some(wrong), 1, 0)
+            .is_err()
+    );
+    assert!(
+        peer.take_host_frames(right.clone(), 1, 0)
+            .unwrap()
+            .is_empty()
+    );
+    // A receipt may remove an old cursor. Never silently skip some new pending item.
+    peer.detach_host_transport(right).unwrap();
+    let new = host_attach(&peer);
+    peer.accept_host_receipt(new.clone(), host_receipt(&entries[0]), 0)
+        .unwrap();
+    assert!(
+        peer.flush_host_transport_page(new.clone(), Some(host_receipt(&entries[0])), 1, 0)
+            .is_err()
+    );
+    assert_eq!(
+        peer.flush_host_transport_page(new.clone(), None, 1, 0)
+            .unwrap(),
+        1
+    );
+    assert!(
+        peer.take_host_frames(new, 1, 0).unwrap()[0]
+            .bytes
+            .ends_with(&entries[1].bytes)
+    );
+}

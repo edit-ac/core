@@ -175,6 +175,15 @@ impl<S: SessionStore> EditService<S> {
     pub fn flush_pending(&mut self, now: u64) -> Result<usize, SessionError> {
         self.session.flush_pending(now)
     }
+    /// Thin forwarding port; cursor/pending/transport admission stay on the Session.
+    pub fn flush_pending_page(
+        &mut self,
+        after: Option<&crate::ports::UpdateId>,
+        limit: usize,
+        now: u64,
+    ) -> Result<usize, SessionError> {
+        self.session.flush_pending_page(after, limit, now)
+    }
     pub fn accept_receipt(
         &mut self,
         receipt: crate::ports::DurableReceipt,

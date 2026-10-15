@@ -755,10 +755,37 @@ impl<S: SessionStore> Session<S> {
     /// Sends only committed outbox records using the existing y-protocols update frame.
     /// Repetition is safe CRDT delivery. Send success never prunes pending membership.
     pub fn flush_pending(&mut self, now: u64) -> Result<usize, SessionError> {
+        self.flush_pending_page(None, usize::MAX, now)
+    }
+    /// A host cursor is an exact retained pending identity, never a receipt. Paging
+    /// allows bounded transports without remote-receipt capability to make progress.
+    /// If an acknowledgment removed the cursor, refresh pending and restart instead.
+    pub fn flush_pending_page(
+        &mut self,
+        after: Option<&UpdateId>,
+        limit: usize,
+        now: u64,
+    ) -> Result<usize, SessionError> {
         self.upload_admission(now)?;
+        if limit == 0 {
+            return Err(PortError::ResourceLimit.into());
+        }
+        let start = match after {
+            Some(id) => {
+                if &id.identity != self.document.identity() {
+                    return Err(PortError::Incompatible.into());
+                }
+                self.pending
+                    .iter()
+                    .position(|entry| entry.id() == id)
+                    .ok_or(PortError::Conflict)?
+                    + 1
+            }
+            None => 0,
+        };
         let transport = self.transport.as_mut().ok_or(SessionError::Unauthorized)?;
         let mut sent = 0;
-        for entry in &self.pending {
+        for entry in self.pending.iter().skip(start).take(limit) {
             let mut bytes = vec![2];
             let mut length = entry.bytes().len();
             loop {

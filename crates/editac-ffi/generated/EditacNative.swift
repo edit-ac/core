@@ -1049,6 +1049,41 @@ public protocol NativeSessionProtocol: AnyObject, Sendable {
     
     func undo(revision: Data, now: UInt64) throws  -> NativeSessionCommit?
     
+    /**
+     * Exact authenticated application receipt; only the existing atomic store path prunes.
+     */
+    func acceptHostReceipt(token: String, receipt: NativeHostReceipt, now: UInt64) throws  -> NativeHostReceiptResult
+    
+    /**
+     * Trusted host grants an exclusive lease, with no local write permission change.
+     */
+    func attachHostTransport(options: NativeHostTransportOptions, now: UInt64) throws  -> String
+    
+    /**
+     * Detach/revoke only this connection. A stale event cannot revoke a newer lease.
+     */
+    func detachHostTransport(token: String) throws 
+    
+    /**
+     * Existing Session y-protocols flush. Partial queueing on backpressure is retained.
+     */
+    func flushHostTransport(token: String, now: UInt64) throws  -> UInt64
+    
+    /**
+     * Page over exact durable pending identities without manufacturing receipts.
+     */
+    func flushHostTransportPage(token: String, after: NativeHostReceipt?, maxFrames: UInt32, now: UInt64) throws  -> UInt64
+    
+    /**
+     * Existing trusted-host journal admission, additionally bound to the active lease.
+     */
+    func receiveHostPeer(token: String, update: NativeSessionPeerUpdate, now: UInt64) throws  -> NativeSessionCommit
+    
+    /**
+     * Pull copied outbound frames; delivery is never a remote durable acknowledgment.
+     */
+    func takeHostFrames(token: String, maxFrames: UInt32, now: UInt64) throws  -> [NativeHostFrame]
+    
 }
 /**
  * Foreign aliases share this single serialized owner. No callback API is exported;
@@ -1441,6 +1476,107 @@ open func undo(revision: Data, now: UInt64)throws  -> NativeSessionCommit?  {
     uniffi_editac_ffi_fn_method_nativesession_undo(
             self.uniffiCloneHandle(),
         FfiConverterData.lower(revision),
+        FfiConverterUInt64.lower(now),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Exact authenticated application receipt; only the existing atomic store path prunes.
+     */
+open func acceptHostReceipt(token: String, receipt: NativeHostReceipt, now: UInt64)throws  -> NativeHostReceiptResult  {
+    return try  FfiConverterTypeNativeHostReceiptResult_lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_accept_host_receipt(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(token),
+        FfiConverterTypeNativeHostReceipt_lower(receipt),
+        FfiConverterUInt64.lower(now),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Trusted host grants an exclusive lease, with no local write permission change.
+     */
+open func attachHostTransport(options: NativeHostTransportOptions, now: UInt64)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_attach_host_transport(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeNativeHostTransportOptions_lower(options),
+        FfiConverterUInt64.lower(now),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Detach/revoke only this connection. A stale event cannot revoke a newer lease.
+     */
+open func detachHostTransport(token: String)throws   {try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_detach_host_transport(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(token),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Existing Session y-protocols flush. Partial queueing on backpressure is retained.
+     */
+open func flushHostTransport(token: String, now: UInt64)throws  -> UInt64  {
+    return try  FfiConverterUInt64.lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_flush_host_transport(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(token),
+        FfiConverterUInt64.lower(now),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Page over exact durable pending identities without manufacturing receipts.
+     */
+open func flushHostTransportPage(token: String, after: NativeHostReceipt?, maxFrames: UInt32, now: UInt64)throws  -> UInt64  {
+    return try  FfiConverterUInt64.lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_flush_host_transport_page(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(token),
+        FfiConverterOptionTypeNativeHostReceipt.lower(after),
+        FfiConverterUInt32.lower(maxFrames),
+        FfiConverterUInt64.lower(now),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Existing trusted-host journal admission, additionally bound to the active lease.
+     */
+open func receiveHostPeer(token: String, update: NativeSessionPeerUpdate, now: UInt64)throws  -> NativeSessionCommit  {
+    return try  FfiConverterTypeNativeSessionCommit_lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_receive_host_peer(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(token),
+        FfiConverterTypeNativeSessionPeerUpdate_lower(update),
+        FfiConverterUInt64.lower(now),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Pull copied outbound frames; delivery is never a remote durable acknowledgment.
+     */
+open func takeHostFrames(token: String, maxFrames: UInt32, now: UInt64)throws  -> [NativeHostFrame]  {
+    return try  FfiConverterSequenceTypeNativeHostFrame.lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_take_host_frames(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(token),
+        FfiConverterUInt32.lower(maxFrames),
         FfiConverterUInt64.lower(now),uniffiCallStatus
     )
 })
@@ -1883,6 +2019,192 @@ public func FfiConverterTypeNativeCommandRoute_lift(_ buf: RustBuffer) throws ->
 #endif
 public func FfiConverterTypeNativeCommandRoute_lower(_ value: NativeCommandRoute) -> RustBuffer {
     return FfiConverterTypeNativeCommandRoute.lower(value)
+}
+
+
+public struct NativeHostFrame: Equatable, Hashable {
+    public var identityJson: String
+    public var bytes: Data
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(identityJson: String, bytes: Data) {
+        self.identityJson = identityJson
+        self.bytes = bytes
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NativeHostFrame: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeHostFrame: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeHostFrame {
+        return
+            try NativeHostFrame(
+                identityJson: FfiConverterString.read(from: &buf), 
+                bytes: FfiConverterData.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NativeHostFrame, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.identityJson, into: &buf)
+        FfiConverterData.write(value.bytes, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeHostFrame_lift(_ buf: RustBuffer) throws -> NativeHostFrame {
+    return try FfiConverterTypeNativeHostFrame.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeHostFrame_lower(_ value: NativeHostFrame) -> RustBuffer {
+    return FfiConverterTypeNativeHostFrame.lower(value)
+}
+
+
+public struct NativeHostReceipt: Equatable, Hashable {
+    public var identityJson: String
+    public var writer: UInt32
+    public var sequence: UInt64
+    public var checksum: Data
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(identityJson: String, writer: UInt32, sequence: UInt64, checksum: Data) {
+        self.identityJson = identityJson
+        self.writer = writer
+        self.sequence = sequence
+        self.checksum = checksum
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NativeHostReceipt: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeHostReceipt: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeHostReceipt {
+        return
+            try NativeHostReceipt(
+                identityJson: FfiConverterString.read(from: &buf), 
+                writer: FfiConverterUInt32.read(from: &buf), 
+                sequence: FfiConverterUInt64.read(from: &buf), 
+                checksum: FfiConverterData.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NativeHostReceipt, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.identityJson, into: &buf)
+        FfiConverterUInt32.write(value.writer, into: &buf)
+        FfiConverterUInt64.write(value.sequence, into: &buf)
+        FfiConverterData.write(value.checksum, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeHostReceipt_lift(_ buf: RustBuffer) throws -> NativeHostReceipt {
+    return try FfiConverterTypeNativeHostReceipt.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeHostReceipt_lower(_ value: NativeHostReceipt) -> RustBuffer {
+    return FfiConverterTypeNativeHostReceipt.lower(value)
+}
+
+
+public struct NativeHostTransportOptions: Equatable, Hashable {
+    public var identityJson: String
+    public var expiresAt: UInt64
+    public var durableReceipts: Bool
+    public var maxFrameBytes: UInt32
+    public var maxQueueBytes: UInt32
+    public var maxQueueFrames: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(identityJson: String, expiresAt: UInt64, durableReceipts: Bool, maxFrameBytes: UInt32, maxQueueBytes: UInt32, maxQueueFrames: UInt32) {
+        self.identityJson = identityJson
+        self.expiresAt = expiresAt
+        self.durableReceipts = durableReceipts
+        self.maxFrameBytes = maxFrameBytes
+        self.maxQueueBytes = maxQueueBytes
+        self.maxQueueFrames = maxQueueFrames
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NativeHostTransportOptions: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeHostTransportOptions: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeHostTransportOptions {
+        return
+            try NativeHostTransportOptions(
+                identityJson: FfiConverterString.read(from: &buf), 
+                expiresAt: FfiConverterUInt64.read(from: &buf), 
+                durableReceipts: FfiConverterBool.read(from: &buf), 
+                maxFrameBytes: FfiConverterUInt32.read(from: &buf), 
+                maxQueueBytes: FfiConverterUInt32.read(from: &buf), 
+                maxQueueFrames: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NativeHostTransportOptions, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.identityJson, into: &buf)
+        FfiConverterUInt64.write(value.expiresAt, into: &buf)
+        FfiConverterBool.write(value.durableReceipts, into: &buf)
+        FfiConverterUInt32.write(value.maxFrameBytes, into: &buf)
+        FfiConverterUInt32.write(value.maxQueueBytes, into: &buf)
+        FfiConverterUInt32.write(value.maxQueueFrames, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeHostTransportOptions_lift(_ buf: RustBuffer) throws -> NativeHostTransportOptions {
+    return try FfiConverterTypeNativeHostTransportOptions.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeHostTransportOptions_lower(_ value: NativeHostTransportOptions) -> RustBuffer {
+    return FfiConverterTypeNativeHostTransportOptions.lower(value)
 }
 
 
@@ -3148,6 +3470,79 @@ public func FfiConverterTypeNativeError_lower(_ value: NativeError) -> RustBuffe
 
 
 
+public enum NativeHostReceiptResult: Equatable, Hashable {
+    
+    case remoteCommitted
+    case capabilityUnavailable
+    case unknownUpdate
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension NativeHostReceiptResult: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeHostReceiptResult: FfiConverterRustBuffer {
+    typealias SwiftType = NativeHostReceiptResult
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeHostReceiptResult {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .remoteCommitted
+        
+        case 2: return .capabilityUnavailable
+        
+        case 3: return .unknownUpdate
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: NativeHostReceiptResult, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .remoteCommitted:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .capabilityUnavailable:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .unknownUpdate:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeHostReceiptResult_lift(_ buf: RustBuffer) throws -> NativeHostReceiptResult {
+    return try FfiConverterTypeNativeHostReceiptResult.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeHostReceiptResult_lower(_ value: NativeHostReceiptResult) -> RustBuffer {
+    return FfiConverterTypeNativeHostReceiptResult.lower(value)
+}
+
+
+
+
 public enum NativeRevisionFailure: Equatable, Hashable {
     
     case invalidToken
@@ -3772,6 +4167,30 @@ fileprivate struct FfiConverterOptionData: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeNativeHostReceipt: FfiConverterRustBuffer {
+    typealias SwiftType = NativeHostReceipt?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeNativeHostReceipt.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeNativeHostReceipt.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeNativeSessionCommit: FfiConverterRustBuffer {
     typealias SwiftType = NativeSessionCommit?
 
@@ -3912,6 +4331,31 @@ fileprivate struct FfiConverterSequenceTypeNativeCommandRoute: FfiConverterRustB
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeNativeCommandRoute.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeNativeHostFrame: FfiConverterRustBuffer {
+    typealias SwiftType = [NativeHostFrame]
+
+    public static func write(_ value: [NativeHostFrame], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeNativeHostFrame.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [NativeHostFrame] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [NativeHostFrame]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeNativeHostFrame.read(from: &buf))
         }
         return seq
     }
@@ -4191,6 +4635,27 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_editac_ffi_checksum_method_nativesession_undo() != 34245) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_accept_host_receipt() != 51714) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_attach_host_transport() != 52655) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_detach_host_transport() != 53622) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_flush_host_transport() != 48729) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_flush_host_transport_page() != 33718) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_receive_host_peer() != 64081) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_take_host_frames() != 45058) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_editac_ffi_checksum_constructor_nativeengine_create() != 33211) {

@@ -23,9 +23,12 @@ def main():
     parser.add_argument('--rich-fixture', type=Path)
     parser.add_argument('--table-fixture', type=Path)
     parser.add_argument('--case', action='append', default=[])
+    parser.add_argument('--host-transport', action='store_true', help='compose STB-1.4 host transport cases with the table harness')
     parser.add_argument('--fixture-writer', type=Path)
     parser.add_argument('--reuse-legacy', type=Path)
     args = parser.parse_args()
+    if args.host_transport and not args.table_fixture:
+        parser.error("--host-transport requires --table-fixture")
     out = args.output.resolve()
     out.mkdir(parents=True, exist_ok=True)
     attempt = out / ('attempt-' + str(1 + len(list(out.glob('attempt-*')))))
@@ -75,6 +78,8 @@ def main():
             canonical = CORE / 'tests/native/session-probe/main.swift'
             host = work / 'main.swift'
             extra_entry = 'runTablePolicyCases()\nrunRemoteCases()\n' if args.table_fixture else ''
+            if args.host_transport:
+                extra_entry += 'runHostTransportCases()\n'
             marker = 'if let index = CommandLine.arguments.firstIndex(of: "--rich-fixture") {'
             host.write_text(canonical.read_text().replace(marker, 'runCommandCases()\n' + extra_entry + marker))
             command_source = CORE / 'tests/native/session-command-proof/CommandCases.swift'
@@ -82,6 +87,9 @@ def main():
             (attempt / 'main.swift').write_bytes(host.read_bytes())
             rich_source = CORE / 'tests/native/session-probe/RichCases.swift'
             table_sources = [CORE / 'tests/native/table-session-proof/TablePolicyCases.swift', CORE / 'tests/native/table-session-proof/RemoteCases.swift'] if args.table_fixture else []
+            if args.host_transport:
+                table_sources.append(CORE / 'tests/native/table-session-proof/HostTransportCases.swift')
+                receipt['sourceHashes']['crates/editac-ffi/src/session_collaboration.rs'] = digest(CORE / 'crates/editac-ffi/src/session_collaboration.rs')
             if args.table_fixture:
                 receipt['tableFixtureManifestSha256'] = digest(args.table_fixture)
                 receipt['tableFixtureStoreSha256'] = digest(Path(json.loads(args.table_fixture.read_text())['path']))

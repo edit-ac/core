@@ -761,6 +761,20 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_undo(
     ): Int
+    external fun uniffi_editac_ffi_checksum_method_nativesession_accept_host_receipt(
+    ): Int
+    external fun uniffi_editac_ffi_checksum_method_nativesession_attach_host_transport(
+    ): Int
+    external fun uniffi_editac_ffi_checksum_method_nativesession_detach_host_transport(
+    ): Int
+    external fun uniffi_editac_ffi_checksum_method_nativesession_flush_host_transport(
+    ): Int
+    external fun uniffi_editac_ffi_checksum_method_nativesession_flush_host_transport_page(
+    ): Int
+    external fun uniffi_editac_ffi_checksum_method_nativesession_receive_host_peer(
+    ): Int
+    external fun uniffi_editac_ffi_checksum_method_nativesession_take_host_frames(
+    ): Int
     external fun uniffi_editac_ffi_checksum_constructor_nativeengine_create(
     ): Int
     external fun uniffi_editac_ffi_checksum_constructor_nativeengine_restore(
@@ -888,6 +902,20 @@ internal object UniffiLib {
     external fun uniffi_editac_ffi_fn_method_nativesession_take_rich_patches(`ptr`: Long,`afterSequence`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     external fun uniffi_editac_ffi_fn_method_nativesession_undo(`ptr`: Long,`revision`: RustBuffer.ByValue,`now`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_editac_ffi_fn_method_nativesession_accept_host_receipt(`ptr`: Long,`token`: RustBuffer.ByValue,`receipt`: RustBuffer.ByValue,`now`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_editac_ffi_fn_method_nativesession_attach_host_transport(`ptr`: Long,`options`: RustBuffer.ByValue,`now`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_editac_ffi_fn_method_nativesession_detach_host_transport(`ptr`: Long,`token`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
+    external fun uniffi_editac_ffi_fn_method_nativesession_flush_host_transport(`ptr`: Long,`token`: RustBuffer.ByValue,`now`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Long
+    external fun uniffi_editac_ffi_fn_method_nativesession_flush_host_transport_page(`ptr`: Long,`token`: RustBuffer.ByValue,`after`: RustBuffer.ByValue,`maxFrames`: Int,`now`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Long
+    external fun uniffi_editac_ffi_fn_method_nativesession_receive_host_peer(`ptr`: Long,`token`: RustBuffer.ByValue,`update`: RustBuffer.ByValue,`now`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_editac_ffi_fn_method_nativesession_take_host_frames(`ptr`: Long,`token`: RustBuffer.ByValue,`maxFrames`: Int,`now`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     external fun uniffi_editac_ffi_fn_func_abi_version(uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
@@ -1137,6 +1165,27 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_editac_ffi_checksum_method_nativesession_undo() and 0xFFFF) != 34245) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_editac_ffi_checksum_method_nativesession_accept_host_receipt() and 0xFFFF) != 51714) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_editac_ffi_checksum_method_nativesession_attach_host_transport() and 0xFFFF) != 52655) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_editac_ffi_checksum_method_nativesession_detach_host_transport() and 0xFFFF) != 53622) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_editac_ffi_checksum_method_nativesession_flush_host_transport() and 0xFFFF) != 48729) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_editac_ffi_checksum_method_nativesession_flush_host_transport_page() and 0xFFFF) != 33718) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_editac_ffi_checksum_method_nativesession_receive_host_peer() and 0xFFFF) != 64081) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_editac_ffi_checksum_method_nativesession_take_host_frames() and 0xFFFF) != 45058) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_editac_ffi_checksum_constructor_nativeengine_create() and 0xFFFF) != 33211) {
@@ -2238,6 +2287,41 @@ public interface NativeSessionInterface {
     
     fun `undo`(`revision`: kotlin.ByteArray, `now`: kotlin.ULong): NativeSessionCommit?
     
+    /**
+     * Exact authenticated application receipt; only the existing atomic store path prunes.
+     */
+    fun `acceptHostReceipt`(`token`: kotlin.String, `receipt`: NativeHostReceipt, `now`: kotlin.ULong): NativeHostReceiptResult
+    
+    /**
+     * Trusted host grants an exclusive lease, with no local write permission change.
+     */
+    fun `attachHostTransport`(`options`: NativeHostTransportOptions, `now`: kotlin.ULong): kotlin.String
+    
+    /**
+     * Detach/revoke only this connection. A stale event cannot revoke a newer lease.
+     */
+    fun `detachHostTransport`(`token`: kotlin.String)
+    
+    /**
+     * Existing Session y-protocols flush. Partial queueing on backpressure is retained.
+     */
+    fun `flushHostTransport`(`token`: kotlin.String, `now`: kotlin.ULong): kotlin.ULong
+    
+    /**
+     * Page over exact durable pending identities without manufacturing receipts.
+     */
+    fun `flushHostTransportPage`(`token`: kotlin.String, `after`: NativeHostReceipt?, `maxFrames`: kotlin.UInt, `now`: kotlin.ULong): kotlin.ULong
+    
+    /**
+     * Existing trusted-host journal admission, additionally bound to the active lease.
+     */
+    fun `receiveHostPeer`(`token`: kotlin.String, `update`: NativeSessionPeerUpdate, `now`: kotlin.ULong): NativeSessionCommit
+    
+    /**
+     * Pull copied outbound frames; delivery is never a remote durable acknowledgment.
+     */
+    fun `takeHostFrames`(`token`: kotlin.String, `maxFrames`: kotlin.UInt, `now`: kotlin.ULong): List<NativeHostFrame>
+    
     companion object
 }
 
@@ -2789,6 +2873,142 @@ open class NativeSession: Disposable, AutoCloseable, NativeSessionInterface
     
 
     
+    /**
+     * Exact authenticated application receipt; only the existing atomic store path prunes.
+     */
+    @Throws(NativeSessionException::class)override fun `acceptHostReceipt`(`token`: kotlin.String, `receipt`: NativeHostReceipt, `now`: kotlin.ULong): NativeHostReceiptResult {
+            return FfiConverterTypeNativeHostReceiptResult.lift(
+    callWithHandle {
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_method_nativesession_accept_host_receipt(
+        it,
+        
+        FfiConverterString.lower(`token`),
+        FfiConverterTypeNativeHostReceipt.lower(`receipt`),
+        FfiConverterULong.lower(`now`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Trusted host grants an exclusive lease, with no local write permission change.
+     */
+    @Throws(NativeSessionException::class)override fun `attachHostTransport`(`options`: NativeHostTransportOptions, `now`: kotlin.ULong): kotlin.String {
+            return FfiConverterString.lift(
+    callWithHandle {
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_method_nativesession_attach_host_transport(
+        it,
+        
+        FfiConverterTypeNativeHostTransportOptions.lower(`options`),
+        FfiConverterULong.lower(`now`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Detach/revoke only this connection. A stale event cannot revoke a newer lease.
+     */
+    @Throws(NativeSessionException::class)override fun `detachHostTransport`(`token`: kotlin.String)
+        = 
+    callWithHandle {
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_method_nativesession_detach_host_transport(
+        it,
+        
+        FfiConverterString.lower(`token`),_status)
+}
+    }
+    
+    
+
+    
+    /**
+     * Existing Session y-protocols flush. Partial queueing on backpressure is retained.
+     */
+    @Throws(NativeSessionException::class)override fun `flushHostTransport`(`token`: kotlin.String, `now`: kotlin.ULong): kotlin.ULong {
+            return FfiConverterULong.lift(
+    callWithHandle {
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_method_nativesession_flush_host_transport(
+        it,
+        
+        FfiConverterString.lower(`token`),
+        FfiConverterULong.lower(`now`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Page over exact durable pending identities without manufacturing receipts.
+     */
+    @Throws(NativeSessionException::class)override fun `flushHostTransportPage`(`token`: kotlin.String, `after`: NativeHostReceipt?, `maxFrames`: kotlin.UInt, `now`: kotlin.ULong): kotlin.ULong {
+            return FfiConverterULong.lift(
+    callWithHandle {
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_method_nativesession_flush_host_transport_page(
+        it,
+        
+        FfiConverterString.lower(`token`),
+        FfiConverterOptionalTypeNativeHostReceipt.lower(`after`),
+        FfiConverterUInt.lower(`maxFrames`),
+        FfiConverterULong.lower(`now`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Existing trusted-host journal admission, additionally bound to the active lease.
+     */
+    @Throws(NativeSessionException::class)override fun `receiveHostPeer`(`token`: kotlin.String, `update`: NativeSessionPeerUpdate, `now`: kotlin.ULong): NativeSessionCommit {
+            return FfiConverterTypeNativeSessionCommit.lift(
+    callWithHandle {
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_method_nativesession_receive_host_peer(
+        it,
+        
+        FfiConverterString.lower(`token`),
+        FfiConverterTypeNativeSessionPeerUpdate.lower(`update`),
+        FfiConverterULong.lower(`now`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Pull copied outbound frames; delivery is never a remote durable acknowledgment.
+     */
+    @Throws(NativeSessionException::class)override fun `takeHostFrames`(`token`: kotlin.String, `maxFrames`: kotlin.UInt, `now`: kotlin.ULong): List<NativeHostFrame> {
+            return FfiConverterSequenceTypeNativeHostFrame.lift(
+    callWithHandle {
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_method_nativesession_take_host_frames(
+        it,
+        
+        FfiConverterString.lower(`token`),
+        FfiConverterUInt.lower(`maxFrames`),
+        FfiConverterULong.lower(`now`),_status)
+}
+    }
+    )
+    }
+    
+
+    
 
     
 
@@ -3146,6 +3366,150 @@ public object FfiConverterTypeNativeCommandRoute: FfiConverterRustBuffer<NativeC
             FfiConverterBoolean.write(value.`available`, buf)
             FfiConverterBoolean.write(value.`canPrepare`, buf)
             FfiConverterString.write(value.`reason`, buf)
+    }
+}
+
+
+
+data class NativeHostFrame (
+    var `identityJson`: kotlin.String
+    , 
+    var `bytes`: kotlin.ByteArray
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeHostFrame: FfiConverterRustBuffer<NativeHostFrame> {
+    override fun read(buf: ByteBuffer): NativeHostFrame {
+        return NativeHostFrame(
+            FfiConverterString.read(buf),
+            FfiConverterByteArray.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: NativeHostFrame) = (
+            FfiConverterString.allocationSize(value.`identityJson`) +
+            FfiConverterByteArray.allocationSize(value.`bytes`)
+    )
+
+    override fun write(value: NativeHostFrame, buf: ByteBuffer) {
+            FfiConverterString.write(value.`identityJson`, buf)
+            FfiConverterByteArray.write(value.`bytes`, buf)
+    }
+}
+
+
+
+data class NativeHostReceipt (
+    var `identityJson`: kotlin.String
+    , 
+    var `writer`: kotlin.UInt
+    , 
+    var `sequence`: kotlin.ULong
+    , 
+    var `checksum`: kotlin.ByteArray
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeHostReceipt: FfiConverterRustBuffer<NativeHostReceipt> {
+    override fun read(buf: ByteBuffer): NativeHostReceipt {
+        return NativeHostReceipt(
+            FfiConverterString.read(buf),
+            FfiConverterUInt.read(buf),
+            FfiConverterULong.read(buf),
+            FfiConverterByteArray.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: NativeHostReceipt) = (
+            FfiConverterString.allocationSize(value.`identityJson`) +
+            FfiConverterUInt.allocationSize(value.`writer`) +
+            FfiConverterULong.allocationSize(value.`sequence`) +
+            FfiConverterByteArray.allocationSize(value.`checksum`)
+    )
+
+    override fun write(value: NativeHostReceipt, buf: ByteBuffer) {
+            FfiConverterString.write(value.`identityJson`, buf)
+            FfiConverterUInt.write(value.`writer`, buf)
+            FfiConverterULong.write(value.`sequence`, buf)
+            FfiConverterByteArray.write(value.`checksum`, buf)
+    }
+}
+
+
+
+data class NativeHostTransportOptions (
+    var `identityJson`: kotlin.String
+    , 
+    var `expiresAt`: kotlin.ULong
+    , 
+    var `durableReceipts`: kotlin.Boolean
+    , 
+    var `maxFrameBytes`: kotlin.UInt
+    , 
+    var `maxQueueBytes`: kotlin.UInt
+    , 
+    var `maxQueueFrames`: kotlin.UInt
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeHostTransportOptions: FfiConverterRustBuffer<NativeHostTransportOptions> {
+    override fun read(buf: ByteBuffer): NativeHostTransportOptions {
+        return NativeHostTransportOptions(
+            FfiConverterString.read(buf),
+            FfiConverterULong.read(buf),
+            FfiConverterBoolean.read(buf),
+            FfiConverterUInt.read(buf),
+            FfiConverterUInt.read(buf),
+            FfiConverterUInt.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: NativeHostTransportOptions) = (
+            FfiConverterString.allocationSize(value.`identityJson`) +
+            FfiConverterULong.allocationSize(value.`expiresAt`) +
+            FfiConverterBoolean.allocationSize(value.`durableReceipts`) +
+            FfiConverterUInt.allocationSize(value.`maxFrameBytes`) +
+            FfiConverterUInt.allocationSize(value.`maxQueueBytes`) +
+            FfiConverterUInt.allocationSize(value.`maxQueueFrames`)
+    )
+
+    override fun write(value: NativeHostTransportOptions, buf: ByteBuffer) {
+            FfiConverterString.write(value.`identityJson`, buf)
+            FfiConverterULong.write(value.`expiresAt`, buf)
+            FfiConverterBoolean.write(value.`durableReceipts`, buf)
+            FfiConverterUInt.write(value.`maxFrameBytes`, buf)
+            FfiConverterUInt.write(value.`maxQueueBytes`, buf)
+            FfiConverterUInt.write(value.`maxQueueFrames`, buf)
     }
 }
 
@@ -4236,6 +4600,41 @@ public object FfiConverterTypeNativeError : FfiConverterRustBuffer<NativeExcepti
 
 
 
+enum class NativeHostReceiptResult {
+    
+    REMOTE_COMMITTED,
+    CAPABILITY_UNAVAILABLE,
+    UNKNOWN_UPDATE;
+
+    
+
+
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeHostReceiptResult: FfiConverterRustBuffer<NativeHostReceiptResult> {
+    override fun read(buf: ByteBuffer) = try {
+        NativeHostReceiptResult.values()[buf.getInt() - 1]
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: NativeHostReceiptResult) = 4UL
+
+    override fun write(value: NativeHostReceiptResult, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+
 enum class NativeRevisionFailure {
     
     INVALID_TOKEN,
@@ -4951,6 +5350,38 @@ public object FfiConverterOptionalByteArray: FfiConverterRustBuffer<kotlin.ByteA
 /**
  * @suppress
  */
+public object FfiConverterOptionalTypeNativeHostReceipt: FfiConverterRustBuffer<NativeHostReceipt?> {
+    override fun read(buf: ByteBuffer): NativeHostReceipt? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterTypeNativeHostReceipt.read(buf)
+    }
+
+    override fun allocationSize(value: NativeHostReceipt?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterTypeNativeHostReceipt.allocationSize(value)
+        }
+    }
+
+    override fun write(value: NativeHostReceipt?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterTypeNativeHostReceipt.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
 public object FfiConverterOptionalTypeNativeSessionCommit: FfiConverterRustBuffer<NativeSessionCommit?> {
     override fun read(buf: ByteBuffer): NativeSessionCommit? {
         if (buf.get().toInt() == 0) {
@@ -5117,6 +5548,34 @@ public object FfiConverterSequenceTypeNativeCommandRoute: FfiConverterRustBuffer
         buf.putInt(value.size)
         value.iterator().forEach {
             FfiConverterTypeNativeCommandRoute.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceTypeNativeHostFrame: FfiConverterRustBuffer<List<NativeHostFrame>> {
+    override fun read(buf: ByteBuffer): List<NativeHostFrame> {
+        val len = buf.getInt()
+        return List<NativeHostFrame>(len) {
+            FfiConverterTypeNativeHostFrame.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<NativeHostFrame>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeNativeHostFrame.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<NativeHostFrame>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeNativeHostFrame.write(it, buf)
         }
     }
 }

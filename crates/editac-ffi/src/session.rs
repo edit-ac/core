@@ -411,6 +411,8 @@ struct State {
     next_anchor: u64,
     projection: Rc<RefCell<ProjectionQueue>>,
     _projection_subscription: editac_core::patches::Subscription,
+    host_transport: Option<session_collaboration::HostConnection>,
+    next_connection: u64,
 }
 impl State {
     fn new(mut session: Session<Arc<NativeStore>>) -> Result<Self> {
@@ -434,7 +436,52 @@ impl State {
             next_anchor: 0,
             projection,
             _projection_subscription: subscription,
+            host_transport: None,
+            next_connection: 0,
         })
+    }
+    fn receive_peer_update(
+        &mut self,
+        update: NativeSessionPeerUpdate,
+    ) -> Result<NativeSessionCommit> {
+        use editac_session::ports::{JournalEntry, UpdateId};
+        // Bound input before parsing or semantic staging; preserve the original digest.
+        if update.identity_json.len() > 4096
+            || update.bytes.len() > StoreLimits::default().max_record_bytes
+            || update.origin.len() > 1024
+        {
+            return Err(NativeSessionError::ResourceLimit);
+        }
+        let session = self.service.session();
+        session.observed_revision()?;
+        let identity = session.document().identity().clone();
+        let supplied: serde_json::Value =
+            serde_json::from_str(&update.identity_json).map_err(|_| NativeSessionError::Store {
+                reason: NativeStoreFailure::InvalidRecord,
+            })?;
+        if supplied != editac_core::interchange::identity(&identity) {
+            return Err(NativeSessionError::Incompatible);
+        }
+        if update.writer == session.document().writer_id() {
+            return Err(PortError::Permission.into());
+        }
+        let checksum = update
+            .checksum
+            .try_into()
+            .map_err(|_| NativeSessionError::Store {
+                reason: NativeStoreFailure::InvalidRecord,
+            })?;
+        let entry = JournalEntry::from_stored(
+            UpdateId {
+                identity,
+                writer: update.writer,
+                sequence: update.sequence,
+                checksum,
+            },
+            update.origin,
+            update.bytes,
+        )?;
+        Ok(self.service.receive_peer(entry)?.into())
     }
     fn retain_plan(&mut self, plan: PreparedEdit) -> Result<String> {
         let next = self
@@ -662,48 +709,7 @@ impl NativeSession {
     /// Trusted-host ingress over the actual EditService/Session, after host security admission.
     /// This accepts neither unauthenticated network frames nor encrypted packets.
     pub fn receive_peer(&self, update: NativeSessionPeerUpdate) -> Result<NativeSessionCommit> {
-        self.call(move |state| {
-            use editac_session::ports::{JournalEntry, UpdateId};
-            // Bound input before parsing or semantic staging; preserve the original digest.
-            if update.identity_json.len() > 4096
-                || update.bytes.len() > StoreLimits::default().max_record_bytes
-                || update.origin.len() > 1024
-            {
-                return Err(NativeSessionError::ResourceLimit);
-            }
-            let session = state.service.session();
-            session.observed_revision()?;
-            let identity = session.document().identity().clone();
-            let supplied: serde_json::Value =
-                serde_json::from_str(&update.identity_json).map_err(|_| {
-                    NativeSessionError::Store {
-                        reason: NativeStoreFailure::InvalidRecord,
-                    }
-                })?;
-            if supplied != editac_core::interchange::identity(&identity) {
-                return Err(NativeSessionError::Incompatible);
-            }
-            if update.writer == session.document().writer_id() {
-                return Err(PortError::Permission.into());
-            }
-            let checksum = update
-                .checksum
-                .try_into()
-                .map_err(|_| NativeSessionError::Store {
-                    reason: NativeStoreFailure::InvalidRecord,
-                })?;
-            let entry = JournalEntry::from_stored(
-                UpdateId {
-                    identity,
-                    writer: update.writer,
-                    sequence: update.sequence,
-                    checksum,
-                },
-                update.origin,
-                update.bytes,
-            )?;
-            Ok(state.service.receive_peer(entry)?.into())
-        })
+        self.call(move |state| state.receive_peer_update(update))
     }
     pub fn read(&self, now: u64) -> Result<NativeSessionRead> {
         self.call(move |state| {
@@ -2001,3 +2007,7 @@ mod tests {
         }
     }
 }
+
+#[path = "session_collaboration.rs"]
+mod session_collaboration;
+pub use session_collaboration::*;
