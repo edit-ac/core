@@ -138,6 +138,7 @@ pub struct PreparedEditorEdit {
     writer: u32,
     revision: u64,
     baseline: Vec<u8>,
+    baseline_stamp: crate::document::CheckpointStamp,
     update: Vec<u8>,
     origin: TextOrigin,
     next_operation: u32,
@@ -821,6 +822,7 @@ impl Document {
             writer: self.writer_id(),
             revision: self.revision(),
             baseline: baseline.bytes,
+            baseline_stamp: self.checkpoint_stamp(),
             update,
             origin: origin.clone(),
             next_operation: self.next_structure_counter,
@@ -1221,6 +1223,7 @@ impl Document {
             writer: self.writer_id(),
             revision: self.revision(),
             baseline: baseline.bytes,
+            baseline_stamp: self.checkpoint_stamp(),
             update: stage
                 .update_v1(&self.state_vector_v1())
                 .map_err(EditorError::Admission)?,
@@ -2175,6 +2178,7 @@ impl Document {
             writer: self.writer_id(),
             revision: self.revision(),
             baseline,
+            baseline_stamp: self.checkpoint_stamp(),
             update,
             origin: origin.clone(),
             next_operation: counter,
@@ -2222,7 +2226,9 @@ impl Document {
         if self.identity() != &plan.identity || self.writer_id() != plan.writer {
             return Err(EditorError::Text(TextError::WrongReplica));
         }
-        if self.revision() != plan.revision || self.checkpoint().bytes != plan.baseline {
+        if self.revision() != plan.revision
+            || !self.matches_checkpoint(&plan.baseline_stamp, &plan.baseline)
+        {
             return Err(EditorError::Text(TextError::StalePlan));
         }
         let revision = self

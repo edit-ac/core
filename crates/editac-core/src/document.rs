@@ -4,7 +4,10 @@
 //! creation only for a new lineage and persist the resulting checkpoint atomically;
 //! an empty state vector is never evidence that an existing document is new.
 use std::collections::{HashMap, HashSet};
-use std::sync::{Mutex, OnceLock};
+use std::sync::{
+    Arc, Mutex, OnceLock,
+    atomic::{AtomicU64, Ordering},
+};
 use yrs::encoding::read::{Cursor, Read};
 use yrs::updates::{
     decoder::{Decode, Decoder, DecoderV1},
@@ -342,11 +345,18 @@ impl Drop for WriterLease {
     }
 }
 
+#[derive(Debug)]
+pub(crate) struct CheckpointStamp {
+    owner: Arc<AtomicU64>,
+    value: u64,
+}
+
 /// One authoritative Yrs replica. No public mutable Yrs handle or clone is exposed.
 #[derive(Debug)]
 pub struct Document {
     pub(crate) doc: Doc,
     projection: crate::projection::ProjectionIndex,
+    checkpoint_stamp: Arc<AtomicU64>,
     identity: DocumentIdentity,
     _writer: WriterLease,
     next_node_counter: u64,
@@ -450,6 +460,7 @@ impl Document {
         permit.committed = true;
         Ok(Self {
             projection: crate::projection::ProjectionIndex::with_identity(&doc, &permit.identity),
+            checkpoint_stamp: observe_checkpoint_stamp(&doc),
             doc,
             identity: permit.identity.clone(),
             _writer: writer,
@@ -574,6 +585,7 @@ impl Document {
             .insert((expected.document_id.clone(), expected.epoch.clone()), true);
         Ok(Self {
             projection,
+            checkpoint_stamp: observe_checkpoint_stamp(&doc),
             doc,
             identity: expected.clone(),
             _writer: writer,
@@ -737,6 +749,24 @@ impl Document {
         }
         Ok(self.read().encode_state_as_update_v1(&vector))
     }
+    /// Private local transaction stamp, independent of public revision and CRDT
+    /// clocks. A delete-only write must invalidate prepared checkpoint equality.
+    pub(crate) fn checkpoint_stamp(&self) -> CheckpointStamp {
+        CheckpointStamp {
+            owner: self.checkpoint_stamp.clone(),
+            value: self.checkpoint_stamp.load(Ordering::Relaxed),
+        }
+    }
+    pub(crate) fn matches_checkpoint(&self, stamp: &CheckpointStamp, bytes: &[u8]) -> bool {
+        // Same owned replica, no intervening mutable transaction: no need to
+        // re-encode the entire corpus. After any transaction (including a no-op)
+        // retain the exact original byte comparison. Saturation cannot wrap and
+        // accidentally admit an old plan.
+        (stamp.value != u64::MAX
+            && Arc::ptr_eq(&stamp.owner, &self.checkpoint_stamp)
+            && stamp.value == self.checkpoint_stamp.load(Ordering::Relaxed))
+            || self.checkpoint().bytes == bytes
+    }
     pub fn checkpoint(&self) -> InitializedCheckpoint {
         InitializedCheckpoint {
             identity: self.identity.clone(),
@@ -747,6 +777,19 @@ impl Document {
                 .encode_state_as_update_v1(&StateVector::default()),
         }
     }
+}
+fn observe_checkpoint_stamp(doc: &Doc) -> Arc<AtomicU64> {
+    let stamp = Arc::new(AtomicU64::new(0));
+    let observed = stamp.clone();
+    // Unlike update observers this hook does not encode an update. It also
+    // covers deletes, history, remote writes and internal/raw transactions.
+    doc.observe_after_transaction("editac:checkpoint-stamp", move |_| {
+        let _ = observed.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |value| {
+            Some(value.saturating_add(1))
+        });
+    })
+    .expect("owned document has no active transaction");
+    stamp
 }
 fn register_roots(doc: &Doc) {
     for root in ROOTS {
@@ -977,4 +1020,225 @@ pub(super) fn validate_immutable_projected_structure(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod checkpoint_stamp_tests {
+    use super::*;
+    use crate::{
+        Utf16Offset,
+        commands::{
+            editor::{EditorCommand, EditorError},
+            text::{TextError, TextOrigin},
+        },
+        editor_mapping as mapping,
+    };
+    use yrs::Text;
+
+    fn fixture(case: u8, stable: bool, restored: bool) -> Document {
+        let document_id = format!(
+            "aaaaaaaa-aaaa-4aaa-8aaa-aaaa55{case:02x}{:02x}{:02x}",
+            u8::from(stable),
+            u8::from(restored)
+        );
+        let epoch = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbb5500";
+        let identity = if stable {
+            DocumentIdentity::v5(&document_id, epoch)
+        } else {
+            DocumentIdentity::v4(&document_id, epoch)
+        }
+        .unwrap();
+        let doc = Document::create(
+            CreationPermit::authorize_new(identity).unwrap(),
+            &[InitialNode {
+                kind: "block".into(),
+                text: "A😀e\u{301}Z".into(),
+            }],
+        )
+        .unwrap();
+        if restored {
+            Document::restore(doc.identity(), &doc.checkpoint(), &[]).unwrap()
+        } else {
+            doc
+        }
+    }
+    fn check(case: u8) {
+        for stable in [false, true] {
+            for restored in [false, true] {
+                let mut doc = fixture(case, stable, restored);
+                let id = doc.snapshot().unwrap().visible[0].id.clone();
+                let baseline = doc.checkpoint().bytes;
+                let stamp = doc.checkpoint_stamp();
+                let revision = doc.revision();
+                let vector = doc.state_vector_v1();
+                let origin = TextOrigin::new("checkpoint-stamp-proof").unwrap();
+                let plan = doc
+                    .prepare_editor(
+                        &[EditorCommand::ReplaceAt {
+                            owner: id.clone(),
+                            from: Utf16Offset(0),
+                            to: Utf16Offset(1),
+                            text: "z".into(),
+                        }],
+                        &origin,
+                    )
+                    .unwrap();
+                match case {
+                    0 => {
+                        drop(doc.doc.transact_mut());
+                    }
+                    1 => mapping::text(&doc.doc, &id).insert(&mut doc.doc.transact_mut(), 0, "界"),
+                    2 => {
+                        mapping::text(&doc.doc, &id).remove_range(&mut doc.doc.transact_mut(), 0, 1)
+                    }
+                    3 => {
+                        let mut txn = doc.doc.transact_mut();
+                        txn.get_map(mapping::ROOTS[4]).unwrap().insert(
+                            &mut txn,
+                            id.as_str(),
+                            BlockAttributes::Heading(2).tuple(),
+                        );
+                    }
+                    4 => {
+                        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+                            || {
+                                let text = mapping::text(&doc.doc, &id);
+                                let mut txn = doc.doc.transact_mut();
+                                text.insert(&mut txn, 0, "界");
+                                panic!(
+                                    "prepared rejection must observe a transaction dropped during unwind"
+                                );
+                            },
+                        ));
+                        assert!(outcome.is_err());
+                    }
+                    5 => {
+                        let text = mapping::text(&doc.doc, &id);
+                        text.insert(&mut doc.doc.transact_mut(), 0, "x");
+                        text.remove_range(&mut doc.doc.transact_mut(), 0, 1);
+                    }
+                    6 => {
+                        mapping::apply(&doc.doc, &baseline).unwrap();
+                    }
+                    7 => {
+                        doc.inspect().unwrap();
+                        doc.snapshot().unwrap();
+                        doc.checkpoint();
+                        assert_eq!(
+                            stamp.value,
+                            doc.checkpoint_stamp().value,
+                            "read-only work must retain the fast path"
+                        );
+                    }
+                    _ => unreachable!(),
+                }
+                assert_eq!(
+                    doc.revision(),
+                    revision,
+                    "raw changes bypass public revision"
+                );
+                if case == 2 {
+                    assert_eq!(
+                        doc.state_vector_v1(),
+                        vector,
+                        "delete-only regression must not advance clocks"
+                    );
+                }
+                let unchanged = doc.checkpoint().bytes == baseline;
+                assert_eq!(
+                    unchanged,
+                    matches!(case, 0 | 6 | 7),
+                    "independent byte oracle, case {case}"
+                );
+                assert_eq!(doc.matches_checkpoint(&stamp, &baseline), unchanged);
+                let before_commit = doc.checkpoint().bytes;
+                let result = doc.commit_editor(plan);
+                if unchanged {
+                    result.unwrap();
+                    assert!(
+                        doc.snapshot().unwrap().visible[0]
+                            .runs
+                            .iter()
+                            .map(|r| r.text.as_str())
+                            .collect::<String>()
+                            .starts_with('z')
+                    );
+                } else {
+                    assert!(matches!(
+                        result,
+                        Err(EditorError::Text(TextError::StalePlan))
+                    ));
+                    assert_eq!(doc.checkpoint().bytes, before_commit, "rejection is atomic");
+                }
+            }
+        }
+    }
+    #[test]
+    fn checkpoint_stamp_noop_transaction_preserves_exact_admission() {
+        check(0);
+    }
+    #[test]
+    fn checkpoint_stamp_raw_insert_rejects_without_revision_change() {
+        check(1);
+    }
+    #[test]
+    fn checkpoint_stamp_delete_only_rejects_without_clock_change() {
+        check(2);
+    }
+    #[test]
+    fn checkpoint_stamp_structural_write_rejects() {
+        check(3);
+    }
+    #[test]
+    fn checkpoint_stamp_unwound_transaction_rejects() {
+        check(4);
+    }
+    #[test]
+    fn checkpoint_stamp_reverted_text_keeps_tombstone_equality_rule() {
+        check(5);
+    }
+    #[test]
+    fn checkpoint_stamp_duplicate_update_preserves_admission() {
+        check(6);
+    }
+    #[test]
+    fn checkpoint_stamp_readonly_work_keeps_fast_path() {
+        check(7);
+    }
+    #[test]
+    fn checkpoint_stamp_saturation_and_foreign_owner_use_exact_bytes() {
+        let doc = fixture(8, true, false);
+        let baseline = doc.checkpoint().bytes;
+        let foreign_live_stamp = CheckpointStamp {
+            owner: Arc::new(AtomicU64::new(doc.checkpoint_stamp().value)),
+            value: doc.checkpoint_stamp().value,
+        };
+        assert!(
+            !doc.matches_checkpoint(&foreign_live_stamp, &[0]),
+            "an equal counter from another owner cannot bypass exact bytes"
+        );
+        doc.checkpoint_stamp.store(u64::MAX - 1, Ordering::Relaxed);
+        let before = doc.checkpoint_stamp();
+        drop(doc.doc.transact_mut());
+        assert_eq!(doc.checkpoint_stamp().value, u64::MAX);
+        assert!(doc.matches_checkpoint(&before, &baseline));
+        let saturated = doc.checkpoint_stamp();
+        let foreign = CheckpointStamp {
+            owner: Arc::new(AtomicU64::new(u64::MAX)),
+            value: u64::MAX,
+        };
+        assert!(doc.matches_checkpoint(&foreign, &baseline));
+        let id = doc.snapshot().unwrap().visible[0].id.clone();
+        mapping::text(&doc.doc, &id).remove_range(&mut doc.doc.transact_mut(), 0, 1);
+        assert_eq!(doc.checkpoint_stamp().value, u64::MAX, "stamp cannot wrap");
+        assert!(!doc.matches_checkpoint(&saturated, &baseline));
+        assert!(!doc.matches_checkpoint(&foreign, &baseline));
+        let current = doc.checkpoint().bytes;
+        let different_owner_same_value = CheckpointStamp {
+            owner: Arc::new(AtomicU64::new(0)),
+            value: 0,
+        };
+        assert!(doc.matches_checkpoint(&different_owner_same_value, &current));
+        assert!(!doc.matches_checkpoint(&different_owner_same_value, &baseline));
+    }
 }
