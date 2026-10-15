@@ -15,6 +15,7 @@ suites['math'] = ['tests/browser/math.spec.ts'];
 suites['content-modules'] = ['tests/browser/content-modules.spec.ts'];
 suites['reorder'] = ['tests/browser/reorder.spec.ts'];
 suites['link-enrichment'] = ['tests/browser/link-enrichment.spec.ts'];
+suites['private-link-display'] = ['tests/browser/private-link-display.spec.ts'];
 suites['references'] = ['tests/browser/references.spec.ts'];
 suites['slash'] = ['tests/browser/slash.spec.ts'];
 suites['module-runtime'] = ['tests/browser/module-runtime.spec.ts'];

@@ -34,6 +34,11 @@
       "types": "./dist/extensions/index.d.ts",
       "import": "./dist/extensions/index.js",
       "default": "./dist/extensions/index.js"
+    },
+    "./links": {
+      "types": "./dist/links/index.d.ts",
+      "import": "./dist/links/index.js",
+      "default": "./dist/links/index.js"
     }
   },
   "scripts": {

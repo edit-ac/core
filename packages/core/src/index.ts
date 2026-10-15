@@ -46,3 +46,6 @@ export function init(assetUrl: string): Promise<EngineRuntime> {
   void promise.catch(() => { if (loading?.promise === promise) loading = undefined; });
   return promise;
 }
+
+// Keep unbundled hosts with an existing root import map compatible.
+export * from "./links/index.js";

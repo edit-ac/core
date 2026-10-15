@@ -74,3 +74,53 @@ test('host-vetted favicon bytes use a local object URL revoked on disposal',()=>
 for(const mode of ['svg','huge'])test(`host ${mode} icon retains safe title fallback without asset request`,()=>probe(`favicon-${mode}`,async(page,fact)=>{
  await page.evaluate(mode=>window.inputFixture.assetMode(mode),mode);await paste(page);await reply(page);const s=await state(page,fact);assert.equal(s.preview,'<Safe & title> 😀');assert.deepEqual(s.assetUrls,[]);assert.equal(await page.locator('aside img').count(),0);
 }));
+
+test('qualification records real input, checkpoint and focus while prepared lookup is unresolved',()=>probe('qualification-input-timing',async(page,fact)=>{
+ const samples={baseline_input_to_frame_ms:[],pending_input_to_frame_ms:[],checkpoint_ms:[],restore_ms:[],local_paste_ms:[],prepared_wait_ms:[],reply_to_frame_ms:[]};
+ let attempted=0, aborted=0;
+ // Same fixture/runtime, alternating order to avoid treating startup drift as a
+ // resolver regression. Ten warmups per profile; 120 measured samples each.
+ for(let i=0;i<130;i++)for(const enabled of (i%2?[true,false]:[false,true])){
+  const start=await page.evaluate(async enabled=>{
+   const f=window.inputFixture;f.setPolicy(enabled?'local-paste':'disabled');f.reset();
+   const t=performance.now();f.paste();await Promise.resolve();await Promise.resolve();
+   const s=f.state(),index=s.requests.length-1;
+   const checkpointStart=performance.now(),checkpoint=f.engine.checkpoint();
+   const checkpointMs=performance.now()-checkpointStart;
+   if(enabled && (index<0||s.aborted[index]))throw Error('expected pending prepared lookup');
+   if(!checkpoint.bytes.length)throw Error('missing persistence bytes');
+   f.select(f.ids[1],0);
+   window.qualificationInputStamp=null;
+   document.querySelector('#projection').addEventListener('beforeinput',()=>{window.qualificationInputStamp=performance.now();},{capture:true,once:true});
+   return {index,pasteMs:checkpointStart-t,checkpointMs,started:t,requests:s.requests.length};
+  },enabled);
+  await page.keyboard.type('x');
+  const result=await page.evaluate(async ({enabled,start})=>{
+   await new Promise(requestAnimationFrame);
+   const f=window.inputFixture,s=f.state(),root=document.querySelector('#projection');
+   if(window.qualificationInputStamp===null||!root.textContent.includes('xsecond'))throw Error('real input not presented');
+   if(document.activeElement!==root)throw Error('editing lost focus');
+   const inputMs=performance.now()-window.qualificationInputStamp;
+   const checkpoint=f.engine.checkpoint(),persisted=Array.from(checkpoint.bytes);
+   const restoreStart=performance.now();f.replay();const restoreMs=performance.now()-restoreStart;
+   if(JSON.stringify(Array.from(f.engine.checkpoint().bytes))!==JSON.stringify(persisted))throw Error('checkpoint restore changed committed bytes');
+   const waited=performance.now()-start.started;
+   // A result from the old request cannot change restored/edited content.
+   if(enabled)f.respond(start.index);await Promise.resolve();await Promise.resolve();
+   if(JSON.stringify(Array.from(f.engine.checkpoint().bytes))!==JSON.stringify(persisted))throw Error('late metadata wrote shared bytes');
+   return {inputMs,restoreMs,waited,aborted:enabled?f.state().aborted[start.index]:true,requests:s.requests.length};
+  },{enabled,start});
+  if(enabled){attempted++;assert.equal(result.aborted,true);aborted++;}
+  else assert.equal(result.requests,start.requests,'disabled input schedules no request');
+  if(i>=10){samples[enabled?'pending_input_to_frame_ms':'baseline_input_to_frame_ms'].push(result.inputMs);if(enabled){samples.checkpoint_ms.push(start.checkpointMs);samples.restore_ms.push(result.restoreMs);samples.local_paste_ms.push(start.pasteMs);samples.prepared_wait_ms.push(result.waited);}}
+ }
+ // Measure inert preview delivery separately from editing/restore cancellation.
+ for(let i=0;i<130;i++){
+  const sample=await page.evaluate(async()=>{const f=window.inputFixture;f.setPolicy('local-paste');f.reset();f.paste();await Promise.resolve();await Promise.resolve();const index=f.state().requests.length-1;const start=performance.now();f.respond(index);await Promise.resolve();await Promise.resolve();await new Promise(requestAnimationFrame);if(!f.state().preview.includes('Safe'))throw Error('preview not delivered');return performance.now()-start;});
+  if(i>=10)samples.reply_to_frame_ms.push(sample);
+ }
+ fact.timings={provenance:'headless real browser keyboard and packed WASM editor; prepared unresolved host; alternating profiles, 10 warmups excluded; frame is rAF observation, not OS input/physical display',samples,attempted,aborted};
+ const final=await page.evaluate(()=>{const f=window.inputFixture;f.surface.dispose();const s=f.state();return{listeners:s.listeners,views:s.views,aborted:s.aborted.every(Boolean)};});
+ assert.equal(final.listeners,0);assert.equal(final.views,0);assert.equal(final.aborted,true);fact.timings.disposed=final;
+ assert.ok(fact.requests.every(r=>new URL(r).hostname==='127.0.0.1'||r.startsWith('blob:http://127.0.0.1:')));
+}));

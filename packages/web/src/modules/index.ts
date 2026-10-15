@@ -9,7 +9,7 @@ export { ModuleRuntime } from './runtime.js';
 export type { ModuleEvent, ModuleScope, ModuleRuntimeOptions, ModuleRuntimeError, ModuleViewContent, ModuleView, ModuleRenderer } from './runtime.js';
 export { slashCommands, SlashPresenter } from './slash.js';
 export type { SlashAction, SlashCommand, SlashContext, SlashFactory } from './slash.js';
-export { referenceSuggestions, referenceBlock, ReferencePresenter, ReferenceLookupSession } from './references.js';
+export { referenceSuggestions, referenceBlock, ReferencePresenter, ReferenceLookupSession, privateReferenceDisplay, PrivateReferenceView } from './references.js';
 export type { ReferenceTarget, ReferenceQuery, ReferenceResolver, ReferenceFactory, ReferencePermissionV1, ReferenceCatalogResultV1, ReferenceHostV1, ReferenceLookupOptions } from './references.js';
 export { reorderControls, ReorderPresenter } from './reorder.js';
 export type { ReorderContext, ReorderFactory } from './reorder.js';
@@ -34,3 +34,5 @@ export type { ServiceScope, ServiceResult, ServiceFailure, ServiceLimits, Servic
 
 export { SupportDiagnostics, serviceDiagnostic, runWithDiagnostics, DIAGNOSTIC_LIMITS } from '../services/diagnostics.js';
 export type { DiagnosticSource, DiagnosticFailure, RecoveryAction } from '../services/diagnostics.js';
+
+export type { PrivateReferenceDisplayOptions } from './references/display.js';

@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "qualification": "headless-contract-only",
+  "platforms": [
+    {"id":"ios","roadmap":"31","navigation":"UIApplication.open","clipboard":"UIPasteboard","presentation":"UIKit/SwiftUI adapter"},
+    {"id":"android","roadmap":"32","navigation":"Intent ACTION_VIEW","clipboard":"ClipboardManager","presentation":"Android native adapter"},
+    {"id":"macos","roadmap":"33","navigation":"NSWorkspace.open","clipboard":"NSPasteboard","presentation":"AppKit/SwiftUI adapter"},
+    {"id":"windows","roadmap":"34","navigation":"Launcher.LaunchUriAsync","clipboard":"Windows Clipboard","presentation":"Windows native adapter"},
+    {"id":"linux","roadmap":"35","navigation":"desktop URI portal","clipboard":"desktop clipboard API","presentation":"Linux native adapter"},
+    {"id":"tui","roadmap":"36","navigation":"configured URI opener API","clipboard":"explicit configured clipboard port","presentation":"terminal text/status adapter"}
+  ],
+  "states": ["available","unavailable","forbidden","missing","locked","unsupported","canceled","stale"]
+}

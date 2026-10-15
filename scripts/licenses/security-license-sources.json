@@ -1,0 +1,104 @@
+{
+  "editac-security@0.0.0": {
+    "file": "LICENSE",
+    "license": "Apache-2.0",
+    "url": "workspace LICENSE",
+    "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+  },
+  "hax-lib-macros@0.3.7": {
+    "file": "scripts/licenses/hacspec-hax-d8b5b3d3b666.LICENSE",
+    "license": "Apache-2.0",
+    "url": "https://raw.githubusercontent.com/hacspec/hax/d8b5b3d3b666fee8943a351445d2b680105e8ea3/LICENSE",
+    "sha256": "9a50bad5a51e0ad726ea3a7f4b7b758e1b4d1784e6abefe1367f5bf01e972725"
+  },
+  "hax-lib@0.3.7": {
+    "file": "scripts/licenses/hacspec-hax-d8b5b3d3b666.LICENSE",
+    "license": "Apache-2.0",
+    "url": "https://raw.githubusercontent.com/hacspec/hax/d8b5b3d3b666fee8943a351445d2b680105e8ea3/LICENSE",
+    "sha256": "9a50bad5a51e0ad726ea3a7f4b7b758e1b4d1784e6abefe1367f5bf01e972725"
+  },
+  "hpke-rs-crypto@0.7.0": {
+    "file": "scripts/licenses/hpke-rs-0.7.0.LICENSE",
+    "license": "MPL-2.0",
+    "url": "https://www.mozilla.org/media/MPL/2.0/index.txt",
+    "sha256": "3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04"
+  },
+  "hpke-rs-rust-crypto@0.7.0": {
+    "file": "scripts/licenses/hpke-rs-0.7.0.LICENSE",
+    "license": "MPL-2.0",
+    "url": "https://www.mozilla.org/media/MPL/2.0/index.txt",
+    "sha256": "3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04"
+  },
+  "hpke-rs@0.7.0": {
+    "file": "scripts/licenses/hpke-rs-0.7.0.LICENSE",
+    "license": "MPL-2.0",
+    "url": "https://www.mozilla.org/media/MPL/2.0/index.txt",
+    "sha256": "3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04"
+  },
+  "libcrux-intrinsics@0.0.8": {
+    "file": "scripts/licenses/cryspen-libcrux-c5fb80f37530.LICENSE",
+    "license": "Apache-2.0",
+    "url": "https://raw.githubusercontent.com/cryspen/libcrux/c5fb80f37530ee9b2df9501ae5ff8cb4a973a4bd/LICENSE",
+    "sha256": "c517c468fc7f8d83319dd8b3743923f6891e0dfbaf7c57a874758c8f39b98564"
+  },
+  "libcrux-platform@0.0.3": {
+    "file": "scripts/licenses/cryspen-libcrux-316fcd6c19c2.LICENSE",
+    "license": "Apache-2.0",
+    "url": "https://raw.githubusercontent.com/cryspen/libcrux/316fcd6c19c2e33bd0429e1319b6557d91038512/LICENSE",
+    "sha256": "c517c468fc7f8d83319dd8b3743923f6891e0dfbaf7c57a874758c8f39b98564"
+  },
+  "libcrux-secrets@0.0.6": {
+    "file": "scripts/licenses/cryspen-libcrux-c5fb80f37530.LICENSE",
+    "license": "Apache-2.0",
+    "url": "https://raw.githubusercontent.com/cryspen/libcrux/c5fb80f37530ee9b2df9501ae5ff8cb4a973a4bd/LICENSE",
+    "sha256": "c517c468fc7f8d83319dd8b3743923f6891e0dfbaf7c57a874758c8f39b98564"
+  },
+  "libcrux-sha3@0.0.10": {
+    "file": "scripts/licenses/cryspen-libcrux-c5fb80f37530.LICENSE",
+    "license": "Apache-2.0",
+    "url": "https://raw.githubusercontent.com/cryspen/libcrux/c5fb80f37530ee9b2df9501ae5ff8cb4a973a4bd/LICENSE",
+    "sha256": "c517c468fc7f8d83319dd8b3743923f6891e0dfbaf7c57a874758c8f39b98564"
+  },
+  "libcrux-traits@0.0.8": {
+    "file": "scripts/licenses/cryspen-libcrux-c5fb80f37530.LICENSE",
+    "license": "Apache-2.0",
+    "url": "https://raw.githubusercontent.com/cryspen/libcrux/c5fb80f37530ee9b2df9501ae5ff8cb4a973a4bd/LICENSE",
+    "sha256": "c517c468fc7f8d83319dd8b3743923f6891e0dfbaf7c57a874758c8f39b98564"
+  },
+  "openmls_basic_credential@0.6.0": {
+    "file": "scripts/licenses/openmls-openmls-3a3e35de3fee.LICENSE",
+    "license": "MIT",
+    "url": "https://raw.githubusercontent.com/openmls/openmls/3a3e35de3feeca8f6605143c464d5452ae584d43/LICENSE",
+    "sha256": "43e5e3c4b5cca67f9ea912f7e1929702a848aa765d3b3e14f25d3838a5a5565d"
+  },
+  "openmls_memory_storage@0.6.0": {
+    "file": "scripts/licenses/openmls-openmls-3a3e35de3fee.LICENSE",
+    "license": "MIT",
+    "url": "https://raw.githubusercontent.com/openmls/openmls/3a3e35de3feeca8f6605143c464d5452ae584d43/LICENSE",
+    "sha256": "43e5e3c4b5cca67f9ea912f7e1929702a848aa765d3b3e14f25d3838a5a5565d"
+  },
+  "openmls_rust_crypto@0.6.0": {
+    "file": "scripts/licenses/openmls-openmls-3a3e35de3fee.LICENSE",
+    "license": "MIT",
+    "url": "https://raw.githubusercontent.com/openmls/openmls/3a3e35de3feeca8f6605143c464d5452ae584d43/LICENSE",
+    "sha256": "43e5e3c4b5cca67f9ea912f7e1929702a848aa765d3b3e14f25d3838a5a5565d"
+  },
+  "openmls_serialization_helpers@0.1.0": {
+    "file": "scripts/licenses/openmls-openmls-3a3e35de3fee.LICENSE",
+    "license": "MIT",
+    "url": "https://raw.githubusercontent.com/openmls/openmls/3a3e35de3feeca8f6605143c464d5452ae584d43/LICENSE",
+    "sha256": "43e5e3c4b5cca67f9ea912f7e1929702a848aa765d3b3e14f25d3838a5a5565d"
+  },
+  "openmls_traits@0.6.0": {
+    "file": "scripts/licenses/openmls-openmls-3a3e35de3fee.LICENSE",
+    "license": "MIT",
+    "url": "https://raw.githubusercontent.com/openmls/openmls/3a3e35de3feeca8f6605143c464d5452ae584d43/LICENSE",
+    "sha256": "43e5e3c4b5cca67f9ea912f7e1929702a848aa765d3b3e14f25d3838a5a5565d"
+  },
+  "openmls@0.9.1": {
+    "file": "scripts/licenses/openmls-openmls-1762090a4523.LICENSE",
+    "license": "MIT",
+    "url": "https://raw.githubusercontent.com/openmls/openmls/1762090a4523cdd241f454b4058e91b64bbdc6de/LICENSE",
+    "sha256": "43e5e3c4b5cca67f9ea912f7e1929702a848aa765d3b3e14f25d3838a5a5565d"
+  }
+}

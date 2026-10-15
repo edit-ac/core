@@ -841,3 +841,105 @@ fn queued_duplicate_is_one_job_and_canceling_one_waiter_preserves_other() {
     assert!(ds.iter().any(|d| d.result.request == duplicate));
     assert_eq!(h.trace.0.lock().unwrap().gets, 2);
 }
+
+#[test]
+fn qualification_timing_and_retained_cache_memory() {
+    fn wait<T, F, C>(r: &mut PublicResolver<T, F, C>) -> PublicDelivery
+    where
+        T: PublicTransport + Send + 'static,
+        F: Fn() -> T + Send + Sync + 'static,
+        C: EgressClock + Send + Sync + 'static,
+    {
+        let end = Instant::now() + Duration::from_secs(2);
+        loop {
+            let mut deliveries = r.poll();
+            if let Some(d) = deliveries.pop() {
+                return d;
+            }
+            assert!(Instant::now() < end, "timing fixture failed to settle");
+            thread::park_timeout(Duration::from_millis(1));
+        }
+    }
+    let mut cold = Vec::new();
+    let mut warm = Vec::new();
+    let mut policy = Vec::new();
+    let mut construction = Vec::new();
+    let mut cold_gets = 0;
+    for sample in 0..130 {
+        let h = Harness::new(false);
+        let start = Instant::now();
+        let mut r = h.resolver(Mode::Good, ResolverLimits::default());
+        let setup = start.elapsed().as_nanos();
+        let owner = thread::current();
+        r.set_completion_waker(move || owner.unpark()).unwrap();
+        let start = Instant::now();
+        let mut denied = request(0);
+        denied.policy = EnrichmentPolicy::Disabled;
+        assert!(matches!(submit(&mut r, denied), Submission::Rejected(_)));
+        let local = start.elapsed().as_nanos();
+        assert_eq!(h.trace.0.lock().unwrap().gets, 0);
+        let start = Instant::now();
+        assert!(matches!(submit(&mut r, request(0)), Submission::Scheduled));
+        let d = wait(&mut r);
+        let network = start.elapsed().as_nanos();
+        assert_eq!(title(&d), "safe & bounded");
+        assert!(!d.timing.cache_hit);
+        let start = Instant::now();
+        let mut q = request(1);
+        q.target = request(0).target;
+        let d = ready(submit(&mut r, q));
+        let cached = start.elapsed().as_nanos();
+        assert!(d.timing.cache_hit);
+        assert_eq!(r.stats().cached, 1);
+        assert_eq!(h.trace.0.lock().unwrap().gets, 1);
+        cold_gets += 1;
+        if sample >= 10 {
+            construction.push(setup);
+            policy.push(local);
+            cold.push(network);
+            warm.push(cached);
+        }
+        r.dispose();
+        assert_eq!(r.stats().cached, 0);
+        assert_eq!(r.stats().pending, 0);
+    }
+    // OS resident bytes for the WHOLE serial test process, not cache object
+    // allocation size. Allocator retention/page granularity may hide release.
+    fn resident_bytes() -> u64 {
+        if std::env::var_os("EDITAC_LINK_TIMING_OUTPUT").is_none() {
+            return 0;
+        }
+        let output = std::process::Command::new("ps")
+            .args(["-o", "rss=", "-p", &std::process::id().to_string()])
+            .output()
+            .expect("RSS measurement tool");
+        assert!(output.status.success());
+        String::from_utf8(output.stdout)
+            .unwrap()
+            .trim()
+            .parse::<u64>()
+            .unwrap()
+            * 1024
+    }
+    let h = Harness::new(false);
+    let mut r = h.resolver(Mode::Good, ResolverLimits::default());
+    let owner = thread::current();
+    r.set_completion_waker(move || owner.unpark()).unwrap();
+    let before = resident_bytes();
+    for id in 0..96 {
+        assert!(matches!(submit(&mut r, request(id)), Submission::Scheduled));
+        assert_eq!(title(&wait(&mut r)), "safe & bounded");
+        assert!(r.stats().cached <= 64);
+    }
+    let retained = resident_bytes();
+    assert_eq!(r.stats().cached, 64);
+    r.dispose();
+    let disposed = resident_bytes();
+    assert_eq!(r.stats().cached, 0);
+    assert_eq!(r.stats().pending, 0);
+    assert_eq!(h.trace.0.lock().unwrap().gets, 96);
+    assert_eq!(h.trace.0.lock().unwrap().active, 0);
+    if let Ok(path) = std::env::var("EDITAC_LINK_TIMING_OUTPUT") {
+        std::fs::write(path, format!("{{\"provenance\":\"serial Rust prepared DNS/transport, real parser and resolver; wall nanoseconds; 10 warmups excluded\",\"samples\":120,\"construction_ns\":{construction:?},\"policy_denial_ns\":{policy:?},\"cold_prepared_network_ns\":{cold:?},\"warm_cache_ns\":{warm:?},\"cold_gets_including_warmup\":{cold_gets},\"warm_gets\":0,\"denied_gets\":0,\"cache_probe_gets\":96,\"cache_entries_peak\":64,\"cache_entries_after_dispose\":0,\"whole_process_rss_before_bytes\":{before},\"whole_process_rss_cache64_bytes\":{retained},\"whole_process_rss_disposed_bytes\":{disposed}}}\n")).unwrap();
+    }
+}
