@@ -7,6 +7,7 @@ public enum NativeSessionFailure: Error, Sendable {
     case alreadyOpen
     case cancelled
     case disposed
+    case closing
     case unexpected(String)
 }
 
@@ -87,6 +88,7 @@ public final class NativeSessionOperation: @unchecked Sendable {
 /// never exposed to callers, and destruction is also submitted to that queue.
 private final class SessionState: @unchecked Sendable {
     var session: NativeSession?
+    var lastCommit: NativeSessionCommit?
     var now: UInt64 = 0
     var projectionSequence: UInt64?
     var selection: [NativeSessionAnchor] = []
@@ -117,7 +119,7 @@ private final class SessionState: @unchecked Sendable {
         selection = []
     }
     func close() {
-        selection = []; inputTargets = [:]; projectionSequence = nil
+        selection = []; inputTargets = [:]; projectionSequence = nil; lastCommit = nil
         try? session?.dispose()
         session = nil
     }
@@ -147,6 +149,9 @@ public final class NativeSessionExecutor {
     public typealias Completion = @MainActor @Sendable (Result<NativeSessionResponse, NativeSessionFailure>) -> Void
     private let worker = SessionWorker()
     private var disposed = false
+    private var closing = false
+    public private(set) var storageStatus = NativeStorageStatus.closed
+    public var onStorageStatus: (@MainActor @Sendable (NativeStorageStatus) -> Void)?
     private var nextID: UInt64 = 0
     private var completions: [UInt64: Completion] = [:]
     private var operations: [UInt64: NativeSessionOperation] = [:]
@@ -235,7 +240,7 @@ public final class NativeSessionExecutor {
                 let token = try session.prepareEdits(revision: revision,
                     edits: [NativeSessionEdit(node: a, fromUtf16: start, toUtf16: end, text: text)],
                     origin: "appkit-captured-input", now: now)
-                do { _ = try session.commitEdits(token: token, now: now) }
+                do { state.lastCommit = try session.commitEdits(token: token, now: now) }
                 catch { try? session.cancelEdits(token: token); throw error }
                 // Skipped composing projections require a complete current snapshot.
                 state.projectionSequence = nil
@@ -272,7 +277,7 @@ public final class NativeSessionExecutor {
                 let token = try session.prepareCommands(revision: revision, commandsJson: json,
                     origin: "appkit-native-input", now: now).token
                 do {
-                    _ = try session.commitCommands(token: token, now: now)
+                    state.lastCommit = try session.commitCommands(token: token, now: now)
                     return .snapshot(try session.read(now: now))
                 } catch {
                     try? session.cancelEdits(token: token)
@@ -280,13 +285,15 @@ public final class NativeSessionExecutor {
                 }
             case let .prepare(revision, edits, origin, now):
                 return .prepared(try session.prepareEdits(revision: revision, edits: edits, origin: origin, now: now))
-            case let .commit(token, now): return .committed(try session.commitEdits(token: token, now: now))
+            case let .commit(token, now):
+                state.lastCommit = try session.commitEdits(token: token, now: now)
+                return .committed(state.lastCommit)
             case let .cancelPrepared(token): try session.cancelEdits(token: token)
             case let .commandCheck(revision, json, origin, now):
                 try session.checkCommands(revision: revision, commandsJson: json, origin: origin, now: now)
             case let .commandBatch(revision, json, origin, now):
                 let plan = try session.prepareCommands(revision: revision, commandsJson: json, origin: origin, now: now)
-                do { _ = try session.commitCommands(token: plan.token, now: now) }
+                do { state.lastCommit = try session.commitCommands(token: plan.token, now: now) }
                 catch { try? session.cancelCommands(token: plan.token); throw error }
                 return .snapshot(try session.read(now: now))
             case let .commandAt(revision, input, end, owner, route, checkOnly, now):
@@ -309,7 +316,7 @@ public final class NativeSessionExecutor {
                 let oldIDs = Set(try session.read(now: now).nodes.map(\.id))
                 let plan = try session.prepareCommands(revision: revision, commandsJson: json,
                                                       origin: "appkit-split", now: now)
-                do { _ = try session.commitCommands(token: plan.token, now: now) }
+                do { state.lastCommit = try session.commitCommands(token: plan.token, now: now) }
                 catch { try? session.cancelCommands(token: plan.token); throw error }
                 let snapshot = try session.read(now: now)
                 // Enter may split, or exit an empty list while retaining its block.
@@ -318,13 +325,20 @@ public final class NativeSessionExecutor {
                 let destination = snapshot.nodes.first { !oldIDs.contains($0.id) }?.id ?? owner
                 return .inputCommitted(snapshot, node: destination,
                     caret: route == "hardBreak" ? input.offsetUtf16 + 1 : 0)
-            case let .undo(revision, now): return .committed(try session.undo(revision: revision, now: now))
-            case let .redo(revision, now): return .committed(try session.redo(revision: revision, now: now))
+            case let .undo(revision, now):
+                state.lastCommit = try session.undo(revision: revision, now: now)
+                return .committed(state.lastCommit)
+            case let .redo(revision, now):
+                state.lastCommit = try session.redo(revision: revision, now: now)
+                return .committed(state.lastCommit)
             case let .permission(writable, expiry): try session.setPermission(writable: writable, expiresAt: expiry)
             case let .commandPermission(writable, expiry, now):
                 try session.setPermission(writable: writable, expiresAt: expiry)
                 return .snapshot(try session.read(now: now))
-            case .recover: try session.recover()
+            case .recover:
+                try session.recover()
+                state.projectionSequence = nil
+                return .snapshot(try session.read(now: state.now))
             case .recoveryExport: return .recovery(try session.recoveryExport())
             }
             return .completed
@@ -339,17 +353,46 @@ public final class NativeSessionExecutor {
         operations.removeAll()
         completions.removeAll()
         onResult = nil
+        storageStatus = .closed
+        onStorageStatus = nil
         onProjection = nil
         worker.close(completion)
     }
 
-    private func enqueue(completion: Completion?,
+    /// Blocks new admission before the queued durability check. Accepted work
+    /// finishes first. Recovery-required state keeps the owner and salvage alive.
+    @discardableResult
+    public func closeDurably(completion: @escaping Completion) throws -> NativeSessionOperation {
+        guard !closing else { throw NativeSessionFailure.closing }
+        closing = true
+        do { return try enqueue(completion: { [weak self] result in
+            guard let self else { return }
+            if case .failure = result { self.closing = false }
+            completion(result)
+        }, closingBarrier: true) { state in
+            if let session = state.session {
+                guard !(try session.read(now: state.now)).recoveryRequired else {
+                    throw NativeSessionFailure.native(.RecoveryRequired)
+                }
+            }
+            state.close()
+            return .completed
+        }
+        } catch {
+            closing = false
+            throw error
+        }
+    }
+
+    private func enqueue(completion: Completion?, closingBarrier: Bool = false,
                          work: @escaping @Sendable (SessionState) throws -> NativeSessionResponse) throws -> NativeSessionOperation {
         guard !disposed else { throw NativeSessionFailure.disposed }
+        guard !closing || closingBarrier else { throw NativeSessionFailure.closing }
         nextID += 1
         let id = nextID
         let operation = NativeSessionOperation()
         operations[id] = operation
+        storageStatus = storageStatus.pending()
         if let completion { completions[id] = completion }
         worker.queue.async { [weak self, state = worker.state] in
             let result: Result<NativeSessionResponse, NativeSessionFailure>
@@ -376,19 +419,31 @@ public final class NativeSessionExecutor {
             } catch {
                 result = .failure(.unexpected(String(describing: error)))
             }
+            let storageRead: NativeSessionRead?
+            var storageFailure: NativeSessionFailure?
+            do { storageRead = try state.session?.read(now: state.now) }
+            catch let error as NativeSessionError { storageRead = nil; storageFailure = .native(error) }
+            catch { storageRead = nil; storageFailure = .unexpected(String(describing: error)) }
+            let receipt = state.lastCommit
+            let observationFailure = storageFailure
             // One FIFO queue delivers directly to the main queue; no unstructured
             // tasks can reorder results. Never capture the view or owner strongly.
             let update = projection
             DispatchQueue.main.async { [weak self] in
                 guard let self, !self.disposed else { return }
-                if let update { self.onProjection?(update) }
                 self.operations.removeValue(forKey: id)
+                self.storageStatus = NativeStorageStatus(read: storageRead, receipt: receipt,
+                    result: observationFailure.map { .failure($0) } ?? result, pending: !self.operations.isEmpty)
+                self.onStorageStatus?(self.storageStatus)
+                guard !self.disposed else { return }
+                if let update { self.onProjection?(update) }
                 let completion = self.completions.removeValue(forKey: id)
                 self.onResult?(result)
                 guard !self.disposed else { return }
                 completion?(result)
             }
         }
+        onStorageStatus?(storageStatus)
         return operation
     }
 

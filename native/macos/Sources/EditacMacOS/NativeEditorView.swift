@@ -5,6 +5,7 @@ import AppKit
 @MainActor
 public final class NativeEditorView: NSView {
     public let session = NativeSessionExecutor()
+    public private(set) lazy var storage = NativeDocumentLifecycle(view: self)
     public private(set) var sessionSnapshot: NativeSessionRead?
     public private(set) var sessionFailure: NativeSessionFailure?
     public private(set) var sessionDeliveryCount = 0
@@ -55,7 +56,10 @@ public final class NativeEditorView: NSView {
         scrollView.documentView = textView
         scrollView.autoresizingMask = [.width, .height]
         addSubview(scrollView)
-        scrollView.frame = bounds
+        scrollView.frame = NSRect(x: 0, y: 22, width: bounds.width, height: max(0, bounds.height - 22))
+        self.storage.statusLabel.frame = NSRect(x: 4, y: 2, width: max(0, bounds.width - 8), height: 18)
+        self.storage.statusLabel.autoresizingMask = [.width, .maxYMargin]
+        addSubview(self.storage.statusLabel)
         session.onProjection = { [weak self] result in
             guard let self, !self.isDisposed else { return }
             guard !self.composition.isActive else { return }
@@ -141,6 +145,7 @@ public final class NativeEditorView: NSView {
     /// The embedding host calls this when its editor/document is closed.
     public func dispose(completion: @escaping @MainActor @Sendable () -> Void = {}) {
         isDisposed = true
+        storage.dispose()
         attachments.dispose()
         commands.dispose()
         composition.dispose()
