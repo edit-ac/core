@@ -22,6 +22,9 @@ func runAtomicContentCases() {
         test("atomic-content-generated-replace-remove-history-reopen-\(index)") {
             let (o,s)=try atomicSession();defer{try? s.dispose()}
             try s.setAtomicContentPolicy(images:true,references:true)
+            let surrounding=try visible(s)
+            _=try commandApply(s,[["type":"markAt","owner":surrounding[0]["id"]!,"from":0,"to":6,"mark":"bold","action":"apply"]])
+            _=try commandApply(s,[["type":"markAt","owner":surrounding[3]["id"]!,"from":0,"to":5,"mark":"italic","action":"apply"]])
             let before=try visible(s)
             let p=try commandPlan(s,atomicCommand(s,index,atomicReplacement(index)))
             try require(equivalent(try visible(s),before),"prepare mutated")

@@ -58,6 +58,10 @@ impl Fixture {
             include_str!("../../../native/macos/tests/TablesFixture/corpus.json")
         })
         .unwrap();
+        if attachments {
+            corpus[0]["runs"][0]["marks"] = json!([{"mark":"bold"}]);
+            corpus[3]["runs"][0]["marks"] = json!([{"mark":"italic"}]);
+        }
         if unmerged {
             let cell = json!({"paragraphs":[{"style":["heading",2],"runs":[["rich 😀",[["bold"]]]]}],"rowSpan":1,"columnSpan":1,"header":true});
             corpus[2]["attributes"]["tuple"][2]["rows"] =
