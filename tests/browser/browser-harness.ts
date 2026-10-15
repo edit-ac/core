@@ -26,7 +26,7 @@ export function browserHarness(suite, fixtureDirectory = 'fixtures/browser-input
     output = process.env[`EDITAC_${key}_OUTPUT`] ?? await mkdtemp(join(tmpdir(), `editac-${suite}-evidence-`));
     await mkdir(output, { recursive: true });
     facts.revision = spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout.trim();
-    const paths = ['packages/web/src/clipboard/fragment.ts', 'packages/web/src/clipboard/html.ts', 'packages/markdown/src/web.ts', 'packages/markdown/src/shortcuts.ts', 'packages/web/src/clipboard/pending.ts', 'tests/browser/format-helpers.ts', 'crates/editac-markdown/src/extensions.rs', 'crates/editac-markdown/src/optional.rs', 'crates/editac-core/src/modules/content.rs', 'packages/web/src/input/text.ts', 'packages/web/src/input/shortcuts.ts', 'packages/core/src/engine.ts', 'crates/editac-core/src/commands/editor.rs', 'crates/editac-wasm/src/bridge.rs', 'scripts/test-browser.mjs', `tests/browser/${suite}.spec.ts`, 'tests/browser/browser-harness.ts', 'package-lock.json'];
+    const paths = ['packages/web/src/clipboard/fragment.ts', 'packages/web/src/clipboard/html.ts', 'packages/markdown/src/web.ts', 'packages/markdown/src/shortcuts.ts', 'packages/web/src/clipboard/pending.ts', 'tests/browser/format-helpers.ts', 'crates/editac-markdown/src/extensions.rs', 'crates/editac-markdown/src/optional.rs', 'crates/editac-core/src/modules/content.rs', 'packages/web/src/input/text.ts', 'packages/web/src/input/shortcuts.ts', 'packages/core/src/engine.ts', 'crates/editac-core/src/commands/editor.rs', 'crates/editac-wasm/src/bridge.rs', 'scripts/test-browser.mjs', (options.testFile ?? `tests/browser/${suite}.spec.ts`), 'tests/browser/browser-harness.ts', 'package-lock.json'];
     if (suite === 'sdk') paths.push('packages/web/src/sdk.ts', 'packages/web/src/editor.ts', 'packages/web/src/index.ts', 'examples/task-editor/editor.mjs', 'examples/task-editor/index.html');
     if (suite === 'math') paths.push('packages/web/src/modules/math.ts', 'packages/web/src/modules/math-renderer.ts', 'packages/web/src/dom/render.ts', 'packages/web/src/input/text.ts', 'scripts/build-math-assets.mjs', 'fixtures/modules/math.json', 'fixtures/browser-math/session.mjs', 'fixtures/browser-math/index.html', 'crates/editac-core/tests/math_atom.rs', 'packages/web/package.json');
     if (suite === 'content-modules') paths.push('packages/web/src/modules/content.ts', 'packages/web/src/dom/render.ts', 'packages/web/src/surface.ts', 'packages/web/src/editor.ts', 'packages/web/src/index.ts', 'fixtures/browser-content-modules/session.mjs', 'fixtures/browser-content-modules/index.html', 'crates/editac-core/tests/table_cells.rs');
@@ -51,7 +51,8 @@ export function browserHarness(suite, fixtureDirectory = 'fixtures/browser-input
       await run('tar', ['-xzf', join(directory, pack.filename), '-C', directory], `unpack-${name}.log`);
     }
     const preparedFixture = options.prepareConsumer ? await options.prepareConsumer(consumer) : fixtureDirectory;
-    server = await startFixtureServer({ fixtureDirectory: preparedFixture, coreDirectory: join(consumer, 'core/package/dist'), webDirectory: join(consumer, 'web/package/dist'), ...(markdownEnabled ? {markdownDirectory: join(consumer, 'markdown/package/dist')} : {}) });
+    server = await startFixtureServer({ fixtureDirectory: preparedFixture, ...options.serverOptions, coreDirectory: join(consumer, 'core/package/dist'), webDirectory: join(consumer, 'web/package/dist'), ...(markdownEnabled ? {markdownDirectory: join(consumer, 'markdown/package/dist')} : {}) });
+    if (options.serverOptions?.recordRequests) facts.serverRequests = server.requests;
     facts.server = { pid: process.pid, port: server.port, workspace: process.cwd(), purpose: suite, log: output };
     controller = await browserType.launchServer({ headless: true });
     facts.processes.push({ pid: controller.process().pid, launcher: controller.process().spawnfile, workspace: process.cwd(), purpose: suite, log: output });
@@ -64,7 +65,7 @@ export function browserHarness(suite, fixtureDirectory = 'fixtures/browser-input
       finally { try { await server?.close(); facts.cleanup.serverClosed = true; } finally {
         if (consumer) await rm(consumer, { recursive: true, force: true }); facts.cleanup.consumerRemoved = true;
         facts.counts = { executed: facts.cases.length, passed: facts.cases.filter(c => c.passed).length, failed: facts.cases.filter(c => !c.passed).length, skipped: 0 };
-        if (['editing-input', 'editing-presenters'].includes(suite)) {
+        if (options.assertSourcesUnchanged || ['editing-input', 'editing-presenters'].includes(suite)) {
           const final = Object.fromEntries(await Promise.all(Object.keys(facts.sources ?? {}).map(async path => [path, createHash('sha256').update(await readFile(path)).digest('hex')])));
           facts.sourcesUnchanged = JSON.stringify(final) === JSON.stringify(facts.sources);
           assert.equal(facts.sourcesUnchanged, true, 'Editing qualification sources changed during execution');
@@ -80,6 +81,7 @@ export function browserHarness(suite, fixtureDirectory = 'fixtures/browser-input
     const page = await context.newPage(); if (['history-review','review-concurrent','history-selection'].includes(suite)) page.setDefaultTimeout(5000); page.on('pageerror', e => fact.errors.push(e.message)); page.on('request', r=>fact.requests.push(r.url()));
     try {
       await page.addInitScript(enabled => { window.markdownEnabled = enabled; }, markdownEnabled);
+      await options.beforeNavigate?.(page, fact);
       await page.goto(server.url);
       if (options.autoMount !== false) {
         await page.waitForFunction(() => !!window.inputFixture);
@@ -99,7 +101,7 @@ export function browserHarness(suite, fixtureDirectory = 'fixtures/browser-input
       await writeFile(join(output, `${name}-failure.json`), JSON.stringify(fact, null, 2));
       throw error;
     } finally {
-      try { await page.evaluate(async () => { if (window.activeEditor) await window.activeEditor.destroy({policy:'report'}); if (!window.fixtureDisposed) await window.inputFixture?.destroy(); }); } finally { await context.close(); }
+      try { await options.cleanup?.(page); await page.evaluate(async () => { if (window.activeEditor) await window.activeEditor.destroy({policy:'report'}); if (!window.fixtureDisposed) await window.inputFixture?.destroy(); }); } finally { await context.close(); }
     }
   }
   return { probe, facts };
