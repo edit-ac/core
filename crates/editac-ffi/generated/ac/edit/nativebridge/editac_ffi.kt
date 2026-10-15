@@ -729,11 +729,15 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_history_state(
     ): Int
+    external fun uniffi_editac_ffi_checksum_method_nativesession_pending_updates(
+    ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_prepare_commands(
     ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_prepare_edits(
     ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_read(
+    ): Int
+    external fun uniffi_editac_ffi_checksum_method_nativesession_receive_peer(
     ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_recover(
     ): Int
@@ -742,6 +746,8 @@ internal object IntegrityCheckingUniffiLib {
     external fun uniffi_editac_ffi_checksum_method_nativesession_redo(
     ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_release_anchor(
+    ): Int
+    external fun uniffi_editac_ffi_checksum_method_nativesession_reserve_peer_writer(
     ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_resolve_anchor(
     ): Int
@@ -851,11 +857,15 @@ internal object UniffiLib {
     ): Unit
     external fun uniffi_editac_ffi_fn_method_nativesession_history_state(`ptr`: Long,`now`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
+    external fun uniffi_editac_ffi_fn_method_nativesession_pending_updates(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
     external fun uniffi_editac_ffi_fn_method_nativesession_prepare_commands(`ptr`: Long,`revision`: RustBuffer.ByValue,`commandsJson`: RustBuffer.ByValue,`origin`: RustBuffer.ByValue,`now`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     external fun uniffi_editac_ffi_fn_method_nativesession_prepare_edits(`ptr`: Long,`revision`: RustBuffer.ByValue,`edits`: RustBuffer.ByValue,`origin`: RustBuffer.ByValue,`now`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     external fun uniffi_editac_ffi_fn_method_nativesession_read(`ptr`: Long,`now`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_editac_ffi_fn_method_nativesession_receive_peer(`ptr`: Long,`update`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     external fun uniffi_editac_ffi_fn_method_nativesession_recover(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
@@ -864,6 +874,8 @@ internal object UniffiLib {
     external fun uniffi_editac_ffi_fn_method_nativesession_redo(`ptr`: Long,`revision`: RustBuffer.ByValue,`now`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     external fun uniffi_editac_ffi_fn_method_nativesession_release_anchor(`ptr`: Long,`token`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
+    external fun uniffi_editac_ffi_fn_method_nativesession_reserve_peer_writer(`ptr`: Long,`writer`: Int,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     external fun uniffi_editac_ffi_fn_method_nativesession_resolve_anchor(`ptr`: Long,`token`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
@@ -1079,6 +1091,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_editac_ffi_checksum_method_nativesession_history_state() and 0xFFFF) != 58856) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if ((lib.uniffi_editac_ffi_checksum_method_nativesession_pending_updates() and 0xFFFF) != 45741) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_editac_ffi_checksum_method_nativesession_prepare_commands() and 0xFFFF) != 64259) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -1086,6 +1101,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_editac_ffi_checksum_method_nativesession_read() and 0xFFFF) != 13097) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_editac_ffi_checksum_method_nativesession_receive_peer() and 0xFFFF) != 42590) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_editac_ffi_checksum_method_nativesession_recover() and 0xFFFF) != 64530) {
@@ -1098,6 +1116,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_editac_ffi_checksum_method_nativesession_release_anchor() and 0xFFFF) != 30069) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_editac_ffi_checksum_method_nativesession_reserve_peer_writer() and 0xFFFF) != 58896) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_editac_ffi_checksum_method_nativesession_resolve_anchor() and 0xFFFF) != 59413) {
@@ -2146,6 +2167,11 @@ public interface NativeSessionInterface {
     fun `historyState`(`now`: kotlin.ULong): NativeSessionHistory
     
     /**
+     * Owned committed outbox records; frozen Sessions cannot publish pending updates.
+     */
+    fun `pendingUpdates`(): List<NativeSessionPeerUpdate>
+    
+    /**
      * Same portable EditorCommand array and anchor tokens as the shared engine.
      * All parsing, anchor lookup and EditService validation precede retaining a plan.
      */
@@ -2159,6 +2185,12 @@ public interface NativeSessionInterface {
     
     fun `read`(`now`: kotlin.ULong): NativeSessionRead
     
+    /**
+     * Trusted-host ingress over the actual EditService/Session, after host security admission.
+     * This accepts neither unauthenticated network frames nor encrypted packets.
+     */
+    fun `receivePeer`(`update`: NativeSessionPeerUpdate): NativeSessionCommit
+    
     fun `recover`()
     
     fun `recoveryExport`(): NativeSessionRecovery
@@ -2169,6 +2201,11 @@ public interface NativeSessionInterface {
      * Idempotent for unknown/foreign tokens; cleanup is available during recovery.
      */
     fun `releaseAnchor`(`token`: kotlin.String)
+    
+    /**
+     * Trusted host reserves an actual peer writer once, never an authentication grant.
+     */
+    fun `reservePeerWriter`(`writer`: kotlin.UInt)
     
     /**
      * Resolve the retained shared sticky position against the current committed
@@ -2473,6 +2510,23 @@ open class NativeSession: Disposable, AutoCloseable, NativeSessionInterface
 
     
     /**
+     * Owned committed outbox records; frozen Sessions cannot publish pending updates.
+     */
+    @Throws(NativeSessionException::class)override fun `pendingUpdates`(): List<NativeSessionPeerUpdate> {
+            return FfiConverterSequenceTypeNativeSessionPeerUpdate.lift(
+    callWithHandle {
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_method_nativesession_pending_updates(
+        it,
+        _status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
      * Same portable EditorCommand array and anchor tokens as the shared engine.
      * All parsing, anchor lookup and EditService validation precede retaining a plan.
      */
@@ -2524,6 +2578,25 @@ open class NativeSession: Disposable, AutoCloseable, NativeSessionInterface
         it,
         
         FfiConverterULong.lower(`now`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Trusted-host ingress over the actual EditService/Session, after host security admission.
+     * This accepts neither unauthenticated network frames nor encrypted packets.
+     */
+    @Throws(NativeSessionException::class)override fun `receivePeer`(`update`: NativeSessionPeerUpdate): NativeSessionCommit {
+            return FfiConverterTypeNativeSessionCommit.lift(
+    callWithHandle {
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_method_nativesession_receive_peer(
+        it,
+        
+        FfiConverterTypeNativeSessionPeerUpdate.lower(`update`),_status)
 }
     }
     )
@@ -2585,6 +2658,23 @@ open class NativeSession: Disposable, AutoCloseable, NativeSessionInterface
         it,
         
         FfiConverterString.lower(`token`),_status)
+}
+    }
+    
+    
+
+    
+    /**
+     * Trusted host reserves an actual peer writer once, never an authentication grant.
+     */
+    @Throws(NativeSessionException::class)override fun `reservePeerWriter`(`writer`: kotlin.UInt)
+        = 
+    callWithHandle {
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_method_nativesession_reserve_peer_writer(
+        it,
+        
+        FfiConverterUInt.lower(`writer`),_status)
 }
     }
     
@@ -3515,6 +3605,68 @@ public object FfiConverterTypeNativeSessionPatches: FfiConverterRustBuffer<Nativ
             FfiConverterULong.write(value.`afterSequence`, buf)
             FfiConverterULong.write(value.`sequence`, buf)
             FfiConverterSequenceString.write(value.`patchesJson`, buf)
+    }
+}
+
+
+
+/**
+ * An exact admitted journal record, not a raw network frame or authenticated identity.
+ * Only a trusted host may supply this after its existing authentication/admission.
+ */
+data class NativeSessionPeerUpdate (
+    var `identityJson`: kotlin.String
+    , 
+    var `writer`: kotlin.UInt
+    , 
+    var `sequence`: kotlin.ULong
+    , 
+    var `checksum`: kotlin.ByteArray
+    , 
+    var `origin`: kotlin.String
+    , 
+    var `bytes`: kotlin.ByteArray
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeSessionPeerUpdate: FfiConverterRustBuffer<NativeSessionPeerUpdate> {
+    override fun read(buf: ByteBuffer): NativeSessionPeerUpdate {
+        return NativeSessionPeerUpdate(
+            FfiConverterString.read(buf),
+            FfiConverterUInt.read(buf),
+            FfiConverterULong.read(buf),
+            FfiConverterByteArray.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterByteArray.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: NativeSessionPeerUpdate) = (
+            FfiConverterString.allocationSize(value.`identityJson`) +
+            FfiConverterUInt.allocationSize(value.`writer`) +
+            FfiConverterULong.allocationSize(value.`sequence`) +
+            FfiConverterByteArray.allocationSize(value.`checksum`) +
+            FfiConverterString.allocationSize(value.`origin`) +
+            FfiConverterByteArray.allocationSize(value.`bytes`)
+    )
+
+    override fun write(value: NativeSessionPeerUpdate, buf: ByteBuffer) {
+            FfiConverterString.write(value.`identityJson`, buf)
+            FfiConverterUInt.write(value.`writer`, buf)
+            FfiConverterULong.write(value.`sequence`, buf)
+            FfiConverterByteArray.write(value.`checksum`, buf)
+            FfiConverterString.write(value.`origin`, buf)
+            FfiConverterByteArray.write(value.`bytes`, buf)
     }
 }
 
@@ -5049,6 +5201,34 @@ public object FfiConverterSequenceTypeNativeSessionNode: FfiConverterRustBuffer<
         buf.putInt(value.size)
         value.iterator().forEach {
             FfiConverterTypeNativeSessionNode.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceTypeNativeSessionPeerUpdate: FfiConverterRustBuffer<List<NativeSessionPeerUpdate>> {
+    override fun read(buf: ByteBuffer): List<NativeSessionPeerUpdate> {
+        val len = buf.getInt()
+        return List<NativeSessionPeerUpdate>(len) {
+            FfiConverterTypeNativeSessionPeerUpdate.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<NativeSessionPeerUpdate>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeNativeSessionPeerUpdate.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<NativeSessionPeerUpdate>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeNativeSessionPeerUpdate.write(it, buf)
         }
     }
 }

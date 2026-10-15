@@ -413,6 +413,11 @@ void uniffi_editac_ffi_fn_method_nativesession_dispose(uint64_t ptr, RustCallSta
 RustBuffer uniffi_editac_ffi_fn_method_nativesession_history_state(uint64_t ptr, uint64_t now, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_PENDING_UPDATES
+#define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_PENDING_UPDATES
+RustBuffer uniffi_editac_ffi_fn_method_nativesession_pending_updates(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_PREPARE_COMMANDS
 #define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_PREPARE_COMMANDS
 RustBuffer uniffi_editac_ffi_fn_method_nativesession_prepare_commands(uint64_t ptr, RustBuffer revision, RustBuffer commands_json, RustBuffer origin, uint64_t now, RustCallStatus *_Nonnull out_status
@@ -426,6 +431,11 @@ RustBuffer uniffi_editac_ffi_fn_method_nativesession_prepare_edits(uint64_t ptr,
 #ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_READ
 #define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_READ
 RustBuffer uniffi_editac_ffi_fn_method_nativesession_read(uint64_t ptr, uint64_t now, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_RECEIVE_PEER
+#define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_RECEIVE_PEER
+RustBuffer uniffi_editac_ffi_fn_method_nativesession_receive_peer(uint64_t ptr, RustBuffer update, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_RECOVER
@@ -446,6 +456,11 @@ RustBuffer uniffi_editac_ffi_fn_method_nativesession_redo(uint64_t ptr, RustBuff
 #ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_RELEASE_ANCHOR
 #define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_RELEASE_ANCHOR
 void uniffi_editac_ffi_fn_method_nativesession_release_anchor(uint64_t ptr, RustBuffer token, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_RESERVE_PEER_WRITER
+#define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_RESERVE_PEER_WRITER
+void uniffi_editac_ffi_fn_method_nativesession_reserve_peer_writer(uint64_t ptr, uint32_t writer, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_RESOLVE_ANCHOR
@@ -906,6 +921,12 @@ uint16_t uniffi_editac_ffi_checksum_method_nativesession_history_state(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_PENDING_UPDATES
+#define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_PENDING_UPDATES
+uint16_t uniffi_editac_ffi_checksum_method_nativesession_pending_updates(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_PREPARE_COMMANDS
 #define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_PREPARE_COMMANDS
 uint16_t uniffi_editac_ffi_checksum_method_nativesession_prepare_commands(void
@@ -921,6 +942,12 @@ uint16_t uniffi_editac_ffi_checksum_method_nativesession_prepare_edits(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_READ
 #define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_READ
 uint16_t uniffi_editac_ffi_checksum_method_nativesession_read(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_RECEIVE_PEER
+#define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_RECEIVE_PEER
+uint16_t uniffi_editac_ffi_checksum_method_nativesession_receive_peer(void
     
 );
 #endif
@@ -945,6 +972,12 @@ uint16_t uniffi_editac_ffi_checksum_method_nativesession_redo(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_RELEASE_ANCHOR
 #define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_RELEASE_ANCHOR
 uint16_t uniffi_editac_ffi_checksum_method_nativesession_release_anchor(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_RESERVE_PEER_WRITER
+#define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_RESERVE_PEER_WRITER
+uint16_t uniffi_editac_ffi_checksum_method_nativesession_reserve_peer_writer(void
     
 );
 #endif

@@ -66,12 +66,12 @@ def main():
     methods = ['read', 'checkpoint', 'executeBatch', 'prepareBatch', 'commitBatch', 'cancelBatch', 'captureAnchor', 'resolveAnchor', 'exportAnchor', 'importAnchor', 'releaseAnchor', 'stateVector', 'encodeUpdate', 'applyUpdate', 'takePatch', 'history', 'dispose']
     for method in methods:
         check('shared-method-' + method, bool(re.search(r'func\s+' + method + r'\s*\(', swift)) and bool(re.search(r'fun\s+' + method + r'\s*\(', kotlin)))
-    for record in ['AbiVersion', 'AnchorInput', 'OwnedCheckpoint', 'BatchResult']:
+    for record in ['AbiVersion', 'AnchorInput', 'OwnedCheckpoint', 'BatchResult', 'NativeSessionPeerUpdate']:
         check('shared-record-' + record, ('struct ' + record in swift) and ('data class ' + record in kotlin))
     for error in ['InvalidInput', 'EngineRejected', 'InvalidHandle', 'ResourceLimit', 'Disposed', 'ExecutorUnavailable']:
         check('shared-error-' + error, error in swift and error in kotlin)
     # The additive durable Session shares this library/metadata, never another ABI.
-    for method in ['createLocal', 'open', 'prepareEdits', 'commitEdits', 'cancelEdits', 'setPermission', 'recoveryExport', 'recover', 'undo', 'redo']:
+    for method in ['reservePeerWriter', 'receivePeer', 'pendingUpdates', 'createLocal', 'open', 'prepareEdits', 'commitEdits', 'cancelEdits', 'setPermission', 'recoveryExport', 'recover', 'undo', 'redo']:
         check('session-method-' + method, bool(re.search(r'func\s+' + method + r'\s*\(', swift)) and bool(re.search(r'fun\s+' + method + r'\s*\(', kotlin)))
     for record in ['NativeSessionOptions', 'NativeSessionSeed', 'NativeSessionRead', 'NativeSessionEdit', 'NativeSessionRecovery', 'NativeSessionCommit']:
         check('session-record-' + record, ('struct ' + record in swift) and ('data class ' + record in kotlin))
