@@ -22,6 +22,7 @@ suites['module-runtime'] = ['tests/browser/module-runtime.spec.ts'];
 suites['module-contract'] = ['tests/browser/module-contract.spec.ts'];
 suites['extension-entry'] = ['tests/browser/extension-entry.spec.ts'];
 suites['shared-resources'] = ['tests/browser/shared-editor-resources.spec.ts'];
+suites['shared-site-resources'] = ['tests/browser/shared-site-resources.spec.ts'];
 suites['optional-markdown'] = ['tests/browser/optional-markdown.spec.ts'];
 suites['markdown-paste'] = ['tests/browser/markdown-paste.spec.ts'];
 suites.clipboard = ['tests/browser/clipboard.spec.ts'];

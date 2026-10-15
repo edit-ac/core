@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { hash, checkLayers } from '../../../scripts/architecture-layers.mjs';
 import { testCounts } from '../../../scripts/check-architecture.mjs';
 import { auditConsumerGraph, admitMeasuredConsumer } from '../../../scripts/consumers-loading.mjs';
-import { admitSharedReceipt } from '../../../scripts/shared-resource-contract.mjs';
+import { admitSharedSite } from '../../../scripts/shared-site-receipt.mjs';
 import { budgets } from '../../../scripts/browser-size-contract.mjs';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
@@ -65,10 +65,14 @@ for (const [profile, dir] of [['default', 'default-task'], ['markdown', 'markdow
     assert.equal(facts.commands.at(-1).counts.tests, 3, 'All browser engines must execute');
   });
 }
+test('shared site receipt controls reject invalid cache, union and common-module evidence', () => {
+  node('shared-site-contracts', ['--test', '--test-reporter=tap', 'tests/shared-site-receipt.test.mjs', 'tests/shared-editor-resources.test.mjs'], {}, true);
+  assert.equal(facts.commands.at(-1).counts.tests, 30);
+});
 test('SHR-01–08 exact packed site receipt is required for shared-resource qualification', async () => {
   const directory = process.env.EDITAC_SHARED_RESOURCES_RECEIPT;
   assert(directory, 'Missing SDK-1.10 consolidated SHR-01–08 receipt; same-page observations alone cannot pass FIT-1.6-I2');
-  const receipt = await admitSharedReceipt(directory, root);
+  const receipt = await admitSharedSite(directory, root);
   assert.equal(receipt.defaultGzip.total, facts.profiles.default.result.total.bytes, 'Shared receipt must match current default inventory');
   assert.equal(receipt.defaultGzip.editorJs, facts.profiles.default.result.js.bytes, 'Shared receipt must match current default JS inventory');
   assert.deepEqual(receipt.defaultAssets.map(a => [a.sha256, a.bytes]).sort(), facts.profiles.default.assets.map(a => [a.sha256, a.raw]).sort(), 'Shared receipt must use exact current default delivered artifacts');
@@ -87,8 +91,8 @@ test('independent tarball public ESM, declarations, React, Astro static/SSR and 
 test('portable FFI public consumer executes real atomicity, UTF-16, recovery and disposal', () => {
   const log = run('native-abi', 'cargo', ['+1.97.1', 'test', '-p', 'editac-ffi', '--test', 'native_abi', '--locked', '--offline']);
   const counts = [...log.matchAll(/test result: ok\. (\d+) passed; (\d+) failed; (\d+) ignored;/g)];
-  assert.equal(counts.length, 1); assert.deepEqual(counts[0].slice(1), ['7', '0', '0']);
-  facts.commands.at(-1).counts = { tests: 7, pass: 7, fail: 0, skipped: 0 };
+  assert.equal(counts.length, 1); assert.deepEqual(counts[0].slice(1), ['8', '0', '0']);
+  facts.commands.at(-1).counts = { tests: 8, pass: 8, fail: 0, skipped: 0 };
 });
 test('actual locked Cargo features and JS imports preserve the engine/minimum SDK optional boundaries', async () => {
   const graph = await checkLayers(root, JSON.parse(readFileSync(join(root, 'contracts/layers.json'))));

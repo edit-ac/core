@@ -27,7 +27,7 @@ The exact measured minified default/enabled artifacts execute editing, atomic
 rejection, history, peer transport and IndexedDB recovery on Chromium, Firefox
 and WebKit. Independent installed ESM/React/Astro static/SSR consumers check
 public declarations, assets, navigation, CSP, ownership and disposal. The public
-portable FFI consumer checks seven real ABI behaviors. Locked Cargo feature and
+portable FFI consumer checks eight real ABI behaviors. Locked Cargo feature and
 actual JS source graphs reuse FIT-1.1 ownership checks. These are deterministic
 local integrations, with no provider calls or native platform SDK claim.
 
@@ -73,11 +73,36 @@ The MathML renderer installs no CSS/fonts: static style count is zero rather tha
 an invented stylesheet ref-count test. Browser input is deterministic and does
 not qualify OS clipboard, assistive technology or universal performance.
 
-Pending SDK-1.10 continuation extends `tests/packed-consumers.test.mjs` and its
-existing plain/React/Astro builders, rather than adding another framework harness:
-produce a common split graph and stable versioned asset manifest, both route
-navigation modes, cold/cache-disabled/controlled-warm server/browser evidence,
-rollover/conflicting build controls and duplicate/eager detector injections.
-Retain the common gzip inventory, preferred results, union/incremental costs,
-first-visible/edit and per-instance resources. Same-page loader success does not
-stand in for that production-build/cache matrix.
+The production continuation uses the same `browserHarness`, installed tarballs
+and shared size accounting. Astro emits one split graph for plain, React, Astro,
+mixed bindings and task/document routes. Duplicate emitted bodies and an actual
+eager optional bundle exercise detector sensitivity. A stale emitted HTML page
+must fail its compiled deployment identity check before initializing WASM.
+
+```sh
+EDITAC_SHARED_SITE_RESOURCES_OUTPUT=<site-output> npm run test:browser -- shared-site-resources
+EDITAC_BROWSER_SIZE_OUTPUT=<default-output> node scripts/check-browser-size.mjs
+EDITAC_BROWSER_SIZE_OUTPUT=<markdown-output> node scripts/check-browser-size.mjs --markdown
+node scripts/collect-shared-resources.mjs --consolidate <same-page-output> <site-output> <default-output> <markdown-output> <unique-receipt-output>
+EDITAC_SHARED_RESOURCES_RECEIPT=<unique-receipt-output> node scripts/check-architecture.mjs --suite consumers-loading
+```
+
+Full-navigation cases use a new persistent browser profile per case, then close
+it and verify the captured profile processes exited. In Playwright WebKit,
+temporary contexts do not retain these HTTP bodies across navigation; they cannot
+prove warm-cache reuse. The fixture declares `public, max-age=0, must-revalidate`
+for content-hashed assets and `no-store` for HTML. Cold navigation starts before
+any core load, warm navigation seeds its cache explicitly, and cache-disabled
+navigation uses request interception. Receipts separate server200 body transfers,
+304 revalidation, browser resource timing, and fresh initialization in each realm.
+
+The consolidated receipt authenticates all26 required SHR cases per browser,
+exact matching tarballs, source pins, emitted module ownership and retained bytes.
+Admission recomputes gzip/Brotli with the existing size contract, the standalone
+hard/preferred results, optional combined/incremental costs, site route unions
+and mixed-binding unions. Site/framework overhead remains separately visible;
+no division by mount count or cache-hidden asset exclusion can satisfy a cap.
+The canonical suite independently rebuilds the current packages and rejects
+receipts that differ from its current standalone artifacts. Prepared receipt
+controls qualify admission sensitivity only; production behavior comes from the
+retained packed-browser observations.
