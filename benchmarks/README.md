@@ -168,3 +168,35 @@ the sample endpoint and comparison signature. Synthetic input, forced layout and
 two animation frames are diagnostic observations; they do not establish paint,
 OS input, full PRF coverage or a qualified resource envelope. Existing budgets
 and the ordinary runner endpoint are preserved.
+
+### Packed offscreen-layout experiment
+
+`EDITAC_LOADING_LAYOUT_PROBE=control` or `auto`, with the existing
+`scripts/bench-loading.mjs` command, compares the unchanged packed renderer with
+an inline CSS derivative (`content-visibility:auto` on direct block/container
+children; an initial 24px intrinsic block-size estimate). This is an experiment,
+not shipped SDK CSS. Both modes enable Chromium accessibility before navigation.
+Use the same pinned checkpoints, features, host/browser and complete 12-pair
+Task/Long matrix for each mode; preserve the existing limits and raw samples.
+Do not run the two measurement processes concurrently.
+
+After accepted-edit timing, the first cold/warm pair in each family executes
+UTF-16 selection/keyboard, scroll/range, code/list geometry, complete selection
+and actual clipboard copy, bounded offscreen copy, browser find, offscreen public
+edit/restoration, and editor-subtree AX text/focus-action probes. Counts and every
+failed observation remain in `behavior/` and `results.json`; behavior failures
+make the owning command exit nonzero even when the 24 loading observations pass.
+These probes do not qualify nested lists beyond the fixed corpus's one level,
+OS screen readers, compositor presentation, or tail latency. They occur after
+the accepted-edit endpoint; the experimental `finalRead` phase also includes
+probe overhead and must not be compared as ordinary read latency.
+
+The full Long copy probe deliberately remains a failure when its 1MiB text plus
+block separators exceeds the existing clipboard port's 1MiB limit. Never raise
+that limit, shorten the corpus, count a bounded copy as full copy, or hide a
+missing AX subtree to make this experiment pass. Enabling accessibility only
+after startup is a distinct probe configuration, not comparable startup proof.
+`inspectLoadings` rejects experimental metadata, behavior records and retained
+experiment artifacts from canonical admission. A candidate needs the stated
+behavior and original performance criteria before production adoption; a faster
+failed experiment cannot qualify FIT-1.8.

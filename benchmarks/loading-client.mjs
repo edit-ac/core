@@ -65,11 +65,12 @@ window.loadingRun = (async () => {
       }
     }
     samples.commandRestoreMs = performance.now() - editStart;
+    const layoutProbe = await globalThis.__loadingLayoutProbe?.({ editor, name });
     const finalSnapshot = editor.read(); phase('finalRead');
     const finalSemantics = projectedSemantics(finalSnapshot); phase('finalProjection');
     const final = await hash(finalSemantics); phase('finalHash'); check(initial === final, 'Public command did not preserve corpus');
     await editor.flush({ target: 'local' }); phase('flush'); startupAttribution?.finish();
     const resourceTimings = performance.getEntriesByType('resource').map(e => ({ name: new URL(e.name).pathname, initiatorType: e.initiatorType, startTime: e.startTime, duration: e.duration, transferSize: e.transferSize, encodedBodySize: e.encodedBodySize, decodedBodySize: e.decodedBodySize }));
-    return { samples, ...(startupTrace ? { startupTrace } : {}), phaseAttribution: 'navigation-phases-v1', phases, commands, initialHash: initial, finalHash: final, sourcePreserved: true, persisted: true, resourceTimings };
+    return { samples, ...(layoutProbe ? { layoutProbe } : {}), ...(startupTrace ? { startupTrace } : {}), phaseAttribution: 'navigation-phases-v1', phases, commands, initialHash: initial, finalHash: final, sourcePreserved: true, persisted: true, resourceTimings };
   } finally { startupAttribution?.dispose(); if (editor) { const closed = await editor.destroy({ policy: 'flush' }); check(closed.unsaved === false, 'Unacknowledged editor disposal'); } }
 })();
