@@ -229,11 +229,37 @@ impl PublicEgress {
             limits: limits.validate()?,
         })
     }
+    /// Same pinned-address/credential/redirect/byte policy for inert raster assets.
+    /// No SVG, HTML or executable media is accepted. Bytes remain host-owned.
+    pub fn fetch_asset<T: PublicTransport>(
+        &self,
+        transport: &mut T,
+        clock: &impl EgressClock,
+        raw: &str,
+    ) -> Result<PublicResponse, EgressError> {
+        Self {
+            urls: self.urls.clone(),
+            limits: EgressLimits {
+                max_bytes: self.limits.max_bytes.min(65_536),
+                ..self.limits
+            },
+        }
+        .fetch_kind(transport, clock, raw, true)
+    }
     pub fn fetch<T: PublicTransport>(
         &self,
         transport: &mut T,
         clock: &impl EgressClock,
         raw: &str,
+    ) -> Result<PublicResponse, EgressError> {
+        self.fetch_kind(transport, clock, raw, false)
+    }
+    fn fetch_kind<T: PublicTransport>(
+        &self,
+        transport: &mut T,
+        clock: &impl EgressClock,
+        raw: &str,
+        asset: bool,
     ) -> Result<PublicResponse, EgressError> {
         let mut url = self.urls.admit(raw).map_err(EgressError::Url)?;
         let total = clock.now_ms().saturating_add(self.limits.total_ms);
@@ -291,7 +317,7 @@ impl PublicEgress {
             if head.status != 200 {
                 return Err(EgressError::UnsupportedContent);
             }
-            if !head.html {
+            if !(if asset { head.raster } else { head.html }) {
                 return Err(EgressError::UnsupportedContent);
             }
             if head.encoded {
@@ -343,6 +369,7 @@ struct CheckedHead {
     location: Option<String>,
     length: Option<usize>,
     html: bool,
+    raster: bool,
     encoded: bool,
 }
 fn validate_head(head: ResponseHead, cap: usize) -> Result<CheckedHead, EgressError> {
@@ -354,6 +381,7 @@ fn validate_head(head: ResponseHead, cap: usize) -> Result<CheckedHead, EgressEr
         location: None,
         length: None,
         html: false,
+        raster: false,
         encoded: false,
     };
     let mut bytes = 0usize;
@@ -393,6 +421,21 @@ fn validate_head(head: ResponseHead, cap: usize) -> Result<CheckedHead, EgressEr
                 checked.length = Some(value.parse().map_err(|_| EgressError::InvalidHeaders)?);
             }
             "content-type" => {
+                checked.raster = matches!(
+                    value
+                        .split(';')
+                        .next()
+                        .unwrap_or("")
+                        .trim()
+                        .to_ascii_lowercase()
+                        .as_str(),
+                    "image/png"
+                        | "image/jpeg"
+                        | "image/gif"
+                        | "image/webp"
+                        | "image/x-icon"
+                        | "image/vnd.microsoft.icon"
+                );
                 checked.html = matches!(
                     value
                         .split(';')

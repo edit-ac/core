@@ -2,6 +2,7 @@
 //! approval, a document capability, or permission to publish metadata.
 //! Hosts compose these records with ServiceLifecycle and the existing Catalog.
 pub mod egress;
+pub mod metadata;
 pub mod public_url;
 
 use crate::{
