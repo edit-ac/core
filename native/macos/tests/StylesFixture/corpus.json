@@ -1,0 +1,467 @@
+[
+  {
+    "runs": [
+      {
+        "text": "plain 🦀 אב",
+        "marks": []
+      }
+    ],
+    "attributes": {
+      "type": "paragraph"
+    },
+    "containers": [],
+    "checked": null
+  },
+  {
+    "runs": [
+      {
+        "text": "bold",
+        "marks": [
+          {
+            "mark": "bold"
+          }
+        ]
+      }
+    ],
+    "attributes": {
+      "type": "paragraph"
+    },
+    "containers": [],
+    "checked": null
+  },
+  {
+    "runs": [
+      {
+        "text": "italic",
+        "marks": [
+          {
+            "mark": "italic"
+          }
+        ]
+      }
+    ],
+    "attributes": {
+      "type": "paragraph"
+    },
+    "containers": [],
+    "checked": null
+  },
+  {
+    "runs": [
+      {
+        "text": "underline",
+        "marks": [
+          {
+            "mark": "underline"
+          }
+        ]
+      }
+    ],
+    "attributes": {
+      "type": "paragraph"
+    },
+    "containers": [],
+    "checked": null
+  },
+  {
+    "runs": [
+      {
+        "text": "strike",
+        "marks": [
+          {
+            "mark": "strike"
+          }
+        ]
+      }
+    ],
+    "attributes": {
+      "type": "paragraph"
+    },
+    "containers": [],
+    "checked": null
+  },
+  {
+    "runs": [
+      {
+        "text": "code",
+        "marks": [
+          {
+            "mark": "code"
+          }
+        ]
+      }
+    ],
+    "attributes": {
+      "type": "paragraph"
+    },
+    "containers": [],
+    "checked": null
+  },
+  {
+    "runs": [
+      {
+        "text": "link",
+        "marks": [
+          {
+            "mark": "link",
+            "href": "https://example.invalid/style"
+          }
+        ]
+      }
+    ],
+    "attributes": {
+      "type": "paragraph"
+    },
+    "containers": [],
+    "checked": null
+  },
+  {
+    "runs": [
+      {
+        "text": "bold",
+        "marks": [
+          {
+            "mark": "bold"
+          }
+        ]
+      },
+      {
+        "text": " linked אב",
+        "marks": [
+          {
+            "mark": "bold"
+          },
+          {
+            "mark": "italic"
+          },
+          {
+            "mark": "link",
+            "href": "https://example.invalid/style"
+          }
+        ]
+      },
+      {
+        "text": " plain",
+        "marks": []
+      }
+    ],
+    "attributes": {
+      "type": "paragraph"
+    },
+    "containers": [],
+    "checked": null
+  },
+  {
+    "runs": [
+      {
+        "text": "Heading 1",
+        "marks": []
+      }
+    ],
+    "attributes": {
+      "type": "heading",
+      "level": 1
+    },
+    "containers": [],
+    "checked": null
+  },
+  {
+    "runs": [
+      {
+        "text": "Heading 2",
+        "marks": []
+      }
+    ],
+    "attributes": {
+      "type": "heading",
+      "level": 2
+    },
+    "containers": [],
+    "checked": null
+  },
+  {
+    "runs": [
+      {
+        "text": "Heading 3",
+        "marks": []
+      }
+    ],
+    "attributes": {
+      "type": "heading",
+      "level": 3
+    },
+    "containers": [],
+    "checked": null
+  },
+  {
+    "runs": [
+      {
+        "text": "Heading 4",
+        "marks": []
+      }
+    ],
+    "attributes": {
+      "type": "heading",
+      "level": 4
+    },
+    "containers": [],
+    "checked": null
+  },
+  {
+    "runs": [
+      {
+        "text": "Heading 5",
+        "marks": []
+      }
+    ],
+    "attributes": {
+      "type": "heading",
+      "level": 5
+    },
+    "containers": [],
+    "checked": null
+  },
+  {
+    "runs": [
+      {
+        "text": "Heading 6",
+        "marks": []
+      }
+    ],
+    "attributes": {
+      "type": "heading",
+      "level": 6
+    },
+    "containers": [],
+    "checked": null
+  },
+  {
+    "runs": [
+      {
+        "text": "let crab = \"🦀\"",
+        "marks": []
+      }
+    ],
+    "attributes": {
+      "type": "code",
+      "language": "swift"
+    },
+    "containers": [],
+    "checked": null
+  },
+  {
+    "runs": [
+      {
+        "text": "quoted",
+        "marks": []
+      }
+    ],
+    "attributes": {
+      "type": "paragraph"
+    },
+    "containers": [
+      {
+        "key": "quote",
+        "style": {
+          "type": "quote"
+        }
+      }
+    ],
+    "checked": null
+  },
+  {
+    "runs": [
+      {
+        "text": "nested quote",
+        "marks": []
+      }
+    ],
+    "attributes": {
+      "type": "paragraph"
+    },
+    "containers": [
+      {
+        "key": "quote",
+        "style": {
+          "type": "quote"
+        }
+      },
+      {
+        "key": "nested-quote",
+        "style": {
+          "type": "quote"
+        }
+      }
+    ],
+    "checked": null
+  },
+  {
+    "runs": [
+      {
+        "text": "bullet one",
+        "marks": []
+      }
+    ],
+    "attributes": {
+      "type": "paragraph"
+    },
+    "containers": [
+      {
+        "key": "ul",
+        "style": {
+          "type": "unordered"
+        }
+      }
+    ],
+    "checked": null
+  },
+  {
+    "runs": [
+      {
+        "text": "bullet two",
+        "marks": []
+      }
+    ],
+    "attributes": {
+      "type": "paragraph"
+    },
+    "containers": [
+      {
+        "key": "ul",
+        "style": {
+          "type": "unordered"
+        }
+      }
+    ],
+    "checked": null
+  },
+  {
+    "runs": [
+      {
+        "text": "seven",
+        "marks": []
+      }
+    ],
+    "attributes": {
+      "type": "paragraph"
+    },
+    "containers": [
+      {
+        "key": "ol",
+        "style": {
+          "type": "ordered",
+          "start": 7
+        }
+      }
+    ],
+    "checked": null
+  },
+  {
+    "runs": [
+      {
+        "text": "nested",
+        "marks": []
+      }
+    ],
+    "attributes": {
+      "type": "paragraph"
+    },
+    "containers": [
+      {
+        "key": "ol",
+        "style": {
+          "type": "ordered",
+          "start": 7
+        }
+      },
+      {
+        "key": "inner",
+        "style": {
+          "type": "unordered"
+        }
+      }
+    ],
+    "checked": null
+  },
+  {
+    "runs": [
+      {
+        "text": "eight",
+        "marks": []
+      }
+    ],
+    "attributes": {
+      "type": "paragraph"
+    },
+    "containers": [
+      {
+        "key": "ol",
+        "style": {
+          "type": "ordered",
+          "start": 7
+        }
+      }
+    ],
+    "checked": null
+  },
+  {
+    "runs": [
+      {
+        "text": "done",
+        "marks": []
+      }
+    ],
+    "attributes": {
+      "type": "paragraph"
+    },
+    "containers": [
+      {
+        "key": "tasks",
+        "style": {
+          "type": "checklist"
+        }
+      }
+    ],
+    "checked": true
+  },
+  {
+    "runs": [
+      {
+        "text": "todo",
+        "marks": []
+      }
+    ],
+    "attributes": {
+      "type": "paragraph"
+    },
+    "containers": [
+      {
+        "key": "tasks",
+        "style": {
+          "type": "checklist"
+        }
+      }
+    ],
+    "checked": false
+  },
+  {
+    "runs": [
+      {
+        "text": "",
+        "marks": []
+      }
+    ],
+    "attributes": {
+      "type": "paragraph"
+    },
+    "containers": [
+      {
+        "key": "tasks",
+        "style": {
+          "type": "checklist"
+        }
+      }
+    ],
+    "checked": false
+  }
+]

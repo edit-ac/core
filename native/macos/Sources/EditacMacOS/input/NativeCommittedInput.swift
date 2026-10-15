@@ -36,6 +36,7 @@ public final class NativeCommittedInput: NSObject, NSTextViewDelegate {
 
     public func textViewDidChangeSelection(_ notification: Notification) {
         guard let view, !view.isDisposed, !view.applyingProjection else { return }
+        view.projection.refreshTypingStyle()
         view.commands.refreshControls()
     }
 

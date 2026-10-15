@@ -100,3 +100,11 @@ unqualified and native editing stays disabled.
 
 [Committed input](Sources/EditacMacOS/input/README.md) routes native edits through
 the existing Session with the `edits` suite; full IME/platform support remains unqualified.
+
+## Standard native styles
+
+The [style registry](Sources/EditacMacOS/styles/README.md) projects shared marks,
+headings, code, quotes and nested lists without changing shared semantics.
+`bash native/macos/scripts/check.sh styles` builds the native-owned real SQLite
+corpus and verifies generated Session/AppKit presentation and incremental history.
+It records a native corpus rendering alongside the exact test receipt.
