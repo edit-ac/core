@@ -53,6 +53,42 @@ impl SqliteHost {
             observer,
         })
     }
+    /// Explicit create-only restore of an authenticated protected backup. Caller
+    /// has checked backup/key/document policy. Only ciphertext crosses this port;
+    /// ProtectedStore verifies its inner context/revision before any replay.
+    /// Does not establish freshness or resume MLS state. Never overwrite data.
+    pub(crate) fn restore_protected_backup(&self, blob: Blob) -> Result<(), PortError> {
+        if blob.revision == 0
+            || blob.revision > i64::MAX as u64
+            || blob.ciphertext.is_empty()
+            || blob.ciphertext.len() > crate::store::MAX_BLOB
+        {
+            return Err(PortError::ResourceLimit);
+        }
+        let mut connection = self.connection.lock().map_err(|_| PortError::Unavailable)?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(sql_error)?;
+        let exists: bool = transaction
+            .query_row("SELECT EXISTS(SELECT 1 FROM protected_blob)", [], |r| {
+                r.get(0)
+            })
+            .map_err(sql_error)?;
+        if exists {
+            return Err(PortError::Conflict);
+        }
+        self.observe(Boundary::BeforeWrite)?;
+        transaction
+            .execute(
+                "INSERT INTO protected_blob(slot, revision, ciphertext) VALUES(1, ?1, ?2)",
+                params![blob.revision as i64, blob.ciphertext],
+            )
+            .map_err(sql_error)?;
+        self.observe(Boundary::BeforeCommit)?;
+        transaction.commit().map_err(sql_error)?;
+        self.observe(Boundary::AfterCommit)
+            .map_err(|_| PortError::CommitUnknown)
+    }
     fn observe(&self, boundary: Boundary) -> Result<(), PortError> {
         if let Some(observer) = &self.observer {
             observer(boundary)?;

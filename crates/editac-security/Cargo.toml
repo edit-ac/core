@@ -41,6 +41,7 @@ zeroize = "=1.9.1"
 age = "=0.11.4"
 serde = { version = "=1.0.229", features = ["derive"] }
 editac-session = { path = "../editac-session" }
+editac-diff = { path = "../editac-diff" }
 editac-core = { path = "../editac-core" }
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 rusqlite = { version = "=0.40.2", features = ["bundled"] }

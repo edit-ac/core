@@ -791,6 +791,7 @@ dependencies = [
  "age",
  "ed25519-dalek",
  "editac-core",
+ "editac-diff",
  "editac-session",
  "getrandom 0.2.17",
  "openmls",

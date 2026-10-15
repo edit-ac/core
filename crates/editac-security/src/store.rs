@@ -417,7 +417,7 @@ fn passphrase(key: &[u8; 32]) -> age::secrecy::SecretString {
     }
     age::secrecy::SecretString::from(std::mem::take(&mut *text))
 }
-fn seal(key: &[u8; 32], bytes: &[u8]) -> Result<Vec<u8>, PortError> {
+pub(crate) fn seal(key: &[u8; 32], bytes: &[u8]) -> Result<Vec<u8>, PortError> {
     let mut recipient = age::scrypt::Recipient::new(passphrase(key));
     recipient.set_work_factor(QUALIFICATION_WORK_FACTOR);
     let encryptor =
@@ -431,7 +431,7 @@ fn seal(key: &[u8; 32], bytes: &[u8]) -> Result<Vec<u8>, PortError> {
     output.finish().map_err(|_| PortError::Integrity)?;
     Ok(ciphertext)
 }
-fn open(key: &[u8; 32], ciphertext: &[u8]) -> Result<Zeroizing<Vec<u8>>, PortError> {
+pub(crate) fn open(key: &[u8; 32], ciphertext: &[u8]) -> Result<Zeroizing<Vec<u8>>, PortError> {
     let mut identity = age::scrypt::Identity::new(passphrase(key));
     identity.set_max_work_factor(QUALIFICATION_WORK_FACTOR);
     let decryptor = age::Decryptor::new(ciphertext).map_err(|_| PortError::Integrity)?;

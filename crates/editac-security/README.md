@@ -73,3 +73,15 @@ node scripts/check-security-dependencies.mjs --evidence .artifacts/security-depe
 ```
 
 The target manifest is `scripts/security-targets.json`. Missing targets fail qualification. rlib compilation is separate from linking, runtime/RNG, storage, platform, binary-size and independent security review. The decision, licenses, protocol gaps and review plan are in `../architecture/evidence/crypto-selection.md` relative to the core repository root. Later implementation must satisfy its application authorization and transactional freshness obligations; probe memory storage is not a protected store.
+
+SEC-1.8 adds prepared protected immutable history, host attachment cache, exact
+ciphertext backups and explicit labeled recovery exports in `src/assets.rs`.
+Run `cargo test -p editac-security --test assets --locked`. The canonical harness
+uses actual Session/HistoryStore/projection and source-preserving image adapters,
+SQLite transactions, old-key failures, tampering, pending recovery and scoped
+host export authorization. All metadata/content is sealed before persistent
+writes; missing old keys yield unavailable history and export never runs as an
+error fallback. Ciphertext restore is create-only and preserves edit policy.
+See sibling `architecture/evidence/protected-assets.md` for bounds, disclosure,
+cleanup and platform/review limits. Default production builds still expose none
+of these qualification adapters; no production encryption claim is made.
