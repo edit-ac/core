@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "parent": "FIT-1.8",
+  "child": "FIT-1.8-I1-B5c",
+  "state": "implemented-verified-prerequisite",
+  "qualification": "unqualified",
+  "coreImplementationCommit": "17838fe91fe1dfffc197a1735efe8a7535c030e4",
+  "architectureCommit": "3fb13f6685536b0c1daf648c0c3f2c329213edcc",
+  "deliveryReceipt": {
+    "path": "architecture-results/fit-1.8-20261015/web-incremental-1/delivery-receipt.json",
+    "sha256": "ce70deab58db523557dd0e8379de1360372a59ab350f5f116644142d0d72124e"
+  },
+  "counts": {
+    "browser": {
+      "executed": 147,
+      "passed": 147,
+      "failed": 0,
+      "skipped": 0
+    },
+    "ordinaryLoading": {
+      "executed": 24,
+      "passed": 24,
+      "failed": 0,
+      "skipped": 0
+    },
+    "controlBehavior": {
+      "executed": 64,
+      "passed": 64,
+      "failed": 0,
+      "skipped": 0
+    },
+    "admission": {
+      "executed": 28,
+      "passed": 28,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "gzip": {
+    "total": {
+      "bytes": 498721,
+      "hard": 524288,
+      "preferred": 256000,
+      "hardPass": true,
+      "preferredPass": false,
+      "gap": 0
+    },
+    "js": {
+      "bytes": 32765,
+      "hard": 32768,
+      "preferred": 16000,
+      "hardPass": true,
+      "preferredPass": false,
+      "gap": 0
+    }
+  },
+  "scope": "Changed-node/affected-child DOM work, linear structural membership, two-boundary deferred clipboard projection and complete plain Copy; input/rich limits unchanged, oversized Cut rejects. Current ordinary timing stays distinct from control behavior. No parent, native, tails, accessibility, platform or release qualification. Current FIT-1.6 shared receipt needs refreshed source/artifacts."
+}
