@@ -749,6 +749,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_set_permission(
     ): Int
+    external fun uniffi_editac_ffi_checksum_method_nativesession_set_table_policy(
+    ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_take_rich_patches(
     ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_undo(
@@ -868,6 +870,8 @@ internal object UniffiLib {
     external fun uniffi_editac_ffi_fn_method_nativesession_rich_snapshot(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     external fun uniffi_editac_ffi_fn_method_nativesession_set_permission(`ptr`: Long,`writable`: Byte,`expiresAt`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
+    external fun uniffi_editac_ffi_fn_method_nativesession_set_table_policy(`ptr`: Long,`enabled`: Byte,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     external fun uniffi_editac_ffi_fn_method_nativesession_take_rich_patches(`ptr`: Long,`afterSequence`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
@@ -1103,6 +1107,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_editac_ffi_checksum_method_nativesession_set_permission() and 0xFFFF) != 8942) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_editac_ffi_checksum_method_nativesession_set_table_policy() and 0xFFFF) != 20820) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_editac_ffi_checksum_method_nativesession_take_rich_patches() and 0xFFFF) != 44957) {
@@ -2181,6 +2188,12 @@ public interface NativeSessionInterface {
     fun `setPermission`(`writable`: kotlin.Boolean, `expiresAt`: kotlin.ULong?)
     
     /**
+     * Trusted host table codec policy, independent of write permission. Defaults
+     * to disabled on every create/open. Retained plans recheck it at commit.
+     */
+    fun `setTablePolicy`(`enabled`: kotlin.Boolean)
+    
+    /**
      * A single bounded consumer shared by all aliases. Failed reads never drain.
      * Overflow requires richSnapshot; no event is silently omitted or coalesced.
      */
@@ -2627,6 +2640,24 @@ open class NativeSession: Disposable, AutoCloseable, NativeSessionInterface
         
         FfiConverterBoolean.lower(`writable`),
         FfiConverterOptionalULong.lower(`expiresAt`),_status)
+}
+    }
+    
+    
+
+    
+    /**
+     * Trusted host table codec policy, independent of write permission. Defaults
+     * to disabled on every create/open. Retained plans recheck it at commit.
+     */
+    @Throws(NativeSessionException::class)override fun `setTablePolicy`(`enabled`: kotlin.Boolean)
+        = 
+    callWithHandle {
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_method_nativesession_set_table_policy(
+        it,
+        
+        FfiConverterBoolean.lower(`enabled`),_status)
 }
     }
     

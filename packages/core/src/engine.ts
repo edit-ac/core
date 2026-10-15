@@ -22,6 +22,7 @@ export type EditorCommand =
   | { type: "markAt"; owner: string; from: number; to: number; mark: MarkCommand["mark"]; action: FormatAction; href?: string | null }
   | { type: "selectionAt" | "historySelectionAt"; anchor: EditorPosition; focus: EditorPosition }
   | { type: "tableCell"; owner: string; expected: Json; row: number; column: number; text: string }
+  | { type: "tableStructure"; owner: string; expected: Json; action: "insertRow" | "deleteRow" | "insertColumn" | "deleteColumn"; index: number }
   | { type: "insert"; at: AnchorToken; text: string }
   | { type: "delete"; range: StableRange }
   | { type: "replace"; range: StableRange; text: string }

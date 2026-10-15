@@ -91,6 +91,13 @@ pub enum EditorCommand {
         column: usize,
         text: String,
     },
+    /// Bounded unmerged row/column operation on an exact captured descriptor.
+    TableStructure {
+        target: String,
+        expected: Any,
+        action: super::table::TableAction,
+        index: usize,
+    },
     Container {
         target: String,
         tuple: Any,
@@ -1687,18 +1694,14 @@ impl Document {
                 EditorCommand::TableCell {
                     target: id,
                     expected,
-                    row,
-                    column,
-                    text,
+                    ..
+                }
+                | EditorCommand::TableStructure {
+                    target: id,
+                    expected,
+                    ..
                 } => {
                     use crate::anchors::{Bias, Selection};
-                    use crate::modules::content::Content;
-                    if text.len() > 1_048_576 {
-                        return Err(EditorError::ResourceLimit);
-                    }
-                    if text.contains(['\n', '\r']) {
-                        return Err(EditorError::InvalidCommand);
-                    }
                     let o = target(&stage, stable, id)?;
                     if o.kind != "block" {
                         return Err(EditorError::UnsupportedTarget);
@@ -1706,46 +1709,7 @@ impl Document {
                     if &o.attrs != expected {
                         return Err(EditorError::PresentationConflict);
                     }
-                    let Some(Content::Table {
-                        alignments,
-                        mut rows,
-                        source,
-                    }) = Content::from_tuple(&o.attrs).map_err(|_| EditorError::InvalidCommand)?
-                    else {
-                        return Err(EditorError::UnsupportedTarget);
-                    };
-                    let cell = rows
-                        .get_mut(*row)
-                        .and_then(|r| r.get_mut(*column))
-                        .ok_or(EditorError::InvalidCommand)?;
-                    crate::modules::content::edit_cell(cell, text);
-                    let content = Content::Table {
-                        alignments,
-                        rows,
-                        source,
-                    };
-                    let tuple = content.tuple().map_err(|e| {
-                        if e == crate::modules::content::ContentError::ResourceLimit {
-                            EditorError::ResourceLimit
-                        } else {
-                            EditorError::InvalidCommand
-                        }
-                    })?;
-                    let Content::Table { rows, .. } = &content else {
-                        unreachable!()
-                    };
-                    let fallback = rows
-                        .iter()
-                        .map(|row| {
-                            row.iter()
-                                .map(|cell| {
-                                    cell.iter().map(|run| run.text.as_str()).collect::<String>()
-                                })
-                                .collect::<Vec<_>>()
-                                .join("\t")
-                        })
-                        .collect::<Vec<_>>()
-                        .join("\n");
+                    let (tuple, fallback) = super::table::plan(expected, &c)?;
                     // Temporarily expose the existing source to the ordinary text planner
                     // on disposable state, then install the validated descriptor. One live
                     // commit preserves owner identity and groups metadata/text history.

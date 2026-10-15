@@ -84,7 +84,7 @@ fn catalog_reuses_all_portable_command_ids_and_exact_shared_identity() {
     assert!(
         c.routes
             .iter()
-            .filter(|r| r.id != "tableCell")
+            .filter(|r| !matches!(r.id.as_str(), "tableCell" | "tableStructure"))
             .all(|r| r.available && r.can_prepare && r.reason == "target-check-required")
     );
     s.dispose().unwrap();

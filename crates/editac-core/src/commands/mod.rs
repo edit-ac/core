@@ -10,3 +10,5 @@ pub mod blocks;
 pub mod r#move;
 
 pub mod fragment;
+
+pub mod table;

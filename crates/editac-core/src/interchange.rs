@@ -311,6 +311,15 @@ pub struct CommandRange {
     pub anchor: String,
     pub focus: String,
 }
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TableAction {
+    InsertRow,
+    DeleteRow,
+    InsertColumn,
+    DeleteColumn,
+}
+
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
 pub enum Command {
@@ -342,6 +351,12 @@ pub enum Command {
         row: usize,
         column: usize,
         text: String,
+    },
+    TableStructure {
+        owner: String,
+        expected: Value,
+        action: TableAction,
+        index: usize,
     },
     Insert {
         at: String,
@@ -500,6 +515,7 @@ impl Command {
         "selectionAt",
         "historySelectionAt",
         "tableCell",
+        "tableStructure",
         "insert",
         "delete",
         "replace",
@@ -573,6 +589,23 @@ impl Command {
                 row,
                 column,
                 text,
+            },
+            Command::TableStructure {
+                owner,
+                expected,
+                action,
+                index,
+            } => EditorCommand::TableStructure {
+                target: owner,
+                expected: Any::from_json(&expected.to_string())
+                    .map_err(|e| kernel("tableStructure", e))?,
+                action: match action {
+                    TableAction::InsertRow => crate::commands::table::TableAction::InsertRow,
+                    TableAction::DeleteRow => crate::commands::table::TableAction::DeleteRow,
+                    TableAction::InsertColumn => crate::commands::table::TableAction::InsertColumn,
+                    TableAction::DeleteColumn => crate::commands::table::TableAction::DeleteColumn,
+                },
+                index,
             },
             Command::Insert { at, text } => EditorCommand::Text(TextCommand::Insert {
                 at: anchor(&at)?,
