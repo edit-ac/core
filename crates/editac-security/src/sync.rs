@@ -1,6 +1,7 @@
 //! SEC-1.6 prepared collaboration adapter, absent from production builds.
 //! The relay has no MLS keys, semantic validator, search or plaintext receipt.
 //! Its authenticated host transport is a prepared trust boundary, not TLS proof.
+use crate::envelope::membership::{MembershipState, Rotation};
 use crate::{
     envelope::{Admission, Context, MAX_ENVELOPE, MAX_UPDATE, Rejection},
     store::{Blob, BlobHost},
@@ -31,6 +32,9 @@ pub(crate) struct Scope {
     engine: Vec<String>,
 }
 impl Scope {
+    pub(crate) fn key_epoch(&self) -> u64 {
+        self.key_epoch
+    }
     pub(crate) fn prepared(identity: &DocumentIdentity, context: &Context) -> Self {
         Self {
             profile: "editac/prepared-mls/v1".into(),
@@ -213,6 +217,10 @@ pub(crate) struct EncryptedClient<P: OpenMlsProvider> {
     pending: BTreeMap<[u8; 16], Pending>,
     retry_apply: BTreeMap<[u8; 32], JournalEntry>,
     retired: bool,
+    // Retained protected journal IDs cannot be relabeled as new epoch work.
+    // No release/export API exists here: recovery is retain-only until an
+    // explicit separately authorized host recovery/export workflow is used.
+    recovery: Vec<UpdateId>,
 }
 impl<P: OpenMlsProvider> EncryptedClient<P> {
     pub(crate) fn fresh_prepared(
@@ -232,6 +240,7 @@ impl<P: OpenMlsProvider> EncryptedClient<P> {
             pending: BTreeMap::new(),
             retry_apply: BTreeMap::new(),
             retired: false,
+            recovery: Vec::new(),
         })
     }
     pub(crate) fn scope(&self) -> &Scope {
@@ -241,6 +250,87 @@ impl<P: OpenMlsProvider> EncryptedClient<P> {
         self.retired = true;
         self.admission.retire_after_restore();
     }
+    fn retain_before_rotation(&mut self, store: &impl LocalStore) -> Result<(), PortError> {
+        if self.retired {
+            return Err(PortError::Permission);
+        }
+        // Finish an authenticated local-append retry before changing epochs.
+        if !self.retry_apply.is_empty() {
+            return Err(PortError::Conflict);
+        }
+        let entries = store.pending(&self.identity)?;
+        if entries.len() > 4096 {
+            return Err(PortError::Backpressure);
+        }
+        let additional = entries
+            .iter()
+            .filter(|entry| !self.recovery.contains(entry.id()))
+            .count();
+        if self.recovery.len() + additional > 4096 {
+            return Err(PortError::Backpressure);
+        }
+        for entry in entries {
+            if !self.recovery.contains(entry.id()) {
+                self.recovery.push(entry.id().clone());
+            }
+        }
+        Ok(())
+    }
+    /// Host quiesces Session writes for this synchronous transition. Local
+    /// at-rest keys are independent of MLS epochs and are never deleted here.
+    pub(crate) fn rotate_membership(
+        &mut self,
+        plan: &Rotation,
+        store: &impl LocalStore,
+    ) -> Result<Packet, PortError> {
+        self.retain_before_rotation(store)?;
+        match self.admission.rotate(&self.signer, plan) {
+            Ok(wire) => {
+                let packet = Packet {
+                    scope: self.scope.clone(),
+                    ciphertext: wire,
+                };
+                self.scope.key_epoch = plan.next_epoch;
+                Ok(packet)
+            }
+            Err(_) => {
+                self.retire_after_restore();
+                Err(PortError::Permission)
+            }
+        }
+    }
+    pub(crate) fn receive_membership(
+        &mut self,
+        plan: &Rotation,
+        packet: &Packet,
+        store: &impl LocalStore,
+    ) -> Result<MembershipState, PortError> {
+        packet.validate(&self.scope)?;
+        self.retain_before_rotation(store)?;
+        match self.admission.receive_rotation(plan, &packet.ciphertext) {
+            Ok(state) => {
+                self.scope.key_epoch = plan.next_epoch;
+                if state == MembershipState::Revoked {
+                    self.retired = true;
+                }
+                Ok(state)
+            }
+            Err(_) => {
+                self.retire_after_restore();
+                Err(PortError::Permission)
+            }
+        }
+    }
+    /// Metadata only. The journal remains protected in LocalStore; acquired
+    /// plaintext/keys are not erased, and nothing is implicitly exported.
+    pub(crate) fn recovery_required(&self) -> &[UpdateId] {
+        &self.recovery
+    }
+    pub(crate) fn quarantined(&self, operation: [u8; 16]) -> bool {
+        self.pending
+            .get(&operation)
+            .is_some_and(|p| p.packet.scope != self.scope || self.retired)
+    }
     fn prepare(
         &mut self,
         operation: [u8; 16],
@@ -249,6 +339,12 @@ impl<P: OpenMlsProvider> EncryptedClient<P> {
     ) -> Result<(), Rejection> {
         if self.retired {
             return Err(Rejection::Locked);
+        }
+        // A new checkpoint/delta may incorporate quarantined local state.
+        // Freeze ALL outbound publication until a separate explicit recovery
+        // workflow rebases that work; never smuggle it into a fresh operation.
+        if !self.recovery.is_empty() {
+            return Err(Rejection::Unauthorized);
         }
         if self.pending.contains_key(&operation) {
             return Err(Rejection::Replay);
@@ -277,6 +373,9 @@ impl<P: OpenMlsProvider> EncryptedClient<P> {
         operation: [u8; 16],
         entry: &JournalEntry,
     ) -> Result<(), Rejection> {
+        if self.recovery.contains(entry.id()) {
+            return Err(Rejection::Unauthorized);
+        }
         if entry.id().identity != self.identity {
             return Err(Rejection::Context);
         }
@@ -333,6 +432,9 @@ impl<P: OpenMlsProvider> EncryptedClient<P> {
             .pending
             .get(&operation)
             .ok_or(PortError::InvalidRecord)?;
+        if pending.packet.scope != self.scope {
+            return Err(PortError::Incompatible);
+        }
         let receipt = transport.put(pending.packet.clone())?;
         self.accept(&receipt)?;
         Ok(receipt)

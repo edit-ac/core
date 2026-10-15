@@ -1,5 +1,22 @@
 # Optional security qualification
 
+SEC-1.7 adds prepared MLS membership commits in `src/membership.rs` and the
+canonical `tests/rotation.rs`. A pinned membership authority can remove members
+or rotate the epoch; ordinary writers cannot authorize membership changes.
+Remaining clients authenticate exact removal intent before merging the MLS
+commit. Removed clients become inactive; already acquired plaintext is not
+claimed erased. Commit packets use the existing ciphertext relay and receipts.
+
+Old pending work remains in the protected Session journal/outbox and exact
+ciphertext mapping. Rotation quarantines it and freezes outbound publication,
+including fresh checkpoints, until a separate explicit host recovery workflow
+rebases it. This adapter's recovery policy is retain-only: no automatic reseal,
+discard, plaintext export or key deletion; full authorized exports are SEC-1.8.
+Run `cargo test -p editac-security --test rotation --locked`. See sibling
+`architecture/evidence/membership.md` for scope and limits. No production
+identity, durable MLS resume/rejoin, rollback freshness or independent review
+qualification is added.
+
 SEC-1.6 adds `src/sync.rs` and canonical `tests/encrypted_sync.rs`. It composes
 real MLS, protected SQLite session stores and an opaque persistent relay for
 encrypted bootstrap and offline convergence. Exact profile negotiation fails

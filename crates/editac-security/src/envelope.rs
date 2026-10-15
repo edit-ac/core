@@ -5,6 +5,9 @@
 //! Restored groups are locked unconditionally: rejoin with a fresh MLS sender is
 //! required. Memory storage is never represented as transactional persistence.
 
+#[path = "membership.rs"]
+pub(crate) mod membership;
+
 use std::collections::BTreeSet;
 
 use openmls::prelude::*;
@@ -60,6 +63,7 @@ pub(crate) struct Admission<P: OpenMlsProvider> {
     applied: BTreeSet<[u8; 16]>,
     emitted: BTreeSet<[u8; 16]>,
     locked: bool,
+    membership_authority: Option<Vec<u8>>,
 }
 
 impl<P: OpenMlsProvider> Admission<P> {
@@ -92,6 +96,7 @@ impl<P: OpenMlsProvider> Admission<P> {
             applied: BTreeSet::new(),
             emitted: BTreeSet::new(),
             locked: false,
+            membership_authority: None,
         })
     }
 
