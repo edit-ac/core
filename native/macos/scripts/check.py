@@ -16,7 +16,7 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 CORE = ROOT.parents[1]
 SUITES = {
-    "commands": ("EditacMacOSCommandsTests.CommandsTests", 19),
+    "commands": ("EditacMacOSCommandsTests.CommandsTests", 36),
     "composition": ("EditacMacOSCompositionTests.CompositionTests", 22),
     "edits": ("EditacMacOSEditsTests.EditsTests", 10),
     "projection": ("EditacMacOSProjectionTests.ProjectionTests", 22),

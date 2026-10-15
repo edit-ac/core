@@ -1,39 +1,74 @@
 # Native command admission
 
-`NativeEditorView.commands` admits focused responder actions against the view's
-current shared Session capability and revision. Menus, command-Z/shift-command-Z,
-and host toolbar/touch actions call the same `perform` entry. History calls the
-Session undo/redo methods and reads its current projection; NSTextView's native
-history stays disabled. Input/composition cannot start during pending history.
-Read-only state retains select-all, copy and an injected Find presenter.
-`makeButton` supplies native toolbar/Touch Bar controls. Their enablement follows
-Session updates and focus; activation always rechecks admission. Use the trusted
-host `setPermission` entry to publish fresh enabled state before completion.
+`NativeEditorView.commands` routes native menu/context, key, toolbar/Touch Bar
+and host actions through the view's serialized shared Session. NSTextView native
+history stays disabled. `history` contains actual Rust undo/redo group counts;
+empty stacks are disabled separately from read-only and busy states. Snapshots,
+permission updates and shared-history results publish current catalog/history
+observations before control callbacks. Activation always rechecks Rust permission,
+revision and applicability. No second document, command catalog or history exists.
 
-Inject `find` to present the host's native query UI. When that field is focused,
-its responder owns text and commands. No presenter means `unavailablePort`.
-The adapter does not remap OS-reserved shortcuts or non-command-Z key events.
+## Portable structural and formatting actions
 
-For a deterministic host Service, call `captureService(range:)` before starting
-work. Return its token to `completeService(_:text:)`, or `cancelService` on
-cancellation. Completion uses captured shared anchors even if focus/caret moves.
-The composition owner and Rust reject stale source, permission loss, reused or
-foreign tokens and disposal. This is prepared plain-text replacement; formatted
-Services and OS Services invocation are unqualified, and no external provider is
-called.
+`catalog` and `profileAvailability(id)` expose detached shared route/profile
+records. `canPrepare` describes admission only. `check(commandsJSON:profile:)`
+runs the real Rust target planner without retaining a plan or mutating content.
+`perform(commandsJSON:profile:revision:)` accepts the existing `EditorCommand[]`
+wire format, including this Session's anchor tokens; it prepares and commits on
+one FIFO worker operation and refreshes the authoritative projection on failure.
+The default profile is `editac.core`; missing, pending or unavailable profiles and
+routes reject explicitly. These entry points do not install optional services.
 
-The current shared bridge exposes `canHistory` permission, not individual stack
-availability. Empty redo is admitted to the shared service and cannot repeat an
-edit. Native menus cannot yet report exact empty undo/redo stack enablement.
-The bridge also lacks the shared command catalog/structural prepare boundary.
-`structural` is explicitly unavailable; it is not a native implementation of
-engine operations. Cut/paste await the transfer owner (DSK-1.13), and remain
-explicitly unavailable here. These gaps leave DSK-1.7 open. The canonical
-`commands` suite proves only the implemented subset, not full SDK qualification.
+Native bold/italic/underline/strike, paragraph, left alignment, Enter and split actions
+use that same planner. `availability` can return `checking` until asynchronous
+exact target validation completes; `validate(action)` lets a menu presenter await
+it. Buttons refresh when validation finishes. Validation is scoped to the observed
+revision and native selection, bounded, and advisory: commit revalidates. Invalid
+ranges and unsupported font/color/other alignment actions cannot mutate AppKit
+storage independently. Enter and split capture/release an actual shared anchor and place
+the caret in the engine-created block. Native Enter uses the shared list/heading
+policy and selection replacement remains a single command intent. Code Return
+uses the shared hard-break route. Subsequent collapsed native input uses a single
+right-biased shared insert anchor at split boundaries; multi-edit batches retain
+the existing sequential UTF-16 coordinate contract. Selection
+notifications invalidate button target enablement immediately. Generic structural payloads cover existing
+portable list, move and block commands without a native semantic implementation.
 
-Roadmap 20 retains actual keyboard/layout, OS Services, accessibility and platform
-qualification. Record the package/runtime versions and physical/virtual provenance;
-exercise host query input, two editors, menu/context/touch/key actions, permission
-loss, stale Service completion and empty-history enablement once its shared port
-is connected. Native API calls in the deterministic suite are synthetic protocol
-observations, not physical keyboard or OS service observations.
+Command-Z/Shift-Command-Z and Command-B/I/U route through the same gate. Other
+keys retain AppKit handling. `makeButton` supplies native toolbar/Touch Bar controls.
+The focused editor alone handles commands; host/query/nested inputs retain their
+responder actions. Read-only retains navigation, selection, copy and injected Find.
+The trusted host `setPermission` publishes fresh enablement before completion.
+
+## Injected services and transfer dispatch
+
+Set `find` to present the host's native query UI; absence reports `unavailablePort`.
+The query field then owns its own text/commands. Shared optional document/code
+profiles still report their actual pending service limitations, even with a local
+Find presenter; this hook does not qualify those full profiles.
+
+Set `transfer` to dispatch native cut/paste/plain-paste to the transfer owner. It
+receives the initiating command and captured revision-scoped selection and returns
+portable command JSON synchronously. The adapter uses that captured revision,
+then the common prepare/commit gate; no current-caret fallback or direct native
+cut/paste mutation is possible. Absence is explicit. This dispatch seam does not
+implement delayed providers, rich/literal codecs, OS clipboard lifetime, cross-app
+moves or native copy serialization: those remain DSK-1.13/NAT-10/NAT-11. Hosts must
+not retain this synchronous context for asynchronous delivery; use the transfer
+owner's stable-anchor/cancellation protocol for delayed work.
+
+For a deterministic host Service, `captureService(range:)` captures shared anchors
+before work. `completeService(_:text:)` consumes the captured target once;
+`cancelService` cancels it. Caret/focus changes do not redirect completion. Shared
+input/Rust gates reject stale text, permission loss, foreign/reused tokens and
+disposal. Prepared plain-text replacement is qualified; formatted Services and
+actual OS Services invocation remain explicit platform qualification work.
+
+## Evidence scope
+
+The canonical `commands` suite executes real AppKit/generated Swift/Rust/SQLite
+fixtures with prepared transfer/service ports. See the separate full-command
+delivery receipt for exact counts, hashes and host provenance. No provider call,
+publication, actual OS Services/physical keyboard observation or platform-support
+claim follows from these deterministic protocol tests. Roadmap 20 owns those
+physical or virtual platform/IME/accessibility qualification runs.

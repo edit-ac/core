@@ -190,7 +190,7 @@ final class CommandsTests: XCTestCase {
             let touchItem = NSCustomTouchBarItem(identifier: .init("editac.commands.redo"))
             let touchButton = v.commands.makeButton(.redo, title: "Redo")
             touchItem.view = touchButton
-            XCTAssertTrue(toolbar.isEnabled); XCTAssertTrue(touchButton.isEnabled)
+            XCTAssertTrue(toolbar.isEnabled); XCTAssertFalse(touchButton.isEnabled)
             good(await command(v) { toolbar.performClick(nil) })
             XCTAssertEqual(v.textView.string, "a")
             good(await command(v) { (touchItem.view as! NSButton).performClick(nil) })
@@ -205,6 +205,7 @@ final class CommandsTests: XCTestCase {
     }
     func testNativeButtonEnablementTracksWindowAndResponderFocus() async throws {
         try await fixture(["first"]) { first, _ in
+            try await edit(first, "changed")
             let button = first.commands.makeButton(.undo, title: "Undo")
             XCTAssertTrue(button.isEnabled)
             try await fixture(["second"]) { _, _ in
@@ -233,10 +234,10 @@ final class CommandsTests: XCTestCase {
         try await fixture(["text"]) { v, _ in
             v.textView.setSelectedRange(NSRange(location: 0, length: 4))
             let before = NSAttributedString(attributedString: v.textView.textStorage!)
-            v.textView.underline(nil); v.textView.changeFont(nil)
+            v.textView.changeFont(nil)
             v.textView.alignCenter(nil); v.textView.changeColor(nil)
             XCTAssertTrue(before.isEqual(to: v.textView.textStorage!))
-            let item = NSMenuItem(title: "Underline", action: #selector(NSTextView.underline(_:)), keyEquivalent: "u")
+            let item = NSMenuItem(title: "Font", action: #selector(NSTextView.changeFont(_:)), keyEquivalent: "")
             XCTAssertFalse(v.textView.validateMenuItem(item))
             let current = try await read(v); XCTAssertEqual(current.nodes[0].text, "text")
         }
@@ -341,6 +342,276 @@ final class CommandsTests: XCTestCase {
             XCTAssertEqual(v.commands.availability(.undo), .unavailableSession)
             v.commands.completeService(target, text: "bad")
             XCTAssertEqual(v.textView.string, "one")
+        }
+    }
+    private func json(_ values: [[String: Any]]) throws -> String {
+        String(data: try JSONSerialization.data(withJSONObject: values), encoding: .utf8)!
+    }
+    func testCatalogAndProfilesComeFromActualSession() async throws {
+        try await fixture(["text"]) { v, r in
+            let catalog = try XCTUnwrap(v.commands.catalog)
+            XCTAssertEqual(catalog.revision, r.revision)
+            XCTAssertEqual(v.commands.profileAvailability("editac.core")?.available, true)
+            for id in ["editac.document-tools", "editac.code-tools", "editac.references", "editac.images"] {
+                let profile = try XCTUnwrap(v.commands.profileAvailability(id))
+                XCTAssertFalse(profile.available); XCTAssertFalse(profile.reason.isEmpty)
+            }
+            for id in ["markAt", "split", "wrap", "indent", "outdent", "setChecked", "move", "setParagraph", "setCode"] {
+                let route = try XCTUnwrap(catalog.routes.first { $0.id == id })
+                XCTAssertTrue(route.available); XCTAssertTrue(route.canPrepare)
+            }
+            XCTAssertEqual(catalog.routes.first { $0.id == "tableCell" }?.available, false)
+        }
+    }
+    func testExactSharedHistoryEnablesOnlyNonemptyStack() async throws {
+        try await fixture(["a"]) { v, _ in
+            XCTAssertEqual(v.commands.availability(.undo), .emptyHistory)
+            XCTAssertEqual(v.commands.availability(.redo), .emptyHistory)
+            XCTAssertEqual(v.commands.history?.undoGroups, 0)
+            try await edit(v, "b")
+            XCTAssertEqual(v.commands.availability(.undo), .enabled)
+            XCTAssertEqual(v.commands.availability(.redo), .emptyHistory)
+            good(await command(v) { v.commands.perform(.undo) })
+            XCTAssertEqual(v.commands.availability(.undo), .emptyHistory)
+            XCTAssertEqual(v.commands.availability(.redo), .enabled)
+            good(await command(v) { v.commands.perform(.redo) })
+            XCTAssertEqual(v.commands.availability(.redo), .emptyHistory)
+        }
+    }
+    func testNativeMarkMenuKeyboardAndTouchUseOneSharedHistory() async throws {
+        try await fixture(["text"]) { v, _ in
+            v.textView.setSelectedRange(NSRange(location: 0, length: 4))
+            let underlineState = await v.commands.validate(.underline)
+            XCTAssertEqual(underlineState, .enabled)
+            let item = NSMenuItem(title: "Underline", action: #selector(NSTextView.underline(_:)), keyEquivalent: "u")
+            XCTAssertTrue(v.textView.validateMenuItem(item))
+            good(await command(v) { XCTAssertTrue(NSApp.sendAction(item.action!, to: nil, from: item)) })
+            let attributes = try XCTUnwrap(v.textView.textStorage?.attribute(
+                NativeTextProjection.sharedRunAttributes, at: 0, effectiveRange: nil) as? NSDictionary)
+            XCTAssertNotNil(attributes["underline"])
+            XCTAssertEqual(v.commands.history?.undoGroups, 1)
+            good(await command(v) { v.commands.perform(.undo) })
+            XCTAssertEqual(v.commands.history?.undoGroups, 0)
+            let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command,
+                timestamp: 0, windowNumber: v.window!.windowNumber, context: nil,
+                characters: "b", charactersIgnoringModifiers: "b", isARepeat: false, keyCode: 11)!
+            good(await command(v) { XCTAssertTrue(v.textView.performKeyEquivalent(with: event)) })
+            XCTAssertEqual(v.commands.history?.undoGroups, 1)
+            good(await command(v) { v.commands.perform(.undo) })
+            let italicState = await v.commands.validate(.italic)
+            XCTAssertEqual(italicState, .enabled)
+            let touch = NSCustomTouchBarItem(identifier: .init("editac.italic"))
+            touch.view = v.commands.makeButton(.italic, title: "Italic")
+            good(await command(v) { (touch.view as! NSButton).performClick(nil) })
+            XCTAssertEqual(v.commands.history?.undoGroups, 1)
+            XCTAssertEqual(v.textView.string, "text"); XCTAssertFalse(v.textView.allowsUndo)
+        }
+    }
+    func testNativeSplitUsesSharedAnchorsAndPlacesCaretInNewBlock() async throws {
+        try await fixture(["ab"]) { v, _ in
+            v.textView.setSelectedRange(NSRange(location: 1, length: 0))
+            good(await command(v) { v.textView.doCommand(by: #selector(NSResponder.insertNewline(_:))) })
+            let r = try await read(v)
+            XCTAssertEqual(r.nodes.map(\.text), ["a", "b"])
+            XCTAssertEqual(v.textView.string, "a\nb")
+            XCTAssertEqual(v.textView.selectedRange(), NSRange(location: 2, length: 0))
+            XCTAssertEqual(v.commands.history?.undoGroups, 1)
+            good(await command(v) { v.commands.perform(.undo) })
+            XCTAssertEqual(v.textView.string, "ab")
+        }
+    }
+    func testStructuralBatchUsesPlannerAndOneUndoGroup() async throws {
+        try await fixture(["first", "second"]) { v, r in
+            let project = v.session.onProjection
+            v.session.onProjection = { update in
+                project?(update)
+                if v.projectionFailure != nil, case let .success(value) = update {
+                    FileHandle.standardError.write(Data(("COMMAND_PROJECTION_DIAGNOSTIC "
+                        + (value.patches?.patchesJson.joined(separator: "\n") ?? value.snapshot?.snapshotJson ?? "none") + "\n").utf8))
+                }
+            }
+            let payload = try json([["type": "wrap", "targets": r.nodes.map(\.id),
+                                     "style": ["type": "checklist"]]])
+            try await v.commands.check(commandsJSON: payload)
+            XCTAssertEqual(v.commands.history?.undoGroups, 0)
+            good(await command(v) { v.commands.perform(commandsJSON: payload) })
+            XCTAssertEqual(v.commands.history?.undoGroups, 1)
+            XCTAssertEqual(v.textView.string, "first\nsecond")
+            XCTAssertEqual(v.projection.richNodes.values.filter { $0.kind == "list" }.count, 1)
+            XCTAssertEqual(v.projection.nodes.map(\.id), r.nodes.map(\.id))
+            let checked = try json([["type": "setChecked", "owner": r.nodes[0].id, "checked": true]])
+            try await v.commands.check(commandsJSON: checked)
+            good(await command(v) { v.commands.perform(commandsJSON: checked) })
+            XCTAssertEqual((v.projection.richNodes[r.nodes[0].id]?.wire["editor"] as? [String: Any])?["checked"] as? Bool, true)
+            XCTAssertNil(v.projectionFailure)
+            good(await command(v) { v.commands.perform(.undo) })
+            good(await command(v) { v.commands.perform(.undo) })
+            XCTAssertEqual(v.textView.string, "first\nsecond")
+        }
+    }
+    func testTargetPlannerRejectsCatalogAvailableButInvalidCommand() async throws {
+        try await fixture(["text"]) { v, r in
+            XCTAssertEqual(v.commands.catalog?.routes.first { $0.id == "setChecked" }?.canPrepare, true)
+            let payload = try json([["type": "setChecked", "owner": r.nodes[0].id, "checked": true]])
+            do { try await v.commands.check(commandsJSON: payload); XCTFail("Non-checklist target admitted") }
+            catch { }
+            let result = await command(v) { v.commands.perform(commandsJSON: payload) }
+            if case .success = result { XCTFail("Invalid target committed") }
+            XCTAssertEqual(v.textView.string, "text"); XCTAssertEqual(v.commands.history?.undoGroups, 0)
+            XCTAssertNil(v.projectionFailure)
+        }
+    }
+    func testStalePortablePayloadCannotFollowLatestCaret() async throws {
+        try await fixture(["one two"]) { v, r in
+            let payload = try json([["type": "replaceAt", "owner": r.nodes[0].id, "from": 0, "to": 3, "text": "ONE"]])
+            try await edit(v, "changed")
+            v.textView.setSelectedRange(NSRange(location: 7, length: 0))
+            let result = await command(v) { v.commands.perform(commandsJSON: payload, revision: r.revision) }
+            if case .success = result { XCTFail("Stale revision committed") }
+            XCTAssertEqual(v.textView.string, "changed"); XCTAssertNil(v.projectionFailure)
+        }
+    }
+    func testUnavailableProfilesAndRoutesCannotDispatch() async throws {
+        try await fixture(["text"]) { v, r in
+            let payload = try json([["type": "setParagraph", "owner": r.nodes[0].id]])
+            let result = await command(v) { v.commands.perform(commandsJSON: payload, profile: "editac.document-tools") }
+            if case .success = result { XCTFail("Unavailable profile dispatched") }
+            for payload in ["[]", "[{\"type\":\"unknown\"}]", "[{\"type\":\"tableCell\"}]"] {
+                let result = await command(v) { v.commands.perform(commandsJSON: payload) }
+                if case .success = result { XCTFail("Unavailable route dispatched") }
+            }
+            XCTAssertEqual(v.textView.string, "text"); XCTAssertEqual(v.commands.history?.undoGroups, 0)
+        }
+    }
+    func testInjectedTransferRoutesMenuAndPlainPasteThroughSharedGate() async throws {
+        try await fixture(["one two"]) { v, _ in
+            var calls: [NativeCommand] = []
+            v.commands.transfer = { command, target in
+                calls.append(command)
+                return try self.json([["type": "replaceAt", "owner": target.anchor.node,
+                    "from": target.anchor.offsetUTF16, "to": target.focus.offsetUTF16,
+                    "text": command == .cut ? "" : "PASTE"]])
+            }
+            v.textView.setSelectedRange(NSRange(location: 0, length: 3))
+            good(await command(v) { XCTAssertTrue(NSApp.sendAction(#selector(NSTextView.cut(_:)), to: nil, from: nil)) })
+            XCTAssertEqual(v.textView.string, " two")
+            good(await command(v) { v.commands.perform(.undo) })
+            v.textView.setSelectedRange(NSRange(location: 0, length: 3))
+            good(await command(v) { v.textView.pasteAsPlainText(nil) })
+            XCTAssertEqual(v.textView.string, "PASTE two")
+            XCTAssertEqual(calls, [.cut, .pastePlainText])
+            good(await command(v) { v.commands.perform(.undo) })
+            XCTAssertEqual(v.textView.string, "one two")
+        }
+    }
+    func testTransferRevalidatesPermissionAfterInjectedDispatch() async throws {
+        try await fixture(["one"]) { v, _ in
+            v.commands.transfer = { _, target in
+                try v.session.submit(.permission(writable: false, expiresAt: nil))
+                return try self.json([["type": "replaceAt", "owner": target.anchor.node,
+                                      "from": 0, "to": 3, "text": "bad"]])
+            }
+            let result = await command(v) { v.commands.perform(.paste) }
+            if case .success = result { XCTFail("Revoked transfer committed") }
+            XCTAssertEqual(v.textView.string, "one"); XCTAssertFalse(v.textView.isEditable)
+        }
+    }
+    func testHostQueryOwnsFormattingAndInjectedTransfer() async throws {
+        try await fixture(["text"]) { v, _ in
+            var calls = 0; v.commands.transfer = { _, _ in calls += 1; return "[]" }
+            let field = NSTextView(frame: .zero); field.string = "query"; v.addSubview(field)
+            XCTAssertTrue(v.window!.makeFirstResponder(field))
+            for action in [NativeCommand.bold, .split, .paste, .cut] {
+                XCTAssertEqual(v.commands.availability(action), .unfocused)
+                _ = await command(v) { v.commands.perform(action) }
+            }
+            XCTAssertEqual(calls, 0); XCTAssertEqual(v.textView.string, "text")
+        }
+    }
+    func testDisposalCompletesPendingPlannerCheckWithoutViewCallback() async throws {
+        try await fixture(["text"]) { v, r in
+            let payload = try json([["type": "setParagraph", "owner": r.nodes[0].id]])
+            let task = Task { @MainActor in try await v.commands.check(commandsJSON: payload) }
+            // Queue the check on the actor before disposal; disposal must release
+            // its continuation even when executor delivery is suppressed.
+            await Task.yield()
+            await withCheckedContinuation { c in v.dispose { c.resume() } }
+            do { try await task.value } catch { }
+            XCTAssertEqual(v.commands.availability(.paragraph), .unavailableSession)
+            XCTAssertFalse(v.commands.isPending)
+        }
+    }
+    func testNativeEnterReplacesSelectionInOneSharedIntent() async throws {
+        try await fixture(["abcd"]) { v, _ in
+            v.textView.setSelectedRange(NSRange(location: 1, length: 2))
+            good(await command(v) { v.textView.doCommand(by: #selector(NSResponder.insertNewline(_:))) })
+            XCTAssertEqual(v.textView.string, "a\nd")
+            XCTAssertEqual(v.textView.selectedRange(), NSRange(location: 2, length: 0))
+            XCTAssertEqual(v.commands.history?.undoGroups, 1)
+            await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
+                v.input.onResult = { result in
+                    if case let .failure(error) = result { XCTFail("\(error)") }
+                    v.input.onResult = nil; c.resume()
+                }
+                v.textView.insertText("X", replacementRange: NSRange(location: NSNotFound, length: 0))
+            }
+            XCTAssertEqual(v.textView.string, "a\nXd")
+            good(await command(v) { v.commands.perform(.undo) })
+            XCTAssertEqual(v.textView.string, "a\nd")
+            good(await command(v) { v.commands.perform(.undo) })
+            XCTAssertEqual(v.textView.string, "abcd")
+        }
+    }
+    func testNativeEnterUsesSharedEmptyChecklistExitPolicy() async throws {
+        try await fixture([""]) { v, r in
+            let payload = try json([["type": "wrap", "targets": [r.nodes[0].id], "style": ["type": "checklist"]]])
+            good(await command(v) { v.commands.perform(commandsJSON: payload) })
+            XCTAssertEqual((v.projection.richNodes[r.nodes[0].id]?.wire["editor"] as? [String: Any])?["checked"] as? Bool, false)
+            good(await command(v) { v.textView.doCommand(by: #selector(NSResponder.insertNewline(_:))) })
+            XCTAssertEqual(v.projection.nodes.count, 1)
+            XCTAssertEqual(v.projection.nodes[0].id, r.nodes[0].id)
+            XCTAssertEqual(v.projection.richNodes[r.nodes[0].id]?.wire["parent"] as? String, "@root")
+            XCTAssertEqual(v.textView.selectedRange(), NSRange(location: 0, length: 0))
+            good(await command(v) { v.commands.perform(.undo) })
+            XCTAssertNotEqual(v.projection.richNodes[r.nodes[0].id]?.wire["parent"] as? String, "@root")
+        }
+    }
+    func testFormattingButtonTracksCurrentSelectionApplicability() async throws {
+        try await fixture(["text"]) { v, _ in
+            v.textView.setSelectedRange(NSRange(location: 0, length: 4))
+            let button = v.commands.makeButton(.bold, title: "Bold")
+            let valid = await v.commands.validate(.bold)
+            XCTAssertEqual(valid, .enabled); XCTAssertTrue(button.isEnabled)
+            v.textView.setSelectedRange(NSRange(location: 4, length: 0))
+            XCTAssertEqual(v.commands.availability(.bold), .inapplicable)
+            XCTAssertFalse(button.isEnabled)
+            v.textView.setSelectedRange(NSRange(location: 0, length: 4))
+            let restored = await v.commands.validate(.bold)
+            XCTAssertEqual(restored, .enabled); XCTAssertTrue(button.isEnabled)
+        }
+    }
+    func testNativeCodeReturnUsesSharedHardBreakWithoutSplittingBlock() async throws {
+        try await fixture(["code"]) { v, r in
+            let payload = try json([["type": "setCode", "owner": r.nodes[0].id, "language": "swift"]])
+            good(await command(v) { v.commands.perform(commandsJSON: payload) })
+            v.textView.setSelectedRange(NSRange(location: 2, length: 0))
+            good(await command(v) { v.textView.doCommand(by: #selector(NSResponder.insertNewline(_:))) })
+            XCTAssertEqual(v.projection.nodes.count, 1)
+            XCTAssertEqual(v.textView.string, "co\nde")
+            XCTAssertEqual(v.textView.selectedRange(), NSRange(location: 3, length: 0))
+            good(await command(v) { v.commands.perform(.undo) })
+            XCTAssertEqual(v.textView.string, "code")
+        }
+    }
+    func testNativeBatchRetainsSequentialUtf16Coordinates() async throws {
+        try await fixture(["ab"]) { v, r in
+            _ = try await send(v, .nativeEdit(revision: r.revision!, edits: [
+                NativeSessionEdit(node: r.nodes[0].id, fromUtf16: 0, toUtf16: 0, text: "X"),
+                NativeSessionEdit(node: r.nodes[0].id, fromUtf16: 3, toUtf16: 3, text: "Y")], now: 0))
+            XCTAssertEqual(v.textView.string, "XabY")
+            XCTAssertEqual(v.commands.history?.undoGroups, 1)
+            good(await command(v) { v.commands.perform(.undo) })
+            XCTAssertEqual(v.textView.string, "ab")
         }
     }
 }

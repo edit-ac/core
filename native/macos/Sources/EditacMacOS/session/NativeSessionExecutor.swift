@@ -24,6 +24,10 @@ public enum NativeSessionRequest: Sendable {
     case prepare(revision: Data, edits: [NativeSessionEdit], origin: String, now: UInt64)
     case commit(token: String, now: UInt64)
     case cancelPrepared(token: String)
+    case commandCheck(revision: Data, json: String, origin: String, now: UInt64)
+    case commandBatch(revision: Data, json: String, origin: String, now: UInt64)
+    case commandAt(revision: Data, input: AnchorInput, end: UInt32, owner: String,
+                   route: String, checkOnly: Bool, now: UInt64)
     case undo(revision: Data, now: UInt64)
     case redo(revision: Data, now: UInt64)
     case permission(writable: Bool, expiresAt: UInt64?)
@@ -47,6 +51,13 @@ public struct NativeProjectionUpdate: Sendable {
     public let snapshot: NativeSessionProjection?
     public let patches: NativeSessionPatches?
     public let selection: [NativeSessionAnchorRead]
+    public let commandCatalog: NativeCommandCatalog?
+    public let history: NativeSessionHistory?
+    init(snapshot: NativeSessionProjection?, patches: NativeSessionPatches?, selection: [NativeSessionAnchorRead],
+         commandCatalog: NativeCommandCatalog? = nil, history: NativeSessionHistory? = nil) {
+        self.snapshot = snapshot; self.patches = patches; self.selection = selection
+        self.commandCatalog = commandCatalog; self.history = history
+    }
 }
 
 /// Cancellation only prevents work that has not started. Once accepted, a shared
@@ -76,6 +87,7 @@ public final class NativeSessionOperation: @unchecked Sendable {
 /// never exposed to callers, and destruction is also submitted to that queue.
 private final class SessionState: @unchecked Sendable {
     var session: NativeSession?
+    var now: UInt64 = 0
     var projectionSequence: UInt64?
     var selection: [NativeSessionAnchor] = []
     var inputTargets: [UUID: [NativeSessionAnchor]] = [:]
@@ -96,7 +108,8 @@ private final class SessionState: @unchecked Sendable {
         }
         projectionSequence = snapshot?.sequence ?? patches?.sequence
         return NativeProjectionUpdate(snapshot: snapshot, patches: patches,
-            selection: try selection.map { try session.resolveAnchor(token: $0.token) })
+            selection: try selection.map { try session.resolveAnchor(token: $0.token) },
+            commandCatalog: try session.commandCatalog(now: now), history: try session.historyState(now: now))
     }
 
     func releaseSelection() throws {
@@ -158,6 +171,7 @@ public final class NativeSessionExecutor {
             do {
                 let snapshot = try session.read(now: now)
                 state.session = session
+                state.now = now
                 return .snapshot(snapshot)
             } catch {
                 try? session.dispose()
@@ -170,6 +184,16 @@ public final class NativeSessionExecutor {
     public func submit(_ request: NativeSessionRequest, completion: Completion? = nil) throws -> NativeSessionOperation {
         try enqueue(completion: completion) { state in
             guard let session = state.session else { throw NativeSessionFailure.notOpen }
+            // Use the caller's Session clock for command observations as well as
+            // the mutation/read. Never substitute a wall clock for fixture time.
+            switch request {
+            case let .read(now), let .nativeEdit(_, _, now), let .capturedEdit(_, _, _, now),
+                 let .cancelInput(_, now), let .prepare(_, _, _, now), let .commit(_, now),
+                 let .undo(_, now), let .redo(_, now), let .commandPermission(_, _, now),
+                 let .commandCheck(_, _, _, now), let .commandBatch(_, _, _, now),
+                 let .commandAt(_, _, _, _, _, _, now): state.now = now
+            default: break
+            }
             switch request {
             case let .read(now): return .snapshot(try session.read(now: now))
             case let .captureInput(id, revision, inputs):
@@ -227,10 +251,28 @@ public final class NativeSessionExecutor {
             case let .nativeEdit(revision, edits, now):
                 // One queued operation owns prepare/commit/read; no UI callback or
                 // unrelated request can interleave between these shared calls.
-                let token = try session.prepareEdits(revision: revision, edits: edits,
-                    origin: "appkit-native-input", now: now)
+                var anchors: [NativeSessionAnchor] = []
+                defer { for anchor in anchors { try? session.releaseAnchor(token: anchor.token) } }
+                var commands: [[String: Any]] = []
+                for edit in edits {
+                    if edits.count == 1 && edit.fromUtf16 == edit.toUtf16 {
+                        // A split boundary has two logical owners. Insertion is
+                        // one right-biased anchor, never a zero-width range whose
+                        // opposite endpoint biases can resolve to different nodes.
+                        let captured = try session.captureAnchors(revision: revision, inputs: [
+                            AnchorInput(node: edit.node, offsetUtf16: edit.fromUtf16, bias: .right)])
+                        anchors += captured
+                        commands.append(["type": "insert", "at": captured[0].token, "text": edit.text])
+                    } else {
+                        commands.append(["type": "replaceAt", "owner": edit.node,
+                                         "from": edit.fromUtf16, "to": edit.toUtf16, "text": edit.text])
+                    }
+                }
+                let json = String(data: try JSONSerialization.data(withJSONObject: commands), encoding: .utf8)!
+                let token = try session.prepareCommands(revision: revision, commandsJson: json,
+                    origin: "appkit-native-input", now: now).token
                 do {
-                    _ = try session.commitEdits(token: token, now: now)
+                    _ = try session.commitCommands(token: token, now: now)
                     return .snapshot(try session.read(now: now))
                 } catch {
                     try? session.cancelEdits(token: token)
@@ -240,6 +282,42 @@ public final class NativeSessionExecutor {
                 return .prepared(try session.prepareEdits(revision: revision, edits: edits, origin: origin, now: now))
             case let .commit(token, now): return .committed(try session.commitEdits(token: token, now: now))
             case let .cancelPrepared(token): try session.cancelEdits(token: token)
+            case let .commandCheck(revision, json, origin, now):
+                try session.checkCommands(revision: revision, commandsJson: json, origin: origin, now: now)
+            case let .commandBatch(revision, json, origin, now):
+                let plan = try session.prepareCommands(revision: revision, commandsJson: json, origin: origin, now: now)
+                do { _ = try session.commitCommands(token: plan.token, now: now) }
+                catch { try? session.cancelCommands(token: plan.token); throw error }
+                return .snapshot(try session.read(now: now))
+            case let .commandAt(revision, input, end, owner, route, checkOnly, now):
+                let anchors = try session.captureAnchors(revision: revision, inputs: [input])
+                defer { for anchor in anchors { try? session.releaseAnchor(token: anchor.token) } }
+                var commands: [[String: Any]] = []
+                if input.offsetUtf16 < end {
+                    commands.append(["type": "replaceAt", "owner": owner,
+                                     "from": input.offsetUtf16, "to": end, "text": ""])
+                }
+                var action: [String: Any] = ["type": route]
+                if route != "hardBreak" { action["owner"] = owner }
+                if route != "setParagraph" { action["at"] = anchors[0].token }
+                commands.append(action)
+                let json = String(data: try JSONSerialization.data(withJSONObject: commands), encoding: .utf8)!
+                if checkOnly {
+                    try session.checkCommands(revision: revision, commandsJson: json, origin: "appkit-split", now: now)
+                    return .completed
+                }
+                let oldIDs = Set(try session.read(now: now).nodes.map(\.id))
+                let plan = try session.prepareCommands(revision: revision, commandsJson: json,
+                                                      origin: "appkit-split", now: now)
+                do { _ = try session.commitCommands(token: plan.token, now: now) }
+                catch { try? session.cancelCommands(token: plan.token); throw error }
+                let snapshot = try session.read(now: now)
+                // Enter may split, or exit an empty list while retaining its block.
+                // Derive the caret from the actual shared result, never a native
+                // imitation of list/heading semantics.
+                let destination = snapshot.nodes.first { !oldIDs.contains($0.id) }?.id ?? owner
+                return .inputCommitted(snapshot, node: destination,
+                    caret: route == "hardBreak" ? input.offsetUtf16 + 1 : 0)
             case let .undo(revision, now): return .committed(try session.undo(revision: revision, now: now))
             case let .redo(revision, now): return .committed(try session.redo(revision: revision, now: now))
             case let .permission(writable, expiry): try session.setPermission(writable: writable, expiresAt: expiry)

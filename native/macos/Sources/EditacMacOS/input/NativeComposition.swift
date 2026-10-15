@@ -30,6 +30,13 @@ final class NativeInputTextView: NSTextView {
             if selector == #selector(NSResponder.cancelOperation(_:)) { editor?.composition.cancel() }
             return
         }
+        if selector == #selector(NSResponder.insertNewline(_:)) {
+            editor?.commands.perform(.enter); return
+        }
+        if let command = Self.commandActions[NSStringFromSelector(selector)],
+           [.bold, .italic, .underline, .alignLeft].contains(command) {
+            editor?.commands.perform(command); return
+        }
         if Self.sharedOnlyActions.contains(NSStringFromSelector(selector)) {
             editor?.commands.perform(.structural); return
         }
@@ -44,7 +51,9 @@ final class NativeInputTextView: NSTextView {
     private static let commandActions: [String: NativeCommand] = [
         "undo:": .undo, "redo:": .redo, "selectAll:": .selectAll, "copy:": .copy,
         "cut:": .cut, "paste:": .paste, "pasteAsPlainText:": .pastePlainText,
-        "pasteAsRichText:": .paste, "performFindPanelAction:": .find]
+        "pasteAsRichText:": .paste, "performFindPanelAction:": .find,
+        "toggleBoldface:": .bold, "toggleItalics:": .italic, "underline:": .underline,
+        "alignLeft:": .alignLeft, "insertNewline:": .enter]
     private static let sharedOnlyActions: Set<String> = ["changeFont:", "changeAttributes:",
         "changeColor:", "alignLeft:", "alignRight:", "alignCenter:", "alignJustified:",
         "subscript:", "superscript:", "unscript:", "underline:"]
@@ -70,17 +79,24 @@ final class NativeInputTextView: NSTextView {
     override func changeFont(_ sender: Any?) { editor?.commands.perform(.structural) }
     override func changeAttributes(_ sender: Any?) { editor?.commands.perform(.structural) }
     override func changeColor(_ sender: Any?) { editor?.commands.perform(.structural) }
-    override func alignLeft(_ sender: Any?) { editor?.commands.perform(.structural) }
+    override func alignLeft(_ sender: Any?) { editor?.commands.perform(.alignLeft) }
     override func alignRight(_ sender: Any?) { editor?.commands.perform(.structural) }
     override func alignCenter(_ sender: Any?) { editor?.commands.perform(.structural) }
     override func alignJustified(_ sender: Any?) { editor?.commands.perform(.structural) }
     override func `subscript`(_ sender: Any?) { editor?.commands.perform(.structural) }
     override func superscript(_ sender: Any?) { editor?.commands.perform(.structural) }
     override func unscript(_ sender: Any?) { editor?.commands.perform(.structural) }
-    override func underline(_ sender: Any?) { editor?.commands.perform(.structural) }
+    override func underline(_ sender: Any?) { editor?.commands.perform(.underline) }
+    @objc func toggleBoldface(_ sender: Any?) { editor?.commands.perform(.bold) }
+    @objc func toggleItalics(_ sender: Any?) { editor?.commands.perform(.italic) }
     override func pasteAsRichText(_ sender: Any?) { editor?.commands.perform(.paste) }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         let flags = event.modifierFlags.intersection([.command, .shift, .option, .control])
+        if flags == .command, window?.isKeyWindow == true, window?.firstResponder === self,
+           let key = event.charactersIgnoringModifiers?.lowercased(),
+           let command: NativeCommand = ["b": .bold, "i": .italic, "u": .underline][key] {
+            editor?.commands.perform(command); return true
+        }
         guard event.charactersIgnoringModifiers?.lowercased() == "z",
               flags == .command || flags == [.command, .shift],
               window?.isKeyWindow == true, window?.firstResponder === self else { return super.performKeyEquivalent(with: event) }
