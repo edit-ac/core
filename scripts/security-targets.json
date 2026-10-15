@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "toolchain": "1.97.1",
+  "package": "editac-security",
+  "feature": "protocol-probe",
+  "targets": [
+    { "id": "wasm32-unknown-unknown", "platform": "Browser WASM" },
+    { "id": "aarch64-apple-darwin", "platform": "macOS ARM64" },
+    { "id": "x86_64-apple-darwin", "platform": "macOS Intel" },
+    { "id": "x86_64-pc-windows-msvc", "platform": "Windows x64" },
+    { "id": "x86_64-unknown-linux-gnu", "platform": "Linux x64" },
+    { "id": "aarch64-unknown-linux-gnu", "platform": "Linux ARM64" },
+    { "id": "aarch64-apple-ios", "platform": "iOS ARM64" },
+    { "id": "aarch64-apple-ios-sim", "platform": "iOS Simulator ARM64" },
+    { "id": "aarch64-linux-android", "platform": "Android ARM64" },
+    { "id": "x86_64-linux-android", "platform": "Android Emulator x64" }
+  ]
+}
