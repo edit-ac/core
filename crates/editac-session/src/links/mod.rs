@@ -1,6 +1,7 @@
 //! Portable resolver ports. Admission is pure; a ready action is not URL/egress
 //! approval, a document capability, or permission to publish metadata.
 //! Hosts compose these records with ServiceLifecycle and the existing Catalog.
+pub mod egress;
 pub mod public_url;
 
 use crate::{
