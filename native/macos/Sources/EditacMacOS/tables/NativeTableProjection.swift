@@ -102,7 +102,8 @@ public final class NativeTableCellView: NSTextView {
         "alignLeft:", "alignRight:", "alignCenter:", "alignJustified:", "subscript:", "superscript:",
         "unscript:", "underline:", "toggleBoldface:", "toggleItalics:"]
     public override func validateUserInterfaceItem(_ item: NSValidatedUserInterfaceItem) -> Bool {
-        let action = NSStringFromSelector(item.action)
+        guard let selector = item.action else { return false }
+        let action = NSStringFromSelector(selector)
         if action == "undo:" || action == "redo:" { return editing?.historyAvailable(redo: action == "redo:") == true }
         if Self.unsupportedActions.contains(action) { return false }
         return super.validateUserInterfaceItem(item)
