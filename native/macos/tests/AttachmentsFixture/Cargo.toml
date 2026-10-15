@@ -1,0 +1,13 @@
+[package]
+name = "editac-macos-attachments-fixture"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+editac-core = { path = "../../../../crates/editac-core" }
+editac-session = { path = "../../../../crates/editac-session", features = ["native-store"] }
+serde_json = "=1.0.152"
+yrs = "=0.28.0"

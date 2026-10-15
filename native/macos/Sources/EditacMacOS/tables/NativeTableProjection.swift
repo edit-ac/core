@@ -305,7 +305,8 @@ extension NativeTextProjection {
     /// Called after patches and native width changes. Child coordinates come
     /// from TextKit attachment geometry, so preceding edits and scrolling agree.
     public func layoutTables() {
-        guard !disposed, !layingOutTables, !tableViews.isEmpty, let manager = textView.layoutManager,
+        let atoms = (textView as? NativeInputTextView)?.editor?.attachments.views ?? [:]
+        guard !disposed, !layingOutTables, (!tableViews.isEmpty || !atoms.isEmpty), let manager = textView.layoutManager,
               let container = textView.textContainer else { return }
         layingOutTables = true
         defer { layingOutTables = false }
@@ -323,7 +324,23 @@ extension NativeTextProjection {
                 manager.invalidateLayout(forCharacterRange: node.range, actualCharacterRange: nil)
             }
         }
+        for (id, atom) in atoms {
+            guard let node = nodes.first(where: { $0.id == id }), let attachment = attachmentIdentities[id] else { continue }
+            let size = atom.fit(width: width); sizes[id] = size
+            let cell = attachment.attachmentCell as? NativeTableAttachmentCell ?? NativeTableAttachmentCell(textCell: "")
+            if cell.projectedSize != size {
+                cell.projectedSize = size; attachment.attachmentCell = cell
+                manager.invalidateLayout(forCharacterRange: node.range, actualCharacterRange: nil)
+            }
+        }
         manager.ensureLayout(for: container)
+        for (id, atom) in atoms {
+            guard let node = nodes.first(where: { $0.id == id }), let size = sizes[id] else { continue }
+            let glyphs = manager.glyphRange(forCharacterRange: node.range, actualCharacterRange: nil)
+            var rect = manager.boundingRect(forGlyphRange: glyphs, in: container)
+            rect.origin.x += textView.textContainerOrigin.x; rect.origin.y += textView.textContainerOrigin.y
+            atom.frame = NSRect(origin: rect.origin, size: size)
+        }
         for (id, table) in tableViews {
             guard let node = nodes.first(where: { $0.id == id }), let size = sizes[id] else { continue }
             let glyphs = manager.glyphRange(forCharacterRange: node.range, actualCharacterRange: nil)

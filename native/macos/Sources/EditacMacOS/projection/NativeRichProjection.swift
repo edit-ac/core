@@ -108,6 +108,9 @@ extension NativeTextProjection {
                 tables[node.id] = try NativeTableDescriptor(tuple)
             }
         }
+        for node in next.values {
+            if let tuple = node.wire["blockAttributes"] as? [Any] { _ = try NativeAttachmentDescriptor(tuple) }
+        }
         let ordered = next.values.filter { $0.kind == "block" }.sorted { $0.order == $1.order ? $0.id < $1.id : $0.order < $1.order }
         // Text-only mapper remains the coordinate implementation, with one native
         // attachment unit per shared atom. It never edits the shared document.
