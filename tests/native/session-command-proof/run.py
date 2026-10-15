@@ -74,18 +74,19 @@ def main():
                 '-L', library.parent, '-leditac_ffi', '-Xlinker', '-rpath', '-Xlinker', library.parent]
             canonical = CORE / 'tests/native/session-probe/main.swift'
             host = work / 'main.swift'
-            extra_entry = 'runTablePolicyCases()\n' if args.table_fixture else ''
+            extra_entry = 'runTablePolicyCases()\nrunRemoteCases()\n' if args.table_fixture else ''
             marker = 'if let index = CommandLine.arguments.firstIndex(of: "--rich-fixture") {'
             host.write_text(canonical.read_text().replace(marker, 'runCommandCases()\n' + extra_entry + marker))
             command_source = CORE / 'tests/native/session-command-proof/CommandCases.swift'
             receipt['composedHostSha256'] = digest(host)
             (attempt / 'main.swift').write_bytes(host.read_bytes())
             rich_source = CORE / 'tests/native/session-probe/RichCases.swift'
-            table_sources = [CORE / 'tests/native/table-session-proof/TablePolicyCases.swift'] if args.table_fixture else []
+            table_sources = [CORE / 'tests/native/table-session-proof/TablePolicyCases.swift', CORE / 'tests/native/table-session-proof/RemoteCases.swift'] if args.table_fixture else []
             if args.table_fixture:
                 receipt['tableFixtureManifestSha256'] = digest(args.table_fixture)
                 receipt['tableFixtureStoreSha256'] = digest(Path(json.loads(args.table_fixture.read_text())['path']))
-                receipt['sourceHashes'][str(table_sources[0].relative_to(CORE))] = digest(table_sources[0])
+                for source in table_sources:
+                    receipt['sourceHashes'][str(source.relative_to(CORE))] = digest(source)
             rich_args = ['--rich-fixture', args.rich_fixture.resolve()] if args.rich_fixture else []
             if args.fixture_writer:
                 rich_args += ['--fixture-writer', args.fixture_writer.resolve()]

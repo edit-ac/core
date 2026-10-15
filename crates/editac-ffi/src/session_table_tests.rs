@@ -482,3 +482,401 @@ fn portable_cell_and_structure_both_versions_commit_history_reopen_and_reject_st
         reopened.dispose().unwrap();
     }
 }
+
+// STB-1.3: separate SQLite stores, one existing Session/engine in each native worker.
+fn remote_peer(f: &Fixture) -> (Arc<NativeStore>, Arc<NativeSession>) {
+    let store = Arc::new(
+        NativeStore::create_new(
+            f.directory.join("peer.sqlite"),
+            f.id.clone(),
+            StoreLimits::default(),
+        )
+        .unwrap(),
+    );
+    store
+        .publish(0, f.store.recover(&f.id).unwrap().checkpoint)
+        .unwrap();
+    let other = store.clone();
+    let id = f.id.clone();
+    let peer = NativeSession::start(move || {
+        State::new(Session::open(other, &id, CachedPermission::LOCAL)?)
+    })
+    .unwrap();
+    peer.set_table_policy(true).unwrap();
+    (store, peer)
+}
+fn remote_edit(
+    peer: &NativeSession,
+    table_index: usize,
+    structural: bool,
+) -> NativeSessionPeerUpdate {
+    let nodes = visible(peer);
+    let t = &nodes[table_index];
+    let c = if structural {
+        json!([{"type":"tableStructure","owner":t["id"],"expected":t["blockAttributes"],"action":"insertColumn","index":1}])
+    } else {
+        json!([{"type":"tableCell","owner":t["id"],"expected":t["blockAttributes"],"row":0,"column":0,"text":format!("remote 🦀אב {}",peer.pending_updates().unwrap().len())}])
+    };
+    let p = prepare(peer, &c);
+    let commit = peer.commit_commands(p.token, 0).unwrap().unwrap();
+    peer.pending_updates()
+        .unwrap()
+        .into_iter()
+        .find(|e| e.writer == commit.writer && e.sequence == commit.sequence)
+        .unwrap()
+}
+#[test]
+fn remote_native_distinct_sqlite_v1_v2_cell_structure_stale_projection_anchor_and_history() {
+    for table_index in [1, 2] {
+        for structural in [false, true] {
+            let f = Fixture::with_unmerged_v2(true);
+            let local = f.open();
+            local.set_table_policy(true).unwrap();
+            let (peer_store, peer) = remote_peer(&f);
+            assert_ne!(peer_store.path(), f.store.path());
+            let nodes = visible(&local);
+            let paragraph = nodes[0]["id"].as_str().unwrap().to_owned();
+            let text = local
+                .prepare_edits(
+                    revision(&local),
+                    vec![NativeSessionEdit {
+                        node: paragraph.clone(),
+                        from_utf16: 0,
+                        to_utf16: 0,
+                        text: "LOCAL ".into(),
+                    }],
+                    "local-typing".into(),
+                    0,
+                )
+                .unwrap();
+            local.commit_edits(text, 0).unwrap().unwrap();
+            let captured = prepare(&local, &command(&local, "stale"));
+            let old = revision(&local);
+            let anchor = local
+                .capture_anchors(
+                    old.clone(),
+                    vec![crate::AnchorInput {
+                        node: paragraph.clone(),
+                        offset_utf16: 1,
+                        bias: crate::AnchorBias::Right,
+                    }],
+                )
+                .unwrap()
+                .remove(0);
+            let table_anchor = local
+                .capture_anchors(
+                    old.clone(),
+                    vec![crate::AnchorInput {
+                        node: nodes[table_index]["id"].as_str().unwrap().into(),
+                        offset_utf16: 0,
+                        bias: crate::AnchorBias::Right,
+                    }],
+                )
+                .unwrap()
+                .remove(0);
+            let cancelled = prepare(&local, &command(&local, "cancelled"));
+            let projection = local.rich_snapshot().unwrap();
+            let entry = remote_edit(&peer, table_index, structural);
+            local.reserve_peer_writer(entry.writer).unwrap();
+            let receipt = local.receive_peer(entry.clone()).unwrap();
+            assert_eq!(receipt.checksum, entry.checksum);
+            assert_eq!(receipt.durability, NativeSessionDurability::ProcessCrash);
+            let patches = local.take_rich_patches(projection.sequence).unwrap();
+            assert!(!patches.patches_json.is_empty());
+            assert_ne!(patches.revision, old);
+            let selection = local.resolve_anchor(table_anchor.token).unwrap();
+            assert_eq!(selection.revision, patches.revision);
+            assert!(
+                matches!(selection.resolution, NativeAnchorResolution::Position {ref node, ..} if node == nodes[table_index]["id"].as_str().unwrap())
+            );
+            local.cancel_commands(cancelled.token.clone()).unwrap();
+            assert!(matches!(
+                local.commit_commands(cancelled.token, 0),
+                Err(NativeSessionError::InvalidPlan)
+            ));
+            assert_eq!(
+                local.resolve_anchor(anchor.token.clone()).unwrap().revision,
+                patches.revision
+            );
+            assert!(matches!(
+                local.commit_commands(captured.token, 0),
+                Err(NativeSessionError::Revision {
+                    reason: NativeRevisionFailure::Stale,
+                    ..
+                })
+            ));
+            let after = visible(&local);
+            assert_eq!(after[table_index], visible(&peer)[table_index]);
+            assert!(after[0]["runs"].to_string().contains("LOCAL"));
+            let history = local.history_state(0).unwrap();
+            assert_eq!(history.undo_groups, 1);
+            local.undo(revision(&local), 0).unwrap().unwrap();
+            let undone = visible(&local);
+            assert_eq!(undone[table_index], after[table_index]);
+            assert!(!undone[0]["runs"].to_string().contains("LOCAL"));
+            local.redo(revision(&local), 0).unwrap().unwrap();
+            assert_eq!(visible(&local), after);
+            let before_duplicate = revision(&local);
+            local.receive_peer(entry).unwrap();
+            assert_eq!(revision(&local), before_duplicate);
+            local.dispose().unwrap();
+            let reopened = f.open();
+            assert_eq!(visible(&reopened), after);
+            assert!(matches!(
+                reopened.resolve_anchor(anchor.token),
+                Err(NativeSessionError::InvalidAnchor)
+            ));
+            reopened.dispose().unwrap();
+            peer.dispose().unwrap();
+        }
+    }
+}
+#[test]
+fn remote_native_scope_digest_malformed_limits_and_reservation_reject_without_mutation() {
+    let f = Fixture::new();
+    let local = f.open();
+    let (_, peer) = remote_peer(&f);
+    let entry = remote_edit(&peer, 1, false);
+    let baseline = visible(&local);
+    let before = revision(&local);
+    let mut bad = entry.clone();
+    bad.identity_json = "{}".into();
+    assert!(matches!(
+        local.receive_peer(bad),
+        Err(NativeSessionError::Incompatible)
+    ));
+    for (field, value) in [
+        ("documentId", json!("foreign")),
+        ("epoch", json!("foreign")),
+        ("schema", json!("future")),
+        ("profile", json!("future")),
+        ("protocolVersion", json!(999)),
+        ("updateEncoding", json!(999)),
+        ("offsets", json!("bytes")),
+    ] {
+        let mut bad = entry.clone();
+        let mut id: Value = serde_json::from_str(&bad.identity_json).unwrap();
+        id[field] = value;
+        bad.identity_json = id.to_string();
+        assert!(matches!(
+            local.receive_peer(bad),
+            Err(NativeSessionError::Incompatible)
+        ));
+    }
+    let other = Fixture::new();
+    let (_, foreign) = remote_peer(&other);
+    let mut foreign_entry = remote_edit(&foreign, 1, false);
+    foreign_entry.identity_json = entry.identity_json.clone();
+    assert!(local.receive_peer(foreign_entry).is_err());
+    foreign.dispose().unwrap();
+    let mut bad = entry.clone();
+    bad.checksum[0] ^= 1;
+    assert!(matches!(
+        local.receive_peer(bad),
+        Err(NativeSessionError::Store {
+            reason: NativeStoreFailure::Integrity
+        })
+    ));
+    let mut bad = entry.clone();
+    bad.identity_json = "{".into();
+    assert!(local.receive_peer(bad).is_err());
+    let mut bad = entry.clone();
+    bad.checksum.clear();
+    assert!(local.receive_peer(bad).is_err());
+    let mut bad = entry.clone();
+    bad.bytes = vec![0; StoreLimits::default().max_record_bytes + 1];
+    assert!(matches!(
+        local.receive_peer(bad),
+        Err(NativeSessionError::ResourceLimit)
+    ));
+    let mut bad = entry.clone();
+    bad.sequence = 0;
+    assert!(local.receive_peer(bad).is_err());
+    // Well-digested but malformed engine bytes still stage before any store mutation.
+    let malformed = editac_session::ports::JournalEntry::new(
+        f.id.clone(),
+        entry.writer,
+        1,
+        "remote".into(),
+        vec![255; 16],
+    )
+    .unwrap();
+    assert!(local.receive_peer((&malformed).into()).is_err());
+    assert_eq!(visible(&local), baseline);
+    assert_eq!(revision(&local), before);
+    assert!(f.store.recover(&f.id).unwrap().journal.is_empty());
+    assert!(matches!(
+        local.reserve_peer_writer(0),
+        Err(NativeSessionError::Store {
+            reason: NativeStoreFailure::InvalidRecord
+        })
+    ));
+    assert!(matches!(
+        local.receive_peer(entry.clone()),
+        Err(NativeSessionError::Store {
+            reason: NativeStoreFailure::Permission
+        })
+    ));
+    assert!(local.read(0).unwrap().recovery_required);
+    local.recover().unwrap();
+    local.reserve_peer_writer(entry.writer).unwrap();
+    assert!(matches!(
+        local.reserve_peer_writer(entry.writer),
+        Err(NativeSessionError::Store {
+            reason: NativeStoreFailure::Conflict
+        })
+    ));
+    // Local write permission is distinct from host-admitted inbound work.
+    local.set_permission(false, Some(0)).unwrap();
+    local.receive_peer(entry.clone()).unwrap();
+    assert_eq!(visible(&local)[1], visible(&peer)[1]);
+    assert!(!local.read(1).unwrap().can_apply);
+    local.dispose().unwrap();
+    assert!(matches!(
+        local.receive_peer(entry),
+        Err(NativeSessionError::Disposed)
+    ));
+    assert!(matches!(
+        local.pending_updates(),
+        Err(NativeSessionError::Disposed)
+    ));
+    assert!(matches!(
+        local.reserve_peer_writer(123),
+        Err(NativeSessionError::Disposed)
+    ));
+}
+#[test]
+fn remote_native_order_conflict_and_store_failure_recover_exactly() {
+    for (boundary, error) in [
+        (FaultBoundary::BeforeCommit, PortError::Quota),
+        (FaultBoundary::AfterCommit, PortError::CommitUnknown),
+    ] {
+        let f = Fixture::new();
+        let local = f.open();
+        let (_, peer) = remote_peer(&f);
+        let first = remote_edit(&peer, 1, false);
+        local.reserve_peer_writer(first.writer).unwrap();
+        let before = visible(&local);
+        f.store
+            .inject_once(InjectedFault { boundary, error })
+            .unwrap();
+        assert!(matches!(
+            local.receive_peer(first.clone()),
+            Err(NativeSessionError::Store { .. })
+        ));
+        assert_eq!(visible_recovery(&local), before);
+        assert!(local.read(0).unwrap().recovery_required);
+        assert!(matches!(
+            local.pending_updates(),
+            Err(NativeSessionError::RecoveryRequired)
+        ));
+        assert!(local.receive_peer(first.clone()).is_err());
+        assert_eq!(
+            f.store.recover(&f.id).unwrap().journal.len(),
+            usize::from(boundary == FaultBoundary::AfterCommit)
+        );
+        local.recover().unwrap();
+        local.receive_peer(first.clone()).unwrap();
+        assert_eq!(visible(&local)[1], visible(&peer)[1]);
+        assert_eq!(f.store.recover(&f.id).unwrap().journal.len(), 1);
+        let second = remote_edit(&peer, 1, false); // second same text: still a valid next real transaction
+        let mut gap = second.clone();
+        gap.sequence += 1;
+        assert!(matches!(
+            local.receive_peer(gap),
+            Err(NativeSessionError::Store {
+                reason: NativeStoreFailure::Sequence
+            })
+        ));
+        local.recover().unwrap();
+        local.receive_peer(second).unwrap();
+        let mut conflict = first.clone();
+        conflict.origin = "different".into();
+        assert!(matches!(
+            local.receive_peer(conflict),
+            Err(NativeSessionError::Store {
+                reason: NativeStoreFailure::Integrity
+            })
+        ));
+        local.recover().unwrap();
+        assert_eq!(visible(&local)[1], visible(&peer)[1]);
+        local.dispose().unwrap();
+        assert_eq!(visible(&f.open())[1], visible(&peer)[1]);
+    }
+}
+fn visible_recovery(s: &NativeSession) -> Value {
+    s.call(|state| {
+        Ok(
+            editac_core::interchange::projection_snapshot(state.service.session().document())
+                .unwrap()["visible"]
+                .clone(),
+        )
+    })
+    .unwrap()
+}
+
+#[test]
+fn remote_native_accepted_ingress_finishes_before_dispose_and_cannot_be_cancelled_back() {
+    use editac_session::store::TransactionBoundary;
+    use std::sync::atomic::AtomicBool;
+    let f = Fixture::new();
+    let (_, peer) = remote_peer(&f);
+    let entry = remote_edit(&peer, 1, false);
+    let armed = Arc::new(AtomicBool::new(false));
+    let flag = armed.clone();
+    let (entered_tx, entered_rx) = mpsc::sync_channel(1);
+    let (release_tx, release_rx) = mpsc::sync_channel(1);
+    let release_rx = Mutex::new(release_rx);
+    let observed = Arc::new(
+        NativeStore::open_existing_observed(
+            f.store.path(),
+            f.id.clone(),
+            StoreLimits::default(),
+            Some(Arc::new(move |boundary| {
+                if boundary == TransactionBoundary::BeforeCommit
+                    && flag.swap(false, Ordering::SeqCst)
+                {
+                    entered_tx.send(()).unwrap();
+                    release_rx.lock().unwrap().recv().unwrap();
+                }
+            })),
+        )
+        .unwrap(),
+    );
+    let id = f.id.clone();
+    let local = NativeSession::start(move || {
+        State::new(Session::open(observed, &id, CachedPermission::LOCAL)?)
+    })
+    .unwrap();
+    local.set_table_policy(true).unwrap();
+    local.reserve_peer_writer(entry.writer).unwrap();
+    let cancel = prepare(&local, &command(&local, "cancelled"));
+    local.cancel_commands(cancel.token.clone()).unwrap();
+    armed.store(true, Ordering::SeqCst);
+    let ingress_owner = local.clone();
+    let ingress = thread::spawn(move || ingress_owner.receive_peer(entry));
+    entered_rx.recv().unwrap();
+    assert!(local.worker.try_lock().is_err());
+    let disposal_owner = local.clone();
+    let (done_tx, done_rx) = mpsc::sync_channel(1);
+    let disposal = thread::spawn(move || {
+        disposal_owner.dispose().unwrap();
+        done_tx.send(()).unwrap();
+    });
+    assert!(matches!(done_rx.try_recv(), Err(mpsc::TryRecvError::Empty)));
+    release_tx.send(()).unwrap();
+    assert_eq!(
+        ingress.join().unwrap().unwrap().durability,
+        NativeSessionDurability::ProcessCrash
+    );
+    disposal.join().unwrap();
+    assert!(matches!(
+        local.commit_commands(cancel.token, 0),
+        Err(NativeSessionError::Disposed)
+    ));
+    let reopened = f.open();
+    assert_eq!(visible(&reopened)[1], visible(&peer)[1]);
+    assert_eq!(f.store.recover(&f.id).unwrap().journal.len(), 1);
+    reopened.dispose().unwrap();
+    peer.dispose().unwrap();
+}

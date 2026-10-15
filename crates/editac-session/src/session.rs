@@ -678,6 +678,20 @@ impl<S: SessionStore> Session<S> {
             Ok(0)
         }
     }
+    /// Explicit trusted-host reservation for an admitted peer. IDs are not authentication.
+    /// A retained reservation is never reused; reopening does not require claiming it again.
+    pub fn reserve_peer_writer(&self, writer: u32) -> Result<(), SessionError> {
+        self.ready()?;
+        if writer == self.document.writer_id() {
+            return Err(PortError::Permission.into());
+        }
+        Ok(self.store.claim_writer(writer)?)
+    }
+    /// Committed outbox only. In particular, never publish an unjournaled predecessor.
+    pub fn pending_updates(&self) -> Result<&[JournalEntry], SessionError> {
+        self.ready()?;
+        Ok(&self.pending)
+    }
     /// Trusted host transport supplies an exact scoped envelope. No remote receipt is inferred.
     pub fn receive_peer(&mut self, entry: JournalEntry) -> Result<LocalCommit, SessionError> {
         self.ready()?;

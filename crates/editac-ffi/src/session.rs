@@ -216,6 +216,29 @@ pub struct NativeSessionSeed {
     pub kind: String,
     pub text: String,
 }
+/// An exact admitted journal record, not a raw network frame or authenticated identity.
+/// Only a trusted host may supply this after its existing authentication/admission.
+#[derive(Clone, Debug, uniffi::Record)]
+pub struct NativeSessionPeerUpdate {
+    pub identity_json: String,
+    pub writer: u32,
+    pub sequence: u64,
+    pub checksum: Vec<u8>,
+    pub origin: String,
+    pub bytes: Vec<u8>,
+}
+impl From<&editac_session::ports::JournalEntry> for NativeSessionPeerUpdate {
+    fn from(entry: &editac_session::ports::JournalEntry) -> Self {
+        Self {
+            identity_json: editac_core::interchange::identity(&entry.id().identity).to_string(),
+            writer: entry.id().writer,
+            sequence: entry.id().sequence,
+            checksum: entry.id().checksum.to_vec(),
+            origin: entry.origin().to_owned(),
+            bytes: entry.bytes().to_vec(),
+        }
+    }
+}
 /// Minimal text presentation DTO, not a writable projection or full rich SDK view.
 #[derive(Clone, Debug, uniffi::Record)]
 pub struct NativeSessionNode {
@@ -618,6 +641,68 @@ impl NativeSession {
                 StoreLimits::default(),
             )?);
             State::new(Session::open(store, &id, permission(&options))?)
+        })
+    }
+    /// Trusted host reserves an actual peer writer once, never an authentication grant.
+    pub fn reserve_peer_writer(&self, writer: u32) -> Result<()> {
+        self.call(move |state| Ok(state.service.session().reserve_peer_writer(writer)?))
+    }
+    /// Owned committed outbox records; frozen Sessions cannot publish pending updates.
+    pub fn pending_updates(&self) -> Result<Vec<NativeSessionPeerUpdate>> {
+        self.call(|state| {
+            Ok(state
+                .service
+                .session()
+                .pending_updates()?
+                .iter()
+                .map(Into::into)
+                .collect())
+        })
+    }
+    /// Trusted-host ingress over the actual EditService/Session, after host security admission.
+    /// This accepts neither unauthenticated network frames nor encrypted packets.
+    pub fn receive_peer(&self, update: NativeSessionPeerUpdate) -> Result<NativeSessionCommit> {
+        self.call(move |state| {
+            use editac_session::ports::{JournalEntry, UpdateId};
+            // Bound input before parsing or semantic staging; preserve the original digest.
+            if update.identity_json.len() > 4096
+                || update.bytes.len() > StoreLimits::default().max_record_bytes
+                || update.origin.len() > 1024
+            {
+                return Err(NativeSessionError::ResourceLimit);
+            }
+            let session = state.service.session();
+            session.observed_revision()?;
+            let identity = session.document().identity().clone();
+            let supplied: serde_json::Value =
+                serde_json::from_str(&update.identity_json).map_err(|_| {
+                    NativeSessionError::Store {
+                        reason: NativeStoreFailure::InvalidRecord,
+                    }
+                })?;
+            if supplied != editac_core::interchange::identity(&identity) {
+                return Err(NativeSessionError::Incompatible);
+            }
+            if update.writer == session.document().writer_id() {
+                return Err(PortError::Permission.into());
+            }
+            let checksum = update
+                .checksum
+                .try_into()
+                .map_err(|_| NativeSessionError::Store {
+                    reason: NativeStoreFailure::InvalidRecord,
+                })?;
+            let entry = JournalEntry::from_stored(
+                UpdateId {
+                    identity,
+                    writer: update.writer,
+                    sequence: update.sequence,
+                    checksum,
+                },
+                update.origin,
+                update.bytes,
+            )?;
+            Ok(state.service.receive_peer(entry)?.into())
         })
     }
     pub fn read(&self, now: u64) -> Result<NativeSessionRead> {
