@@ -16,7 +16,7 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 CORE = ROOT.parents[1]
 SUITES = {
-    "collaboration-lifecycle": ("EditacMacOSCollaborationLifecycleTests.CollaborationLifecycleTests", 12),
+    "collaboration-lifecycle": ("EditacMacOSCollaborationLifecycleTests.CollaborationLifecycleTests", 13),
     "accessibility-text": ("EditacMacOSAccessibilityTextTests.AccessibilityTextTests", 10),
     "durability": ("EditacMacOSDurabilityTests.DurabilityTests", 10),
     "attachments": ("EditacMacOSAttachmentsTests.AttachmentsTests", 15),

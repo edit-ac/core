@@ -212,6 +212,35 @@ final class CollaborationLifecycleTests: XCTestCase {
         try await close(host)
     }
 
+    func testCancellationCannotInterruptDurableCloseBarrier() async throws {
+        let (root, old, next) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let view = try await open(old); let host = NativeDocumentCoordinator(editor: view)
+        let gate = DispatchSemaphore(value: 0); view.session.enqueueBarrier { gate.wait() }
+        defer { gate.signal() }
+        let closing = expectation(description: "durable barrier submitted")
+        let changed = expectation(description: "switch finished")
+        let observer = view.session.onStorageStatus
+        let observed = Order()
+        view.session.onStorageStatus = { status in
+            observer?(status)
+            if host.phase == .closing && observed.values.isEmpty {
+                observed.values.append("closing"); closing.fulfill()
+            }
+        }
+        host.switchDocument(options: next, initial: [NativeSessionSeed(kind: "block", text: "next")], now: 0) { result in
+            if case .failure = result { XCTFail("durable switch failed") }; changed.fulfill()
+        }
+        await fulfillment(of: [closing], timeout: 5)
+        XCTAssertFalse(host.cancelSwitch()); XCTAssertEqual(host.phase, .closing)
+        host.close { result in
+            guard case .failure(.closing) = result else { XCTFail("concurrent close admitted"); return }
+        }
+        gate.signal()
+        await fulfillment(of: [changed], timeout: 5)
+        XCTAssertTrue(view.isDisposed); XCTAssertEqual(host.editor.textView.string, "next")
+        try await close(host)
+    }
+
     func testScopeRejectsOtherHostOldDocumentAndDisposedView() async throws {
         let (root, old, next) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
         let view = try await open(old); let host = NativeDocumentCoordinator(editor: view)
@@ -243,7 +272,7 @@ final class CollaborationLifecycleTests: XCTestCase {
     func testRecoveryRequiredSwitchKeepsOldSalvageAndAllowsRepairRetry() async throws {
         let (root, old, next) = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
         let view = try await open(old); let host = NativeDocumentCoordinator(editor: view); let oldScope = host.scope
-        try sql(old, "CREATE TRIGGER reject_append BEFORE INSERT ON journal BEGIN SELECT RAISE(FAIL, 'native-switch-test'); END;")
+        try sql(old, "CREATE TRIGGER reject_append BEFORE UPDATE ON state BEGIN SELECT RAISE(ABORT, 'native-switch-test'); END;")
         do { try await edit(view, "recovery"); XCTFail("fault did not reject append") } catch NativeSessionFailure.native(_) {}
         do { _ = try await change(host, next); XCTFail("recovery-required document closed") }
         catch NativeSessionFailure.native(.RecoveryRequired) {}
