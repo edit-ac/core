@@ -1,8 +1,8 @@
 # macOS native SDK
 
 DSK-1.1 builds an AppKit SDK target, a windowed native test host and one real
-XCTest case. The text view remains noneditable until the input and projection gates.
-DSK-1.3 binds the actual shared Session through its generated Swift interface. This bootstrap establishes no editing, toolkit feasibility,
+XCTest case. The text view stays noneditable until a shared Session is open.
+DSK-1.3 binds the actual shared Session through its generated Swift interface. The bootstrap alone establishes no editing, toolkit feasibility,
 IME, accessibility or release support. All capability claims start unqualified.
 
 From `core`:
@@ -97,3 +97,6 @@ shared Session, followed by rich/attachment and anchor integration. Creating a
 second NativeEngine for the view would violate model ownership. Unsupported node
 kinds fail before storage changes. All delivery capability claims remain
 unqualified and native editing stays disabled.
+
+[Committed input](Sources/EditacMacOS/input/README.md) routes native edits through
+the existing Session with the `edits` suite; full IME/platform support remains unqualified.

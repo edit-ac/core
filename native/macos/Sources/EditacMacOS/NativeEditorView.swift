@@ -1,7 +1,7 @@
 import AppKit
 
-/// Native control projected from the owned shared Session. Native editing
-/// remains gated by its later roadmap owner.
+/// Native control projected from the owned shared Session. Committed input
+/// passes through shared preparation and durable admission.
 @MainActor
 public final class NativeEditorView: NSView {
     public let session = NativeSessionExecutor()
