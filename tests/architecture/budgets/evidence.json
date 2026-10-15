@@ -10,10 +10,10 @@
   "sourceRevision": "78b3fd484f3af6ca9ab61b5457cfb1aa45474dbba889a88e863949d9d631cb74",
   "implementationReceipt": "architecture-results/fit-1.8-20261015/prf06-delivery-1/delivery-receipt.json",
   "implementationReceiptHash": "234a6a0fac49406133ba75ae412e1a431cab8f01204bf082359c9e61b6d3d005",
-  "currentCanonicalReceipt": "architecture-results/fit-1.8-20261015/native-cjk-delivery-1/budgets-1/receipt.json",
-  "canonicalReceiptHash": "01443a875c9f8779dfd137f6dd5e8769cb2e4a2e823305229dc8b5929bad5ef7",
+  "currentCanonicalReceipt": "architecture-results/fit-1.8-20261015/current-source-1/budgets-2/receipt.json",
+  "canonicalReceiptHash": "29a882a762a321ec020afcbc7e26d6e89d966842a506b271ef775f9c632f3f8c",
   "profileHash": "22aaa4b74df2064c44f791b62c977be07ecca00e77b148052ae6536fe1c59122",
-  "baselineIndexHash": "b101d832b3193f74203d25924abfba0cd56dd3fde42fb120ebbe747b09e13560",
+  "baselineIndexHash": "ecf6a10a87197a9a9e4d8b6530cdf974348a36ea5f1c51e1de2b6fdd5baa4dbe",
   "previousEvidence": "d6144b16fc0ac019c8cde15fa21a2e7e99e25efb:tests/architecture/budgets/evidence.json",
   "priorDeliveryReceipt": "architecture-results/fit-1.8-20261015/iteration-3/prf05-delivery-receipt.json",
   "remaining": {
@@ -84,11 +84,11 @@
   "priorCanonicalReceiptHash": "7c37551c058c0ee1f48c782b9e5369a87554f28aa31ab3f7525e936811186dc0",
   "gestureReceipt": "architecture-results/fit-1.8-20261015/source-refresh-1/gestures-1/results.json",
   "gestureReceiptHash": "ed461eb185b454a4973a4ce2305b1db672e93d67ff1460ad995d11485fa175c6",
-  "gestureScope": "16/16 actual-public-editor ordinary-pointer diagnostics: exact thin-glyph range endpoints, canceled native text drag, prose/code nested autoscroll across unchanged Task/Long \u00d7 baseline/Task, bounded native controls and cancellation. No full performance/platform qualification or new checked child.",
+  "gestureScope": "16/16 actual-public-editor ordinary-pointer diagnostics: exact thin-glyph range endpoints, canceled native text drag, prose/code nested autoscroll across unchanged Task/Long × baseline/Task, bounded native controls and cancellation. No full performance/platform qualification or new checked child.",
   "currentDeliveryReceipt": "architecture-results/fit-1.8-20261015/native-cjk-delivery-1/delivery-receipt.json",
   "serviceReceipt": "architecture-results/fit-1.8-20261015/source-refresh-1/services-1/results.json",
   "serviceReceiptHash": "ac8448b57c0b2287dd5e7ef1c4ad9f73881b94771712eb9d9157843712598b95",
-  "serviceScope": "16/16 actual-public-editor/lifecycle/resolver/sync diagnostic observations across unchanged full Task/Long \u00d7 baseline/Task. Prepared noncooperative host responses; constant-size atomic replacements, bounded queue/stale-result invalidation, exact local/remote commit and DOM node scopes, convergence and cleanup. Highlight/asset/conversion runtimes pending; no full PRF-03/performance/platform qualification or new checked child.",
+  "serviceScope": "16/16 actual-public-editor/lifecycle/resolver/sync diagnostic observations across unchanged full Task/Long × baseline/Task. Prepared noncooperative host responses; constant-size atomic replacements, bounded queue/stale-result invalidation, exact local/remote commit and DOM node scopes, convergence and cleanup. Highlight/asset/conversion runtimes pending; no full PRF-03/performance/platform qualification or new checked child.",
   "prf04": {
     "state": "diagnostic-prerequisite; parent remains open",
     "owningResults": "architecture-results/fit-1.8-20261015/source-refresh-1/workloads-1/results.json",
@@ -137,5 +137,10 @@
     "sha256": "766e44d76ff8d4effca9e0f3e1ea0c2743e495587e8cd8aa601c497974b9d487"
   },
   "nativeCJKScope": "Existing ASCII plus actual OS Simplified Chinese Pinyin ni candidate commit and hao host cancellation; exact source isolation, AX candidate geometry/action, checkpoint, display callback and disposal diagnostics only",
-  "nativeCJKRemaining": "Native Task/Long and broader optional/accessibility/text-service runtime envelopes, reviewed comparable tails, compositor attribution, peak/plateau memory, retained startup/Long/Brotli findings. One CJK commit remains below unchanged100-sample tail bar."
+  "nativeCJKRemaining": "Native Task/Long and broader optional/accessibility/text-service runtime envelopes, reviewed comparable tails, compositor attribution, peak/plateau memory, retained startup/Long/Brotli findings. One CJK commit remains below unchanged100-sample tail bar.",
+  "currentSourceRefresh": {
+    "path": "architecture-results/fit-1.8-20261015/current-source-1/delivery-receipt.json",
+    "sha256": "e1d737a38653ee0b047218d2eb47893da0c89d054cdb90006b16c7f34b0303c1"
+  },
+  "currentSourceRefreshScope": "Fresh current-source diagnostic producer admission after main synchronization; not full FIT, SDK, release, latency, tail, resource or accessibility qualification"
 }

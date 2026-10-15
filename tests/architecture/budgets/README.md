@@ -229,6 +229,23 @@ p95/p99 null under the unchanged100-sample minimum; Task/Long and remaining PRF-
 coverage stay open. Canonical budgets admits exact native receipt/source/artifact
 pins and rejects missing, mutated, skipped or relabeled observations.
 
+Fresh native runs also retain the exact iOS-simulator normal/build dependency
+and feature graph before and after the locked offline release build, compiler
+identity, linked static library and app executable. Admission compares the graph
+and compiler with the current checkout/toolchain and verifies every artifact.
+Workspace changes do not grant a source exception or permit relabeling previous
+measurements. Changed native inputs require a fresh owning execution here.
+Both drivers tap the native text view and require its UIKit editing-begin
+callback to observe first-responder ownership and the expected input mode before
+typing. A button tap or a cached visible keyboard does not establish readiness.
+The append selection is installed after UIKit finishes handling the focus tap;
+otherwise the native tap can overwrite selection and compose before the seed.
+Automatic capitalization is disabled for the reviewed lowercase key sequence.
+The CJK driver requires the Pinyin input mode. Both drivers press each hittable OS key
+for 0.1 seconds. ASCII observations assert native focus before/after commit and
+at the display callback; CJK marked text and the selected candidate must still
+be observed. Readiness and key dispatch alone cannot pass either scenario.
+
 The same owning command additionally runs the frozen `profile.cjk` scenario on
 that private simulator, configured with English and Simplified Chinese Pinyin.
 An instrumented UITextView observes outermost actual OS marked/unmark/insert

@@ -76,6 +76,7 @@ final class FitnessController: UIViewController, UITextViewDelegate {
         editor.font = .systemFont(ofSize: 22)
         editor.accessibilityIdentifier = "native-editor"
         editor.autocorrectionType = .no; editor.spellCheckingType = .no
+        editor.autocapitalizationType = .none
         editor.smartQuotesType = .no; editor.smartDashesType = .no
         editor.cjk = cjk
         editor.keyboardType = .default
@@ -119,13 +120,51 @@ final class FitnessController: UIViewController, UITextViewDelegate {
         display?.add(to: .main, forMode: .common)
         display?.isPaused = true
     }
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        // Keep controls below the system status/Dynamic Island hit region.
+        // The former full-width focus button straddled that region, allowing
+        // XCTest to dispatch a tap without invoking our focus action.
+        let top = max(80, view.safeAreaInsets.top + 8)
+        let width = min(350, view.bounds.width - 40)
+        editor.frame = CGRect(x: 20, y: top + 50, width: width, height: 300)
+        committedLabel.frame = CGRect(x: 20, y: top + 355, width: width, height: 25)
+        status.frame = CGRect(x: 20, y: top + 385, width: width, height: 40)
+        for button in view.subviews.compactMap({ $0 as? UIButton }) {
+            switch button.accessibilityIdentifier {
+            case "focus-append": button.frame = CGRect(x: 20, y: top, width: 170, height: 40)
+            case "cancel-composition": button.frame = CGRect(x: 200, y: top, width: 170, height: 40)
+            case "verify-source": button.frame = CGRect(x: 20, y: top + 435, width: width, height: 40)
+            default: break
+            }
+        }
+    }
     @objc func focusAppend() {
+        // Rebind the text-service session after relaunching from the ASCII
+        // scenario. A visible cached keyboard alone does not prove readiness.
+        if cjk { editor.resignFirstResponder() }
         editor.becomeFirstResponder()
+        if cjk { editor.reloadInputViews() }
         editor.selectedRange = NSRange(location: editor.textStorage.length, length: 0)
+        if cjk { status.accessibilityValue = editor.isFirstResponder && editor.textInputMode?.primaryLanguage == "zh-Hans" ? "pinyin-ready" : "focus failed" }
         partial()
+    }
+    func textViewDidBeginEditing(_ textView: UITextView) {
+        // The driver enters the actual text control. Observe UIKit granting
+        // focus rather than inferring readiness from a focus-button tap.
+        // UIKit positions the caret for the tap after didBeginEditing returns.
+        // Install this append-only scenario's selection after that native turn,
+        // then expose readiness; otherwise Pinyin can compose before the seed.
+        DispatchQueue.main.async { [weak self, weak textView] in
+            guard let self = self, let textView = textView else { return }
+            textView.selectedRange = NSRange(location: textView.textStorage.length, length: 0)
+            self.status.accessibilityValue = textView.isFirstResponder && textView.textInputMode?.primaryLanguage == (self.cjk ? "zh-Hans" : "en-US") ? (self.cjk ? "pinyin-ready" : "ascii-ready") : "focus failed"
+            self.partial()
+        }
     }
     func partial() {
         let value: [String: Any] = ["errors": errors, "attempts": attempts, "typed": typed,
+            "firstResponder": editor.isFirstResponder, "inputMode": editor.textInputMode?.primaryLanguage ?? "unavailable",
             "committed": (try? text(engine)) ?? "unavailable", "projected": editor.text ?? "",
             "selectionUtf16": editor.selectedRange.location, "samples": samples, "frames": frameTrace, "compositionEvents": compositionEvents, "cancellation": cancellation, "inputModes": UITextInputMode.activeInputModes.map { $0.primaryLanguage ?? "unknown" }]
         let path = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent(cjk ? "cjk-partial.json" : "partial.json")
@@ -140,6 +179,7 @@ final class FitnessController: UIViewController, UITextViewDelegate {
             s["frameCallbackAt"] = CACurrentMediaTime(); s["displayTimestamp"] = link.timestamp
             s["displayTargetTimestamp"] = link.targetTimestamp
             s["caretRect"] = rect(editor.caretRect(for: editor.selectedTextRange!.end))
+            s["firstResponderAtFrame"] = editor.isFirstResponder
             samples.append(s)
         }
         pending.removeAll()
@@ -151,6 +191,7 @@ final class FitnessController: UIViewController, UITextViewDelegate {
         let start = CACurrentMediaTime()
         attempts.append(["rangeUtf16": range.location, "removedUtf16": range.length, "replacement": replacement])
         do {
+            try expect(textView.isFirstResponder, "native keyboard target owns focus before commit")
             try expect(range.length == 0 && range.location == editor.textStorage.length && !replacement.isEmpty, "only append keyboard scenario accepted")
             let snapshot = try decode(engine.read())
             let id = (snapshot["visible"] as! [[String: Any]])[0]["id"] as! String
@@ -166,10 +207,12 @@ final class FitnessController: UIViewController, UITextViewDelegate {
             // The one acknowledged append projects a bounded UTF-16 range.
             textView.textStorage.replaceCharacters(in: range, with: replacement)
             textView.selectedRange = NSRange(location: range.location + replacement.utf16.count, length: 0)
+            try expect(textView.isFirstResponder, "bounded projection preserves native keyboard focus")
             typed += replacement
             pending.append(["inputAt": start, "engineDoneAt": engineDone, "projectionDoneAt": CACurrentMediaTime(),
                 "rangeUtf16": range.location, "replacementUtf16": replacement.utf16.count,
                 "committedUtf16": next.utf16.count, "thermal": ProcessInfo.processInfo.thermalState.rawValue,
+                "firstResponderBeforeAndAfterCommit": textView.isFirstResponder,
                 "inputMode": textView.textInputMode?.primaryLanguage ?? "unavailable"])
             display?.isPaused = false
         } catch { errors.append(String(describing: error)); status.text = "input failed"; partial() }
@@ -294,6 +337,7 @@ final class FitnessController: UIViewController, UITextViewDelegate {
         check("response-frame-and-caret") {
             try expect(samples.count == 12 && pending.isEmpty && frameTrace.count == 12, "all twelve keyboard edits observed by native display link")
             for s in samples {
+                try expect(s["firstResponderBeforeAndAfterCommit"] as? Bool == true && s["firstResponderAtFrame"] as? Bool == true, "continuous native keyboard focus through projection and display callback")
                 try expect((s["frameCallbackAt"] as! Double) >= (s["projectionDoneAt"] as! Double), "monotone frame attribution")
                 let r = s["caretRect"] as! [String: Double]
                 try expect(r["height"]! > 0 && r.values.allSatisfy { $0.isFinite }, "native candidate anchor geometry")

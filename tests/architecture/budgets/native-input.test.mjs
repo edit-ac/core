@@ -1,10 +1,12 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, readdir, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { homedir } from 'node:os';
+import { spawnSync } from 'node:child_process';
 import { digest, verifyPins } from '../../../scripts/architecture-budgets.mjs';
-import { inspectNativeInput, inspectNativeCJK } from '../../../scripts/native-input-evidence.mjs';
+import { inspectNativeInput, inspectNativeCJK, inspectNativeBuild } from '../../../scripts/native-input-evidence.mjs';
 const root = fileURLToPath(new URL('../../../',import.meta.url));
 const read = p => readFile(resolve(root,p));
 const profileBytes = await read('benchmarks/profiles/native-input-v1.json'), profile = JSON.parse(profileBytes);
@@ -16,12 +18,62 @@ const accessibility = JSON.parse(await read(index.directory+'/accessibility.json
 const cjk = JSON.parse(await read(index.directory+'/cjk-result.json'));
 const cjkAX = JSON.parse(await read(index.directory+'/cjk-accessibility.json'));
 let observations, cjkObservations;
+const nativeBuild = Object.fromEntries(await Promise.all([
+  ['graph','native-target-graph.log'],['rustc','native-rustc.log'],['library','libeditac_ffi.a'],['app','NativeFitness']
+].map(async([key,path])=>[key,await read(index.directory+'/'+path)])));
+test('fresh native execution binds actual current target features, compiler and rebuilt library/app',async()=>{
+  const cargo=spawnSync(resolve(homedir(),'.cargo/bin/cargo'),['+1.97.1','tree','--locked','--offline','--target','aarch64-apple-ios-sim','-p','editac-ffi','--edges','normal,build,features','--prefix','none','--format','{p}|{f}'],{cwd:root,encoding:'utf8'});
+  assert.equal(cargo.status,0,cargo.stderr); assert.equal(cargo.stdout,nativeBuild.graph.toString());
+  const rustc=spawnSync(resolve(homedir(),'.cargo/bin/rustc'),['+1.97.1','-vV'],{cwd:root,encoding:'utf8'});
+  assert.equal(rustc.status,0,rustc.stderr); assert.equal(rustc.stdout,nativeBuild.rustc.toString());
+  inspectNativeBuild(receipt,{...nativeBuild,
+    library:await read('target/native-fitness/aarch64-apple-ios-sim/release/libeditac_ffi.a'),
+    app:await read('target/native-fitness-xcode/Build/Products/Release-iphonesimulator/NativeFitness.app/NativeFitness')});
+  const products=resolve(root,'target/native-fitness-xcode/Build/Products/Release-iphonesimulator');
+  const appPins=Object.fromEntries(Object.entries(receipt.artifacts).filter(([path])=>path.startsWith('NativeFitness.app/')));
+  const appFiles=[];
+  for(const path of await readdir(resolve(products,'NativeFitness.app'),{recursive:true})) {
+    if((await stat(resolve(products,'NativeFitness.app',path))).isFile()) appFiles.push('NativeFitness.app/'+path);
+  }
+  assert(appPins['NativeFitness.app/NativeFitness'] && appPins['NativeFitness.app/Info.plist']);
+  assert.deepEqual(Object.keys(appPins).sort(),appFiles.sort()); await verifyPins(products,appPins);
+  const runtimes=spawnSync('xcrun',['simctl','list','runtimes','-j'],{cwd:root,encoding:'utf8'});
+  assert.equal(runtimes.status,0,runtimes.stderr);
+  const runtime=JSON.parse(runtimes.stdout).runtimes.find(r=>r.identifier===profile.runtime);
+  assert(runtime); assert.deepEqual(receipt.metadata.runtime,Object.fromEntries(['identifier','version','buildversion','isAvailable'].map(k=>[k,runtime[k]])));
+});
+for (const field of ['graph','rustc','library','app']) test('native build admission rejects changed '+field,()=>{
+  assert.throws(()=>inspectNativeBuild(receipt,{...nativeBuild,[field]:Buffer.concat([nativeBuild[field],Buffer.from('changed')])}));
+});
+for (const [field,value] of [['features','all'],['target','wasm32-unknown-unknown'],['measurementReuse',true]]) test('native build admission rejects changed '+field,()=>{
+  const r=structuredClone(receipt); r.nativeBuild[field]=value; assert.throws(()=>inspectNativeBuild(r,nativeBuild));
+});
+test('native build admission rejects failed build or altered feature command',()=>{
+  for (const mutate of [r=>r.checks.find(c=>c.id==='native-target-graph').exit=1,
+    r=>r.checks.find(c=>c.id==='native-build').command+=' --all-features',
+    r=>delete r.artifacts['native-target-graph-after.log']]) {
+    const r=structuredClone(receipt); mutate(r); assert.throws(()=>inspectNativeBuild(r,nativeBuild));
+  }
+});
+for (const path of ['Cargo.toml','Cargo.lock','native/ios/fitness/NativeFitness.swift','native/ios/fitness/NativeFitnessUITests.swift',
+  'tests/native/fixtures/bounded-abi.json']) test('native source admission rejects changed '+path,async()=>{
+  assert(receipt.sourceInputs[path]); await assert.rejects(verifyPins(root,{[path]:'0'.repeat(64)}));
+});
 test('native OS keyboard, accessibility client, semantic preservation and display callbacks admit exact target runtime artifacts', async () => {
   assert.equal(digest(bytes), index.receiptHash); assert.equal(digest(profileBytes),receipt.profileHash);
   const fitness = JSON.parse(await read('benchmarks/profiles/fitness-v1.json'));
   assert.equal(profile.limits.inputVisiblePhoneMs,fitness.limits.phone['input-visible']);
+  const sources=['benchmarks/profiles/native-input-v1.json','tests/native/ios-fitness.py','native/ios/fitness/NativeFitness.swift',
+    'native/ios/fitness/NativeFitnessUITests.swift','tests/native/fixtures/bounded-abi.json','Cargo.toml','Cargo.lock'];
+  for (const crate of ['editac-core','editac-ffi','editac-wasm']) {
+    sources.push(`crates/${crate}/Cargo.toml`);
+    for(const path of await readdir(resolve(root,`crates/${crate}/src`),{recursive:true})) if(path.endsWith('.rs')) sources.push(`crates/${crate}/src/${path}`);
+  }
+  for(const entry of await readdir(resolve(root,'crates/editac-ffi/generated'),{withFileTypes:true})) if(entry.isFile()) sources.push('crates/editac-ffi/generated/'+entry.name);
+  assert.deepEqual(Object.keys(receipt.sourceInputs).sort(),sources.sort());
   await verifyPins(root,receipt.sourceInputs);
   await verifyPins(resolve(root,index.directory),receipt.artifacts);
+  for(const [path,hash] of Object.entries(receipt.sourceInputs)) assert.equal(receipt.artifacts['sources/'+path],hash);
   assert.equal(receipt.sourceInputs['benchmarks/profiles/native-input-v1.json'],digest(profileBytes));
   for (const p of ['tests/native/ios-fitness.py','native/ios/fitness/NativeFitness.swift','native/ios/fitness/NativeFitnessUITests.swift']) {
     assert.equal(receipt.sourceInputs[p],digest(await read(p))); assert.equal(receipt.artifacts['sources/'+p],receipt.sourceInputs[p]);
@@ -47,6 +99,8 @@ const mutations = {
   'missing thermal': (r,n) => delete n.host.thermalStart,
   'unbounded replacement': (r,n) => n.samples[0].replacementUtf16=100,
   'missing input locale': (r,n) => n.samples[0].inputMode='unavailable',
+  'lost native focus during commit': (r,n) => n.samples[0].firstResponderBeforeAndAfterCommit=false,
+  'lost native focus before display callback': (r,n) => n.samples[0].firstResponderAtFrame=false,
   'missing driver response': (r,n,a) => a.driverSamples.pop(),
   'corrupted intermediate accessibility source': (r,n,a) => a.driverSamples[0].value+='x',
   'invented screen reader': (r,n,a) => a.screenReader='qualified',

@@ -62,7 +62,7 @@ result.metadata.osRelease = (await import('node:os')).release();
 // Observation indexes are output metadata, never executable/build inputs.
 // Each owning receipt and its artifacts are admitted independently by budgets.
 const observationIndexes = new Set([
-  'baseline', 'gesture', 'service', 'workload', 'lifecycle',
+  'baseline', 'gesture', 'service', 'workload', 'lifecycle', 'loading', 'native-input',
 ].map(name => `benchmarks/profiles/${name}-evidence.json`));
 const sourceFiles = spawnSync('git', ['ls-files', 'crates', 'packages', 'scripts', 'benchmarks'], { encoding: 'utf8' });
 if (sourceFiles.status !== 0) throw Error('Cannot inventory benchmark sources');

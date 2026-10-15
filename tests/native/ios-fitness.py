@@ -108,9 +108,18 @@ def main():
         for p in sources:
             if p.is_file():
                 retained = output/'sources'/p.relative_to(CORE); retained.parent.mkdir(parents=True,exist_ok=True); shutil.copy2(p,retained)
-        run('native-build',[Path.home()/'.cargo/bin/cargo','+1.97.1','build','-p','editac-ffi','--lib','--release','--target','aarch64-apple-ios-sim','--target-dir',target,'--locked'],timeout=900)
+        cargo = [Path.home()/'.cargo/bin/cargo','+1.97.1']
+        graphCommand = cargo+['tree','--locked','--offline','--target','aarch64-apple-ios-sim','-p','editac-ffi','--edges','normal,build,features','--prefix','none','--format','{p}|{f}']
+        graph = run('native-target-graph',graphCommand)
+        rust = run('native-rustc',[Path.home()/'.cargo/bin/rustc','+1.97.1','-vV'])
+        run('native-build',cargo+['build','-p','editac-ffi','--lib','--release','--target','aarch64-apple-ios-sim','--target-dir',target,'--locked','--offline'],timeout=900)
+        assert run('native-target-graph-after',graphCommand) == graph, 'native target graph changed during build'
         library = target/'aarch64-apple-ios-sim/release/libeditac_ffi.a'
         record['libraryHash'] = digest(library)
+        shutil.copy2(library,output/'libeditac_ffi.a')
+        record['nativeBuild'] = {'target':'aarch64-apple-ios-sim','package':'editac-ffi','profile':'release','features':'default',
+                                 'graphHash':digest(output/'native-target-graph.log'),'rustcHash':digest(output/'native-rustc.log'),
+                                 'libraryHash':record['libraryHash'],'measurementReuse':False}
         project(output/'NativeFitness.xcodeproj',library)
         run('xcode-build',['xcodebuild','build-for-testing','-project',output/'NativeFitness.xcodeproj','-scheme','NativeFitness','-configuration','Release','-destination','generic/platform=iOS Simulator','-derivedDataPath',derived,'CODE_SIGNING_ALLOWED=NO'],timeout=900)
         simulator = run('simulator-create',['xcrun','simctl','create','editac-PRF07-'+str(os.getpid()),profile['device'],profile['runtime']]).strip()

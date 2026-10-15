@@ -1,7 +1,28 @@
 import assert from 'node:assert/strict';
-import { rawSummary } from './architecture-budgets.mjs';
+import { rawSummary, digest } from './architecture-budgets.mjs';
 const finite = n => Number.isFinite(n) && n >= 0;
 const geometry = r => r && ['x','y','width','height'].every(k => Number.isFinite(r[k])) && r.width >= 0 && r.height > 0;
+// Fresh target execution, never an exemption for changed workspace manifests.
+export function inspectNativeBuild(receipt, { graph, rustc, library, app }) {
+  const b = receipt.nativeBuild;
+  assert.deepEqual(b, { target:'aarch64-apple-ios-sim', package:'editac-ffi', profile:'release', features:'default',
+    graphHash:digest(graph), rustcHash:digest(rustc), libraryHash:digest(library), measurementReuse:false });
+  assert.match(graph.toString(), /^editac-ffi v0\.0\.0 /);
+  assert.match(graph.toString(), /editac-core feature "default"/);
+  assert.match(rustc.toString(), /^rustc 1\.97\.1 /);
+  for (const [path, bytes] of [['native-target-graph.log',graph],['native-target-graph-after.log',graph],
+    ['native-rustc.log',rustc],['libeditac_ffi.a',library],['NativeFitness',app]]) {
+    assert.equal(receipt.artifacts[path],digest(bytes), 'Changed native build artifact '+path);
+  }
+  assert.equal(receipt.libraryHash,b.libraryHash);
+  for (const id of ['native-target-graph','native-target-graph-after','native-rustc','native-build','xcode-build']) {
+    const check = receipt.checks.find(c=>c.id===id);
+    assert(check && check.exit===0 && check.timeout===false, 'Unexecuted native build proof '+id);
+  }
+  const build = receipt.checks.find(c=>c.id==='native-build').command;
+  for (const flag of ['+1.97.1','--lib','--release','--locked','--offline','--target aarch64-apple-ios-sim','-p editac-ffi']) assert(build.includes(flag));
+  assert(!/--(?:all-features|no-default-features|features)(?:\s|=|$)/.test(build));
+}
 export function inspectNativeInput(profile, receipt, result, accessibility) {
   assert.equal(profile.id, 'native-input-v1'); assert.equal(profile.version, 1);
   assert.equal(profile.scenario, 'ascii-keyboard-append/native-marked-cancel/checkpoint-reopen/accessibility-query-v1');
@@ -58,6 +79,8 @@ export function inspectNativeInput(profile, receipt, result, accessibility) {
     assert(result.frames.some(f => f.timestamp === s.displayTimestamp && f.targetTimestamp === s.displayTargetTimestamp));
     assert(geometry(s.caretRect)); assert.equal(s.rangeUtf16, 6+i); assert.equal(s.replacementUtf16, 1); assert.equal(s.committedUtf16, 7+i);
     assert([0,1,2,3].includes(s.thermal)); assert.equal(typeof s.inputMode, 'string'); assert.notEqual(s.inputMode, 'unavailable');
+    assert.equal(s.firstResponderBeforeAndAfterCommit, true);
+    assert.equal(s.firstResponderAtFrame, true);
   }
   for (const f of result.frames) assert(finite(f.callbackAt) && finite(f.timestamp) && f.targetTimestamp > f.timestamp);
   assert.deepEqual(result.gaps, ['CJK candidate window selection not observed','XCTest accessibility tree/action is not VoiceOver exploration',

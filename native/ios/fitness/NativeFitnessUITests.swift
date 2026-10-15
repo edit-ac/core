@@ -5,20 +5,29 @@ final class NativeFitnessUITests: XCTestCase {
         continueAfterFailure = false
         let app = XCUIApplication(bundleIdentifier: "ac.edit.nativefitness")
         app.launch()
+        addTeardownBlock {
+            let screenshot = XCTAttachment(screenshot: app.screenshot()); screenshot.name = "final ASCII runtime state"; screenshot.lifetime = .keepAlways; self.add(screenshot)
+            let tree = XCTAttachment(string: app.debugDescription); tree.name = "final ASCII accessibility tree"; tree.lifetime = .keepAlways; self.add(tree)
+        }
         let editor = app.textViews["native-editor"]
         XCTAssertTrue(editor.waitForExistence(timeout: 30))
         let initial = "A😀éZ"
         XCTAssertEqual(editor.value as? String, initial)
-        app.buttons["focus-append"].tap()
+        editor.tap()
         // A fresh OS image presents its swipe-typing tutorial above the keys.
         let tutorial = app.staticTexts["Continue"]
         if tutorial.waitForExistence(timeout: 5) { tutorial.tap() }
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 10))
+        let ready = NSPredicate(format: "value == %@", "ascii-ready")
+        let status = app.staticTexts["scenario-status"]
+        XCTAssertTrue(ready.evaluate(with: status) || XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: ready, object: status)], timeout: 15) == .completed)
         var driverSamples: [[String: Any]] = []
         var prefix = initial
         for letter in "abcdefghijkl" {
+            let key = app.keys[String(letter)]
+            XCTAssertTrue(key.waitForExistence(timeout: 5)); XCTAssertTrue(key.isHittable)
             let before = ProcessInfo.processInfo.systemUptime
-            editor.typeText(String(letter)); prefix += String(letter)
+            key.press(forDuration: 0.1); prefix += String(letter)
             let observed = editor.value as? String ?? ""
             XCTAssertEqual(observed, prefix)
             driverSamples.append(["before": before, "after": ProcessInfo.processInfo.systemUptime, "value": observed])
@@ -27,7 +36,6 @@ final class NativeFitnessUITests: XCTestCase {
         XCTAssertTrue(editor.frame.width > 0 && editor.frame.height > 0)
         let before = XCTAttachment(screenshot: app.screenshot()); before.name = "OS keyboard and accessibility value"; before.lifetime = .keepAlways; add(before)
         app.buttons["verify-source"].tap()
-        let status = app.staticTexts["scenario-status"]
         let verified = NSPredicate(format: "label == %@", "verified")
         expectation(for: verified, evaluatedWith: status)
         waitForExpectations(timeout: 15)
@@ -55,15 +63,20 @@ final class NativeFitnessUITests: XCTestCase {
             let screenshot = XCTAttachment(screenshot: app.screenshot()); screenshot.name = name; screenshot.lifetime = .keepAlways; add(screenshot)
             let tree = XCTAttachment(string: app.debugDescription); tree.name = name + " accessibility tree"; tree.lifetime = .keepAlways; add(tree)
         }
-        app.buttons["focus-append"].tap()
+        // XCTest aborts after an assertion failure; teardown still retains the
+        // actual keyboard/focus/candidate state needed to diagnose that failure.
+        addTeardownBlock { capture("final CJK runtime state") }
+        editor.tap()
         // A fresh OS image presents its swipe-typing tutorial above the keys.
         let tutorial = app.staticTexts["Continue"]
         if tutorial.waitForExistence(timeout: 5) { tutorial.tap() }
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 10))
-        defer { capture("final CJK runtime state") }
+        let ready = NSPredicate(format: "value == %@", "pinyin-ready")
+        XCTAssertTrue(ready.evaluate(with: status) || XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: ready, object: status)], timeout: 15) == .completed)
         var keyObservations: [[String: Any]] = []
         for letter in ["n", "i"] {
-            let key = app.keys[letter]; XCTAssertTrue(key.waitForExistence(timeout: 5)); key.tap()
+            let key = app.keys[letter]; XCTAssertTrue(key.waitForExistence(timeout: 5)); XCTAssertTrue(key.isHittable)
+            key.press(forDuration: 0.1)
             awaitStatus("composing"); XCTAssertEqual(source.label, initial)
             keyObservations.append(["key": letter, "source": source.label, "projected": editor.value as? String ?? "", "at": ProcessInfo.processInfo.systemUptime])
         }
@@ -76,10 +89,15 @@ final class NativeFitnessUITests: XCTestCase {
             "keyboardFrame": ["x": app.keyboards.firstMatch.frame.minX, "y": app.keyboards.firstMatch.frame.minY, "width": app.keyboards.firstMatch.frame.width, "height": app.keyboards.firstMatch.frame.height]]
         let before = ProcessInfo.processInfo.systemUptime
         candidate.tap(); awaitStatus("committed")
+        // UIKit's attributed text-service delegate settles asynchronously.
+        // A transient unmarked status alone does not prove Rust committed.
+        let committed = NSPredicate(format: "label == %@", expected)
+        XCTAssertTrue(committed.evaluate(with: source) || XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: committed, object: source)], timeout: 15) == .completed)
         XCTAssertEqual(source.label, expected); XCTAssertEqual(editor.value as? String, expected)
         let after = ProcessInfo.processInfo.systemUptime
         for letter in ["h", "a", "o"] {
-            app.keys[letter].tap(); awaitStatus("composing"); XCTAssertEqual(source.label, expected)
+            let key = app.keys[letter]; XCTAssertTrue(key.isHittable); key.press(forDuration: 0.1)
+            awaitStatus("composing"); XCTAssertEqual(source.label, expected)
             keyObservations.append(["key": letter, "source": source.label, "projected": editor.value as? String ?? "", "at": ProcessInfo.processInfo.systemUptime])
         }
         capture("OS Pinyin composition before host cancel")
