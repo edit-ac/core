@@ -3,6 +3,16 @@ import XCTest
 @testable import EditacMacOS
 
 private struct FixtureError: Error {}
+private struct CommandCallbackTimeout: Error {}
+
+@MainActor
+private final class CommandWait {
+    var continuation: CheckedContinuation<Void, Error>?
+    func resolve(_ result: Result<Void, Error>) {
+        guard let c = continuation else { return }
+        continuation = nil; c.resume(with: result)
+    }
+}
 
 @MainActor
 final class TableEditingTests: XCTestCase {
@@ -24,6 +34,7 @@ final class TableEditingTests: XCTestCase {
         XCTAssertNil(view.projectionFailure)
     }
     private func fixture(unmerged: Bool = false, _ body: @MainActor (NativeEditorView, [String: Any]) async throws -> Void) async throws {
+        FileHandle.standardError.write(Data(("TABLE_CASE " + name + "\n").utf8))
         _ = NSApplication.shared
         if !Self.launched {
             NSApp.setActivationPolicy(.regular); NSApp.finishLaunching(); Self.launched = true
@@ -85,10 +96,17 @@ final class TableEditingTests: XCTestCase {
         XCTAssertTrue(window.isKeyWindow)
     }
     private func perform(_ view: NativeEditorView, _ action: () throws -> Void) async throws {
-        defer { view.commands.onResult = nil }
+        let wait = CommandWait()
+        let deadline = Task { @MainActor in
+            do { try await Task.sleep(for: .seconds(5)) } catch { return }
+            FileHandle.standardError.write(Data("TABLE_COMMAND_CALLBACK_TIMEOUT\n".utf8))
+            wait.resolve(.failure(CommandCallbackTimeout()))
+        }
+        defer { deadline.cancel(); view.commands.onResult = nil }
         try await withCheckedThrowingContinuation { (c: CheckedContinuation<Void, Error>) in
-            view.commands.onResult = { c.resume(with: $0.mapError { $0 as Error }) }
-            do { try action() } catch { view.commands.onResult = nil; c.resume(throwing: error) }
+            wait.continuation = c
+            view.commands.onResult = { wait.resolve($0.mapError { $0 as Error }) }
+            do { try action() } catch { wait.resolve(.failure(error)) }
         }
         XCTAssertNil(view.projectionFailure)
     }

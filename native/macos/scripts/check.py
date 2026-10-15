@@ -131,6 +131,7 @@ def main():
         return log.read_text()
 
     env = os.environ.copy()
+    env["NSUnbufferedIO"] = "YES"
     try:
         if platform.system() != "Darwin":
             raise RuntimeError("Requires macOS OS host/VM with pinned Xcode and a GUI login session")
