@@ -21,8 +21,13 @@ source text is never used as the table renderer. Bounds are 128 rows, 32 columns
 validates semantic content and URLs; the presenter additionally checks geometry
 before changing native storage. Unsupported table versions fail projection.
 
-Cells are selectable and read-only until DSK-1.10 supplies shared command
-admission, cell navigation and structural actions. They have no native undo
+DSK-1.10-P1 adds revision/tuple-scoped cell targets, guarded portable TableCell
+requests, Tab/Shift-Tab traversal (including spanned cells), accessible press-to-focus
+and shared undo/redo routing. Native edits are intercepted before storage changes;
+formatting cannot bypass the shared planner. NativeSession currently disables
+tableCell and exposes no table-policy activation, so cells remain read-only.
+The existing shared route supports simple v1 cells only; v2 editing and row/column
+actions await the shared owner. Navigation does not imply edit qualification. They have no native undo
 stack or independent document/session. Disposing/removing the owner detaches
 its controls. Accessibility qualification remains with DSK-1.17 and roadmap 20.
 
@@ -36,3 +41,10 @@ actual content patch. Existing shared APIs cannot replace an existing table
 using Content; prepared shape/rich updates do not claim those command routes,
 remote transport, OS input or platform qualification. The fixture carries actual
 observed revisions and verifies local receipts for each real commit.
+
+`bash native/macos/scripts/check.sh table-editing` currently runs ten prerequisite
+cases against actual AppKit/generated Swift/SQLite snapshots and shared policy
+rejection, plus immutable shared producer patches. It does not close DSK-1.10:
+successful native cell commits, structure commands and end-to-end remote/history
+qualification await the shared table boundary. The receipt labels this scope;
+no synthetic success or skipped acceptance case substitutes for those criteria.

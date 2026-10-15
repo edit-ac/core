@@ -15,6 +15,7 @@ public final class NativeEditorView: NSView {
     private var selectionGeneration: UInt64 = 0
     private var selectionWaiters: [UUID: CheckedContinuation<NativeSessionResponse, Error>] = [:]
     public private(set) lazy var commands = NativeCommands(view: self)
+    public private(set) lazy var tables = NativeTableEditing(view: self)
     public private(set) lazy var input = NativeCommittedInput(view: self)
     public private(set) lazy var composition = NativeComposition(view: self)
     var applyingProjection = false
@@ -88,7 +89,7 @@ public final class NativeEditorView: NSView {
         }
         session.onResult = { [weak self] result in
             guard let self, !self.isDisposed else { return }
-            defer { self.projection.refreshTypingStyle(); self.commands.refreshControls() }
+            defer { self.projection.refreshTypingStyle(); self.commands.refreshControls(); self.tables.refresh() }
             self.sessionDeliveryCount += 1
             switch result {
             case let .success(.snapshot(snapshot)), let .success(.inputCommitted(snapshot, _, _)),

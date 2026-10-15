@@ -16,6 +16,7 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 CORE = ROOT.parents[1]
 SUITES = {
+    "table-editing": ("EditacMacOSTableEditingTests.TableEditingTests", 10),
     "table-projection": ("EditacMacOSTableProjectionTests.TableProjectionTests", 14),
     "styles": ("EditacMacOSStylesTests.StylesTests", 12),
     "commands": ("EditacMacOSCommandsTests.CommandsTests", 36),
@@ -94,7 +95,7 @@ def stop_command_tree(process):
 
 def main():
     if len(sys.argv) != 2 or sys.argv[1] not in SUITES:
-        print("Usage: bash native/macos/scripts/check.sh {bootstrap|toolkit|session|projection|edits|composition|commands|styles|table-projection}; unknown/unimplemented suite", file=sys.stderr)
+        print("Usage: bash native/macos/scripts/check.sh {bootstrap|toolkit|session|projection|edits|composition|commands|styles|table-projection|table-editing}; unknown/unimplemented suite", file=sys.stderr)
         return 2
     suite = sys.argv[1]
     signal.signal(signal.SIGTERM, interrupted)
@@ -229,7 +230,7 @@ def main():
                 "manifestSha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
                 "storeSha256": hashlib.sha256(Path(fixture["path"]).read_bytes()).hexdigest(),
                 "factory": fixture["factory"], "providerCalls": fixture["providerCalls"]}
-        if suite == "table-projection":
+        if suite in ("table-projection", "table-editing"):
             fixture_root = output / "table-fixture"
             env["EDITAC_NATIVE_SESSION_EVIDENCE"] = str(fixture_root)
             factory = ROOT / "tests/TablesFixture/Cargo.toml"
@@ -241,6 +242,7 @@ def main():
             env["EDITAC_MACOS_TABLE_FIXTURE"] = str(manifest)
             env["EDITAC_MACOS_TABLE_EVIDENCE"] = str(output)
             fixture = json.loads(manifest.read_text())
+            receipt["tableEditingScope"] = "native-prerequisite-only; shared-policy-and-structure-pending" if suite == "table-editing" else None
             receipt["tableFixture"] = {"manifest": str(manifest),
                 "manifestSha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
                 "storeSha256": hashlib.sha256(Path(fixture["path"]).read_bytes()).hexdigest(),

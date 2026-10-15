@@ -68,6 +68,7 @@ public final class NativeCommands {
         return button
     }
     public func refreshControls() {
+        view?.tables.refresh()
         buttons.removeAll { $0.value == nil }
         for box in buttons {
             guard let button = box.value else { continue }
@@ -78,7 +79,9 @@ public final class NativeCommands {
     public func availability(_ command: NativeCommand) -> NativeCommandAvailability {
         guard let view, !view.isDisposed, view.projectionFailure == nil,
               view.sessionSnapshot?.revision != nil else { return .unavailableSession }
-        guard view.window?.isKeyWindow == true, view.window?.firstResponder === view.textView else { return .unfocused }
+        let cellRoute = view.tables.ownsFirstResponder && [.undo, .redo, .serviceReplacement].contains(command)
+        guard view.window?.isKeyWindow == true,
+              view.window?.firstResponder === view.textView || cellRoute else { return .unfocused }
         if command == .selectAll || command == .copy { return .enabled }
         if command == .find { return find == nil ? .unavailablePort : .enabled }
         guard !isPending, !view.input.isPending, !view.composition.isPending,

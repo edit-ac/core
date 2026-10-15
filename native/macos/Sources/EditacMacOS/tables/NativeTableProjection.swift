@@ -79,6 +79,55 @@ struct NativeTableDescriptor {
 /// adapter in DSK-1.10 is installed; no native-only history or mutation escape.
 @MainActor
 public final class NativeTableCellView: NSTextView {
+    weak var editing: NativeTableEditing?
+    var tableID: String?
+    public override func keyDown(with event: NSEvent) {
+        if event.modifierFlags.contains(.command), event.charactersIgnoringModifiers == "z" {
+            editing?.history(redo: event.modifierFlags.contains(.shift)); return
+        }
+        super.keyDown(with: event)
+    }
+    public override func doCommand(by selector: Selector) {
+        if selector == #selector(insertTab(_:)) || selector == #selector(insertBacktab(_:)) {
+            _ = editing?.move(from: self, forward: selector == #selector(insertTab(_:))); return
+        }
+        super.doCommand(by: selector)
+    }
+    public override func accessibilityPerformPress() -> Bool {
+        editing?.focus(self) ?? false
+    }
+    @objc public func undo(_ sender: Any?) { editing?.history(redo: false) }
+    @objc public func redo(_ sender: Any?) { editing?.history(redo: true) }
+    private static let unsupportedActions: Set<String> = ["changeFont:", "changeAttributes:", "changeColor:",
+        "alignLeft:", "alignRight:", "alignCenter:", "alignJustified:", "subscript:", "superscript:",
+        "unscript:", "underline:", "toggleBoldface:", "toggleItalics:"]
+    public override func validateUserInterfaceItem(_ item: NSValidatedUserInterfaceItem) -> Bool {
+        let action = NSStringFromSelector(item.action)
+        if action == "undo:" || action == "redo:" { return editing?.historyAvailable(redo: action == "redo:") == true }
+        if Self.unsupportedActions.contains(action) { return false }
+        return super.validateUserInterfaceItem(item)
+    }
+    public override func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        guard let action = item.action else { return false }
+        if Self.unsupportedActions.contains(NSStringFromSelector(action)) { return false }
+        if NSStringFromSelector(action) == "undo:" || NSStringFromSelector(action) == "redo:" {
+            return editing?.historyAvailable(redo: NSStringFromSelector(action) == "redo:") == true
+        }
+        return super.validateMenuItem(item)
+    }
+    public override func changeFont(_ sender: Any?) {}
+    public override func changeAttributes(_ sender: Any?) {}
+    public override func changeColor(_ sender: Any?) {}
+    public override func alignLeft(_ sender: Any?) {}
+    public override func alignRight(_ sender: Any?) {}
+    public override func alignCenter(_ sender: Any?) {}
+    public override func alignJustified(_ sender: Any?) {}
+    public override func `subscript`(_ sender: Any?) {}
+    public override func superscript(_ sender: Any?) {}
+    public override func unscript(_ sender: Any?) {}
+    public override func underline(_ sender: Any?) {}
+    @objc public func toggleBoldface(_ sender: Any?) {}
+    @objc public func toggleItalics(_ sender: Any?) {}
     public let coordinate: NativeCellCoordinate
     public internal(set) var rowSpan = 1
     public internal(set) var columnSpan = 1
@@ -160,7 +209,12 @@ public final class NativeTableView: NSScrollView {
                 storage.addAttribute(.paragraphStyle, value: style, range: range)
                 text.replaceCharacters(in: NSRange(location: start, length: text.length - start), with: storage)
             }
-            if !control.attributedString().isEqual(to: text) { control.textStorage?.setAttributedString(text) }
+            if !control.attributedString().isEqual(to: text) {
+                let selected = control.selectedRange()
+                control.textStorage?.setAttributedString(text)
+                let start = min(selected.location, text.length)
+                control.setSelectedRange(NSRange(location: start, length: min(selected.length, text.length - start)))
+            }
             control.backgroundColor = cell.header ? .controlBackgroundColor : .textBackgroundColor
             control.setAccessibilityLabel("\(cell.header ? "Header" : "Cell") row \(cell.coordinate.row + 1), column \(cell.coordinate.column + 1)")
             if control.superview !== canvas { canvas.addSubview(control) }
@@ -194,7 +248,10 @@ public final class NativeTableView: NSScrollView {
     }
 
     func dispose() {
-        for cell in cells.values { cell.removeFromSuperview() }
+        for cell in cells.values {
+            cell.isEditable = false; cell.delegate = nil; cell.editing = nil; cell.tableID = nil
+            cell.removeFromSuperview()
+        }
         cells = [:]; descriptor = nil; sharedTuple = []; styles.dispose(); removeFromSuperview()
     }
 }
