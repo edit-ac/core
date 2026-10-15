@@ -1,0 +1,155 @@
+{
+  "version": 1,
+  "parent": "FIT-1.8",
+  "child": "FIT-1.8-I1-B5d",
+  "state": "implemented-verified-prerequisite",
+  "qualification": "unqualified",
+  "coreImplementationCommit": "571f794d1175cf0504abf43946d58050532b1455",
+  "implementationPins": {
+    "crates/editac-core/src/document.rs": "a9447fbdcca4fdff7535ae1f0a5315b536c67a39633944eada301074ba906b9a",
+    "crates/editac-core/src/projection.rs": "3af1a9164e4f1fa3ea1487ff4c434b29dd3abd313e3cac8f7ed6e0a33b4d0211",
+    "crates/editac-core/tests/support/editor_cases.rs": "a1a1ece4a77e1ca813d7aeda109b170c24b8d52021e523804c0e5d3848f95adc"
+  },
+  "verification": {
+    "finalRustDistinct": {
+      "executed": 205,
+      "passed": 205,
+      "failed": 0,
+      "skipped": 0,
+      "ignored": 0,
+      "filtered": 0,
+      "receiptCommands": [
+        "rust-command.json (four passing suites,65)",
+        "rust-remaining-command.json (72)",
+        "rust-v3-command.json (68)"
+      ]
+    },
+    "wasmNode": {
+      "tests": [
+        66
+      ],
+      "pass": [
+        66
+      ],
+      "fail": [
+        0
+      ],
+      "skipped": [
+        0
+      ],
+      "cancelled": [
+        0
+      ],
+      "todo": [
+        0
+      ]
+    },
+    "browserRender": {
+      "tests": [
+        11,
+        11,
+        11
+      ],
+      "pass": [
+        11,
+        11,
+        11
+      ],
+      "fail": [
+        0,
+        0,
+        0
+      ],
+      "skipped": [
+        0,
+        0,
+        0
+      ],
+      "cancelled": [
+        0,
+        0,
+        0
+      ],
+      "todo": [
+        0,
+        0,
+        0
+      ]
+    },
+    "browserRecovery": {
+      "tests": [
+        11
+      ],
+      "pass": [
+        11
+      ],
+      "fail": [
+        0
+      ],
+      "skipped": [
+        0
+      ],
+      "cancelled": [
+        0
+      ],
+      "todo": [
+        0
+      ]
+    },
+    "ordinaryLoading": {
+      "executed": 24,
+      "passed": 24,
+      "failed": 0,
+      "skipped": 0
+    },
+    "ordinarySamples": 96,
+    "focusedAdmission": {
+      "tests": [
+        28
+      ],
+      "pass": [
+        28
+      ],
+      "fail": [
+        0
+      ],
+      "skipped": [
+        0
+      ],
+      "cancelled": [
+        0
+      ],
+      "todo": [
+        0
+      ]
+    },
+    "finalChecksPassed": 367,
+    "buildCommands": [
+      "build-production-command.json",
+      "build-packages-command.json"
+    ],
+    "fullCanonicalBudgets": "Not invoked: original native/resource/optional/target-runtime inputs remain incomplete; focused loading admission is prerequisite evidence only."
+  },
+  "gzip": {
+    "total": {
+      "bytes": 500393,
+      "hard": 524288,
+      "preferred": 256000,
+      "hardPass": true,
+      "preferredPass": false,
+      "gap": 0
+    },
+    "js": {
+      "bytes": 32765,
+      "hard": 32768,
+      "preferred": 16000,
+      "hardPass": true,
+      "preferredPass": false,
+      "gap": 0
+    }
+  },
+  "deliveryReceipt": {
+    "path": "architecture-results/fit-1.8-20261015/restore-projection-1/delivery-receipt.json",
+    "sha256": "31e3aecadecf0b444e95c9ae8b3aa15c78768af734516acd61b1117b0c88e277"
+  }
+}
