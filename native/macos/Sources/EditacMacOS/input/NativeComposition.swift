@@ -276,6 +276,18 @@ public final class NativeComposition {
     }
     func unmark() { if isActive { commit(provisional) } }
 
+    /// Invalidate provisional and delayed OS work when the host changes document
+    /// scope or revokes policy. Release tokens on the same Session FIFO; a later
+    /// permission grant must never revive a previously captured replacement.
+    func invalidateHostInput() {
+        cancel()
+        let retained = targets
+        targets.removeAll()
+        for waiter in captureWaiters.values { waiter.resume(throwing: NativeSessionFailure.cancelled) }
+        captureWaiters.removeAll()
+        for id in retained { try? view?.session.submit(.releaseInput(id: id)) }
+    }
+
     public func cancel() {
         guard let captured = target else { return }
         target = nil; markedRange = NSRange(location: NSNotFound, length: 0)

@@ -14,15 +14,63 @@ public struct NativeTableCellTarget {
     fileprivate let text: String
 }
 
+public enum NativeTableStructureAction: String, Sendable, CaseIterable {
+    case insertRow, deleteRow, insertColumn, deleteColumn
+}
+
+public struct NativeTableStructureTarget {
+    public let tableID: String
+    public let revision: Data
+    fileprivate let tuple: Data
+}
+
+@MainActor
+public final class NativeTableStructureButton: NSButton {
+    weak var editing: NativeTableEditing?
+    let tableID: String
+    let operation: NativeTableStructureAction
+    let index: Int
+    init(editing: NativeTableEditing, tableID: String, operation: NativeTableStructureAction, index: Int, title: String) {
+        self.editing = editing; self.tableID = tableID; self.operation = operation; self.index = index
+        super.init(frame: .zero)
+        self.title = title; target = self; action = #selector(invoke)
+        setAccessibilityLabel(title)
+    }
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("Use table action") }
+    @objc private func invoke() { editing?.performStructure(tableID: tableID, action: operation, index: index) }
+}
+
+@MainActor
+private final class WeakTableStructureButton {
+    weak var value: NativeTableStructureButton?
+    init(_ value: NativeTableStructureButton) { self.value = value }
+}
+
 @MainActor
 public final class NativeTableEditing: NSObject, NSTextViewDelegate {
     private weak var view: NativeEditorView?
+    private var buttons: [WeakTableStructureButton] = []
+    private var pendingCaret: (cell: NativeTableCellView, text: String, offset: Int)?
     public private(set) var lastFailure: NativeTableEditingFailure?
     init(view: NativeEditorView) { self.view = view }
+
+    /// Explicit trusted-host codec policy; permission remains independently owned
+    /// by the shared Session and every mutation revalidates both gates.
+    @discardableResult
+    public func setPolicy(enabled: Bool, completion: NativeSessionExecutor.Completion? = nil) throws -> NativeSessionOperation {
+        guard let view, !view.isDisposed else { throw NativeTableEditingFailure.unavailable }
+        return try view.session.submit(.tablePolicy(enabled: enabled), completion: completion)
+    }
 
     public var ownsFirstResponder: Bool {
         guard let cell = view?.window?.firstResponder as? NativeTableCellView else { return false }
         return contains(cell)
+    }
+    private func supportsCell(_ cell: NativeTableCellView, in table: NativeTableView) -> Bool {
+        guard let descriptor = try? NativeTableDescriptor(table.sharedTuple),
+              let entry = descriptor.cells.first(where: { $0.coordinate == cell.coordinate }) else { return false }
+        return entry.paragraphs.count == 1
     }
     private func contains(_ cell: NativeTableCellView) -> Bool {
         guard let view, !view.isDisposed, let id = cell.tableID else { return false }
@@ -34,15 +82,29 @@ public final class NativeTableEditing: NSObject, NSTextViewDelegate {
     }
     public func refresh() {
         guard let view else { return }
+        if !view.commands.isPending, let pending = pendingCaret {
+            pendingCaret = nil
+            if contains(pending.cell), pending.cell.string == pending.text,
+               view.window?.firstResponder === pending.cell {
+                pending.cell.setSelectedRange(NSRange(location: pending.offset, length: 0))
+            }
+        }
         let editable = !view.isDisposed && view.projectionFailure == nil && view.sessionSnapshot?.canApply == true
             && !view.commands.isPending && !view.input.isPending && !view.composition.isPending && !view.composition.isActive
             && view.commands.catalog?.routes.first(where: { $0.id == "tableCell" })?.canPrepare == true
             && view.commands.catalog?.routes.first(where: { $0.id == "tableCell" })?.available == true
+        buttons.removeAll { $0.value == nil }
+        for button in buttons.compactMap(\.value) {
+            button.isEnabled = editable && view.projection.tableViews[button.tableID] != nil
+                && view.commands.catalog?.routes.first(where: { $0.id == "tableStructure" })?.available == true
+                && view.commands.catalog?.routes.first(where: { $0.id == "tableStructure" })?.canPrepare == true
+        }
         for table in view.projection.tableViews.values {
+            let supported = Set((try? NativeTableDescriptor(table.sharedTuple))?.cells
+                .filter { $0.paragraphs.count == 1 }.map(\.coordinate) ?? [])
             for cell in table.cells.values {
                 cell.editing = self; cell.tableID = table.nodeID; cell.delegate = self
-                // Current shared TableCell accepts simple v1 single-line cells.
-                cell.isEditable = editable && table.sharedTuple[1] as? Int == 1
+                cell.isEditable = editable && supported.contains(cell.coordinate)
                 cell.allowsUndo = false
             }
         }
@@ -72,7 +134,7 @@ public final class NativeTableEditing: NSObject, NSTextViewDelegate {
         guard contains(cell), let view, let id = cell.tableID,
               let revision = view.projection.revision,
               let table = view.projection.tableViews[id] else { throw NativeTableEditingFailure.unavailable }
-        guard table.sharedTuple[1] as? Int == 1 else { throw NativeTableEditingFailure.unsupportedCell }
+        guard supportsCell(cell, in: table) else { throw NativeTableEditingFailure.unsupportedCell }
         return NativeTableCellTarget(tableID: id, coordinate: cell.coordinate, revision: revision,
             tuple: try JSONSerialization.data(withJSONObject: table.sharedTuple, options: [.sortedKeys]), text: cell.string)
     }
@@ -94,7 +156,7 @@ public final class NativeTableEditing: NSObject, NSTextViewDelegate {
         else { throw NativeTableEditingFailure.invalidRange }
         let text = target.text.replacingCharacters(in: swiftRange, with: replacement)
         guard text.utf8.count <= 1_048_576 else { throw NativeTableEditingFailure.invalidRange }
-        let value: [[String: Any]] = [["type": "tableCell", "target": target.tableID,
+        let value: [[String: Any]] = [["type": "tableCell", "owner": target.tableID,
             "expected": try JSONSerialization.jsonObject(with: target.tuple),
             "row": target.coordinate.row, "column": target.coordinate.column, "text": text]]
         return String(data: try JSONSerialization.data(withJSONObject: value, options: [.sortedKeys]), encoding: .utf8)!
@@ -104,8 +166,43 @@ public final class NativeTableEditing: NSObject, NSTextViewDelegate {
         guard let view, view.commands.catalog?.routes.first(where: { $0.id == "tableCell" })?.available == true,
               view.commands.catalog?.routes.first(where: { $0.id == "tableCell" })?.canPrepare == true
         else { throw NativeTableEditingFailure.unavailable }
+        if let cell = view.projection.tableViews[target.tableID]?.cells[target.coordinate],
+           let swiftRange = Range(range, in: target.text) {
+            pendingCaret = (cell, target.text.replacingCharacters(in: swiftRange, with: replacement),
+                            range.location + replacement.utf16.count)
+        }
         view.commands.perform(commandsJSON: json, revision: target.revision)
     }
+    public func captureStructure(tableID: String) throws -> NativeTableStructureTarget {
+        guard let view, !view.isDisposed, let revision = view.projection.revision,
+              let table = view.projection.tableViews[tableID] else { throw NativeTableEditingFailure.unavailable }
+        return NativeTableStructureTarget(tableID: tableID, revision: revision,
+            tuple: try JSONSerialization.data(withJSONObject: table.sharedTuple, options: [.sortedKeys]))
+    }
+    public func structureCommand(target: NativeTableStructureTarget, action: NativeTableStructureAction, index: Int) throws -> String {
+        guard let view, !view.isDisposed, view.projection.revision == target.revision,
+              let table = view.projection.tableViews[target.tableID],
+              try JSONSerialization.data(withJSONObject: table.sharedTuple, options: [.sortedKeys]) == target.tuple
+        else { throw NativeTableEditingFailure.staleTarget }
+        // Geometry, policy, index bounds and admission remain shared planner checks.
+        let value: [[String: Any]] = [["type": "tableStructure", "owner": target.tableID,
+            "expected": try JSONSerialization.jsonObject(with: target.tuple), "action": action.rawValue, "index": index]]
+        return String(data: try JSONSerialization.data(withJSONObject: value, options: [.sortedKeys]), encoding: .utf8)!
+    }
+    public func performStructure(tableID: String, action: NativeTableStructureAction, index: Int) {
+        do {
+            let target = try captureStructure(tableID: tableID)
+            let json = try structureCommand(target: target, action: action, index: index)
+            view?.commands.perform(commandsJSON: json, revision: target.revision)
+            lastFailure = nil
+        } catch { lastFailure = error as? NativeTableEditingFailure ?? .unavailable }
+    }
+    public func makeStructureButton(tableID: String, action: NativeTableStructureAction, index: Int, title: String) -> NativeTableStructureButton {
+        let button = NativeTableStructureButton(editing: self, tableID: tableID, operation: action, index: index, title: title)
+        buttons.append(WeakTableStructureButton(button)); refresh()
+        return button
+    }
+
     public func textView(_ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange,
                          replacementString: String?) -> Bool {
         guard let cell = textView as? NativeTableCellView, let replacementString else { return false }

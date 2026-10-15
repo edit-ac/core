@@ -144,10 +144,68 @@ fn main() {
             "expected":projection_snapshot(doc).unwrap(),"localReceipt":true,
             "revision":service.session().observed_revision().unwrap().to_bytes().to_vec()}));
     }
+    // Independent qualified v2 unmerged corpus for the structural routes.
+    let mut unmerged = baseline.clone();
+    for row in unmerged[2]["attributes"]["tuple"][2]["rows"]
+        .as_array_mut()
+        .unwrap()
+    {
+        for cell in row.as_array_mut().unwrap() {
+            if cell.is_null() {
+                *cell = serde_json::json!({"paragraphs":[{"style":["paragraph"],"runs":[]}],
+                    "rowSpan":1,"columnSpan":1,"header":false});
+            } else {
+                cell["rowSpan"] = 1.into();
+                cell["columnSpan"] = 1.into();
+            }
+        }
+    }
+    let unmerged_id = "ac180000-0000-4000-8000-000000000019";
+    let unmerged_identity = DocumentIdentity::v5(unmerged_id, epoch).unwrap();
+    let mut rich_doc = Document::create(
+        CreationPermit::authorize_new(unmerged_identity.clone()).unwrap(),
+        &[InitialNode {
+            kind: "block".into(),
+            text: String::new(),
+        }],
+    )
+    .unwrap();
+    let first = rich_doc.snapshot().unwrap().visible[0].id.clone();
+    let anchor = rich_doc
+        .anchor(&first, Utf16Offset(0), Bias::Right)
+        .unwrap();
+    let blocks =
+        transfer_blocks(serde_json::from_value::<Vec<TransferBlock>>(unmerged).unwrap()).unwrap();
+    let plan = rich_doc
+        .prepare_fragment(
+            &Selection {
+                anchor: anchor.clone(),
+                focus: anchor,
+            },
+            &blocks,
+            &TextOrigin::new("macos-unmerged-table").unwrap(),
+        )
+        .unwrap();
+    rich_doc.commit_editor(plan).unwrap();
+    let rich_visible = rich_doc.snapshot().unwrap().visible;
+    let unmerged_path = root.join("unmerged.sqlite");
+    let unmerged_store = NativeStore::create_new(
+        unmerged_path.to_str().unwrap(),
+        unmerged_identity,
+        StoreLimits::default(),
+    )
+    .unwrap();
+    unmerged_store
+        .publish(
+            0,
+            CheckpointRecord::new(rich_doc.checkpoint(), vec![]).unwrap(),
+        )
+        .unwrap();
+    drop(unmerged_store);
     let manifest = serde_json::json!({"path":path,"documentId":document_id,"epoch":epoch,
         "expected":expected,"factory":"native/macos/tests/TablesFixture/src/main.rs",
         "providerCalls":0,"table":table,"richTable":rich,"steps":steps,
-        "corpus":baseline});
+        "unmergedPath":unmerged_path,"unmergedDocumentId":unmerged_id,"unmergedTable":rich_visible[1].id,"unmergedRichTable":rich_visible[2].id,"corpus":baseline});
     let manifest_path = root.join("manifest.json");
     std::fs::write(
         &manifest_path,
