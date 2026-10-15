@@ -206,4 +206,233 @@ final class ProjectionTests: XCTestCase {
             XCTAssertEqual(view.textView.string, "text")
         }
     }
+
+    private func richFixture(body: @MainActor (NativeEditorView, NativeSessionRead) async throws -> Void) async throws {
+        _ = NSApplication.shared
+        guard let manifest = ProcessInfo.processInfo.environment["EDITAC_MACOS_RICH_FIXTURE"] else {
+            XCTFail("Missing real Rust/SQLite rich fixture; no skip or DTO substitute"); return
+        }
+        let value = try JSONSerialization.jsonObject(with: Data(contentsOf: URL(fileURLWithPath: manifest))) as! [String: Any]
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("editac-rich-appkit-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let store = directory.appendingPathComponent("document.sqlite")
+        try FileManager.default.copyItem(atPath: value["path"] as! String, toPath: store.path)
+        let view = NativeEditorView(frame: NSRect(x: 0, y: 0, width: 500, height: 300))
+        let window = NSWindow(contentRect: view.frame, styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false; window.contentView = view
+        defer { window.contentView = nil; window.close(); try? FileManager.default.removeItem(at: directory) }
+        let options = NativeSessionOptions(path: store.path, documentId: value["documentId"] as! String,
+            epoch: value["epoch"] as! String, writable: true, permissionExpiresAt: nil)
+        do {
+            let response: NativeSessionResponse = try await withCheckedThrowingContinuation { continuation in
+                do { try view.session.open(options: options, now: 0) { continuation.resume(with: $0.mapError { $0 as Error }) } }
+                catch { continuation.resume(throwing: error) }
+            }
+            guard case let .snapshot(snapshot) = response else { throw UnexpectedResponse() }
+            XCTAssertNil(view.projectionFailure)
+            try await body(view, snapshot)
+            await withCheckedContinuation { continuation in view.dispose { continuation.resume() } }
+        } catch {
+            await withCheckedContinuation { continuation in view.dispose { continuation.resume() } }
+            throw error
+        }
+    }
+
+    func testRichSessionSnapshotMapsSharedRunsAndNativeAttachmentWithoutFetching() async throws {
+        try await richFixture { view, snapshot in
+            XCTAssertEqual(view.textView.string, "A🦀אב\n\u{FFFC}\ntail e\u{301} שלום")
+            XCTAssertEqual(view.projection.nodes.map(\.id), snapshot.nodes.map(\.id))
+            let atom = view.projection.nodes[1]
+            XCTAssertEqual(atom.range, NSRange(location: 6, length: 1))
+            XCTAssertNotNil(view.textView.textStorage!.attribute(.attachment, at: 6, effectiveRange: nil))
+            let descriptor = view.textView.textStorage!.attribute(NativeTextProjection.sharedNodeAttributes, at: 6, effectiveRange: nil) as! NSDictionary
+            XCTAssertEqual((descriptor["blockAttributes"] as! [Any])[0] as? String, "module:editac.image")
+            let shared = view.textView.textStorage!.attribute(NativeTextProjection.sharedRunAttributes, at: 0, effectiveRange: nil) as! NSDictionary
+            XCTAssertGreaterThan(shared.count, 0)
+            XCTAssertEqual(view.projection.richNodes[atom.id]?.wire["spans"] is [[String: Any]], true)
+            XCTAssertEqual(view.projection.attachmentIdentities.count, 1)
+        }
+    }
+
+    func testRichPatchesPreserveChangedNodeSelectionUsingSharedAnchorsAndDirection() async throws {
+        try await richFixture { view, before in
+            let node = view.projection.nodes[0]
+            try await view.select(range: NSRange(location: 3, length: 2), backwards: true, affinity: .upstream)
+            let stale = view.projection.selection!
+            let after = try await self.edit(view, before, range: NSRange(location: 0, length: 0), text: "😀")
+            XCTAssertEqual(view.textView.string, "😀A🦀אב\n\u{FFFC}\ntail e\u{301} שלום")
+            XCTAssertTrue(view.projection.nodes[0] === node)
+            XCTAssertEqual(view.textView.selectedRange(), NSRange(location: 5, length: 2))
+            XCTAssertEqual(view.projection.selection?.anchor.offsetUTF16, 7)
+            XCTAssertEqual(view.projection.selection?.focus.offsetUTF16, 5)
+            XCTAssertEqual(view.projection.selection?.affinity, .upstream)
+            XCTAssertEqual(view.projection.selection?.revision, after.revision)
+            XCTAssertFalse(view.projection.selectionInvalidated)
+            XCTAssertThrowsError(try view.projection.select(stale))
+        }
+    }
+
+    func testAttachmentEdgesAndCrossNodeAnchorsSurviveChangedUnicodeText() async throws {
+        try await richFixture { view, before in
+            let atom = view.projection.nodes[1], attachment = view.projection.attachmentIdentities[view.projection.nodes[1].id]!
+            try await view.select(range: NSRange(location: 6, length: 1), backwards: true, affinity: .downstream)
+            XCTAssertEqual(view.projection.selection?.anchor.offsetUTF16, 1)
+            _ = try await self.edit(view, before, range: NSRange(location: 0, length: 0), text: "X")
+            XCTAssertEqual(view.textView.selectedRange(), NSRange(location: 7, length: 1))
+            XCTAssertEqual(view.projection.selection?.anchor.offsetUTF16, 1)
+            XCTAssertEqual(view.projection.selection?.focus.offsetUTF16, 0)
+            XCTAssertTrue(view.projection.nodes[1] === atom)
+            XCTAssertTrue(view.projection.attachmentIdentities[atom.id] === attachment)
+            let current = try await self.read(view)
+            try await view.select(range: NSRange(location: 4, length: 7), backwards: false, affinity: .upstream)
+            _ = try await self.edit(view, current, range: NSRange(location: 0, length: 1), text: "long")
+            XCTAssertEqual(view.textView.selectedRange(), NSRange(location: 7, length: 7))
+            XCTAssertFalse(view.projection.selectionInvalidated)
+        }
+    }
+
+    func testRichRangeBatchPreservesMiddleAttachmentAndUntouchedNativeAttributes() async throws {
+        try await richFixture { view, before in
+            let atom = view.projection.nodes[1], attachment = view.projection.attachmentIdentities[view.projection.nodes[1].id]!
+            let key = NSAttributedString.Key("test-retained-middle")
+            view.textView.textStorage!.addAttribute(key, value: "retained", range: atom.range)
+            let sequence = view.projection.richSequence!
+            guard case let .prepared(token) = try await self.send(view, .prepare(revision: before.revision!,
+                edits: [NativeSessionEdit(node: before.nodes[0].id, fromUtf16: 0, toUtf16: 0, text: "X"),
+                        NativeSessionEdit(node: before.nodes[2].id, fromUtf16: 0, toUtf16: 0, text: "Y")],
+                origin: "multi-range-patch", now: 0)) else { throw UnexpectedResponse() }
+            _ = try await self.send(view, .commit(token: token, now: 0))
+            _ = try await self.read(view)
+            XCTAssertEqual(view.projection.richSequence, sequence + 1)
+            XCTAssertTrue(view.projection.nodes[1] === atom)
+            XCTAssertTrue(view.projection.attachmentIdentities[atom.id] === attachment)
+            XCTAssertEqual(view.textView.textStorage!.attribute(key, at: atom.range.location, effectiveRange: nil) as? String, "retained")
+            XCTAssertEqual(view.textView.string, "XA🦀אב\n\u{FFFC}\nYtail e\u{301} שלום")
+        }
+    }
+
+    func testSharedAnchoredSelectionDeletionAndUndoRedoUseEnginePositions() async throws {
+        try await richFixture { view, before in
+            try await view.select(range: NSRange(location: 3, length: 2), backwards: true, affinity: .downstream)
+            let after = try await self.edit(view, before, range: NSRange(location: 1, length: 4), text: "")
+            XCTAssertEqual(view.textView.selectedRange(), NSRange(location: 1, length: 0))
+            XCTAssertFalse(view.projection.selectionInvalidated)
+            _ = try await self.send(view, .undo(revision: after.revision!, now: 0))
+            let undone = try await self.read(view)
+            XCTAssertEqual(view.textView.string, "A🦀אב\n\u{FFFC}\ntail e\u{301} שלום")
+            XCTAssertNotNil(view.projection.selection, "shared=\(view.projection.selectionResolutions), invalid=\(view.projection.selectionInvalidated), failure=\(String(describing: view.projectionFailure))")
+            _ = try await self.send(view, .redo(revision: undone.revision!, now: 0))
+            _ = try await self.read(view)
+            XCTAssertEqual(view.textView.selectedRange(), NSRange(location: 1, length: 0))
+            XCTAssertNil(view.projectionFailure)
+        }
+    }
+
+    func testResnapshotPreservesSharedAnchorsAndAttachmentIdentity() async throws {
+        try await richFixture { view, _ in
+            let node = view.projection.nodes[1], attachment = view.projection.attachmentIdentities[view.projection.nodes[1].id]!
+            try await view.select(range: NSRange(location: 3, length: 2), backwards: true, affinity: .upstream)
+            _ = try await self.send(view, .resyncProjection)
+            _ = try await self.read(view)
+            XCTAssertTrue(view.projection.nodes[1] === node)
+            XCTAssertTrue(view.projection.attachmentIdentities[node.id] === attachment)
+            XCTAssertEqual(view.textView.selectedRange(), NSRange(location: 3, length: 2))
+            XCTAssertTrue(view.projection.anchoredSelection)
+            XCTAssertNil(view.projection.lastPatch)
+        }
+    }
+
+    func testPreparedRichCursorAndLineageFailuresAreAtomic() async throws {
+        try await richFixture { view, _ in
+            let text = view.textView.string, nodes = view.projection.nodes
+            let cursor = view.projection.richSequence!
+            for patches in [
+                NativeSessionPatches(revision: Data([1]), afterSequence: cursor + 1, sequence: cursor + 1, patchesJson: []),
+                NativeSessionPatches(revision: Data([1]), afterSequence: cursor, sequence: cursor + 1, patchesJson: ["{}"]),
+                NativeSessionPatches(revision: Data([1]), afterSequence: cursor, sequence: cursor, patchesJson: ["not json"])
+            ] {
+                XCTAssertThrowsError(try view.projection.apply(NativeProjectionUpdate(snapshot: nil, patches: patches, selection: [])))
+                XCTAssertEqual(view.textView.string, text)
+                XCTAssertEqual(view.projection.richSequence, cursor)
+                XCTAssertTrue(view.projection.nodes[0] === nodes[0])
+            }
+        }
+    }
+
+    func testDisposedRichProjectionRejectsLateSnapshotAndReleasesAttachments() async throws {
+        try await richFixture { view, _ in
+            let text = view.textView.string
+            view.projection.dispose()
+            XCTAssertTrue(view.projection.attachmentIdentities.isEmpty)
+            _ = try await self.read(view)
+            XCTAssertEqual(view.projectionFailure, .disposed)
+            XCTAssertEqual(view.textView.string, text)
+        }
+    }
+
+    func testSharedCaptureRejectsStaleProjectedRevisionBeforeRefresh() async throws {
+        try await richFixture { view, before in
+            guard case let .prepared(token) = try await self.send(view, .prepare(revision: before.revision!,
+                edits: [NativeSessionEdit(node: before.nodes[0].id, fromUtf16: 0, toUtf16: 0, text: "X")],
+                origin: "capture-stale", now: 0)) else { throw UnexpectedResponse() }
+            _ = try await self.send(view, .commit(token: token, now: 0))
+            do {
+                try await view.select(range: NSRange(location: 3, length: 2), backwards: true, affinity: .upstream)
+                XCTFail("Stale projection admitted a shared capture")
+            } catch NativeSessionFailure.native(.Revision) {} catch { XCTFail("Wrong typed error: \(error)") }
+            _ = try await self.read(view)
+            XCTAssertEqual(view.textView.string, "XA🦀אב\n\u{FFFC}\ntail e\u{301} שלום")
+            XCTAssertFalse(view.projection.anchoredSelection)
+            XCTAssertNil(view.projectionFailure)
+        }
+    }
+
+    func testPreparedUnresolvableSharedSelectionInvalidatesWithoutGuessing() async throws {
+        try await richFixture { view, before in
+            try await view.select(range: NSRange(location: 3, length: 2), backwards: true, affinity: .upstream)
+            let sequence = view.projection.richSequence!
+            let resolved = NativeSessionAnchorRead(documentId: "foreign", epoch: "foreign",
+                revision: before.revision!, resolution: .unresolvable(reason: "InvalidBoundary"))
+            let patches = NativeSessionPatches(revision: before.revision!, afterSequence: sequence,
+                sequence: sequence, patchesJson: [])
+            try view.projection.apply(NativeProjectionUpdate(snapshot: nil, patches: patches, selection: [resolved, resolved]))
+            XCTAssertTrue(view.projection.selectionInvalidated)
+            XCTAssertNil(view.projection.selection)
+            XCTAssertEqual(view.textView.selectedRange(), NSRange(location: 0, length: 0))
+            XCTAssertEqual(view.projection.selectionResolutions, [resolved, resolved])
+        }
+    }
+
+    func testNativeCaretChangeSupersedesCapturedAnchorsAcrossRepeatedReads() async throws {
+        try await richFixture { view, _ in
+            try await view.select(range: NSRange(location: 3, length: 2), backwards: true, affinity: .upstream)
+            view.textView.setSelectedRange(NSRange(location: 8, length: 0))
+            _ = try await self.read(view)
+            XCTAssertFalse(view.projection.anchoredSelection)
+            _ = try await self.read(view)
+            XCTAssertEqual(view.textView.selectedRange(), NSRange(location: 8, length: 0))
+            XCTAssertFalse(view.projection.anchoredSelection)
+            XCTAssertNil(view.projectionFailure)
+        }
+    }
+
+    func testPreparedViewProjectionFailureInvalidatesOldTargetsAndResyncRecovers() async throws {
+        try await richFixture { view, _ in
+            let text = view.textView.string
+            let cursor = view.projection.richSequence!
+            let malformed = NativeSessionPatches(revision: Data([1]), afterSequence: cursor + 1,
+                sequence: cursor + 1, patchesJson: [])
+            view.session.onProjection?(.success(NativeProjectionUpdate(snapshot: nil, patches: malformed, selection: [])))
+            XCTAssertEqual(view.projectionFailure, .invalidCursor)
+            XCTAssertEqual(view.textView.string, text)
+            XCTAssertThrowsError(try view.projection.capture(range: NSRange(location: 0, length: 0), backwards: false, affinity: .upstream)) {
+                XCTAssertEqual($0 as? NativeProjectionFailure, .unavailableRevision)
+            }
+            _ = try await self.send(view, .resyncProjection)
+            _ = try await self.read(view)
+            XCTAssertNil(view.projectionFailure)
+            XCTAssertEqual(view.textView.string, text)
+        }
+    }
+
 }
