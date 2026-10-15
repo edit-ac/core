@@ -463,6 +463,11 @@ RustBuffer uniffi_editac_ffi_fn_method_nativesession_rich_snapshot(uint64_t ptr,
 void uniffi_editac_ffi_fn_method_nativesession_set_permission(uint64_t ptr, int8_t writable, RustBuffer expires_at, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_SET_TABLE_POLICY
+#define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_SET_TABLE_POLICY
+void uniffi_editac_ffi_fn_method_nativesession_set_table_policy(uint64_t ptr, int8_t enabled, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_TAKE_RICH_PATCHES
 #define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_TAKE_RICH_PATCHES
 RustBuffer uniffi_editac_ffi_fn_method_nativesession_take_rich_patches(uint64_t ptr, uint64_t after_sequence, RustCallStatus *_Nonnull out_status
@@ -958,6 +963,12 @@ uint16_t uniffi_editac_ffi_checksum_method_nativesession_rich_snapshot(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_SET_PERMISSION
 #define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_SET_PERMISSION
 uint16_t uniffi_editac_ffi_checksum_method_nativesession_set_permission(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_SET_TABLE_POLICY
+#define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_SET_TABLE_POLICY
+uint16_t uniffi_editac_ffi_checksum_method_nativesession_set_table_policy(void
     
 );
 #endif

@@ -1020,6 +1020,12 @@ public protocol NativeSessionProtocol: AnyObject, Sendable {
     func setPermission(writable: Bool, expiresAt: UInt64?) throws 
     
     /**
+     * Trusted host table codec policy, independent of write permission. Defaults
+     * to disabled on every create/open. Retained plans recheck it at commit.
+     */
+    func setTablePolicy(enabled: Bool) throws 
+    
+    /**
      * A single bounded consumer shared by all aliases. Failed reads never drain.
      * Overflow requires richSnapshot; no event is silently omitted or coalesced.
      */
@@ -1344,6 +1350,19 @@ open func setPermission(writable: Bool, expiresAt: UInt64?)throws   {try rustCal
             self.uniffiCloneHandle(),
         FfiConverterBool.lower(writable),
         FfiConverterOptionUInt64.lower(expiresAt),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Trusted host table codec policy, independent of write permission. Defaults
+     * to disabled on every create/open. Retained plans recheck it at commit.
+     */
+open func setTablePolicy(enabled: Bool)throws   {try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_set_table_policy(
+            self.uniffiCloneHandle(),
+        FfiConverterBool.lower(enabled),uniffiCallStatus
     )
 }
 }
@@ -4001,6 +4020,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_editac_ffi_checksum_method_nativesession_set_permission() != 8942) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_set_table_policy() != 20820) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_editac_ffi_checksum_method_nativesession_take_rich_patches() != 44957) {

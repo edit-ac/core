@@ -975,8 +975,18 @@ impl NativeSession {
             ] {
                 profiles.push(NativeCommandProfile {
                     id: id.into(),
-                    available: false,
-                    reason: reason.into(),
+                    available: id == "editac.tables"
+                        && identity.has_editor()
+                        && caps.policy.codecs.tables,
+                    reason: if id == "editac.tables"
+                        && identity.has_editor()
+                        && caps.policy.codecs.tables
+                    {
+                        "bounded-v1-cell-command-target-check-required"
+                    } else {
+                        reason
+                    }
+                    .into(),
                 });
             }
             Ok(NativeCommandCatalog {
@@ -1032,6 +1042,16 @@ impl NativeSession {
             Ok(())
         })
     }
+    /// Trusted host table codec policy, independent of write permission. Defaults
+    /// to disabled on every create/open. Retained plans recheck it at commit.
+    pub fn set_table_policy(&self, enabled: bool) -> Result<()> {
+        self.call(move |state| {
+            let mut policy = state.service.capabilities(0).policy;
+            policy.codecs.tables = enabled;
+            state.service.set_policy(policy);
+            Ok(())
+        })
+    }
     pub fn recover(&self) -> Result<()> {
         self.call(|state| {
             state.service.recover()?;
@@ -1060,6 +1080,10 @@ impl NativeSession {
         Ok(())
     }
 }
+
+#[cfg(test)]
+#[path = "session_table_tests.rs"]
+mod table_policy_tests;
 
 #[cfg(test)]
 mod tests {

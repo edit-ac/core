@@ -21,6 +21,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--rich-fixture', type=Path)
+    parser.add_argument('--table-fixture', type=Path)
     parser.add_argument('--case', action='append', default=[])
     parser.add_argument('--fixture-writer', type=Path)
     parser.add_argument('--reuse-legacy', type=Path)
@@ -73,11 +74,18 @@ def main():
                 '-L', library.parent, '-leditac_ffi', '-Xlinker', '-rpath', '-Xlinker', library.parent]
             canonical = CORE / 'tests/native/session-probe/main.swift'
             host = work / 'main.swift'
-            host.write_text(canonical.read_text().replace('if let index = CommandLine.arguments.firstIndex(of: \"--rich-fixture\") {', 'runCommandCases()\nif let index = CommandLine.arguments.firstIndex(of: \"--rich-fixture\") {'))
+            extra_entry = 'runTablePolicyCases()\n' if args.table_fixture else ''
+            marker = 'if let index = CommandLine.arguments.firstIndex(of: "--rich-fixture") {'
+            host.write_text(canonical.read_text().replace(marker, 'runCommandCases()\n' + extra_entry + marker))
             command_source = CORE / 'tests/native/session-command-proof/CommandCases.swift'
             receipt['composedHostSha256'] = digest(host)
             (attempt / 'main.swift').write_bytes(host.read_bytes())
             rich_source = CORE / 'tests/native/session-probe/RichCases.swift'
+            table_sources = [CORE / 'tests/native/table-session-proof/TablePolicyCases.swift'] if args.table_fixture else []
+            if args.table_fixture:
+                receipt['tableFixtureManifestSha256'] = digest(args.table_fixture)
+                receipt['tableFixtureStoreSha256'] = digest(Path(json.loads(args.table_fixture.read_text())['path']))
+                receipt['sourceHashes'][str(table_sources[0].relative_to(CORE))] = digest(table_sources[0])
             rich_args = ['--rich-fixture', args.rich_fixture.resolve()] if args.rich_fixture else []
             if args.fixture_writer:
                 rich_args += ['--fixture-writer', args.fixture_writer.resolve()]
@@ -85,8 +93,10 @@ def main():
             if args.rich_fixture:
                 receipt['fixtureManifestSha256'] = digest(args.rich_fixture)
                 receipt['fixtureStoreSha256Before'] = digest(Path(json.loads(args.rich_fixture.read_text())['path']))
+            if args.table_fixture:
+                rich_args += ['--table-fixture', args.table_fixture.resolve()]
             binary = work / 'session-probe'
-            run('session-build', base + [generated / 'EditacNative.swift', host, rich_source, command_source, '-o', binary])
+            run('session-build', base + [generated / 'EditacNative.swift', host, rich_source, command_source, *table_sources, '-o', binary])
             receipt['binarySha256'] = digest(binary)
             (attempt / 'session-probe').write_bytes(binary.read_bytes())
             result = run('session-runtime', [binary, attempt / 'stores', *rich_args, *[arg for case in args.case for arg in ['--case', case]]])
@@ -108,7 +118,7 @@ def main():
             receipt['instrumentedGeneratedSha256'] = digest(instrumented)
             (attempt / 'MeasuredBindings.swift').write_text(swift)
             measured = work / 'session-buffers'
-            run('session-instrumented-build', base + [instrumented, host, rich_source, command_source, '-o', measured])
+            run('session-instrumented-build', base + [instrumented, host, rich_source, command_source, *table_sources, '-o', measured])
             receipt['instrumentedBinarySha256'] = digest(measured)
             (attempt / 'session-buffers').write_bytes(measured.read_bytes())
             result = run('session-buffer-runtime', [measured, attempt / 'measured-stores', '--instrumented', *rich_args])
