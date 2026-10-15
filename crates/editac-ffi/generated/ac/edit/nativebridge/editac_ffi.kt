@@ -3826,6 +3826,24 @@ sealed class NativeSessionException: kotlin.Exception() {
             get() = "message=${ `message` }"
     }
     
+    class InvalidPlan(
+        ) : NativeSessionException() {
+        override val message
+            get() = ""
+    }
+    
+    class Disposed(
+        ) : NativeSessionException() {
+        override val message
+            get() = ""
+    }
+    
+    class ExecutorUnavailable(
+        ) : NativeSessionException() {
+        override val message
+            get() = ""
+    }
+    
     class ProjectionResyncRequired(
         ) : NativeSessionException() {
         override val message
@@ -3850,24 +3868,6 @@ sealed class NativeSessionException: kotlin.Exception() {
         ) : NativeSessionException() {
         override val message
             get() = "message=${ `message` }"
-    }
-    
-    class InvalidPlan(
-        ) : NativeSessionException() {
-        override val message
-            get() = ""
-    }
-    
-    class Disposed(
-        ) : NativeSessionException() {
-        override val message
-            get() = ""
-    }
-    
-    class ExecutorUnavailable(
-        ) : NativeSessionException() {
-        override val message
-            get() = ""
     }
     
 
@@ -3928,15 +3928,15 @@ public object FfiConverterTypeNativeSessionError : FfiConverterRustBuffer<Native
             20 -> NativeSessionException.Operation(
                 FfiConverterString.read(buf),
                 )
-            21 -> NativeSessionException.ProjectionResyncRequired()
-            22 -> NativeSessionException.InvalidProjectionCursor()
-            23 -> NativeSessionException.InvalidAnchor()
-            24 -> NativeSessionException.AnchorTarget(
+            21 -> NativeSessionException.InvalidPlan()
+            22 -> NativeSessionException.Disposed()
+            23 -> NativeSessionException.ExecutorUnavailable()
+            24 -> NativeSessionException.ProjectionResyncRequired()
+            25 -> NativeSessionException.InvalidProjectionCursor()
+            26 -> NativeSessionException.InvalidAnchor()
+            27 -> NativeSessionException.AnchorTarget(
                 FfiConverterString.read(buf),
                 )
-            25 -> NativeSessionException.InvalidPlan()
-            26 -> NativeSessionException.Disposed()
-            27 -> NativeSessionException.ExecutorUnavailable()
             else -> throw RuntimeException("invalid error enum value, something is very wrong!!")
         }
     }
@@ -4033,6 +4033,18 @@ public object FfiConverterTypeNativeSessionError : FfiConverterRustBuffer<Native
                 4UL
                 + FfiConverterString.allocationSize(value.`message`)
             )
+            is NativeSessionException.InvalidPlan -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+            )
+            is NativeSessionException.Disposed -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+            )
+            is NativeSessionException.ExecutorUnavailable -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+            )
             is NativeSessionException.ProjectionResyncRequired -> (
                 // Add the size for the Int that specifies the variant plus the size needed for all fields
                 4UL
@@ -4049,18 +4061,6 @@ public object FfiConverterTypeNativeSessionError : FfiConverterRustBuffer<Native
                 // Add the size for the Int that specifies the variant plus the size needed for all fields
                 4UL
                 + FfiConverterString.allocationSize(value.`message`)
-            )
-            is NativeSessionException.InvalidPlan -> (
-                // Add the size for the Int that specifies the variant plus the size needed for all fields
-                4UL
-            )
-            is NativeSessionException.Disposed -> (
-                // Add the size for the Int that specifies the variant plus the size needed for all fields
-                4UL
-            )
-            is NativeSessionException.ExecutorUnavailable -> (
-                // Add the size for the Int that specifies the variant plus the size needed for all fields
-                4UL
             )
         }
     }
@@ -4157,33 +4157,33 @@ public object FfiConverterTypeNativeSessionError : FfiConverterRustBuffer<Native
                 FfiConverterString.write(value.`message`, buf)
                 Unit
             }
-            is NativeSessionException.ProjectionResyncRequired -> {
+            is NativeSessionException.InvalidPlan -> {
                 buf.putInt(21)
                 Unit
             }
-            is NativeSessionException.InvalidProjectionCursor -> {
+            is NativeSessionException.Disposed -> {
                 buf.putInt(22)
                 Unit
             }
-            is NativeSessionException.InvalidAnchor -> {
+            is NativeSessionException.ExecutorUnavailable -> {
                 buf.putInt(23)
                 Unit
             }
-            is NativeSessionException.AnchorTarget -> {
+            is NativeSessionException.ProjectionResyncRequired -> {
                 buf.putInt(24)
-                FfiConverterString.write(value.`message`, buf)
                 Unit
             }
-            is NativeSessionException.InvalidPlan -> {
+            is NativeSessionException.InvalidProjectionCursor -> {
                 buf.putInt(25)
                 Unit
             }
-            is NativeSessionException.Disposed -> {
+            is NativeSessionException.InvalidAnchor -> {
                 buf.putInt(26)
                 Unit
             }
-            is NativeSessionException.ExecutorUnavailable -> {
+            is NativeSessionException.AnchorTarget -> {
                 buf.putInt(27)
+                FfiConverterString.write(value.`message`, buf)
                 Unit
             }
         }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }

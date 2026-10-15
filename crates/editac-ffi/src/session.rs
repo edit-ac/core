@@ -107,6 +107,13 @@ pub enum NativeSessionError {
     Source { message: String },
     #[error("operation: {message}")]
     Operation { message: String },
+    #[error("invalid or consumed plan")]
+    InvalidPlan,
+    #[error("session disposed")]
+    Disposed,
+    #[error("executor unavailable")]
+    ExecutorUnavailable,
+    // UniFFI error tags are positional: append new cases after the admitted ABI.
     #[error("projection snapshot required")]
     ProjectionResyncRequired,
     #[error("invalid projection cursor")]
@@ -115,12 +122,6 @@ pub enum NativeSessionError {
     InvalidAnchor,
     #[error("anchor target: {message}")]
     AnchorTarget { message: String },
-    #[error("invalid or consumed plan")]
-    InvalidPlan,
-    #[error("session disposed")]
-    Disposed,
-    #[error("executor unavailable")]
-    ExecutorUnavailable,
 }
 type Result<T> = std::result::Result<T, NativeSessionError>;
 impl From<PortError> for NativeSessionError {
@@ -1258,6 +1259,28 @@ mod tests {
         let reopened = reopen(&f);
         assert_eq!(reopened.call(|state| Ok(state.anchors.len())).unwrap(), 0);
         reopened.dispose().unwrap();
+    }
+    #[test]
+    fn session_error_tags_preserve_admitted_swift_abi() {
+        use uniffi::Lower;
+        for (error, expected) in [
+            (NativeSessionError::InvalidPlan, 21_i32),
+            (NativeSessionError::Disposed, 22),
+            (NativeSessionError::ExecutorUnavailable, 23),
+            (NativeSessionError::ProjectionResyncRequired, 24),
+            (NativeSessionError::InvalidProjectionCursor, 25),
+            (NativeSessionError::InvalidAnchor, 26),
+            (
+                NativeSessionError::AnchorTarget {
+                    message: "owned diagnostic".into(),
+                },
+                27,
+            ),
+        ] {
+            let mut bytes = vec![];
+            <NativeSessionError as Lower<crate::UniFfiTag>>::write(error, &mut bytes);
+            assert_eq!(i32::from_be_bytes(bytes[..4].try_into().unwrap()), expected);
+        }
     }
     #[test]
     fn anchors_generated_owned_records_lower_lift_preserves_values_and_variants() {

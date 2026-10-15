@@ -2746,14 +2746,14 @@ enum NativeSessionError: Swift.Error, Equatable, Hashable, Foundation.LocalizedE
     )
     case Operation(message: String
     )
+    case InvalidPlan
+    case Disposed
+    case ExecutorUnavailable
     case ProjectionResyncRequired
     case InvalidProjectionCursor
     case InvalidAnchor
     case AnchorTarget(message: String
     )
-    case InvalidPlan
-    case Disposed
-    case ExecutorUnavailable
 
     
 
@@ -2822,15 +2822,15 @@ public struct FfiConverterTypeNativeSessionError: FfiConverterRustBuffer {
         case 20: return .Operation(
             message: try FfiConverterString.read(from: &buf)
             )
-        case 21: return .ProjectionResyncRequired
-        case 22: return .InvalidProjectionCursor
-        case 23: return .InvalidAnchor
-        case 24: return .AnchorTarget(
+        case 21: return .InvalidPlan
+        case 22: return .Disposed
+        case 23: return .ExecutorUnavailable
+        case 24: return .ProjectionResyncRequired
+        case 25: return .InvalidProjectionCursor
+        case 26: return .InvalidAnchor
+        case 27: return .AnchorTarget(
             message: try FfiConverterString.read(from: &buf)
             )
-        case 25: return .InvalidPlan
-        case 26: return .Disposed
-        case 27: return .ExecutorUnavailable
 
          default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -2933,34 +2933,34 @@ public struct FfiConverterTypeNativeSessionError: FfiConverterRustBuffer {
             FfiConverterString.write(message, into: &buf)
             
         
-        case .ProjectionResyncRequired:
+        case .InvalidPlan:
             writeInt(&buf, Int32(21))
         
         
-        case .InvalidProjectionCursor:
+        case .Disposed:
             writeInt(&buf, Int32(22))
         
         
-        case .InvalidAnchor:
+        case .ExecutorUnavailable:
             writeInt(&buf, Int32(23))
         
         
-        case let .AnchorTarget(message):
+        case .ProjectionResyncRequired:
             writeInt(&buf, Int32(24))
-            FfiConverterString.write(message, into: &buf)
-            
         
-        case .InvalidPlan:
+        
+        case .InvalidProjectionCursor:
             writeInt(&buf, Int32(25))
         
         
-        case .Disposed:
+        case .InvalidAnchor:
             writeInt(&buf, Int32(26))
         
         
-        case .ExecutorUnavailable:
+        case let .AnchorTarget(message):
             writeInt(&buf, Int32(27))
-        
+            FfiConverterString.write(message, into: &buf)
+            
         }
     }
 }
