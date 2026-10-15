@@ -19,7 +19,7 @@ SUITES = {
     "collaboration-lifecycle": ("EditacMacOSCollaborationLifecycleTests.CollaborationLifecycleTests", 13),
     "accessibility-text": ("EditacMacOSAccessibilityTextTests.AccessibilityTextTests", 10),
     "durability": ("EditacMacOSDurabilityTests.DurabilityTests", 10),
-    "attachments": ("EditacMacOSAttachmentsTests.AttachmentsTests", 15),
+    "attachments": ("EditacMacOSAttachmentsTests.AttachmentsTests", 23),
     "table-editing": ("EditacMacOSTableEditingTests.TableEditingTests", 17),
     "table-projection": ("EditacMacOSTableProjectionTests.TableProjectionTests", 14),
     "styles": ("EditacMacOSStylesTests.StylesTests", 12),
@@ -252,7 +252,7 @@ def main():
             env["EDITAC_MACOS_ATTACHMENT_FIXTURE"] = str(manifest)
             env["EDITAC_MACOS_ATTACHMENT_EVIDENCE"] = str(output)
             fixture = json.loads(manifest.read_text())
-            receipt["attachmentsScope"] = "native-presentation-resolution-prerequisite; shared-mutation-port-pending"
+            receipt["attachmentsScope"] = "actual-native-image-reference-policy-anchored-replacement-removal-history"
             receipt["attachmentFixture"] = {"manifest": str(manifest),
                 "manifestSha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
                 "storeSha256": hashlib.sha256(Path(fixture["path"]).read_bytes()).hexdigest(),

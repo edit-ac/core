@@ -34,6 +34,9 @@ public enum NativeSessionRequest: Sendable {
     case permission(writable: Bool, expiresAt: UInt64?)
     case commandPermission(writable: Bool, expiresAt: UInt64?, now: UInt64)
     case tablePolicy(enabled: Bool)
+    case atomicContentPolicy(images: Bool, references: Bool)
+    case captureAttachment(revision: Data, node: String)
+    case releaseAttachment(token: String)
     case reservePeerWriter(UInt32)
     case pendingUpdates
     case recover
@@ -339,6 +342,13 @@ public final class NativeSessionExecutor {
             case let .commandPermission(writable, expiry, now):
                 try session.setPermission(writable: writable, expiresAt: expiry)
                 return .snapshot(try session.read(now: now))
+            case let .captureAttachment(revision, node):
+                return .anchors(try session.captureAnchors(revision: revision, inputs: [
+                    AnchorInput(node: node, offsetUtf16: 0, bias: .right)]))
+            case let .releaseAttachment(token): try session.releaseAnchor(token: token)
+            case let .atomicContentPolicy(images, references):
+                try session.setAtomicContentPolicy(images: images, references: references)
+                return .snapshot(try session.read(now: state.now))
             case let .tablePolicy(enabled):
                 try session.setTablePolicy(enabled: enabled)
                 return .snapshot(try session.read(now: state.now))
