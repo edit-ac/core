@@ -4,6 +4,9 @@
 #[allow(dead_code)]
 mod bridge;
 
+mod session;
+pub use session::*;
+
 use bridge::Bridge;
 use std::sync::{Arc, Mutex, mpsc};
 use std::thread::{self, JoinHandle};
