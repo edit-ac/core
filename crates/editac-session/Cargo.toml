@@ -24,6 +24,7 @@ editac-diff = { path = "../editac-diff" }
 editac-core = { path = "../editac-core" }
 editac-markdown = { path = "../editac-markdown" }
 sha2 = "=0.10.9"
+url = "=2.5.8"
 rusqlite = { version = "=0.40.2", features = ["bundled"], optional = true }
 serde = { version = "=1.0.229", features = ["derive"], optional = true }
 serde_json = { version = "=1.0.152", optional = true }

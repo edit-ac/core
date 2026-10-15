@@ -1,6 +1,8 @@
 //! Portable resolver ports. Admission is pure; a ready action is not URL/egress
 //! approval, a document capability, or permission to publish metadata.
 //! Hosts compose these records with ServiceLifecycle and the existing Catalog.
+pub mod public_url;
+
 use crate::{
     locator::{Authority, Locator, ResolutionState},
     service_lifecycle::ServiceScope,
