@@ -95,3 +95,12 @@ retains the SEC-1.8 fresh destination authorization for plaintext exports.
 Discovery returns only advisory booleans; it does not acquire/unlock/delegate
 keys. See sibling `architecture/evidence/plaintext-capabilities.md` for routing,
 actual native integration cases and host cleanup/production wiring limits.
+
+SEC-1.10 adds `tests/profile_conformance.rs` and the complete prepared suite:
+`cargo test -p editac-security --locked`. Combined scenarios cover negotiation
+failure followed by authorized protected delivery, opaque tamper receipts versus
+semantic acknowledgement, and protected recovery with a retired MLS sender.
+Sibling `architecture/evidence/encryption.md` maps all original attack fixtures,
+exact dependency/source evidence and unresolved roadmap24 review/platform work.
+This local review package does not enable a production encryption API or qualify
+any platform by inheritance. Public fixture keys must never protect real content.
