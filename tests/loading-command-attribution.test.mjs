@@ -27,3 +27,28 @@ for (const [name, change] of Object.entries({
   'overlapping commit and renderer': t => t.spans.at(-1).startMs = 30,
   'unknown version': t => t.version = 'other',
 })) test(`packed command admission rejects ${name}`, () => { const t = sample(); change(t); assert.throws(() => summarizeCommand(t)); });
+
+const internalSample = () => {
+  const t = sample();
+  t.spans.push({ operation: 'engine.prepare', startMs: 2, durationMs: 10 });
+  for (const [i, phase] of ['baseline','stage','projection','planning','validation','size','encoding'].entries())
+    t.spans.push({ operation: `engine.editor.${phase}`, startMs: 3+i, durationMs: 1 });
+  t.spans.push({ operation: 'engine.editor.textSize', startMs: 6, durationMs: .5 });
+  return t;
+};
+test('internal preparation observations partition the enclosing FFI without double counting', () => {
+  const result = summarizeCommand(internalSample());
+  assert.equal(result.exclusiveMs['ffi.prepare'], 0);
+  assert.equal(result.exclusiveMs['engine.prepare'], 3);
+  assert.equal(result.exclusiveMs['engine.editor.planning'], .5);
+  assert.equal(result.exclusiveMs['engine.editor.textSize'], .5);
+  assert.equal(Object.values(result.exclusiveMs).reduce((a,b) => a+b), 100);
+});
+for (const [name, change] of Object.entries({
+  'missing internal phase': t => t.spans.splice(7, 1),
+  'orphan internal phase': t => t.spans[7].startMs = 0,
+  'overlapping internal phase': t => t.spans[7].durationMs = 2,
+  'unknown internal phase': t => t.spans[7].operation = 'engine.editor.secret',
+  'overlapping text-size observations': t => t.spans.push({ ...t.spans.at(-1) }),
+  'private internal payload': t => t.spans[7].text = 'private',
+})) test(`internal preparation admission rejects ${name}`, () => { const t = internalSample(); change(t); assert.throws(() => summarizeCommand(t)); });

@@ -154,6 +154,8 @@ impl Engine {
     pub fn prepare(&mut self, input: &str) -> Result<String, JsValue> {
         #[cfg(feature = "fitness-trace")]
         let _span = crate::fitness::Span::new("engine.prepare");
+        #[cfg(feature = "fitness-trace")]
+        let _core = crate::fitness::observe_core();
         output(
             self.inner
                 .as_mut()

@@ -46,6 +46,7 @@ try {
       "export {LocalStorageLifecycle as diagnosticStorage} from './node_modules/@edit-ac/web/dist/storage/index.js';\n");
     const observed = await build({ absWorkingDir: temp, entryPoints: ['observed.mjs'], bundle: true, write: false, format: 'esm', minify: true, target: 'es2022', metafile: true,
       plugins: [{ name: 'packed-render-observer', setup(build) {
+        if (process.env.EDITAC_LOADING_ENGINE_TRACE === '1') build.onResolve({ filter: /editac_(runtime|wasm)\.js$/ }, ({ path }) => ({ path: resolve(root, 'target/fitness-runtime', path.endsWith('editac_runtime.js') ? 'editac_runtime.js' : 'editac_wasm.js') }));
         build.onLoad({ filter: /node_modules\/@edit-ac\/web\/dist\/dom\/render\.js$/ }, async ({ path }) => ({ contents: instrumentSource('render', await readFile(path, 'utf8')), loader: 'js' }));
       } }] });
     await mkdir(join(output, 'diagnostic'), { recursive: true });

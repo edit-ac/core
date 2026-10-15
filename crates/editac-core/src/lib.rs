@@ -8,6 +8,8 @@ pub mod anchors;
 pub mod clipboard;
 pub mod commands;
 pub mod document;
+#[cfg(feature = "fitness-trace")]
+pub mod fitness;
 pub mod history;
 pub mod import;
 pub mod modules;

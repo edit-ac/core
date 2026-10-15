@@ -16,13 +16,15 @@ const args = process.argv.slice(2);
 if (args.length !== 4 || args[0] !== '--seed-directory' || args[2] !== '--output') throw Error('Expected --seed-directory <retained owning directory> --output <unique directory>');
 const seeds = resolve(args[1]), output = resolve(args[3]);
 const commandTrace = process.env.EDITAC_LOADING_COMMAND_TRACE === '1';
+const engineTrace = process.env.EDITAC_LOADING_ENGINE_TRACE === '1';
+if (engineTrace && !commandTrace) throw Error('Internal attribution requires the command observer');
 if (!relative(root, output) || relative(root, output).startsWith('..')) throw Error('Retain output inside repository');
 await mkdir(output, { recursive: false });
 const profileBytes = await readFile('benchmarks/profiles/loading-v1.json'), profile = JSON.parse(profileBytes);
 const record = { version: 1, qualification: 'unqualified', profileHash: digest(profileBytes), metadata: {
   startedAt: new Date().toISOString(), command: [process.execPath, ...process.argv.slice(1)], revision: spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout.trim(),
   cpu: cpus()[0].model, cores: cpus().length, memoryBytes: totalmem(), hostOS: `${platform()}/${release()}/${arch()}`, provenance: 'headless-browser-on-host', node: process.version,
-  commandAttribution: commandTrace ? 'packed-observer-exports-v1' : 'none',
+  commandAttribution: commandTrace ? 'packed-observer-exports-v1' : 'none', engineAttribution: engineTrace ? 'fitness-preparation-v1' : 'none',
   phaseAttribution: profile.phaseAttribution, phaseScope: profile.phaseScope, replay: profile.replay, cacheScope: profile.cacheScope, timingScope: profile.timingScope, coverageMethod: profile.coverageMethod, warmupPolicy: profile.warmupPolicy, sampleOrder: profile.sampleOrder },
   counts: { executed: 0, passed: 0, failed: 0, skipped: 24 }, cases: [], sourceInputs: {}, artifacts: {}, errors: [], cleanup: {} };
 for (const path of loadingInputs) record.sourceInputs[path] = digest(await readFile(path));
@@ -41,6 +43,11 @@ try {
   if (commandTrace) for (const path of ['task.js', 'metafile.json']) {
     const bytes = await readFile(join(output, 'packed/diagnostic', path)); await retain(`diagnostic/${path}`, bytes);
     await mkdir(join(temp, 'diagnostic'), { recursive: true }); await writeFile(join(temp, 'diagnostic', path), bytes);
+  }
+  if (engineTrace) for (const path of ['editac_wasm.js', 'editac_wasm_bg.wasm', 'editac_runtime.js']) {
+    const bytes = await readFile(join(root, 'target/fitness-runtime', path));
+    await retain(`diagnostic/${path}`, bytes);
+    if (path.endsWith('.wasm')) await writeFile(join(temp, 'assets/wasm', path), bytes);
   }
   for (const path of ['loading-client.mjs', 'loading-command-attribution.mjs', 'fixtures.mjs']) { const bytes = await readFile(`benchmarks/${path}`); await retain(`harness/${path}`, bytes); await mkdir(join(temp, 'harness'), { recursive: true }); await writeFile(join(temp, 'harness', path), bytes); }
   await mkdir(join(temp, 'corpus'));

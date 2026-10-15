@@ -1256,12 +1256,26 @@ impl Document {
             return Err(EditorError::ResourceLimit);
         }
         let stable = self.identity().has_stable_presentation();
+        #[cfg(feature = "fitness-trace")]
+        let _phase = crate::fitness::Span::new("engine.editor.baseline");
         let baseline = self.checkpoint().bytes;
+        #[cfg(feature = "fitness-trace")]
+        drop(_phase);
+        #[cfg(feature = "fitness-trace")]
+        let _phase = crate::fitness::Span::new("engine.editor.stage");
         let stage = m::replica(self.writer_id() as u64);
         m::apply(&stage, &baseline).map_err(error)?;
         let sv = stage.transact().state_vector();
+        #[cfg(feature = "fitness-trace")]
+        drop(_phase);
+        #[cfg(feature = "fitness-trace")]
+        let _phase = crate::fitness::Span::new("engine.editor.projection");
         let text_projection =
             crate::projection::ProjectionIndex::with_identity(&stage, self.identity());
+        #[cfg(feature = "fitness-trace")]
+        drop(_phase);
+        #[cfg(feature = "fitness-trace")]
+        let _phase = crate::fitness::Span::new("engine.editor.planning");
         let mut counter = self.next_structure_counter;
         let mut last_separator = None;
         let mut result_caret = None;
@@ -1275,6 +1289,10 @@ impl Document {
             if expanded > 16384 {
                 return Err(EditorError::ResourceLimit);
             }
+            // Text changes only the admitted XmlText sources. Its range/kind/size
+            // checks run on the stage; full ownership replay is required for the
+            // final result and for structural commands, not after each text step.
+            let text_only = matches!(&c, EditorCommand::Text(_));
             match &c {
                 EditorCommand::ReplaceAt {
                     owner,
@@ -1398,7 +1416,11 @@ impl Document {
                         // Preserve the prior exact staged-size admission bound,
                         // but avoid restoring and validating another document and
                         // then staging it yet again for a read-only text plan.
-                        let staged_bytes = m::bytes(&stage).len();
+                        let staged_bytes = {
+                            #[cfg(feature = "fitness-trace")]
+                            let _size = crate::fitness::Span::new("engine.editor.textSize");
+                            m::bytes(&stage).len()
+                        };
                         self.prepare_text_on_editor_stage(
                             command,
                             origin,
@@ -1905,10 +1927,12 @@ impl Document {
                     );
                 }
             }
-            crate::editor::view(&stage, stable).map_err(error)?;
+            if !text_only {
+                crate::editor::view(&stage, stable).map_err(error)?;
+            }
         }
-        let view = crate::editor::view(&stage, stable).map_err(error)?;
         if let Some(last) = last_separator {
+            let view = crate::editor::view(&stage, stable).map_err(error)?;
             if !view.owners.iter().any(|o| {
                 !o.deleted
                     && o.kind == "block"
@@ -1956,7 +1980,13 @@ impl Document {
                 crate::editor::place(&stage, stable, &op, &id, parent, before).map_err(error)?;
             }
         }
-        crate::editor::view(&stage, stable).map_err(error)?;
+        #[cfg(feature = "fitness-trace")]
+        drop(_phase);
+        #[cfg(feature = "fitness-trace")]
+        let _phase = crate::fitness::Span::new("engine.editor.validation");
+        // Projection performs the same qualified ownership replay and validates
+        // the final stage. A separate view immediately before it duplicates that
+        // replay without observing any intervening mutation.
         let hierarchy = crate::projection::ProjectionIndex::with_identity(&stage, self.identity())
             .read()
             .map_err(|_| EditorError::InvalidCommand)?;
@@ -1995,9 +2025,17 @@ impl Document {
         })?;
         crate::document::validate_immutable_structure(&self.doc, &stage, stable)
             .map_err(EditorError::Admission)?;
+        #[cfg(feature = "fitness-trace")]
+        drop(_phase);
+        #[cfg(feature = "fitness-trace")]
+        let _phase = crate::fitness::Span::new("engine.editor.size");
         if m::bytes(&stage).len() > MAX_RESTORE_BYTES {
             return Err(EditorError::ResourceLimit);
         }
+        #[cfg(feature = "fitness-trace")]
+        drop(_phase);
+        #[cfg(feature = "fitness-trace")]
+        let _phase = crate::fitness::Span::new("engine.editor.encoding");
         let update = stage.transact().encode_state_as_update_v1(&sv);
         Ok(PreparedEditorEdit {
             identity: self.identity().clone(),

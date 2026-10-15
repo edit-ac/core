@@ -14,7 +14,7 @@ crate-type = ["cdylib", "rlib"]
 [features]
 default = []
 foundation-fixture = []
-fitness-trace = []
+fitness-trace = ["editac-core/fitness-trace"]
 
 [dependencies]
 editac-core = { path = "../editac-core" }

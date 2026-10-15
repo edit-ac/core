@@ -9,6 +9,16 @@ extern "C" {
     fn record(operation: &str, start: f64, end: f64);
 }
 
+pub(crate) fn observe_core() -> editac_core::fitness::ObserverGuard {
+    editac_core::fitness::observe(|operation, start| {
+        let end = now();
+        if let Some(start) = start {
+            record(operation, start, end);
+        }
+        end
+    })
+}
+
 pub(crate) struct Span(&'static str, f64);
 impl Span {
     pub(crate) fn new(operation: &'static str) -> Self {

@@ -346,3 +346,19 @@ rejects absent, reordered, overlapping, gapped or metric-inconsistent intervals.
 Module timing includes transfer/evaluation; WASM init includes fetch/compile/
 instantiate and editor-ready includes recovery/surface binding. These combined
 phases require further instrumentation before attributing their internal costs.
+
+PRF-06 internal preparation diagnostics use `EDITAC_LOADING_COMMAND_TRACE=1
+EDITAC_LOADING_ENGINE_TRACE=1` after `node scripts/build-wasm.mjs --fitness`.
+The external packed SDK/storage/renderer remain the installed package closure;
+only the derivative's generated engine glue/WASM uses `fitness-trace`. Retained
+artifacts identify both runtimes. Production sizes and timings always use the
+default WASM separately. Bounded numeric spans partition baseline encoding,
+stage replay, projection setup, command planning, final validation, staged size
+and update encoding. Planning includes actual lazy projection/text work; setup
+alone does not measure a projection read. Nested staged-size spans isolate that
+cost. All clock/callback overhead is included, with no subtraction or release
+latency claim. Admission requires every phase within the prepare boundary and
+rejects missing/overlapping/mislabeled phases, payload fields and dropped spans.
+The text-only path retains text admission and the final qualified hierarchy,
+immutable-structure and exact-size checks while avoiding redundant full replay
+between text steps. Structural commands still validate their intermediate view.

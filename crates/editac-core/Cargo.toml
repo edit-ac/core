@@ -11,6 +11,10 @@ publish.workspace = true
 [lints]
 workspace = true
 
+[features]
+default = []
+fitness-trace = []
+
 [dependencies]
 yrs.workspace = true
 unicode-segmentation = "=1.12.0"

@@ -21,7 +21,26 @@ test('observer derivative admits current packed closure and all 192 real command
   assert.deepEqual(JSON.parse(await readFile(`${index.directory}/summary.json`)), summarizeLoading(profile, record));
   const production = JSON.parse(await readFile(`${index.directory}/packed/metafile.json`));
   const diagnostic = JSON.parse(await readFile(`${index.directory}/diagnostic/metafile.json`));
-  assert.deepEqual(Object.keys(diagnostic.inputs).filter(p => p !== 'observed.mjs').sort(), Object.keys(production.inputs).filter(p => p !== 'task.mjs').sort(), 'same installed packed source closure');
+  const internal = record.metadata.engineAttribution === 'fitness-preparation-v1';
+  const diagnosticInputs = Object.keys(diagnostic.inputs).filter(p => p !== 'observed.mjs').map(p => {
+    if (internal && p.includes('/target/fitness-runtime/')) {
+      const name = p.split('/').at(-1);
+      assert(['editac_runtime.js','editac_wasm.js'].includes(name));
+      return `node_modules/@edit-ac/core/dist/wasm/${name}`;
+    }
+    return p;
+  });
+  assert.deepEqual(diagnosticInputs.sort(), Object.keys(production.inputs).filter(p => p !== 'task.mjs').sort(), 'packed closure differs only by declared fitness WASM glue');
+  const productionWasm = await readFile(`${index.directory}/packed/artifacts/wasm/editac_wasm_bg.wasm`);
+  const imports = bytes => WebAssembly.Module.imports(new WebAssembly.Module(bytes)).map(i => i.name).join(' ');
+  assert(!imports(productionWasm).includes('editacFitness'), 'Production WASM must have no benchmark callbacks');
+  if (internal) {
+    for (const name of ['editac_runtime.js','editac_wasm.js','editac_wasm_bg.wasm'])
+      assert.equal(digest(await readFile(`target/fitness-runtime/${name}`)), record.artifacts[`diagnostic/${name}`]);
+    const observedWasm = await readFile(`${index.directory}/diagnostic/editac_wasm_bg.wasm`);
+    assert(imports(observedWasm).includes('editacFitness'), 'Missing compiled internal observer');
+    assert.notEqual(digest(observedWasm), digest(productionWasm));
+  }
   assert(Object.values(diagnostic.outputs).some(o => ['diagnosticEngine','diagnosticStorage','diagnosticRenderer'].every(e => o.exports.includes(e))));
   assert.notEqual(record.artifacts['diagnostic/task.js'], record.artifacts['packed/artifacts/task.js']);
   assert.deepEqual(record.consumer, await admitMeasuredConsumer(resolve(index.directory, 'packed')));
