@@ -3,6 +3,7 @@ import AppKit
 public struct NativeCellCoordinate: Hashable, Sendable {
     public let row: Int
     public let column: Int
+    public init(row: Int, column: Int) { self.row = row; self.column = column }
 }
 
 /// Validated presentation of the shared inert tuple. No writable semantic state.
@@ -84,7 +85,13 @@ public final class NativeTableCellView: NSTextView {
     public internal(set) var isHeaderCell = false
     init(coordinate: NativeCellCoordinate) {
         self.coordinate = coordinate
-        super.init(frame: .zero)
+        // Use NSTextView's designated initializer. Its frame-only convenience
+        // initializer dynamically re-enters init(frame:textContainer:).
+        let storage = NSTextStorage()
+        let manager = NSLayoutManager()
+        let container = NSTextContainer(containerSize: NSSize(width: 80, height: CGFloat.greatestFiniteMagnitude))
+        storage.addLayoutManager(manager); manager.addTextContainer(container)
+        super.init(frame: .zero, textContainer: container)
         isEditable = false; isSelectable = true; isRichText = true; allowsUndo = false
         textContainerInset = NSSize(width: 6, height: 6)
         textContainer?.lineFragmentPadding = 0
@@ -194,7 +201,9 @@ public final class NativeTableView: NSScrollView {
 
 @MainActor
 final class NativeTableAttachmentCell: NSTextAttachmentCell {
-    var projectedSize = NSSize(width: 80, height: 32)
+    // TextKit reads this metric through a nonisolated AppKit callback. All
+    // writes and layout are confined to the main thread by NativeTextProjection.
+    nonisolated(unsafe) var projectedSize = NSSize(width: 80, height: 32)
     override func cellSize() -> NSSize { projectedSize }
     override func draw(withFrame cellFrame: NSRect, in controlView: NSView?) {}
 }
@@ -216,20 +225,27 @@ extension NativeTextProjection {
     /// Called after patches and native width changes. Child coordinates come
     /// from TextKit attachment geometry, so preceding edits and scrolling agree.
     public func layoutTables() {
-        guard !disposed, !layingOutTables, let manager = textView.layoutManager,
+        guard !disposed, !layingOutTables, !tableViews.isEmpty, let manager = textView.layoutManager,
               let container = textView.textContainer else { return }
         layingOutTables = true
         defer { layingOutTables = false }
         let width = max(80, container.containerSize.width - container.lineFragmentPadding * 2)
+        // Install every metric first: changing a preceding attachment can move
+        // all later glyphs. Positioning during that pass leaves stale frames.
+        var sizes: [String: NSSize] = [:]
         for (id, table) in tableViews {
             guard let node = nodes.first(where: { $0.id == id }), let attachment = attachmentIdentities[id] else { continue }
             let size = table.fit(width: width)
+            sizes[id] = size
             let cell = attachment.attachmentCell as? NativeTableAttachmentCell ?? NativeTableAttachmentCell(textCell: "")
             if cell.projectedSize != size {
                 cell.projectedSize = size; attachment.attachmentCell = cell
                 manager.invalidateLayout(forCharacterRange: node.range, actualCharacterRange: nil)
             }
-            manager.ensureLayout(for: container)
+        }
+        manager.ensureLayout(for: container)
+        for (id, table) in tableViews {
+            guard let node = nodes.first(where: { $0.id == id }), let size = sizes[id] else { continue }
             let glyphs = manager.glyphRange(forCharacterRange: node.range, actualCharacterRange: nil)
             var rect = manager.boundingRect(forGlyphRange: glyphs, in: container)
             rect.origin.x += textView.textContainerOrigin.x; rect.origin.y += textView.textContainerOrigin.y

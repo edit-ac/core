@@ -159,6 +159,7 @@ dependencies = [
  "editac-core",
  "editac-session",
  "serde_json",
+ "yrs",
 ]
 
 [[package]]

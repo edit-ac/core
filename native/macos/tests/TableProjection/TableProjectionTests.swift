@@ -61,18 +61,42 @@ final class TableProjectionTests: XCTestCase {
             let sequence = (step["sequence"] as! NSNumber).uint64Value
             if sequence <= view.projection.richSequence! { continue }
             let patch = String(data: try JSONSerialization.data(withJSONObject: step["patch"]!, options: [.sortedKeys]), encoding: .utf8)!
-            // Real Rust commit patch stream; no transport/reconnect claim. These
-            // revision bytes are only a local observation token in this replay.
+            // Actual shared Session/EditService/SQLite commit stream and owned
+            // observed revision. No transport/reconnect or table-input claim.
+            XCTAssertEqual(step["localReceipt"] as? Bool, true)
             try view.projection.apply(NativeProjectionUpdate(snapshot: nil,
-                patches: NativeSessionPatches(revision: Data("engine-step-\(sequence)".utf8),
+                patches: NativeSessionPatches(revision: Data((step["revision"] as! [NSNumber]).map { $0.uint8Value }),
                     afterSequence: sequence - 1, sequence: sequence, patchesJson: [patch]), selection: []))
+            self.assertTableFlow(view)
             if step["label"] as? String == label { return }
         }
+    }
+
+    private func assertTableFlow(_ view: NativeEditorView, file: StaticString = #filePath, line: UInt = #line) {
+        let tables = view.projection.nodes.compactMap { view.projection.tableViews[$0.id] }
+        for pair in zip(tables, tables.dropFirst()) {
+            XCTAssertGreaterThanOrEqual(pair.1.frame.minY, pair.0.frame.maxY,
+                "Separate native tables must not overlap", file: file, line: line)
+        }
+    }
+
+    private func preparedTuple(_ view: NativeEditorView, table: NativeTableView, tuple: [Any]) throws {
+        let sequence = view.projection.richSequence! + 1
+        var wire = view.projection.richNodes[table.nodeID]!.wire
+        wire["blockAttributes"] = tuple
+        let identity = try JSONSerialization.jsonObject(with: view.projection.richIdentity!)
+        let patch: [String: Any] = ["version": 1, "sequence": sequence, "identity": identity,
+            "projectionError": NSNull(), "nodes": [["type": "visible", "node": wire]]]
+        let json = String(data: try JSONSerialization.data(withJSONObject: patch), encoding: .utf8)!
+        try view.projection.apply(NativeProjectionUpdate(snapshot: nil,
+            patches: NativeSessionPatches(revision: Data("prepared-table-layout".utf8),
+                afterSequence: sequence - 1, sequence: sequence, patchesJson: [json]), selection: []))
     }
 
     func testActualSessionMountsNativeCellsAndRetainsExactTuples() async throws {
         try await fixture { view, manifest in
             XCTAssertEqual(view.projection.tableViews.count, 2)
+            self.assertTableFlow(view)
             for rich in [false, true] {
                 let t = try self.table(view, manifest, rich: rich)
                 XCTAssertTrue(t.superview === view.textView)
@@ -84,7 +108,24 @@ final class TableProjectionTests: XCTestCase {
                 XCTAssertNotNil(view.projection.attachmentIdentities[t.nodeID]?.attachmentCell as? NativeTableAttachmentCell)
                 for c in t.cells.values { XCTAssertTrue(c.superview === t.documentView); XCTAssertFalse(c.allowsUndo) }
             }
+            if let root = ProcessInfo.processInfo.environment["EDITAC_MACOS_TABLE_EVIDENCE"] {
+                view.displayIfNeeded()
+                let bitmap = try XCTUnwrap(view.bitmapImageRepForCachingDisplay(in: view.bounds))
+                view.cacheDisplay(in: view.bounds, to: bitmap)
+                let png = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
+                try png.write(to: URL(fileURLWithPath: root).appendingPathComponent("native-tables.png"))
+            }
             XCTAssertEqual(view.textView.string, "Before\n\u{FFFC}\n\u{FFFC}\nAfter")
+        }
+    }
+    func testActualSessionSnapshotResyncRetainsEveryNativeControl() async throws {
+        try await fixture { view, manifest in
+            let table = try self.table(view, manifest), cells = table.cells
+            _ = try await self.send(view, .resyncProjection)
+            XCTAssertNil(view.projectionFailure)
+            XCTAssertTrue(try self.table(view, manifest) === table)
+            for (key, value) in cells { XCTAssertTrue(table.cells[key] === value) }
+            XCTAssertFalse(table.cells.values.contains { $0.isEditable || $0.allowsUndo })
         }
     }
     func testLegacyUnicodeMarksAndLinksUseTheSharedStyleRegistry() async throws {
@@ -139,14 +180,17 @@ final class TableProjectionTests: XCTestCase {
             XCTAssertEqual(try self.cell(t, 1, 0).string, "Updated 🦀 אב")
         }
     }
-    func testActualEngineDimensionPatchesRetainSurvivingCoordinates() async throws {
+    func testPreparedDimensionPatchesRetainSurvivingCoordinates() async throws {
         try await fixture { view, manifest in
             let t = try self.table(view, manifest), cells = t.cells
-            try self.step(view, manifest, through: "append-row")
+            var tuple = t.sharedTuple, data = tuple[2] as! [String: Any], rows = data["rows"] as! [[Any]]
+            rows.append(rows[1]); data["rows"] = rows; tuple[2] = data
+            try self.preparedTuple(view, table: t, tuple: tuple)
             XCTAssertEqual(t.rowCount, 3); XCTAssertEqual(t.cells.count, 9)
             let removed = try self.cell(t, 2, 0)
             for (key, value) in cells { XCTAssertTrue(t.cells[key] === value) }
-            try self.step(view, manifest, through: "remove-row")
+            rows.removeLast(); data["rows"] = rows; tuple[2] = data
+            try self.preparedTuple(view, table: t, tuple: tuple)
             XCTAssertEqual(t.cells.count, 6); XCTAssertNil(removed.superview)
             for (key, value) in cells { XCTAssertTrue(t.cells[key] === value) }
         }
@@ -173,10 +217,15 @@ final class TableProjectionTests: XCTestCase {
             XCTAssertGreaterThan(t.frame.height, 0)
         }
     }
-    func testRichContentPatchRetainsSpannedCellControls() async throws {
+    func testPreparedRichContentPatchRetainsSpannedCellControls() async throws {
         try await fixture { view, manifest in
             let t = try self.table(view, manifest, rich: true), cells = t.cells
-            try self.step(view, manifest, through: "rich-cell")
+            var tuple = t.sharedTuple, data = tuple[2] as! [String: Any], rows = data["rows"] as! [[Any]]
+            var cell = rows[1][1] as! [String: Any], paragraphs = cell["paragraphs"] as! [[String: Any]]
+            var runs = paragraphs[0]["runs"] as! [[Any]]; runs[0][0] = "Rich updated"
+            paragraphs[0]["runs"] = runs; cell["paragraphs"] = paragraphs
+            rows[1][1] = cell; data["rows"] = rows; tuple[2] = data
+            try self.preparedTuple(view, table: t, tuple: tuple)
             XCTAssertEqual(try self.cell(t, 1, 1).string, "Rich updated")
             for (key, value) in cells { XCTAssertTrue(t.cells[key] === value) }
         }
@@ -195,7 +244,7 @@ final class TableProjectionTests: XCTestCase {
     }
     func testFullActualEnginePatchStreamMatchesSharedVisibleSemantics() async throws {
         try await fixture { view, manifest in
-            try self.step(view, manifest, through: "restore-table")
+            try self.step(view, manifest, through: "redo-restore")
             let last = (manifest["steps"] as! [[String: Any]]).last!
             let expected = (last["expected"] as! [String: Any])["visible"] as! [[String: Any]]
             XCTAssertEqual(view.projection.richNodes.count, expected.count)

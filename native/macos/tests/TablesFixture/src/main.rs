@@ -43,54 +43,116 @@ fn main() {
     doc.commit_editor(prepared).unwrap();
     let expected = projection_snapshot(&doc).unwrap();
     let path = root.join("store.sqlite");
-    let store =
-        NativeStore::create_new(path.to_str().unwrap(), identity.clone(), StoreLimits::default()).unwrap();
+    let store = NativeStore::create_new(
+        path.to_str().unwrap(),
+        identity.clone(),
+        StoreLimits::default(),
+    )
+    .unwrap();
     store
         .publish(0, CheckpointRecord::new(doc.checkpoint(), vec![]).unwrap())
         .unwrap();
     drop(store);
     // Restore the exact persisted baseline, like NativeSession, so the real
     // engine's incremental stream begins at sequence zero.
-    doc = Document::restore(&identity, &doc.checkpoint(), &[]).unwrap();
-    let visible = doc.snapshot().unwrap().visible;
+    let producer_path = root.join("producer.sqlite");
+    std::fs::copy(&path, &producer_path).unwrap();
+    let store =
+        NativeStore::open_existing(&producer_path, identity.clone(), StoreLimits::default())
+            .unwrap();
+    let session = editac_session::session::Session::open(
+        store,
+        &identity,
+        editac_session::session::CachedPermission {
+            writable: true,
+            expires_at: None,
+        },
+    )
+    .unwrap();
+    let mut policy = editac_session::edit_service::HostPolicy::default();
+    policy.codecs.tables = true;
+    let mut service = editac_session::edit_service::EditService::new(session, policy);
+    let visible = service.session().document().snapshot().unwrap().visible;
     let before = visible[0].id.clone();
     let table = visible[1].id.clone();
     let rich = visible[2].id.clone();
     let baseline: serde_json::Value = serde_json::from_str(include_str!("../corpus.json")).unwrap();
     let original = baseline[1]["attributes"]["tuple"].clone();
-    let mut tuple = original.clone();
-    let content = |id: &String, tuple: &serde_json::Value| editac_core::commands::editor::EditorCommand::Content {
-        target: id.clone(), content: editac_core::modules::content::Content::from_tuple(
-            &yrs::Any::from_json(&tuple.to_string()).unwrap()).unwrap().unwrap()
-    };
     let mut steps = Vec::new();
     let mut apply = |label: &str, command| {
-        let plan = doc.prepare_editor(&[command], &TextOrigin::new(label).unwrap()).unwrap();
-        doc.commit_editor(plan).unwrap();
+        let revision = service.session().observed_revision().unwrap();
+        let plan = service
+            .prepare_commands(&revision, &[command], &TextOrigin::new(label).unwrap(), 0)
+            .unwrap_or_else(|e| panic!("{label}: {e:?}"));
+        let receipt = service.apply(plan, 0).unwrap().unwrap();
+        assert!(service.local_receipt(&receipt.update).unwrap().is_some());
+        let doc = service.session().document();
         let patch = doc.last_patch().unwrap();
         steps.push(serde_json::json!({"label":label, "sequence":patch.sequence,
-            "patch":editac_core::interchange::projection_patch(patch),
-            "expected":projection_snapshot(&doc).unwrap()}));
+            "patch":editac_core::interchange::projection_patch(&patch),
+            "expected":projection_snapshot(doc).unwrap(), "localReceipt":true,
+            "revision":service.session().observed_revision().unwrap().to_bytes().to_vec()}));
     };
-    tuple[2]["rows"][1][0][0][0] = serde_json::json!("Updated 🦀 אב");
-    apply("cell-content", content(&table, &tuple));
-    let row = tuple[2]["rows"][1].clone();
-    tuple[2]["rows"].as_array_mut().unwrap().push(row);
-    apply("append-row", content(&table, &tuple));
-    tuple[2]["rows"].as_array_mut().unwrap().pop();
-    apply("remove-row", content(&table, &tuple));
-    apply("preceding-text", editac_core::commands::editor::EditorCommand::ReplaceAt {
-        owner:before, from:Utf16Offset(0), to:Utf16Offset(6), text:"Before\nExtra line 🦀".into() });
-    let mut rich_tuple = baseline[2]["attributes"]["tuple"].clone();
-    rich_tuple[2]["rows"][1][1]["paragraphs"][0]["runs"][0][0] = serde_json::json!("Rich updated");
-    apply("rich-cell", content(&rich, &rich_tuple));
-    apply("remove-table", editac_core::commands::editor::EditorCommand::Enable { target:table.clone(), enabled:false });
-    apply("restore-table", editac_core::commands::editor::EditorCommand::Enable { target:table.clone(), enabled:true });
+    apply(
+        "cell-content",
+        editac_core::commands::editor::EditorCommand::TableCell {
+            target: table.clone(),
+            expected: yrs::Any::from_json(&original.to_string()).unwrap(),
+            row: 1,
+            column: 0,
+            text: "Updated 🦀 אב".into(),
+        },
+    );
+    apply(
+        "preceding-text",
+        editac_core::commands::editor::EditorCommand::ReplaceAt {
+            owner: before,
+            from: Utf16Offset(0),
+            to: Utf16Offset(6),
+            text: "Before\nExtra line 🦀".into(),
+        },
+    );
+    apply(
+        "remove-table",
+        editac_core::commands::editor::EditorCommand::Enable {
+            target: table.clone(),
+            enabled: false,
+        },
+    );
+    apply(
+        "restore-table",
+        editac_core::commands::editor::EditorCommand::Enable {
+            target: table.clone(),
+            enabled: true,
+        },
+    );
+    // Shared undo/redo are real durable operations over the same Session.
+    for (label, undo) in [("undo-restore", true), ("redo-restore", false)] {
+        let revision = service.session().observed_revision().unwrap();
+        let receipt = if undo {
+            service.undo(&revision, 0)
+        } else {
+            service.redo(&revision, 0)
+        }
+        .unwrap()
+        .unwrap();
+        assert!(service.local_receipt(&receipt.update).unwrap().is_some());
+        let doc = service.session().document();
+        let patch = doc.last_patch().unwrap();
+        steps.push(serde_json::json!({"label":label,"sequence":patch.sequence,
+            "patch":editac_core::interchange::projection_patch(&patch),
+            "expected":projection_snapshot(doc).unwrap(),"localReceipt":true,
+            "revision":service.session().observed_revision().unwrap().to_bytes().to_vec()}));
+    }
     let manifest = serde_json::json!({"path":path,"documentId":document_id,"epoch":epoch,
         "expected":expected,"factory":"native/macos/tests/TablesFixture/src/main.rs",
         "providerCalls":0,"table":table,"richTable":rich,"steps":steps,
         "corpus":baseline});
     let manifest_path = root.join("manifest.json");
-    std::fs::write(&manifest_path, serde_json::to_vec_pretty(&manifest).unwrap()).unwrap();
+    std::fs::write(
+        &manifest_path,
+        serde_json::to_vec_pretty(&manifest).unwrap(),
+    )
+    .unwrap();
     println!("{}", manifest_path.display());
 }
