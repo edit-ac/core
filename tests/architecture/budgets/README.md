@@ -129,3 +129,41 @@ All other old pins must still match; WASM dependencies exclude the session crate
 current production WASM bytes must match retained artifacts, and the gesture SDK
 is rebuilt for byte identity. This preserves historical measurements without
 asserting that a different executable was measured. Any further drift fails.
+
+PRF-04 uses `node scripts/bench-workloads.mjs --output <unique-directory>`.
+The fixed `workloads-v1.json` policy precedes measurement. Task/Long scales preserve
+all 10,240/1,048,576 bytes of the frozen text generator when regrouped into one
+very long logical line or eight mixed-direction blocks. Tables have 16/128 rows,
+eight columns and 64 UTF-16 units per cell; Long reaches the actual renderer's
+1,024-run bound. Four/32 image modules decode the retained local 1,024×1,024 RGBA
+PNG through the real host policy. Each scale/workload restores one exact checkpoint
+with both baseline/Task presets. No rows, code points or images are dropped.
+
+Twelve raw replays retain full-text/table native Range endpoints, native table
+control selections, atomic text replacement/restoration or real table-adapter
+input/commit/restoration, image layout, two animation callbacks and separate long
+tasks. Seeding, semantic oracles and heap collection remain outside timed replay.
+These programmatic controls do not prove trusted input, compositor or OS behavior.
+Raw order statistics describe these samples; their tails remain inconclusive and
+performance/memory release limits remain unreviewed. Existing limits stay intact.
+
+CDP heap/backing-storage samples use explicit mount/replay/disposal boundaries
+without forced GC. Report observed maxima with harness allocations included;
+these are neither continuous total-process peaks nor native image-decoder peaks.
+Every complete semantic projection must match the independent generator after
+restoration. Disposed editors, module views, asset sources, databases, browser and
+server are checked. Canonical negative admission rejects truncation, mismatched
+checkpoints, missing ranges/samples/memory, fake qualification and leaked resources.
+
+The constructor keeps its 262,144-unit per-block limit. The long logical line is
+seeded as safe <=131,072-unit chunks and joined through public commands before
+measurement. Fragment byte admission remains unchanged. Table seeds include
+the exact tab/newline fallback maintained by real table-cell commits. Public
+content insertion's two empty editable boundary blocks stay in the semantic
+oracle. Canonical object keys and adjacent equal-mark run coalescing remove only
+nonsemantic serialization/seam differences; every value and distinct mark map
+is preserved and raw initial run lengths/maps are retained. Preparation runs
+in a separate closed browser context. Both fresh preset contexts initialize
+WASM before the mount timer, and retain all twelve sequential replays. Two
+animation callbacks may share a refresh timestamp; keep those raw duplicates
+without inferring separate presented frames.
