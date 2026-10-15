@@ -365,7 +365,12 @@ final class TableEditingTests: XCTestCase {
                 let table = try self.table(local, manifest, rich: rich), first = try self.cell(table, 0, 0)
                 XCTAssertTrue(local.tables.focus(first))
                 let originalText = first.string
-                try await self.perform(local) { try local.tables.replace(target: local.tables.capture(first), range: NSRange(location: 0, length: 0), replacement: "LOCAL ") }
+                // Tables are atomic shared tuples, not independently mergeable
+                // cell CRDTs. Keep earlier local history in a distinct owner.
+                let before = try await self.read(local)
+                let paragraph = try XCTUnwrap(before.nodes.first)
+                try await self.commands(local, [["type": "replaceAt", "owner": paragraph.id,
+                    "from": 0, "to": 0, "text": "LOCAL "]])
                 try await self.fixture(unmerged: rich) { peer, peerManifest in
                     try await self.enable(peer)
                     let peerTable = try self.table(peer, peerManifest, rich: rich), peerCell = try self.cell(peerTable, 0, 1)
@@ -393,7 +398,18 @@ final class TableEditingTests: XCTestCase {
                     XCTAssertEqual(first.string, originalText)
                     XCTAssertEqual(table.rowCount, structure ? 3 : 2)
                     if !structure { XCTAssertEqual(try self.cell(table, 0, 1).string, "REMOTE 🦀") }
-                    try await self.perform(local) { first.redo(nil) }; XCTAssertEqual(first.string, "LOCAL " + originalText)
+                    // Then edit the actual post-remote table through its native
+                    // cell and prove undo/redo restores that complete remote state.
+                    let remoteTuple = try JSONSerialization.data(withJSONObject: table.sharedTuple, options: [.sortedKeys])
+                    try await self.perform(local) { try local.tables.replace(target: local.tables.capture(first),
+                        range: NSRange(location: 0, length: 0), replacement: "LOCAL ") }
+                    XCTAssertEqual(first.string, "LOCAL " + originalText)
+                    try await self.perform(local) { first.undo(nil) }
+                    XCTAssertEqual(try JSONSerialization.data(withJSONObject: table.sharedTuple, options: [.sortedKeys]), remoteTuple)
+                    XCTAssertTrue(first === table.cells[first.coordinate])
+                    try await self.perform(local) { first.redo(nil) }
+                    XCTAssertEqual(first.string, "LOCAL " + originalText)
+                    XCTAssertEqual(table.rowCount, structure ? 3 : 2)
                 }
             }
         }
