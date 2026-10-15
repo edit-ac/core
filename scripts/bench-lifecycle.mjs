@@ -11,6 +11,8 @@ import { presets } from '../benchmarks/presets.mjs';
 import { digest } from './architecture-budgets.mjs';
 import { inspectLifecycles, inspectLifecycle } from './lifecycle-evidence.mjs';
 import { requireTestNode } from './test-toolchain.mjs';
+import { prepareProcessMemory, startProcessMemory } from './process-memory.mjs';
+import { inspectProcessMemoryMethod } from './process-memory-evidence.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url)); process.chdir(root); await requireTestNode();
 const args = process.argv.slice(2);
@@ -28,7 +30,8 @@ const record = { version: 1, qualification: 'unqualified', profileHash: digest(p
 const tracked = spawnSync('git', ['ls-files', 'crates', 'packages', 'fixtures/schema-v5', 'Cargo.lock', 'Cargo.toml', 'package-lock.json', 'package.json', 'scripts/build-wasm.mjs'], { encoding: 'utf8' });
 if (tracked.status !== 0) throw Error('Cannot pin source closure');
 const inputs = [...new Set([...tracked.stdout.trim().split('\n'), profilePath, 'contracts/services.json', 'benchmarks/lifecycle-client.mjs',
-  'benchmarks/fixtures.mjs', 'benchmarks/presets.mjs', 'benchmarks/resource-probe.mjs', 'scripts/lifecycle-evidence.mjs', 'scripts/bench-lifecycle.mjs'])];
+  'benchmarks/fixtures.mjs', 'benchmarks/presets.mjs', 'benchmarks/resource-probe.mjs', 'scripts/lifecycle-evidence.mjs', 'scripts/bench-lifecycle.mjs',
+  'scripts/process-memory.c', 'scripts/process-memory.mjs', 'scripts/process-memory-evidence.mjs'])];
 for (const file of inputs) record.sourceInputs[file] = digest(await readFile(file));
 const temporary = await mkdtemp(join(tmpdir(), 'editac-prf05-'));
 let browser, controller, server, interrupted = false;
@@ -36,6 +39,10 @@ const stop = () => { interrupted = true; void browser?.close(); };
 process.once('SIGINT', stop); process.once('SIGTERM', stop);
 async function retain(file, bytes) { await mkdir(join(output, file, '..'), { recursive: true }); await writeFile(join(output, file), bytes); record.artifacts[file] = digest(bytes); }
 try {
+  const processMemory = await prepareProcessMemory(temporary);
+  record.metadata.processMemory = processMemory.metadata;
+  inspectProcessMemoryMethod(profile, record.metadata.processMemory);
+  await retain('harness/process-memory', await readFile(processMemory.binary));
   await mkdir(join(temporary, 'wasm'));
   await build({ stdin: { contents: 'export {createEditor,taskPreset,CheckpointStorage} from "@edit-ac/web"; export {init} from "@edit-ac/core"; export {ServiceLifecycle,ReferenceLookupSession} from "@edit-ac/web/modules"; export {DirectSyncAdapter} from "./packages/web/src/sync/protocol.ts";', resolveDir: root },
     outfile: join(temporary, 'sdk.js'), bundle: true, minify: true, format: 'esm', platform: 'browser', target: 'es2022' });
@@ -54,6 +61,8 @@ try {
   controller = await chromium.launchServer({ headless: true });
   record.metadata.browserProcess = { pid: controller.process().pid, launcher: controller.process().spawnfile, purpose: 'PRF-05', workspace: root, log: output };
   browser = await chromium.connect(controller.wsEndpoint()); record.metadata.browser = browser.version();
+  const browserCDP = await browser.newBrowserCDPSession();
+  const roles = async () => (await browserCDP.send('SystemInfo.getProcessInfo')).processInfo.map(p => ({ id: p.id, type: p.type }));
   for (const name of profile.fixtures) {
     const bytes = await readFile(join(seeds, 'fixtures', `${name}.checkpoint.json`)), frozen = JSON.parse(bytes);
     await retain(`fixtures/${name}.checkpoint.json`, bytes);
@@ -83,8 +92,22 @@ try {
         await page.exposeFunction('lifecycleHeap', () => memory(false));
         item.baseline = await memory();
         for (let i = 0; i < profile.cycles; i++) {
-          const raw = await page.evaluate(index => window.services.cycle(index), i);
-          raw.memory = { ...await memory(), resources: await page.evaluate(() => window.services.resources()) };
+          const sampler = await startProcessMemory(processMemory.binary, controller.process().pid);
+          let raw, processSeries, before, hostWorkMs;
+          try {
+            before = await roles();
+            const hostStart = performance.now();
+            raw = await page.evaluate(index => window.services.cycle(index), i);
+            raw.memory = { ...await memory(), resources: await page.evaluate(() => window.services.resources()) };
+            hostWorkMs = performance.now() - hostStart;
+          } finally {
+            // Even a failed page/cycle must stop and preserve its external sampler.
+            processSeries = await sampler.stop();
+            processSeries.roles = { before, after: await roles() };
+            processSeries.hostWorkMs = hostWorkMs;
+            await retain(`process-memory/${name}-${preset}-${i}.json`, JSON.stringify(processSeries));
+          }
+          raw.processMemory = processSeries;
           raw.sampledHighWater = Object.fromEntries(['jsHeapUsedBytes', 'nodes', 'documents', 'jsEventListeners', 'backingStorageBytes'].map(key =>
             [key, Math.max(...raw.liveMemory.map(m => key === 'backingStorageBytes' ? m.heap.backingStorageSize : m[key]))]));
           item.cycles.push(raw);

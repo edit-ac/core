@@ -1,3 +1,4 @@
+import { inspectProcessMemoryMethod, inspectProcessMemory } from './process-memory-evidence.mjs';
 const require = (ok, message) => { if (!ok) throw Error(message); };
 const finite = value => Number.isFinite(value) && value >= 0;
 const pin = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
@@ -49,6 +50,7 @@ export function inspectLifecycle(profile, item, observation) {
       require(item.memoryStatus === 'inconclusive', 'Unreviewed memory qualified');
       for (const m of [item.baseline, cycle.memory]) { heapSample(m); require(m.collected === true, 'Missing collected memory boundary'); }
       liveMemory(cycle);
+      inspectProcessMemory(cycle.processMemory);
     }
   }
   return { fixture: item.fixture, preset: item.preset, kind: observation.kind, status: observation.kind === 'memory-plateau' ? 'inconclusive' : 'observed' };
@@ -61,6 +63,8 @@ export function inspectLifecycles(profile, record) {
   require(record?.version === 1 && record.qualification === 'unqualified' && record.metadata?.cpu && record.metadata.memoryBytes > 0 && record.metadata.browser && record.metadata.hostOS && record.metadata.provenance === 'headless-browser-on-host', 'Missing hardware/runtime provenance');
   require(Date.parse(record.metadata.startedAt) > Date.parse(profile.reviewedAt) && record.metadata.replay === profile.replay && record.metadata.memoryMethod === profile.memoryMethod, 'Missing preregistration/runtime method');
   require(record.metadata.liveMemoryMethod === profile.liveMemoryMethod, 'Missing live memory method');
+  inspectProcessMemoryMethod(profile, record.metadata.processMemory);
+  require(Date.parse(record.metadata.startedAt) > Date.parse(profile.processMemoryReviewedAt), 'Process-memory coverage policy not preregistered');
   require(record.counts?.executed === 24 && record.counts.passed === 24 && record.counts.failed === 0 && record.counts.skipped === 0 && record.cases?.length === 4 && record.errors?.length === 0, 'Incomplete lifecycle matrix');
   require(record.cleanup?.browserExited && record.cleanup.serverClosed && record.cleanup.temporaryRemoved, 'Leaked harness process');
   const keys = new Set(), summaries = [];
@@ -70,5 +74,5 @@ export function inspectLifecycles(profile, record) {
     require(pin(item.fixtureHash) && pin(item.checkpointHash) && item.observations?.length === 6 && new Set(item.observations.map(o => o.kind)).size === 6, 'Missing identity/observation');
     for (const observation of item.observations) summaries.push(inspectLifecycle(profile, item, observation));
   }
-  return { status: 'diagnostic', qualification: 'unqualified', summaries, gaps: ['Memory plateau limits unreviewed; collected retention and non-GC phase snapshots only', 'Sampled high-water is not a true peak; native/process/decoder memory and optional runtime not observed', 'Other PRF/accessibility/platform criteria remain open'] };
+  return { status: 'diagnostic', qualification: 'unqualified', summaries, gaps: ['Memory plateau limits unreviewed; no retained-memory qualification', 'Continuous browser-tree samples and OS per-process lifetime footprint maxima are not a simultaneous tree/cycle/JS-allocation peak; optional decoders and native editor runtime not observed', 'Other PRF/accessibility/platform criteria remain open'] };
 }

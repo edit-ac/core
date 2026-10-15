@@ -17,7 +17,7 @@ const evidence = { version: 1, parent: 'FIT-1.8', scope: 'PRF-05 actual browser 
 test('actual editor disposal/canceled-transfer/unload matrix pins full source, runtime, corpus and raw resource/heap/idle series', async () => {
   assert.equal(record.status, 'diagnostic'); assert.equal(index.resultsHash, digest(bytes)); assert.equal(record.profileHash, digest(profileBytes));
   const tracked = spawnSync('git', ['ls-files', 'crates', 'packages', 'fixtures/schema-v5', 'Cargo.lock', 'Cargo.toml', 'package-lock.json', 'package.json', 'scripts/build-wasm.mjs'], { cwd: root, encoding: 'utf8' }); assert.equal(tracked.status, 0);
-  const inputs = [...new Set([...tracked.stdout.trim().split('\n'), 'benchmarks/profiles/lifecycle-v1.json', 'contracts/services.json', 'benchmarks/lifecycle-client.mjs', 'benchmarks/fixtures.mjs', 'benchmarks/presets.mjs', 'benchmarks/resource-probe.mjs', 'scripts/lifecycle-evidence.mjs', 'scripts/bench-lifecycle.mjs'])];
+  const inputs = [...new Set([...tracked.stdout.trim().split('\n'), 'benchmarks/profiles/lifecycle-v1.json', 'contracts/services.json', 'benchmarks/lifecycle-client.mjs', 'benchmarks/fixtures.mjs', 'benchmarks/presets.mjs', 'benchmarks/resource-probe.mjs', 'scripts/lifecycle-evidence.mjs', 'scripts/bench-lifecycle.mjs', 'scripts/process-memory.c', 'scripts/process-memory.mjs', 'scripts/process-memory-evidence.mjs'])];
   assert.deepEqual(Object.keys(record.sourceInputs).sort(), inputs.sort()); await verifyPins(root, record.sourceInputs); await verifyPins(resolve(root, index.directory), record.artifacts);
   for (const file of ['editac_wasm.js', 'editac_wasm_bg.wasm']) assert.equal(digest(await read(`packages/core/dist/wasm/${file}`)), record.artifacts[`harness/wasm/${file}`]);
   const services = JSON.parse(await read('contracts/services.json'));
@@ -47,6 +47,24 @@ for (const [name, change] of [
   ['underreported heap high-water', r => r.cases[0].cycles[0].sampledHighWater.jsHeapUsedBytes--],
   ['overreported backing high-water', r => r.cases[0].cycles[0].sampledHighWater.backingStorageBytes++],
   ['missing live method', r => delete r.metadata.liveMemoryMethod],
+  ['missing process-memory policy', r => delete r.metadata.processMemory],
+  ['false OS peak detector', r => r.metadata.processMemory.control.afterFree.lifetimePeakFootprintBytes = r.metadata.processMemory.control.before.lifetimePeakFootprintBytes],
+  ['missing collector binary identity', r => delete r.metadata.processMemory.binaryHash],
+  ['missing process samples', r => delete r.cases[0].cycles[0].processMemory],
+  ['phase-only process sampling', r => r.cases[0].cycles[0].processMemory.samples.splice(1, 100000)],
+  ['truncated process stream', r => r.cases[0].cycles[0].processMemory.stopped = 'timeout'],
+  ['failed process helper', r => r.cases[0].cycles[0].processMemory.exit.code = 3],
+  ['missing renderer roles', r => r.cases[0].cycles[0].processMemory.roles.before = r.cases[0].cycles[0].processMemory.roles.before.filter(p => p.type !== 'renderer')],
+  ['missing process accounting', r => delete r.cases[0].cycles[0].processMemory.samples[1].processes[0].footprintBytes],
+  ['unavailable process accounting', r => r.cases[0].cycles[0].processMemory.samples[1].processes[0].error = 3],
+  ['missing browser process', r => r.cases[0].cycles[0].processMemory.samples[1].processes = []],
+  ['reused process ID', r => r.cases[0].cycles[0].processMemory.samples[1].processes[0].startIdentity += '1'],
+  ['unmeasured OS peak', r => r.cases[0].cycles[0].processMemory.samples[1].processes[0].lifetimePeakFootprintBytes = 0],
+  ['coverage gap', r => r.cases[0].cycles[0].processMemory.samples[1].atMs += 1000],
+  ['reordered process clock', r => r.cases[0].cycles[0].processMemory.samples.reverse()],
+  ['late process collector', r => r.cases[0].cycles[0].processMemory.hostWorkMs = 1e9],
+  ['underreported process high-water', r => r.cases[0].cycles[0].processMemory.summary.sampledTreeHighWaterBytes--],
+  ['overreported OS peak', r => r.cases[0].cycles[0].processMemory.summary.perProcess[0].lifetimePeakFootprintBytes++],
   ['lost acknowledged source', r => r.cases[0].cycles[0].reopenedPreserved = false], ['late DOM mutation', r => r.cases[0].cycles[0].noLateDOMMutation = false],
   ['lost canceled source', r => r.cases[0].cycles[0].cancellation.source = false], ['missing recovery', r => r.cases[0].cycles[0].destroyRecovery = false],
   ['fake paste target', r => r.cases[0].cycles[0].cancellation.control = 'rejected'], ['late resolver result', r => r.cases[0].cycles[0].cancellation.results++],
@@ -57,7 +75,7 @@ for (const [name, change] of [
   ...['listeners', 'workers', 'observers', 'timers', 'frames'].map(key => [`leaked ${key}`, r => r.cases[0].cycles[0].memory.resources[key]++]),
 ]) test(`lifecycle admission rejects ${name}`, () => { const mutated = structuredClone(record); change(mutated); assert.throws(() => inspectLifecycles(profile, mutated)); });
 test('profile changes cannot shrink replay or invent memory/resource limits', () => {
-  for (const change of [p => p.cycles--, p => p.fixtures.pop(), p => p.idleMs--, p => p.resourceBounds.listeners++, p => p.performanceLimits = { memory: 999 }, p => p.memoryMethod = 'prepared', p => p.liveMemoryPhases.pop(), p => p.liveMemoryMethod = 'peak']) { const p = structuredClone(profile); change(p); assert.throws(() => inspectLifecycles(p, record)); }
+  for (const change of [p => p.cycles--, p => p.fixtures.pop(), p => p.idleMs--, p => p.resourceBounds.listeners++, p => p.performanceLimits = { memory: 999 }, p => p.memoryMethod = 'prepared', p => p.liveMemoryPhases.pop(), p => p.liveMemoryMethod = 'peak', p => p.processMemory.intervalMs++, p => p.processMemory.maximumGapMs++, p => p.processMemory.method = 'phase-snapshots', p => p.processMemoryReviewedAt = '2099-01-01']) { const p = structuredClone(profile); change(p); assert.throws(() => inspectLifecycles(p, record)); }
 });
 test('mutated source and retained artifact pins fail canonical admission', async () => {
   await assert.rejects(verifyPins(root, { 'benchmarks/resource-probe.mjs': '0'.repeat(64) }));

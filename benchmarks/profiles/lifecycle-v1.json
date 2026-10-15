@@ -43,5 +43,13 @@
     "disposed",
     "reopened",
     "drained"
-  ]
+  ],
+  "processMemory": {
+    "version": 1,
+    "method": "macos-proc-pid-rusage-v4-browser-tree-v1",
+    "intervalMs": 20,
+    "maximumGapMs": 250,
+    "scope": "Browser tree sampled resident/physical-footprint bytes; OS-maintained per-process lifetime maximum physical footprint. Not a simultaneous tree peak, cycle-local peak, JS allocation peak or plateau qualification."
+  },
+  "processMemoryReviewedAt": "2026-10-15T22:46:00Z"
 }

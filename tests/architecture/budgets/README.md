@@ -426,3 +426,29 @@ lookup with independent engine reads, exercise held updates/removal, and commit
 observer-only native input. The full loading producer still measures the original
 Task/Long corpus, oracle work, exact restoration and unchanged startup limits;
 this optimization alone does not qualify startup or the full performance gate.
+
+
+The PRF-05 lifecycle producer also compiles the test-only macOS
+`scripts/process-memory.c` helper and samples the captured browser process tree
+every 20 ms in a separate process. `proc_pid_rusage(RUSAGE_INFO_V4)` supplies
+resident bytes, physical footprint and OS-maintained lifetime maximum physical
+footprint. The helper retains monotonic sample windows and process start identities;
+CDP process-role boundaries identify the browser and renderer. Admission rejects
+missing/reused identities, unavailable counters, gaps over the preregistered
+250 ms coverage ceiling, truncated streams and incorrect summaries. This ceiling
+is a measurement-coverage condition, not a performance or memory budget.
+
+A native control touches and frees 48 MiB before reading the OS counter, requiring
+the lifetime maximum to retain that otherwise missed allocation. The producer
+keeps each raw stream, helper binary/compiler identity and complete fixed-corpus
+lifecycle/restoration evidence. The collector is stopped even when a cycle fails;
+its timeout and closed input also prevent an orphaned indefinite sampler. Other
+platforms fail this named method rather than substituting prepared observations.
+
+The sampled tree high-water sums current process footprints at each sample; it
+is not the sum of individual lifetime maxima. Lifetime maxima include each
+process's history before the cycle. Enumeration is sequential and sampling can
+miss short-lived processes; neither measure qualifies a simultaneous browser-tree,
+cycle-local or JS-allocation true peak. Post-disposal GC samples and seven live
+JS/backing/DOM phases remain separate. Plateau limits remain null/unreviewed;
+optional decoders and native editor runtimes remain unqualified.

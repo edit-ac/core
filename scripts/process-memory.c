@@ -1,0 +1,89 @@
+// Test-only macOS process accounting. No browser code, credentials or arguments
+// enter the stream. Lifetime footprint counters are NOT per-cycle/aggregate peaks.
+#include <errno.h>
+#include <libproc.h>
+#include <poll.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <string.h>
+#include <sys/mman.h>
+#include <sys/resource.h>
+#include <time.h>
+#include <unistd.h>
+
+#define MAX_PROCESSES 4096
+static double now_ms(void) {
+  struct timespec t;
+  clock_gettime(CLOCK_MONOTONIC, &t);
+  return (double)t.tv_sec * 1000 + (double)t.tv_nsec / 1000000;
+}
+static int usage(pid_t pid, struct rusage_info_v4 *r) {
+  memset(r, 0, sizeof(*r));
+  return proc_pid_rusage(pid, RUSAGE_INFO_V4, (rusage_info_t *)r);
+}
+static void fields(pid_t pid, const struct rusage_info_v4 *r) {
+  printf("{\"pid\":%d,\"startIdentity\":\"%llu\",\"residentBytes\":%llu,\"footprintBytes\":%llu,\"lifetimePeakFootprintBytes\":%llu}",
+    pid, (unsigned long long)r->ri_proc_start_abstime,
+    (unsigned long long)r->ri_resident_size, (unsigned long long)r->ri_phys_footprint,
+    (unsigned long long)r->ri_lifetime_max_phys_footprint);
+}
+static int sample(pid_t root) {
+  pid_t pids[MAX_PROCESSES] = { root };
+  int count = 1;
+  // Each process is discovered through the captured browser's child tree.
+  for (int i = 0; i < count; i++) {
+    pid_t children[MAX_PROCESSES];
+    int n = proc_listchildpids(pids[i], children, sizeof(children));
+    if (n < 0 || n >= (int)sizeof(children)) return -1;
+    for (int j = 0; j < n / (int)sizeof(pid_t); j++) {
+      if (children[j] <= 0) continue;
+      int found = 0;
+      for (int k = 0; k < count; k++) if (pids[k] == children[j]) found = 1;
+      if (!found) { if (count == MAX_PROCESSES) return -1; pids[count++] = children[j]; }
+    }
+  }
+  printf("{\"atMs\":%.6f,\"processes\":[", now_ms());
+  for (int i = 0; i < count; i++) {
+    if (i) putchar(',');
+    struct rusage_info_v4 r;
+    if (usage(pids[i], &r)) printf("{\"pid\":%d,\"error\":%d}", pids[i], errno);
+    else fields(pids[i], &r);
+  }
+  printf("],\"endMs\":%.6f}\n", now_ms()); fflush(stdout);
+  return 0;
+}
+static int control(void) {
+  struct rusage_info_v4 before, after;
+  if (usage(getpid(), &before)) return 1;
+  const size_t bytes = 48 * 1024 * 1024;
+  volatile unsigned char *p = mmap(NULL, bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+  if (p == MAP_FAILED) return 1;
+  for (size_t i = 0; i < bytes; i += (size_t)getpagesize()) p[i] = 1;
+  if (munmap((void *)p, bytes) || usage(getpid(), &after)) return 1;
+  printf("{\"allocatedBytes\":%zu,\"before\":", bytes); fields(getpid(), &before);
+  printf(",\"afterFree\":"); fields(getpid(), &after); puts("}");
+  return 0;
+}
+int main(int argc, char **argv) {
+  if (argc == 2 && strcmp(argv[1], "--allocation-control") == 0) return control();
+  if (argc != 3) return 2;
+  char *end;
+  long pid = strtol(argv[1], &end, 10); if (*end || pid <= 1) return 2;
+  long interval = strtol(argv[2], &end, 10); if (*end || interval < 1 || interval > 1000) return 2;
+  struct pollfd input = { STDIN_FILENO, POLLIN, 0 };
+  double start = now_ms();
+  for (;;) {
+    if (sample((pid_t)pid)) return 3;
+    int ready = poll(&input, 1, (int)interval);
+    if (ready < 0) return 4;
+    if (ready) {
+      char command;
+      if (read(STDIN_FILENO, &command, 1) != 1 || command != 'q') return 5;
+      if (sample((pid_t)pid)) return 3;
+      puts("{\"stopped\":\"requested\"}"); return 0;
+    }
+    // Orphan/blocked harnesses cannot leave an unbounded sampler behind.
+    if (now_ms() - start > 180000) return 6;
+  }
+}
