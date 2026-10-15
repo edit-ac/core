@@ -18,6 +18,7 @@ fn engine(case: &str) -> Arc<NativeEngine> {
         "replica",
         "threads",
         "version",
+        "trace",
     ]
     .iter()
     .position(|name| *name == case)
@@ -102,6 +103,35 @@ fn utf16_atomic_batch_detached_patch_and_owned_checkpoint() {
     e.dispose().unwrap();
     assert_eq!(patch["sequence"], 1);
     assert!(!c.bytes.is_empty());
+}
+
+#[test]
+fn native_batch_trace_is_explicitly_feature_scoped() {
+    let e = engine("trace");
+    let at = anchor(&e, 6);
+    let output = e
+        .execute_batch(
+            json!({"kind":"editor","origin":"trace-boundary",
+        "commands":[{"type":"insert","at":at,"text":"x"}]})
+            .to_string(),
+        )
+        .unwrap();
+    let value: Value = serde_json::from_str(&output.result_json).unwrap();
+    if cfg!(feature = "fitness-trace") {
+        assert_eq!(value["fitnessTrace"]["version"], 1);
+        for key in [
+            "prepareMs",
+            "commitMs",
+            "patchBuildMs",
+            "patchJsonMs",
+            "resultJsonMs",
+        ] {
+            assert!(value["fitnessTrace"][key].as_f64().unwrap() >= 0.0);
+        }
+    } else {
+        assert!(value.get("fitnessTrace").is_none());
+    }
+    e.dispose().unwrap();
 }
 #[test]
 fn invalid_second_command_rejects_whole_batch_without_patch_or_mutation() {
