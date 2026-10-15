@@ -32,6 +32,11 @@
       "types": "./dist/modules/index.d.ts",
       "import": "./dist/modules/index.js",
       "default": "./dist/modules/index.js"
+    },
+    "./links": {
+      "types": "./dist/modules/links/index.d.ts",
+      "import": "./dist/modules/links/index.js",
+      "default": "./dist/modules/links/index.js"
     }
   },
   "scripts": {

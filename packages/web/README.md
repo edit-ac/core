@@ -180,3 +180,9 @@ share an accessible neutral fallback; readonly still permits explicit lookup.
 Refresh has a 10-second timeout. Disposal unsubscribes and aborts work; late replies
 cannot restore display. Hosts retain all credentials and connection admission.
 This presenter does not publish private metadata or implement target activation.
+
+## Optional link integration
+
+Use `@edit-ac/web/links` for `linkEnrichment`, `LinkEnrichment`, `privateReferenceDisplay`, `PrivateReferenceView` and `bindLinkActivation`, plus the shared records and helpers re-exported from `@edit-ac/core/links`. These public imports are inert until explicitly configured. Existing root `linkEnrichment` and modules reference exports remain compatible.
+
+Hosts supply current principal/tenant/authority, owning document/revision/cancellation identity, permissions and finite policies. Enrichment calls only host-owned ports under disabled/local-paste/explicit-refresh settings. Rendering/open/remote/replay/history initiate no lookup. Keep private fields in per-viewer cache/display state, revoke assets and remove stale views on context changes, and use vetted local raster asset handles. Shared-label publication is a deliberate separate authorized action. Readonly can permit navigation without document mutation. See the core package's portable link section for actual-connection egress obligations, cache policy and the headless native/TUI handoff; neither browser ports nor prepared fixtures claim deployed backend enforcement.

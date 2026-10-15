@@ -10,12 +10,8 @@ export interface ReferenceQuery { query: string; requestId: number; signal: Abor
 export type ReferenceResolver = (request: Readonly<ReferenceQuery>) => readonly ReferenceTarget[] | Promise<readonly ReferenceTarget[]>;
 /** Host authorization is transient and independent of stored reference data.
  * revision changes on any policy/catalog/principal replacement. */
-export interface ReferencePermissionV1 { revision: string; lookup: boolean; insert: boolean }
-export interface ReferenceCatalogResultV1 {
-  status: 'local' | 'cached' | 'hosted' | 'locked' | 'unavailable' | 'unauthorized' | 'incompatible';
-  /** Exact admitted identifier, from the shared catalog, never a source path/token. */
-  targetId: string;
-}
+export type { ReferencePermissionV1, ReferenceCatalogResultV1 } from '@edit-ac/core';
+import type { ReferencePermissionV1, ReferenceCatalogResultV1 } from '@edit-ac/core';
 export interface ReferenceHostV1 {
   version: 1;
   permission(): Readonly<ReferencePermissionV1>;
