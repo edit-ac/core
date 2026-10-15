@@ -33,6 +33,9 @@ public enum NativeSessionRequest: Sendable {
     case redo(revision: Data, now: UInt64)
     case permission(writable: Bool, expiresAt: UInt64?)
     case commandPermission(writable: Bool, expiresAt: UInt64?, now: UInt64)
+    case tablePolicy(enabled: Bool)
+    case reservePeerWriter(UInt32)
+    case pendingUpdates
     case recover
     case recoveryExport
 }
@@ -46,6 +49,7 @@ public enum NativeSessionResponse: Sendable {
     case recovery(NativeSessionRecovery)
     case completed
     case anchors([NativeSessionAnchor])
+    case peerUpdates([NativeSessionPeerUpdate])
 }
 
 public struct NativeProjectionUpdate: Sendable {
@@ -335,6 +339,11 @@ public final class NativeSessionExecutor {
             case let .commandPermission(writable, expiry, now):
                 try session.setPermission(writable: writable, expiresAt: expiry)
                 return .snapshot(try session.read(now: now))
+            case let .tablePolicy(enabled):
+                try session.setTablePolicy(enabled: enabled)
+                return .snapshot(try session.read(now: state.now))
+            case let .reservePeerWriter(writer): try session.reservePeerWriter(writer: writer)
+            case .pendingUpdates: return .peerUpdates(try session.pendingUpdates())
             case .recover:
                 try session.recover()
                 state.projectionSequence = nil
@@ -342,6 +351,22 @@ public final class NativeSessionExecutor {
             case .recoveryExport: return .recovery(try session.recoveryExport())
             }
             return .completed
+        }
+    }
+
+    /// Trusted hosts authenticate/authorize and verify/decrypt their envelope
+    /// before this boundary. The admission callback must reject any untrusted
+    /// entry; writer IDs and checksums alone are never credentials. It runs
+    /// before queue admission, including reservation/store/journal ingress.
+    @discardableResult
+    public func receivePeer(_ update: NativeSessionPeerUpdate,
+                            admitting: (NativeSessionPeerUpdate) throws -> Void,
+                            completion: Completion? = nil) throws -> NativeSessionOperation {
+        try admitting(update)
+        return try enqueue(completion: completion) { state in
+            guard let session = state.session else { throw NativeSessionFailure.notOpen }
+            state.lastCommit = try session.receivePeer(update: update)
+            return .snapshot(try session.read(now: state.now))
         }
     }
 
