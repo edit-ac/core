@@ -23,12 +23,17 @@ export async function cycle(index) {
   const storage = await CheckpointStorage.open(indexedDB, databaseName);
   try { await storage.publish({ ...frozen.checkpoint, bytes: new Uint8Array(frozen.checkpoint.bytes) }, []); } finally { storage.close(); }
   let editor, lookup, job; const transfer = deferred(), hostJob = deferred(), hostListeners = new Set();
-  const result = { index, samples: {}, phases: [] }, start = performance.now();
+  const result = { index, samples: {}, phases: [], liveMemory: [] };
+  // Host CDP snapshots do not collect garbage here. Await outside measured
+  // mount/cancel/dispose spans; these are phase samples, not true peaks.
+  const heap = async phase => result.liveMemory.push({ phase, ...await window.lifecycleHeap() });
   const sample = phase => result.phases.push({ phase, at: performance.now(), ...probe.snapshot(), hostListeners: hostListeners.size });
   try {
+    await heap('before-mount'); const start = performance.now();
     editor = createEditor(root, { databaseName, identity: frozen.identity, indexedDB, locks: navigator.locks,
       assetUrl: '/fixture/wasm/editac_wasm_bg.wasm', ...presetOptions(preset, { taskPreset }) });
     await editor.ready; result.samples.mountMs = performance.now() - start;
+    await heap('mounted');
     const initial = JSON.stringify(projectedSemantics(editor.read()));
     check(initial === JSON.stringify(expectedSemantics(fixture(name))), 'Full initial corpus mismatch');
     result.initialPreserved = true;
@@ -52,14 +57,14 @@ export async function cycle(index) {
       resolve(request) { result.requestAborted = () => request.signal.aborted; return hostJob.promise; } };
     lookup = new ReferenceLookupSession(host, () => {}, { context: () => ({ document: 'prf05', session: databaseName, revision: '1', permission: 'p1', authorized: true }) });
     const search = lookup.search({ query: 'prepared', requestId: index, signal: new AbortController().signal });
-    await Promise.resolve(); sample('active-transfer');
+    await Promise.resolve(); sample('active-transfer'); await heap('active-transfer');
     const cancelStart = performance.now(); job.cancel(); const canceled = await job.result; lookup.dispose();
     const stopped = await search; result.samples.cancelMs = performance.now() - cancelStart;
     result.cancellation = { state: job.state, reason: canceled.reason, disposition: canceled.disposition, results: stopped.length, aborted: result.requestAborted(), source: job.source['text/plain'] === source,
       recovery: editor.clipboardRecovery.some(r => r.mime === 'text/plain' && r.raw === source && r.reason === 'clipboard-canceled'), control: positive.disposition };
-    delete result.requestAborted; sample('feature-unloaded');
+    delete result.requestAborted; sample('feature-unloaded'); await heap('feature-unloaded');
     const disposeStart = performance.now(), closed = await editor.destroy({ policy: 'flush' }); result.samples.disposeMs = performance.now() - disposeStart;
-    result.unsaved = closed.unsaved; result.destroyRecovery = closed.clipboard.some(r => r.raw === source); sample('disposed');
+    result.unsaved = closed.unsaved; result.destroyRecovery = closed.clipboard.some(r => r.raw === source); sample('disposed'); await heap('disposed');
     const before = root.innerHTML; transfer.resolve(); hostJob.resolve([{ targetId: 'late', label: 'late result' }]);
     for (let i = 0; i < 16; i++) await Promise.resolve(); await probe.frame(); await probe.frame();
     result.noLateDOMMutation = before === root.innerHTML;
@@ -67,6 +72,7 @@ export async function cycle(index) {
     editor = createEditor(root, { databaseName, identity: frozen.identity, indexedDB, locks: navigator.locks,
       assetUrl: '/fixture/wasm/editac_wasm_bg.wasm', ...presetOptions(preset, { taskPreset }) });
     await editor.ready; result.reopenedPreserved = JSON.stringify(projectedSemantics(editor.read())) === initial;
+    await heap('reopened');
     const reopenedClose = await editor.destroy({ policy: 'flush' }); result.unsaved ||= reopenedClose.unsaved;
   } finally {
     job?.cancel(); lookup?.dispose(); transfer.resolve(); hostJob.resolve([]);
@@ -75,7 +81,7 @@ export async function cycle(index) {
     await new Promise((resolve, reject) => { const request = indexedDB.deleteDatabase(databaseName); request.onsuccess = resolve; request.onerror = () => reject(request.error); request.onblocked = () => reject(Error('Database deletion blocked')); });
     result.databaseDeleted = true;
   }
-  await probe.frame(); await probe.frame(); sample('drained');
+  await probe.frame(); await probe.frame(); sample('drained'); await heap('drained');
   const beforeIdle = probe.snapshot(); await probe.wait(profile.idleMs); const afterIdle = probe.snapshot();
   result.idle = { durationMs: profile.idleMs, before: beforeIdle, after: afterIdle };
   return result;

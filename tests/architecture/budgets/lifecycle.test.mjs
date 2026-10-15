@@ -34,6 +34,19 @@ for (const [name, change] of [
   ['duplicate fixture', r => r.cases[1].preset = r.cases[0].preset], ['missing browser', r => delete r.metadata.browser],
   ['unreviewed memory pass', r => r.cases[0].memoryStatus = 'passed'], ['fake qualification', r => r.qualification = 'qualified'],
   ['missing heap sample', r => delete r.cases[0].cycles[0].memory.jsHeapUsedBytes], ['missing DOM sample', r => delete r.cases[0].cycles[0].memory.nodes],
+  ['missing live sample', r => r.cases[0].cycles[0].liveMemory.splice(1, 1)],
+  ['reordered live sample', r => r.cases[0].cycles[0].liveMemory.reverse()],
+  ['collected live sample', r => r.cases[0].cycles[0].liveMemory[1].collected = true],
+  ['missing live heap', r => delete r.cases[0].cycles[0].liveMemory[1].heap],
+  ['missing live backing sample', r => delete r.cases[0].cycles[0].liveMemory[1].heap.backingStorageSize],
+  ['reversed live clock', r => r.cases[0].cycles[0].liveMemory[1].at = 0],
+  ['unobserved mounted DOM', r => r.cases[0].cycles[0].liveMemory[1].nodes = r.cases[0].cycles[0].liveMemory[0].nodes],
+  ['uncollected retained sample', r => r.cases[0].cycles[0].memory.collected = false],
+  ['post-cycle clock overlap', r => r.cases[0].cycles[0].memory.at = 0],
+  ['missing high-water summary', r => delete r.cases[0].cycles[0].sampledHighWater],
+  ['underreported heap high-water', r => r.cases[0].cycles[0].sampledHighWater.jsHeapUsedBytes--],
+  ['overreported backing high-water', r => r.cases[0].cycles[0].sampledHighWater.backingStorageBytes++],
+  ['missing live method', r => delete r.metadata.liveMemoryMethod],
   ['lost acknowledged source', r => r.cases[0].cycles[0].reopenedPreserved = false], ['late DOM mutation', r => r.cases[0].cycles[0].noLateDOMMutation = false],
   ['lost canceled source', r => r.cases[0].cycles[0].cancellation.source = false], ['missing recovery', r => r.cases[0].cycles[0].destroyRecovery = false],
   ['fake paste target', r => r.cases[0].cycles[0].cancellation.control = 'rejected'], ['late resolver result', r => r.cases[0].cycles[0].cancellation.results++],
@@ -44,7 +57,7 @@ for (const [name, change] of [
   ...['listeners', 'workers', 'observers', 'timers', 'frames'].map(key => [`leaked ${key}`, r => r.cases[0].cycles[0].memory.resources[key]++]),
 ]) test(`lifecycle admission rejects ${name}`, () => { const mutated = structuredClone(record); change(mutated); assert.throws(() => inspectLifecycles(profile, mutated)); });
 test('profile changes cannot shrink replay or invent memory/resource limits', () => {
-  for (const change of [p => p.cycles--, p => p.fixtures.pop(), p => p.idleMs--, p => p.resourceBounds.listeners++, p => p.performanceLimits = { memory: 999 }, p => p.memoryMethod = 'prepared']) { const p = structuredClone(profile); change(p); assert.throws(() => inspectLifecycles(p, record)); }
+  for (const change of [p => p.cycles--, p => p.fixtures.pop(), p => p.idleMs--, p => p.resourceBounds.listeners++, p => p.performanceLimits = { memory: 999 }, p => p.memoryMethod = 'prepared', p => p.liveMemoryPhases.pop(), p => p.liveMemoryMethod = 'peak']) { const p = structuredClone(profile); change(p); assert.throws(() => inspectLifecycles(p, record)); }
 });
 test('mutated source and retained artifact pins fail canonical admission', async () => {
   await assert.rejects(verifyPins(root, { 'benchmarks/resource-probe.mjs': '0'.repeat(64) }));

@@ -23,7 +23,7 @@ const record = { version: 1, qualification: 'unqualified', profileHash: digest(p
   metadata: { startedAt: new Date().toISOString(), command: [process.execPath, ...process.argv.slice(1)],
     revision: spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout.trim(),
     cpu: cpus()[0].model, cores: cpus().length, memoryBytes: totalmem(), hostOS: `${platform()}/${release()}/${arch()}`,
-    provenance: 'headless-browser-on-host', node: process.version, replay: profile.replay, memoryMethod: profile.memoryMethod },
+    provenance: 'headless-browser-on-host', node: process.version, replay: profile.replay, memoryMethod: profile.memoryMethod, liveMemoryMethod: profile.liveMemoryMethod },
   counts: { executed: 0, passed: 0, failed: 0, skipped: profile.fixtures.length * profile.presets.length * profile.requiredObservations.length }, cases: [], sourceInputs: {}, artifacts: {}, errors: [], cleanup: {} };
 const tracked = spawnSync('git', ['ls-files', 'crates', 'packages', 'fixtures/schema-v5', 'Cargo.lock', 'Cargo.toml', 'package-lock.json', 'package.json', 'scripts/build-wasm.mjs'], { encoding: 'utf8' });
 if (tracked.status !== 0) throw Error('Cannot pin source closure');
@@ -73,17 +73,21 @@ try {
         page.on('pageerror', error => item.errors.push(error.message));
         const cdp = await context.newCDPSession(page); await cdp.send('Performance.enable');
         item.probeControl = await page.evaluate(options => window.services.setup(options), { name, preset, frozen, profile });
-        const memory = async () => {
-          await cdp.send('HeapProfiler.collectGarbage');
+        const memory = async (collected = true) => {
+          if (collected) await cdp.send('HeapProfiler.collectGarbage');
           const { metrics } = await cdp.send('Performance.getMetrics');
           const metricsMap = Object.fromEntries(metrics.map(m => [m.name, m.value]));
-          return { at: metricsMap.Timestamp, jsHeapUsedBytes: metricsMap.JSHeapUsedSize, jsHeapTotalBytes: metricsMap.JSHeapTotalSize,
-            ...await cdp.send('Memory.getDOMCounters'), heap: await cdp.send('Runtime.getHeapUsage'), resources: await page.evaluate(() => window.services.resources()) };
+          return { collected, at: metricsMap.Timestamp, jsHeapUsedBytes: metricsMap.JSHeapUsedSize, jsHeapTotalBytes: metricsMap.JSHeapTotalSize,
+            ...await cdp.send('Memory.getDOMCounters'), heap: await cdp.send('Runtime.getHeapUsage') };
         };
+        await page.exposeFunction('lifecycleHeap', () => memory(false));
         item.baseline = await memory();
         for (let i = 0; i < profile.cycles; i++) {
           const raw = await page.evaluate(index => window.services.cycle(index), i);
-          raw.memory = await memory(); item.cycles.push(raw);
+          raw.memory = { ...await memory(), resources: await page.evaluate(() => window.services.resources()) };
+          raw.sampledHighWater = Object.fromEntries(['jsHeapUsedBytes', 'nodes', 'documents', 'jsEventListeners', 'backingStorageBytes'].map(key =>
+            [key, Math.max(...raw.liveMemory.map(m => key === 'backingStorageBytes' ? m.heap.backingStorageSize : m[key]))]));
+          item.cycles.push(raw);
           await writeFile(join(output, 'raw.json'), JSON.stringify(record, null, 2));
         }
         item.memoryStatus = 'inconclusive';

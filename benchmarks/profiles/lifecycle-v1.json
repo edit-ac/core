@@ -33,5 +33,15 @@
     "timers": 0,
     "frames": 0
   },
-  "owningCommand": "node scripts/bench-lifecycle.mjs --seed-directory <retained-owning-directory> --output <unique-directory>"
+  "owningCommand": "node scripts/bench-lifecycle.mjs --seed-directory <retained-owning-directory> --output <unique-directory>",
+  "liveMemoryMethod": "CDP phase snapshots without explicit GC; sampled JS heap/backing-storage/DOM high-water only, not process/native or true peak",
+  "liveMemoryPhases": [
+    "before-mount",
+    "mounted",
+    "active-transfer",
+    "feature-unloaded",
+    "disposed",
+    "reopened",
+    "drained"
+  ]
 }

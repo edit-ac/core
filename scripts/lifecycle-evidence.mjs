@@ -2,6 +2,24 @@ const require = (ok, message) => { if (!ok) throw Error(message); };
 const finite = value => Number.isFinite(value) && value >= 0;
 const pin = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
 const bounds = { listeners: 0, observers: 0, workers: 0, timers: 0, frames: 0 };
+const livePhases = ['before-mount', 'mounted', 'active-transfer', 'feature-unloaded', 'disposed', 'reopened', 'drained'];
+const liveMethod = 'CDP phase snapshots without explicit GC; sampled JS heap/backing-storage/DOM high-water only, not process/native or true peak';
+function heapSample(m) {
+  require(m && ['jsHeapUsedBytes', 'jsHeapTotalBytes', 'nodes', 'documents', 'jsEventListeners', 'at'].every(key => finite(m[key])) && m.jsHeapUsedBytes > 0 && m.jsHeapTotalBytes >= m.jsHeapUsedBytes && m.nodes > 0 && m.documents > 0 && finite(m.heap?.usedSize) && m.heap.usedSize > 0 && finite(m.heap.backingStorageSize), 'Missing raw heap/DOM series');
+}
+function liveMemory(cycle) {
+  require(JSON.stringify(cycle.liveMemory?.map(m => m.phase)) === JSON.stringify(livePhases), 'Missing/reordered live memory phases');
+  let previous = -1;
+  for (const m of cycle.liveMemory) {
+    heapSample(m);
+    require(m.collected === false && m.at > previous, 'GC-tainted/reordered live memory clocks'); previous = m.at;
+  }
+  require(cycle.memory.at > previous && cycle.memory.collected === true, 'Missing post-cycle collected boundary');
+  require(cycle.liveMemory[1].nodes > cycle.liveMemory[0].nodes, 'Never observed mounted DOM memory');
+  const keys = ['jsHeapUsedBytes', 'nodes', 'documents', 'jsEventListeners', 'backingStorageBytes'];
+  require(JSON.stringify(Object.keys(cycle.sampledHighWater ?? {}).sort()) === JSON.stringify([...keys].sort()), 'Missing sampled high-water summary');
+  for (const key of keys) require(cycle.sampledHighWater[key] === Math.max(...cycle.liveMemory.map(m => key === 'backingStorageBytes' ? m.heap.backingStorageSize : m[key])), 'Incorrect sampled high-water summary');
+}
 function resources(value) { require(value && Object.keys(bounds).every(key => value[key] === bounds[key]), 'Leaked live resource'); }
 export function inspectLifecycle(profile, item, observation) {
   require(profile.requiredObservations.includes(observation?.kind), 'Unknown lifecycle observation');
@@ -29,7 +47,8 @@ export function inspectLifecycle(profile, item, observation) {
       require(cycle.idle.before.callbacks === cycle.idle.after.callbacks && cycle.idle.before.schedules === cycle.idle.after.schedules, 'Scheduling/callbacks after disposal');
     } else if (observation.kind === 'memory-plateau') {
       require(item.memoryStatus === 'inconclusive', 'Unreviewed memory qualified');
-      for (const m of [item.baseline, cycle.memory]) require(m && m.jsHeapUsedBytes > 0 && m.jsHeapTotalBytes >= m.jsHeapUsedBytes && m.nodes > 0 && m.documents > 0 && finite(m.jsEventListeners) && finite(m.at) && m.heap?.usedSize > 0 && finite(m.heap.backingStorageSize), 'Missing raw heap/DOM series');
+      for (const m of [item.baseline, cycle.memory]) { heapSample(m); require(m.collected === true, 'Missing collected memory boundary'); }
+      liveMemory(cycle);
     }
   }
   return { fixture: item.fixture, preset: item.preset, kind: observation.kind, status: observation.kind === 'memory-plateau' ? 'inconclusive' : 'observed' };
@@ -38,8 +57,10 @@ export function inspectLifecycles(profile, record) {
   require(profile?.version === 1 && profile.id === 'lifecycle-v1' && profile.cycles === 12 && profile.idleMs === 200 && profile.performanceLimits === null && JSON.stringify(profile.resourceBounds) === JSON.stringify(bounds), 'Unreviewed lifecycle policy drift');
   require(JSON.stringify(profile.fixtures) === '["Task","Long"]' && JSON.stringify(profile.presets) === '["baseline","task"]' && JSON.stringify(profile.requiredObservations) === '["disposal","canceled-transfer","unload","memory-plateau","resources","idle"]', 'Lifecycle matrix drift');
   require(profile.replay === 'positive-paste-undo/cancel-paste/unload-resolver/destroy/late-complete/reopen/destroy/delete-v1' && profile.memoryMethod === 'CDP HeapProfiler.collectGarbage then Performance.getMetrics, Runtime.getHeapUsage and Memory.getDOMCounters; post-disposal; no process/native peak claim', 'Replay/memory method drift');
+  require(profile.liveMemoryMethod === liveMethod && JSON.stringify(profile.liveMemoryPhases) === JSON.stringify(livePhases), 'Live memory method/phase drift');
   require(record?.version === 1 && record.qualification === 'unqualified' && record.metadata?.cpu && record.metadata.memoryBytes > 0 && record.metadata.browser && record.metadata.hostOS && record.metadata.provenance === 'headless-browser-on-host', 'Missing hardware/runtime provenance');
   require(Date.parse(record.metadata.startedAt) > Date.parse(profile.reviewedAt) && record.metadata.replay === profile.replay && record.metadata.memoryMethod === profile.memoryMethod, 'Missing preregistration/runtime method');
+  require(record.metadata.liveMemoryMethod === profile.liveMemoryMethod, 'Missing live memory method');
   require(record.counts?.executed === 24 && record.counts.passed === 24 && record.counts.failed === 0 && record.counts.skipped === 0 && record.cases?.length === 4 && record.errors?.length === 0, 'Incomplete lifecycle matrix');
   require(record.cleanup?.browserExited && record.cleanup.serverClosed && record.cleanup.temporaryRemoved, 'Leaked harness process');
   const keys = new Set(), summaries = [];
@@ -49,5 +70,5 @@ export function inspectLifecycles(profile, record) {
     require(pin(item.fixtureHash) && pin(item.checkpointHash) && item.observations?.length === 6 && new Set(item.observations.map(o => o.kind)).size === 6, 'Missing identity/observation');
     for (const observation of item.observations) summaries.push(inspectLifecycle(profile, item, observation));
   }
-  return { status: 'diagnostic', qualification: 'unqualified', summaries, gaps: ['Memory plateau limits unreviewed; GC-assisted JS heap/DOM only', 'Native/process/decoder peak memory and optional runtime not observed', 'Other PRF/accessibility/platform criteria remain open'] };
+  return { status: 'diagnostic', qualification: 'unqualified', summaries, gaps: ['Memory plateau limits unreviewed; collected retention and non-GC phase snapshots only', 'Sampled high-water is not a true peak; native/process/decoder memory and optional runtime not observed', 'Other PRF/accessibility/platform criteria remain open'] };
 }
