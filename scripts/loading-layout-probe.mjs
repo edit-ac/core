@@ -1,3 +1,4 @@
+import { captureAXOwners } from './loading-ax-coverage.mjs';
 import { fixture } from '../benchmarks/fixtures.mjs';
 
 export function layoutProbeCss(mode) {
@@ -6,16 +7,23 @@ export function layoutProbeCss(mode) {
 }
 
 // Runs inside the browser AFTER accepted-edit timing. Never shipped in the SDK.
-export function installLayoutProbe({ enabled }) {
+export function installLayoutProbe({ enabled, stages = false }) {
   if (!enabled) return;
+  window.__loadingAXStages = [];
+  window.__loadingAXStage = async (editor, stage) => {
+    if (!stages) return;
+    const owners = editor.read().visible.filter(n => n.kind === 'block').map(n => ({ id: n.id }));
+    const coverage = await window.__loadingLayoutAction('ax-owners', { owners });
+    window.__loadingAXStages.push({ stage, ...coverage });
+  };
   window.__loadingLayoutProbe = async ({ editor, name }) => {
     const root = document.querySelector('#editor');
     const snapshot = editor.read();
     const blocks = snapshot.visible.filter(n => n.kind === 'block');
-    const result = { version: 1, scope: 'post-measurement Chromium diagnostic, not screen-reader qualification', cases: [] };
+    const result = { version: 1, scope: 'post-measurement Chromium diagnostic, not screen-reader qualification', cases: [], axStages: window.__loadingAXStages };
     const test = async (name, run) => {
       try { const observations = await run(); result.cases.push({ name, status: 'passed', observations }); }
-      catch (error) { result.cases.push({ name, status: 'failed', error: String(error.message) }); }
+      catch (error) { result.cases.push({ name, status: 'failed', error: String(error.message), ...(error.observations ? { observations: error.observations } : {}) }); }
     };
     const check = (condition, message) => { if (!condition) throw Error(message); };
     const normalize = text => text.replace(/\s+/gu, ' ').trim();
@@ -83,6 +91,7 @@ export function installLayoutProbe({ enabled }) {
     await test('offscreen-public-edit-restore', async () => {
       root.scrollTop = 0; const offset = lastText.search(/[A-Za-z]/), alternate = lastText[offset] === 'z' ? 'q' : 'z';
       check(offset >= 0, 'No offscreen edit target');
+      await window.__loadingAXStage(editor, 'before-offscreen-edit');
       for (const value of [alternate, lastText[offset]]) {
         const at = editor.anchor(last.id, offset, 'right'), end = editor.anchor(last.id, offset + 1, 'left');
         try {
@@ -90,10 +99,11 @@ export function installLayoutProbe({ enabled }) {
           if (outcome.caret) editor.releaseAnchor(outcome.caret);
           check(editor.read().visible.find(n => n.id === last.id).runs.map(r => r.text).join('') === lastText.slice(0, offset) + value + lastText.slice(offset + 1), 'Offscreen command mismatch');
         } finally { editor.releaseAnchor(at); editor.releaseAnchor(end); }
+        await window.__loadingAXStage(editor, value === alternate ? 'after-offscreen-edit' : 'after-offscreen-restore');
       }
       return { changedAndRestored: true };
     });
-    await test('accessibility-full-text-and-focus-action', async () => window.__loadingLayoutAction('accessibility', { name, targetId: last.id }));
+    await test('accessibility-full-text-and-focus-action', async () => window.__loadingLayoutAction('accessibility', { name, targetId: last.id, owners: blocks.map(n => ({ id: n.id })) }));
     getSelection().removeAllRanges(); root.scrollTop = 0;
     return result;
   };
@@ -101,9 +111,11 @@ export function installLayoutProbe({ enabled }) {
 
 export async function runLayoutAction(page, cdp, action, data) {
   if (action === 'arrow-left') { await page.keyboard.press('ArrowLeft'); return; }
+  if (action === 'ax-owners') return captureAXOwners(cdp, data.owners);
   if (action !== 'accessibility') throw Error('Unknown layout action');
   await cdp.send('Accessibility.enable');
   const { nodes } = await cdp.send('Accessibility.getFullAXTree');
+  const owners = data.owners ? await captureAXOwners(cdp, data.owners, nodes) : undefined;
   const editable = nodes.find(n => !n.ignored && n.role?.value === 'textbox' && n.properties?.some(p => p.name === 'editable' && p.value.value));
   const visited = new Set(), byId = new Map(nodes.map(n => [n.nodeId, n])), actual = [];
   // Protocol inventory order is not reading order (nested lists and refreshed
@@ -121,7 +133,8 @@ export async function runLayoutAction(page, cdp, action, data) {
   if (actualText !== expectedText) {
     const a = [...actualText], e = [...expectedText];
     const at = a.findIndex((c, i) => c !== e[i]);
-    throw Error(`Accessibility text coverage differs: ${actual.length}/${expected.length}; units=${actualText.length}/${expectedText.length}; firstDifferentCodePoint=${at}`);
+    const error = Error(`Accessibility text coverage differs: ${actual.length}/${expected.length}; units=${actualText.length}/${expectedText.length}; firstDifferentCodePoint=${at}`);
+    error.observations = owners; throw error;
   }
   // Browser focus and keyboard action through a real AX-exposed editable root.
   if (!editable?.backendDOMNodeId) throw Error('No actionable editable AX node');
@@ -129,5 +142,5 @@ export async function runLayoutAction(page, cdp, action, data) {
   await page.keyboard.press('End');
   const focused = await page.evaluate(() => document.activeElement?.id === 'editor' && !!getSelection()?.rangeCount);
   if (!focused) throw Error('AX editable focus/keyboard action failed');
-  return { textNodes: actual.length, expectedBlocks: expected.length, exactText: true, focusAndKeyboard: true, screenReaderQualified: false };
+  return { textNodes: actual.length, expectedBlocks: expected.length, exactText: true, focusAndKeyboard: true, screenReaderQualified: false, ...(owners ? { owners } : {}) };
 }

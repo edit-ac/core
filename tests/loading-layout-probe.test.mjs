@@ -42,11 +42,15 @@ test('AX oracle excludes unrelated status/control text outside the editor subtre
 });
 
 test('retained CSS experiment artifacts prevent metadata/behavior laundering', () => {
-  for (const path of ['experiment.css', 'layout-probe-source.mjs'])
+  for (const path of ['experiment.css', 'layout-probe-source.mjs', 'ax-coverage-source.mjs'])
     assert.throws(() => inspectLoadings({}, { artifacts: { [path]: 'hash' } }), /Experimental layout/);
 });
 
 test('AX oracle follows logical child order rather than protocol inventory order', async () => {
   const observation = await runLayoutAction(page, fake([...nodes().reverse(), editable]), 'accessibility', { name: 'Task' });
   assert.equal(observation.exactText, true);
+});
+
+test('staged AX metadata cannot enter canonical admission after removing the layout label', () => {
+  assert.throws(() => inspectLoadings({}, { metadata: { axStageProbes: true } }), /Experimental layout/);
 });

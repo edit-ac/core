@@ -1,6 +1,7 @@
 //! Shared v4 primitives. Higher-level list/block/move/history policies have
 //! separate acceptance gates; all plans here stage the entire batch first.
 use super::text::{TextError, TextOrigin};
+use crate::anchors::{Anchor, Selection};
 use crate::{
     document::{Document, DocumentError, DocumentIdentity, MAX_RESTORE_BYTES, ReplayUpdate},
     editor_mapping as m,
@@ -1300,20 +1301,35 @@ impl Document {
                     to,
                     text,
                 } => {
-                    let d = self.virtual_document(&stage)?;
-                    let selection = d
-                        .selection(
-                            (owner, *from, crate::anchors::Bias::Right),
-                            (owner, *to, crate::anchors::Bias::Left),
-                        )
-                        .map_err(|_| EditorError::InvalidCommand)?;
-                    let plan = d
-                        .prepare_text(
+                    // Capture offsets against the same disposable stage used by
+                    // the remaining batch. A restored Document would serialize,
+                    // replay and validate the whole replica before final admission.
+                    let selection = Selection {
+                        anchor: self.editor_stage_anchor(
+                            &stage,
+                            &text_projection,
+                            owner,
+                            *from,
+                            crate::anchors::Bias::Right,
+                        )?,
+                        focus: self.editor_stage_anchor(
+                            &stage,
+                            &text_projection,
+                            owner,
+                            *to,
+                            crate::anchors::Bias::Left,
+                        )?,
+                    };
+                    let plan = self
+                        .prepare_text_on_editor_stage(
                             &super::text::TextCommand::Replace {
                                 selection,
                                 text: text.clone(),
                             },
                             origin,
+                            m::bytes(&stage).len(),
+                            &stage,
+                            &text_projection,
                         )
                         .map_err(EditorError::Text)?;
                     super::text::apply_prepared_to_stage(&stage, plan);
@@ -1362,25 +1378,35 @@ impl Document {
                     );
                 }
                 EditorCommand::ResultCaretAt(point) => {
-                    let d = self.virtual_document(&stage)?;
-                    result_caret = Some(
-                        d.anchor(&point.owner, point.offset, point.bias)
-                            .map_err(|_| EditorError::InvalidCommand)?,
-                    );
+                    result_caret = Some(self.editor_stage_anchor(
+                        &stage,
+                        &text_projection,
+                        &point.owner,
+                        point.offset,
+                        point.bias,
+                    )?);
                     result_owner = Some(point.owner.clone());
                 }
                 EditorCommand::SelectionAt { anchor, focus } => {
                     if !pending.is_empty() {
                         return Err(EditorError::InvalidCommand);
                     }
-                    let d = self.virtual_document(&stage)?;
-                    result_selection = Some(
-                        d.selection(
-                            (&anchor.owner, anchor.offset, anchor.bias),
-                            (&focus.owner, focus.offset, focus.bias),
-                        )
-                        .map_err(|_| EditorError::InvalidCommand)?,
-                    );
+                    result_selection = Some(Selection {
+                        anchor: self.editor_stage_anchor(
+                            &stage,
+                            &text_projection,
+                            &anchor.owner,
+                            anchor.offset,
+                            anchor.bias,
+                        )?,
+                        focus: self.editor_stage_anchor(
+                            &stage,
+                            &text_projection,
+                            &focus.owner,
+                            focus.offset,
+                            focus.bias,
+                        )?,
+                    });
                 }
                 EditorCommand::Move(command) => {
                     let step = super::r#move::expand(&stage, stable, command)?;
@@ -1986,11 +2012,11 @@ impl Document {
         let _phase = crate::fitness::Span::new("engine.editor.validation");
         #[cfg(feature = "fitness-trace")]
         let _validation_phase = crate::fitness::Span::new("engine.editor.validation.projection");
-        // Projection performs the same qualified ownership replay and validates
-        // the final stage. A separate view immediately before it duplicates that
-        // replay without observing any intervening mutation.
-        let final_projection =
-            crate::projection::ProjectionIndex::with_identity(&stage, self.identity());
+        // Reuse the stage-owned index. It observes every text/structural mutation,
+        // including delete-only changes, and consumes only disposable-stage
+        // deltas. General ownership still uses its qualified complete replay. Final read still admits the complete resulting hierarchy;
+        // immutable structure and selections retain their independent checks.
+        let final_projection = text_projection;
         let hierarchy = final_projection
             .read()
             .map_err(|_| EditorError::InvalidCommand)?;
@@ -2061,6 +2087,28 @@ impl Document {
             result_selection,
             entry_selection,
         })
+    }
+    /// Only disposable-stage reads may consume their projection deltas. Every
+    /// observed write invalidates this index, even when its state vector is
+    /// unchanged by a delete. The live Document index remains untouched.
+    fn editor_stage_anchor(
+        &self,
+        stage: &yrs::Doc,
+        projection: &crate::projection::ProjectionIndex,
+        owner: &str,
+        offset: crate::Utf16Offset,
+        bias: crate::anchors::Bias,
+    ) -> Result<Anchor, EditorError> {
+        let snapshot = projection.read().map_err(|_| EditorError::InvalidCommand)?;
+        crate::anchors::capture(
+            &stage.transact(),
+            self.identity(),
+            &snapshot,
+            owner,
+            offset,
+            bias,
+        )
+        .map_err(|_| EditorError::InvalidCommand)
     }
     fn virtual_document(&self, stage: &yrs::Doc) -> Result<Document, EditorError> {
         Document::restore(
@@ -2178,6 +2226,12 @@ mod transaction_tests {
             let id = d.snapshot().unwrap().visible[0].id.clone();
             let a = d.anchor(&id, Utf16Offset(1), Bias::Right).unwrap();
             let b = d.anchor(&id, Utf16Offset(3), Bias::Left).unwrap();
+            let tail = d
+                .selection(
+                    (&id, Utf16Offset(5), Bias::Right),
+                    (&id, Utf16Offset(6), Bias::Left),
+                )
+                .unwrap();
             let commands = [
                 TextCommand::Delete {
                     selection: Selection {
@@ -2193,6 +2247,9 @@ mod transaction_tests {
                     at: a,
                     text: "é".into(),
                 },
+                // A final delete has no new Yrs state-vector clock. The reused
+                // projection must still invalidate its already consumed cache.
+                TextCommand::Delete { selection: tail },
             ];
             let origin = TextOrigin::new("staged-text-equivalence").unwrap();
             let checkpoint = d.checkpoint();
@@ -2239,7 +2296,7 @@ mod transaction_tests {
                 .iter()
                 .map(|r| r.text.as_str())
                 .collect();
-            assert_eq!(text, "Aé界e\u{301}Z");
+            assert_eq!(text, "Aé界e\u{301}");
             d.undo().unwrap();
             let text: String = d.snapshot().unwrap().visible[0]
                 .runs
@@ -2247,6 +2304,146 @@ mod transaction_tests {
                 .map(|r| r.text.as_str())
                 .collect();
             assert_eq!(text, "A😀e\u{301}Z");
+        }
+    }
+    #[test]
+    fn offset_commands_and_final_selection_share_current_stage_after_delete_only() {
+        use crate::{
+            Utf16Offset as U,
+            anchors::{Bias, Resolution},
+            history::HistoryConfig,
+        };
+        for stable in [false, true] {
+            let identity = if stable {
+                DocumentIdentity::v5(
+                    "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa81",
+                    "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb81",
+                )
+            } else {
+                DocumentIdentity::v4(
+                    "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa80",
+                    "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb80",
+                )
+            }
+            .unwrap();
+            let mut d = Document::create(
+                CreationPermit::authorize_new(identity).unwrap(),
+                &[InitialNode {
+                    kind: "block".into(),
+                    text: "A😀e\u{301}Z".into(),
+                }],
+            )
+            .unwrap();
+            let id = d.snapshot().unwrap().visible[0].id.clone();
+            let origin = TextOrigin::new("stage-offset-equivalence").unwrap();
+            let before = d.checkpoint();
+            let legacy = m::replica(d.writer_id() as u64);
+            m::apply(&legacy, &before.bytes).unwrap();
+            let sv = legacy.transact().state_vector();
+            let mut commands = Vec::new();
+            for (from, to, text) in [(1, 3, "界"), (4, 5, "")] {
+                // Independent old path: restore/admit each complete intermediate
+                // replica, capture public offsets, prepare and apply its text plan.
+                let restored = d.virtual_document(&legacy).unwrap();
+                let selection = restored
+                    .selection((&id, U(from), Bias::Right), (&id, U(to), Bias::Left))
+                    .unwrap();
+                let plan = restored
+                    .prepare_text(
+                        &super::super::text::TextCommand::Replace {
+                            selection,
+                            text: text.into(),
+                        },
+                        &origin,
+                    )
+                    .unwrap();
+                super::super::text::apply_prepared_to_stage(&legacy, plan);
+                commands.push(EditorCommand::ReplaceAt {
+                    owner: id.clone(),
+                    from: U(from),
+                    to: U(to),
+                    text: text.into(),
+                });
+                // Consume the stage between the insertion and deletion. Its next
+                // read must observe a deletion with no state-vector increment.
+                commands.push(EditorCommand::ResultCaretAt(EditorPosition {
+                    owner: id.clone(),
+                    offset: U(4),
+                    bias: Bias::Right,
+                }));
+            }
+            commands.push(EditorCommand::SelectionAt {
+                anchor: EditorPosition {
+                    owner: id.clone(),
+                    offset: U(4),
+                    bias: Bias::Left,
+                },
+                focus: EditorPosition {
+                    owner: id.clone(),
+                    offset: U(1),
+                    bias: Bias::Right,
+                },
+            });
+            let plan = d.prepare_editor(&commands, &origin).unwrap();
+            assert_eq!(
+                plan.update,
+                legacy.transact().encode_state_as_update_v1(&sv)
+            );
+            assert_eq!(
+                d.checkpoint().bytes,
+                before.bytes,
+                "preparation must be silent"
+            );
+            let mut invalid = commands.clone();
+            if let Some(EditorCommand::SelectionAt { anchor, .. }) = invalid.last_mut() {
+                anchor.offset = U(5);
+            }
+            assert!(
+                d.prepare_editor(&invalid, &origin).is_err(),
+                "deleted endpoint cannot use a stale projection"
+            );
+            assert_eq!(d.checkpoint().bytes, before.bytes);
+            let mut surrogate = commands.clone();
+            surrogate[0] = EditorCommand::ReplaceAt {
+                owner: id.clone(),
+                from: U(2),
+                to: U(3),
+                text: "x".into(),
+            };
+            assert!(d.prepare_editor(&surrogate, &origin).is_err());
+            assert_eq!(d.checkpoint().bytes, before.bytes);
+            d.enable_history(HistoryConfig::default()).unwrap();
+            let stale = d.prepare_editor(&commands, &origin).unwrap();
+            let committed = d.commit_editor(plan).unwrap();
+            assert!(matches!(
+                d.commit_editor(stale),
+                Err(EditorError::Text(TextError::StalePlan))
+            ));
+            let selection = committed.result_selection.unwrap();
+            for (endpoint, offset, bias) in [
+                (&selection.anchor, 4, Bias::Left),
+                (&selection.focus, 1, Bias::Right),
+            ] {
+                let Resolution::Position(position) = d.resolve_anchor(endpoint).unwrap() else {
+                    panic!("final endpoint missing")
+                };
+                assert_eq!(
+                    (position.node, position.offset, endpoint.bias()),
+                    (id.clone(), U(offset), bias)
+                );
+            }
+            let text = |d: &Document| {
+                d.snapshot().unwrap().visible[0]
+                    .runs
+                    .iter()
+                    .map(|r| r.text.as_str())
+                    .collect::<String>()
+            };
+            assert_eq!(text(&d), "A界e\u{301}");
+            d.undo().unwrap();
+            assert_eq!(text(&d), "A😀e\u{301}Z");
+            d.redo().unwrap();
+            assert_eq!(text(&d), "A界e\u{301}");
         }
     }
     #[test]

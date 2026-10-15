@@ -30,7 +30,7 @@ const record = { version: 1, qualification: 'unqualified', profileHash: digest(p
   startedAt: new Date().toISOString(), command: [process.execPath, ...process.argv.slice(1)], revision: spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout.trim(),
   cpu: cpus()[0].model, cores: cpus().length, memoryBytes: totalmem(), hostOS: `${platform()}/${release()}/${arch()}`, provenance: 'headless-browser-on-host', node: process.version,
   commandAttribution: commandTrace ? 'packed-observer-exports-v1' : 'none', engineAttribution: engineTrace ? 'fitness-preparation-v1' : 'none',
-  ...(layoutProbe ? { layoutProbe: `experimental-${layoutProbe}-v1`, accessibilityMode: 'cdp-enabled-before-navigation' } : {}),
+  ...(layoutProbe ? { layoutProbe: `experimental-${layoutProbe}-v1`, accessibilityMode: 'cdp-enabled-before-navigation-owner-stages-v2', axStageProbes: process.env.EDITAC_LOADING_AX_STAGES === '1' } : {}),
   renderAttribution: renderTrace ? 'cdp-rendering-v1' : 'none',
   phaseAttribution: profile.phaseAttribution, phaseScope: profile.phaseScope, replay: profile.replay, cacheScope: profile.cacheScope, timingScope: profile.timingScope, coverageMethod: profile.coverageMethod, warmupPolicy: profile.warmupPolicy, sampleOrder: profile.sampleOrder },
   counts: { executed: 0, passed: 0, failed: 0, skipped: 24 }, cases: [], sourceInputs: {}, artifacts: {}, errors: [], cleanup: {} };
@@ -40,7 +40,7 @@ let browser, controller, server;
 const stop = () => { void browser?.close(); }; process.once('SIGINT', stop); process.once('SIGTERM', stop);
 async function retain(path, bytes) { await mkdir(join(output, path, '..'), { recursive: true }); await writeFile(join(output, path), bytes); record.artifacts[path] = digest(bytes); }
 try {
-  if (layoutProbe) { await retain('experiment.css', probeCss); await retain('layout-probe-source.mjs', await readFile('scripts/loading-layout-probe.mjs')); }
+  if (layoutProbe) { await retain('ax-coverage-source.mjs', await readFile('scripts/loading-ax-coverage.mjs')); await retain('experiment.css', probeCss); await retain('layout-probe-source.mjs', await readFile('scripts/loading-layout-probe.mjs')); }
   const packed = spawnSync(process.execPath, ['scripts/check-browser-size.mjs'], { encoding: 'utf8', timeout: 180000, maxBuffer: 4 * 1024 * 1024, env: { ...process.env, EDITAC_BROWSER_SIZE_OUTPUT: join(output, 'packed') } });
   await retain('packed.log', (packed.stdout || '') + (packed.stderr || ''));
   if (packed.status !== 0 || packed.error) throw Error(`Packed measurement failed: ${packed.status} ${packed.error || ''}`);
@@ -96,7 +96,7 @@ try {
           await cdp.send('Accessibility.enable');
           await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin });
           await page.exposeBinding('__loadingLayoutAction', (_, action, data) => runLayoutAction(page, cdp, action, data));
-          await page.addInitScript(installLayoutProbe, { enabled: index === 0 });
+          await page.addInitScript(installLayoutProbe, { enabled: index === 0, stages: process.env.EDITAC_LOADING_AX_STAGES === '1' });
         }
         await cdp.send('Network.enable'); await cdp.send('Profiler.enable');
         if (renderTrace) await cdp.send('Performance.enable');

@@ -10,7 +10,7 @@ const tracked = spawnSync('git', ['ls-files', 'crates', 'packages', 'Cargo.toml'
 if (tracked.status !== 0) throw Error('Cannot inventory runtime closure');
 export const loadingInputs = [...new Set([...tracked.stdout.trim().split('\n'),
   'crates/editac-core/src/fitness.rs', 'scripts/build-wasm.mjs', 'benchmarks/config.json', 'benchmarks/presets.mjs', 'benchmarks/profiles/loading-v1.json', 'benchmarks/loading-client.mjs', 'benchmarks/loading-command-attribution.mjs', 'benchmarks/fixtures.mjs',
-  'scripts/loading-layout-probe.mjs', 'scripts/loading-render-attribution.mjs', 'scripts/startup-instrumentation.mjs', 'benchmarks/loading-startup-attribution.mjs', 'scripts/loading-evidence.mjs', 'scripts/bench-loading.mjs', 'scripts/check-browser-size.mjs', 'scripts/consumers-loading.mjs', 'scripts/browser-size-contract.mjs', 'scripts/minify-task.mjs', 'scripts/architecture-budgets.mjs', 'scripts/test-toolchain.mjs', 'scripts/fitness-instrumentation.mjs', 'benchmarks/attribution.mjs', '.node-version', 'examples/task-editor/index.html'])];
+  'scripts/loading-ax-coverage.mjs', 'scripts/loading-layout-probe.mjs', 'scripts/loading-render-attribution.mjs', 'scripts/startup-instrumentation.mjs', 'benchmarks/loading-startup-attribution.mjs', 'scripts/loading-evidence.mjs', 'scripts/bench-loading.mjs', 'scripts/check-browser-size.mjs', 'scripts/consumers-loading.mjs', 'scripts/browser-size-contract.mjs', 'scripts/minify-task.mjs', 'scripts/architecture-budgets.mjs', 'scripts/test-toolchain.mjs', 'scripts/fitness-instrumentation.mjs', 'benchmarks/attribution.mjs', '.node-version', 'examples/task-editor/index.html'])];
 const finite = v => Number.isFinite(v) && v >= 0;
 const phaseNames = ['module','wasmInit','editorCreate','editorReady','firstFrame','initialRead','initialProjection','initialHash','expectedFixture','expectedHash','targetRead','targetSelect','editAnchors','editCommand','editRelease','editVerify','restoreAnchors','restoreCommand','restoreRelease','finalRead','finalProjection','finalHash','flush'];
 const coldPhases = ['checkpointFetch','checkpointDecode','checkpointOpen','checkpointPublish','checkpointClose'];
@@ -88,7 +88,7 @@ export function inspectLoading(profile, record, item, kind) {
   return { fixture: item.fixture, preset: item.preset, kind, status: 'observed' };
 }
 export function inspectLoadings(profile, record) {
-  check(!record.artifacts?.['experiment.css'] && !record.artifacts?.['layout-probe-source.mjs'] && !record.metadata?.layoutProbe && !record.cases?.some(i => i.pairs?.some(p => p.cold?.layoutProbe || p.warm?.layoutProbe)), 'Experimental layout cannot enter canonical loading evidence');
+  check(!record.artifacts?.['ax-coverage-source.mjs'] && !record.metadata?.axStageProbes && !record.artifacts?.['experiment.css'] && !record.artifacts?.['layout-probe-source.mjs'] && !record.metadata?.layoutProbe && !record.cases?.some(i => i.pairs?.some(p => p.cold?.layoutProbe || p.warm?.layoutProbe)), 'Experimental layout cannot enter canonical loading evidence');
   check(record.metadata && ['cpu','cores','memoryBytes','hostOS','provenance','node','browser','replay','cacheScope','timingScope','coverageMethod','warmupPolicy','sampleOrder','phaseAttribution','phaseScope'].every(k => record.metadata[k]), 'Missing runtime/hardware/sampling identities');
   check(Date.parse(record.metadata.startedAt) > Date.parse(profile.reviewedAt), 'Post-hoc profile');
   check(record.metadata.phaseAttribution === profile.phaseAttribution && record.metadata.phaseScope === profile.phaseScope, 'Incomparable phase attribution');

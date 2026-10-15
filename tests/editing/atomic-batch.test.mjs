@@ -67,3 +67,28 @@ test('stale plan cannot add phantom marks, updates or result handles', () => {
 test('bounded batch and invalid mark schema reject without a live prefix', () => {
   const f = fixture(); try { reject(f, Array.from({ length: 129 }, () => f.commands[0])); const bad = structuredClone(f.commands); bad[1].mark = 'unsupported'; reject(f, bad); } finally { f.engine.dispose(); }
 });
+test('delete-only offset steps invalidate the shared stage before final backward selection', () => {
+  const f = fixture('A😀e\u0301Z');
+  try {
+    const at = (offset, bias) => ({ owner: f.id, offset, bias });
+    const commands = [
+      { type: 'replaceAt', owner: f.id, from: 1, to: 3, text: '界' },
+      { type: 'replaceAt', owner: f.id, from: 4, to: 5, text: '' },
+      { type: 'selectionAt', anchor: at(4, 'left'), focus: at(1, 'right') },
+    ];
+    const invalid = structuredClone(commands); invalid[2].anchor.offset = 5;
+    reject(f, invalid);
+    const result = f.engine.commit(f.engine.prepare(f.request(commands)));
+    assert.equal(f.engine.read().visible[0].runs.map(r => r.text).join(''), 'A界e\u0301');
+    for (const [token, offset, bias] of [[result.selection.anchor, 4, 'left'], [result.selection.focus, 1, 'right']]) {
+      const p = f.engine.resolve(token); assert.equal(p.type, 'position');
+      assert.equal(p.node, f.id); assert.equal(p.offset, offset); assert.equal(p.bias, bias);
+    }
+    f.engine.history({ type: 'undo' });
+    assert.equal(f.engine.read().visible[0].runs.map(r => r.text).join(''), 'A😀e\u0301Z');
+    f.engine.history({ type: 'redo' });
+    assert.equal(f.engine.read().visible[0].runs.map(r => r.text).join(''), 'A界e\u0301');
+    release(f.engine, result);
+    facts.tests.push({ id: 'FIT-1.8-I1-B5-stage-offsets', invalidEffects: 0, finalOffsets: [4, 1], deleteOnly: true, undoRedo: true });
+  } finally { f.engine.dispose(); }
+});

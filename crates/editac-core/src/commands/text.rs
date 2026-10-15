@@ -172,7 +172,11 @@ impl Document {
             return Err(TextError::ResourceLimit);
         }
         let snapshot = match editor_stage {
-            Some((_, projection)) => projection.inspect()?,
+            // This index belongs exclusively to the disposable editor stage.
+            // Adopt prior staged changes so the next text operation and final
+            // admission can reuse the admitted cache when no write intervenes.
+            // Public Document inspection remains non-consuming.
+            Some((_, projection)) => projection.read()?,
             None => self.inspect()?,
         };
         let entry_selection = Selection {

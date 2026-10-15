@@ -52,6 +52,7 @@ window.loadingRun = (async () => {
     check(node, 'Missing live edit target');
     const text = node.runs[0].text, offset = text.search(/[A-Za-z]/), alternate = text[offset] === 'z' ? 'q' : 'z';
     phase('targetSelect');
+    await globalThis.__loadingAXStage?.(editor, 'before-first-edit');
     const editStart = performance.now();
     for (const value of [alternate, text[offset]]) {
       const prefix = value === alternate ? 'edit' : 'restore';
@@ -62,8 +63,10 @@ window.loadingRun = (async () => {
       if (value === alternate) {
         samples.acceptedEditMs = phases.at(-1).endMs;
         check(editor.read().visible.find(n => n.id === node.id).runs.map(r => r.text).join('') === text.slice(0, offset) + alternate + text.slice(offset + 1), 'Public edit was not applied'); phase('editVerify');
+        await globalThis.__loadingAXStage?.(editor, 'after-first-edit');
       }
     }
+    await globalThis.__loadingAXStage?.(editor, 'after-first-restore');
     samples.commandRestoreMs = performance.now() - editStart;
     const layoutProbe = await globalThis.__loadingLayoutProbe?.({ editor, name });
     const finalSnapshot = editor.read(); phase('finalRead');
