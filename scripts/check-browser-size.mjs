@@ -1,4 +1,5 @@
 import { minifyTask, taskMinifier } from './minify-task.mjs';
+import { instrumentStartupSource } from './startup-instrumentation.mjs';
 import { instrumentSource } from './fitness-instrumentation.mjs';
 import { build, transform, version as esbuildVersion } from 'esbuild';
 import { spawnSync } from 'node:child_process';
@@ -46,8 +47,10 @@ try {
       "export {LocalStorageLifecycle as diagnosticStorage} from './node_modules/@edit-ac/web/dist/storage/index.js';\n");
     const observed = await build({ absWorkingDir: temp, entryPoints: ['observed.mjs'], bundle: true, write: false, format: 'esm', minify: true, target: 'es2022', metafile: true,
       plugins: [{ name: 'packed-render-observer', setup(build) {
+        build.onLoad({ filter: /node_modules\/@edit-ac\/web\/dist\/storage\/(writer|checkpoint)\.js$/ }, async ({ path }) => ({ contents: instrumentStartupSource(path.endsWith('/writer.js') ? 'writer' : 'checkpoint', await readFile(path, 'utf8')), loader: 'js' }));
+        build.onLoad({ filter: /node_modules\/@edit-ac\/web\/dist\/(editor|entry)\.js$/ }, async ({ path }) => ({ contents: instrumentStartupSource(path.endsWith('/editor.js') ? 'editor' : 'entry', await readFile(path, 'utf8')), loader: 'js' }));
         if (process.env.EDITAC_LOADING_ENGINE_TRACE === '1') build.onResolve({ filter: /editac_(runtime|wasm)\.js$/ }, ({ path }) => ({ path: resolve(root, 'target/fitness-runtime', path.endsWith('editac_runtime.js') ? 'editac_runtime.js' : 'editac_wasm.js') }));
-        build.onLoad({ filter: /node_modules\/@edit-ac\/web\/dist\/dom\/render\.js$/ }, async ({ path }) => ({ contents: instrumentSource('render', await readFile(path, 'utf8')), loader: 'js' }));
+        build.onLoad({ filter: /node_modules\/@edit-ac\/web\/dist\/dom\/render\.js$/ }, async ({ path }) => ({ contents: instrumentSource('render', instrumentStartupSource('render', await readFile(path, 'utf8'))), loader: 'js' }));
       } }] });
     await mkdir(join(output, 'diagnostic'), { recursive: true });
     await writeFile(join(output, 'diagnostic/task.js'), await minifyTask(observed.outputFiles[0].text));

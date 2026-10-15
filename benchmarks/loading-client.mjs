@@ -1,3 +1,4 @@
+import { installStartupAttribution } from '/fixture/harness/loading-startup-attribution.mjs';
 import * as sdk from '@loading/sdk';
 import { installCommandAttribution } from '/fixture/harness/loading-command-attribution.mjs';
 const { createEditor, taskPreset, CheckpointStorage, init } = sdk;
@@ -28,14 +29,17 @@ window.loadingRun = (async () => {
     phase('checkpointClose');
     samples.documentTransferMs = performance.now() - transfer;
   }
+  const startupAttribution = installStartupAttribution(sdk);
+  let startupTrace;
   let editor;
   try {
     const restore = performance.now();
+    startupAttribution?.begin();
     editor = createEditor(document.querySelector('#editor'), { databaseName, identity, indexedDB, locks: navigator.locks,
       assetUrl: '/fixture/assets/wasm/editac_wasm_bg.wasm', ...(preset === 'task' ? taskPreset() : { preset: 'minimal', typingShortcuts: false, plainPasteControl: false, plainTextPolicy: 'literal' }) });
     phase('editorCreate');
-    await editor.ready; samples.restoreMs = performance.now() - restore; samples.readyMs = performance.now(); phase('editorReady');
-    await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); samples.firstFrameMs = performance.now(); phase('firstFrame');
+    await editor.ready; startupAttribution?.mark('editor.ready'); samples.restoreMs = performance.now() - restore; samples.readyMs = performance.now(); phase('editorReady');
+    await new Promise(requestAnimationFrame); startupAttribution?.mark('frame.first'); await new Promise(requestAnimationFrame); startupAttribution?.mark('frame.second'); startupTrace = startupAttribution?.end(); samples.firstFrameMs = performance.now(); phase('firstFrame');
     let initialSnapshot = editor.read(); phase('initialRead');
     let initialSemantics = projectedSemantics(initialSnapshot); phase('initialProjection');
     const initial = await hash(initialSemantics); phase('initialHash'); initialSnapshot = initialSemantics = null;
@@ -64,8 +68,8 @@ window.loadingRun = (async () => {
     const finalSnapshot = editor.read(); phase('finalRead');
     const finalSemantics = projectedSemantics(finalSnapshot); phase('finalProjection');
     const final = await hash(finalSemantics); phase('finalHash'); check(initial === final, 'Public command did not preserve corpus');
-    await editor.flush({ target: 'local' }); phase('flush');
+    await editor.flush({ target: 'local' }); phase('flush'); startupAttribution?.finish();
     const resourceTimings = performance.getEntriesByType('resource').map(e => ({ name: new URL(e.name).pathname, initiatorType: e.initiatorType, startTime: e.startTime, duration: e.duration, transferSize: e.transferSize, encodedBodySize: e.encodedBodySize, decodedBodySize: e.decodedBodySize }));
-    return { samples, phaseAttribution: 'navigation-phases-v1', phases, commands, initialHash: initial, finalHash: final, sourcePreserved: true, persisted: true, resourceTimings };
-  } finally { if (editor) { const closed = await editor.destroy({ policy: 'flush' }); check(closed.unsaved === false, 'Unacknowledged editor disposal'); } }
+    return { samples, ...(startupTrace ? { startupTrace } : {}), phaseAttribution: 'navigation-phases-v1', phases, commands, initialHash: initial, finalHash: final, sourcePreserved: true, persisted: true, resourceTimings };
+  } finally { startupAttribution?.dispose(); if (editor) { const closed = await editor.destroy({ policy: 'flush' }); check(closed.unsaved === false, 'Unacknowledged editor disposal'); } }
 })();

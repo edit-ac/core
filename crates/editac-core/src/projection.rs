@@ -997,6 +997,40 @@ mod immutable_stage_tests {
             _ => unreachable!(),
         }
         let expected = crate::document::validate_immutable_structure(&before, &after, stable);
+        // The public restore boundary must retain the generic validator's
+        // admission for checkpoint + journal, including replaced nested CRDT
+        // sources that happen to contain identical text.
+        let document_id = "a7777777-7777-4777-8777-777777777777";
+        let epoch = "b8888888-8888-4888-8888-888888888888";
+        let identity = if stable {
+            crate::document::DocumentIdentity::v5(document_id, epoch)
+        } else {
+            crate::document::DocumentIdentity::v4(document_id, epoch)
+        }
+        .unwrap();
+        let checkpoint = crate::document::InitializedCheckpoint {
+            identity: identity.clone(),
+            initialized: true,
+            writer_id: 11,
+            bytes: v4::bytes(&before),
+        };
+        let journal = vec![crate::document::ReplayUpdate {
+            identity: identity.clone(),
+            bytes: v4::bytes(&after),
+        }];
+        let checkpoint_before = checkpoint.bytes.clone();
+        let journal_before = journal[0].bytes.clone();
+        let restored = crate::document::Document::restore(&identity, &checkpoint, &journal);
+        assert_eq!(
+            restored.is_ok(),
+            expected.is_ok(),
+            "restore stable={stable}, scenario={scenario}"
+        );
+        if scenario != 0 {
+            assert_eq!(restored.err(), Some(DocumentError::UnsupportedSchema));
+        }
+        assert_eq!(checkpoint.bytes, checkpoint_before);
+        assert_eq!(journal[0].bytes, journal_before);
         let bytes_before = v4::bytes(&before);
         let bytes_after = v4::bytes(&after);
         let result = index.validate_immutable_structure(&before);

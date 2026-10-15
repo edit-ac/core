@@ -49,7 +49,7 @@ try {
     await retain(`diagnostic/${path}`, bytes);
     if (path.endsWith('.wasm')) await writeFile(join(temp, 'assets/wasm', path), bytes);
   }
-  for (const path of ['loading-client.mjs', 'loading-command-attribution.mjs', 'fixtures.mjs']) { const bytes = await readFile(`benchmarks/${path}`); await retain(`harness/${path}`, bytes); await mkdir(join(temp, 'harness'), { recursive: true }); await writeFile(join(temp, 'harness', path), bytes); }
+  for (const path of ['loading-client.mjs', 'loading-command-attribution.mjs', 'loading-startup-attribution.mjs', 'fixtures.mjs']) { const bytes = await readFile(`benchmarks/${path}`); await retain(`harness/${path}`, bytes); await mkdir(join(temp, 'harness'), { recursive: true }); await writeFile(join(temp, 'harness', path), bytes); }
   await mkdir(join(temp, 'corpus'));
   const seedBytes = await readFile(join(seeds, 'results.json'));
   record.seedEvidence = { directory: relative(root, seeds), resultsHash: digest(seedBytes) };

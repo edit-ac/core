@@ -1,3 +1,4 @@
+import { inspectStartup } from '../benchmarks/loading-startup-attribution.mjs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFile } from 'node:fs/promises';
@@ -31,6 +32,7 @@ test('observer derivative admits current packed closure and all 192 real command
     return p;
   });
   assert.deepEqual(diagnosticInputs.sort(), Object.keys(production.inputs).filter(p => p !== 'task.mjs').sort(), 'packed closure differs only by declared fitness WASM glue');
+  assert(!(await readFile(`${index.directory}/packed/artifacts/task.js`, 'utf8')).includes('__editacStartupMark'), 'Startup hooks must remain outside production packages');
   const productionWasm = await readFile(`${index.directory}/packed/artifacts/wasm/editac_wasm_bg.wasm`);
   const imports = bytes => WebAssembly.Module.imports(new WebAssembly.Module(bytes)).map(i => i.name).join(' ');
   assert(!imports(productionWasm).includes('editacFitness'), 'Production WASM must have no benchmark callbacks');
@@ -45,14 +47,22 @@ test('observer derivative admits current packed closure and all 192 real command
   assert.notEqual(record.artifacts['diagnostic/task.js'], record.artifacts['packed/artifacts/task.js']);
   assert.deepEqual(record.consumer, await admitMeasuredConsumer(resolve(index.directory, 'packed')));
   for (const [path, hash] of Object.entries(record.consumer.inputHashes)) if (path !== 'task.mjs') assert.equal(digest(await readFile(path.replace('node_modules/@edit-ac/', 'packages/'))), hash);
-  let windows = 0;
+  let windows = 0, startups = 0, frameRecords = 0;
   for (const item of record.cases) {
     assert.equal(digest(JSON.stringify(item)), record.artifacts[`raw/${item.fixture}-${item.preset}.json`]);
-    for (const pair of item.pairs) for (const mode of ['cold','warm']) for (const command of pair[mode].commands) {
+    for (const pair of item.pairs) for (const mode of ['cold','warm']) {
+      const trace = pair[mode].startupTrace;
+      assert.equal(trace.frameTiming, 'long-animation-frame', 'Target browser frame API unavailable');
+      assert.equal(inspectStartup(trace).length, 24);
+      if (item.fixture === 'Long') assert(trace.frames.some(f => f.styleAndLayoutStart > 0), 'Missing actual Long rendering frame');
+      startups++; frameRecords += trace.frames.length;
+      for (const command of pair[mode].commands) {
       const summary = summarizeCommand(command.trace);
       assert(Math.abs(Object.values(summary.exclusiveMs).reduce((a,b) => a+b) - summary.elapsedMs) < 1e-6);
       windows++;
+      }
     }
   }
   assert.equal(windows, 192);
+  assert.equal(startups, 96); assert(frameRecords > 0);
 });

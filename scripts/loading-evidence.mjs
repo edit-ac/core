@@ -1,14 +1,15 @@
+import { inspectStartup } from '../benchmarks/loading-startup-attribution.mjs';
 import { summarizeCommand } from '../benchmarks/loading-command-attribution.mjs';
 import { spawnSync } from 'node:child_process';
 import { fixture } from '../benchmarks/fixtures.mjs';
 import { presets } from '../benchmarks/presets.mjs';
 import { evaluateBudget, assertBudget } from './browser-size-contract.mjs';
 const check = (ok, message) => { if (!ok) throw Error(message); };
-const tracked = spawnSync('git', ['ls-files', 'crates', 'packages', 'Cargo.toml', 'Cargo.lock', 'package.json', 'package-lock.json'], { encoding: 'utf8' });
+const tracked = spawnSync('git', ['ls-files', 'crates', 'packages', 'Cargo.toml', 'Cargo.lock', 'package.json', 'package-lock.json', 'fixtures/schema-v4/mapping.rs', 'fixtures/schema-v5/mapping.rs'], { encoding: 'utf8' });
 if (tracked.status !== 0) throw Error('Cannot inventory runtime closure');
 export const loadingInputs = [...new Set([...tracked.stdout.trim().split('\n'),
   'crates/editac-core/src/fitness.rs', 'scripts/build-wasm.mjs', 'benchmarks/config.json', 'benchmarks/presets.mjs', 'benchmarks/profiles/loading-v1.json', 'benchmarks/loading-client.mjs', 'benchmarks/loading-command-attribution.mjs', 'benchmarks/fixtures.mjs',
-  'scripts/loading-evidence.mjs', 'scripts/bench-loading.mjs', 'scripts/check-browser-size.mjs', 'scripts/consumers-loading.mjs', 'scripts/browser-size-contract.mjs', 'scripts/minify-task.mjs', 'scripts/architecture-budgets.mjs', 'scripts/test-toolchain.mjs', 'scripts/fitness-instrumentation.mjs', 'benchmarks/attribution.mjs', '.node-version', 'examples/task-editor/index.html'])];
+  'scripts/startup-instrumentation.mjs', 'benchmarks/loading-startup-attribution.mjs', 'scripts/loading-evidence.mjs', 'scripts/bench-loading.mjs', 'scripts/check-browser-size.mjs', 'scripts/consumers-loading.mjs', 'scripts/browser-size-contract.mjs', 'scripts/minify-task.mjs', 'scripts/architecture-budgets.mjs', 'scripts/test-toolchain.mjs', 'scripts/fitness-instrumentation.mjs', 'benchmarks/attribution.mjs', '.node-version', 'examples/task-editor/index.html'])];
 const finite = v => Number.isFinite(v) && v >= 0;
 const phaseNames = ['module','wasmInit','editorCreate','editorReady','firstFrame','initialRead','initialProjection','initialHash','expectedFixture','expectedHash','targetRead','targetSelect','editAnchors','editCommand','editRelease','editVerify','restoreAnchors','restoreCommand','restoreRelease','finalRead','finalProjection','finalHash','flush'];
 const coldPhases = ['checkpointFetch','checkpointDecode','checkpointOpen','checkpointPublish','checkpointClose'];
@@ -43,16 +44,19 @@ export function inspectLoading(profile, record, item, kind) {
   check(traced || record.metadata.commandAttribution === 'none', 'Unknown command attribution');
   check(['none', 'fitness-preparation-v1'].includes(record.metadata.engineAttribution ?? 'none') && (!record.metadata.engineAttribution || record.metadata.engineAttribution === 'none' || traced), 'Unknown internal attribution');
   const modulePath = traced ? '/fixture/diagnostic/task.js' : '/fixture/assets/task.js';
-  const allowed = new Set([modulePath, '/fixture/harness/loading-command-attribution.mjs','/fixture/assets/wasm/editac_wasm_bg.wasm','/fixture/assets/task.js', '/fixture/assets/wasm/editac_wasm.js', '/fixture/harness/loading-client.mjs', '/fixture/harness/fixtures.mjs']);
+  const allowed = new Set([modulePath, '/fixture/harness/loading-command-attribution.mjs','/fixture/harness/loading-startup-attribution.mjs','/fixture/assets/wasm/editac_wasm_bg.wasm','/fixture/assets/task.js', '/fixture/assets/wasm/editac_wasm.js', '/fixture/harness/loading-client.mjs', '/fixture/harness/fixtures.mjs']);
   for (const [index, pair] of item.pairs.entries()) {
     check(pair.index === index && pair.databaseDeleted, 'Missing/reordered replay or leaked database');
     for (const mode of ['cold','warm']) {
       const raw = pair[mode];
       check(raw?.sourcePreserved && raw.persisted && raw.initialHash === raw.finalHash && /^[0-9a-f]{64}$/.test(raw.initialHash), 'Lost source or acknowledgment');
       if (traced) {
+        inspectStartup(raw.startupTrace);
+        check(raw.startupTrace.elapsedMs <= raw.phases.find(p => p.name === 'firstFrame').endMs - raw.phases.find(p => p.name === 'editorCreate').startMs + 1, 'Startup window exceeds navigation phases');
+        for (const [mark, phase] of [['editor.ready','editorReady'], ['frame.second','firstFrame']]) check(Math.abs(raw.startupTrace.startMs + raw.startupTrace.marks.find(m => m.name === mark).elapsedMs - raw.phases.find(p => p.name === phase).endMs) < 1, 'Startup marks disagree with navigation phases');
         check(JSON.stringify(raw.commands?.map(c => c.name)) === '["edit","restore"]', 'Missing command windows');
         for (const c of raw.commands) { check(c.trace.spans.some(s => s.operation === 'engine.prepare') === (record.metadata.engineAttribution === 'fitness-preparation-v1'), 'Missing/mislabeled internal engine attribution'); const summary = summarizeCommand(c.trace); check(summary.elapsedMs <= raw.phases.find(p => p.name === `${c.name}Command`).durationMs + 1, 'Command window exceeds navigation phase'); }
-      } else check(raw.commands?.length === 0, 'Production run contains command hooks');
+      } else { check(raw.commands?.length === 0 && !raw.startupTrace, 'Production run contains diagnostic hooks'); }
       check(pair.cold.initialHash === pair.warm.initialHash, 'Warm persisted source differs');
       if (kind === mode) {
         const s = raw.samples;
@@ -107,6 +111,7 @@ export function summarizeLoading(profile, record) {
         return [mode, { readyMs: ready, firstFrameMs: stats(rows.map(r => r.samples.firstFrameMs)), acceptedEditMs: accepted, preservedTargetMs: limit,
           commandAttribution: record.metadata.commandAttribution,
           commandExclusiveMs: record.metadata.commandAttribution === 'packed-observer-exports-v1' ? Object.fromEntries(Object.keys(summarizeCommand(rows[0].commands[0].trace).exclusiveMs).map(op => [op, stats(rows.map(r => summarizeCommand(r.commands[0].trace).exclusiveMs[op]))])) : null,
+          startupMs: record.metadata.commandAttribution === 'packed-observer-exports-v1' ? Object.fromEntries(inspectStartup(rows[0].startupTrace).map(s => [s.name, stats(rows.map(r => inspectStartup(r.startupTrace).find(v => v.name === s.name).durationMs))])) : null,
           phaseAttribution: profile.phaseAttribution, phases,
           oracleBeforeAcceptedMs: stats(rows.map(r => r.phases?.filter(p => oracleBeforeEdit.includes(p.name)).reduce((total, p) => total + p.durationMs, 0))),
           publicEditMs: stats(rows.map(r => r.phases?.filter(p => ['editAnchors','editCommand','editRelease'].includes(p.name)).reduce((total, p) => total + p.durationMs, 0))),

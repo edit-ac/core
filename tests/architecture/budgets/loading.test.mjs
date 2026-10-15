@@ -24,7 +24,7 @@ test('packed real WASM cold/warm matrix admits exact profile/source/runtime/arti
   const seed = JSON.parse(seedBytes);
   for (const name of profile.fixtures) assert.equal(seed.artifacts[`fixtures/${name}.checkpoint.json`], record.artifacts[`fixtures/${name}.checkpoint.json`]);
   assert.deepEqual(JSON.parse(await read(`${index.directory}/summary.json`)), summarizeLoading(profile, record));
-  for (const name of ['fixtures.mjs','loading-client.mjs','loading-command-attribution.mjs']) assert.equal(digest(await read(`benchmarks/${name}`)), record.artifacts[`harness/${name}`]);
+  for (const name of ['fixtures.mjs','loading-client.mjs','loading-command-attribution.mjs','loading-startup-attribution.mjs']) assert.equal(digest(await read(`benchmarks/${name}`)), record.artifacts[`harness/${name}`]);
   for (const [path, hash] of Object.entries(record.consumer.inputHashes)) if (path !== 'task.mjs') assert.equal(digest(await read(path.replace('node_modules/@edit-ac/', 'packages/'))), hash, `Current packed build differs: ${path}`);
   assert.equal(digest(await read('packages/core/dist/wasm/editac_wasm_bg.wasm')), record.consumer.assets.find(a => a.name === 'wasm/editac_wasm_bg.wasm').sha256);
   assert.deepEqual(record.consumer, await admitMeasuredConsumer(resolve(root, index.directory, 'packed')));

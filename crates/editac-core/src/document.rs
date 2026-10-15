@@ -516,16 +516,22 @@ impl Document {
                 .map_err(|_| DocumentError::InvalidUpdate)?;
             crate::editor::project(&baseline, expected.has_stable_presentation())
                 .map_err(ownership_error)?;
-            validate_immutable_structure(&baseline, &staging, expected.has_stable_presentation())?;
+            // Qualify each replica once. The generic validator would replay
+            // both complete ownership projections again, and the later root
+            // check would replay staging a third time. No writes occur between
+            // qualification and the immutable source-identity comparison.
+            validate_immutable_maps(&baseline, &staging)?;
+            crate::editor::project(&staging, expected.has_stable_presentation())
+                .map_err(ownership_error)?;
+            validate_immutable_projected_structure(&baseline, &staging)?;
         }
         let txn = staging.transact();
         if txn.store().pending_update().is_some() || txn.store().pending_ds().is_some() {
             return Err(DocumentError::IncompleteRestore);
         }
-        if expected.has_structure() {
-            crate::editor::project(&staging, expected.has_stable_presentation())
-                .map_err(ownership_error)?;
-        } else {
+        // Structural ownership was fully qualified above; this read-only
+        // pending-state inspection cannot invalidate that admission.
+        if !expected.has_structure() {
             validate_roots(&txn, expected.has_blocks())?;
         }
         // The v2 profile qualifies the inherited ownership descriptor as well as
@@ -908,8 +914,9 @@ fn validate_immutable_maps(before: &Doc, after: &Doc) -> Result<(), DocumentErro
     Ok(())
 }
 
-/// Only ProjectionIndex calls this after qualifying the current staged replica.
-/// The owning Document has already admitted `before`. Identity comparison needs
+/// Call only after fully qualifying both replicas, with no intervening writes.
+/// Restore qualifies its baseline/staging pair; ProjectionIndex re-reads its
+/// stage against the owning Document's admitted `before`. Identity comparison needs
 /// neither source text serialization nor a second complete ownership replay.
 pub(super) fn validate_immutable_projected_structure(
     before: &Doc,
