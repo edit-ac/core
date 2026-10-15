@@ -1,9 +1,14 @@
 import AppKit
 
-/// Native bootstrap surface. Shared-session binding is delivered by DSK-1.3.
-/// Until then, the empty projection permits selection but admits no mutations.
+/// Native control with an owned shared-session executor. Rich projection and
+/// native editing are added by their subsequent roadmap gates.
 @MainActor
 public final class NativeEditorView: NSView {
+    public let session = NativeSessionExecutor()
+    public private(set) var sessionSnapshot: NativeSessionRead?
+    public private(set) var sessionFailure: NativeSessionFailure?
+    public private(set) var sessionDeliveryCount = 0
+    public private(set) var isDisposed = false
     public let scrollView: NSScrollView
     public let textView: NSTextView
 
@@ -38,6 +43,27 @@ public final class NativeEditorView: NSView {
         scrollView.autoresizingMask = [.width, .height]
         addSubview(scrollView)
         scrollView.frame = bounds
+        session.onResult = { [weak self] result in
+            guard let self, !self.isDisposed else { return }
+            self.sessionDeliveryCount += 1
+            switch result {
+            case let .success(.snapshot(snapshot)):
+                self.sessionSnapshot = snapshot
+                self.sessionFailure = nil
+                self.textView.setAccessibilityLabel("Editor")
+            case let .failure(error): self.sessionFailure = error
+            default: break
+            }
+        }
+    }
+
+    /// The embedding host calls this when its editor/document is closed.
+    public func dispose(completion: @escaping @MainActor @Sendable () -> Void = {}) {
+        isDisposed = true
+        sessionSnapshot = nil
+        sessionFailure = nil
+        textView.isEditable = false
+        session.dispose(completion: completion)
     }
 
     @available(*, unavailable)

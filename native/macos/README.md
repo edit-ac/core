@@ -1,8 +1,8 @@
 # macOS native SDK
 
 DSK-1.1 builds an AppKit SDK target, a windowed native test host and one real
-XCTest case. The text view is an empty, noneditable projection until shared
-session binding. This bootstrap establishes no editing, toolkit feasibility,
+XCTest case. The text view remains noneditable until the input and projection gates.
+DSK-1.3 binds the actual shared Session through its generated Swift interface. This bootstrap establishes no editing, toolkit feasibility,
 IME, accessibility or release support. All capability claims start unqualified.
 
 From `core`:
@@ -42,3 +42,33 @@ The [native control probe](probe/README.md) selects explicit TextKit 1 and
 exercises real composition, cell and atom child-control feasibility with the
 `toolkit` dispatcher suite. This does not enable production editing or qualify
 IME/platform support.
+
+## Shared Session lifecycle
+
+`NativeEditorView.session` owns a `NativeSessionExecutor`. Call `open(options:initial:now:)`
+with a host-granted absolute SQLite path, canonical document/epoch identity and
+explicit host clock. Omit `initial` to restore; supply it only for explicit local
+creation. Completion results and `onResult` run on MainActor in submission order.
+The native view retains an owned session snapshot and typed failure state; rich
+text projection remains DSK-1.4. Session calls and final handle destruction execute
+on one background serial queue, using the delivered Rust Session and NativeStore.
+
+`submit` accepts shared read, prepare/commit/cancel, history, permission and recovery
+operations. It exposes owned values, never the mutable Rust handle. Cancelling a
+returned operation prevents queued work from starting and delivers an ordered
+`.cancelled` failure. Cancellation after acceptance returns false; it cannot undo
+an accepted commit. Cancelling a prepared token uses `.cancelPrepared` explicitly.
+Call `view.dispose` at the embedding host's document/view close boundary. It stops
+admission, cancels queued work, clears observers, and suppresses late results.
+Its optional completion is a shutdown barrier after accepted work and shared
+Session disposal. Repeated disposal is safe; final owner release also schedules
+cleanup. Removing a view from a window alone does not close its document session.
+
+Run `bash native/macos/scripts/check.sh session` for actual AppKit/generated-Swift/
+Rust/SQLite lifecycle integration. The dispatcher builds both CPU slices with Rust
+1.97.1 offline and runs twelve XCTest cases on the pinned arm64 macOS OS host.
+`Bindings` links directly to the existing generated sources; it defines no second
+model. SwiftPM uses `EDITAC_MACOS_FFI_LIBRARY_DIR` to link the dispatcher-built Rust
+slice. Clean distributable consumer packaging belongs to DSK-2.1/2.2. This suite
+uses deterministic content and native protocol calls; it qualifies no IME,
+physical device, full SDK or release support.

@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CORE = ROOT.parents[1]
 SUITES = {
     "bootstrap": ("EditacMacOSBootstrapTests.BootstrapTests", 1),
+    "session": ("EditacMacOSSessionTests.SessionTests", 12),
     "toolkit": ("EditacMacOSToolkitTests.ToolkitTests", 6),
 }
 
@@ -45,7 +46,7 @@ def xctest_counts(log, expected):
 
 def main():
     if len(sys.argv) != 2 or sys.argv[1] not in SUITES:
-        print("Usage: bash native/macos/scripts/check.sh {bootstrap|toolkit}; unknown/unimplemented suite", file=sys.stderr)
+        print("Usage: bash native/macos/scripts/check.sh {bootstrap|toolkit|session}; unknown/unimplemented suite", file=sys.stderr)
         return 2
     suite = sys.argv[1]
     signal.signal(signal.SIGTERM, interrupted)
@@ -118,6 +119,9 @@ def main():
                        and ".build" not in p.parts and "__pycache__" not in p.parts)
         receipt["sourceHashes"] = {str(p.relative_to(CORE)): hashlib.sha256(p.read_bytes()).hexdigest()
                                    for p in paths}
+        receipt["sharedSourceHashes"] = {str(p.relative_to(CORE)): hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in [CORE / "Cargo.lock", CORE / "crates/editac-ffi/Cargo.toml",
+                      *sorted((CORE / "crates/editac-ffi/src").rglob("*.rs"))]}
         capability_log = run("capability-tests", ["node", "--test", "--test-reporter=tap",
                                                 "tests/capability.test.mjs"])
         capability_counts = {key: int(value) for key, value in re.findall(
@@ -133,11 +137,25 @@ def main():
             "dispatcher": dict(executed=8, passed=8, failed=0, skipped=0),
         }
         scratch = CORE / "target" / "native-macos" / output.name
+        ffi_libraries = {}
         for cpu in pin["cpuSlices"]:
+            triple = {"arm64": "aarch64-apple-darwin", "x86_64": "x86_64-apple-darwin"}[cpu]
+            ffi_target = CORE / "target" / "native-macos-ffi"
+            run(f"ffi-{cpu}", [str(Path.home() / ".cargo/bin/cargo"), "+1.97.1", "build",
+                              "-p", "editac-ffi", "--lib", "--locked", "--offline",
+                              "--target", triple, "--target-dir", str(ffi_target)], timeout=300)
+            library = ffi_target / triple / "debug/libeditac_ffi.dylib"
+            ffi_libraries[cpu] = {"path": str(library),
+                                  "sha256": hashlib.sha256(library.read_bytes()).hexdigest()}
+            env["EDITAC_MACOS_FFI_LIBRARY_DIR"] = str(library.parent)
             run(f"build-{cpu}", ["xcrun", "swift", "build", "--package-path", str(ROOT),
                                 "--scratch-path", str(scratch / cpu), "--arch", cpu,
                                 "--sdk", actual["sdkPath"], "--build-tests"], timeout=300)
+        receipt["ffiLibraries"] = ffi_libraries
+        receipt["generatedBindings"] = {str(p.relative_to(CORE)): hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in (CORE / "crates/editac-ffi/generated").glob("EditacNative*") if p.is_file()}
         cpu = actual["cpu"]
+        env["EDITAC_MACOS_FFI_LIBRARY_DIR"] = str(Path(ffi_libraries[cpu]["path"]).parent)
         arguments = ["--package-path", str(ROOT), "--scratch-path", str(scratch / cpu),
                      "--arch", cpu, "--sdk", actual["sdkPath"]]
         bin_path = Path(run("bin-path", ["xcrun", "swift", "build", *arguments, "--show-bin-path"]).strip())
