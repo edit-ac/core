@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
-import { sha256, validateProfile } from '../../../scripts/capability-contract.mjs';
+import { sha256, validateProfile, verifyProfileInputs } from '../../../scripts/capability-contract.mjs';
 
 const core = fileURLToPath(new URL('../../../', import.meta.url));
 const profile = JSON.parse(readFileSync(new URL('../capability.json', import.meta.url)));
@@ -30,4 +30,5 @@ test('bootstrap capability inputs match actual contract, schema and pinned tooli
   for (const input of profile.inputs) {
     assert.equal(sha256(readFileSync(resolve(core, input.path))), input.sha256, input.path);
   }
+  assert.equal(Object.keys(verifyProfileInputs(profile, core)).length, profile.inputs.length);
 });
