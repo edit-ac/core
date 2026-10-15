@@ -368,6 +368,11 @@ uint64_t uniffi_editac_ffi_fn_constructor_nativesession_create_local(RustBuffer 
 uint64_t uniffi_editac_ffi_fn_constructor_nativesession_open(RustBuffer options, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_CANCEL_COMMANDS
+#define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_CANCEL_COMMANDS
+void uniffi_editac_ffi_fn_method_nativesession_cancel_commands(uint64_t ptr, RustBuffer token, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_CANCEL_EDITS
 #define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_CANCEL_EDITS
 void uniffi_editac_ffi_fn_method_nativesession_cancel_edits(uint64_t ptr, RustBuffer token, RustCallStatus *_Nonnull out_status
@@ -378,6 +383,21 @@ void uniffi_editac_ffi_fn_method_nativesession_cancel_edits(uint64_t ptr, RustBu
 RustBuffer uniffi_editac_ffi_fn_method_nativesession_capture_anchors(uint64_t ptr, RustBuffer revision, RustBuffer inputs, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_CHECK_COMMANDS
+#define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_CHECK_COMMANDS
+void uniffi_editac_ffi_fn_method_nativesession_check_commands(uint64_t ptr, RustBuffer revision, RustBuffer commands_json, RustBuffer origin, uint64_t now, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_COMMAND_CATALOG
+#define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_COMMAND_CATALOG
+RustBuffer uniffi_editac_ffi_fn_method_nativesession_command_catalog(uint64_t ptr, uint64_t now, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_COMMIT_COMMANDS
+#define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_COMMIT_COMMANDS
+RustBuffer uniffi_editac_ffi_fn_method_nativesession_commit_commands(uint64_t ptr, RustBuffer token, uint64_t now, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_COMMIT_EDITS
 #define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_COMMIT_EDITS
 RustBuffer uniffi_editac_ffi_fn_method_nativesession_commit_edits(uint64_t ptr, RustBuffer token, uint64_t now, RustCallStatus *_Nonnull out_status
@@ -386,6 +406,16 @@ RustBuffer uniffi_editac_ffi_fn_method_nativesession_commit_edits(uint64_t ptr, 
 #ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_DISPOSE
 #define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_DISPOSE
 void uniffi_editac_ffi_fn_method_nativesession_dispose(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_HISTORY_STATE
+#define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_HISTORY_STATE
+RustBuffer uniffi_editac_ffi_fn_method_nativesession_history_state(uint64_t ptr, uint64_t now, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_PREPARE_COMMANDS
+#define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_PREPARE_COMMANDS
+RustBuffer uniffi_editac_ffi_fn_method_nativesession_prepare_commands(uint64_t ptr, RustBuffer revision, RustBuffer commands_json, RustBuffer origin, uint64_t now, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_FN_METHOD_NATIVESESSION_PREPARE_EDITS
@@ -817,6 +847,12 @@ uint16_t uniffi_editac_ffi_checksum_method_nativeengine_take_patch(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_CANCEL_COMMANDS
+#define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_CANCEL_COMMANDS
+uint16_t uniffi_editac_ffi_checksum_method_nativesession_cancel_commands(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_CANCEL_EDITS
 #define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_CANCEL_EDITS
 uint16_t uniffi_editac_ffi_checksum_method_nativesession_cancel_edits(void
@@ -829,6 +865,24 @@ uint16_t uniffi_editac_ffi_checksum_method_nativesession_capture_anchors(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_CHECK_COMMANDS
+#define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_CHECK_COMMANDS
+uint16_t uniffi_editac_ffi_checksum_method_nativesession_check_commands(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_COMMAND_CATALOG
+#define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_COMMAND_CATALOG
+uint16_t uniffi_editac_ffi_checksum_method_nativesession_command_catalog(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_COMMIT_COMMANDS
+#define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_COMMIT_COMMANDS
+uint16_t uniffi_editac_ffi_checksum_method_nativesession_commit_commands(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_COMMIT_EDITS
 #define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_COMMIT_EDITS
 uint16_t uniffi_editac_ffi_checksum_method_nativesession_commit_edits(void
@@ -838,6 +892,18 @@ uint16_t uniffi_editac_ffi_checksum_method_nativesession_commit_edits(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_DISPOSE
 #define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_DISPOSE
 uint16_t uniffi_editac_ffi_checksum_method_nativesession_dispose(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_HISTORY_STATE
+#define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_HISTORY_STATE
+uint16_t uniffi_editac_ffi_checksum_method_nativesession_history_state(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_PREPARE_COMMANDS
+#define UNIFFI_FFIDEF_UNIFFI_EDITAC_FFI_CHECKSUM_METHOD_NATIVESESSION_PREPARE_COMMANDS
+uint16_t uniffi_editac_ffi_checksum_method_nativesession_prepare_commands(void
     
 );
 #endif

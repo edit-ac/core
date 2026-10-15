@@ -1,4 +1,5 @@
-//! Bounded semantic fragment JSON interchange. No parser or writable document.
+//! Bounded portable command, semantic fragment and projection JSON interchange.
+//! Pure transport translation; no document, history or mutation dispatcher.
 use crate::{
     anchors::{Bias, Resolution},
     document::DocumentIdentity,
@@ -275,4 +276,394 @@ pub fn projection_snapshot(doc: &crate::document::Document) -> Result<Value> {
             "retainedStructure":s.retained_structure.as_ref().map(value),
             "changedNodes":s.changed_nodes, "touchedRanges":s.touched_ranges.iter().map(|r|json!({"source":r.source,"start":r.start,"newStart":r.new_start,"oldEnd":r.old_end,"newEnd":r.new_end})).collect::<Vec<_>>() }),
     )
+}
+
+// Pure portable EditorCommand DTO/translation, shared by browser and native Session.
+use crate::{
+    Utf16Offset,
+    anchors::{Anchor, Selection},
+    commands::{
+        blocks::{BlockCommand, Side},
+        editor::{EditorCommand, EditorPosition},
+        format::FormatAction,
+        lists::ListCommand,
+        r#move::{MoveCommand, MoveTarget},
+        text::TextCommand,
+    },
+};
+#[derive(Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Affinity {
+    Left,
+    Right,
+}
+impl Affinity {
+    pub fn bias(&self) -> Bias {
+        match self {
+            Self::Left => Bias::Left,
+            Self::Right => Bias::Right,
+        }
+    }
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CommandRange {
+    pub anchor: String,
+    pub focus: String,
+}
+#[derive(Deserialize)]
+#[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
+pub enum Command {
+    ReplaceAt {
+        owner: String,
+        from: u32,
+        to: u32,
+        text: String,
+    },
+    MarkAt {
+        owner: String,
+        from: u32,
+        to: u32,
+        mark: MarkName,
+        action: CommandAction,
+        href: Option<String>,
+    },
+    HistorySelectionAt {
+        anchor: CommandPosition,
+        focus: CommandPosition,
+    },
+    SelectionAt {
+        anchor: CommandPosition,
+        focus: CommandPosition,
+    },
+    TableCell {
+        owner: String,
+        expected: Value,
+        row: usize,
+        column: usize,
+        text: String,
+    },
+    Insert {
+        at: String,
+        text: String,
+    },
+    Delete {
+        range: CommandRange,
+    },
+    Replace {
+        range: CommandRange,
+        text: String,
+    },
+    Split {
+        owner: String,
+        at: String,
+    },
+    HeadingEnd {
+        owner: String,
+        at: String,
+    },
+    Join {
+        first: String,
+        second: String,
+    },
+    Wrap {
+        targets: Vec<String>,
+        style: Style,
+    },
+    SetStyle {
+        container: String,
+        style: Style,
+    },
+    SetChecked {
+        owner: String,
+        checked: bool,
+    },
+    Enter {
+        owner: String,
+        at: String,
+    },
+    Backspace {
+        owner: String,
+        at: String,
+    },
+    Indent {
+        owner: String,
+    },
+    Outdent {
+        owner: String,
+    },
+    Move {
+        target: CommandTarget,
+        parent: CommandTarget,
+        before: Option<CommandTarget>,
+    },
+    SetAlignment {
+        owner: String,
+        alignment: ParagraphAlignment,
+    },
+    SetCode {
+        owner: String,
+        language: String,
+    },
+    SetParagraph {
+        owner: String,
+    },
+    HardBreak {
+        at: String,
+    },
+    ConvertSeparator {
+        owner: String,
+    },
+    InsertSeparator {
+        beside: String,
+        side: Edge,
+    },
+    InsertParagraph {
+        separator: String,
+        side: Edge,
+        text: String,
+    },
+    DeleteSeparator {
+        owner: String,
+    },
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CommandPosition {
+    owner: String,
+    offset: u32,
+    bias: Affinity,
+}
+impl CommandPosition {
+    fn native(self) -> EditorPosition {
+        EditorPosition {
+            owner: self.owner,
+            offset: Utf16Offset(self.offset),
+            bias: self.bias.bias(),
+        }
+    }
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CommandTarget {
+    id: String,
+    version: String,
+}
+impl CommandTarget {
+    fn native(self) -> MoveTarget {
+        MoveTarget {
+            id: self.id,
+            version: self.version,
+        }
+    }
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ParagraphAlignment {
+    Left,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Edge {
+    Before,
+    After,
+}
+impl Edge {
+    fn native(self) -> Side {
+        match self {
+            Self::Before => Side::Before,
+            Self::After => Side::After,
+        }
+    }
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CommandAction {
+    Apply,
+    Remove,
+    Toggle,
+}
+impl CommandAction {
+    pub fn native(self) -> FormatAction {
+        match self {
+            Self::Apply => FormatAction::Apply,
+            Self::Remove => FormatAction::Remove,
+            Self::Toggle => FormatAction::Toggle,
+        }
+    }
+}
+impl Command {
+    /// Exact portable EditorCommand.type coverage; applicability is planner-owned.
+    pub const TYPES: &'static [&'static str] = &[
+        "replaceAt",
+        "markAt",
+        "selectionAt",
+        "historySelectionAt",
+        "tableCell",
+        "insert",
+        "delete",
+        "replace",
+        "split",
+        "headingEnd",
+        "enter",
+        "backspace",
+        "join",
+        "wrap",
+        "setStyle",
+        "setChecked",
+        "indent",
+        "outdent",
+        "setParagraph",
+        "convertSeparator",
+        "deleteSeparator",
+        "move",
+        "setAlignment",
+        "setCode",
+        "hardBreak",
+        "insertSeparator",
+        "insertParagraph",
+    ];
+    pub fn translate(self, anchor: impl Fn(&str) -> Result<Anchor>) -> Result<EditorCommand> {
+        let c = self;
+        Ok(match c {
+            Command::ReplaceAt {
+                owner,
+                from,
+                to,
+                text,
+            } => EditorCommand::ReplaceAt {
+                owner,
+                from: Utf16Offset(from),
+                to: Utf16Offset(to),
+                text,
+            },
+            Command::MarkAt {
+                owner,
+                from,
+                to,
+                mark,
+                action,
+                href,
+            } => EditorCommand::MarkAt {
+                owner,
+                from: Utf16Offset(from),
+                to: Utf16Offset(to),
+                mark: mark.native(),
+                action: action.native(),
+                href,
+            },
+            Command::HistorySelectionAt { anchor, focus } => EditorCommand::HistorySelectionAt {
+                anchor: anchor.native(),
+                focus: focus.native(),
+            },
+            Command::SelectionAt { anchor, focus } => EditorCommand::SelectionAt {
+                anchor: anchor.native(),
+                focus: focus.native(),
+            },
+            Command::TableCell {
+                owner,
+                expected,
+                row,
+                column,
+                text,
+            } => EditorCommand::TableCell {
+                target: owner,
+                expected: Any::from_json(&expected.to_string())
+                    .map_err(|e| kernel("tableCell", e))?,
+                row,
+                column,
+                text,
+            },
+            Command::Insert { at, text } => EditorCommand::Text(TextCommand::Insert {
+                at: anchor(&at)?,
+                text,
+            }),
+            Command::Delete { range } => EditorCommand::Text(TextCommand::Delete {
+                selection: Selection {
+                    anchor: anchor(&range.anchor)?,
+                    focus: anchor(&range.focus)?,
+                },
+            }),
+            Command::Replace { range, text } => EditorCommand::Text(TextCommand::Replace {
+                selection: Selection {
+                    anchor: anchor(&range.anchor)?,
+                    focus: anchor(&range.focus)?,
+                },
+                text,
+            }),
+            Command::Split { owner, at } => EditorCommand::Split {
+                owner,
+                at: anchor(&at)?,
+            },
+            Command::HeadingEnd { owner, at } => EditorCommand::HeadingEnd {
+                owner,
+                at: anchor(&at)?,
+            },
+            Command::Join { first, second } => EditorCommand::Join { first, second },
+            Command::Wrap { targets, style } => EditorCommand::List(ListCommand::Wrap {
+                targets,
+                style: style.native(),
+            }),
+            Command::SetStyle { container, style } => EditorCommand::List(ListCommand::SetStyle {
+                container,
+                style: style.native(),
+            }),
+            Command::SetChecked { owner, checked } => {
+                EditorCommand::List(ListCommand::SetChecked { owner, checked })
+            }
+            Command::Enter { owner, at } => EditorCommand::List(ListCommand::Enter {
+                owner,
+                at: anchor(&at)?,
+            }),
+            Command::Backspace { owner, at } => EditorCommand::List(ListCommand::Backspace {
+                owner,
+                at: anchor(&at)?,
+            }),
+            Command::Indent { owner } => EditorCommand::List(ListCommand::Indent { owner }),
+            Command::Outdent { owner } => EditorCommand::List(ListCommand::Outdent { owner }),
+            Command::Move {
+                target,
+                parent,
+                before,
+            } => EditorCommand::Move(MoveCommand {
+                target: target.native(),
+                parent: parent.native(),
+                before: before.map(CommandTarget::native),
+            }),
+            Command::SetAlignment {
+                owner,
+                alignment: ParagraphAlignment::Left,
+            } => EditorCommand::BlockCommand(BlockCommand::AlignLeft { owner }),
+            Command::SetCode { owner, language } => {
+                EditorCommand::BlockCommand(BlockCommand::SetCode { owner, language })
+            }
+            Command::SetParagraph { owner } => {
+                EditorCommand::BlockCommand(BlockCommand::SetParagraph { owner })
+            }
+            Command::HardBreak { at } => {
+                EditorCommand::BlockCommand(BlockCommand::HardBreak { at: anchor(&at)? })
+            }
+            Command::ConvertSeparator { owner } => {
+                EditorCommand::BlockCommand(BlockCommand::ConvertSeparator { owner })
+            }
+            Command::InsertSeparator { beside, side } => {
+                EditorCommand::BlockCommand(BlockCommand::InsertSeparator {
+                    beside,
+                    side: side.native(),
+                })
+            }
+            Command::InsertParagraph {
+                separator,
+                side,
+                text,
+            } => EditorCommand::BlockCommand(BlockCommand::InsertParagraph {
+                separator,
+                side: side.native(),
+                text,
+            }),
+            Command::DeleteSeparator { owner } => {
+                EditorCommand::BlockCommand(BlockCommand::DeleteSeparator { owner })
+            }
+        })
+    }
 }

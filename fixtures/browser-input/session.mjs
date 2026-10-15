@@ -9,13 +9,13 @@ const identity={documentId:'45678901-4567-4567-8567-45678901abcd',epoch:'5678901
 const root=document.querySelector('#projection'),databaseName='browser-input';
 let mountGeneration=0;
 let markdownRegistration, runtime,session,renderer,selection,protocol,ids,patches=[],commandResults=[],otherBlock,otherText;
-async function mount(text='alpha',other='independent') {
+async function mount(text='alpha',other='independent',texts) {
  // A remount is a new session, never a second initialization of an existing
  // document/epoch. Preserve first-mount fixture pins for existing suites.
  if (++mountGeneration > 1) identity.epoch=`56789012-5678-4678-8678-${String(mountGeneration).padStart(12,'0')}`;
  patches=[];commandResults=[];
  runtime=await init('/core/wasm/editac_wasm_bg.wasm');
- const engine=runtime.createEngine({profile:'v5',documentId:identity.documentId,epoch:identity.epoch,nodes:other===null?[{text}]:[{text},{text:other}]});
+ const engine=runtime.createEngine({profile:'v5',documentId:identity.documentId,epoch:identity.epoch,nodes:texts?texts.map(text=>({text})):other===null?[{text}]:[{text},{text:other}]});
  ids=engine.read().visible.map(n=>n.id);const checkpoint=engine.checkpoint();engine.dispose();
  const store=await CheckpointStorage.open(indexedDB,databaseName);try{await store.publish(checkpoint,[]);}finally{store.close();}
  session=await recoverLocalDocument({assetUrl:'/core/wasm/editac_wasm_bg.wasm',databaseName,identity,indexedDB,locks:navigator.locks});

@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { fixture } from '../../benchmarks/fixtures.mjs';
 import { browserHarness } from './browser-harness.ts';
-const { probe } = browserHarness('clipboard');
+const { probe } = browserHarness('clipboard', 'fixtures/browser-input', { sourcePaths: ['fixtures/browser-input/session.mjs', 'benchmarks/fixtures.mjs'] });
 const MIME = 'application/x-edit-ac-fragment+json';
 async function state(page, fact) {
   const s = await page.evaluate(async () => { const f = window.inputFixture, s = await f.state(); return { ...s, nodes: f.engine.read().visible, result: f.protocol.clipboard.last, diagnostics: f.protocol.clipboard.diagnostics }; });
@@ -76,17 +77,15 @@ test('paste plus beforeinput and input is deduplicated; repeated same payload st
 }));
 test('clipboard write failure cannot cut content or add history',()=>probe('write-failure',async(page,fact)=>{await select(page,0,0,0,5);const result=await page.evaluate(()=>window.inputFixture.protocol.clipboard.copy({getData:()=>'',setData:()=>{throw Error('denied');}},true));assert.equal(result.disposition,'rejected');const s=await state(page,fact);assert.equal(s.text[0],'alpha');assert.equal(s.journal.length,0);assert.equal(s.history.undoGroups,0);}));
 test('read-only and active composition reject paste with zero updates',()=>probe('readonly-composition',async(page,fact)=>{await page.evaluate(()=>window.inputFixture.protocol.setReadOnly(true));assert.equal((await paste(page,{'text/plain':'bad'})).disposition,'rejected');await page.evaluate(()=>{const f=window.inputFixture;f.protocol.setReadOnly(false);f.event('compositionstart',{data:''});});assert.equal((await paste(page,{'text/plain':'bad'})).disposition,'rejected');const s=await state(page,fact);assert.equal(s.text[0],'alpha');assert.equal(s.journal.length,0);}));
-test('full plain copy exceeds import bounds without admitting oversized paste or cut',()=>probe('large-copy',async(page,fact)=>{
-  await page.evaluate(async()=>{
-    const f=window.inputFixture;await f.destroy();
-    // Each source stays inside creation's UTF-16 bound; their UTF-8 bytes plus
-    // the canonical inter-block newline exceed the clipboard import bound.
-    await f.mount('é'.repeat(262144),'ö'.repeat(262144));
-  });
+for (const corpus of ['two-block-utf8-boundary', 'Long']) test(`full ${corpus} plain copy preserves every byte and rejects oversized paste or cut`,()=>probe(`large-copy-${corpus}`,async(page,fact)=>{
+  const texts=corpus==='Long'?fixture('Long').blocks.map(block=>block.runs.map(run=>run.text).join('')):['é'.repeat(262144),'ö'.repeat(262144)];
+  fact.corpus={name:corpus,blocks:texts.length,plainBytes:Buffer.byteLength(texts.join('\n'))};
+  await page.evaluate(async texts=>{const f=window.inputFixture;await f.destroy();await f.mount('',null,texts);},texts);
   const end=await page.evaluate(()=>window.inputFixture.engine.read().visible.filter(n=>n.kind==='block').at(-1).runs.reduce((n,r)=>n+r.text.length,0));
-  await select(page,0,0,1,end);
-  const result=await page.evaluate(()=>{
-    const f=window.inputFixture,expected=f.engine.read().visible.filter(n=>n.kind==='block').map(n=>n.runs.map(r=>r.text).join('')).join('\n');
+  await select(page,0,0,texts.length-1,end);
+  const result=await page.evaluate(expected=>{
+    const f=window.inputFixture;
+    if(f.engine.read().visible.filter(n=>n.kind==='block').map(n=>n.runs.map(r=>r.text).join('')).join('\n')!==expected)throw Error('Full independent corpus differs before copy');
     const before=f.engine.checkpoint().bytes,history=f.engine.history({type:'state'}),flavors={},cutFlavors={};let updates=0;
     const subscription=f.engine.subscribe({type:'updates'},()=>updates++);
     const data=store=>({getData:m=>store[m]??'',setData:(m,v)=>store[m]=v});
@@ -95,7 +94,7 @@ test('full plain copy exceeds import bounds without admitting oversized paste or
     const pasted=f.protocol.clipboard.paste({getData:m=>m==='text/plain'?flavors[m]:''},{literal:true});
     const after=f.engine.checkpoint().bytes;subscription.dispose();
     return {copied,cut,pasted,bytes:new TextEncoder().encode(expected).length,exact:flavors['text/plain']===expected,flavors:Object.keys(flavors),cutFlavors:Object.keys(cutFlavors),unchanged:before.length===after.length&&before.every((b,i)=>b===after[i]),historyUnchanged:JSON.stringify(history)===JSON.stringify(f.engine.history({type:'state'})),updates};
-  });
+  },texts.join('\n'));
   fact.copyBounds=result;
   assert(result.bytes>1048576);assert.equal(result.copied.disposition,'handled');assert.equal(result.exact,true);assert.deepEqual(result.flavors,['text/plain']);assert.deepEqual(result.cutFlavors,[]);assert.equal(result.cut.reason,'clipboard-limit');assert.equal(result.pasted.reason,'clipboard-limit');assert.equal(result.unchanged,true);assert.equal(result.historyUnchanged,true);assert.equal(result.updates,0);
 }));
