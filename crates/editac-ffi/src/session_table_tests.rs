@@ -1,4 +1,5 @@
-//! Actual Session/SQLite table admission. Corpus is prepared baseline data only;
+//! Actual Session/SQLite table admission and shared collaboration lifecycle.
+//! Corpus is prepared baseline data only;
 //! all qualifying cell changes use the public native command boundary.
 use super::*;
 use editac_core::{
@@ -1849,4 +1850,122 @@ fn presence_deleted_remote_owner_renders_no_selection_and_undo_restores_same_anc
         .unwrap();
     local.receive_host_peer(left.clone(), entry, 0).unwrap();
     assert!(local.host_presence(left, 0).unwrap()[0].selection.is_some());
+}
+
+#[test]
+fn lifecycle_remote_overlapping_staged_input_rejects_stale_then_rebases_and_undo_preserves_remote()
+{
+    let f = Fixture::new();
+    let local = f.open();
+    let (_, peer) = remote_peer(&f);
+    let token = host_attach(&local);
+    let paragraph = visible(&local)[0]["id"].as_str().unwrap().to_owned();
+    let input = |s: &NativeSession, text: &str| {
+        s.prepare_edits(
+            revision(s),
+            vec![NativeSessionEdit {
+                node: paragraph.clone(),
+                from_utf16: 0,
+                to_utf16: 0,
+                text: text.into(),
+            }],
+            "composition".into(),
+            0,
+        )
+        .unwrap()
+    };
+    let staged = input(&local, "LOCAL 😀");
+    let pending = input(&peer, "REMOTE ");
+    peer.commit_edits(pending, 0).unwrap().unwrap();
+    let update = peer.pending_updates().unwrap().remove(0);
+    local.reserve_peer_writer(update.writer).unwrap();
+    local.receive_host_peer(token, update.clone(), 0).unwrap();
+    let remote = visible(&local);
+    assert!(matches!(
+        local.commit_edits(staged.clone(), 0),
+        Err(NativeSessionError::Revision {
+            reason: NativeRevisionFailure::Stale,
+            ..
+        })
+    ));
+    local.cancel_edits(staged).unwrap();
+    assert_eq!(visible(&local), remote);
+    let forwarded = local.pending_updates().unwrap();
+    assert_eq!(forwarded.len(), 1);
+    assert_eq!(forwarded[0].checksum, update.checksum);
+    let rebased = input(&local, "LOCAL 😀");
+    local.commit_edits(rebased, 0).unwrap().unwrap();
+    let committed = visible(&local);
+    assert_ne!(committed, remote);
+    local.undo(revision(&local), 0).unwrap().unwrap();
+    assert_eq!(visible(&local), remote);
+    local.redo(revision(&local), 0).unwrap().unwrap();
+    assert_eq!(visible(&local), committed);
+}
+
+#[test]
+fn lifecycle_switch_disposes_old_model_and_rejects_all_old_tokens_without_new_document_mutation() {
+    let f = Fixture::new();
+    let old = f.open();
+    let token = host_attach(&old);
+    old.set_table_policy(true).unwrap();
+    let plan = prepare(&old, &command(&old, "cancelled before switch"));
+    old.cancel_commands(plan.token.clone()).unwrap();
+    old.detach_host_transport(token.clone()).unwrap();
+    old.dispose().unwrap();
+    let new_fixture = Fixture::new();
+    let new = new_fixture.open();
+    let next = host_attach(&new);
+    let before = revision(&new);
+    assert_ne!(f.id, new_fixture.id);
+    assert!(matches!(
+        old.commit_commands(plan.token, 0),
+        Err(NativeSessionError::Disposed)
+    ));
+    assert!(matches!(
+        old.take_host_frames(token.clone(), 1, 0),
+        Err(NativeSessionError::Disposed)
+    ));
+    assert!(matches!(
+        new.detach_host_transport(token.clone()),
+        Err(NativeSessionError::Unauthorized)
+    ));
+    assert!(matches!(
+        new.take_host_frames(token, 1, 0),
+        Err(NativeSessionError::Unauthorized)
+    ));
+    assert_eq!(revision(&new), before);
+    assert!(new.pending_updates().unwrap().is_empty());
+    assert!(new.host_presence(next, 0).unwrap().is_empty());
+}
+
+#[test]
+fn lifecycle_host_completion_can_read_revoke_rejoin_and_replay_without_callback_reentry_or_duplicate_history()
+ {
+    let f = Fixture::new();
+    let local = f.open();
+    let (_, peer) = remote_peer(&f);
+    let token = host_attach(&local);
+    let update = remote_edit(&peer, 1, true);
+    local.reserve_peer_writer(update.writer).unwrap();
+    let receipt = local
+        .receive_host_peer(token.clone(), update.clone(), 0)
+        .unwrap();
+    assert_eq!(receipt.checksum, update.checksum);
+    let committed = revision(&local);
+    // The native worker installs no foreign callbacks. A transport completion
+    // can synchronously read/reconfigure only after actual admission returns.
+    let on_completed = || {
+        assert_eq!(revision(&local), committed);
+        local.detach_host_transport(token.clone()).unwrap();
+        host_attach(&local)
+    };
+    let next = on_completed();
+    assert!(matches!(
+        local.receive_host_peer(token, update.clone(), 0),
+        Err(NativeSessionError::Unauthorized)
+    ));
+    local.receive_host_peer(next, update, 0).unwrap();
+    assert_eq!(revision(&local), committed);
+    assert_eq!(local.history_state(0).unwrap().undo_groups, 0);
 }

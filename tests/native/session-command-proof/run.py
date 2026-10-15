@@ -22,11 +22,14 @@ def main():
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--rich-fixture', type=Path)
     parser.add_argument('--table-fixture', type=Path)
+    parser.add_argument('--authority-fixture', type=Path)
     parser.add_argument('--case', action='append', default=[])
     parser.add_argument('--host-transport', action='store_true', help='compose STB-1.4 host transport cases with the table harness')
     parser.add_argument('--fixture-writer', type=Path)
     parser.add_argument('--reuse-legacy', type=Path)
     args = parser.parse_args()
+    if args.authority_fixture and not args.host_transport:
+        parser.error('--authority-fixture requires --host-transport')
     if args.host_transport and not args.table_fixture:
         parser.error("--host-transport requires --table-fixture")
     out = args.output.resolve()
@@ -80,6 +83,8 @@ def main():
             extra_entry = 'runTablePolicyCases()\nrunRemoteCases()\n' if args.table_fixture else ''
             if args.host_transport:
                 extra_entry += 'runHostTransportCases()\nrunPresenceCases()\n'
+            if args.authority_fixture:
+                extra_entry += 'runAuthorityLifecycleCases()\n'
             marker = 'if let index = CommandLine.arguments.firstIndex(of: "--rich-fixture") {'
             host.write_text(canonical.read_text().replace(marker, 'runCommandCases()\n' + extra_entry + marker))
             command_source = CORE / 'tests/native/session-command-proof/CommandCases.swift'
@@ -92,6 +97,9 @@ def main():
                 for p in ['crates/editac-core/src/presence.rs', 'crates/editac-ffi/src/session_presence.rs']:
                     receipt['sourceHashes'][p] = digest(CORE / p)
                 receipt['sourceHashes']['crates/editac-ffi/src/session_collaboration.rs'] = digest(CORE / 'crates/editac-ffi/src/session_collaboration.rs')
+            if args.authority_fixture:
+                table_sources.append(CORE / 'tests/native/table-session-proof/AuthorityLifecycleCases.swift')
+                receipt['authorityFixtureSha256'] = digest(args.authority_fixture)
             if args.table_fixture:
                 receipt['tableFixtureManifestSha256'] = digest(args.table_fixture)
                 receipt['tableFixtureStoreSha256'] = digest(Path(json.loads(args.table_fixture.read_text())['path']))
@@ -106,6 +114,8 @@ def main():
                 receipt['fixtureStoreSha256Before'] = digest(Path(json.loads(args.rich_fixture.read_text())['path']))
             if args.table_fixture:
                 rich_args += ['--table-fixture', args.table_fixture.resolve()]
+            if args.authority_fixture:
+                rich_args += ['--authority-fixture', args.authority_fixture.resolve()]
             binary = work / 'session-probe'
             run('session-build', base + [generated / 'EditacNative.swift', host, rich_source, command_source, *table_sources, '-o', binary])
             receipt['binarySha256'] = digest(binary)
