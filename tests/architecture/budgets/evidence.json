@@ -157,10 +157,10 @@
     "state": "PARTIAL",
     "scope": "Validated Rust preparation/trace prerequisite plus actual native observations and current browser refresh. Native ASCII first key failed; original FIT and B3 remain open. No native family is canonically admitted from a failed suite."
   },
-  "currentCanonicalState": "PENDING: native Long OS-keyboard/restoration remains incomplete. Current qualified-stage immutable-source startup repair has focused production/observer admission only; stale other producer records do not qualify current source.",
+  "currentCanonicalState": "PENDING: native Long actual OS dispatch/restoration and full original criteria remain incomplete; FIT-1.6 exact-artifact shared refresh is required after f80ce41 changed WASM. Current production startup/admission is scoped prerequisite evidence only; historical other producers do not qualify current source.",
   "activeChild": "FIT-1.8-I1-B5",
   "nativeProfileHash": "5e80df8d90c38acd6ca191b2856c5d6c66ea9630ec87e5f943fe0e42a99d4fd9",
-  "lastRelevantChange": "2026-10-15: final-validation phase attribution and qualified-stage immutable source identity comparison eliminate repeated before/after ownership replay; native/current canonical and original parent remain unfinished.",
+  "lastRelevantChange": "2026-10-15UTC: exact-checkpoint disposable editor stage reuses admitted cache, rebinds text handles and preserves original read deltas and full post-edit admission; original startup/full FIT qualification remains unfinished.",
   "startupAttributionPartial": {
     "path": "architecture-results/fit-1.8-20261015/startup-phases-1/partial-delivery-receipt.json",
     "sha256": "fa192635d3fa520b1303eb8d9521e7aa3493269a034a43521927460e202806ab",
@@ -175,5 +175,12 @@
     "path": "architecture-results/fit-1.8-20261015/startup-validation-1/partial-delivery-receipt.json",
     "sha256": "fb24e5e5db497e4817e6e8d96a936bf022898fe352880e48899de1a07c4328c0",
     "state": "Implemented/verified final-validation attribution and qualified-stage immutable-source repair prerequisite; Rust1723, render30/lifecycle27, production24+observer24 and focused54 pass with zero final failures/skips. Parent/B5/startup/native/full FIT qualification remain open."
+  },
+  "startupStageCache": {
+    "path": "architecture-results/fit-1.8-20261016/stage-cache-1/delivery-receipt.json",
+    "sha256": "396f8887305aaeaa89ec9c20462bf24f748a24120bdb302fe30a646175651d5b",
+    "implementationRevision": "f80ce4169e7db0fbdab484559182ea7340529cce",
+    "sourceRevision": "c353c87f04046a451645445cf3b8d7c05fdd2b43d4cc683bf44c1b9cf2e6a11a",
+    "state": "Implemented/verified B5h prerequisite only: Rust872, compiled WASM64, packed browser112, full startup24 observations/48 pairs/96 exact restorations and focused admission28; zero failures/skips. Long Task1455/1394.1ms still misses300/200ms, tails inconclusive; no full FIT/native/optional/accessibility/resource claim."
   }
 }
