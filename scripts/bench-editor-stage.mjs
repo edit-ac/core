@@ -12,7 +12,10 @@ import { requireTestNode } from './test-toolchain.mjs';
 import { projectedSemantics, expectedSemantics, fixture, supportedFixtures } from '../benchmarks/fixtures.mjs';
 await requireTestNode();
 const args = process.argv.slice(2);
-assert(args.length === 6 && args[0] === '--pack' && args[2] === '--seeds' && args[4] === '--output', 'Expected --pack <tarball> --seeds <owning directory> --output <unique directory>');
+const probeMode = ['--anchored', '--chain'].includes(args.at(-1)) ? args.pop() : null;
+const anchored = probeMode !== null;
+const bookmarks = probeMode === '--anchored';
+assert(args.length === 6 && args[0] === '--pack' && args[2] === '--seeds' && args[4] === '--output', 'Expected --pack <tarball> --seeds <owning directory> --output <unique directory> [--anchored|--chain]');
 const pack = resolve(args[1]), seeds = resolve(args[3]), output = resolve(args[5]);
 await mkdir(output); // Never overwrite historical or failed evidence.
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -20,7 +23,8 @@ const semanticHash = engine => hash(JSON.stringify(projectedSemantics(engine.rea
 const record = { version: 1, scope: 'prepared fixed-corpus packed public FFI stage costs only; no navigation, render, tail, native or release qualification',
   command: [process.execPath, ...process.argv.slice(1)], revision: spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout.trim(),
   runtime: { node: process.version, cpu: cpus()[0].model, memoryBytes: totalmem(), hostOS: `${platform()}/${release()}/${arch()}` },
-  features: ['engine', 'editor-v5', 'prepared-offset-text', 'stable-selection'],
+  features: ['engine', 'editor-v5', anchored ? 'prepared-anchored-text-chain' : 'prepared-offset-text', 'stable-selection'],
+  mode: bookmarks ? 'anchored-delete-insert-with-bookmarks' : anchored ? 'plain-delete-insert' : 'offset-replace',
   timingScope: 'public prepare and commit only, fresh restored engine per sample, one runtime per process, no discarded warmup, assertions excluded;12 samples cannot qualify tails',
   samplesPerFixture: 12, counts: { executed: 0, passed: 0, failed: 0, skipped: 24 }, artifacts: {}, cases: [], errors: [], cleanup: {} };
 let temporary, server;
@@ -52,18 +56,27 @@ try {
         const node = engine.read().visible.find(n => n.kind === 'block' && n.runs?.length && /[A-Za-z]/.test(n.runs[0].text)); assert(node);
         const text = node.runs.map(r => r.text).join(''), offset = text.search(/[A-Za-z]/), alternate = text[offset] === 'z' ? 'q' : 'z';
         for (const [mode, value] of [['edit', alternate], ['restore', text[offset]]]) {
+          // Capture outside the measured preparation boundary, as the input port
+          // does. Re-capture after the previous committed edit for restoration.
+          const anchors = anchored ? [engine.anchor(node.id, offset, 'right'), engine.anchor(node.id, offset + 1, 'left')] : [];
           const request = { kind: 'editor', origin: 'stage-cost', commands: [
-            { type: 'replaceAt', owner: node.id, from: offset, to: offset + 1, text: value },
-            { type: 'selectionAt', anchor: { owner: node.id, offset: offset + 1, bias: 'left' }, focus: { owner: node.id, offset, bias: 'right' } },
+            ...(anchored ? [
+              ...(bookmarks ? [{ type: 'historySelectionAt', anchor: { owner: node.id, offset, bias: 'right' }, focus: { owner: node.id, offset: offset + 1, bias: 'left' } }] : []),
+              { type: 'delete', range: { anchor: anchors[0], focus: anchors[1] } },
+              { type: 'insert', at: anchors[0], text: value },
+            ] : [{ type: 'replaceAt', owner: node.id, from: offset, to: offset + 1, text: value }]),
+            ...(!anchored || bookmarks ? [{ type: 'selectionAt', anchor: { owner: node.id, offset: offset + 1, bias: 'left' }, focus: { owner: node.id, offset, bias: 'right' } }] : []),
           ] };
-          const start = performance.now(), plan = engine.prepare(request), prepared = performance.now(), result = engine.commit(plan), committed = performance.now();
-          sample[mode] = { prepareMs: prepared - start, commitMs: committed - prepared, totalMs: committed - start };
           try {
-            assert.equal(engine.read().visible.find(n => n.id === node.id).runs.map(r => r.text).join(''), text.slice(0, offset) + value + text.slice(offset + 1));
-            for (const [token, at, bias] of [[result.selection.anchor, offset + 1, 'left'], [result.selection.focus, offset, 'right']]) {
-              const p = engine.resolve(token); assert.equal(p.type, 'position'); assert.equal(p.node, node.id); assert.equal(p.offset, at); assert.equal(p.bias, bias);
-            }
-          } finally { if (result.selection) { engine.releaseAnchor(result.selection.anchor); engine.releaseAnchor(result.selection.focus); } if (result.caret) engine.releaseAnchor(result.caret); }
+            const start = performance.now(), plan = engine.prepare(request), prepared = performance.now(), result = engine.commit(plan), committed = performance.now();
+            sample[mode] = { prepareMs: prepared - start, commitMs: committed - prepared, totalMs: committed - start };
+            try {
+              assert.equal(engine.read().visible.find(n => n.id === node.id).runs.map(r => r.text).join(''), text.slice(0, offset) + value + text.slice(offset + 1));
+              if (!anchored || bookmarks) for (const [token, at, bias] of [[result.selection.anchor, offset + 1, 'left'], [result.selection.focus, offset, 'right']]) {
+                const p = engine.resolve(token); assert.equal(p.type, 'position'); assert.equal(p.node, node.id); assert.equal(p.offset, at); assert.equal(p.bias, bias);
+              }
+            } finally { if (result.selection) { engine.releaseAnchor(result.selection.anchor); engine.releaseAnchor(result.selection.focus); } if (result.caret) engine.releaseAnchor(result.caret); }
+          } finally { for (const anchor of anchors) engine.releaseAnchor(anchor); }
         }
         const final = semanticHash(engine); assert.equal(final, expected);
         const reopened = runtime.restoreEngine(frozen.identity, engine.checkpoint());

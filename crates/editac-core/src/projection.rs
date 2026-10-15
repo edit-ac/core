@@ -114,6 +114,76 @@ struct Cache {
     order: Vec<String>,
     general_retained: Option<Arc<Any>>,
 }
+/// Private consecutive-text planning state. It is never published as a Document
+/// projection: retained ownership still receives complete final admission.
+#[derive(Debug)]
+pub(crate) struct EditorTextRefresh {
+    snapshot: Snapshot,
+    owners: Vec<(usize, String)>,
+}
+impl EditorTextRefresh {
+    pub(crate) fn prepare(
+        doc: &Doc,
+        snapshot: Snapshot,
+        sources: &BTreeSet<String>,
+    ) -> Option<Self> {
+        let txn = doc.transact();
+        let texts = txn.get_map(ROOTS[1])?;
+        let mut seen = BTreeSet::new();
+        let mut owners = Vec::new();
+        // Only a unique, complete source may be refreshed locally. Split/joined
+        // spans, shared recovery sources and source-boundary ownership use replay.
+        for (deleted, nodes) in [(false, &snapshot.visible), (true, &snapshot.recovery)] {
+            for (index, node) in nodes.iter().enumerate() {
+                for span in &node.spans {
+                    if !sources.contains(&span.source) {
+                        continue;
+                    }
+                    let Some(Out::YXmlText(text)) = texts.get(&txn, &span.source) else {
+                        return None;
+                    };
+                    if deleted
+                        || node.spans.len() != 1
+                        || span.start != 0
+                        || span.end != text.len(&txn)
+                        || span.identity != format!("{:?}", XmlOut::Text(text).id())
+                        || !seen.insert(span.source.clone())
+                    {
+                        return None;
+                    }
+                    owners.push((index, span.source.clone()));
+                }
+            }
+        }
+        if &seen != sources {
+            return None;
+        }
+        Some(Self { snapshot, owners })
+    }
+    pub(crate) fn finish(mut self, doc: &Doc) -> Result<Snapshot, ProjectionError> {
+        let txn = doc.transact();
+        let texts = txn
+            .get_map(ROOTS[1])
+            .ok_or(ProjectionError::InvalidSchema)?;
+        for (index, source) in &self.owners {
+            let value = read_source(&txn, &texts, source)?;
+            let node = Arc::make_mut(&mut self.snapshot.visible[*index]);
+            if node.spans[0].identity != value.identity {
+                return Err(ProjectionError::InvalidSchema);
+            }
+            node.spans[0].end = value.len;
+            node.runs = value.runs;
+        }
+        // No stale retained structure or public dirty-range evidence can escape
+        // this planning-only view. The observed stage index remains untouched.
+        self.snapshot.retained_structure = None;
+        self.snapshot.changed_nodes.clear();
+        self.snapshot.touched_ranges.clear();
+        self.snapshot.source_reads = self.owners.len();
+        self.snapshot.structure_rebuilt = false;
+        Ok(self.snapshot)
+    }
+}
 /// Attach once to a replica. Caches contain only derived values and shared-type
 /// references; snapshots cannot mutate the replica. Drop removes all observers.
 #[derive(Debug)]

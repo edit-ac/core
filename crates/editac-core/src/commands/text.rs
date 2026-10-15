@@ -66,6 +66,11 @@ struct Edit {
     insert: String,
     literal: bool,
 }
+#[derive(Clone, Copy)]
+enum EditorProjection<'a> {
+    Index(&'a crate::projection::ProjectionIndex),
+    Snapshot(&'a Snapshot),
+}
 /// Opaque and deliberately not Clone: consuming commit prevents accidental replay.
 #[derive(Debug)]
 pub struct PreparedTextEdit {
@@ -77,6 +82,7 @@ pub struct PreparedTextEdit {
     edits: Vec<Edit>,
     entry_selection: Selection,
     result_selection: Selection,
+    editor_snapshot: Option<Snapshot>,
 }
 #[derive(Debug)]
 pub struct TextCommit {
@@ -151,7 +157,24 @@ impl Document {
             command,
             origin,
             Some(baseline_bytes),
-            Some((stage, projection)),
+            Some((stage, EditorProjection::Index(projection))),
+        )
+    }
+    /// Reuse only the private view refreshed after the immediately preceding
+    /// text command. Structural/bookmark commands invalidate it in the caller.
+    pub(super) fn prepare_text_on_editor_snapshot(
+        &self,
+        command: &TextCommand,
+        origin: &TextOrigin,
+        baseline_bytes: usize,
+        stage: &yrs::Doc,
+        snapshot: &Snapshot,
+    ) -> Result<PreparedTextEdit, TextError> {
+        self.prepare_text_inner(
+            command,
+            origin,
+            Some(baseline_bytes),
+            Some((stage, EditorProjection::Snapshot(snapshot))),
         )
     }
     fn prepare_text_inner(
@@ -159,7 +182,7 @@ impl Document {
         command: &TextCommand,
         origin: &TextOrigin,
         editor_baseline_bytes: Option<usize>,
-        editor_stage: Option<(&yrs::Doc, &crate::projection::ProjectionIndex)>,
+        editor_stage: Option<(&yrs::Doc, EditorProjection<'_>)>,
     ) -> Result<PreparedTextEdit, TextError> {
         let (a, b, inserted) = match command {
             TextCommand::Insert { at, text } => (at, at, text.as_str()),
@@ -176,7 +199,8 @@ impl Document {
             // Adopt prior staged changes so the next text operation and final
             // admission can reuse the admitted cache when no write intervenes.
             // Public Document inspection remains non-consuming.
-            Some((_, projection)) => projection.read()?,
+            Some((_, EditorProjection::Index(projection))) => projection.read()?,
+            Some((_, EditorProjection::Snapshot(snapshot))) => snapshot.clone(),
             None => self.inspect()?,
         };
         let entry_selection = Selection {
@@ -354,6 +378,7 @@ impl Document {
             edits,
             entry_selection,
             result_selection,
+            editor_snapshot: editor_baseline_bytes.map(|_| snapshot),
         })
     }
     /// Preconditions are rechecked before opening the single write transaction.
@@ -549,8 +574,21 @@ mod tests {
 
 /// Apply validated edits only to the enclosing disposable editor stage. Source
 /// references are rebound to that stage so all CRDT structs use its writer.
-pub(super) fn apply_prepared_to_stage(stage: &yrs::Doc, plan: PreparedTextEdit) {
+pub(super) fn apply_prepared_to_stage(stage: &yrs::Doc, mut plan: PreparedTextEdit) {
+    plan.editor_snapshot = None;
+    let _ = apply_prepared_to_stage_with_snapshot(stage, plan);
+}
+/// Returns an internal next-text view only for exclusive whole-source owners.
+/// Final stage projection/admission always runs independently of this view.
+pub(super) fn apply_prepared_to_stage_with_snapshot(
+    stage: &yrs::Doc,
+    mut plan: PreparedTextEdit,
+) -> Option<Snapshot> {
     use yrs::Transact;
+    let sources = plan.edits.iter().map(|e| e.source.clone()).collect();
+    let refresh = plan.editor_snapshot.take().and_then(|snapshot| {
+        crate::projection::EditorTextRefresh::prepare(stage, snapshot, &sources)
+    });
     let mut t = stage.transact_mut_with("prepare:editor:text");
     for edit in plan.edits {
         let Some(Out::YXmlText(text)) = t.get_map(ROOTS[1]).unwrap().get(&t, &edit.source) else {
@@ -567,4 +605,6 @@ pub(super) fn apply_prepared_to_stage(stage: &yrs::Doc, plan: PreparedTextEdit) 
             }
         }
     }
+    drop(t);
+    refresh.and_then(|refresh| refresh.finish(stage).ok())
 }

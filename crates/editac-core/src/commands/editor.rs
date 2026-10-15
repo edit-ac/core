@@ -1283,6 +1283,7 @@ impl Document {
         let mut result_selection = None;
         let mut entry_selection = None;
         let mut result_owner = None;
+        let mut text_snapshot = None;
         let mut pending: VecDeque<_> = commands.to_vec().into();
         let mut expanded = 0usize;
         while let Some(c) = pending.pop_front() {
@@ -1290,10 +1291,21 @@ impl Document {
             if expanded > 16384 {
                 return Err(EditorError::ResourceLimit);
             }
-            // Text changes only the admitted XmlText sources. Its range/kind/size
-            // checks run on the stage; full ownership replay is required for the
-            // final result and for structural commands, not after each text step.
-            let text_only = matches!(&c, EditorCommand::Text(_));
+            // Text commands only mutate admitted XmlText sources. Bookmark commands
+            // only read validated cuts from this stage. Neither can invalidate
+            // ownership; replay structural commands here and admit the complete
+            // final result below, without replaying after each bookmark/text step.
+            let needs_ownership_replay = !matches!(
+                &c,
+                EditorCommand::Text(_)
+                    | EditorCommand::ReplaceAt { .. }
+                    | EditorCommand::HistorySelectionAt { .. }
+                    | EditorCommand::ResultCaretAt(_)
+                    | EditorCommand::SelectionAt { .. }
+            );
+            if !matches!(&c, EditorCommand::Text(_)) {
+                text_snapshot = None;
+            }
             match &c {
                 EditorCommand::ReplaceAt {
                     owner,
@@ -1447,16 +1459,27 @@ impl Document {
                             let _size = crate::fitness::Span::new("engine.editor.textSize");
                             m::bytes(&stage).len()
                         };
-                        self.prepare_text_on_editor_stage(
-                            command,
-                            origin,
-                            staged_bytes,
-                            &stage,
-                            &text_projection,
-                        )
+                        if let Some(snapshot) = &text_snapshot {
+                            self.prepare_text_on_editor_snapshot(
+                                command,
+                                origin,
+                                staged_bytes,
+                                &stage,
+                                snapshot,
+                            )
+                        } else {
+                            self.prepare_text_on_editor_stage(
+                                command,
+                                origin,
+                                staged_bytes,
+                                &stage,
+                                &text_projection,
+                            )
+                        }
                         .map_err(EditorError::Text)?
                     };
-                    super::text::apply_prepared_to_stage(&stage, plan);
+                    text_snapshot =
+                        super::text::apply_prepared_to_stage_with_snapshot(&stage, plan);
                 }
                 EditorCommand::Split { owner, at } | EditorCommand::HeadingEnd { owner, at } => {
                     let heading_end = matches!(c, EditorCommand::HeadingEnd { .. });
@@ -1953,7 +1976,7 @@ impl Document {
                     );
                 }
             }
-            if !text_only {
+            if needs_ownership_replay {
                 crate::editor::view(&stage, stable).map_err(error)?;
             }
         }
@@ -2202,27 +2225,55 @@ mod transaction_tests {
             anchors::{Bias, Selection},
             commands::text::TextCommand,
         };
-        for stable in [false, true] {
+        for (case, (stable, bookmarks, joined)) in [
+            (false, false, false),
+            (false, true, false),
+            (true, false, false),
+            (true, true, false),
+            (false, false, true),
+            (true, true, true),
+        ]
+        .into_iter()
+        .enumerate()
+        {
             let document_id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa78";
-            let epoch = if stable {
-                "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb79"
-            } else {
-                "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb78"
-            };
+            // Creation authority is process-wide. Each independently created
+            // variant needs its own epoch, including repeated schema versions.
+            let epoch = format!("bbbbbbbb-bbbb-4bbb-8bbb-{:012x}", 0x7800 + case);
             let identity = if stable {
-                DocumentIdentity::v5(document_id, epoch)
+                DocumentIdentity::v5(document_id, &epoch)
             } else {
-                DocumentIdentity::v4(document_id, epoch)
+                DocumentIdentity::v4(document_id, &epoch)
             }
             .unwrap();
             let mut d = Document::create(
                 CreationPermit::authorize_new(identity).unwrap(),
-                &[InitialNode {
-                    kind: "block".into(),
-                    text: "A😀e\u{301}Z".into(),
-                }],
+                &[
+                    InitialNode {
+                        kind: "block".into(),
+                        text: "A😀e\u{301}Z".into(),
+                    },
+                    InitialNode {
+                        kind: "block".into(),
+                        text: "tail".into(),
+                    },
+                ][..if joined { 2 } else { 1 }],
             )
             .unwrap();
+            if joined {
+                let nodes = d.snapshot().unwrap().visible;
+                let plan = d
+                    .prepare_editor(
+                        &[EditorCommand::Join {
+                            first: nodes[0].id.clone(),
+                            second: nodes[1].id.clone(),
+                        }],
+                        &TextOrigin::new("setup-join").unwrap(),
+                    )
+                    .unwrap();
+                d.commit_editor(plan).unwrap();
+                assert!(d.inspect().unwrap().visible[0].spans.len() > 1);
+            }
             let id = d.snapshot().unwrap().visible[0].id.clone();
             let a = d.anchor(&id, Utf16Offset(1), Bias::Right).unwrap();
             let b = d.anchor(&id, Utf16Offset(3), Bias::Left).unwrap();
@@ -2266,7 +2317,27 @@ mod transaction_tests {
                 super::super::text::apply_prepared_to_stage(&legacy, plan);
             }
             let expected_update = legacy.transact().encode_state_as_update_v1(&sv);
-            let batch: Vec<_> = commands.into_iter().map(EditorCommand::Text).collect();
+            let point = |offset, bias| EditorPosition {
+                owner: id.clone(),
+                offset: Utf16Offset(offset),
+                bias,
+            };
+            let mut batch = if bookmarks {
+                vec![EditorCommand::HistorySelectionAt {
+                    anchor: point(1, Bias::Right),
+                    focus: point(3, Bias::Left),
+                }]
+            } else {
+                Vec::new()
+            };
+            batch.extend(commands.into_iter().map(EditorCommand::Text));
+            if bookmarks {
+                batch.push(EditorCommand::ResultCaretAt(point(2, Bias::Right)));
+                batch.push(EditorCommand::SelectionAt {
+                    anchor: point(5, Bias::Left),
+                    focus: point(1, Bias::Right),
+                });
+            }
             let plan = d.prepare_editor(&batch, &origin).unwrap();
             assert_eq!(
                 plan.update, expected_update,
@@ -2278,10 +2349,13 @@ mod transaction_tests {
                 "preparation is silent"
             );
             let mut invalid = batch.clone();
-            invalid.push(EditorCommand::Block {
-                target: "missing".into(),
-                tuple: m::arr(vec![Any::from("paragraph")]),
-            });
+            invalid.insert(
+                invalid.len() - 1,
+                EditorCommand::Block {
+                    target: "missing".into(),
+                    tuple: m::arr(vec![Any::from("paragraph")]),
+                },
+            );
             assert!(d.prepare_editor(&invalid, &origin).is_err());
             assert_eq!(
                 d.checkpoint().bytes,
@@ -2296,14 +2370,20 @@ mod transaction_tests {
                 .iter()
                 .map(|r| r.text.as_str())
                 .collect();
-            assert_eq!(text, "Aé界e\u{301}");
+            assert_eq!(
+                text,
+                format!("Aé界e\u{301}{}", if joined { "tail" } else { "" })
+            );
             d.undo().unwrap();
             let text: String = d.snapshot().unwrap().visible[0]
                 .runs
                 .iter()
                 .map(|r| r.text.as_str())
                 .collect();
-            assert_eq!(text, "A😀e\u{301}Z");
+            assert_eq!(
+                text,
+                format!("A😀e\u{301}Z{}", if joined { "tail" } else { "" })
+            );
         }
     }
     #[test]
