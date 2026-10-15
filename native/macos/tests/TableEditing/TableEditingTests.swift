@@ -6,6 +6,7 @@ private struct FixtureError: Error {}
 
 @MainActor
 final class TableEditingTests: XCTestCase {
+    private static var launched = false
     private func send(_ view: NativeEditorView, _ request: NativeSessionRequest) async throws -> NativeSessionResponse {
         try await withCheckedThrowingContinuation { c in
             do { try view.session.submit(request) { c.resume(with: $0.mapError { $0 as Error }) } }
@@ -24,6 +25,9 @@ final class TableEditingTests: XCTestCase {
     }
     private func fixture(unmerged: Bool = false, _ body: @MainActor (NativeEditorView, [String: Any]) async throws -> Void) async throws {
         _ = NSApplication.shared
+        if !Self.launched {
+            NSApp.setActivationPolicy(.regular); NSApp.finishLaunching(); Self.launched = true
+        }
         guard let path = ProcessInfo.processInfo.environment["EDITAC_MACOS_TABLE_FIXTURE"] else {
             XCTFail("Missing actual Rust/SQLite table fixture; no DTO or skip substitute"); throw FixtureError()
         }
@@ -68,8 +72,17 @@ final class TableEditingTests: XCTestCase {
         view.commands.now = { 0 }
         _ = try await send(view, .tablePolicy(enabled: true))
         _ = try await read(view)
-        view.window?.makeKeyAndOrderFront(nil)
-        XCTAssertTrue(view.window?.isKeyWindow == true)
+        NSApp.activate(ignoringOtherApps: true)
+        guard let window = view.window else { throw FixtureError() }
+        window.makeKeyAndOrderFront(nil)
+        // Reuse the real command suite's bounded AppKit event-loop bootstrap.
+        Timer.scheduledTimer(withTimeInterval: 0.05, repeats: false) { _ in MainActor.assumeIsolated {
+            window.makeKey(); NSApp.stop(nil)
+            NSApp.postEvent(NSEvent.otherEvent(with: .applicationDefined, location: .zero, modifierFlags: [],
+                timestamp: 0, windowNumber: 0, context: nil, subtype: 0, data1: 0, data2: 0)!, atStart: true)
+        } }
+        NSApp.run(); window.makeKey()
+        XCTAssertTrue(window.isKeyWindow)
     }
     private func perform(_ view: NativeEditorView, _ action: () throws -> Void) async throws {
         defer { view.commands.onResult = nil }

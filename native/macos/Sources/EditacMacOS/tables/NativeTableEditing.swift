@@ -100,9 +100,11 @@ public final class NativeTableEditing: NSObject, NSTextViewDelegate {
                 && view.commands.catalog?.routes.first(where: { $0.id == "tableStructure" })?.canPrepare == true
         }
         for table in view.projection.tableViews.values {
+            let supported = Set((try? NativeTableDescriptor(table.sharedTuple))?.cells
+                .filter { $0.paragraphs.count == 1 }.map(\.coordinate) ?? [])
             for cell in table.cells.values {
                 cell.editing = self; cell.tableID = table.nodeID; cell.delegate = self
-                cell.isEditable = editable && supportsCell(cell, in: table)
+                cell.isEditable = editable && supported.contains(cell.coordinate)
                 cell.allowsUndo = false
             }
         }
