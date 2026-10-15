@@ -80,3 +80,14 @@ overwrite and restore corpus bytes. Raw shape identities remain separate; these
 small mixed-shape samples are not a comparable tail estimate. Native finalization
 explicitly rebuilds the composing block's runs because native splits invalidate
 cached positions. Ordinary text reconciliation retains its mapped nodes. Other blocks and their views retain identity.
+
+`cargo run --release --locked --offline -p editac-core --example fitness-snapshot-cost
+-- <retained-native-checkpoint.json>` measures qualified v5 replay and snapshot
+serialization separately, without bridge/JSON clock hooks. It retains six raw
+observations and the complete semantic snapshot. Baseline/candidate comparisons
+must reuse exact checkpoint bytes, alternate process order, compare complete
+snapshots and pin both executables. These few native samples cannot qualify
+browser input tails or target-platform UI behavior. The indexed serializer keeps
+parent lookup and ordered-sibling counting bounded without changing deleted,
+checklist, nested-container or unknown-tuple semantics; the independent scan
+oracle is in `crates/editac-core/tests/fitness_snapshot_metadata.rs`.

@@ -839,6 +839,12 @@ pub(crate) fn snapshot_from_view(d: &Doc, v: View) -> Result<Any> {
     let t = d.transact();
     let mut visible = vec![];
     let mut deleted = vec![];
+    // Replay already guarantees unique owner IDs. Index parents once instead of
+    // scanning the complete document twice for every serialized owner. Ordinals
+    // follow the replay's owner order, including interleaved nested containers.
+    let parents: BTreeMap<_, _> = v.owners.iter().map(|o| (o.id.as_str(), o)).collect();
+    let mut ordinals: BTreeMap<&str, u32> = BTreeMap::new();
+    let mut checks = None;
     for o in &v.owners {
         let mut runs = vec![];
         let spans = o
@@ -857,6 +863,34 @@ pub(crate) fn snapshot_from_view(d: &Doc, v: View) -> Result<Any> {
                 ])
             })
             .collect();
+        let parent = parents.get(o.parent.as_str()).copied();
+        let numbered = is_numbered(o);
+        let ordinal = ordinals.entry(o.parent.as_str()).or_default();
+        let number = if numbered && !o.deleted {
+            let number = if let Some(p) = parent.filter(|p| tuple_kind(&p.attrs) == "ordered") {
+                let Any::Array(a) = &p.attrs else {
+                    unreachable!()
+                };
+                Any::from(integer(&a[1])? + *ordinal)
+            } else {
+                Any::Null
+            };
+            *ordinal += 1;
+            number
+        } else {
+            Any::Null
+        };
+        let check =
+            if numbered && parent.is_some_and(|p| tuple_kind(&p.attrs) == "checklist") {
+                if checks.is_none() {
+                    checks = Some(values(&t, 8)?);
+                }
+                Any::Bool(checks.as_ref().unwrap().get(&o.id).is_some_and(
+                    |v| matches!(v, Any::Array(a) if a.get(1) == Some(&Any::Bool(true))),
+                ))
+            } else {
+                Any::Null
+            };
         let node = obj(vec![
             ("id", Any::from(o.id.clone())),
             ("version", Any::from(o.version.clone())),
@@ -866,48 +900,8 @@ pub(crate) fn snapshot_from_view(d: &Doc, v: View) -> Result<Any> {
             ("runs", arr(runs)),
             ("tuple", o.attrs.clone()),
             ("presentation", presentation(&o.attrs)),
-            (
-                "check",
-                if v.owners
-                    .iter()
-                    .any(|p| p.id == o.parent && tuple_kind(&p.attrs) == "checklist")
-                    && is_numbered(o)
-                {
-                    Any::Bool(values(&t, 8)?.get(&o.id).is_some_and(
-                        |v| matches!(v, Any::Array(a) if a.get(1) == Some(&Any::Bool(true))),
-                    ))
-                } else {
-                    Any::Null
-                },
-            ),
-            (
-                "number",
-                if let Some(p) = v
-                    .owners
-                    .iter()
-                    .find(|p| p.id == o.parent && tuple_kind(&p.attrs) == "ordered")
-                {
-                    let Any::Array(a) = &p.attrs else {
-                        unreachable!()
-                    };
-                    if is_numbered(o) && !o.deleted {
-                        Any::from(
-                            integer(&a[1])?
-                                + v.owners
-                                    .iter()
-                                    .take_while(|p| p.id != o.id)
-                                    .filter(|p| {
-                                        p.parent == o.parent && !p.deleted && is_numbered(p)
-                                    })
-                                    .count() as u32,
-                        )
-                    } else {
-                        Any::Null
-                    }
-                } else {
-                    Any::Null
-                },
-            ),
+            ("check", check),
+            ("number", number),
         ]);
         if o.deleted {
             deleted.push(node)
