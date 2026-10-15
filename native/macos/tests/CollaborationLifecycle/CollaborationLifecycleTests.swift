@@ -47,10 +47,16 @@ final class CollaborationLifecycleTests: XCTestCase {
     }
     private func change(_ host: NativeDocumentCoordinator, _ options: NativeSessionOptions,
                         create: Bool = true) async throws -> NativeEditorView {
-        try await withCheckedThrowingContinuation { c in
+        let _: Void = try await withCheckedThrowingContinuation { c in
             host.switchDocument(options: options, initial: create ? [NativeSessionSeed(kind: "block", text: "new")] : nil,
-                now: 0) { c.resume(with: $0.mapError { $0 as Error }) }
+                now: 0) { result in
+                    switch result {
+                    case .success: c.resume()
+                    case let .failure(error): c.resume(throwing: error)
+                    }
+                }
         }
+        return host.editor
     }
     private func revoke(_ host: NativeDocumentCoordinator) async throws {
         let _: NativeSessionResponse = try await withCheckedThrowingContinuation { c in
