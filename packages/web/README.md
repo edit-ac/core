@@ -153,3 +153,30 @@ Importing these entry points does not mount views, initialize WASM or fetch data
 Heavy math rendering stays separately opt-in through `@edit-ac/web/math`.
 See the core package's public extension contract v1 for registration, frozen
 registries, supported data versions and limits on custom editing semantics.
+
+## Private reference display
+
+`privateReferenceDisplay(options)` is an optional `ContentFactory` for existing
+`referenceBlock` atoms. Pass it as `mountEditorSurface(..., {content: factory})`, or
+compose it with other factories using `references(context) ?? other(context)`.
+It preserves the shared target and authored label; fetched titles, previews and
+icons exist only in the current viewer's DOM. Rendering, replay and remote edits
+read the synchronous `cached(request)` port and never start a lookup. Only the
+Refresh reference button calls `ports.privateCatalog(request, signal)`.
+
+The host supplies current `context()`, a configured-catalog `target(targetId)`
+projection, and `subscribe(invalidate)` with an unsubscribe function. Notify on
+logout, account/tenant/authority switches, permission/policy revisions, revocation
+and key lock. The cache must scope records by principal, tenant, authority, target
+and policy/permission revision and return a `LinkResult` using the supplied request
+envelope. The presenter revalidates that envelope and its capabilities and lease
+before displaying fields and after host asset callbacks. Offline display expires
+at the recorded lease; it cannot detect an unreported remote revocation instantly.
+
+`iconAsset(handle)` may return vetted raster bytes as a Blob (PNG/JPEG/GIF/WebP,
+maximum 32 KiB). No URL supplied by metadata becomes a browser request. The view
+revokes object URLs when hidden, updated or disposed. Forbidden and missing states
+share an accessible neutral fallback; readonly still permits explicit lookup.
+Refresh has a 10-second timeout. Disposal unsubscribes and aborts work; late replies
+cannot restore display. Hosts retain all credentials and connection admission.
+This presenter does not publish private metadata or implement target activation.

@@ -280,3 +280,6 @@ export class ReferencePresenter {
   setReadOnly(value: boolean): void { this.readOnly = value; this.control.disabled = value; if (value) { this.clearCapture(); this.dismiss(); } }
   dispose(): void { if (this.disposed) return; this.disposed = true; this.clearCapture(); this.dismiss(); this.lookup?.dispose(); for (const [target, type, listener] of this.listeners) target.removeEventListener(type, listener); this.listeners.length = 0; this.control.remove(); this.menu.remove(); }
 }
+
+export { privateReferenceDisplay, PrivateReferenceView } from './references/display.js';
+export type { PrivateReferenceDisplayOptions } from './references/display.js';
