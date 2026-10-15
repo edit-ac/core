@@ -54,7 +54,7 @@ def main():
             raise RuntimeError('generator failed; see generate-bindings.log')
     swift_path = generated / 'EditacNative.swift'
     kotlin_path = generated / 'ac/edit/nativebridge/editac_ffi.kt'
-    swift = swift_path.read_text(); kotlin = kotlin_path.read_text().replace("`", "").replace("kotlin.", "")
+    swift = swift_path.read_text().replace('`', ''); kotlin = kotlin_path.read_text().replace("`", "").replace("kotlin.", "")
     assertions = []
     def check(name, condition):
         assertions.append({'id': name, 'passed': bool(condition)})
@@ -70,6 +70,14 @@ def main():
         check('shared-record-' + record, ('struct ' + record in swift) and ('data class ' + record in kotlin))
     for error in ['InvalidInput', 'EngineRejected', 'InvalidHandle', 'ResourceLimit', 'Disposed', 'ExecutorUnavailable']:
         check('shared-error-' + error, error in swift and error in kotlin)
+    # The additive durable Session shares this library/metadata, never another ABI.
+    for method in ['createLocal', 'open', 'prepareEdits', 'commitEdits', 'cancelEdits', 'setPermission', 'recoveryExport', 'recover', 'undo', 'redo']:
+        check('session-method-' + method, bool(re.search(r'func\s+' + method + r'\s*\(', swift)) and bool(re.search(r'fun\s+' + method + r'\s*\(', kotlin)))
+    for record in ['NativeSessionOptions', 'NativeSessionSeed', 'NativeSessionRead', 'NativeSessionEdit', 'NativeSessionRecovery', 'NativeSessionCommit']:
+        check('session-record-' + record, ('struct ' + record in swift) and ('data class ' + record in kotlin))
+    for error in ['NativeSessionError', 'NativeStoreFailure', 'NativeRevisionFailure']:
+        check('session-error-' + error, error in swift and error in kotlin)
+    check('session-optional-owned-revision', 'revision: Data?' in swift and 'revision: ByteArray?' in kotlin)
     check('no-engine-internals', not any(re.search(r'\b' + term + r'\b', swift + kotlin) for term in ['Yrs', 'PreparedEditorEdit', 'DocumentIdentity', 'Bridge', 'NativePointer']))
     check('no-callback-interface', 'uniffi::export(callback_interface)' not in (CORE / 'crates/editac-ffi/src/lib.rs').read_text() and 'FfiConverterCallbackInterface' not in swift + kotlin)
     check('pinned-generator', 'version = "0.32.2"' in (CORE / 'Cargo.lock').read_text() and 'uniffi = "=0.32.2"' in (CORE / 'crates/editac-ffi/Cargo.toml').read_text())
