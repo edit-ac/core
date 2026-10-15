@@ -74,6 +74,9 @@ public final class NativeEditorView: NSView {
             self.projectionSessionFailure = nil
             do {
                 try self.projection.apply(update)
+                if let catalog = update.commandCatalog, let history = update.history {
+                    self.commands.observe(catalog: catalog, history: history)
+                }
                 self.projectionFailure = nil
                 self.textView.setAccessibilityLabel("Editor (native projection)")
             } catch {

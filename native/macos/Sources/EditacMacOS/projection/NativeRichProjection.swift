@@ -4,6 +4,7 @@ import AppKit
 struct RichProjectionNode {
     let wire: [String: Any]
     let id: String
+    let kind: String
     let order: Int
     let runs: [[String: Any]]
     let attachment: Bool
@@ -11,12 +12,12 @@ struct RichProjectionNode {
 
     init(_ wire: [String: Any]) throws {
         guard let id = wire["id"] as? String, !id.isEmpty, let order = wire["order"] as? Int, order >= 0,
-              let kind = wire["kind"] as? String, kind == "block",
+              let kind = wire["kind"] as? String, ["block", "list", "quote"].contains(kind),
               let runs = wire["runs"] as? [[String: Any]],
               runs.allSatisfy({ $0["text"] is String && $0["attributes"] is [String: Any] }) else {
             throw NativeProjectionFailure.malformedRichProjection
         }
-        self.wire = wire; self.id = id; self.order = order; self.runs = runs
+        self.wire = wire; self.id = id; self.kind = kind; self.order = order; self.runs = runs
         let tuple = wire["blockAttributes"] as? [Any]
         attachment = (tuple?.first as? String)?.hasPrefix("module:") == true
         text = attachment ? "\u{FFFC}" : runs.map { $0["text"] as! String }.joined()
@@ -98,7 +99,10 @@ extension NativeTextProjection {
             guard cursor == patches.sequence else { throw NativeProjectionFailure.invalidCursor }
             sequence = cursor; revision = patches.revision
         } else { throw NativeProjectionFailure.malformedRichProjection }
-        let ordered = next.values.sorted { $0.order == $1.order ? $0.id < $1.id : $0.order < $1.order }
+        // Containers are retained shared structure, not editable text rows.
+        // Their child block IDs/ranges remain stable through list/quote commands;
+        // attributed paragraph/list presentation belongs to the styles owner.
+        let ordered = next.values.filter { $0.kind == "block" }.sorted { $0.order == $1.order ? $0.id < $1.id : $0.order < $1.order }
         // Text-only mapper remains the coordinate implementation, with one native
         // attachment unit per shared atom. It never edits the shared document.
         let snapshot = NativeSessionRead(revision: revision,

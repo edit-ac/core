@@ -34,6 +34,11 @@ public final class NativeCommittedInput: NSObject, NSTextViewDelegate {
         return false
     }
 
+    public func textViewDidChangeSelection(_ notification: Notification) {
+        guard let view, !view.isDisposed, !view.applyingProjection else { return }
+        view.commands.refreshControls()
+    }
+
     private func route(range: NSRange, replacement: String?) {
         guard let view, !view.isDisposed, !view.applyingProjection,
               view.projectionFailure == nil else { return }
