@@ -13,7 +13,9 @@ use editac_session::{
     store::NativeStore,
 };
 use std::{
+    cell::RefCell,
     collections::BTreeMap,
+    rc::Rc,
     sync::{Arc, Mutex, mpsc},
     thread::{self, JoinHandle},
 };
@@ -103,6 +105,10 @@ pub enum NativeSessionError {
     Source { message: String },
     #[error("operation: {message}")]
     Operation { message: String },
+    #[error("projection snapshot required")]
+    ProjectionResyncRequired,
+    #[error("invalid projection cursor")]
+    InvalidProjectionCursor,
     #[error("invalid or consumed plan")]
     InvalidPlan,
     #[error("session disposed")]
@@ -267,18 +273,75 @@ pub struct NativeSessionRecovery {
     pub unjournaled_update: Option<Vec<u8>>,
 }
 
+/// Detached authoritative rich wire snapshot, paired with a committed revision.
+#[derive(Clone, Debug, uniffi::Record)]
+pub struct NativeSessionProjection {
+    pub revision: Vec<u8>,
+    pub sequence: u64,
+    pub snapshot_json: String,
+}
+/// Ordered original range patches since the last snapshot/drain on this handle.
+#[derive(Clone, Debug, uniffi::Record)]
+pub struct NativeSessionPatches {
+    pub revision: Vec<u8>,
+    pub after_sequence: u64,
+    pub sequence: u64,
+    pub patches_json: Vec<String>,
+}
+const MAX_PROJECTION_BYTES: usize = 2 * 1024 * 1024;
+const MAX_PROJECTION_PATCHES: usize = 128;
+#[derive(Default)]
+struct ProjectionQueue {
+    patches: Vec<String>,
+    bytes: usize,
+    sequence: u64,
+    delivered: Option<u64>,
+    overflow: bool,
+}
+impl ProjectionQueue {
+    fn push(&mut self, patch: &editac_core::patches::Patch) {
+        self.sequence = patch.sequence;
+        if self.overflow || self.delivered.is_none() {
+            return;
+        }
+        let wire = editac_core::interchange::projection_patch(patch).to_string();
+        if self.patches.len() >= MAX_PROJECTION_PATCHES
+            || self.bytes.saturating_add(wire.len()) > MAX_PROJECTION_BYTES
+        {
+            self.patches.clear();
+            self.bytes = 0;
+            self.overflow = true;
+        } else {
+            self.bytes += wire.len();
+            self.patches.push(wire);
+        }
+    }
+}
+
 struct State {
     service: EditService<Arc<NativeStore>>,
     plans: BTreeMap<String, PreparedEdit>,
     next_plan: u64,
+    projection: Rc<RefCell<ProjectionQueue>>,
+    _projection_subscription: editac_core::patches::Subscription,
 }
 impl State {
-    fn new(session: Session<Arc<NativeStore>>) -> Self {
-        Self {
+    fn new(mut session: Session<Arc<NativeStore>>) -> Result<Self> {
+        let projection = Rc::new(RefCell::new(ProjectionQueue {
+            sequence: session.document().last_patch().map_or(0, |p| p.sequence),
+            ..Default::default()
+        }));
+        let observed = projection.clone();
+        let subscription = session
+            .observe_projection(move |p| observed.borrow_mut().push(p))
+            .map_err(|_| NativeSessionError::ResourceLimit)?;
+        Ok(Self {
             service: EditService::new(session, HostPolicy::default()),
             plans: BTreeMap::new(),
             next_plan: 0,
-        }
+            projection,
+            _projection_subscription: subscription,
+        })
     }
 }
 type Task = Box<dyn FnOnce(&mut State) + Send>;
@@ -411,7 +474,7 @@ impl NativeSession {
                 .collect::<Vec<_>>();
             let mut session = Session::create_local(store, id, &initial)?;
             session.set_permission(permission(&options));
-            Ok(State::new(session))
+            State::new(session)
         })
     }
     #[uniffi::constructor]
@@ -423,7 +486,7 @@ impl NativeSession {
                 id.clone(),
                 StoreLimits::default(),
             )?);
-            Ok(State::new(Session::open(store, &id, permission(&options))?))
+            State::new(Session::open(store, &id, permission(&options))?)
         })
     }
     pub fn read(&self, now: u64) -> Result<NativeSessionRead> {
@@ -466,6 +529,58 @@ impl NativeSession {
                 can_apply: capabilities.can_apply,
                 can_history: capabilities.can_history,
                 recovery_error: status.recovery_error.map(Into::into),
+            })
+        })
+    }
+    /// Establish/reset this handle's incremental cursor. Recovery-required state
+    /// cannot mint an acknowledged projection; salvage remains recoveryExport.
+    pub fn rich_snapshot(&self) -> Result<NativeSessionProjection> {
+        self.call(|state| {
+            let session = state.service.session();
+            let revision = session.observed_revision()?.to_bytes().to_vec();
+            let snapshot_json = editac_core::interchange::projection_snapshot(session.document())
+                .map_err(|e| NativeSessionError::Engine { message: e.message })?
+                .to_string();
+            if snapshot_json.len() > MAX_PROJECTION_BYTES {
+                return Err(NativeSessionError::ResourceLimit);
+            }
+            let mut queue = state.projection.borrow_mut();
+            queue.patches.clear();
+            queue.bytes = 0;
+            queue.overflow = false;
+            queue.delivered = Some(queue.sequence);
+            Ok(NativeSessionProjection {
+                revision,
+                sequence: queue.sequence,
+                snapshot_json,
+            })
+        })
+    }
+    /// A single bounded consumer shared by all aliases. Failed reads never drain.
+    /// Overflow requires richSnapshot; no event is silently omitted or coalesced.
+    pub fn take_rich_patches(&self, after_sequence: u64) -> Result<NativeSessionPatches> {
+        self.call(move |state| {
+            let revision = state
+                .service
+                .session()
+                .observed_revision()?
+                .to_bytes()
+                .to_vec();
+            let mut queue = state.projection.borrow_mut();
+            if queue.overflow || queue.delivered.is_none() {
+                return Err(NativeSessionError::ProjectionResyncRequired);
+            }
+            if queue.delivered != Some(after_sequence) {
+                return Err(NativeSessionError::InvalidProjectionCursor);
+            }
+            let patches_json = std::mem::take(&mut queue.patches);
+            queue.bytes = 0;
+            queue.delivered = Some(queue.sequence);
+            Ok(NativeSessionPatches {
+                revision,
+                after_sequence,
+                sequence: queue.sequence,
+                patches_json,
             })
         })
     }
@@ -633,14 +748,14 @@ mod tests {
             let store = self.store.clone();
             let id = self.id.clone();
             NativeSession::start(move || {
-                Ok(State::new(Session::create_local(
+                State::new(Session::create_local(
                     store,
                     id,
                     &[InitialNode {
                         kind: "block".into(),
                         text: "seed".into(),
                     }],
-                )?))
+                )?)
             })
             .unwrap()
         }
@@ -684,6 +799,7 @@ mod tests {
     ) {
         let f = Fixture::new();
         let s = f.session();
+        let projection = s.rich_snapshot().unwrap();
         let token = plan(&s, "recovered");
         let revision = s.read(0).unwrap().revision.unwrap();
         f.store
@@ -698,6 +814,14 @@ mod tests {
         let r = s.read(0).unwrap();
         assert!(r.recovery_required && !r.can_apply && !r.locally_committed);
         assert_eq!(r.recovery_error, Some(expected));
+        assert!(matches!(
+            s.rich_snapshot(),
+            Err(NativeSessionError::RecoveryRequired)
+        ));
+        assert!(matches!(
+            s.take_rich_patches(projection.sequence),
+            Err(NativeSessionError::RecoveryRequired)
+        ));
         let salvage = s.recovery_export().unwrap();
         assert!(!salvage.locally_committed && salvage.unjournaled_update.is_some());
         assert!(matches!(
@@ -713,6 +837,9 @@ mod tests {
         s.recover().unwrap();
         assert!(!s.read(0).unwrap().recovery_required);
         assert_eq!(s.read(0).unwrap().nodes[0].text, "recovered");
+        let recovered = s.take_rich_patches(projection.sequence).unwrap();
+        assert!(!recovered.patches_json.is_empty());
+        assert_eq!(Some(recovered.revision), s.read(0).unwrap().revision);
         assert_eq!(
             f.store.pending(&f.id).unwrap().len(),
             1,
@@ -752,14 +879,14 @@ mod tests {
         let seed = "seed".repeat(16_384);
         let expected = seed.clone();
         let s = NativeSession::start(move || {
-            Ok(State::new(Session::create_local(
+            State::new(Session::create_local(
                 store,
                 id,
                 &[InitialNode {
                     kind: "block".into(),
                     text: seed,
                 }],
-            )?))
+            )?)
         })
         .unwrap();
         let r = s.read(0).unwrap();

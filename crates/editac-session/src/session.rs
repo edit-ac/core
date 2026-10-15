@@ -318,6 +318,21 @@ impl<S: SessionStore> Session<S> {
     pub fn document(&self) -> &Document {
         &self.document
     }
+    /// Read-only observer of existing authoritative document patches. No mutable
+    /// document escapes Session admission; dropping the subscription releases it.
+    pub fn observe_projection<F>(
+        &mut self,
+        mut callback: F,
+    ) -> Result<editac_core::patches::Subscription, editac_core::patches::SubscriptionError>
+    where
+        F: FnMut(&editac_core::patches::Patch) + 'static,
+    {
+        self.document
+            .subscribe(editac_core::patches::PatchScope::All, move |_, patch| {
+                callback(patch);
+                Ok(())
+            })
+    }
     pub fn set_permission(&mut self, permission: CachedPermission) {
         self.permission = permission;
     }
