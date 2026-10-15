@@ -2,7 +2,7 @@
   "contractVersion": 1,
   "id": "native.macos.pending.v1",
   "implementation": {
-    "revision": "4b6f6ac3ae0470a3a8c5ceabc5ec2474a503b3db",
+    "revision": "882410c9ac535f9fb8008d1ceae6d9d4adfcf70f",
     "package": "EditacMacOS",
     "version": "0.0.0"
   },
@@ -317,11 +317,19 @@
     },
     {
       "path": "native/macos/Package.swift",
-      "sha256": "fa96c7b92645d55a2e706d1df19371adc88e06c737eedf5a23de089e31fe3187"
+      "sha256": "0b8a154b7b4f68882b21f54500d0bf1658f4f7973a016d5400a8bf99b02f9298"
     },
     {
       "path": "native/macos/toolchain.json",
       "sha256": "ef2502b8b749242f908d225acd74c3bfabc31342ba5ecf2485bdc189d39f2000"
+    },
+    {
+      "path": "native/macos/Sources/EditacMacOS/tables/NativeTableEditing.swift",
+      "sha256": "e9444f45b8f176e988d6cf3bd19c91319277fae4a4973455484c729759959303"
+    },
+    {
+      "path": "native/macos/tests/TableEditing/TableEditingTests.swift",
+      "sha256": "8aa9b9a8d334832d9e4f15686d52279cf4e57f67e99675e8973dba410b5d7894"
     }
   ],
   "evidence": []
