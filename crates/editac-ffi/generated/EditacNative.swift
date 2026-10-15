@@ -1084,6 +1084,32 @@ public protocol NativeSessionProtocol: AnyObject, Sendable {
      */
     func takeHostFrames(token: String, maxFrames: UInt32, now: UInt64) throws  -> [NativeHostFrame]
     
+    /**
+     * Queue a coalesced pinned awareness frame; queue backpressure retains state.
+     */
+    func flushHostPresence(token: String, now: UInt64) throws  -> Bool
+    
+    /**
+     * Resolve relative cursors against current committed content, expiring peers.
+     */
+    func hostPresence(token: String, now: UInt64) throws  -> [NativePeerPresence]
+    
+    /**
+     * Host authenticates participant routing before supplying the existing wire.
+     */
+    func receiveHostPresence(token: String, frame: NativeHostFrame, now: UInt64) throws 
+    
+    /**
+     * None means online without selection; present=false emits an explicit leave.
+     * Both tokens must belong to this worker. No local permission is granted.
+     */
+    func setHostPresence(token: String, anchor: String?, focus: String?, present: Bool, now: UInt64) throws 
+    
+    /**
+     * Awareness uses a separate bounded owning transport queue from durable sync.
+     */
+    func takeHostPresenceFrames(token: String, maxFrames: UInt32, now: UInt64) throws  -> [NativeHostFrame]
+    
 }
 /**
  * Foreign aliases share this single serialized owner. No callback API is exported;
@@ -1574,6 +1600,80 @@ open func takeHostFrames(token: String, maxFrames: UInt32, now: UInt64)throws  -
     return try  FfiConverterSequenceTypeNativeHostFrame.lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
         uniffiCallStatus in
     uniffi_editac_ffi_fn_method_nativesession_take_host_frames(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(token),
+        FfiConverterUInt32.lower(maxFrames),
+        FfiConverterUInt64.lower(now),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Queue a coalesced pinned awareness frame; queue backpressure retains state.
+     */
+open func flushHostPresence(token: String, now: UInt64)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_flush_host_presence(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(token),
+        FfiConverterUInt64.lower(now),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Resolve relative cursors against current committed content, expiring peers.
+     */
+open func hostPresence(token: String, now: UInt64)throws  -> [NativePeerPresence]  {
+    return try  FfiConverterSequenceTypeNativePeerPresence.lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_host_presence(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(token),
+        FfiConverterUInt64.lower(now),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Host authenticates participant routing before supplying the existing wire.
+     */
+open func receiveHostPresence(token: String, frame: NativeHostFrame, now: UInt64)throws   {try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_receive_host_presence(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(token),
+        FfiConverterTypeNativeHostFrame_lower(frame),
+        FfiConverterUInt64.lower(now),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * None means online without selection; present=false emits an explicit leave.
+     * Both tokens must belong to this worker. No local permission is granted.
+     */
+open func setHostPresence(token: String, anchor: String?, focus: String?, present: Bool, now: UInt64)throws   {try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_set_host_presence(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(token),
+        FfiConverterOptionString.lower(anchor),
+        FfiConverterOptionString.lower(focus),
+        FfiConverterBool.lower(present),
+        FfiConverterUInt64.lower(now),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Awareness uses a separate bounded owning transport queue from durable sync.
+     */
+open func takeHostPresenceFrames(token: String, maxFrames: UInt32, now: UInt64)throws  -> [NativeHostFrame]  {
+    return try  FfiConverterSequenceTypeNativeHostFrame.lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_take_host_presence_frames(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(token),
         FfiConverterUInt32.lower(maxFrames),
@@ -2208,6 +2308,60 @@ public func FfiConverterTypeNativeHostTransportOptions_lower(_ value: NativeHost
 }
 
 
+public struct NativePeerPresence: Equatable, Hashable {
+    public var clientId: UInt32
+    public var selection: NativePresenceSelection?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(clientId: UInt32, selection: NativePresenceSelection?) {
+        self.clientId = clientId
+        self.selection = selection
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NativePeerPresence: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativePeerPresence: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativePeerPresence {
+        return
+            try NativePeerPresence(
+                clientId: FfiConverterUInt32.read(from: &buf), 
+                selection: FfiConverterOptionTypeNativePresenceSelection.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NativePeerPresence, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.clientId, into: &buf)
+        FfiConverterOptionTypeNativePresenceSelection.write(value.selection, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativePeerPresence_lift(_ buf: RustBuffer) throws -> NativePeerPresence {
+    return try FfiConverterTypeNativePeerPresence.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativePeerPresence_lower(_ value: NativePeerPresence) -> RustBuffer {
+    return FfiConverterTypeNativePeerPresence.lower(value)
+}
+
+
 public struct NativePreparedCommands: Equatable, Hashable {
     public var token: String
     public var revision: Data
@@ -2259,6 +2413,60 @@ public func FfiConverterTypeNativePreparedCommands_lift(_ buf: RustBuffer) throw
 #endif
 public func FfiConverterTypeNativePreparedCommands_lower(_ value: NativePreparedCommands) -> RustBuffer {
     return FfiConverterTypeNativePreparedCommands.lower(value)
+}
+
+
+public struct NativePresenceSelection: Equatable, Hashable {
+    public var anchor: NativeAnchorResolution
+    public var focus: NativeAnchorResolution
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(anchor: NativeAnchorResolution, focus: NativeAnchorResolution) {
+        self.anchor = anchor
+        self.focus = focus
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NativePresenceSelection: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativePresenceSelection: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativePresenceSelection {
+        return
+            try NativePresenceSelection(
+                anchor: FfiConverterTypeNativeAnchorResolution.read(from: &buf), 
+                focus: FfiConverterTypeNativeAnchorResolution.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NativePresenceSelection, into buf: inout [UInt8]) {
+        FfiConverterTypeNativeAnchorResolution.write(value.anchor, into: &buf)
+        FfiConverterTypeNativeAnchorResolution.write(value.focus, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativePresenceSelection_lift(_ buf: RustBuffer) throws -> NativePresenceSelection {
+    return try FfiConverterTypeNativePresenceSelection.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativePresenceSelection_lower(_ value: NativePresenceSelection) -> RustBuffer {
+    return FfiConverterTypeNativePresenceSelection.lower(value)
 }
 
 
@@ -4143,6 +4351,30 @@ fileprivate struct FfiConverterOptionUInt64: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
+    typealias SwiftType = String?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterString.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionData: FfiConverterRustBuffer {
     typealias SwiftType = Data?
 
@@ -4183,6 +4415,30 @@ fileprivate struct FfiConverterOptionTypeNativeHostReceipt: FfiConverterRustBuff
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeNativeHostReceipt.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeNativePresenceSelection: FfiConverterRustBuffer {
+    typealias SwiftType = NativePresenceSelection?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeNativePresenceSelection.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeNativePresenceSelection.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -4356,6 +4612,31 @@ fileprivate struct FfiConverterSequenceTypeNativeHostFrame: FfiConverterRustBuff
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeNativeHostFrame.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeNativePeerPresence: FfiConverterRustBuffer {
+    typealias SwiftType = [NativePeerPresence]
+
+    public static func write(_ value: [NativePeerPresence], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeNativePeerPresence.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [NativePeerPresence] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [NativePeerPresence]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeNativePeerPresence.read(from: &buf))
         }
         return seq
     }
@@ -4656,6 +4937,21 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_editac_ffi_checksum_method_nativesession_take_host_frames() != 45058) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_flush_host_presence() != 29963) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_host_presence() != 19553) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_receive_host_presence() != 41584) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_set_host_presence() != 54328) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_take_host_presence_frames() != 57315) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_editac_ffi_checksum_constructor_nativeengine_create() != 33211) {

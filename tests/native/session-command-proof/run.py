@@ -79,7 +79,7 @@ def main():
             host = work / 'main.swift'
             extra_entry = 'runTablePolicyCases()\nrunRemoteCases()\n' if args.table_fixture else ''
             if args.host_transport:
-                extra_entry += 'runHostTransportCases()\n'
+                extra_entry += 'runHostTransportCases()\nrunPresenceCases()\n'
             marker = 'if let index = CommandLine.arguments.firstIndex(of: "--rich-fixture") {'
             host.write_text(canonical.read_text().replace(marker, 'runCommandCases()\n' + extra_entry + marker))
             command_source = CORE / 'tests/native/session-command-proof/CommandCases.swift'
@@ -88,7 +88,9 @@ def main():
             rich_source = CORE / 'tests/native/session-probe/RichCases.swift'
             table_sources = [CORE / 'tests/native/table-session-proof/TablePolicyCases.swift', CORE / 'tests/native/table-session-proof/RemoteCases.swift'] if args.table_fixture else []
             if args.host_transport:
-                table_sources.append(CORE / 'tests/native/table-session-proof/HostTransportCases.swift')
+                table_sources.extend([CORE / 'tests/native/table-session-proof/HostTransportCases.swift', CORE / 'tests/native/table-session-proof/PresenceCases.swift'])
+                for p in ['crates/editac-core/src/presence.rs', 'crates/editac-ffi/src/session_presence.rs']:
+                    receipt['sourceHashes'][p] = digest(CORE / p)
                 receipt['sourceHashes']['crates/editac-ffi/src/session_collaboration.rs'] = digest(CORE / 'crates/editac-ffi/src/session_collaboration.rs')
             if args.table_fixture:
                 receipt['tableFixtureManifestSha256'] = digest(args.table_fixture)

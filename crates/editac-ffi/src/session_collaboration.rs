@@ -57,6 +57,8 @@ impl Transport for HostQueue {
 pub(super) struct HostConnection {
     token: String,
     queue: HostQueue,
+    presence_queue: HostQueue,
+    presence: editac_core::presence::Presence,
 }
 impl State {
     fn host_connection(&self, token: &str, now: u64) -> Result<&HostConnection> {
@@ -114,7 +116,7 @@ impl NativeSession {
                 .checked_add(1)
                 .ok_or(NativeSessionError::ResourceLimit)?;
             let queue = HostQueue(Rc::new(RefCell::new(PreparedTransport::new(
-                identity,
+                identity.clone(),
                 ConnectionState::Authorized,
                 TransportCapabilities {
                     receipts: if options.durable_receipts {
@@ -127,6 +129,12 @@ impl NativeSession {
                     max_queue_frames: options.max_queue_frames as usize,
                 },
             )?)));
+            let presence_queue = HostQueue(Rc::new(RefCell::new(PreparedTransport::new(
+                identity,
+                ConnectionState::Authorized,
+                queue.capabilities(),
+            )?)));
+            let presence = state.service.session().document().presence();
             state
                 .service
                 .attach_transport(Box::new(queue.clone()), options.expires_at, now)?;
@@ -135,6 +143,8 @@ impl NativeSession {
             state.host_transport = Some(HostConnection {
                 token: token.clone(),
                 queue,
+                presence_queue,
+                presence,
             });
             Ok(token)
         })
@@ -279,3 +289,7 @@ impl NativeSession {
         })
     }
 }
+
+#[path = "session_presence.rs"]
+mod presence;
+pub use presence::*;

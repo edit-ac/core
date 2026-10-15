@@ -71,9 +71,9 @@ def main():
     for error in ['InvalidInput', 'EngineRejected', 'InvalidHandle', 'ResourceLimit', 'Disposed', 'ExecutorUnavailable']:
         check('shared-error-' + error, error in swift and error in kotlin)
     # The additive durable Session shares this library/metadata, never another ABI.
-    for method in ['attachHostTransport', 'detachHostTransport', 'flushHostTransport', 'flushHostTransportPage', 'takeHostFrames', 'receiveHostPeer', 'acceptHostReceipt', 'reservePeerWriter', 'receivePeer', 'pendingUpdates', 'createLocal', 'open', 'prepareEdits', 'commitEdits', 'cancelEdits', 'setPermission', 'recoveryExport', 'recover', 'undo', 'redo']:
+    for method in ['setHostPresence', 'flushHostPresence', 'takeHostPresenceFrames', 'receiveHostPresence', 'hostPresence', 'attachHostTransport', 'detachHostTransport', 'flushHostTransport', 'flushHostTransportPage', 'takeHostFrames', 'receiveHostPeer', 'acceptHostReceipt', 'reservePeerWriter', 'receivePeer', 'pendingUpdates', 'createLocal', 'open', 'prepareEdits', 'commitEdits', 'cancelEdits', 'setPermission', 'recoveryExport', 'recover', 'undo', 'redo']:
         check('session-method-' + method, bool(re.search(r'func\s+' + method + r'\s*\(', swift)) and bool(re.search(r'fun\s+' + method + r'\s*\(', kotlin)))
-    for record in ['NativeHostTransportOptions', 'NativeHostFrame', 'NativeHostReceipt', 'NativeSessionOptions', 'NativeSessionSeed', 'NativeSessionRead', 'NativeSessionEdit', 'NativeSessionRecovery', 'NativeSessionCommit']:
+    for record in ['NativePresenceSelection', 'NativePeerPresence', 'NativeHostTransportOptions', 'NativeHostFrame', 'NativeHostReceipt', 'NativeSessionOptions', 'NativeSessionSeed', 'NativeSessionRead', 'NativeSessionEdit', 'NativeSessionRecovery', 'NativeSessionCommit']:
         check('session-record-' + record, ('struct ' + record in swift) and ('data class ' + record in kotlin))
     for error in ['NativeHostReceiptResult', 'NativeSessionError', 'NativeStoreFailure', 'NativeRevisionFailure']:
         check('session-error-' + error, error in swift and error in kotlin)

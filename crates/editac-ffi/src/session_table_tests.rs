@@ -1298,3 +1298,555 @@ fn host_transport_pages_progress_without_receipts_and_reject_stale_or_foreign_cu
             .ends_with(&entries[1].bytes)
     );
 }
+
+fn presence_range(s: &NativeSession, index: usize) -> Vec<NativeSessionAnchor> {
+    let owner = visible(s)[index]["id"].as_str().unwrap().to_owned();
+    s.capture_anchors(
+        revision(s),
+        vec![
+            crate::AnchorInput {
+                node: owner.clone(),
+                offset_utf16: 0,
+                bias: crate::AnchorBias::Left,
+            },
+            crate::AnchorInput {
+                node: owner,
+                offset_utf16: 0,
+                bias: crate::AnchorBias::Right,
+            },
+        ],
+    )
+    .unwrap()
+}
+fn announce(
+    s: &NativeSession,
+    token: &str,
+    range: &[NativeSessionAnchor],
+    now: u64,
+) -> NativeHostFrame {
+    s.set_host_presence(
+        token.into(),
+        Some(range[0].token.clone()),
+        Some(range[1].token.clone()),
+        true,
+        now,
+    )
+    .unwrap();
+    assert!(s.flush_host_presence(token.into(), now).unwrap());
+    s.take_host_presence_frames(token.into(), 1, now)
+        .unwrap()
+        .remove(0)
+}
+#[test]
+fn presence_distinct_sqlite_remote_selection_is_ephemeral_and_tracks_actual_remote_commits() {
+    let f = Fixture::with_unmerged_v2(true);
+    let local = f.open();
+    let (_, peer) = remote_peer(&f);
+    let left = host_attach(&local);
+    let right = host_attach(&peer);
+    let before = revision(&local);
+    let anchors = presence_range(&peer, 2);
+    let frame = announce(&peer, &right, &anchors, 0);
+    local.receive_host_presence(left.clone(), frame, 0).unwrap();
+    let peers = local.host_presence(left.clone(), 0).unwrap();
+    assert_eq!(peers.len(), 1);
+    assert!(
+        matches!(&peers[0].selection.as_ref().unwrap().anchor,NativeAnchorResolution::Position{node,..} if node==visible(&local)[2]["id"].as_str().unwrap())
+    );
+    assert_eq!(revision(&local), before);
+    assert!(local.pending_updates().unwrap().is_empty());
+    assert!(peer.take_host_frames(right, 32, 0).unwrap().is_empty());
+    let update = remote_edit(&peer, 2, true);
+    local.reserve_peer_writer(update.writer).unwrap();
+    local.receive_host_peer(left.clone(), update, 0).unwrap();
+    assert_eq!(visible(&local)[2], visible(&peer)[2]);
+    assert!(
+        local.host_presence(left.clone(), 1).unwrap()[0]
+            .selection
+            .is_some()
+    );
+    local.detach_host_transport(left).unwrap();
+    assert!(
+        local
+            .host_presence(host_attach(&local), 0)
+            .unwrap()
+            .is_empty()
+    );
+    local.dispose().unwrap();
+    peer.dispose().unwrap();
+}
+#[test]
+fn presence_expiry_leave_tombstones_and_duplicate_frames_cannot_resurrect() {
+    let f = Fixture::new();
+    let local = f.open();
+    let (_, peer) = remote_peer(&f);
+    let mut options = host_options(&local);
+    options.expires_at = 100000;
+    let left = local.attach_host_transport(options, 0).unwrap();
+    let mut options = host_options(&peer);
+    options.expires_at = 100000;
+    let right = peer.attach_host_transport(options, 0).unwrap();
+    let anchors = presence_range(&peer, 0);
+    let frame = announce(&peer, &right, &anchors, 0);
+    local
+        .receive_host_presence(left.clone(), frame.clone(), 0)
+        .unwrap();
+    assert_eq!(local.host_presence(left.clone(), 29999).unwrap().len(), 1);
+    assert!(local.host_presence(left.clone(), 30000).unwrap().is_empty());
+    local
+        .receive_host_presence(left.clone(), frame, 30000)
+        .unwrap();
+    assert!(local.host_presence(left.clone(), 30000).unwrap().is_empty());
+    assert!(peer.flush_host_presence(right.clone(), 30000).unwrap()); // renewal
+    let renewed = peer
+        .take_host_presence_frames(right.clone(), 1, 30000)
+        .unwrap()
+        .remove(0);
+    local
+        .receive_host_presence(left.clone(), renewed.clone(), 30001)
+        .unwrap();
+    assert_eq!(local.host_presence(left.clone(), 30001).unwrap().len(), 1);
+    peer.set_host_presence(right.clone(), None, None, false, 30050)
+        .unwrap();
+    assert!(peer.flush_host_presence(right.clone(), 30050).unwrap());
+    let leave = peer
+        .take_host_presence_frames(right, 1, 30050)
+        .unwrap()
+        .remove(0);
+    local
+        .receive_host_presence(left.clone(), leave, 30050)
+        .unwrap();
+    local
+        .receive_host_presence(left.clone(), renewed, 30051)
+        .unwrap();
+    assert!(local.host_presence(left, 30051).unwrap().is_empty());
+}
+#[test]
+fn presence_coalesces_throttles_retries_bounded_queue_and_never_drains_sync() {
+    let f = Fixture::new();
+    let s = f.open();
+    let mut options = host_options(&s);
+    options.max_queue_frames = 1;
+    options.expires_at = 1000;
+    let token = s.attach_host_transport(options, 0).unwrap();
+    let a = presence_range(&s, 0);
+    s.set_host_presence(
+        token.clone(),
+        Some(a[0].token.clone()),
+        Some(a[1].token.clone()),
+        true,
+        0,
+    )
+    .unwrap();
+    assert!(s.flush_host_presence(token.clone(), 0).unwrap());
+    s.set_host_presence(token.clone(), None, None, true, 1)
+        .unwrap();
+    assert!(!s.flush_host_presence(token.clone(), 1).unwrap());
+    assert!(!s.flush_host_presence(token.clone(), 50).unwrap()); // full
+    assert_eq!(
+        s.take_host_presence_frames(token.clone(), 1, 50)
+            .unwrap()
+            .len(),
+        1
+    );
+    assert!(!s.flush_host_presence(token.clone(), 51).unwrap());
+    assert!(s.flush_host_presence(token.clone(), 100).unwrap()); // retry retains latest state
+    assert_eq!(
+        s.take_host_presence_frames(token.clone(), 1, 100)
+            .unwrap()
+            .len(),
+        1
+    );
+    s.detach_host_transport(token).unwrap();
+    let new = host_attach(&s);
+    assert!(
+        s.take_host_presence_frames(new.clone(), 1, 0)
+            .unwrap()
+            .is_empty()
+    );
+    assert!(s.take_host_frames(new, 1, 0).unwrap().is_empty());
+}
+#[test]
+fn presence_bad_frame_cursor_scope_time_and_foreign_tokens_are_zero_mutation() {
+    let f = Fixture::new();
+    let local = f.open();
+    let (_, peer) = remote_peer(&f);
+    let left = host_attach(&local);
+    let right = host_attach(&peer);
+    let anchors = presence_range(&peer, 0);
+    let frame = announce(&peer, &right, &anchors, 0);
+    let before = revision(&local);
+    local
+        .receive_host_presence(left.clone(), frame.clone(), 0)
+        .unwrap();
+    for bytes in [
+        vec![],
+        vec![0, 0],
+        vec![255; 65537],
+        vec![255, 255, 255, 255, 15],
+        vec![129, 0, 1, 1, 4, b'n', b'u', b'l', b'l'],
+    ] {
+        let mut invalid = frame.clone();
+        invalid.bytes = bytes;
+        assert!(
+            local
+                .receive_host_presence(left.clone(), invalid, 1)
+                .is_err()
+        );
+        assert_eq!(local.host_presence(left.clone(), 1).unwrap().len(), 1);
+    }
+    let mut wrong = frame;
+    wrong.identity_json = "{}".into();
+    assert!(local.receive_host_presence(left.clone(), wrong, 1).is_err());
+    assert!(
+        local
+            .set_host_presence(
+                left.clone(),
+                Some(anchors[0].token.clone()),
+                Some(anchors[1].token.clone()),
+                true,
+                1
+            )
+            .is_err()
+    );
+    assert!(
+        local
+            .set_host_presence(left.clone(), None, Some(anchors[1].token.clone()), true, 1)
+            .is_err()
+    );
+    assert!(local.host_presence(left.clone(), 0).is_err());
+    assert_eq!(revision(&local), before);
+    assert!(local.pending_updates().unwrap().is_empty());
+    assert!(local.take_host_presence_frames(left, 0, 1).is_err());
+}
+#[test]
+fn presence_revocation_rejoin_wrong_document_late_events_and_disposal_are_scoped() {
+    let f = Fixture::new();
+    let local = f.open();
+    let (_, peer) = remote_peer(&f);
+    let left = host_attach(&local);
+    let right = host_attach(&peer);
+    let frame = announce(&peer, &right, &presence_range(&peer, 0), 0);
+    local
+        .receive_host_presence(left.clone(), frame.clone(), 0)
+        .unwrap();
+    local.set_permission(false, Some(0)).unwrap(); // presence is separately authorized
+    assert_eq!(local.host_presence(left.clone(), 1).unwrap().len(), 1);
+    local.detach_host_transport(left.clone()).unwrap();
+    let new = host_attach(&local);
+    assert!(
+        local
+            .receive_host_presence(left.clone(), frame.clone(), 1)
+            .is_err()
+    );
+    assert!(local.detach_host_transport(left).is_err());
+    assert!(local.host_presence(new.clone(), 1).unwrap().is_empty());
+    let other = Fixture::new().open();
+    let ot = host_attach(&other);
+    assert!(other.receive_host_presence(ot, frame.clone(), 1).is_err());
+    assert!(other.host_presence(new.clone(), 1).is_err());
+    local.receive_host_presence(new.clone(), frame, 2).unwrap();
+    local.dispose().unwrap();
+    assert!(matches!(
+        local.host_presence(new, 2),
+        Err(NativeSessionError::Disposed)
+    ));
+}
+
+#[test]
+fn presence_all_entries_are_admitted_atomically_and_tombstones_bound_capacity() {
+    use yrs::{
+        ClientID,
+        sync::awareness::{AwarenessUpdate, AwarenessUpdateEntry},
+        updates::{decoder::Decode, encoder::Encode},
+    };
+    let f = Fixture::new();
+    let local = f.open();
+    let (_, peer) = remote_peer(&f);
+    let left = host_attach(&local);
+    let right = host_attach(&peer);
+    let frame = announce(&peer, &right, &presence_range(&peer, 0), 0);
+    let mut update = AwarenessUpdate::decode_v1(&frame.bytes).unwrap();
+    let entry = update.clients.values().next().unwrap().clone();
+    let bad = ClientID::new(123);
+    let mut value: Value = serde_json::from_str(&entry.json).unwrap();
+    value["selection"]["anchor"]["sourceIdentity"] = json!("wrong-owner");
+    update.clients.insert(
+        bad,
+        AwarenessUpdateEntry {
+            clock: 1,
+            json: Arc::from(value.to_string()),
+        },
+    );
+    let mut invalid = frame.clone();
+    invalid.bytes = update.encode_v1();
+    assert!(
+        local
+            .receive_host_presence(left.clone(), invalid, 0)
+            .is_err()
+    );
+    assert!(local.host_presence(left.clone(), 0).unwrap().is_empty());
+    // No current cursor is required for leave; all tombstones consume capacity.
+    let clients = (1..=64)
+        .map(|n| {
+            (
+                ClientID::new(n),
+                AwarenessUpdateEntry {
+                    clock: 1,
+                    json: Arc::from("null"),
+                },
+            )
+        })
+        .collect();
+    let mut tombstones = frame.clone();
+    tombstones.bytes = AwarenessUpdate { clients }.encode_v1();
+    local
+        .receive_host_presence(left.clone(), tombstones, 0)
+        .unwrap();
+    let clients = [(
+        ClientID::new(1000),
+        AwarenessUpdateEntry {
+            clock: 1,
+            json: Arc::from("null"),
+        },
+    )]
+    .into_iter()
+    .collect();
+    let mut excess = frame;
+    excess.bytes = AwarenessUpdate { clients }.encode_v1();
+    assert!(matches!(
+        local.receive_host_presence(left.clone(), excess, 0),
+        Err(NativeSessionError::ResourceLimit)
+    ));
+    assert!(local.host_presence(left, 0).unwrap().is_empty());
+}
+#[test]
+fn presence_retained_update_recovery_freezes_publication_without_journaling_presence() {
+    for (boundary, error) in [
+        (FaultBoundary::BeforeCommit, PortError::Quota),
+        (FaultBoundary::AfterCommit, PortError::CommitUnknown),
+    ] {
+        let f = Fixture::new();
+        let local = f.open();
+        let (_, peer) = remote_peer(&f);
+        let left = host_attach(&local);
+        let right = host_attach(&peer);
+        let frame = announce(&peer, &right, &presence_range(&peer, 0), 0);
+        local
+            .receive_host_presence(left.clone(), frame.clone(), 0)
+            .unwrap();
+        let update = remote_edit(&peer, 1, false);
+        local.reserve_peer_writer(update.writer).unwrap();
+        f.store
+            .inject_once(InjectedFault { boundary, error })
+            .unwrap();
+        assert!(
+            local
+                .receive_host_peer(left.clone(), update.clone(), 0)
+                .is_err()
+        );
+        assert!(local.host_presence(left.clone(), 0).is_err());
+        assert!(local.receive_host_presence(left.clone(), frame, 0).is_err());
+        assert!(
+            local
+                .set_host_presence(left.clone(), None, None, true, 0)
+                .is_err()
+        );
+        assert!(local.flush_host_presence(left.clone(), 0).is_err());
+        assert!(local.take_host_presence_frames(left.clone(), 1, 0).is_err());
+        local.recover().unwrap();
+        local
+            .receive_host_peer(left.clone(), update.clone(), 0)
+            .unwrap();
+        local.receive_host_peer(left.clone(), update, 0).unwrap();
+        assert_eq!(local.host_presence(left, 0).unwrap().len(), 1);
+        assert_eq!(f.store.recover(&f.id).unwrap().journal.len(), 1);
+    }
+}
+
+#[test]
+fn presence_pinned_node_awareness_roundtrip_uses_current_native_relative_selection() {
+    use std::{
+        io::Write,
+        process::{Command, Stdio},
+    };
+    let f = Fixture::new();
+    let local = f.open();
+    let (_, peer) = remote_peer(&f);
+    let left = host_attach(&local);
+    let right = host_attach(&peer);
+    let frame = announce(&peer, &right, &presence_range(&peer, 0), 0);
+    let client = local
+        .call(|state| Ok(state.service.session().document().writer_id()))
+        .unwrap()
+        .wrapping_add(1);
+    let script = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/native/table-session-proof/presence-oracle.mjs");
+    let input = json!({"bytes":frame.bytes,"client":client,"documentId":f.id.document_id});
+    let mut child = Command::new("node")
+        .arg(script)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(input.to_string().as_bytes())
+        .unwrap();
+    let output = child.wait_with_output().unwrap();
+    std::fs::write(f.directory.join("node-oracle-stdout.json"), &output.stdout).unwrap();
+    std::fs::write(f.directory.join("node-oracle-stderr.log"), &output.stderr).unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let bytes: Vec<u8> = serde_json::from_value(value["bytes"].clone()).unwrap();
+    local
+        .receive_host_presence(
+            left.clone(),
+            NativeHostFrame {
+                identity_json: frame.identity_json,
+                bytes,
+            },
+            0,
+        )
+        .unwrap();
+    let remote = local.host_presence(left, 0).unwrap();
+    assert_eq!(remote.len(), 1);
+    assert_eq!(remote[0].client_id, client);
+    assert!(remote[0].selection.is_some());
+}
+#[test]
+fn presence_pending_local_input_stays_staged_and_cancellation_does_not_publish_composition() {
+    let f = Fixture::new();
+    let local = f.open();
+    let (_, peer) = remote_peer(&f);
+    let left = host_attach(&local);
+    let right = host_attach(&peer);
+    let before = revision(&local);
+    let paragraph = visible(&local)[0]["id"].as_str().unwrap().to_owned();
+    let plan = local
+        .prepare_edits(
+            before.clone(),
+            vec![NativeSessionEdit {
+                node: paragraph,
+                from_utf16: 0,
+                to_utf16: 0,
+                text: "temporary IME 😀".into(),
+            }],
+            "prepared-input".into(),
+            0,
+        )
+        .unwrap();
+    let frame = announce(&peer, &right, &presence_range(&peer, 0), 0);
+    local.receive_host_presence(left.clone(), frame, 0).unwrap();
+    assert_eq!(revision(&local), before);
+    local.cancel_edits(plan).unwrap();
+    assert_eq!(revision(&local), before);
+    assert!(local.pending_updates().unwrap().is_empty());
+    assert_eq!(local.host_presence(left, 0).unwrap().len(), 1);
+}
+
+#[test]
+fn presence_configured_frame_limit_is_precise_and_never_queues_or_mutates() {
+    let f = Fixture::new();
+    let s = f.open();
+    let mut options = host_options(&s);
+    options.max_frame_bytes = 1;
+    let token = s.attach_host_transport(options, 0).unwrap();
+    let before = revision(&s);
+    s.set_host_presence(token.clone(), None, None, true, 0)
+        .unwrap();
+    assert!(matches!(
+        s.flush_host_presence(token.clone(), 0),
+        Err(NativeSessionError::Store {
+            reason: NativeStoreFailure::ResourceLimit
+        })
+    ));
+    assert!(s.take_host_presence_frames(token, 1, 0).unwrap().is_empty());
+    assert_eq!(revision(&s), before);
+}
+#[test]
+fn presence_invalid_local_client_payload_is_not_a_shape_validation_bypass() {
+    use yrs::{
+        ClientID,
+        sync::awareness::{AwarenessUpdate, AwarenessUpdateEntry},
+        updates::encoder::Encode,
+    };
+    let f = Fixture::new();
+    let s = f.open();
+    let token = host_attach(&s);
+    let writer = s
+        .call(|state| Ok(state.service.session().document().writer_id()))
+        .unwrap();
+    let clients = [(
+        ClientID::new(writer as u64),
+        AwarenessUpdateEntry {
+            clock: 1,
+            json: Arc::from("true"),
+        },
+    )]
+    .into_iter()
+    .collect();
+    let frame = NativeHostFrame {
+        identity_json: host_options(&s).identity_json,
+        bytes: AwarenessUpdate { clients }.encode_v1(),
+    };
+    assert!(s.receive_host_presence(token.clone(), frame, 0).is_err());
+    assert!(s.host_presence(token, 0).unwrap().is_empty());
+}
+#[test]
+fn presence_deleted_remote_owner_renders_no_selection_and_undo_restores_same_anchor() {
+    let f = Fixture::new();
+    let local = f.open();
+    let (_, peer) = remote_peer(&f);
+    let left = host_attach(&local);
+    let right = host_attach(&peer);
+    let owner = visible(&peer)[0]["id"].as_str().unwrap().to_owned();
+    let frame = announce(&peer, &right, &presence_range(&peer, 0), 0);
+    local.receive_host_presence(left.clone(), frame, 0).unwrap();
+    assert!(
+        local.host_presence(left.clone(), 0).unwrap()[0]
+            .selection
+            .is_some()
+    );
+    // Use the existing owning Session command (also used by the canonical
+    // deleted-owner regression), rather than assuming a split alias is deleted.
+    peer.call(move |state| {
+        let rev = state.service.session().observed_revision()?;
+        let plan = state.service.prepare_commands(
+            &rev,
+            &[EditorCommand::Enable {
+                target: owner,
+                enabled: false,
+            }],
+            &TextOrigin::new("presence-delete-owner").unwrap(),
+            0,
+        )?;
+        state.service.apply(plan, 0)?;
+        Ok(())
+    })
+    .unwrap();
+    let deletion = peer.pending_updates().unwrap().remove(0);
+    local.reserve_peer_writer(deletion.writer).unwrap();
+    local.receive_host_peer(left.clone(), deletion, 0).unwrap();
+    assert!(
+        local.host_presence(left.clone(), 0).unwrap()[0]
+            .selection
+            .is_none()
+    );
+    let undo = peer.undo(revision(&peer), 0).unwrap().unwrap();
+    let entry = peer
+        .pending_updates()
+        .unwrap()
+        .into_iter()
+        .find(|e| e.sequence == undo.sequence && e.writer == undo.writer)
+        .unwrap();
+    local.receive_host_peer(left.clone(), entry, 0).unwrap();
+    assert!(local.host_presence(left, 0).unwrap()[0].selection.is_some());
+}
