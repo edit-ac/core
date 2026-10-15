@@ -15,6 +15,7 @@ assert.match(index.directory, /^architecture-results\/fit-1\.8-[a-z0-9/-]+$/); a
 const bytes = await read(`${index.directory}/results.json`), record = JSON.parse(bytes);
 const evidence = { version: 1, parent: 'FIT-1.8', scope: 'PRF-06 actual external packed cold/warm diagnostic', artifacts: {}, observations: null };
 test('packed real WASM cold/warm matrix admits exact profile/source/runtime/artifacts and cache/evaluation traces', async () => {
+  assert.equal(record.metadata.commandAttribution, 'none', 'Observer derivative cannot replace production evidence');
   assert.equal(digest(bytes), index.resultsHash); assert.equal(record.profileHash, digest(profileBytes));
   assert.deepEqual(Object.keys(record.sourceInputs).sort(), [...loadingInputs].sort());
   evidence.sources = { runtime: await verifyPins(root, record.sourceInputs), artifacts: await verifyPins(resolve(root, index.directory), record.artifacts) };
@@ -23,7 +24,7 @@ test('packed real WASM cold/warm matrix admits exact profile/source/runtime/arti
   const seed = JSON.parse(seedBytes);
   for (const name of profile.fixtures) assert.equal(seed.artifacts[`fixtures/${name}.checkpoint.json`], record.artifacts[`fixtures/${name}.checkpoint.json`]);
   assert.deepEqual(JSON.parse(await read(`${index.directory}/summary.json`)), summarizeLoading(profile, record));
-  for (const name of ['fixtures.mjs','loading-client.mjs']) assert.equal(digest(await read(`benchmarks/${name}`)), record.artifacts[`harness/${name}`]);
+  for (const name of ['fixtures.mjs','loading-client.mjs','loading-command-attribution.mjs']) assert.equal(digest(await read(`benchmarks/${name}`)), record.artifacts[`harness/${name}`]);
   for (const [path, hash] of Object.entries(record.consumer.inputHashes)) if (path !== 'task.mjs') assert.equal(digest(await read(path.replace('node_modules/@edit-ac/', 'packages/'))), hash, `Current packed build differs: ${path}`);
   assert.equal(digest(await read('packages/core/dist/wasm/editac_wasm_bg.wasm')), record.consumer.assets.find(a => a.name === 'wasm/editac_wasm_bg.wasm').sha256);
   assert.deepEqual(record.consumer, await admitMeasuredConsumer(resolve(root, index.directory, 'packed')));
@@ -44,6 +45,7 @@ const negatives = {
   'invented qualification': r => r.qualification = 'qualified',
   'leaked process': r => r.cleanup.browserExited = false,
   'missing cold sample': r => r.cases[0].pairs[0].cold.samples.readyMs = null,
+  'production command hook contamination': r => r.cases[0].pairs[0].cold.commands.push({name:'edit'}),
   'missing phase identity': r => delete r.cases[0].pairs[0].cold.phaseAttribution,
   'missing phase': r => r.cases[0].pairs[0].cold.phases.pop(),
   'missing oracle phase': r => { const p = r.cases[0].pairs[0].warm.phases; p.splice(p.findIndex(v => v.name === 'initialRead'), 1); },

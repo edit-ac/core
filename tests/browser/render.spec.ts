@@ -124,24 +124,26 @@ for (const readOnly of [false, true]) test(`authored whitespace stays visible ac
 }));
 
 
-test('one-character patch preserves unrelated blocks and marked spans', async () => withContext('incremental', async context => {
+for (const commandKind of ['text', 'editor']) test(`one-character ${commandKind} patch preserves unrelated blocks and marked spans`, async () => withContext('incremental', async context => {
   const page = await open(context);
   const mounted = await page.evaluate(() => window.renderFixture.mount());
-  const result = await page.evaluate(async ({ids}) => {
+  const result = await page.evaluate(async ({ids,commandKind}) => {
     const f = window.renderFixture, r = f.renderer, root = r.root;
     const unrelated = r.getBlock(ids[1]), first = r.getBlock(ids[0]);
     const marked = first.querySelector('strong'), link = first.querySelector('a'), last = first.lastChild, text = last.firstChild;
     const selection = window.getSelection(); const range = document.createRange(); range.selectNodeContents(unrelated); selection.removeAllRanges(); selection.addRange(range);
     const beforeSelection = selection.toString();
     const records=[]; const observer=new MutationObserver(mutations=>records.push(...mutations)); observer.observe(root,{childList:true,subtree:true,characterData:true,attributes:true});
-    const snapshot = await f.edit(ids[0],7,'!'); await new Promise(resolve=>queueMicrotask(resolve)); observer.disconnect();
+    let snapshot;
+    if (commandKind === 'text') snapshot = await f.edit(ids[0],7,'!');
+    else { const at = f.engine.anchor(ids[0],7,'right'); try { snapshot = await f.command([{type:'insert',at,text:'!'}]); } finally { f.engine.releaseAnchor(at); } } await new Promise(resolve=>queueMicrotask(resolve)); observer.disconnect();
     return {text:first.textContent, same:[unrelated===r.getBlock(ids[1]),marked===first.querySelector('strong'),link===first.querySelector('a'),last===first.lastChild,text===last.firstChild],
       selection:selection.toString(),beforeSelection, mutations:records.map(m=>({type:m.type,old:m.oldValue})), model:snapshot.visible.find(n=>n.id===ids[0]).runs.map(r=>r.text).join(''),
       map:r.positions(ids[0]).map(p=>({start:p.start,length:p.length})), owner:r.getNodeId(text)};
-  },mounted);
+  },{...mounted,commandKind});
   assert.equal(result.text,'alpha😀!'); assert.equal(result.model,result.text); assert.deepEqual(result.same,[true,true,true,true,true]);
   assert.equal(result.selection,result.beforeSelection); assert.equal(result.owner,mounted.ids[0]);
-  assert.ok(result.mutations.length>0); assert.ok(result.mutations.every(m=>m.type==='characterData'));
+  assert.ok(result.mutations.length>0); assert.ok(result.mutations.every(m=>m.type==='characterData' || (commandKind === 'editor' && m.type==='attributes')));
   assert.equal(result.map.reduce((sum,p)=>sum+p.length,0),8);
 }));
 

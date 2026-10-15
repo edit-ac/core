@@ -130,9 +130,9 @@
       "Other PRF/accessibility/platform criteria remain open"
     ]
   },
-  "loadingReceipt": "architecture-results/fit-1.8-20261015/startup-phases-1/loading-1/results.json",
-  "loadingReceiptHash": "ffff06661fa108dbcadcc8c4f4bbb2a61167ff546da8cd4a74498041d6fd6e7b",
-  "loadingScope": "24/24 diagnostic checks;48 cold/warm pairs/96 navigations with full source restoration. Contiguous oracle/public-edit phase attribution; hard gzip caps pass, preferred sizes and warm targets miss,12-sample tails inconclusive. No original gate closed.",
+  "loadingReceipt": "architecture-results/fit-1.8-20261015/startup-command-2/loading/results.json",
+  "loadingReceiptHash": "98ab5fc1da52bb535f039fe3a944d024791ac319e3822f4c8c9a8ca650608b11",
+  "loadingScope": "Production24/24 and observer24/24; each48pairs/96navigations/96exactrestorations;192 separately labeled command windows. Long preparation diagnostic reduction remains above startup targets;12-sample tails unqualified.",
   "nativeCJKDelivery": "architecture-results/fit-1.8-20261015/native-workloads-1/delivery-receipt.json",
   "nativeCJKScope": "Existing ASCII plus actual OS Simplified Chinese Pinyin ni candidate commit and hao host cancellation; exact source isolation, AX candidate geometry/action, checkpoint, display callback and disposal diagnostics only",
   "nativeCJKRemaining": "CJK remains one commit, below100-sample tails; full native renderer, peak/plateau, compositor, optional/accessibility/target-runtime and startup/Long/Brotli qualification remain. Task/Long diagnostic workloads are now delivered, with measured Long misses.",
@@ -157,13 +157,18 @@
     "state": "PARTIAL",
     "scope": "Validated Rust preparation/trace prerequisite plus actual native observations and current browser refresh. Native ASCII first key failed; original FIT and B3 remain open. No native family is canonically admitted from a failed suite."
   },
-  "currentCanonicalState": "PENDING: native Long OS-keyboard/restoration remains incomplete; current startup implementation has focused loading/activation proof only. Historical canonical and other browser producer pins are not current-source qualification.",
+  "currentCanonicalState": "PENDING: native Long OS-keyboard/restoration remains incomplete. Current packed first-command repair has focused production/observer admission only; historical native/other producer pins do not qualify current source.",
   "activeChild": "FIT-1.8-I1-B5",
   "nativeProfileHash": "5e80df8d90c38acd6ca191b2856c5d6c66ea9630ec87e5f943fe0e42a99d4fd9",
-  "lastRelevantChange": "2026-10-15: packed startup phases isolate Long public-command cost; eliminate ordinary activation preview-only projection. Startup targets/full native/canonical qualification remain open.",
+  "lastRelevantChange": "2026-10-15: reuse disposable editor text stage instead of repeated restores; retain byte equivalence/atomic rejection/history, avoid unchanged checklist mutations and admit actual packed command boundaries.",
   "startupAttributionPartial": {
     "path": "architecture-results/fit-1.8-20261015/startup-phases-1/partial-delivery-receipt.json",
     "sha256": "fa192635d3fa520b1303eb8d9521e7aa3493269a034a43521927460e202806ab",
+    "state": "PARTIAL"
+  },
+  "startupCommandPartial": {
+    "path": "architecture-results/fit-1.8-20261015/startup-command-2/partial-delivery-receipt.json",
+    "sha256": "9cc5695a89e5b3380753f94253fd89bd245d0fef4e3916cc9355f5f65ba332e4",
     "state": "PARTIAL"
   }
 }

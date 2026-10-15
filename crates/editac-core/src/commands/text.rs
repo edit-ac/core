@@ -6,7 +6,7 @@ use crate::anchors::{self, Anchor, BoundaryError, Position, Resolution, Selectio
 use crate::document::{Document, DocumentIdentity, MAX_RESTORE_BYTES, ROOTS, ReplayUpdate};
 use crate::projection::{ProjectionError, Snapshot, TouchedRange};
 use std::collections::BTreeSet;
-use yrs::{Map, Out, ReadTxn, StateVector, Text, XmlTextRef};
+use yrs::{Map, Out, ReadTxn, StateVector, Text, Transact, XmlTextRef};
 
 pub const MAX_EDIT_BYTES: usize = 1024 * 1024;
 pub const MAX_TEXT_BYTES: usize = 5 * 1024 * 1024;
@@ -120,7 +120,7 @@ impl Document {
         command: &TextCommand,
         origin: &TextOrigin,
     ) -> Result<PreparedTextEdit, TextError> {
-        self.prepare_text_inner(command, origin, None)
+        self.prepare_text_inner(command, origin, None, None)
     }
     /// The enclosing editor owns the disposable stage and validates its complete
     /// resulting hierarchy, immutable structure and encoded size before admission.
@@ -132,13 +132,34 @@ impl Document {
         origin: &TextOrigin,
         baseline_bytes: usize,
     ) -> Result<PreparedTextEdit, TextError> {
-        self.prepare_text_inner(command, origin, Some(baseline_bytes))
+        self.prepare_text_inner(command, origin, Some(baseline_bytes), None)
+    }
+    /// Read the enclosing disposable editor replica directly. The shared index
+    /// observes preceding staged commands, including delete-only changes. No
+    /// restore, second replica or writer lease is needed between steps. The caller
+    /// supplies the exact staged byte size for the existing resource check.
+    /// Only the enclosing editor may apply this plan and admit its final result.
+    pub(super) fn prepare_text_on_editor_stage(
+        &self,
+        command: &TextCommand,
+        origin: &TextOrigin,
+        baseline_bytes: usize,
+        stage: &yrs::Doc,
+        projection: &crate::projection::ProjectionIndex,
+    ) -> Result<PreparedTextEdit, TextError> {
+        self.prepare_text_inner(
+            command,
+            origin,
+            Some(baseline_bytes),
+            Some((stage, projection)),
+        )
     }
     fn prepare_text_inner(
         &self,
         command: &TextCommand,
         origin: &TextOrigin,
         editor_baseline_bytes: Option<usize>,
+        editor_stage: Option<(&yrs::Doc, &crate::projection::ProjectionIndex)>,
     ) -> Result<PreparedTextEdit, TextError> {
         let (a, b, inserted) = match command {
             TextCommand::Insert { at, text } => (at, at, text.as_str()),
@@ -150,12 +171,17 @@ impl Document {
         if inserted.len() > MAX_EDIT_BYTES {
             return Err(TextError::ResourceLimit);
         }
-        let snapshot = self.inspect()?;
+        let snapshot = match editor_stage {
+            Some((_, projection)) => projection.inspect()?,
+            None => self.inspect()?,
+        };
         let entry_selection = Selection {
             anchor: a.clone(),
             focus: b.clone(),
         };
-        let txn = self.read();
+        let txn = editor_stage
+            .map_or(&self.doc, |(stage, _)| stage)
+            .transact();
         let a = position(anchors::resolve(&txn, self.identity(), &snapshot, a))?;
         let b = position(anchors::resolve(&txn, self.identity(), &snapshot, b))?;
         if a.node != b.node {
@@ -164,9 +190,15 @@ impl Document {
         let (start, end) = if a.offset <= b.offset { (a, b) } else { (b, a) };
         // The upper right-affine cut follows the replacement end, including a
         // collapsed insertion. Retain CRDT anchors, never caller offsets.
-        let result_anchor = self
-            .anchor(&end.node, end.offset, anchors::Bias::Right)
-            .map_err(|_| TextError::Unresolvable(Unresolvable::MissingPosition))?;
+        let result_anchor = anchors::capture(
+            &txn,
+            self.identity(),
+            &snapshot,
+            &end.node,
+            end.offset,
+            anchors::Bias::Right,
+        )
+        .map_err(|_| TextError::Unresolvable(Unresolvable::MissingPosition))?;
         let result_selection = Selection {
             anchor: result_anchor.clone(),
             focus: result_anchor,

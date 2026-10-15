@@ -1,3 +1,4 @@
+import { summarizeCommand } from '../benchmarks/loading-command-attribution.mjs';
 import { spawnSync } from 'node:child_process';
 import { fixture } from '../benchmarks/fixtures.mjs';
 import { presets } from '../benchmarks/presets.mjs';
@@ -6,8 +7,8 @@ const check = (ok, message) => { if (!ok) throw Error(message); };
 const tracked = spawnSync('git', ['ls-files', 'crates', 'packages', 'Cargo.toml', 'Cargo.lock', 'package.json', 'package-lock.json'], { encoding: 'utf8' });
 if (tracked.status !== 0) throw Error('Cannot inventory runtime closure');
 export const loadingInputs = [...new Set([...tracked.stdout.trim().split('\n'),
-  'benchmarks/config.json', 'benchmarks/presets.mjs', 'benchmarks/profiles/loading-v1.json', 'benchmarks/loading-client.mjs', 'benchmarks/fixtures.mjs',
-  'scripts/loading-evidence.mjs', 'scripts/bench-loading.mjs', 'scripts/check-browser-size.mjs', 'scripts/consumers-loading.mjs', 'scripts/browser-size-contract.mjs', 'scripts/minify-task.mjs', 'scripts/architecture-budgets.mjs', 'scripts/test-toolchain.mjs', '.node-version', 'examples/task-editor/index.html'])];
+  'benchmarks/config.json', 'benchmarks/presets.mjs', 'benchmarks/profiles/loading-v1.json', 'benchmarks/loading-client.mjs', 'benchmarks/loading-command-attribution.mjs', 'benchmarks/fixtures.mjs',
+  'scripts/loading-evidence.mjs', 'scripts/bench-loading.mjs', 'scripts/check-browser-size.mjs', 'scripts/consumers-loading.mjs', 'scripts/browser-size-contract.mjs', 'scripts/minify-task.mjs', 'scripts/architecture-budgets.mjs', 'scripts/test-toolchain.mjs', 'scripts/fitness-instrumentation.mjs', 'benchmarks/attribution.mjs', '.node-version', 'examples/task-editor/index.html'])];
 const finite = v => Number.isFinite(v) && v >= 0;
 const phaseNames = ['module','wasmInit','editorCreate','editorReady','firstFrame','initialRead','initialProjection','initialHash','expectedFixture','expectedHash','targetRead','targetSelect','editAnchors','editCommand','editRelease','editVerify','restoreAnchors','restoreCommand','restoreRelease','finalRead','finalProjection','finalHash','flush'];
 const coldPhases = ['checkpointFetch','checkpointDecode','checkpointOpen','checkpointPublish','checkpointClose'];
@@ -38,12 +39,19 @@ export function inspectLoading(profile, record, item, kind) {
   check(item.errors?.length === 0 && item.pairs?.length === profile.samplePairs, 'Missing/failed loading replays');
   check(JSON.stringify(item.features) === JSON.stringify(presets[item.preset].featureSet) && item.textBytes === fixture(item.fixture).textBytes, 'Feature set or text allocation changed');
   check(JSON.stringify(profile.fixtures) === '["Task","Long"]' && JSON.stringify(profile.presets) === '["baseline","task"]' && JSON.stringify(profile.requiredObservations) === '["packed-baseline","packed-presets","cold","warm","disabled-imports","gzip-caps"]', 'Reduced loading matrix');
-  const allowed = new Set(['/fixture/assets/wasm/editac_wasm_bg.wasm','/fixture/assets/task.js', '/fixture/assets/wasm/editac_wasm.js', '/fixture/harness/loading-client.mjs', '/fixture/harness/fixtures.mjs']);
+  const traced = record.metadata.commandAttribution === 'packed-observer-exports-v1';
+  check(traced || record.metadata.commandAttribution === 'none', 'Unknown command attribution');
+  const modulePath = traced ? '/fixture/diagnostic/task.js' : '/fixture/assets/task.js';
+  const allowed = new Set([modulePath, '/fixture/harness/loading-command-attribution.mjs','/fixture/assets/wasm/editac_wasm_bg.wasm','/fixture/assets/task.js', '/fixture/assets/wasm/editac_wasm.js', '/fixture/harness/loading-client.mjs', '/fixture/harness/fixtures.mjs']);
   for (const [index, pair] of item.pairs.entries()) {
     check(pair.index === index && pair.databaseDeleted, 'Missing/reordered replay or leaked database');
     for (const mode of ['cold','warm']) {
       const raw = pair[mode];
       check(raw?.sourcePreserved && raw.persisted && raw.initialHash === raw.finalHash && /^[0-9a-f]{64}$/.test(raw.initialHash), 'Lost source or acknowledgment');
+      if (traced) {
+        check(JSON.stringify(raw.commands?.map(c => c.name)) === '["edit","restore"]', 'Missing command windows');
+        for (const c of raw.commands) { const summary = summarizeCommand(c.trace); check(summary.elapsedMs <= raw.phases.find(p => p.name === `${c.name}Command`).durationMs + 1, 'Command window exceeds navigation phase'); }
+      } else check(raw.commands?.length === 0, 'Production run contains command hooks');
       check(pair.cold.initialHash === pair.warm.initialHash, 'Warm persisted source differs');
       if (kind === mode) {
         const s = raw.samples;
@@ -52,13 +60,13 @@ export function inspectLoading(profile, record, item, kind) {
         inspectStartupPhases(raw, mode);
         check(mode === 'cold' ? finite(s.documentTransferMs) : !Object.hasOwn(s, 'documentTransferMs'), 'Incorrect cold/warm transfer scope');
         check(raw.resourceTimings?.some(r => r.name === '/fixture/assets/wasm/editac_wasm_bg.wasm' && r.decodedBodySize > 0), 'Missing WASM transfer/cache trace');
-        check(raw.resourceTimings.some(r => r.name === '/fixture/assets/task.js' && r.decodedBodySize > 0), 'Missing packed module trace');
-        if (mode === 'cold') check(raw.resourceTimings.some(r => r.name === '/fixture/assets/task.js' && r.transferSize > 0), 'Cold module was cached');
-        if (mode === 'warm') check(raw.resourceTimings.some(r => r.name === '/fixture/assets/task.js' && r.transferSize === 0), 'Warm module cache was not observed');
+        check(raw.resourceTimings.some(r => r.name === modulePath && r.decodedBodySize > 0), 'Missing packed module trace');
+        if (mode === 'cold') check(raw.resourceTimings.some(r => r.name === modulePath && r.transferSize > 0), 'Cold module was cached');
+        if (mode === 'warm') check(raw.resourceTimings.some(r => r.name === modulePath && r.transferSize === 0), 'Warm module cache was not observed');
       }
       if (kind === 'disabled-imports') {
-        check(raw.scripts?.some(s => s.url === '/fixture/assets/task.js') && raw.scripts.every(s => allowed.has(s.url) && s.hash), 'Unexpected/missing evaluated scripts');
-        check(raw.coverage?.some(s => s.url === '/fixture/assets/task.js' && s.functions.some(f => f.ranges.some(r => r.count > 0))), 'Missing actual packed evaluation coverage');
+        check(raw.scripts?.some(s => s.url === modulePath) && raw.scripts.every(s => allowed.has(s.url) && s.hash), 'Unexpected/missing evaluated scripts');
+        check(raw.coverage?.some(s => s.url === modulePath && s.functions.some(f => f.ranges.some(r => r.count > 0))), 'Missing actual packed evaluation coverage');
         check(raw.coverage.every(s => allowed.has(s.url)), 'Uninventoried evaluated script');
         check(raw.requests?.every(r => r.url === '/' || allowed.has(r.url) || ['/fixture/assets/task.css','/fixture/assets/wasm/editac_wasm_bg.wasm',`/fixture/corpus/${item.fixture}.checkpoint.json`].includes(r.url)), 'Unexpected optional resource');
       }
@@ -96,6 +104,8 @@ export function summarizeLoading(profile, record) {
         const ready = stats(rows.map(r => r.samples.readyMs)), accepted = stats(rows.map(r => r.samples.acceptedEditMs));
         const phases = Object.fromEntries((rows[0]?.phases ?? []).map(p => [p.name, stats(rows.map(r => r.phases.find(v => v.name === p.name)?.durationMs))]));
         return [mode, { readyMs: ready, firstFrameMs: stats(rows.map(r => r.samples.firstFrameMs)), acceptedEditMs: accepted, preservedTargetMs: limit,
+          commandAttribution: record.metadata.commandAttribution,
+          commandExclusiveMs: record.metadata.commandAttribution === 'packed-observer-exports-v1' ? Object.fromEntries(Object.keys(summarizeCommand(rows[0].commands[0].trace).exclusiveMs).map(op => [op, stats(rows.map(r => summarizeCommand(r.commands[0].trace).exclusiveMs[op]))])) : null,
           phaseAttribution: profile.phaseAttribution, phases,
           oracleBeforeAcceptedMs: stats(rows.map(r => r.phases?.filter(p => oracleBeforeEdit.includes(p.name)).reduce((total, p) => total + p.durationMs, 0))),
           publicEditMs: stats(rows.map(r => r.phases?.filter(p => ['editAnchors','editCommand','editRelease'].includes(p.name)).reduce((total, p) => total + p.durationMs, 0))),

@@ -1,4 +1,5 @@
 import { minifyTask, taskMinifier } from './minify-task.mjs';
+import { instrumentSource } from './fitness-instrumentation.mjs';
 import { build, transform, version as esbuildVersion } from 'esbuild';
 import { spawnSync } from 'node:child_process';
 import { mkdtemp, mkdir, readFile, writeFile, copyFile, rm, realpath } from 'node:fs/promises';
@@ -36,6 +37,21 @@ try {
   await writeFile(join(temp, 'task.mjs'), (markdown ? "export {initMarkdown} from '@edit-ac/markdown'; export {markdownExtension} from '@edit-ac/markdown/web';\n" : "") + "export {init} from '@edit-ac/core'; export {createEditor,taskPreset,CheckpointStorage} from '@edit-ac/web';\n");
   const dist = join(temp, 'public');
   const bundle = await build({ absWorkingDir: temp, entryPoints: ['task.mjs'], outdir: dist, bundle: true, splitting: false, format: 'esm', minify: true, target: 'es2022', metafile: true, write: true });
+  // Diagnostic exports expose the SAME installed packed classes. The existing
+  // fail-closed renderer callback probe touches only this derivative bundle.
+  if (process.env.EDITAC_LOADING_COMMAND_TRACE === '1') {
+    await writeFile(join(temp, 'observed.mjs'), await readFile(join(temp, 'task.mjs'), 'utf8') +
+      "export {Engine as diagnosticEngine} from './node_modules/@edit-ac/core/dist/wasm/editac_wasm.js';\n" +
+      "export {DOMRenderer as diagnosticRenderer} from './node_modules/@edit-ac/web/dist/dom/render.js';\n" +
+      "export {LocalStorageLifecycle as diagnosticStorage} from './node_modules/@edit-ac/web/dist/storage/index.js';\n");
+    const observed = await build({ absWorkingDir: temp, entryPoints: ['observed.mjs'], bundle: true, write: false, format: 'esm', minify: true, target: 'es2022', metafile: true,
+      plugins: [{ name: 'packed-render-observer', setup(build) {
+        build.onLoad({ filter: /node_modules\/@edit-ac\/web\/dist\/dom\/render\.js$/ }, async ({ path }) => ({ contents: instrumentSource('render', await readFile(path, 'utf8')), loader: 'js' }));
+      } }] });
+    await mkdir(join(output, 'diagnostic'), { recursive: true });
+    await writeFile(join(output, 'diagnostic/task.js'), await minifyTask(observed.outputFiles[0].text));
+    await writeFile(join(output, 'diagnostic/metafile.json'), JSON.stringify(observed.metafile, null, 2));
+  }
   for (const path of Object.keys(bundle.metafile.outputs)) {
     const file = resolve(temp, path);
     await writeFile(file, await minifyTask(await readFile(file, 'utf8')));

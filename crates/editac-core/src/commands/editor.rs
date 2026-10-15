@@ -1260,6 +1260,8 @@ impl Document {
         let stage = m::replica(self.writer_id() as u64);
         m::apply(&stage, &baseline).map_err(error)?;
         let sv = stage.transact().state_vector();
+        let text_projection =
+            crate::projection::ProjectionIndex::with_identity(&stage, self.identity());
         let mut counter = self.next_structure_counter;
         let mut last_separator = None;
         let mut result_caret = None;
@@ -1393,17 +1395,18 @@ impl Document {
                         self.prepare_text_for_editor(command, origin, baseline.len())
                             .map_err(EditorError::Text)?
                     } else {
-                        let checkpoint = crate::document::InitializedCheckpoint {
-                            identity: self.identity().clone(),
-                            initialized: true,
-                            writer_id: self.writer_id(),
-                            bytes: m::bytes(&stage),
-                        };
-                        let text_stage = Document::restore(self.identity(), &checkpoint, &[])
-                            .map_err(EditorError::Admission)?;
-                        text_stage
-                            .prepare_text(command, origin)
-                            .map_err(EditorError::Text)?
+                        // Preserve the prior exact staged-size admission bound,
+                        // but avoid restoring and validating another document and
+                        // then staging it yet again for a read-only text plan.
+                        let staged_bytes = m::bytes(&stage).len();
+                        self.prepare_text_on_editor_stage(
+                            command,
+                            origin,
+                            staged_bytes,
+                            &stage,
+                            &text_projection,
+                        )
+                        .map_err(EditorError::Text)?
                     };
                     super::text::apply_prepared_to_stage(&stage, plan);
                 }
@@ -2095,6 +2098,108 @@ mod transaction_tests {
     use std::sync::{Arc, Mutex};
     use yrs::Origin;
     #[test]
+    fn compound_text_stage_matches_restored_plans_including_delete_only_steps() {
+        use crate::{
+            Utf16Offset,
+            anchors::{Bias, Selection},
+            commands::text::TextCommand,
+        };
+        for stable in [false, true] {
+            let document_id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa78";
+            let epoch = if stable {
+                "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb79"
+            } else {
+                "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb78"
+            };
+            let identity = if stable {
+                DocumentIdentity::v5(document_id, epoch)
+            } else {
+                DocumentIdentity::v4(document_id, epoch)
+            }
+            .unwrap();
+            let mut d = Document::create(
+                CreationPermit::authorize_new(identity).unwrap(),
+                &[InitialNode {
+                    kind: "block".into(),
+                    text: "A😀e\u{301}Z".into(),
+                }],
+            )
+            .unwrap();
+            let id = d.snapshot().unwrap().visible[0].id.clone();
+            let a = d.anchor(&id, Utf16Offset(1), Bias::Right).unwrap();
+            let b = d.anchor(&id, Utf16Offset(3), Bias::Left).unwrap();
+            let commands = [
+                TextCommand::Delete {
+                    selection: Selection {
+                        anchor: a.clone(),
+                        focus: b,
+                    },
+                },
+                TextCommand::Insert {
+                    at: a.clone(),
+                    text: "界".into(),
+                },
+                TextCommand::Insert {
+                    at: a,
+                    text: "é".into(),
+                },
+            ];
+            let origin = TextOrigin::new("staged-text-equivalence").unwrap();
+            let checkpoint = d.checkpoint();
+            let legacy = m::replica(d.writer_id() as u64);
+            m::apply(&legacy, &checkpoint.bytes).unwrap();
+            let sv = legacy.transact().state_vector();
+            for command in &commands {
+                let frozen = crate::document::InitializedCheckpoint {
+                    bytes: m::bytes(&legacy),
+                    ..checkpoint.clone()
+                };
+                let restored = Document::restore(d.identity(), &frozen, &[]).unwrap();
+                let plan = restored.prepare_text(command, &origin).unwrap();
+                super::super::text::apply_prepared_to_stage(&legacy, plan);
+            }
+            let expected_update = legacy.transact().encode_state_as_update_v1(&sv);
+            let batch: Vec<_> = commands.into_iter().map(EditorCommand::Text).collect();
+            let plan = d.prepare_editor(&batch, &origin).unwrap();
+            assert_eq!(
+                plan.update, expected_update,
+                "exact encoded semantic equivalence"
+            );
+            assert_eq!(
+                d.checkpoint().bytes,
+                checkpoint.bytes,
+                "preparation is silent"
+            );
+            let mut invalid = batch.clone();
+            invalid.push(EditorCommand::Block {
+                target: "missing".into(),
+                tuple: m::arr(vec![Any::from("paragraph")]),
+            });
+            assert!(d.prepare_editor(&invalid, &origin).is_err());
+            assert_eq!(
+                d.checkpoint().bytes,
+                checkpoint.bytes,
+                "late rejection leaves live bytes intact"
+            );
+            d.enable_history(crate::history::HistoryConfig::default())
+                .unwrap();
+            d.commit_editor(plan).unwrap();
+            let text: String = d.snapshot().unwrap().visible[0]
+                .runs
+                .iter()
+                .map(|r| r.text.as_str())
+                .collect();
+            assert_eq!(text, "Aé界e\u{301}Z");
+            d.undo().unwrap();
+            let text: String = d.snapshot().unwrap().visible[0]
+                .runs
+                .iter()
+                .map(|r| r.text.as_str())
+                .collect();
+            assert_eq!(text, "A😀e\u{301}Z");
+        }
+    }
+    #[test]
     fn initial_text_reuses_read_only_plan_but_later_text_observes_staged_state() {
         use crate::{
             Utf16Offset,
@@ -2142,7 +2247,7 @@ mod transaction_tests {
                 .unwrap();
             let before = d.checkpoint().bytes;
             let fast = d.prepare_editor(&[replace.clone()], &origin).unwrap();
-            // A preceding no-op exercises the full staged restore path with the
+            // A preceding no-op exercises the shared staged projection with the
             // same bytes. The encoded semantic update must be byte-identical.
             let staged = d.prepare_editor(&[noop, replace.clone()], &origin).unwrap();
             assert_eq!(fast.update, staged.update);

@@ -1,10 +1,13 @@
-import { createEditor, taskPreset, CheckpointStorage, init } from '/fixture/assets/task.js';
+import * as sdk from '@loading/sdk';
+import { installCommandAttribution } from '/fixture/harness/loading-command-attribution.mjs';
+const { createEditor, taskPreset, CheckpointStorage, init } = sdk;
+const commandAttribution = installCommandAttribution(sdk);
 import { projectedSemantics, expectedSemantics, fixture } from '/fixture/harness/fixtures.mjs';
 const hash = async value => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(value)))), b => b.toString(16).padStart(2, '0')).join('');
 const check = (ok, message) => { if (!ok) throw Error(message); };
 window.loadingRun = (async () => {
   const { identity, databaseName, preset, mode, name } = JSON.parse(document.querySelector('#options').textContent);
-  const samples = { moduleMs: performance.now() }, phases = [];
+  const samples = { moduleMs: performance.now() }, phases = [], commands = [];
   let boundary = 0;
   // Contiguous navigation-clock intervals retain harness/oracle overhead rather
   // than subtracting it from the original accepted-edit budget observation.
@@ -49,7 +52,7 @@ window.loadingRun = (async () => {
     for (const value of [alternate, text[offset]]) {
       const prefix = value === alternate ? 'edit' : 'restore';
       const at = editor.anchor(node.id, offset, 'right'), end = editor.anchor(node.id, offset + 1, 'left'); phase(`${prefix}Anchors`);
-      try { const result = editor.chain('prf06').command({ type: 'delete', range: { anchor: at, focus: end } }).command({ type: 'insert', at, text: value }).run(); phase(`${prefix}Command`); if (result.caret) editor.releaseAnchor(result.caret); }
+      try { commandAttribution?.begin(); const result = editor.chain('prf06').command({ type: 'delete', range: { anchor: at, focus: end } }).command({ type: 'insert', at, text: value }).run(); if (commandAttribution) commands.push({ name: prefix, trace: commandAttribution.end() }); phase(`${prefix}Command`); if (result.caret) editor.releaseAnchor(result.caret); }
       finally { editor.releaseAnchor(at); editor.releaseAnchor(end); }
       phase(`${prefix}Release`);
       if (value === alternate) {
@@ -63,6 +66,6 @@ window.loadingRun = (async () => {
     const final = await hash(finalSemantics); phase('finalHash'); check(initial === final, 'Public command did not preserve corpus');
     await editor.flush({ target: 'local' }); phase('flush');
     const resourceTimings = performance.getEntriesByType('resource').map(e => ({ name: new URL(e.name).pathname, initiatorType: e.initiatorType, startTime: e.startTime, duration: e.duration, transferSize: e.transferSize, encodedBodySize: e.encodedBodySize, decodedBodySize: e.decodedBodySize }));
-    return { samples, phaseAttribution: 'navigation-phases-v1', phases, initialHash: initial, finalHash: final, sourcePreserved: true, persisted: true, resourceTimings };
+    return { samples, phaseAttribution: 'navigation-phases-v1', phases, commands, initialHash: initial, finalHash: final, sourcePreserved: true, persisted: true, resourceTimings };
   } finally { if (editor) { const closed = await editor.destroy({ policy: 'flush' }); check(closed.unsaved === false, 'Unacknowledged editor disposal'); } }
 })();

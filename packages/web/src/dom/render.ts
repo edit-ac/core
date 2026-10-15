@@ -195,7 +195,8 @@ export class DOMRenderer {
       let marker = entry.outer.querySelector<HTMLElement>(":scope > [data-check-marker]");
       if (tuple(parent?.editor?.containerAttributes)[0] === "checklist") {
         if (!marker) { marker = this.root.ownerDocument.createElement("span"); marker.dataset.checkMarker = ""; marker.contentEditable = "false"; entry.outer.prepend(marker); }
-        marker.textContent = node.editor?.checked ? "☑" : "☐";
+        const label = node.editor?.checked ? "☑" : "☐";
+        if (marker.textContent !== label) marker.textContent = label;
         marker.setAttribute("role", "img"); marker.setAttribute("aria-label", node.editor?.checked ? "Checked" : "Unchecked");
       } else marker?.remove();
     }

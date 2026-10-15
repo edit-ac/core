@@ -15,12 +15,14 @@ const root = fileURLToPath(new URL('../', import.meta.url)); process.chdir(root)
 const args = process.argv.slice(2);
 if (args.length !== 4 || args[0] !== '--seed-directory' || args[2] !== '--output') throw Error('Expected --seed-directory <retained owning directory> --output <unique directory>');
 const seeds = resolve(args[1]), output = resolve(args[3]);
+const commandTrace = process.env.EDITAC_LOADING_COMMAND_TRACE === '1';
 if (!relative(root, output) || relative(root, output).startsWith('..')) throw Error('Retain output inside repository');
 await mkdir(output, { recursive: false });
 const profileBytes = await readFile('benchmarks/profiles/loading-v1.json'), profile = JSON.parse(profileBytes);
 const record = { version: 1, qualification: 'unqualified', profileHash: digest(profileBytes), metadata: {
   startedAt: new Date().toISOString(), command: [process.execPath, ...process.argv.slice(1)], revision: spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout.trim(),
   cpu: cpus()[0].model, cores: cpus().length, memoryBytes: totalmem(), hostOS: `${platform()}/${release()}/${arch()}`, provenance: 'headless-browser-on-host', node: process.version,
+  commandAttribution: commandTrace ? 'packed-observer-exports-v1' : 'none',
   phaseAttribution: profile.phaseAttribution, phaseScope: profile.phaseScope, replay: profile.replay, cacheScope: profile.cacheScope, timingScope: profile.timingScope, coverageMethod: profile.coverageMethod, warmupPolicy: profile.warmupPolicy, sampleOrder: profile.sampleOrder },
   counts: { executed: 0, passed: 0, failed: 0, skipped: 24 }, cases: [], sourceInputs: {}, artifacts: {}, errors: [], cleanup: {} };
 for (const path of loadingInputs) record.sourceInputs[path] = digest(await readFile(path));
@@ -36,7 +38,11 @@ try {
   const manifest = JSON.parse(await readFile(join(output, 'packed/manifest.json')));
   for (const path of ['manifest.json', 'metafile.json', ...manifest.packs.map(p => p.filename), ...manifest.assets.map(a => `artifacts/${a.name}`)]) await retain(`packed/${path}`, await readFile(join(output, 'packed', path)));
   await cp(join(output, 'packed/artifacts'), join(temp, 'assets'), { recursive: true });
-  for (const path of ['loading-client.mjs', 'fixtures.mjs']) { const bytes = await readFile(`benchmarks/${path}`); await retain(`harness/${path}`, bytes); await mkdir(join(temp, 'harness'), { recursive: true }); await writeFile(join(temp, 'harness', path), bytes); }
+  if (commandTrace) for (const path of ['task.js', 'metafile.json']) {
+    const bytes = await readFile(join(output, 'packed/diagnostic', path)); await retain(`diagnostic/${path}`, bytes);
+    await mkdir(join(temp, 'diagnostic'), { recursive: true }); await writeFile(join(temp, 'diagnostic', path), bytes);
+  }
+  for (const path of ['loading-client.mjs', 'loading-command-attribution.mjs', 'fixtures.mjs']) { const bytes = await readFile(`benchmarks/${path}`); await retain(`harness/${path}`, bytes); await mkdir(join(temp, 'harness'), { recursive: true }); await writeFile(join(temp, 'harness', path), bytes); }
   await mkdir(join(temp, 'corpus'));
   const seedBytes = await readFile(join(seeds, 'results.json'));
   record.seedEvidence = { directory: relative(root, seeds), resultsHash: digest(seedBytes) };
@@ -51,7 +57,7 @@ try {
         if (!profile.fixtures.includes(name) || !profile.presets.includes(preset) || !['cold','warm'].includes(mode)) throw Error('Unknown replay');
         const options = { name, preset, mode, databaseName: url.searchParams.get('database'), identity: frozen[name].identity };
         res.writeHead(200, { 'Content-Type': 'text/html', 'Cache-Control': 'no-store' });
-        res.end(`<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="/fixture/assets/task.css"><div id="editor" style="width:900px;height:360px;overflow:auto"></div><script id="options" type="application/json">${JSON.stringify(options)}</script><script type="module" src="/fixture/harness/loading-client.mjs"></script>`); return;
+        res.end(`<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="/fixture/assets/task.css"><div id="editor" style="width:900px;height:360px;overflow:auto"></div><script type="importmap">{"imports":{"@loading/sdk":"/fixture/${commandTrace ? 'diagnostic' : 'assets'}/task.js"}}</script><script id="options" type="application/json">${JSON.stringify(options)}</script><script type="module" src="/fixture/harness/loading-client.mjs"></script>`); return;
       }
       const path = resolve(temp, decodeURIComponent(url.pathname).replace(/^\/fixture\//, ''));
       if (!path.startsWith(temp + sep) || !url.pathname.startsWith('/fixture/')) throw Error('Invalid path');
@@ -85,7 +91,7 @@ try {
           let deadline;
           const raw = await Promise.race([page.evaluate(() => window.loadingRun), new Promise((_, fail) => { deadline = setTimeout(() => fail(Error(`Loading deadline: ${name}/${preset}/${index}/${mode}`)), profile.pageDeadlineMs); })]).finally(() => clearTimeout(deadline));
           const coverage = await cdp.send('Profiler.getBestEffortCoverage');
-          raw.scripts = coverage.result.filter(s => s.url.startsWith(origin) && s.functions.some(f => f.ranges.some(r => r.count > 0))).map(s => ({ url: new URL(s.url).pathname, hash: record.artifacts[s.url.includes('/assets/') ? 'packed/artifacts/' + new URL(s.url).pathname.split('/assets/')[1] : 'harness/' + new URL(s.url).pathname.split('/harness/')[1]] })); raw.requests = [...requests]; raw.responses = [...responses];
+          raw.scripts = coverage.result.filter(s => s.url.startsWith(origin) && s.functions.some(f => f.ranges.some(r => r.count > 0))).map(s => ({ url: new URL(s.url).pathname, hash: record.artifacts[s.url.includes('/diagnostic/') ? 'diagnostic/' + new URL(s.url).pathname.split('/diagnostic/')[1] : s.url.includes('/assets/') ? 'packed/artifacts/' + new URL(s.url).pathname.split('/assets/')[1] : 'harness/' + new URL(s.url).pathname.split('/harness/')[1]] })); raw.requests = [...requests]; raw.responses = [...responses];
           raw.coverage = coverage.result.filter(s => s.url.startsWith(origin)).map(s => ({ url: new URL(s.url).pathname, functions: s.functions.map(f => ({ ranges: f.ranges })) }));
           if (requests.some(r => new URL(r.url).origin !== origin) || responses.some(r => r.status >= 400 || r.fromServiceWorker)) throw Error('Unexpected network boundary');
           raw.requests = raw.requests.map(r => ({ ...r, url: new URL(r.url).pathname })); pair[mode] = raw;
