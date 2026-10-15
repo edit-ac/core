@@ -16,7 +16,7 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 CORE = ROOT.parents[1]
 SUITES = {
-    "table-editing": ("EditacMacOSTableEditingTests.TableEditingTests", 10),
+    "table-editing": ("EditacMacOSTableEditingTests.TableEditingTests", 11),
     "table-projection": ("EditacMacOSTableProjectionTests.TableProjectionTests", 14),
     "styles": ("EditacMacOSStylesTests.StylesTests", 12),
     "commands": ("EditacMacOSCommandsTests.CommandsTests", 36),

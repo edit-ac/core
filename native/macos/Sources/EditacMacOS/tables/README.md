@@ -42,9 +42,9 @@ using Content; prepared shape/rich updates do not claim those command routes,
 remote transport, OS input or platform qualification. The fixture carries actual
 observed revisions and verifies local receipts for each real commit.
 
-`bash native/macos/scripts/check.sh table-editing` currently runs ten prerequisite
+`bash native/macos/scripts/check.sh table-editing` currently runs eleven prerequisite
 cases against actual AppKit/generated Swift/SQLite snapshots and shared policy
-rejection, plus immutable shared producer patches. It does not close DSK-1.10:
+rejection, plus immutable shared producer patches and one explicitly prepared selection-clamping case. It does not close DSK-1.10:
 successful native cell commits, structure commands and end-to-end remote/history
 qualification await the shared table boundary. The receipt labels this scope;
 no synthetic success or skipped acceptance case substitutes for those criteria.

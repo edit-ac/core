@@ -81,6 +81,16 @@ struct NativeTableDescriptor {
 public final class NativeTableCellView: NSTextView {
     weak var editing: NativeTableEditing?
     var tableID: String?
+    public override func becomeFirstResponder() -> Bool {
+        let result = super.becomeFirstResponder()
+        DispatchQueue.main.async { [weak self] in self?.editing?.refreshCommands() }
+        return result
+    }
+    public override func resignFirstResponder() -> Bool {
+        let result = super.resignFirstResponder()
+        DispatchQueue.main.async { [weak self] in self?.editing?.refreshCommands() }
+        return result
+    }
     public override func keyDown(with event: NSEvent) {
         if event.modifierFlags.contains(.command), event.charactersIgnoringModifiers == "z" {
             editing?.history(redo: event.modifierFlags.contains(.shift)); return
@@ -212,16 +222,27 @@ public final class NativeTableView: NSScrollView {
             }
             if !control.attributedString().isEqual(to: text) {
                 let selected = control.selectedRange()
+                let affinity = control.selectionAffinity
                 control.textStorage?.setAttributedString(text)
-                let start = min(selected.location, text.length)
-                control.setSelectedRange(NSRange(location: start, length: min(selected.length, text.length - start)))
+                let utf16 = Array(text.string.utf16)
+                func boundary(_ index: Int) -> Int {
+                    let i = min(index, utf16.count)
+                    if i > 0, i < utf16.count, (0xD800...0xDBFF).contains(utf16[i - 1]), (0xDC00...0xDFFF).contains(utf16[i]) { return i - 1 }
+                    return i
+                }
+                let start = boundary(selected.location)
+                let end = boundary(selected.location + selected.length)
+                control.setSelectedRange(NSRange(location: start, length: end - start), affinity: affinity, stillSelecting: false)
             }
             control.backgroundColor = cell.header ? .controlBackgroundColor : .textBackgroundColor
             control.setAccessibilityLabel("\(cell.header ? "Header" : "Cell") row \(cell.coordinate.row + 1), column \(cell.coordinate.column + 1)")
             if control.superview !== canvas { canvas.addSubview(control) }
             next[cell.coordinate] = control
         }
-        for (key, old) in cells where next[key] == nil { old.removeFromSuperview() }
+        for (key, old) in cells where next[key] == nil {
+            old.editing?.removing(old); old.isEditable = false; old.delegate = nil; old.editing = nil; old.tableID = nil
+            old.removeFromSuperview()
+        }
         cells = next; self.descriptor = descriptor; sharedTuple = descriptor.tuple
         rowCount = descriptor.rowCount; columnCount = descriptor.alignments.count
     }
@@ -250,6 +271,7 @@ public final class NativeTableView: NSScrollView {
 
     func dispose() {
         for cell in cells.values {
+            cell.editing?.removing(cell)
             cell.isEditable = false; cell.delegate = nil; cell.editing = nil; cell.tableID = nil
             cell.removeFromSuperview()
         }

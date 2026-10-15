@@ -185,4 +185,23 @@ final class TableEditingTests: XCTestCase {
         }
     }
 
+    func testPreparedCellProjectionClampsSelectionAtScalarBoundaryAndPreservesFocus() async throws {
+        try await fixture { view, manifest in
+            let table = try self.table(view, manifest), cell = try self.cell(self.table(view, manifest), 0, 0)
+            XCTAssertTrue(view.tables.focus(cell))
+            cell.setSelectedRange(NSRange(location: 2, length: 0), affinity: .upstream, stillSelecting: false)
+            var tuple = table.sharedTuple
+            var data = tuple[2] as! [String: Any], rows = data["rows"] as! [[Any]]
+            rows[0][0] = [["A🦀Z", []]]; data["rows"] = rows; tuple[2] = data
+            // Prepared geometry/content case only, not a shared command success.
+            try table.update(NativeTableDescriptor(tuple))
+            XCTAssertEqual(cell.selectedRange(), NSRange(location: 1, length: 0))
+            XCTAssertEqual(cell.selectionAffinity, .upstream)
+            XCTAssertTrue(view.window?.firstResponder === cell)
+            table.dispose()
+            XCTAssertTrue(view.window?.firstResponder === view.textView)
+            XCTAssertFalse(view.tables.focus(cell))
+        }
+    }
+
 }

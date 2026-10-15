@@ -28,6 +28,10 @@ public final class NativeTableEditing: NSObject, NSTextViewDelegate {
         guard let view, !view.isDisposed, let id = cell.tableID else { return false }
         return view.projection.tableViews[id]?.cells[cell.coordinate] === cell
     }
+    func refreshCommands() { view?.commands.refreshControls() }
+    func removing(_ cell: NativeTableCellView) {
+        if view?.window?.firstResponder === cell { _ = view?.window?.makeFirstResponder(view?.textView) }
+    }
     public func refresh() {
         guard let view else { return }
         let editable = !view.isDisposed && view.projectionFailure == nil && view.sessionSnapshot?.canApply == true
@@ -78,7 +82,15 @@ public final class NativeTableEditing: NSObject, NSTextViewDelegate {
               let table = view.projection.tableViews[target.tableID], table.cells[target.coordinate] != nil,
               try JSONSerialization.data(withJSONObject: table.sharedTuple, options: [.sortedKeys]) == target.tuple
         else { throw NativeTableEditingFailure.staleTarget }
-        guard let swiftRange = Range(range, in: target.text), !replacement.contains("\n"), !replacement.contains("\r")
+        let utf16 = Array(target.text.utf16)
+        func boundary(_ index: Int) -> Bool {
+            guard index >= 0, index <= utf16.count else { return false }
+            return index == 0 || index == utf16.count || !(0xD800...0xDBFF).contains(utf16[index - 1]) || !(0xDC00...0xDFFF).contains(utf16[index])
+        }
+        guard range.location >= 0, range.length >= 0,
+              range.location <= utf16.count, range.length <= utf16.count - range.location,
+              boundary(range.location), boundary(range.location + range.length),
+              let swiftRange = Range(range, in: target.text), !replacement.contains("\n"), !replacement.contains("\r")
         else { throw NativeTableEditingFailure.invalidRange }
         let text = target.text.replacingCharacters(in: swiftRange, with: replacement)
         guard text.utf8.count <= 1_048_576 else { throw NativeTableEditingFailure.invalidRange }
