@@ -15,6 +15,7 @@ public final class NativeEditorView: NSView {
     private var selectionGeneration: UInt64 = 0
     private var selectionWaiters: [UUID: CheckedContinuation<NativeSessionResponse, Error>] = [:]
     public private(set) lazy var input = NativeCommittedInput(view: self)
+    public private(set) lazy var composition = NativeComposition(view: self)
     var applyingProjection = false
     public let scrollView: NSScrollView
     public let textView: NSTextView
@@ -30,8 +31,9 @@ public final class NativeEditorView: NSView {
             width: localFrame.width, height: CGFloat.greatestFiniteMagnitude))
         storage.addLayoutManager(layout)
         layout.addTextContainer(container)
-        textView = NSTextView(frame: localFrame, textContainer: container)
+        textView = NativeInputTextView(frame: localFrame, textContainer: container)
         super.init(frame: frameRect)
+        (textView as? NativeInputTextView)?.editor = self
         textView.delegate = input
 
         textView.isRichText = true
@@ -53,10 +55,12 @@ public final class NativeEditorView: NSView {
         scrollView.frame = bounds
         session.onProjection = { [weak self] result in
             guard let self, !self.isDisposed else { return }
+            guard !self.composition.isActive else { return }
+            self.composition.restoreDisplay()
             self.applyingProjection = true
             defer {
                 self.applyingProjection = false
-                self.textView.isEditable = self.projectionFailure == nil && !self.input.isPending
+                self.textView.isEditable = self.projectionFailure == nil && !self.input.isPending && !self.composition.isPending
             }
             guard case let .success(update) = result else {
                 if case let .failure(error) = result { self.projectionSessionFailure = error }
@@ -82,10 +86,12 @@ public final class NativeEditorView: NSView {
             guard let self, !self.isDisposed else { return }
             self.sessionDeliveryCount += 1
             switch result {
-            case let .success(.snapshot(snapshot)):
+            case let .success(.snapshot(snapshot)), let .success(.inputCommitted(snapshot, _, _)),
+                 let .success(.inputRestored(snapshot, _, _, _)):
                 self.sessionSnapshot = snapshot
                 self.sessionFailure = nil
-                self.textView.isEditable = snapshot.canApply && self.projectionFailure == nil && !self.input.isPending
+                if !snapshot.canApply { self.composition.cancel() }
+                self.textView.isEditable = snapshot.canApply && self.projectionFailure == nil && !self.input.isPending && !self.composition.isPending
 
             case let .failure(error): self.sessionFailure = error
             default: break
@@ -125,6 +131,7 @@ public final class NativeEditorView: NSView {
     /// The embedding host calls this when its editor/document is closed.
     public func dispose(completion: @escaping @MainActor @Sendable () -> Void = {}) {
         isDisposed = true
+        composition.dispose()
         input.dispose()
         textView.delegate = nil
         selectionGeneration += 1

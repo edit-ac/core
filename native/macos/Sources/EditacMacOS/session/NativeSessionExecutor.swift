@@ -17,6 +17,10 @@ public enum NativeSessionRequest: Sendable {
     case releaseSelection
     case resyncProjection
     case nativeEdit(revision: Data, edits: [NativeSessionEdit], now: UInt64)
+    case captureInput(id: UUID, revision: Data, inputs: [AnchorInput])
+    case releaseInput(id: UUID)
+    case cancelInput(id: UUID, now: UInt64)
+    case capturedEdit(id: UUID, selected: String, text: String, now: UInt64)
     case prepare(revision: Data, edits: [NativeSessionEdit], origin: String, now: UInt64)
     case commit(token: String, now: UInt64)
     case cancelPrepared(token: String)
@@ -29,6 +33,8 @@ public enum NativeSessionRequest: Sendable {
 
 public enum NativeSessionResponse: Sendable {
     case snapshot(NativeSessionRead)
+    case inputCommitted(NativeSessionRead, node: String, caret: UInt32)
+    case inputRestored(NativeSessionRead, node: String?, start: UInt32, end: UInt32)
     case prepared(String)
     case committed(NativeSessionCommit?)
     case recovery(NativeSessionRecovery)
@@ -71,6 +77,7 @@ private final class SessionState: @unchecked Sendable {
     var session: NativeSession?
     var projectionSequence: UInt64?
     var selection: [NativeSessionAnchor] = []
+    var inputTargets: [UUID: [NativeSessionAnchor]] = [:]
 
     func projection() throws -> NativeProjectionUpdate {
         guard let session else { throw NativeSessionFailure.notOpen }
@@ -96,7 +103,7 @@ private final class SessionState: @unchecked Sendable {
         selection = []
     }
     func close() {
-        selection = []; projectionSequence = nil
+        selection = []; inputTargets = [:]; projectionSequence = nil
         try? session?.dispose()
         session = nil
     }
@@ -164,6 +171,51 @@ public final class NativeSessionExecutor {
             guard let session = state.session else { throw NativeSessionFailure.notOpen }
             switch request {
             case let .read(now): return .snapshot(try session.read(now: now))
+            case let .captureInput(id, revision, inputs):
+                guard inputs.count == 2, state.inputTargets[id] == nil else { throw NativeSessionFailure.cancelled }
+                state.inputTargets[id] = try session.captureAnchors(revision: revision, inputs: inputs)
+            case let .releaseInput(id):
+                for anchor in state.inputTargets.removeValue(forKey: id) ?? [] {
+                    try session.releaseAnchor(token: anchor.token)
+                }
+            case let .cancelInput(id, now):
+                let anchors = state.inputTargets.removeValue(forKey: id) ?? []
+                defer { for anchor in anchors { try? session.releaseAnchor(token: anchor.token) } }
+                let positions = try anchors.map { try session.resolveAnchor(token: $0.token) }
+                state.projectionSequence = nil
+                let snapshot = try session.read(now: now)
+                if positions.count == 2,
+                   case let .position(a, start, _, _, _) = positions[0].resolution,
+                   case let .position(b, end, _, _, _) = positions[1].resolution,
+                   a == b, start <= end {
+                    return .inputRestored(snapshot, node: a, start: start, end: end)
+                }
+                return .inputRestored(snapshot, node: nil, start: 0, end: 0)
+            case let .capturedEdit(id, selected, text, now):
+                guard let anchors = state.inputTargets.removeValue(forKey: id), anchors.count == 2 else {
+                    throw NativeSessionFailure.cancelled
+                }
+                defer { for anchor in anchors { try? session.releaseAnchor(token: anchor.token) } }
+                let positions = try anchors.map { try session.resolveAnchor(token: $0.token) }
+                guard case let .position(a, start, _, _, _) = positions[0].resolution,
+                      case let .position(b, end, _, _, _) = positions[1].resolution,
+                      a == b, start <= end else { throw NativeSessionFailure.cancelled }
+                let current = try session.read(now: now)
+                guard let node = current.nodes.first(where: { $0.id == a }),
+                      let range = Range(NSRange(location: Int(start), length: Int(end - start)), in: node.text),
+                      node.text[range].utf16.elementsEqual(selected.utf16),
+                      let revision = current.revision else { throw NativeSessionFailure.cancelled }
+                // Resolve, compare and admit atomically on the single Session queue.
+                // No native caret or stale display offset enters this operation.
+                let token = try session.prepareEdits(revision: revision,
+                    edits: [NativeSessionEdit(node: a, fromUtf16: start, toUtf16: end, text: text)],
+                    origin: "appkit-captured-input", now: now)
+                do { _ = try session.commitEdits(token: token, now: now) }
+                catch { try? session.cancelEdits(token: token); throw error }
+                // Skipped composing projections require a complete current snapshot.
+                state.projectionSequence = nil
+                return .inputCommitted(try session.read(now: now), node: a,
+                                       caret: start + UInt32(text.utf16.count))
             case let .retainSelection(revision, inputs):
                 let anchors = try session.captureAnchors(revision: revision, inputs: inputs)
                 try state.releaseSelection()
@@ -223,7 +275,12 @@ public final class NativeSessionExecutor {
             do {
                 guard operation.begin() else { throw NativeSessionFailure.cancelled }
                 let response = try work(state)
-                if case .snapshot = response {
+                let projects: Bool
+                switch response {
+                case .snapshot, .inputCommitted, .inputRestored: projects = true
+                default: projects = false
+                }
+                if projects {
                     do { projection = .success(try state.projection()) }
                     catch let error as NativeSessionError { projection = .failure(.native(error)) }
                     catch let error as NativeSessionFailure { projection = .failure(error) }
