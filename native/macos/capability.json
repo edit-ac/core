@@ -1,0 +1,328 @@
+{
+  "contractVersion": 1,
+  "id": "native.macos.pending.v1",
+  "implementation": {
+    "revision": "da60ab4b38b4d1977aeffd3e975fe03118a0672b",
+    "package": "EditacMacOS",
+    "version": "0.0.0"
+  },
+  "versions": {
+    "semanticSchema": "editac.registry.editor.v5",
+    "updateSync": "editac.yrs-yjs.editor.v5",
+    "updateEncoding": 1,
+    "extensionDescriptor": 1,
+    "publicApi": 1,
+    "nativeAbi": 1,
+    "sourceDialect": "editac.internal"
+  },
+  "platform": "desktop",
+  "resources": {
+    "qualified": false,
+    "limits": {
+      "bytes": 16777216,
+      "sources": 4096,
+      "operations": 4096,
+      "spans": 8192,
+      "textBytes": 1048576,
+      "sourceUtf16": 262144,
+      "depth": 128,
+      "jsonDepth": 32,
+      "cutBytes": 256,
+      "controls": 8192,
+      "hierarchyDepth": 128,
+      "registrations": 4096,
+      "edgeVisits": 16777216,
+      "idBytes": 96,
+      "anyValues": 262144,
+      "structs": 262144,
+      "containerEntries": 8192,
+      "allocationClock": 2097152
+    },
+    "evidence": []
+  },
+  "capabilities": [
+    {
+      "id": "editor.read",
+      "state": {
+        "available": false,
+        "enabled": false,
+        "authorized": null,
+        "qualified": false
+      },
+      "permissions": [],
+      "evidence": []
+    },
+    {
+      "id": "editor.write",
+      "state": {
+        "available": false,
+        "enabled": false,
+        "authorized": null,
+        "qualified": false
+      },
+      "permissions": [
+        "document.write"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "selection.navigate",
+      "state": {
+        "available": false,
+        "enabled": false,
+        "authorized": null,
+        "qualified": false
+      },
+      "permissions": [],
+      "evidence": []
+    },
+    {
+      "id": "marks.rich",
+      "state": {
+        "available": false,
+        "enabled": false,
+        "authorized": null,
+        "qualified": false
+      },
+      "permissions": [],
+      "evidence": []
+    },
+    {
+      "id": "links.activate",
+      "state": {
+        "available": false,
+        "enabled": false,
+        "authorized": null,
+        "qualified": false
+      },
+      "permissions": [],
+      "evidence": []
+    },
+    {
+      "id": "lists.edit",
+      "state": {
+        "available": false,
+        "enabled": false,
+        "authorized": null,
+        "qualified": false
+      },
+      "permissions": [
+        "document.write"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "tables.edit",
+      "state": {
+        "available": false,
+        "enabled": false,
+        "authorized": null,
+        "qualified": false
+      },
+      "permissions": [
+        "document.write"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "images.edit",
+      "state": {
+        "available": false,
+        "enabled": false,
+        "authorized": null,
+        "qualified": false
+      },
+      "permissions": [
+        "document.write"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "references.edit",
+      "state": {
+        "available": false,
+        "enabled": false,
+        "authorized": null,
+        "qualified": false
+      },
+      "permissions": [
+        "document.write"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "modules.custom",
+      "state": {
+        "available": false,
+        "enabled": false,
+        "authorized": null,
+        "qualified": false
+      },
+      "permissions": [],
+      "evidence": []
+    },
+    {
+      "id": "history.undo-redo",
+      "state": {
+        "available": false,
+        "enabled": false,
+        "authorized": null,
+        "qualified": false
+      },
+      "permissions": [],
+      "evidence": []
+    },
+    {
+      "id": "changes.review",
+      "state": {
+        "available": false,
+        "enabled": false,
+        "authorized": null,
+        "qualified": false
+      },
+      "permissions": [],
+      "evidence": []
+    },
+    {
+      "id": "storage.offline",
+      "state": {
+        "available": false,
+        "enabled": false,
+        "authorized": null,
+        "qualified": false
+      },
+      "permissions": [],
+      "evidence": []
+    },
+    {
+      "id": "transport.collaboration",
+      "state": {
+        "available": false,
+        "enabled": false,
+        "authorized": null,
+        "qualified": false
+      },
+      "permissions": [],
+      "evidence": []
+    },
+    {
+      "id": "clipboard.rich",
+      "state": {
+        "available": false,
+        "enabled": false,
+        "authorized": null,
+        "qualified": false
+      },
+      "permissions": [],
+      "evidence": []
+    },
+    {
+      "id": "input.composition",
+      "state": {
+        "available": false,
+        "enabled": false,
+        "authorized": null,
+        "qualified": false
+      },
+      "permissions": [],
+      "evidence": []
+    },
+    {
+      "id": "accessibility.text",
+      "state": {
+        "available": false,
+        "enabled": false,
+        "authorized": null,
+        "qualified": false
+      },
+      "permissions": [],
+      "evidence": []
+    },
+    {
+      "id": "accessibility.structure",
+      "state": {
+        "available": false,
+        "enabled": false,
+        "authorized": null,
+        "qualified": false
+      },
+      "permissions": [],
+      "evidence": []
+    },
+    {
+      "id": "math.preserve-source",
+      "state": {
+        "available": false,
+        "enabled": false,
+        "authorized": null,
+        "qualified": false
+      },
+      "permissions": [],
+      "evidence": []
+    },
+    {
+      "id": "math.edit-source",
+      "state": {
+        "available": false,
+        "enabled": false,
+        "authorized": null,
+        "qualified": false
+      },
+      "permissions": [],
+      "evidence": []
+    },
+    {
+      "id": "math.typeset-render",
+      "state": {
+        "available": false,
+        "enabled": false,
+        "authorized": null,
+        "qualified": false
+      },
+      "permissions": [],
+      "evidence": []
+    },
+    {
+      "id": "editor.import",
+      "state": {
+        "available": false,
+        "enabled": false,
+        "authorized": null,
+        "qualified": false
+      },
+      "permissions": [],
+      "evidence": []
+    },
+    {
+      "id": "editor.export",
+      "state": {
+        "available": false,
+        "enabled": false,
+        "authorized": null,
+        "qualified": false
+      },
+      "permissions": [],
+      "evidence": []
+    }
+  ],
+  "converters": [],
+  "inputs": [
+    {
+      "path": "contracts/capabilities.schema.json",
+      "sha256": "511c81b8fa97fca1dfc5130cd66b383166b346965a48a837db626559c894b5d4"
+    },
+    {
+      "path": "fixtures/schema-v5/profile.json",
+      "sha256": "d0a68db300d2953de29ff8208a4d1208d6ec13cba0544cbf7302ee24acd6b5f9"
+    },
+    {
+      "path": "native/macos/Package.swift",
+      "sha256": "45a091b0ef79a078628bf422c6be1206f1a796da64bc9536e50827a03c5fdb53"
+    },
+    {
+      "path": "native/macos/toolchain.json",
+      "sha256": "ef2502b8b749242f908d225acd74c3bfabc31342ba5ecf2485bdc189d39f2000"
+    }
+  ],
+  "evidence": []
+}
