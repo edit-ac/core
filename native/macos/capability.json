@@ -317,7 +317,7 @@
     },
     {
       "path": "native/macos/Package.swift",
-      "sha256": "45a091b0ef79a078628bf422c6be1206f1a796da64bc9536e50827a03c5fdb53"
+      "sha256": "f9ca8ddf89b597546fa3c9dfeb580fe91997bcecd198ba8d58ad940ffaab2cc8"
     },
     {
       "path": "native/macos/toolchain.json",

@@ -36,7 +36,7 @@ class CountAdmissionTests(unittest.TestCase):
             dispatcher.xctest_counts("Executed 1 test, with 1 test skipped and 0 failures", 1)
 
     def test_unknown_suite_rejected(self):
-        result = subprocess.run([sys.executable, dispatcher.__file__, "toolkit"], capture_output=True)
+        result = subprocess.run([sys.executable, dispatcher.__file__, "unimplemented-suite"], capture_output=True)
         self.assertEqual(result.returncode, 2)
         self.assertIn(b"unknown/unimplemented suite", result.stderr)
 

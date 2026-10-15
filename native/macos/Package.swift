@@ -11,6 +11,11 @@ let package = Package(
     targets: [
         .target(name: "EditacMacOS"),
         .executableTarget(name: "EditacMacOSTestHost", dependencies: ["EditacMacOS"]),
+        // Internal feasibility harness; not an SDK product or semantic adapter.
+        .target(name: "EditacMacOSProbe", dependencies: ["EditacMacOS"],
+                path: "probe/Sources"),
+        .testTarget(name: "EditacMacOSToolkitTests", dependencies: ["EditacMacOS", "EditacMacOSProbe"],
+                    path: "tests/Toolkit"),
         .testTarget(name: "EditacMacOSBootstrapTests", dependencies: ["EditacMacOS"],
                     path: "tests/Bootstrap"),
     ],

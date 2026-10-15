@@ -1,4 +1,4 @@
-# macOS native SDK bootstrap
+# macOS native SDK
 
 DSK-1.1 builds an AppKit SDK target, a windowed native test host and one real
 XCTest case. The text view is an empty, noneditable projection until shared
@@ -37,3 +37,8 @@ Native control availability and architecture:
 [Apple text system organization](https://developer.apple.com/library/archive/documentation/TextFonts/Conceptual/CocoaTextArchitecture/TextSystemArchitecture/ArchitectureOverview.html).
 These established AppKit APIs predate the declared minimum; newer APIs need
 explicit availability guards and their own qualified runtime cases.
+
+The [native control probe](probe/README.md) selects explicit TextKit 1 and
+exercises real composition, cell and atom child-control feasibility with the
+`toolkit` dispatcher suite. This does not enable production editing or qualify
+IME/platform support.

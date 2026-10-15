@@ -10,7 +10,15 @@ public final class NativeEditorView: NSView {
     public override init(frame frameRect: NSRect) {
         let localFrame = NSRect(origin: .zero, size: frameRect.size)
         scrollView = NSScrollView(frame: localFrame)
-        textView = NSTextView(frame: localFrame)
+        // Explicit TextKit 1 graph: no implicit TextKit 2 compatibility fallback.
+        // DSK-1.2 probes this same path for composition and native child views.
+        let storage = NSTextStorage()
+        let layout = NSLayoutManager()
+        let container = NSTextContainer(containerSize: NSSize(
+            width: localFrame.width, height: CGFloat.greatestFiniteMagnitude))
+        storage.addLayoutManager(layout)
+        layout.addTextContainer(container)
+        textView = NSTextView(frame: localFrame, textContainer: container)
         super.init(frame: frameRect)
 
         textView.isRichText = true
