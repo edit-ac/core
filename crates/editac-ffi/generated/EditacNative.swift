@@ -939,6 +939,12 @@ public protocol NativeSessionProtocol: AnyObject, Sendable {
     func cancelEdits(token: String) throws 
     
     /**
+     * Capture all endpoints against one observed revision. Validate every target
+     * before retaining anything, so an invalid endpoint cannot leak anchor slots.
+     */
+    func captureAnchors(revision: Data, inputs: [AnchorInput]) throws  -> [NativeSessionAnchor]
+    
+    /**
      * Single use, including failed admission. Current permission/revision is checked
      * again by EditService. Cancellation cannot interrupt an accepted commit.
      */
@@ -965,9 +971,32 @@ public protocol NativeSessionProtocol: AnyObject, Sendable {
     func redo(revision: Data, now: UInt64) throws  -> NativeSessionCommit?
     
     /**
+     * Idempotent for unknown/foreign tokens; cleanup is available during recovery.
+     */
+    func releaseAnchor(token: String) throws 
+    
+    /**
+     * Resolve the retained shared sticky position against the current committed
+     * revision, including deleted and unresolvable outcomes without local fallback.
+     */
+    func resolveAnchor(token: String) throws  -> NativeSessionAnchorRead
+    
+    /**
+     * Establish/reset this handle's incremental cursor. Recovery-required state
+     * cannot mint an acknowledged projection; salvage remains recoveryExport.
+     */
+    func richSnapshot() throws  -> NativeSessionProjection
+    
+    /**
      * Trusted host permission replacement, serialized with every prepared admission.
      */
     func setPermission(writable: Bool, expiresAt: UInt64?) throws 
+    
+    /**
+     * A single bounded consumer shared by all aliases. Failed reads never drain.
+     * Overflow requires richSnapshot; no event is silently omitted or coalesced.
+     */
+    func takeRichPatches(afterSequence: UInt64) throws  -> NativeSessionPatches
     
     func undo(revision: Data, now: UInt64) throws  -> NativeSessionCommit?
     
@@ -1064,6 +1093,21 @@ open func cancelEdits(token: String)throws   {try rustCallWithError(FfiConverter
 }
     
     /**
+     * Capture all endpoints against one observed revision. Validate every target
+     * before retaining anything, so an invalid endpoint cannot leak anchor slots.
+     */
+open func captureAnchors(revision: Data, inputs: [AnchorInput])throws  -> [NativeSessionAnchor]  {
+    return try  FfiConverterSequenceTypeNativeSessionAnchor.lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_capture_anchors(
+            self.uniffiCloneHandle(),
+        FfiConverterData.lower(revision),
+        FfiConverterSequenceTypeAnchorInput.lower(inputs),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * Single use, including failed admission. Current permission/revision is checked
      * again by EditService. Cancellation cannot interrupt an accepted commit.
      */
@@ -1146,6 +1190,45 @@ open func redo(revision: Data, now: UInt64)throws  -> NativeSessionCommit?  {
 }
     
     /**
+     * Idempotent for unknown/foreign tokens; cleanup is available during recovery.
+     */
+open func releaseAnchor(token: String)throws   {try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_release_anchor(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(token),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Resolve the retained shared sticky position against the current committed
+     * revision, including deleted and unresolvable outcomes without local fallback.
+     */
+open func resolveAnchor(token: String)throws  -> NativeSessionAnchorRead  {
+    return try  FfiConverterTypeNativeSessionAnchorRead_lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_resolve_anchor(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(token),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Establish/reset this handle's incremental cursor. Recovery-required state
+     * cannot mint an acknowledged projection; salvage remains recoveryExport.
+     */
+open func richSnapshot()throws  -> NativeSessionProjection  {
+    return try  FfiConverterTypeNativeSessionProjection_lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_rich_snapshot(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * Trusted host permission replacement, serialized with every prepared admission.
      */
 open func setPermission(writable: Bool, expiresAt: UInt64?)throws   {try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
@@ -1156,6 +1239,20 @@ open func setPermission(writable: Bool, expiresAt: UInt64?)throws   {try rustCal
         FfiConverterOptionUInt64.lower(expiresAt),uniffiCallStatus
     )
 }
+}
+    
+    /**
+     * A single bounded consumer shared by all aliases. Failed reads never drain.
+     * Overflow requires richSnapshot; no event is silently omitted or coalesced.
+     */
+open func takeRichPatches(afterSequence: UInt64)throws  -> NativeSessionPatches  {
+    return try  FfiConverterTypeNativeSessionPatches_lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_take_rich_patches(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(afterSequence),uniffiCallStatus
+    )
+})
 }
     
 open func undo(revision: Data, now: UInt64)throws  -> NativeSessionCommit?  {
@@ -1402,6 +1499,133 @@ public func FfiConverterTypeBatchResult_lift(_ buf: RustBuffer) throws -> BatchR
 #endif
 public func FfiConverterTypeBatchResult_lower(_ value: BatchResult) -> RustBuffer {
     return FfiConverterTypeBatchResult.lower(value)
+}
+
+
+/**
+ * Opaque worker-owned anchor, with immutable capture lineage and revision.
+ */
+public struct NativeSessionAnchor: Equatable, Hashable {
+    public var token: String
+    public var documentId: String
+    public var epoch: String
+    public var revision: Data
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(token: String, documentId: String, epoch: String, revision: Data) {
+        self.token = token
+        self.documentId = documentId
+        self.epoch = epoch
+        self.revision = revision
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NativeSessionAnchor: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeSessionAnchor: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeSessionAnchor {
+        return
+            try NativeSessionAnchor(
+                token: FfiConverterString.read(from: &buf), 
+                documentId: FfiConverterString.read(from: &buf), 
+                epoch: FfiConverterString.read(from: &buf), 
+                revision: FfiConverterData.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NativeSessionAnchor, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.token, into: &buf)
+        FfiConverterString.write(value.documentId, into: &buf)
+        FfiConverterString.write(value.epoch, into: &buf)
+        FfiConverterData.write(value.revision, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeSessionAnchor_lift(_ buf: RustBuffer) throws -> NativeSessionAnchor {
+    return try FfiConverterTypeNativeSessionAnchor.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeSessionAnchor_lower(_ value: NativeSessionAnchor) -> RustBuffer {
+    return FfiConverterTypeNativeSessionAnchor.lower(value)
+}
+
+
+public struct NativeSessionAnchorRead: Equatable, Hashable {
+    public var documentId: String
+    public var epoch: String
+    public var revision: Data
+    public var resolution: NativeAnchorResolution
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(documentId: String, epoch: String, revision: Data, resolution: NativeAnchorResolution) {
+        self.documentId = documentId
+        self.epoch = epoch
+        self.revision = revision
+        self.resolution = resolution
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NativeSessionAnchorRead: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeSessionAnchorRead: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeSessionAnchorRead {
+        return
+            try NativeSessionAnchorRead(
+                documentId: FfiConverterString.read(from: &buf), 
+                epoch: FfiConverterString.read(from: &buf), 
+                revision: FfiConverterData.read(from: &buf), 
+                resolution: FfiConverterTypeNativeAnchorResolution.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NativeSessionAnchorRead, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.documentId, into: &buf)
+        FfiConverterString.write(value.epoch, into: &buf)
+        FfiConverterData.write(value.revision, into: &buf)
+        FfiConverterTypeNativeAnchorResolution.write(value.resolution, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeSessionAnchorRead_lift(_ buf: RustBuffer) throws -> NativeSessionAnchorRead {
+    return try FfiConverterTypeNativeSessionAnchorRead.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeSessionAnchorRead_lower(_ value: NativeSessionAnchorRead) -> RustBuffer {
+    return FfiConverterTypeNativeSessionAnchorRead.lower(value)
 }
 
 
@@ -1659,6 +1883,132 @@ public func FfiConverterTypeNativeSessionOptions_lift(_ buf: RustBuffer) throws 
 #endif
 public func FfiConverterTypeNativeSessionOptions_lower(_ value: NativeSessionOptions) -> RustBuffer {
     return FfiConverterTypeNativeSessionOptions.lower(value)
+}
+
+
+/**
+ * Ordered original range patches since the last snapshot/drain on this handle.
+ */
+public struct NativeSessionPatches: Equatable, Hashable {
+    public var revision: Data
+    public var afterSequence: UInt64
+    public var sequence: UInt64
+    public var patchesJson: [String]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(revision: Data, afterSequence: UInt64, sequence: UInt64, patchesJson: [String]) {
+        self.revision = revision
+        self.afterSequence = afterSequence
+        self.sequence = sequence
+        self.patchesJson = patchesJson
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NativeSessionPatches: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeSessionPatches: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeSessionPatches {
+        return
+            try NativeSessionPatches(
+                revision: FfiConverterData.read(from: &buf), 
+                afterSequence: FfiConverterUInt64.read(from: &buf), 
+                sequence: FfiConverterUInt64.read(from: &buf), 
+                patchesJson: FfiConverterSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NativeSessionPatches, into buf: inout [UInt8]) {
+        FfiConverterData.write(value.revision, into: &buf)
+        FfiConverterUInt64.write(value.afterSequence, into: &buf)
+        FfiConverterUInt64.write(value.sequence, into: &buf)
+        FfiConverterSequenceString.write(value.patchesJson, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeSessionPatches_lift(_ buf: RustBuffer) throws -> NativeSessionPatches {
+    return try FfiConverterTypeNativeSessionPatches.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeSessionPatches_lower(_ value: NativeSessionPatches) -> RustBuffer {
+    return FfiConverterTypeNativeSessionPatches.lower(value)
+}
+
+
+/**
+ * Detached authoritative rich wire snapshot, paired with a committed revision.
+ */
+public struct NativeSessionProjection: Equatable, Hashable {
+    public var revision: Data
+    public var sequence: UInt64
+    public var snapshotJson: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(revision: Data, sequence: UInt64, snapshotJson: String) {
+        self.revision = revision
+        self.sequence = sequence
+        self.snapshotJson = snapshotJson
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NativeSessionProjection: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeSessionProjection: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeSessionProjection {
+        return
+            try NativeSessionProjection(
+                revision: FfiConverterData.read(from: &buf), 
+                sequence: FfiConverterUInt64.read(from: &buf), 
+                snapshotJson: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NativeSessionProjection, into buf: inout [UInt8]) {
+        FfiConverterData.write(value.revision, into: &buf)
+        FfiConverterUInt64.write(value.sequence, into: &buf)
+        FfiConverterString.write(value.snapshotJson, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeSessionProjection_lift(_ buf: RustBuffer) throws -> NativeSessionProjection {
+    return try FfiConverterTypeNativeSessionProjection.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeSessionProjection_lower(_ value: NativeSessionProjection) -> RustBuffer {
+    return FfiConverterTypeNativeSessionProjection.lower(value)
 }
 
 
@@ -1988,6 +2338,96 @@ public func FfiConverterTypeAnchorBias_lower(_ value: AnchorBias) -> RustBuffer 
 
 
 
+/**
+ * Direct translation of the authoritative shared anchor resolution.
+ */
+
+public enum NativeAnchorResolution: Equatable, Hashable {
+    
+    case position(node: String, offsetUtf16: UInt32, source: String, sourceOffsetUtf16: UInt32, bias: AnchorBias
+    )
+    case deleted(source: String, owner: String
+    )
+    case unresolvable(reason: String
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension NativeAnchorResolution: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeAnchorResolution: FfiConverterRustBuffer {
+    typealias SwiftType = NativeAnchorResolution
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeAnchorResolution {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .position(node: try FfiConverterString.read(from: &buf), offsetUtf16: try FfiConverterUInt32.read(from: &buf), source: try FfiConverterString.read(from: &buf), sourceOffsetUtf16: try FfiConverterUInt32.read(from: &buf), bias: try FfiConverterTypeAnchorBias.read(from: &buf)
+        )
+        
+        case 2: return .deleted(source: try FfiConverterString.read(from: &buf), owner: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 3: return .unresolvable(reason: try FfiConverterString.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: NativeAnchorResolution, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .position(node,offsetUtf16,source,sourceOffsetUtf16,bias):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(node, into: &buf)
+            FfiConverterUInt32.write(offsetUtf16, into: &buf)
+            FfiConverterString.write(source, into: &buf)
+            FfiConverterUInt32.write(sourceOffsetUtf16, into: &buf)
+            FfiConverterTypeAnchorBias.write(bias, into: &buf)
+            
+        
+        case let .deleted(source,owner):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(source, into: &buf)
+            FfiConverterString.write(owner, into: &buf)
+            
+        
+        case let .unresolvable(reason):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(reason, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeAnchorResolution_lift(_ buf: RustBuffer) throws -> NativeAnchorResolution {
+    return try FfiConverterTypeNativeAnchorResolution.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeAnchorResolution_lower(_ value: NativeAnchorResolution) -> RustBuffer {
+    return FfiConverterTypeNativeAnchorResolution.lower(value)
+}
+
+
+
 public 
 enum NativeError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
@@ -2309,6 +2749,11 @@ enum NativeSessionError: Swift.Error, Equatable, Hashable, Foundation.LocalizedE
     case InvalidPlan
     case Disposed
     case ExecutorUnavailable
+    case ProjectionResyncRequired
+    case InvalidProjectionCursor
+    case InvalidAnchor
+    case AnchorTarget(message: String
+    )
 
     
 
@@ -2380,6 +2825,12 @@ public struct FfiConverterTypeNativeSessionError: FfiConverterRustBuffer {
         case 21: return .InvalidPlan
         case 22: return .Disposed
         case 23: return .ExecutorUnavailable
+        case 24: return .ProjectionResyncRequired
+        case 25: return .InvalidProjectionCursor
+        case 26: return .InvalidAnchor
+        case 27: return .AnchorTarget(
+            message: try FfiConverterString.read(from: &buf)
+            )
 
          default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -2493,6 +2944,23 @@ public struct FfiConverterTypeNativeSessionError: FfiConverterRustBuffer {
         case .ExecutorUnavailable:
             writeInt(&buf, Int32(23))
         
+        
+        case .ProjectionResyncRequired:
+            writeInt(&buf, Int32(24))
+        
+        
+        case .InvalidProjectionCursor:
+            writeInt(&buf, Int32(25))
+        
+        
+        case .InvalidAnchor:
+            writeInt(&buf, Int32(26))
+        
+        
+        case let .AnchorTarget(message):
+            writeInt(&buf, Int32(27))
+            FfiConverterString.write(message, into: &buf)
+            
         }
     }
 }
@@ -2740,6 +3208,81 @@ fileprivate struct FfiConverterOptionTypeNativeStoreFailure: FfiConverterRustBuf
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
+    typealias SwiftType = [String]
+
+    public static func write(_ value: [String], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterString.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [String] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [String]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterString.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeAnchorInput: FfiConverterRustBuffer {
+    typealias SwiftType = [AnchorInput]
+
+    public static func write(_ value: [AnchorInput], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeAnchorInput.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [AnchorInput] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [AnchorInput]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeAnchorInput.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeNativeSessionAnchor: FfiConverterRustBuffer {
+    typealias SwiftType = [NativeSessionAnchor]
+
+    public static func write(_ value: [NativeSessionAnchor], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeNativeSessionAnchor.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [NativeSessionAnchor] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [NativeSessionAnchor]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeNativeSessionAnchor.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeNativeSessionEdit: FfiConverterRustBuffer {
     typealias SwiftType = [NativeSessionEdit]
 
@@ -2891,6 +3434,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_editac_ffi_checksum_method_nativesession_cancel_edits() != 14748) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_editac_ffi_checksum_method_nativesession_capture_anchors() != 33574) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_editac_ffi_checksum_method_nativesession_commit_edits() != 20568) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -2912,7 +3458,19 @@ private let initializationResult: InitializationResult = {
     if (uniffi_editac_ffi_checksum_method_nativesession_redo() != 43503) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_editac_ffi_checksum_method_nativesession_release_anchor() != 30069) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_resolve_anchor() != 59413) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_rich_snapshot() != 43350) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_editac_ffi_checksum_method_nativesession_set_permission() != 8942) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_take_rich_patches() != 44957) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_editac_ffi_checksum_method_nativesession_undo() != 34245) {

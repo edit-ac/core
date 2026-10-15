@@ -16,6 +16,10 @@ def digest(p):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', required=True, type=Path)
+    parser.add_argument('--rich-fixture', type=Path)
+    parser.add_argument('--case', action='append', default=[])
+    parser.add_argument('--fixture-writer', type=Path)
+    parser.add_argument('--reuse-legacy', type=Path)
     args = parser.parse_args()
     out = args.output.resolve()
     out.mkdir(parents=True, exist_ok=True)
@@ -26,7 +30,7 @@ def main():
     env = os.environ.copy()
     env['PATH'] = '/Users/bpstr/.nvm/versions/node/v24.19.0/bin:/Users/bpstr/.cargo/bin:' + env['PATH']
     checks = []
-    receipt = {'gate': 'NSR-1.2', 'state': 'FAILED', 'checks': checks,
+    receipt = {'gate': 'RPR-1.3' if args.rich_fixture else 'NSR-1.2', 'state': 'FAILED', 'checks': checks,
         'sourceRevision': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=CORE, text=True).strip(),
         'qualification': 'macOS aarch64 actual generated Swift + shared Session SQLite; no AppKit/IME/platform/release/deployment qualification',
         'providerCalls': 0, 'publication': False}
@@ -52,7 +56,7 @@ def main():
         receipt['bindingsReceiptSha256'] = digest(binding_receipt)
         receipt['library'] = {'path': str(library.relative_to(CORE)), 'sha256': digest(library)}
         receipt['generatedArtifacts'] = bindings['artifacts']
-        paths = ['tests/native/session-swift.py', 'tests/native/session-probe/main.swift', 'tests/native/bounded-bindings.py',
+        paths = ['tests/native/session-swift.py', 'tests/native/session-probe/main.swift', 'tests/native/session-probe/RichCases.swift', 'tests/native/bounded-bindings.py',
             'crates/editac-ffi/src/session.rs', 'crates/editac-ffi/src/lib.rs', 'crates/editac-ffi/Cargo.toml', 'Cargo.lock',
             'native/ios/probe/main.swift', 'tests/native/fixtures/bounded-abi.json']
         receipt['sourceHashes'] = {p: digest(CORE / p) for p in paths}
@@ -64,10 +68,19 @@ def main():
                 '-Xcc', '-fmodule-map-file=' + str(generated / 'EditacNativeFFI.modulemap'),
                 '-L', library.parent, '-leditac_ffi', '-Xlinker', '-rpath', '-Xlinker', library.parent]
             host = CORE / 'tests/native/session-probe/main.swift'
+            rich_source = CORE / 'tests/native/session-probe/RichCases.swift'
+            rich_args = ['--rich-fixture', args.rich_fixture.resolve()] if args.rich_fixture else []
+            if args.fixture_writer:
+                rich_args += ['--fixture-writer', args.fixture_writer.resolve()]
+                receipt['fixtureWriterSha256'] = digest(args.fixture_writer)
+            if args.rich_fixture:
+                receipt['fixtureManifestSha256'] = digest(args.rich_fixture)
+                receipt['fixtureStoreSha256Before'] = digest(Path(json.loads(args.rich_fixture.read_text())['path']))
             binary = work / 'session-probe'
-            run('session-build', base + [generated / 'EditacNative.swift', host, '-o', binary])
+            run('session-build', base + [generated / 'EditacNative.swift', host, rich_source, '-o', binary])
             receipt['binarySha256'] = digest(binary)
-            result = run('session-runtime', [binary, attempt / 'stores'])
+            (attempt / 'session-probe').write_bytes(binary.read_bytes())
+            result = run('session-runtime', [binary, attempt / 'stores', *rich_args, *[arg for case in args.case for arg in ['--case', case]]])
             receipt['runtime'] = json.loads(result.read_text())
             # Observe real deallocation sites only in a disposable generated copy.
             # Raw library and the semantic executable above remain unmodified.
@@ -84,21 +97,35 @@ def main():
             instrumented = work / 'MeasuredBindings.swift'
             instrumented.write_text(swift)
             receipt['instrumentedGeneratedSha256'] = digest(instrumented)
+            (attempt / 'MeasuredBindings.swift').write_text(swift)
             measured = work / 'session-buffers'
-            run('session-instrumented-build', base + [instrumented, host, '-o', measured])
+            run('session-instrumented-build', base + [instrumented, host, rich_source, '-o', measured])
             receipt['instrumentedBinarySha256'] = digest(measured)
-            result = run('session-buffer-runtime', [measured, attempt / 'measured-stores', '--instrumented'])
+            (attempt / 'session-buffers').write_bytes(measured.read_bytes())
+            result = run('session-buffer-runtime', [measured, attempt / 'measured-stores', '--instrumented', *rich_args])
             receipt['buffers'] = json.loads(result.read_text())
-            legacy = work / 'legacy-probe'
-            run('legacy-build', base + [generated / 'EditacNative.swift', CORE / 'native/ios/probe/main.swift', '-o', legacy])
-            receipt['legacyBinarySha256'] = digest(legacy)
-            result = run('legacy-runtime', [legacy, CORE / 'tests/native/fixtures/bounded-abi.json'])
-            receipt['legacy'] = json.loads(result.read_text())
+            if args.reuse_legacy:
+                previous = json.loads(args.reuse_legacy.read_text())
+                if previous['library'] != receipt['library'] or previous['generatedArtifacts'] != receipt['generatedArtifacts']:
+                    raise RuntimeError('legacy reuse library/generated inputs changed')
+                for p in ['native/ios/probe/main.swift', 'tests/native/fixtures/bounded-abi.json']:
+                    if previous['sourceHashes'][p] != digest(CORE / p):
+                        raise RuntimeError('legacy reuse input changed: ' + p)
+                receipt['legacy'] = previous['legacy']
+                receipt['legacyReuse'] = {'receipt': str(args.reuse_legacy.resolve()), 'sha256': digest(args.reuse_legacy)}
+            else:
+                legacy = work / 'legacy-probe'
+                run('legacy-build', base + [generated / 'EditacNative.swift', CORE / 'native/ios/probe/main.swift', '-o', legacy])
+                receipt['legacyBinarySha256'] = digest(legacy)
+                (attempt / 'legacy-probe').write_bytes(legacy.read_bytes())
+                result = run('legacy-runtime', [legacy, CORE / 'tests/native/fixtures/bounded-abi.json'])
+                receipt['legacy'] = json.loads(result.read_text())
         for key in ['runtime', 'buffers', 'legacy']:
             counts = receipt[key]['counts']
             if not counts['executed'] or counts['executed'] != counts['passed'] or counts['failed'] or counts['skipped']:
                 raise RuntimeError('incomplete runtime: ' + key)
-        receipt['counts'] = {key: sum(receipt[phase]['counts'][key] for phase in ['runtime', 'buffers', 'legacy'])
+        receipt['selectedCases'] = args.case
+        receipt['counts'] = {key: sum(receipt[phase]['counts'][key] for phase in (['runtime', 'buffers'] if args.reuse_legacy else ['runtime', 'buffers', 'legacy']))
             for key in ['executed', 'passed', 'failed', 'skipped']}
         receipt['state'] = 'implemented/verified; not integrated or deployed'
     except Exception as error:
