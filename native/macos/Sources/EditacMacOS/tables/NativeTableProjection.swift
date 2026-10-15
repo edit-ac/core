@@ -1,0 +1,335 @@
+import AppKit
+
+public struct NativeCellCoordinate: Hashable, Sendable {
+    public let row: Int
+    public let column: Int
+    public init(row: Int, column: Int) { self.row = row; self.column = column }
+}
+
+/// Validated presentation of the shared inert tuple. No writable semantic state.
+struct NativeTableDescriptor {
+    struct Cell {
+        let coordinate: NativeCellCoordinate
+        let rowSpan: Int
+        let columnSpan: Int
+        let header: Bool
+        let paragraphs: [[String: Any]]
+    }
+    let tuple: [Any]
+    let alignments: [String]
+    let rowCount: Int
+    let cells: [Cell]
+
+    init(_ tuple: [Any]) throws {
+        func invalid() -> NativeProjectionFailure { .malformedRichProjection }
+        guard tuple.count == 3, tuple[0] as? String == "module:editac.table",
+              let version = tuple[1] as? Int, [1, 2].contains(version),
+              let data = tuple[2] as? [String: Any],
+              let alignments = data["alignments"] as? [String],
+              !alignments.isEmpty, alignments.count <= 32,
+              alignments.allSatisfy({ ["none", "left", "center", "right"].contains($0) }),
+              let rows = data["rows"] as? [[Any]], !rows.isEmpty, rows.count <= 128,
+              let source = data["source"] as? String, source.utf8.count <= 1_048_576 else { throw invalid() }
+        var covered = Set<NativeCellCoordinate>()
+        var cells: [Cell] = []
+        var paragraphCount = 0, runCount = 0
+        for (r, row) in rows.enumerated() {
+            guard row.count == alignments.count else { throw invalid() }
+            for (c, value) in row.enumerated() {
+                let coordinate = NativeCellCoordinate(row: r, column: c)
+                if covered.contains(coordinate) {
+                    guard value is NSNull else { throw invalid() }; continue
+                }
+                let paragraphs: [[String: Any]], height: Int, width: Int, header: Bool
+                if version == 1 {
+                    guard let runs = value as? [Any] else { throw invalid() }
+                    paragraphs = [["style": ["paragraph"], "runs": runs]]
+                    height = 1; width = 1; header = r == 0
+                } else {
+                    guard let cell = value as? [String: Any],
+                          let p = cell["paragraphs"] as? [[String: Any]], !p.isEmpty,
+                          let h = cell["rowSpan"] as? Int, let w = cell["columnSpan"] as? Int,
+                          let isHeader = cell["header"] as? Bool else { throw invalid() }
+                    paragraphs = p; height = h; width = w; header = isHeader
+                }
+                guard height > 0, width > 0, height <= rows.count - r, width <= row.count - c else { throw invalid() }
+                for row in r..<(r + height) {
+                    for column in c..<(c + width) {
+                        guard covered.insert(.init(row: row, column: column)).inserted else { throw invalid() }
+                    }
+                }
+                paragraphCount += paragraphs.count
+                for p in paragraphs {
+                    guard let style = p["style"] as? [Any], let tag = style.first as? String,
+                          ["paragraph", "heading", "code"].contains(tag),
+                          let runs = p["runs"] as? [[Any]],
+                          runs.allSatisfy({ $0.count == 2 && $0[0] is String && $0[1] is [[Any]] }) else { throw invalid() }
+                    runCount += runs.count
+                }
+                cells.append(Cell(coordinate: coordinate, rowSpan: height, columnSpan: width,
+                                  header: header, paragraphs: paragraphs))
+            }
+        }
+        guard paragraphCount <= 1024, runCount <= 1024 else { throw invalid() }
+        self.tuple = tuple; self.alignments = alignments; rowCount = rows.count; self.cells = cells
+    }
+}
+
+/// Real native cell control. Edits remain disabled until the shared command
+/// adapter in DSK-1.10 is installed; no native-only history or mutation escape.
+@MainActor
+public final class NativeTableCellView: NSTextView {
+    weak var editing: NativeTableEditing?
+    var tableID: String?
+    public override func becomeFirstResponder() -> Bool {
+        let result = super.becomeFirstResponder()
+        DispatchQueue.main.async { [weak self] in self?.editing?.refreshCommands() }
+        return result
+    }
+    public override func resignFirstResponder() -> Bool {
+        let result = super.resignFirstResponder()
+        DispatchQueue.main.async { [weak self] in self?.editing?.refreshCommands() }
+        return result
+    }
+    public override func keyDown(with event: NSEvent) {
+        if event.modifierFlags.contains(.command), event.charactersIgnoringModifiers == "z" {
+            editing?.history(redo: event.modifierFlags.contains(.shift)); return
+        }
+        super.keyDown(with: event)
+    }
+    public override func doCommand(by selector: Selector) {
+        if selector == #selector(insertTab(_:)) || selector == #selector(insertBacktab(_:)) {
+            _ = editing?.move(from: self, forward: selector == #selector(insertTab(_:))); return
+        }
+        super.doCommand(by: selector)
+    }
+    public override func accessibilityPerformPress() -> Bool {
+        editing?.focus(self) ?? false
+    }
+    @objc public func undo(_ sender: Any?) { editing?.history(redo: false) }
+    @objc public func redo(_ sender: Any?) { editing?.history(redo: true) }
+    private static let unsupportedActions: Set<String> = ["changeFont:", "changeAttributes:", "changeColor:",
+        "alignLeft:", "alignRight:", "alignCenter:", "alignJustified:", "subscript:", "superscript:",
+        "unscript:", "underline:", "toggleBoldface:", "toggleItalics:"]
+    public override func validateUserInterfaceItem(_ item: NSValidatedUserInterfaceItem) -> Bool {
+        guard let selector = item.action else { return false }
+        let action = NSStringFromSelector(selector)
+        if action == "undo:" || action == "redo:" { return editing?.historyAvailable(redo: action == "redo:") == true }
+        if Self.unsupportedActions.contains(action) { return false }
+        return super.validateUserInterfaceItem(item)
+    }
+    public override func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        guard let action = item.action else { return false }
+        if Self.unsupportedActions.contains(NSStringFromSelector(action)) { return false }
+        if NSStringFromSelector(action) == "undo:" || NSStringFromSelector(action) == "redo:" {
+            return editing?.historyAvailable(redo: NSStringFromSelector(action) == "redo:") == true
+        }
+        return super.validateMenuItem(item)
+    }
+    public override func changeFont(_ sender: Any?) {}
+    public override func changeAttributes(_ sender: Any?) {}
+    public override func changeColor(_ sender: Any?) {}
+    public override func alignLeft(_ sender: Any?) {}
+    public override func alignRight(_ sender: Any?) {}
+    public override func alignCenter(_ sender: Any?) {}
+    public override func alignJustified(_ sender: Any?) {}
+    public override func `subscript`(_ sender: Any?) {}
+    public override func superscript(_ sender: Any?) {}
+    public override func unscript(_ sender: Any?) {}
+    public override func underline(_ sender: Any?) {}
+    @objc public func toggleBoldface(_ sender: Any?) {}
+    @objc public func toggleItalics(_ sender: Any?) {}
+    public let coordinate: NativeCellCoordinate
+    public internal(set) var rowSpan = 1
+    public internal(set) var columnSpan = 1
+    public internal(set) var isHeaderCell = false
+    init(coordinate: NativeCellCoordinate) {
+        self.coordinate = coordinate
+        // Use NSTextView's designated initializer. Its frame-only convenience
+        // initializer dynamically re-enters init(frame:textContainer:).
+        let storage = NSTextStorage()
+        let manager = NSLayoutManager()
+        let container = NSTextContainer(containerSize: NSSize(width: 80, height: CGFloat.greatestFiniteMagnitude))
+        storage.addLayoutManager(manager); manager.addTextContainer(container)
+        super.init(frame: .zero, textContainer: container)
+        isEditable = false; isSelectable = true; isRichText = true; allowsUndo = false
+        textContainerInset = NSSize(width: 6, height: 6)
+        textContainer?.lineFragmentPadding = 0
+        drawsBackground = true
+        wantsLayer = true; layer?.borderWidth = 0.5; layer?.borderColor = NSColor.separatorColor.cgColor
+    }
+    @available(*, unavailable)
+    public required init?(coder: NSCoder) { fatalError("Use coordinate") }
+}
+
+@MainActor
+private final class TableCanvas: NSView { override var isFlipped: Bool { true } }
+
+@MainActor
+public final class NativeTableView: NSScrollView {
+    public let nodeID: String
+    public private(set) var cells: [NativeCellCoordinate: NativeTableCellView] = [:]
+    public private(set) var sharedTuple: [Any] = []
+    public private(set) var rowCount = 0
+    public private(set) var columnCount = 0
+    private let canvas = TableCanvas()
+    private var descriptor: NativeTableDescriptor?
+    private let styles = NativeStyleRegistry()
+    init(nodeID: String) {
+        self.nodeID = nodeID
+        super.init(frame: .zero)
+        documentView = canvas; hasHorizontalScroller = true; autohidesScrollers = true
+        borderType = .noBorder
+        setAccessibilityLabel("Table")
+    }
+    @available(*, unavailable)
+    public required init?(coder: NSCoder) { fatalError("Use nodeID") }
+
+    func update(_ descriptor: NativeTableDescriptor) throws {
+        var next: [NativeCellCoordinate: NativeTableCellView] = [:]
+        for cell in descriptor.cells {
+            let control = cells[cell.coordinate] ?? NativeTableCellView(coordinate: cell.coordinate)
+            control.rowSpan = cell.rowSpan; control.columnSpan = cell.columnSpan; control.isHeaderCell = cell.header
+            let text = NSMutableAttributedString(string: "")
+            for (index, paragraph) in cell.paragraphs.enumerated() {
+                if index > 0 { text.append(NSAttributedString(string: "\n")) }
+                let start = text.length
+                // Adapt tuple runs to the one native style registry, preserving
+                // the exact shared tuple above for roundtrip/diagnostics.
+                let runs = (paragraph["runs"] as! [[Any]]).map { run -> [String: Any] in
+                    var attributes: [String: Any] = [:]
+                    for mark in run[1] as! [[Any]] {
+                        if let tag = mark.first as? String {
+                            attributes[tag] = tag == "link" ? mark.dropFirst().first : true
+                        }
+                    }
+                    return ["text": run[0], "attributes": attributes]
+                }
+                let node = try RichProjectionNode(["id": nodeID, "kind": "block", "order": 0,
+                    "runs": runs, "blockAttributes": paragraph["style"]!])
+                text.append(NSAttributedString(string: node.text))
+                let storage = NSTextStorage(attributedString: text.attributedSubstring(from: NSRange(location: start, length: text.length - start)))
+                let range = NSRange(location: 0, length: storage.length)
+                _ = styles.apply(node, nodes: [:], range: range, paragraphRange: range, storage: storage)
+                let style = (storage.length > 0 ? storage.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle : nil)?.mutableCopy() as? NSMutableParagraphStyle ?? NSMutableParagraphStyle()
+                switch descriptor.alignments[cell.coordinate.column] {
+                case "center": style.alignment = .center
+                case "right": style.alignment = .right
+                default: style.alignment = .left
+                }
+                storage.addAttribute(.paragraphStyle, value: style, range: range)
+                text.replaceCharacters(in: NSRange(location: start, length: text.length - start), with: storage)
+            }
+            if !control.attributedString().isEqual(to: text) {
+                let selected = control.selectedRange()
+                let affinity = control.selectionAffinity
+                control.textStorage?.setAttributedString(text)
+                let utf16 = Array(text.string.utf16)
+                func boundary(_ index: Int) -> Int {
+                    let i = min(index, utf16.count)
+                    if i > 0, i < utf16.count, (0xD800...0xDBFF).contains(utf16[i - 1]), (0xDC00...0xDFFF).contains(utf16[i]) { return i - 1 }
+                    return i
+                }
+                let start = boundary(selected.location)
+                let end = boundary(selected.location + selected.length)
+                control.setSelectedRange(NSRange(location: start, length: end - start), affinity: affinity, stillSelecting: false)
+            }
+            control.backgroundColor = cell.header ? .controlBackgroundColor : .textBackgroundColor
+            control.setAccessibilityLabel("\(cell.header ? "Header" : "Cell") row \(cell.coordinate.row + 1), column \(cell.coordinate.column + 1)")
+            if control.superview !== canvas { canvas.addSubview(control) }
+            next[cell.coordinate] = control
+        }
+        for (key, old) in cells where next[key] == nil {
+            old.editing?.removing(old); old.isEditable = false; old.delegate = nil; old.editing = nil; old.tableID = nil
+            old.removeFromSuperview()
+        }
+        cells = next; self.descriptor = descriptor; sharedTuple = descriptor.tuple
+        rowCount = descriptor.rowCount; columnCount = descriptor.alignments.count
+    }
+
+    func fit(width: CGFloat) -> NSSize {
+        guard let descriptor else { return .zero }
+        let columnWidth = max(80, width / CGFloat(columnCount))
+        var heights = Array(repeating: CGFloat(32), count: rowCount)
+        for cell in descriptor.cells {
+            let control = cells[cell.coordinate]!
+            let w = columnWidth * CGFloat(cell.columnSpan)
+            control.textContainer?.containerSize = NSSize(width: max(1, w - 12), height: .greatestFiniteMagnitude)
+            control.layoutManager?.ensureLayout(for: control.textContainer!)
+            let needed = (control.layoutManager?.usedRect(for: control.textContainer!).height ?? 20) + 12
+            let each = ceil(needed / CGFloat(cell.rowSpan))
+            for row in cell.coordinate.row..<(cell.coordinate.row + cell.rowSpan) { heights[row] = max(heights[row], each) }
+        }
+        for cell in descriptor.cells {
+            cells[cell.coordinate]!.frame = NSRect(x: CGFloat(cell.coordinate.column) * columnWidth,
+                y: heights.prefix(cell.coordinate.row).reduce(0, +), width: CGFloat(cell.columnSpan) * columnWidth,
+                height: heights[cell.coordinate.row..<(cell.coordinate.row + cell.rowSpan)].reduce(0, +))
+        }
+        canvas.frame = NSRect(x: 0, y: 0, width: columnWidth * CGFloat(columnCount), height: heights.reduce(0, +))
+        return NSSize(width: width, height: canvas.frame.height + (canvas.frame.width > width ? 16 : 0))
+    }
+
+    func dispose() {
+        for cell in cells.values {
+            cell.editing?.removing(cell)
+            cell.isEditable = false; cell.delegate = nil; cell.editing = nil; cell.tableID = nil
+            cell.removeFromSuperview()
+        }
+        cells = [:]; descriptor = nil; sharedTuple = []; styles.dispose(); removeFromSuperview()
+    }
+}
+
+@MainActor
+final class NativeTableAttachmentCell: NSTextAttachmentCell {
+    // TextKit reads this metric through a nonisolated AppKit callback. All
+    // writes and layout are confined to the main thread by NativeTextProjection.
+    nonisolated(unsafe) var projectedSize = NSSize(width: 80, height: 32)
+    override func cellSize() -> NSSize { projectedSize }
+    override func draw(withFrame cellFrame: NSRect, in controlView: NSView?) {}
+}
+
+extension NativeTextProjection {
+    func reconcileTables(_ descriptors: [String: NativeTableDescriptor]) throws {
+        var next: [String: NativeTableView] = [:]
+        for (id, descriptor) in descriptors {
+            let table = tableViews[id] ?? NativeTableView(nodeID: id)
+            try table.update(descriptor)
+            if table.superview !== textView { textView.addSubview(table) }
+            next[id] = table
+        }
+        for (id, old) in tableViews where next[id] == nil { old.dispose() }
+        tableViews = next
+        layoutTables()
+    }
+
+    /// Called after patches and native width changes. Child coordinates come
+    /// from TextKit attachment geometry, so preceding edits and scrolling agree.
+    public func layoutTables() {
+        guard !disposed, !layingOutTables, !tableViews.isEmpty, let manager = textView.layoutManager,
+              let container = textView.textContainer else { return }
+        layingOutTables = true
+        defer { layingOutTables = false }
+        let width = max(80, container.containerSize.width - container.lineFragmentPadding * 2)
+        // Install every metric first: changing a preceding attachment can move
+        // all later glyphs. Positioning during that pass leaves stale frames.
+        var sizes: [String: NSSize] = [:]
+        for (id, table) in tableViews {
+            guard let node = nodes.first(where: { $0.id == id }), let attachment = attachmentIdentities[id] else { continue }
+            let size = table.fit(width: width)
+            sizes[id] = size
+            let cell = attachment.attachmentCell as? NativeTableAttachmentCell ?? NativeTableAttachmentCell(textCell: "")
+            if cell.projectedSize != size {
+                cell.projectedSize = size; attachment.attachmentCell = cell
+                manager.invalidateLayout(forCharacterRange: node.range, actualCharacterRange: nil)
+            }
+        }
+        manager.ensureLayout(for: container)
+        for (id, table) in tableViews {
+            guard let node = nodes.first(where: { $0.id == id }), let size = sizes[id] else { continue }
+            let glyphs = manager.glyphRange(forCharacterRange: node.range, actualCharacterRange: nil)
+            var rect = manager.boundingRect(forGlyphRange: glyphs, in: container)
+            rect.origin.x += textView.textContainerOrigin.x; rect.origin.y += textView.textContainerOrigin.y
+            table.frame = NSRect(origin: rect.origin, size: size)
+        }
+    }
+}

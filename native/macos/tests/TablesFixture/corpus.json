@@ -1,0 +1,244 @@
+[
+  {
+    "runs": [
+      {
+        "text": "Before",
+        "marks": []
+      }
+    ],
+    "attributes": {
+      "type": "paragraph"
+    }
+  },
+  {
+    "runs": [],
+    "attributes": {
+      "type": "content",
+      "tuple": [
+        "module:editac.table",
+        1,
+        {
+          "alignments": [
+            "left",
+            "center",
+            "right"
+          ],
+          "rows": [
+            [
+              [
+                [
+                  "Header \ud83e\udd80",
+                  [
+                    [
+                      "bold"
+                    ]
+                  ]
+                ]
+              ],
+              [
+                [
+                  "\u05e9\u05dc\u05d5\u05dd",
+                  []
+                ]
+              ],
+              [
+                [
+                  "link",
+                  [
+                    [
+                      "link",
+                      "https://example.invalid/cell"
+                    ]
+                  ]
+                ]
+              ]
+            ],
+            [
+              [
+                [
+                  "A",
+                  [
+                    [
+                      "italic"
+                    ]
+                  ]
+                ]
+              ],
+              [],
+              [
+                [
+                  "code",
+                  [
+                    [
+                      "code"
+                    ]
+                  ]
+                ]
+              ]
+            ]
+          ],
+          "source": "not a renderer"
+        }
+      ]
+    }
+  },
+  {
+    "attributes": {
+      "type": "content",
+      "tuple": [
+        "module:editac.table",
+        2,
+        {
+          "alignments": [
+            "left",
+            "center",
+            "right"
+          ],
+          "rows": [
+            [
+              {
+                "paragraphs": [
+                  {
+                    "style": [
+                      "heading",
+                      2
+                    ],
+                    "runs": [
+                      [
+                        "Title\ud83d\ude00",
+                        [
+                          [
+                            "bold"
+                          ],
+                          [
+                            "link",
+                            "https://example.invalid/header"
+                          ]
+                        ]
+                      ]
+                    ]
+                  }
+                ],
+                "rowSpan": 2,
+                "columnSpan": 1,
+                "header": true
+              },
+              {
+                "paragraphs": [
+                  {
+                    "style": [
+                      "paragraph"
+                    ],
+                    "runs": [
+                      [
+                        "Emphasis",
+                        [
+                          [
+                            "italic"
+                          ],
+                          [
+                            "underline"
+                          ],
+                          [
+                            "strike"
+                          ]
+                        ]
+                      ]
+                    ]
+                  }
+                ],
+                "rowSpan": 1,
+                "columnSpan": 2,
+                "header": false
+              },
+              null
+            ],
+            [
+              null,
+              {
+                "paragraphs": [
+                  {
+                    "style": [
+                      "code",
+                      "js"
+                    ],
+                    "runs": [
+                      [
+                        "literal()",
+                        [
+                          [
+                            "code"
+                          ]
+                        ]
+                      ]
+                    ]
+                  }
+                ],
+                "rowSpan": 1,
+                "columnSpan": 1,
+                "header": false
+              },
+              {
+                "paragraphs": [
+                  {
+                    "style": [
+                      "paragraph"
+                    ],
+                    "runs": [
+                      [
+                        "RTL \u05e9\u05dc\u05d5\u05dd",
+                        [
+                          [
+                            "link",
+                            "https://example.invalid/item"
+                          ]
+                        ]
+                      ]
+                    ]
+                  },
+                  {
+                    "style": [
+                      "heading",
+                      3
+                    ],
+                    "runs": [
+                      [
+                        "Nested style",
+                        [
+                          [
+                            "bold"
+                          ]
+                        ]
+                      ]
+                    ]
+                  }
+                ],
+                "rowSpan": 1,
+                "columnSpan": 1,
+                "header": false
+              }
+            ]
+          ],
+          "source": "table v2 inert source: Title\ud83d\ude00 Emphasis literal() RTL \u05e9\u05dc\u05d5\u05dd"
+        }
+      ]
+    },
+    "runs": [
+      {
+        "text": "table v2 inert source: Title\ud83d\ude00 Emphasis literal() RTL \u05e9\u05dc\u05d5\u05dd",
+        "marks": []
+      }
+    ]
+  },
+  {
+    "runs": [
+      {
+        "text": "After",
+        "marks": []
+      }
+    ],
+    "attributes": {
+      "type": "paragraph"
+    }
+  }
+]

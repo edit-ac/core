@@ -11,6 +11,11 @@ public struct NativeReplacementTarget: Sendable {
 /// marked text is written locally; committed content always enters the Session.
 @MainActor
 final class NativeInputTextView: NSTextView {
+    override func layout() {
+        super.layout()
+        editor?.projection.layoutTables()
+    }
+
     weak var editor: NativeEditorView?
     override func hasMarkedText() -> Bool { editor?.composition.isActive == true }
     override func markedRange() -> NSRange {

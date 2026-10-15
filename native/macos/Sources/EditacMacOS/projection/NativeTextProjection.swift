@@ -53,6 +53,8 @@ public final class NativeTextProjection {
     let styleRegistry = NativeStyleRegistry()
     var emptyTypingStyles: [String: [NSAttributedString.Key: Any]] = [:]
     private var refreshingTypingStyle = false
+    public internal(set) var tableViews: [String: NativeTableView] = [:]
+    var layingOutTables = false
     var richNodes: [String: RichProjectionNode] = [:]
     var richSequence: UInt64?
     var richIdentity: Data?
@@ -172,6 +174,8 @@ public final class NativeTextProjection {
 
     public func dispose() {
         disposed = true; selectedTarget = nil; revision = nil
+        for table in tableViews.values { table.dispose() }
+        tableViews = [:]
         styleRegistry.dispose()
         emptyTypingStyles.removeAll()
         richNodes = [:]; attachmentIdentities = [:]; anchoredSelection = false

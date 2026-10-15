@@ -16,6 +16,8 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 CORE = ROOT.parents[1]
 SUITES = {
+    "table-editing": ("EditacMacOSTableEditingTests.TableEditingTests", 11),
+    "table-projection": ("EditacMacOSTableProjectionTests.TableProjectionTests", 14),
     "styles": ("EditacMacOSStylesTests.StylesTests", 12),
     "commands": ("EditacMacOSCommandsTests.CommandsTests", 36),
     "composition": ("EditacMacOSCompositionTests.CompositionTests", 22),
@@ -93,7 +95,7 @@ def stop_command_tree(process):
 
 def main():
     if len(sys.argv) != 2 or sys.argv[1] not in SUITES:
-        print("Usage: bash native/macos/scripts/check.sh {bootstrap|toolkit|session|projection|edits|composition|commands|styles}; unknown/unimplemented suite", file=sys.stderr)
+        print("Usage: bash native/macos/scripts/check.sh {bootstrap|toolkit|session|projection|edits|composition|commands|styles|table-projection|table-editing}; unknown/unimplemented suite", file=sys.stderr)
         return 2
     suite = sys.argv[1]
     signal.signal(signal.SIGTERM, interrupted)
@@ -225,6 +227,23 @@ def main():
             env["EDITAC_MACOS_STYLE_EVIDENCE"] = str(output)
             fixture = json.loads(manifest.read_text())
             receipt["styleFixture"] = {"manifest": str(manifest),
+                "manifestSha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
+                "storeSha256": hashlib.sha256(Path(fixture["path"]).read_bytes()).hexdigest(),
+                "factory": fixture["factory"], "providerCalls": fixture["providerCalls"]}
+        if suite in ("table-projection", "table-editing"):
+            fixture_root = output / "table-fixture"
+            env["EDITAC_NATIVE_SESSION_EVIDENCE"] = str(fixture_root)
+            factory = ROOT / "tests/TablesFixture/Cargo.toml"
+            fixture_log = run("table-fixture", [str(Path.home() / ".cargo/bin/cargo"), "+1.97.1", "run",
+                "--manifest-path", str(factory), "--locked", "--offline",
+                "--target", {"arm64": "aarch64-apple-darwin", "x86_64": "x86_64-apple-darwin"}[actual["cpu"]],
+                "--target-dir", str(CORE / "target/native-macos-ffi")], timeout=300)
+            manifest = Path(fixture_log.strip().splitlines()[-1])
+            env["EDITAC_MACOS_TABLE_FIXTURE"] = str(manifest)
+            env["EDITAC_MACOS_TABLE_EVIDENCE"] = str(output)
+            fixture = json.loads(manifest.read_text())
+            receipt["tableEditingScope"] = "native-prerequisite-only; shared-policy-and-structure-pending" if suite == "table-editing" else None
+            receipt["tableFixture"] = {"manifest": str(manifest),
                 "manifestSha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
                 "storeSha256": hashlib.sha256(Path(fixture["path"]).read_bytes()).hexdigest(),
                 "factory": fixture["factory"], "providerCalls": fixture["providerCalls"]}
