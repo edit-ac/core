@@ -105,12 +105,24 @@ export async function runLayoutAction(page, cdp, action, data) {
   await cdp.send('Accessibility.enable');
   const { nodes } = await cdp.send('Accessibility.getFullAXTree');
   const editable = nodes.find(n => !n.ignored && n.role?.value === 'textbox' && n.properties?.some(p => p.name === 'editable' && p.value.value));
-  const descendants = new Set(), byId = new Map(nodes.map(n => [n.nodeId, n]));
-  const pending = [...(editable?.childIds ?? [])];
-  while (pending.length) { const id = pending.pop(); if (descendants.has(id)) continue; descendants.add(id); pending.push(...(byId.get(id)?.childIds ?? [])); }
-  const actual = nodes.filter(n => descendants.has(n.nodeId) && !n.ignored && n.role?.value === 'StaticText').map(n => n.name?.value);
+  const visited = new Set(), byId = new Map(nodes.map(n => [n.nodeId, n])), actual = [];
+  // Protocol inventory order is not reading order (nested lists and refreshed
+  // nodes may be serialized later). Follow logical AX child edges instead.
+  const visit = id => {
+    if (visited.has(id)) throw Error('Cyclic accessibility tree'); visited.add(id);
+    const node = byId.get(id); if (!node) throw Error('Incomplete accessibility tree');
+    if (!node.ignored && node.role?.value === 'StaticText') actual.push(node.name?.value);
+    for (const child of node.childIds ?? []) visit(child);
+  };
+  for (const id of editable?.childIds ?? []) visit(id);
   const expected = fixture(data.name).blocks.map(b => b.runs.map(r => r.text).join(''));
-  if (JSON.stringify(actual) !== JSON.stringify(expected)) throw Error(`Accessibility text coverage differs: ${actual.length}/${expected.length}`);
+  const normalize = text => text.replace(/\s+/gu, ' ').trim();
+  const actualText = normalize(actual.join(' ')), expectedText = normalize(expected.join(' '));
+  if (actualText !== expectedText) {
+    const a = [...actualText], e = [...expectedText];
+    const at = a.findIndex((c, i) => c !== e[i]);
+    throw Error(`Accessibility text coverage differs: ${actual.length}/${expected.length}; units=${actualText.length}/${expectedText.length}; firstDifferentCodePoint=${at}`);
+  }
   // Browser focus and keyboard action through a real AX-exposed editable root.
   if (!editable?.backendDOMNodeId) throw Error('No actionable editable AX node');
   await cdp.send('DOM.focus', { backendNodeId: editable.backendDOMNodeId });

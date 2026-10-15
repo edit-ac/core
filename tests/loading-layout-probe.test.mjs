@@ -19,10 +19,10 @@ const editable = { nodeId: 'root', childIds: nodes().map(n => n.nodeId), role: {
 const fake = entries => ({ send: async command => command === 'Accessibility.getFullAXTree' ? { nodes: entries } : {} });
 const page = { keyboard: { press: async () => {} }, evaluate: async () => true };
 test('AX oracle rejects a missing offscreen block even with an editable node', async () => {
-  await assert.rejects(runLayoutAction(page, fake([...nodes().slice(0, -1), editable]), 'accessibility', { name: 'Task' }), /coverage differs/);
+  await assert.rejects(runLayoutAction(page, fake([...nodes().slice(0, -1), editable]), 'accessibility', { name: 'Task' }), /Incomplete accessibility tree/);
 });
 test('AX oracle rejects reversed same-count content', async () => {
-  await assert.rejects(runLayoutAction(page, fake([...nodes().reverse(), editable]), 'accessibility', { name: 'Task' }), /coverage differs/);
+  await assert.rejects(runLayoutAction(page, fake([...nodes(), { ...editable, childIds: [...editable.childIds].reverse() }]), 'accessibility', { name: 'Task' }), /coverage differs/);
 });
 test('AX oracle rejects full text without an actionable editable node', async () => {
   await assert.rejects(runLayoutAction(page, fake(nodes()), 'accessibility', { name: 'Task' }), /coverage differs/);
@@ -44,4 +44,9 @@ test('AX oracle excludes unrelated status/control text outside the editor subtre
 test('retained CSS experiment artifacts prevent metadata/behavior laundering', () => {
   for (const path of ['experiment.css', 'layout-probe-source.mjs'])
     assert.throws(() => inspectLoadings({}, { artifacts: { [path]: 'hash' } }), /Experimental layout/);
+});
+
+test('AX oracle follows logical child order rather than protocol inventory order', async () => {
+  const observation = await runLayoutAction(page, fake([...nodes().reverse(), editable]), 'accessibility', { name: 'Task' });
+  assert.equal(observation.exactText, true);
 });
