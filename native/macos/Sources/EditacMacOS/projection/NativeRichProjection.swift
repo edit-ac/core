@@ -164,20 +164,22 @@ extension NativeTextProjection {
         // Update only presentation keys, retaining wire metadata and host attributes.
         styleRegistry.retainContainers(in: next)
         (textView.layoutManager as? NativeStyledLayoutManager)?.trailingPresentation = [:]
+        emptyTypingStyles = [:]
         for (index, node) in ordered.enumerated() {
             let range = nodes[index].range
             let paragraphRange = NSRange(location: range.location,
                 length: range.length + (index + 1 < ordered.count ? 1 : 0))
             let typing = styleRegistry.apply(node, nodes: next, range: range,
                                                    paragraphRange: paragraphRange, storage: storage)
-            if range.length == 0 && textView.selectedRange().location == range.location {
-                textView.typingAttributes = typing
-            }
+            if range.length == 0 { emptyTypingStyles[node.id] = typing }
             if index + 1 == ordered.count && range.length == 0 {
                 (textView.layoutManager as? NativeStyledLayoutManager)?.trailingPresentation = typing
             }
         }
         storage.endEditing()
+        // AppKit recomputes typing attributes while processing storage edits and
+        // selection restoration. Install the empty paragraph's style afterwards.
+        defer { refreshTypingStyle() }
         richNodes = next; richSequence = sequence; richIdentity = lineage
         attachmentIdentities = attachments
         if savedAnchored, let prior {

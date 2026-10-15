@@ -51,6 +51,8 @@ public final class NativeTextProjection {
     public internal(set) var selectionInvalidated = false
     public var selection: NativeTextSelectionTarget? { selectedTarget }
     let styleRegistry = NativeStyleRegistry()
+    var emptyTypingStyles: [String: [NSAttributedString.Key: Any]] = [:]
+    private var refreshingTypingStyle = false
     var richNodes: [String: RichProjectionNode] = [:]
     var richSequence: UInt64?
     var richIdentity: Data?
@@ -59,6 +61,15 @@ public final class NativeTextProjection {
     public internal(set) var attachmentIdentities: [String: NSTextAttachment] = [:]
 
     public init(textView: NSTextView) { self.textView = textView }
+
+    func refreshTypingStyle() {
+        guard !disposed, !refreshingTypingStyle, textView.selectedRange().length == 0,
+              let node = nodes.first(where: { $0.range.length == 0 && $0.range.location == textView.selectedRange().location }),
+              let attributes = emptyTypingStyles[node.id] else { return }
+        refreshingTypingStyle = true
+        defer { refreshingTypingStyle = false }
+        textView.typingAttributes = attributes
+    }
 
     public func apply(_ snapshot: NativeSessionRead) throws {
         guard !disposed else { throw NativeProjectionFailure.disposed }
@@ -162,6 +173,7 @@ public final class NativeTextProjection {
     public func dispose() {
         disposed = true; selectedTarget = nil; revision = nil
         styleRegistry.dispose()
+        emptyTypingStyles.removeAll()
         richNodes = [:]; attachmentIdentities = [:]; anchoredSelection = false
     }
 

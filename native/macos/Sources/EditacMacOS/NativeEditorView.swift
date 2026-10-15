@@ -88,7 +88,7 @@ public final class NativeEditorView: NSView {
         }
         session.onResult = { [weak self] result in
             guard let self, !self.isDisposed else { return }
-            defer { self.commands.refreshControls() }
+            defer { self.projection.refreshTypingStyle(); self.commands.refreshControls() }
             self.sessionDeliveryCount += 1
             switch result {
             case let .success(.snapshot(snapshot)), let .success(.inputCommitted(snapshot, _, _)),

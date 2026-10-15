@@ -136,7 +136,7 @@ final class StylesTests: XCTestCase {
             try await self.commands(v, [["type": "setParagraph", "owner": n.id]])
             XCTAssertNil(try self.attributes(v, text)[.backgroundColor])
             XCTAssertFalse(try self.traits(self.attributes(v, text)).contains(.fixedPitchFontMask))
-            let r = try await self.read(v); _ = try await self.send(v, .undo(revision: r.revision!, now: 0))
+            let r = try await self.read(v); _ = try await self.send(v, .undo(revision: r.revision!, now: 0)); _ = try await self.read(v)
             XCTAssertTrue(try self.traits(self.attributes(v, text)).contains(.fixedPitchFontMask))
             XCTAssertTrue(v.projection.nodes.contains { $0 === n })
         }
@@ -179,9 +179,9 @@ final class StylesTests: XCTestCase {
             try await self.commands(v, [["type": "markAt", "owner": n.id, "from": 0, "to": 4, "mark": "bold", "action": "remove"]])
             XCTAssertFalse(try self.traits(self.attributes(v, "bold")).contains(.boldFontMask))
             XCTAssertEqual(try self.attributes(v, "bold")[key] as? String, "keep")
-            var r = try await self.read(v); _ = try await self.send(v, .undo(revision: r.revision!, now: 0))
+            var r = try await self.read(v); _ = try await self.send(v, .undo(revision: r.revision!, now: 0)); _ = try await self.read(v)
             XCTAssertTrue(try self.traits(self.attributes(v, "bold")).contains(.boldFontMask))
-            r = try await self.read(v); _ = try await self.send(v, .redo(revision: r.revision!, now: 0))
+            r = try await self.read(v); _ = try await self.send(v, .redo(revision: r.revision!, now: 0)); _ = try await self.read(v)
             XCTAssertFalse(try self.traits(self.attributes(v, "bold")).contains(.boldFontMask))
             XCTAssertTrue(v.projection.nodes.contains { $0 === n })
         }
@@ -218,7 +218,8 @@ final class StylesTests: XCTestCase {
                 XCTAssertEqual((v.textView.string as NSString).substring(with: n.range), n.text)
             }
             let image = NSImage(size: v.frame.size)
-            image.lockFocus(); NSColor.textBackgroundColor.setFill(); v.bounds.fill()
+            image.lockFocusFlipped(true); NSColor.textBackgroundColor.setFill(); v.bounds.fill()
+            layout.drawBackground(forGlyphRange: layout.glyphRange(for: container), at: .zero)
             layout.drawGlyphs(forGlyphRange: layout.glyphRange(for: container), at: .zero)
             image.unlockFocus()
             let bitmap = NSBitmapImageRep(data: try XCTUnwrap(image.tiffRepresentation))!
@@ -229,11 +230,16 @@ final class StylesTests: XCTestCase {
             v.textView.setSelectedRange(empty.range)
             _ = try await self.send(v, .resyncProjection)
             _ = try await self.read(v)
-            XCTAssertEqual((v.textView.typingAttributes[.paragraphStyle] as? NSParagraphStyle)?.textLists.count, 1)
-            let read = try await self.read(v)
-            _ = try await self.send(v, .nativeEdit(revision: read.revision!, edits: [NativeSessionEdit(
-                node: empty.id, fromUtf16: 0, toUtf16: 0, text: "new item")], now: 0))
+            XCTAssertEqual(v.textView.selectedRange(), empty.range)
+            XCTAssertEqual((v.textView.typingAttributes[.paragraphStyle] as? NSParagraphStyle)?.headIndent, 24)
+            XCTAssertEqual((v.projection.emptyTypingStyles[empty.id]?[.paragraphStyle] as? NSParagraphStyle)?.textLists.count, 1)
+            let result: Result<Void, NativeInputFailure> = await withCheckedContinuation { c in
+                v.input.onResult = { result in v.input.onResult = nil; c.resume(returning: result) }
+                v.textView.insertText("new item", replacementRange: empty.range)
+            }
+            try result.get()
             XCTAssertEqual(try self.attributes(v, "new item")[NativeStyleRegistry.listMarker] as? String, "☐")
+            XCTAssertEqual(try self.paragraph(v, "new item").textLists.count, 1)
             XCTAssertTrue(v.projection.nodes.contains { $0 === empty })
         }
     }

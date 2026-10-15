@@ -15,6 +15,11 @@ copy semantics, identities and selections remain unchanged. Native commands
 continue to use the shared mutation/history gate. Original wire metadata and
 unowned host attributes survive presentation updates. A paragraph with no text
 uses native typing attributes; an empty list row retains its shared descriptor.
+On the pinned OS, `NSTextView.typingAttributes` strips `textLists` even when the
+supplied paragraph style includes it (see the preserved standalone AppKit probe).
+The native typing indent and gutter remain; the next accepted native insertion
+receives its full list metadata from the shared patch. No automatic AppKit list
+editing or injected marker characters are used to work around this behavior.
 
 Run `bash native/macos/scripts/check.sh styles` with the pinned Node toolchain.
 The native-owned Rust fixture factory parses the existing portable transfer
