@@ -3,6 +3,7 @@
 //! Hosts compose these records with ServiceLifecycle and the existing Catalog.
 pub mod egress;
 pub mod metadata;
+pub mod public_resolver;
 pub mod public_url;
 
 use crate::{
@@ -292,6 +293,7 @@ pub struct LinkFreshness {
     pub expires_at: u64,
     pub policy_revision: String,
 }
+#[derive(Clone)]
 pub struct LinkDisplay {
     pub title: String,
     pub description: Option<String>,
@@ -315,6 +317,7 @@ impl LinkDisplay {
             })
     }
 }
+#[derive(Clone)]
 pub enum LinkMetadata {
     Public {
         display: LinkDisplay,
@@ -328,6 +331,7 @@ pub enum LinkMetadata {
         target: Locator,
     },
 }
+#[derive(Clone)]
 pub enum LinkOutcome {
     Available {
         metadata: LinkMetadata,
