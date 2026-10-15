@@ -741,3 +741,235 @@ fn restored_heading_end_and_selection_commands_use_shared_planner_and_one_commit
     assert_eq!(snapshot(&reopened)["visible"], after["visible"]);
     reopened.dispose().unwrap();
 }
+
+fn assert_history(s: &NativeSession, now: u64, undo: u64, redo: u64, admitted: bool) {
+    let h = s.history_state(now).unwrap();
+    assert_eq!(h.revision, s.read(now).unwrap().revision);
+    assert_eq!((h.undo_groups, h.redo_groups), (undo, redo));
+    assert_eq!(h.can_history, admitted);
+    assert_eq!(h.can_undo, admitted && undo > 0);
+    assert_eq!(h.can_redo, admitted && redo > 0);
+    assert!(!h.recovery_required);
+}
+
+#[test]
+fn exact_history_tracks_empty_edit_undo_redo_branch_and_durable_reopen() {
+    let f = Fixture::new();
+    let s = f.create();
+    assert_history(&s, 0, 0, 0, true);
+    // General admission is true even though neither operation has anything to do.
+    assert!(s.undo(revision(&s), 0).unwrap().is_none());
+    assert!(s.redo(revision(&s), 0).unwrap().is_none());
+    assert_eq!(s.read(0).unwrap().pending_upload, 0);
+    let owner = s.read(0).unwrap().nodes[0].id.clone();
+    let at = anchor(&s, &owner, 3);
+    let p = plan(&s, json!([{"type":"split","owner":owner,"at":at}]));
+    assert_history(&s, 0, 0, 0, true);
+    assert_eq!(s.commit_commands(p.token, 0).unwrap().unwrap().sequence, 1);
+    assert_history(&s, 0, 1, 0, true);
+    let split = snapshot(&s);
+    assert_eq!(s.undo(revision(&s), 0).unwrap().unwrap().sequence, 2);
+    assert_history(&s, 0, 0, 1, true);
+    assert_eq!(s.redo(revision(&s), 0).unwrap().unwrap().sequence, 3);
+    assert_history(&s, 0, 1, 0, true);
+    assert_eq!(snapshot(&s)["visible"], split["visible"]);
+    s.undo(revision(&s), 0).unwrap().unwrap();
+    assert_history(&s, 0, 0, 1, true);
+    let p = plan(
+        &s,
+        json!([{"type":"replaceAt","owner":owner,"from":0,"to":1,"text":"branch"}]),
+    );
+    // Preparing a new edit must not clear redo until commit.
+    assert_history(&s, 0, 0, 1, true);
+    assert_eq!(s.commit_commands(p.token, 0).unwrap().unwrap().sequence, 5);
+    assert_history(&s, 0, 1, 0, true);
+    assert!(s.redo(revision(&s), 0).unwrap().is_none());
+    let durable = s.read(0).unwrap();
+    assert_eq!(durable.pending_upload, 5);
+    s.dispose().unwrap();
+    assert!(matches!(
+        s.history_state(0),
+        Err(NativeSessionError::Disposed)
+    ));
+    let restored = f.open();
+    assert_eq!(
+        restored.read(0).unwrap().nodes[0].text,
+        durable.nodes[0].text
+    );
+    assert_eq!(restored.read(0).unwrap().pending_upload, 5);
+    // Shared local history is process-local; durable restore does not invent it.
+    assert_history(&restored, 0, 0, 0, true);
+    assert!(restored.undo(revision(&restored), 0).unwrap().is_none());
+    let node = restored.read(0).unwrap().nodes[0].id.clone();
+    apply(
+        &restored,
+        json!([{"type":"replaceAt","owner":node,"from":0,"to":6,"text":"fresh"}]),
+    );
+    assert_history(&restored, 0, 1, 0, true);
+    restored.undo(revision(&restored), 0).unwrap().unwrap();
+    assert_eq!(
+        restored.read(0).unwrap().nodes[0].text,
+        durable.nodes[0].text
+    );
+    assert_history(&restored, 0, 0, 1, true);
+    restored.dispose().unwrap();
+}
+
+#[test]
+fn exact_history_preserves_stacks_across_permission_expiry_and_readonly_navigation() {
+    let f = Fixture::new();
+    let s = f.create();
+    let owner = s.read(0).unwrap().nodes[0].id.clone();
+    apply(
+        &s,
+        json!([{"type":"replaceAt","owner":owner,"from":0,"to":1,"text":"X"}]),
+    );
+    let target = anchor(&s, &owner, 3);
+    let h = s.history_state(0).unwrap();
+    s.set_permission(true, Some(5)).unwrap();
+    assert_history(&s, 4, 1, 0, true);
+    assert_history(&s, 5, 1, 0, false);
+    assert!(matches!(
+        s.undo(h.revision.clone().unwrap(), 5),
+        Err(NativeSessionError::PermissionExpired)
+    ));
+    assert_eq!(s.read(5).unwrap().nodes[0].text, "X🦀אבB");
+    // Read-only projection/copy and anchored navigation keep working.
+    assert_eq!(
+        s.resolve_anchor(target).unwrap().revision,
+        h.revision.clone().unwrap()
+    );
+    assert!(snapshot(&s)["visible"].is_array());
+    s.set_permission(false, None).unwrap();
+    assert_history(&s, 0, 1, 0, false);
+    assert!(matches!(
+        s.undo(h.revision.clone().unwrap(), 0),
+        Err(NativeSessionError::ReadOnly)
+    ));
+    s.set_permission(true, None).unwrap();
+    assert_history(&s, 0, 1, 0, true);
+    s.undo(h.revision.unwrap(), 0).unwrap().unwrap();
+    assert_history(&s, 0, 0, 1, true);
+    let redo_revision = revision(&s);
+    s.set_permission(true, Some(9)).unwrap();
+    assert_history(&s, 8, 0, 1, true);
+    assert_history(&s, 9, 0, 1, false);
+    assert!(matches!(
+        s.redo(redo_revision.clone(), 9),
+        Err(NativeSessionError::PermissionExpired)
+    ));
+    s.set_permission(false, None).unwrap();
+    assert_history(&s, 0, 0, 1, false);
+    assert!(matches!(
+        s.redo(redo_revision.clone(), 0),
+        Err(NativeSessionError::ReadOnly)
+    ));
+    s.set_permission(true, None).unwrap();
+    s.redo(redo_revision, 0).unwrap().unwrap();
+    assert_history(&s, 0, 1, 0, true);
+    assert_eq!(s.read(0).unwrap().pending_upload, 3);
+    s.dispose().unwrap();
+}
+
+#[test]
+fn rejected_commands_and_stale_or_foreign_history_leave_real_stacks_unchanged() {
+    let f = Fixture::new();
+    let s = f.create();
+    let foreign_fixture = Fixture::new();
+    let foreign = foreign_fixture.create();
+    let stale = revision(&s);
+    let owner = s.read(0).unwrap().nodes[0].id.clone();
+    apply(
+        &s,
+        json!([{"type":"replaceAt","owner":owner,"from":0,"to":1,"text":"X"}]),
+    );
+    let before = snapshot(&s);
+    let h = s.history_state(0).unwrap();
+    for redo in [false, true] {
+        for (r, reason) in [
+            (stale.clone(), NativeRevisionFailure::Stale),
+            (revision(&foreign), NativeRevisionFailure::ScopeMismatch),
+        ] {
+            let error = if redo { s.redo(r, 0) } else { s.undo(r, 0) }.unwrap_err();
+            assert!(
+                matches!(error, NativeSessionError::Revision { reason: actual, .. } if actual == reason)
+            );
+            assert_eq!(s.history_state(0).unwrap(), h);
+        }
+    }
+    // Invalid UTF-16 interior of a surrogate pair, malformed input, canceled and
+    // permission-rejected prepared changes must not add history or clear redo.
+    for undone in [false, true] {
+        if undone {
+            s.undo(revision(&s), 0).unwrap().unwrap();
+        }
+        let before = s.history_state(0).unwrap();
+        assert!(
+            s.prepare_commands(
+                revision(&s),
+                json!([{"type":"replaceAt","owner":owner,"from":2,"to":2,"text":"!"}]).to_string(),
+                "invalid".into(),
+                0
+            )
+            .is_err()
+        );
+        assert!(
+            s.prepare_commands(revision(&s), "{".into(), "invalid".into(), 0)
+                .is_err()
+        );
+        let p = plan(
+            &s,
+            json!([{"type":"replaceAt","owner":owner,"from":0,"to":1,"text":"Y"}]),
+        );
+        s.cancel_commands(p.token).unwrap();
+        let p = plan(
+            &s,
+            json!([{"type":"replaceAt","owner":owner,"from":0,"to":1,"text":"Y"}]),
+        );
+        s.set_permission(false, None).unwrap();
+        assert!(matches!(
+            s.commit_commands(p.token, 0),
+            Err(NativeSessionError::ReadOnly)
+        ));
+        s.set_permission(true, None).unwrap();
+        assert_eq!(s.history_state(0).unwrap(), before);
+    }
+    s.redo(revision(&s), 0).unwrap().unwrap();
+    assert_eq!(snapshot(&s)["visible"], before["visible"]);
+    assert_history(&s, 0, 1, 0, true);
+    assert_eq!(s.read(0).unwrap().pending_upload, 3);
+    foreign.dispose().unwrap();
+    s.dispose().unwrap();
+}
+
+#[test]
+fn exact_history_reports_multiple_shared_groups_and_alias_lifetime() {
+    let f = Fixture::new();
+    let s = f.create();
+    let alias = s.clone();
+    let r = s.read(0).unwrap();
+    let owner = r.nodes[0].id.clone();
+    let at = anchor(&s, &owner, 3);
+    apply(&s, json!([{"type":"split","owner":owner,"at":at}]));
+    let first = snapshot(&s);
+    apply(
+        &s,
+        json!([{"type":"setCode","owner":owner,"language":"rust"}]),
+    );
+    assert_history(&alias, 0, 2, 0, true);
+    drop(s);
+    alias.undo(revision(&alias), 0).unwrap().unwrap();
+    assert_history(&alias, 0, 1, 1, true);
+    assert_eq!(snapshot(&alias)["visible"], first["visible"]);
+    alias.undo(revision(&alias), 0).unwrap().unwrap();
+    assert_history(&alias, 0, 0, 2, true);
+    alias.redo(revision(&alias), 0).unwrap().unwrap();
+    assert_history(&alias, 0, 1, 1, true);
+    alias.redo(revision(&alias), 0).unwrap().unwrap();
+    assert_history(&alias, 0, 2, 0, true);
+    alias.dispose().unwrap();
+    assert!(matches!(
+        alias.history_state(0),
+        Err(NativeSessionError::Disposed)
+    ));
+}

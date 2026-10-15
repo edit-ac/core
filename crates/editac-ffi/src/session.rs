@@ -268,6 +268,20 @@ pub struct NativeSessionRead {
     pub can_history: bool,
     pub recovery_error: Option<NativeStoreFailure>,
 }
+/// Current shared history stacks and admission, read atomically on the Session owner.
+/// Counts remain observable when permission or recovery prevents history mutation.
+#[derive(Clone, Debug, PartialEq, Eq, uniffi::Record)]
+pub struct NativeSessionHistory {
+    /// None while recovery-required, matching the acknowledged read revision.
+    pub revision: Option<Vec<u8>>,
+    pub undo_groups: u64,
+    pub redo_groups: u64,
+    /// General history admission; does not imply either stack is nonempty.
+    pub can_history: bool,
+    pub can_undo: bool,
+    pub can_redo: bool,
+    pub recovery_required: bool,
+}
 #[derive(Clone, Debug, uniffi::Record)]
 pub struct NativeSessionEdit {
     pub node: String,
@@ -646,6 +660,30 @@ impl NativeSession {
                 can_apply: capabilities.can_apply,
                 can_history: capabilities.can_history,
                 recovery_error: status.recovery_error.map(Into::into),
+            })
+        })
+    }
+    /// Exact stack availability for native menus/keys. The observation is advisory:
+    /// undo/redo still recheck current permission, admission and the supplied revision.
+    /// Disposal returns Disposed, as with every other read on this handle.
+    pub fn history_state(&self, now: u64) -> Result<NativeSessionHistory> {
+        self.call(move |state| {
+            let session = state.service.session();
+            let revision = match session.observed_revision() {
+                Ok(revision) => Some(revision.to_bytes().to_vec()),
+                Err(SessionError::RecoveryRequired) => None,
+                Err(error) => return Err(error.into()),
+            };
+            let history = session.document().history_state();
+            let can_history = state.service.capabilities(now).can_history;
+            Ok(NativeSessionHistory {
+                recovery_required: revision.is_none(),
+                revision,
+                undo_groups: history.undo_groups as u64,
+                redo_groups: history.redo_groups as u64,
+                can_history,
+                can_undo: can_history && history.undo_groups > 0,
+                can_redo: can_history && history.redo_groups > 0,
             })
         })
     }
@@ -1491,6 +1529,86 @@ mod tests {
         ));
         reopened.dispose().unwrap();
     }
+    #[test]
+    fn exact_history_rechecks_shared_policy_without_relabeling_stack_counts() {
+        let f = Fixture::new();
+        let s = f.session();
+        let r = s.read(0).unwrap();
+        let p = s
+            .prepare_commands(
+                r.revision.unwrap(),
+                serde_json::json!([
+                    {"type":"replaceAt","owner":r.nodes[0].id,"from":0,"to":4,"text":"replacement"}
+                ])
+                .to_string(),
+                "history-policy".into(),
+                0,
+            )
+            .unwrap();
+        s.commit_commands(p.token, 0).unwrap().unwrap();
+        let allowed = s.history_state(0).unwrap();
+        assert_eq!((allowed.undo_groups, allowed.redo_groups), (1, 0));
+        assert!(allowed.can_history && allowed.can_undo && !allowed.can_redo);
+        for policy in [
+            HostPolicy {
+                writable: false,
+                ..HostPolicy::default()
+            },
+            HostPolicy {
+                history_view: true,
+                ..HostPolicy::default()
+            },
+            HostPolicy {
+                max_commands: 0,
+                ..HostPolicy::default()
+            },
+            HostPolicy {
+                max_input_bytes: 1,
+                ..HostPolicy::default()
+            },
+        ] {
+            s.call(move |state| {
+                state.service.set_policy(policy);
+                Ok(())
+            })
+            .unwrap();
+            let denied = s.history_state(0).unwrap();
+            assert_eq!(denied.revision, allowed.revision);
+            assert_eq!((denied.undo_groups, denied.redo_groups), (1, 0));
+            assert!(!denied.can_history && !denied.can_undo && !denied.can_redo);
+            assert!(s.undo(denied.revision.unwrap(), 0).is_err());
+            assert_eq!(s.read(0).unwrap().nodes[0].text, "replacement");
+            assert_eq!(s.read(0).unwrap().pending_upload, 1);
+        }
+        s.call(|state| {
+            state.service.set_policy(HostPolicy::default());
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(s.history_state(0).unwrap(), allowed);
+        s.undo(allowed.revision.unwrap(), 0).unwrap().unwrap();
+        let redo = s.history_state(0).unwrap();
+        assert_eq!((redo.undo_groups, redo.redo_groups), (0, 1));
+        assert!(redo.can_redo && !redo.can_undo);
+        s.call(|state| {
+            state.service.set_policy(HostPolicy {
+                history_view: true,
+                ..HostPolicy::default()
+            });
+            Ok(())
+        })
+        .unwrap();
+        assert!(!s.history_state(0).unwrap().can_redo);
+        assert!(matches!(
+            s.redo(redo.revision.unwrap(), 0),
+            Err(NativeSessionError::HistoryView)
+        ));
+        s.dispose().unwrap();
+        assert!(matches!(
+            s.history_state(0),
+            Err(NativeSessionError::Disposed)
+        ));
+    }
     // The original zero-mutation assertion is retained as a failing acceptance
     // receipt. This regression qualifies the unchanged shared recovery contract
     // required by the corrected NCB-1.1 source; it changes no durability semantics.
@@ -1540,6 +1658,24 @@ mod tests {
         assert!(after.recovery_required && !after.can_apply && !after.can_history);
         assert!(!after.locally_committed && after.revision.is_none());
         assert_eq!(after.pending_upload, 0);
+        let frozen_history = s.history_state(0).unwrap();
+        assert_eq!(
+            (frozen_history.undo_groups, frozen_history.redo_groups),
+            (1, 0)
+        );
+        assert!(frozen_history.revision.is_none() && frozen_history.recovery_required);
+        assert!(
+            !frozen_history.can_history && !frozen_history.can_undo && !frozen_history.can_redo
+        );
+        assert!(matches!(
+            s.undo(before.revision.clone().unwrap(), 0),
+            Err(NativeSessionError::RecoveryRequired)
+        ));
+        assert!(matches!(
+            s.redo(before.revision.clone().unwrap(), 0),
+            Err(NativeSessionError::RecoveryRequired)
+        ));
+        assert_eq!(s.history_state(0).unwrap(), frozen_history);
         let catalog = s.command_catalog(0).unwrap();
         assert!(catalog.revision.is_none());
         assert!(catalog.routes.iter().all(|r| !r.can_prepare));
@@ -1630,6 +1766,17 @@ mod tests {
         assert_eq!(recovered.nodes[0].text, replacement);
         assert!(recovered.locally_committed && !recovered.recovery_required);
         assert_eq!(recovered.pending_upload, 1);
+        let retained_history = s.history_state(0).unwrap();
+        assert_eq!(
+            (retained_history.undo_groups, retained_history.redo_groups),
+            (1, 0)
+        );
+        assert!(!retained_history.recovery_required && retained_history.revision.is_some());
+        assert!(
+            !retained_history.can_history
+                && !retained_history.can_undo
+                && !retained_history.can_redo
+        );
         s.call(|state| {
             assert_eq!(
                 state
@@ -1644,6 +1791,7 @@ mod tests {
         })
         .unwrap();
         s.set_permission(true, None).unwrap();
+        assert!(s.history_state(0).unwrap().can_undo);
         s.undo(recovered.revision.unwrap(), 0).unwrap().unwrap();
         assert_eq!(s.read(0).unwrap().nodes[0].text, "seed");
         let after_undo = s.read(0).unwrap().revision.unwrap();
