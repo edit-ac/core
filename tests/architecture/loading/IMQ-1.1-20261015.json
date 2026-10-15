@@ -1,0 +1,656 @@
+{
+  "version": 1,
+  "requestId": "IMQ-1.1-20261015",
+  "status": "qualified-worker-delivery-awaiting-monitor",
+  "gate": "IMQ-1.1",
+  "createdAt": "2026-10-15T15:41:44.941691+00:00",
+  "workspace": "/Users/bpstr/Github/edit-ac-integration-20261015T150734",
+  "repository": "/Users/bpstr/Github/edit-ac-integration-20261015T150734/core",
+  "mainBase": {
+    "core": "89de8d1c3ee851511b6acb09686b65ddf15e78b1",
+    "architecture": "9cde1b16edc769b9d1989c64ae253d8c836ea53f"
+  },
+  "qualifiedCodeCommit": "aa3d9b92188619057ed36db59ca1aaa09ec1aea5",
+  "candidateCommits": [
+    "a5bef8f7bcae946ff2a48dd02a061930b5143ed9",
+    "efe9af60e8a40697849d486c3cb9ac147d42f66a",
+    "12877894fa203983086bd5ddc12d21546b78b065",
+    "65b7f3bb3003570bb7030ed689b167cd06f79e31",
+    "b79578115e08373d531d5a616beb76c0befc2775",
+    "aa3d9b92188619057ed36db59ca1aaa09ec1aea5"
+  ],
+  "upstreamFrontendCommits": [
+    "b431d32",
+    "b3edf31",
+    "17838fe",
+    "0d81611"
+  ],
+  "sourceRoadmap": {
+    "path": "../.roadmap-runner/fit-main-integration-qualification-20261015/.roadmap-runner/roadmap-97cc97de3f42/source-f5632b4248fe.md",
+    "sha256": "8b4dd2af122bb29923fe1674188b1ac5b61c4d93fcf43042ca6bc469dd42dd4a"
+  },
+  "sourceRevision": "8b4dd2af122bb29923fe1674188b1ac5b61c4d93fcf43042ca6bc469dd42dd4a",
+  "loadedPromptRevision": "2e18a98412c7",
+  "state": "Candidate frontend correctness/loading qualified; awaiting monitor safe-main landing. Actual live main is NOT qualified by this worker.",
+  "changes": [
+    "Resolve owned loading provenance conflict while retaining both historical pointers and explicitly excluding private startup proof from actual-main qualification.",
+    "Apply completed frontend rendering/clipboard source and historical evidence without private Rust performance ancestors.",
+    "Add independent full fixed Long text copy/oversize rejection coverage using existing packed browser fixture; preserve two-block UTF-8 boundary case.",
+    "Document complete candidate production/fixture/Markdown/workspace build setup to prevent stale fixture tarball identity."
+  ],
+  "evidenceArchive": {
+    "archive": "architecture-results/imq-1.1-20261015/session-1-evidence.tar.gz",
+    "sha256": "ab73ad8ad02e6e6d8fb20734c5c268c2140146c88c8b51e7e70356d2887bcb25",
+    "bytes": 102848581,
+    "files": 1085,
+    "absolutePath": "/Users/bpstr/Github/edit-ac-integration-20261015T150734/core/architecture-results/imq-1.1-20261015/session-1-evidence.tar.gz"
+  },
+  "evidence": {
+    "sourceRuntimeSnapshot": {
+      "path": "architecture-results/imq-1.1-20261015/session-1/source-runtime-snapshot.json",
+      "sha256": "c2fd1284cc8041ccdda3275c94caa2376a4e8d6b3cac0082229eb4f4718a7cdb"
+    },
+    "canonical": {
+      "path": "architecture-results/imq-1.1-20261015/session-1/refresh/canonical/receipt.json",
+      "sha256": "af77f7236caad6152ac7267d04db80c9a68c3438bd9debf5ce4a64a5b7235770"
+    },
+    "canonicalInventory": {
+      "path": "architecture-results/imq-1.1-20261015/session-1/refresh/canonical/consumers-loading-inventory.json",
+      "sha256": "60e6031fee72f40fddd773b755da8ad78fe7df350a3e7a76cbe03482ebce1658"
+    },
+    "shared": {
+      "path": "architecture-results/imq-1.1-20261015/session-1/refresh/shared/shared-receipt.json",
+      "sha256": "ddac6fd3aeb0a787b62ed8eb295ee21bbd78de425ac8d18f0bc839b09db40c32"
+    },
+    "retainedVerification": {
+      "path": "architecture-results/imq-1.1-20261015/session-1/retained-verification.json",
+      "sha256": "1989953119cf00a72d74cc31270bee7104c3684054841099740f3e8ebbcf0a8b"
+    },
+    "nativeEntryApplicability": {
+      "path": "architecture-results/imq-1.1-20261015/session-1/native-entry-applicability.json",
+      "sha256": "eec07298f3bf0657d8d2e95c67adbdfcd6262b84efe63a2d3d43811c6847df14"
+    },
+    "cleanup": {
+      "path": "architecture-results/imq-1.1-20261015/session-1/cleanup.json",
+      "sha256": "f04ae2d17cbcc5a81f89b83559ae6fc87aa1ffb408430f098c0a4aeaa8b91d4a"
+    },
+    "historicalLoadingPointers": {
+      "path": "architecture-results/imq-1.1-20261015/session-1/historical-loading-pointers.json",
+      "sha256": "5b286f71686845553fcd2a4cfb32b391c8d86ec50dea3c5d2cab1b82b32dc25c"
+    },
+    "fixtureIdentityRepair": {
+      "path": "architecture-results/imq-1.1-20261015/session-1/fixture-package-repair.json",
+      "sha256": "93ce6740bdb7ed404009312d52382f8430b861b858656a33c377291707de2366"
+    },
+    "evidenceFiles": {
+      "path": "architecture-results/imq-1.1-20261015/session-1/evidence-files.json",
+      "sha256": "ad0474cfac3ff3d71e70c959ff2fc87f50ff284dedaca061b698ccc320835343"
+    }
+  },
+  "counts": {
+    "canonical": {
+      "tests": 31,
+      "pass": 31,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "samePage": {
+      "executed": 39,
+      "passed": 39,
+      "failed": 0,
+      "skipped": 0
+    },
+    "productionSite": {
+      "executed": 39,
+      "passed": 39,
+      "failed": 0,
+      "skipped": 0
+    },
+    "render": {
+      "executed": 30,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0
+    },
+    "deferredPaste": {
+      "executed": 27,
+      "passed": 27,
+      "failed": 0,
+      "skipped": 0
+    },
+    "clipboard": {
+      "executed": 90,
+      "passed": 90,
+      "failed": 0,
+      "skipped": 0
+    },
+    "nestedCanonical": {
+      "default-runtime": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "markdown-runtime": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "shared-site-contracts": {
+        "tests": 30,
+        "pass": 30,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "packed-consumers": {
+        "tests": 15,
+        "pass": 15,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "native-abi": {
+        "tests": 8,
+        "pass": 8,
+        "fail": 0,
+        "skipped": 0
+      }
+    },
+    "independentlyVerifiedPins": 2288,
+    "note": "Nested canonical counts are not additional independent outer cases; latest refreshed SHR 78 are the accepted matrix. Earlier identical cases retained separately."
+  },
+  "commands": {
+    "canonical": {
+      "command": [
+        "node",
+        "scripts/check-architecture.mjs",
+        "--suite",
+        "consumers-loading"
+      ],
+      "environment": {
+        "EDITAC_ARCHITECTURE_OUTPUT": "/Users/bpstr/Github/edit-ac-integration-20261015T150734/core/architecture-results/imq-1.1-20261015/session-1/refresh/canonical",
+        "EDITAC_SHARED_RESOURCES_RECEIPT": "/Users/bpstr/Github/edit-ac-integration-20261015T150734/core/architecture-results/imq-1.1-20261015/session-1/refresh/shared"
+      },
+      "exit": 0,
+      "seconds": 106.18
+    },
+    "samePage": {
+      "command": [
+        "node",
+        "scripts/test-browser.mjs",
+        "shared-resources",
+        "--test-reporter=tap"
+      ],
+      "environment": {
+        "EDITAC_SHARED_RESOURCES_OUTPUT": "/Users/bpstr/Github/edit-ac-integration-20261015T150734/core/architecture-results/imq-1.1-20261015/session-1/refresh/same-page"
+      },
+      "exit": 0,
+      "seconds": 25.29
+    },
+    "site": {
+      "command": [
+        "node",
+        "scripts/test-browser.mjs",
+        "shared-site-resources",
+        "--test-reporter=tap"
+      ],
+      "environment": {
+        "EDITAC_SHARED_SITE_RESOURCES_OUTPUT": "/Users/bpstr/Github/edit-ac-integration-20261015T150734/core/architecture-results/imq-1.1-20261015/session-1/refresh/site"
+      },
+      "exit": 0,
+      "seconds": 69.11
+    },
+    "render": {
+      "command": [
+        "node",
+        "scripts/test-browser.mjs",
+        "render",
+        "--test-reporter=tap"
+      ],
+      "environment": {
+        "EDITAC_RENDER_OUTPUT": "/Users/bpstr/Github/edit-ac-integration-20261015T150734/core/architecture-results/imq-1.1-20261015/session-1/render"
+      },
+      "exit": 0,
+      "seconds": 38.7,
+      "counts": {
+        "tests": [
+          10,
+          10,
+          10
+        ],
+        "pass": [
+          10,
+          10,
+          10
+        ],
+        "fail": [
+          0,
+          0,
+          0
+        ],
+        "skipped": [
+          0,
+          0,
+          0
+        ],
+        "cancelled": [
+          0,
+          0,
+          0
+        ],
+        "todo": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "deferredPaste": {
+      "command": [
+        "node",
+        "scripts/test-browser.mjs",
+        "large-paste",
+        "--test-reporter=tap"
+      ],
+      "environment": {
+        "EDITAC_LARGE_PASTE_OUTPUT": "/Users/bpstr/Github/edit-ac-integration-20261015T150734/core/architecture-results/imq-1.1-20261015/session-1/large-paste"
+      },
+      "exit": 0,
+      "seconds": 25.16,
+      "counts": {
+        "tests": [
+          9,
+          9,
+          9
+        ],
+        "pass": [
+          9,
+          9,
+          9
+        ],
+        "fail": [
+          0,
+          0,
+          0
+        ],
+        "skipped": [
+          0,
+          0,
+          0
+        ],
+        "cancelled": [
+          0,
+          0,
+          0
+        ],
+        "todo": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "clipboard": {
+      "command": [
+        "node",
+        "scripts/test-browser.mjs",
+        "clipboard",
+        "--test-reporter=tap"
+      ],
+      "environment": {
+        "EDITAC_CLIPBOARD_OUTPUT": "/Users/bpstr/Github/edit-ac-integration-20261015T150734/core/architecture-results/imq-1.1-20261015/session-1/clipboard"
+      },
+      "exit": 0,
+      "seconds": 62.06,
+      "counts": {
+        "tests": [
+          30,
+          30,
+          30
+        ],
+        "pass": [
+          30,
+          30,
+          30
+        ],
+        "fail": [
+          0,
+          0,
+          0
+        ],
+        "skipped": [
+          0,
+          0,
+          0
+        ],
+        "cancelled": [
+          0,
+          0,
+          0
+        ],
+        "todo": [
+          0,
+          0,
+          0
+        ]
+      }
+    }
+  },
+  "freshBuilds": {
+    "engine": {
+      "path": "architecture-results/imq-1.1-20261015/session-1/build-engine.json",
+      "sha256": "04777a110e10d9a5802f2f2a4c5de046e1a9c2a12b7c02266630dc0ce1d76d13"
+    },
+    "markdownInitialFailure": {
+      "path": "architecture-results/imq-1.1-20261015/session-1/build-markdown.json",
+      "sha256": "35964b5d44d5e2ac2b8d3875c97a67f10c3f9ef59be52c60c929f5af16eee652"
+    },
+    "declarations": {
+      "path": "architecture-results/imq-1.1-20261015/session-1/build-packages.json",
+      "sha256": "6a105fb39be275eadb4f61c1ab17455e4b9b24e5e5b57a3160419cd2ade022ad"
+    },
+    "markdownAfterPrerequisite": {
+      "path": "architecture-results/imq-1.1-20261015/session-1/build-markdown-repair.json",
+      "sha256": "b292a28d309f17ce7ffc8ab5ece11876a2a474aa78fb305718d301c131a3d4ed"
+    },
+    "canonicalBuildLogs": {
+      "build-wasm.log": {
+        "path": "architecture-results/imq-1.1-20261015/session-1/refresh/canonical/build-wasm.log",
+        "sha256": "ed834c2d0b8647c4b85af9bf5509be57c99f2d88f74d38699abcd08daa6cddea"
+      },
+      "build-fixture-wasm.log": {
+        "path": "architecture-results/imq-1.1-20261015/session-1/refresh/canonical/build-fixture-wasm.log",
+        "sha256": "360b6510bf5f8991e60641f5e4d78a63d514332dcb2067b376a58094b61de99d"
+      },
+      "build-markdown-wasm.log": {
+        "path": "architecture-results/imq-1.1-20261015/session-1/refresh/canonical/build-markdown-wasm.log",
+        "sha256": "eb1ce8b463c1f6a059850ea05f12b5693b68b076f214543dcf8a02ddbe6152f4"
+      },
+      "build-packages.log": {
+        "path": "architecture-results/imq-1.1-20261015/session-1/refresh/canonical/build-packages.log",
+        "sha256": "9235c2043a28715aa6bfc7504c10313c49014dc249e2a304cb5995dc694efb72"
+      }
+    }
+  },
+  "runtimePins": {
+    "packages/core/dist/wasm/editac_wasm.d.ts": "236fabc8ecf97b9d6e74b13bcd75745c521768bb31b81a5cd653c203c16b24d1",
+    "packages/core/dist/wasm/editac_wasm_bg.wasm": "ef3ad197abf0e9c88a19e05d2f0562b44702106343756b70ca18626d8b8d3d89",
+    "packages/core/dist/wasm/editac_wasm_bg.wasm.d.ts": "ec4ec7d18655bb086c50420a78328c8f3eccdd1b117ebd889e8316b9f4eb4e75",
+    "packages/core/dist/wasm/editac_runtime.js": "873c307eb05718a21745cb130c47d9712d77df55753ef6f804d1b4f14fb02ff0",
+    "packages/core/dist/wasm/editac_wasm.js": "aada0a74d5cd6cd94a0370f77fe7369d3832294796dd68d6b34d45173706dbe2",
+    "packages/core/dist/wasm-fixture/editac_wasm.d.ts": "863aafdc1d75fcece4b4b4fe48d8eb2e91c8623b006aeb485832ecd9d6d3e8b9",
+    "packages/core/dist/wasm-fixture/editac_wasm_bg.wasm": "b5c1fbc9c22eda1b3c9a33a4b83841cfa59ad7e4e2edde7c92d5671c9a9bedac",
+    "packages/core/dist/wasm-fixture/editac_wasm_bg.wasm.d.ts": "cdea94ff4471cbb635fc8eed802d3fcc217b413c80948e938183e6c09f0d705c",
+    "packages/core/dist/wasm-fixture/editac_wasm.js": "14055f8b2f7fcb3f583536afe7f24dc5e8a9e1f079bb652971b3e4ea21986f7e",
+    "packages/markdown/dist/wasm/editac_markdown_wasm.js": "6b0d57edbeaa78d14230e9999be4d80435a8ab6106cd2831356bcef59e8ec5b5",
+    "packages/markdown/dist/wasm/editac_markdown_wasm_bg.wasm": "b2e49c21de9f5eb53e0ae9f87ee56565b0671b0fbfa9e85f3383f0b84067491e",
+    "packages/markdown/dist/wasm/editac_markdown_wasm_bg.wasm.d.ts": "651f192c36b4f63f637ee5f7a0d4bb52f2c2d97ff4d06aff7e141d7aff28460c",
+    "packages/markdown/dist/wasm/editac_markdown_wasm.d.ts": "febd009cc68f43a96397aeaba81aa7b325f93b724076a58a5f9450d7e1f38d8f"
+  },
+  "packages": [
+    {
+      "name": "@edit-ac/core",
+      "version": "0.0.0",
+      "file": "production/chromium/edit-ac-core-0.0.0.tgz",
+      "sha256": "6f7279f845d85fa66ee4a2f7075d5941d61b7bd6e49fff7bbcda6acc34895546"
+    },
+    {
+      "name": "@edit-ac/web",
+      "version": "0.0.0",
+      "file": "production/chromium/edit-ac-web-0.0.0.tgz",
+      "sha256": "2234b50e1dc06b2a9d2a277046ccd58f0901a9ae514e38da1901f953fed1e599"
+    },
+    {
+      "name": "@edit-ac/react",
+      "version": "0.0.0",
+      "file": "production/chromium/edit-ac-react-0.0.0.tgz",
+      "sha256": "8b2eade5147348cc4d7036d1b43d29b52f1ecac1e25231ac109f81c46ec9510e"
+    },
+    {
+      "name": "@edit-ac/astro",
+      "version": "0.0.0",
+      "file": "production/chromium/edit-ac-astro-0.0.0.tgz",
+      "sha256": "cfc6a9bc2b539a818c72cb9659de47d5f46e2801ad203146264d723be53676d0"
+    },
+    {
+      "name": "@edit-ac/markdown",
+      "version": "0.0.0",
+      "file": "production/chromium/edit-ac-markdown-0.0.0.tgz",
+      "sha256": "7ff3055388a23cfa1a1a1f24220325883e70945b02de82ad804cca179bc9e490"
+    }
+  ],
+  "profiles": {
+    "benchmarks/profiles/baseline-evidence.json": "69bdb568ac1b10191733abab4641cefee9d9f384e9dd941a1bfb46c794d0fcc9",
+    "benchmarks/profiles/browser-source-reuse.json": "e51aee7d130d17bd862b2009488291c19b2236418a47eb38eed3ee6b7e57dae9",
+    "benchmarks/profiles/fitness-v1.json": "22aaa4b74df2064c44f791b62c977be07ecca00e77b148052ae6536fe1c59122",
+    "benchmarks/profiles/gesture-evidence.json": "c23512fde7a07d2c0db3a195bd336ef036035a4c728550ce46a3050570165a2b",
+    "benchmarks/profiles/gestures-v1.json": "a025bf996b02ce89e1294c6bd9db63ccda869e7dd5fcaf664e0bb325692b3cb1",
+    "benchmarks/profiles/lifecycle-evidence.json": "7347741ddaa9c2b1dd2c038f82ef6cff8bc9c57a517602e7ab5787888d8d4efc",
+    "benchmarks/profiles/lifecycle-v1.json": "64593db6ecfffab8242228387d9fb39e45ba005f1c36a5fba720aaf2e185c666",
+    "benchmarks/profiles/loading-evidence.json": "82d9e3f18cdbd2cbb67b33a9a1109bec64dc52fc8dbae3e94b208ce2788634fb",
+    "benchmarks/profiles/loading-v1.json": "a3f76504f2359358114cc6bddc3ed20bad6c570e2f1401b2ae14f8cf747f414c",
+    "benchmarks/profiles/native-input-evidence.json": "b8d9cf331d102a1817576ff091a6762ac3f03279fb8a7464699a8384bb3573cc",
+    "benchmarks/profiles/native-input-v1.json": "d51b0ba30868452da40b141af5feb50bcdbddc90099659046dbf43b0055451b6",
+    "benchmarks/profiles/service-evidence.json": "c84bc2ad8ce26b97d959094c5c3442bb94ea6398eefbba466f9cfa75d2483095",
+    "benchmarks/profiles/services-v1.json": "28c1ab720dac51f1dc5dff85364e3388be084146fca21db6993aee71440fac94",
+    "benchmarks/profiles/workload-evidence.json": "74f00f0850b5a4808aad6dfd03f65f4d313a413f14b49b72bb82964128334de1",
+    "benchmarks/profiles/workloads-v1.json": "d21049ec09c501557c0078893f48ae51e50e36934edc1b1b5bad0cbb780a7303"
+  },
+  "fixtures": {
+    "Long": {
+      "generator": "benchmarks/fixtures.mjs",
+      "sha256": "91d72135c494fd837cdd50a1924ea9254d464acf2d14545e46d2c98570caba11",
+      "seed": "0x4c4f4e47",
+      "blocks": 2000,
+      "textBytes": 1048576,
+      "copiedPlainBytes": 1050575,
+      "scope": "Full fixed Long text across 2000 paragraphs; exact independent text oracle. Rich flavor/structure behavior covered by remaining clipboard cases; no full Long rich-format or performance claim."
+    },
+    "session": {
+      "path": "fixtures/browser-input/session.mjs",
+      "sha256": "59a24c9617e28fa2b85aaad97fbb766ecb8489ce52f0fb34c3e37dbc607bbcb1"
+    }
+  },
+  "gzip": {
+    "default": {
+      "total": 495600,
+      "editorJs": 32753
+    },
+    "optional": {
+      "combined": {
+        "total": 741133,
+        "editorJs": 35152
+      },
+      "incremental": {
+        "total": 245533,
+        "editorJs": 2399
+      }
+    },
+    "preferred": {
+      "totalGzip": 256000,
+      "editorJsGzip": 16000,
+      "totalPass": false,
+      "editorJsPass": false
+    },
+    "siteCosts": {
+      "chromium": {
+        "task": {
+          "total": 498583,
+          "editorJs": 35889
+        },
+        "documentUnion": {
+          "total": 746026,
+          "editorJs": 40198
+        },
+        "documentIncrement": {
+          "total": 247443,
+          "editorJs": 4309
+        },
+        "mixedBindings": {
+          "total": 568357,
+          "editorJs": 105663
+        },
+        "mixedFeatureUnion": {
+          "total": 815800,
+          "editorJs": 109972
+        }
+      },
+      "firefox": {
+        "task": {
+          "total": 499459,
+          "editorJs": 36765
+        },
+        "documentUnion": {
+          "total": 746902,
+          "editorJs": 41074
+        },
+        "documentIncrement": {
+          "total": 247443,
+          "editorJs": 4309
+        },
+        "mixedBindings": {
+          "total": 568420,
+          "editorJs": 105726
+        },
+        "mixedFeatureUnion": {
+          "total": 815863,
+          "editorJs": 110035
+        }
+      },
+      "webkit": {
+        "task": {
+          "total": 498583,
+          "editorJs": 35889
+        },
+        "documentUnion": {
+          "total": 746026,
+          "editorJs": 40198
+        },
+        "documentIncrement": {
+          "total": 247443,
+          "editorJs": 4309
+        },
+        "mixedBindings": {
+          "total": 568357,
+          "editorJs": 105663
+        },
+        "mixedFeatureUnion": {
+          "total": 815800,
+          "editorJs": 109972
+        }
+      }
+    },
+    "limits": {
+      "totalGzip": 524288,
+      "editorJsGzip": 32768
+    },
+    "scope": "Default standalone hard caps enforced at 524288 total / 32768 editor JS; preferred 256000 / 16000 missed. Enabled optional and framework/site union costs are separately reported, with no division or cache hiding."
+  },
+  "preservedFailures": [
+    {
+      "kind": "initial Markdown build",
+      "exit": 1,
+      "reason": "Missing web declarations; workspace dependency build completed before repaired Markdown build.",
+      "evidence": {
+        "path": "architecture-results/imq-1.1-20261015/session-1/build-markdown.log",
+        "sha256": "af29f19a9bfc652f135ba7cf65f08fd7c66912cdba921cee5e29849740b27771"
+      }
+    },
+    {
+      "kind": "initial canonical",
+      "counts": {
+        "tests": 31,
+        "pass": 30,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "reason": "Core tarball differed only at previously retained private fixture WASM. Full canonical rebuild repaired fixture; refreshed producers then matched independent canonical packages.",
+      "evidence": {
+        "path": "architecture-results/imq-1.1-20261015/session-1/canonical/receipt.json",
+        "sha256": "8e8784a93c0cf68fd03f0d25d39f54ab6ce0c50d6dfa9e93b170ea16ee0035f5"
+      }
+    }
+  ],
+  "regressionApplicability": "Earlier regression core tarballs differ from final qualified package solely at unconsumed dist/wasm-fixture/editac_wasm_bg.wasm. Every other archive entry was independently compared; all fixtures load production /core/wasm/editac_wasm_bg.wasm. Web/Markdown source/runtime hashes unchanged; no failed/skipped regression reused.",
+  "nativeEntry": "Accepted NativeSession/API entry at main base 89de8d1 remains applicable through ten identical common source tree/file pins and existing monitor 146-pin admission. Unfinished NCB ports remain parallel-owned/unqualified.",
+  "remainingOpen": [
+    "IMQ-1.2 monitor-only lock/checkpoint, safe live-main landing, lane synchronization, affected merged checks, acknowledgment and original primary restore.",
+    "FIT-1.8 startup latency, comparable tails/compositor, resource peak/plateau/disposal, accessibility, native/full Long input/restoration, optional and target-runtime/current-canonical/release gates remain OPEN.",
+    "No deployed behavior, OS clipboard, OS accessibility, native runtime extension, universal performance or publication claim."
+  ],
+  "monitorHandoff": {
+    "owner": "monitor-edit-ac-runners-and-merge-progress",
+    "nextGate": "IMQ-1.2",
+    "requiredAction": "Review exact committed candidate/request; acquire shared integration.lock at safe checkpoint, preserve dirty/index paths, land and synchronize qualified frontend only, run affected merged checks, record ack and restore original primary workspace/progress/FIFO. Worker did not operate controllers or live main/lane checkouts.",
+    "originalWorkspace": "/Users/bpstr/Github/edit-ac-primary-unblock-20261014",
+    "originalProgress": "/Users/bpstr/Github/edit-ac-primary-unblock-20261014/.roadmap-runner/30-architecture-fitness-dceb3a8cc879/progress.md",
+    "originalRunId": "68bb0ed65d8dc0a15da84c6e",
+    "originalPendingQueue": [
+      {
+        "roadmap": "/Users/bpstr/Github/edit-ac-primary-unblock-20261014/architecture/roadmaps/30-architecture-fitness.md",
+        "progressFile": "/Users/bpstr/Github/edit-ac-primary-unblock-20261014/.roadmap-runner/30-architecture-fitness-dceb3a8cc879/progress.md",
+        "state": "running"
+      },
+      {
+        "roadmap": "/Users/bpstr/Github/edit-ac-primary-unblock-20261014/architecture/roadmaps/14-host-agent-editing.md",
+        "progressFile": "/Users/bpstr/Github/edit-ac-primary-unblock-20261014/.roadmap-runner/14-host-agent-editing-b36a6f1dd6b6/progress.md",
+        "state": "pending"
+      },
+      {
+        "roadmap": "/Users/bpstr/Github/edit-ac-primary-unblock-20261014/architecture/roadmaps/16-ios-sdk.md",
+        "progressFile": "/Users/bpstr/Github/edit-ac-primary-unblock-20261014/.roadmap-runner/16-ios-sdk-56089121896b/progress.md",
+        "state": "pending"
+      },
+      {
+        "roadmap": "/Users/bpstr/Github/edit-ac-primary-unblock-20261014/architecture/roadmaps/17-android-sdk.md",
+        "progressFile": "/Users/bpstr/Github/edit-ac-primary-unblock-20261014/.roadmap-runner/17-android-sdk-0b9e36940cc5/progress.md",
+        "state": "pending"
+      },
+      {
+        "roadmap": "/Users/bpstr/Github/edit-ac-primary-unblock-20261014/architecture/roadmaps/38-editor-interactions.md",
+        "progressFile": "/Users/bpstr/Github/edit-ac-primary-unblock-20261014/.roadmap-runner/38-editor-interactions-queue-20261015/progress.md",
+        "state": "pending"
+      },
+      {
+        "roadmap": "/Users/bpstr/Github/edit-ac-primary-unblock-20261014/architecture/roadmaps/40-mobile-web.md",
+        "progressFile": "/Users/bpstr/Github/edit-ac-primary-unblock-20261014/.roadmap-runner/40-mobile-web-queue-20261015/progress.md",
+        "state": "pending"
+      },
+      {
+        "roadmap": "/Users/bpstr/Github/edit-ac-primary-unblock-20261014/architecture/roadmaps/31-ios-extension-integration.md",
+        "progressFile": "/Users/bpstr/Github/edit-ac-primary-unblock-20261014/.roadmap-runner/31-ios-extension-integration-queue-20261015/progress.md",
+        "state": "pending"
+      },
+      {
+        "roadmap": "/Users/bpstr/Github/edit-ac-primary-unblock-20261014/architecture/roadmaps/32-android-extension-integration.md",
+        "progressFile": "/Users/bpstr/Github/edit-ac-primary-unblock-20261014/.roadmap-runner/32-android-extension-integration-queue-20261015/progress.md",
+        "state": "pending"
+      },
+      {
+        "roadmap": "/Users/bpstr/Github/edit-ac-primary-unblock-20261014/architecture/roadmaps/33-macos-extension-integration.md",
+        "progressFile": "/Users/bpstr/Github/edit-ac-primary-unblock-20261014/.roadmap-runner/33-macos-extension-integration-queue-20261015/progress.md",
+        "state": "pending"
+      },
+      {
+        "roadmap": "/Users/bpstr/Github/edit-ac-primary-unblock-20261014/architecture/roadmaps/10-web-qualification.md",
+        "progressFile": "/Users/bpstr/Github/edit-ac-primary-unblock-20261014/.roadmap-runner/10-web-qualification-queue-20261015/progress.md",
+        "state": "pending"
+      }
+    ]
+  },
+  "providerCalls": 0,
+  "publication": false,
+  "deployment": false
+}
