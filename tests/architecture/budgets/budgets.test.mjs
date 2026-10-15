@@ -1,4 +1,3 @@
-import { verifyBrowserSources } from '../../../scripts/browser-source-reuse.mjs';
 import assert from 'node:assert/strict';
 import { test, after } from 'node:test';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
@@ -78,8 +77,11 @@ assert.equal(digest(resultBytes), index.resultsHash, 'Changed measured result');
 const result = JSON.parse(resultBytes);
 test('actual Rust/WASM/IndexedDB baseline retains exact source, profile and executed artifacts', async () => {
   assert.equal(result.profileInputs['benchmarks/profiles/fitness-v1.json'], digest(profileBytes));
-  evidence.sources.profile = await verifyBrowserSources(root, result.profileInputs, JSON.parse(await read('benchmarks/profiles/browser-source-reuse.json')), result.sourceInputs);
-  evidence.sources.production = await verifyBrowserSources(root, result.sourceInputs, JSON.parse(await read('benchmarks/profiles/browser-source-reuse.json')));
+  for (const name of ['baseline', 'gesture', 'service', 'workload', 'lifecycle']) {
+    assert(!Object.hasOwn(result.sourceInputs, `benchmarks/profiles/${name}-evidence.json`), 'Generated evidence index cannot be an executable source input');
+  }
+  evidence.sources.profile = await verifyPins(root, result.profileInputs);
+  evidence.sources.production = await verifyPins(root, result.sourceInputs);
   for (const file of ['editac_wasm.js', 'editac_wasm_bg.wasm']) assert.equal(digest(await read(`packages/core/dist/wasm/${file}`)), result.artifactInputs[`bundles/wasm/${file}`], 'Current browser WASM differs from retained measurement');
   evidence.sources.artifacts = await verifyPins(measurementRoot, result.artifactInputs);
   await verifyMeasuredFixtures(root, measurementRoot, result);

@@ -1,6 +1,5 @@
 import { build } from 'esbuild';
 import { gestureInstrumentation } from '../../../scripts/gesture-instrumentation.mjs';
-import { verifyBrowserSources } from '../../../scripts/browser-source-reuse.mjs';
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -18,7 +17,7 @@ const resultBytes = await read(`${index.directory}/results.json`), record = JSON
 const evidence = { version: 1, parent: 'FIT-1.8', scope: 'PRF-02 browser diagnostics only', artifacts: {}, observations: null };
 test('owning trusted-input gesture matrix has current source/artifact/fixture identities and exact runtime counts', async () => {
   assert.equal(index.resultsHash, digest(resultBytes)); assert.equal(record.profileHash, digest(profileBytes));
-  await verifyBrowserSources(root, record.sourceInputs, JSON.parse(await read('benchmarks/profiles/browser-source-reuse.json')));
+  await verifyPins(root, record.sourceInputs);
   for (const file of ['editac_wasm.js', 'editac_wasm_bg.wasm']) assert.equal(digest(await read(`packages/core/dist/wasm/${file}`)), record.artifacts[`harness/wasm/${file}`]);
   const rebuilt = await build({ plugins: [gestureInstrumentation()], stdin: { contents: 'export {createEditor,taskPreset,CheckpointStorage} from "@edit-ac/web"; export {init} from "@edit-ac/core";', resolveDir: root }, outfile: resolve(root, 'architecture-results/reuse-sdk.js'), write: false, bundle: true, minify: true, format: 'esm', platform: 'browser', target: 'es2022' });
   assert.equal(digest(rebuilt.outputFiles[0].contents), record.artifacts['harness/sdk.js'], 'Changed gesture executable; historical trace cannot be reused'); await verifyPins(resolve(root, index.directory), record.artifacts);
