@@ -19,7 +19,7 @@ final class ProjectionTests: XCTestCase {
     }
 
     private func fixture(_ texts: [String],
-                         body: (NativeEditorView, NativeSessionRead) async throws -> Void) async throws {
+                         body: @MainActor (NativeEditorView, NativeSessionRead) async throws -> Void) async throws {
         _ = NSApplication.shared
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("editac-projection-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
