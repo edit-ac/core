@@ -52,6 +52,19 @@ required matrix, exact current source and retained evidence identities, duplicat
 asset bytes/URLs, compatible generated owners and disabled-only optional absence.
 Default gzip results must match the canonical shared counting harness.
 
+Before producing receipts in a fresh candidate, build every packed runtime,
+including the fixture WASM. The canonical suite rebuilds that fixture too;
+retaining a fixture binary from another source changes the tarball identity even
+when the production runtime bytes match. Build workspace declarations before
+Markdown to satisfy its web-package dependency:
+
+```sh
+npm run build:wasm
+npm run build:wasm:fixture
+npm run build
+npm run build:wasm:markdown
+```
+
 Same-page preparation uses the existing installed-package browser harness:
 
 ```sh
