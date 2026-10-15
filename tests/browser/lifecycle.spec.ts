@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { browserHarness } from './browser-harness.ts';
 import { prepareEditor } from './editor-test-utils.ts';
-const {probe}=browserHarness('lifecycle');
+const {probe}=browserHarness('lifecycle','fixtures/browser-input',{sourcePaths:['tests/browser/editor-test-utils.ts','packages/web/src/editor.ts','packages/web/src/surface.ts']});
 test('public SDK methods reject unsupported targets and commands without fake success',()=>probe('sdk-errors',async(page,fact)=>{
   await prepareEditor(page);
   const result=await page.evaluate(async()=>{
