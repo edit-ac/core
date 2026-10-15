@@ -277,7 +277,9 @@
     },
     "budgets": {
       "tests": [
-        "tests/architecture/budgets/budgets.test.mjs"
+        "tests/architecture/budgets/budgets.test.mjs",
+        "tests/architecture/budgets/gestures.test.mjs",
+        "tests/architecture/budgets/trace.test.mjs"
       ],
       "inputs": [
         "scripts/architecture-budgets.mjs",
@@ -308,10 +310,19 @@
         "benchmarks/attribution.mjs",
         "benchmarks/stage-summary.mjs",
         "scripts/fitness-instrumentation.mjs",
-        "tests/fitness-attribution.test.mjs"
+        "tests/fitness-attribution.test.mjs",
+        "benchmarks/profiles/gestures-v1.json",
+        "benchmarks/profiles/gesture-evidence.json",
+        "benchmarks/gesture-trace.mjs",
+        "benchmarks/gesture-client.mjs",
+        "scripts/bench-gestures.mjs",
+        "scripts/gesture-evidence.mjs",
+        "scripts/gesture-instrumentation.mjs",
+        "tests/architecture/budgets/trace.test.mjs"
       ],
       "artifacts": [
-        "budgets-inventory.json"
+        "budgets-inventory.json",
+        "gestures-inventory.json"
       ]
     },
     "diagnostics": {

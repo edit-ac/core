@@ -10,8 +10,8 @@
   "sourceRevision": "78b3fd484f3af6ca9ab61b5457cfb1aa45474dbba889a88e863949d9d631cb74",
   "implementationReceipt": "architecture-results/fit-1.8-20261015/iteration-2/delivery-receipt.json",
   "implementationReceiptHash": "af6da8a6a966160edd7a57801d139a562bd2ef2572ce024200e04c895c05b328",
-  "currentCanonicalReceipt": "architecture-results/fit-1.8-20261015/iteration-2/budgets/receipt.json",
-  "canonicalReceiptHash": "30982eac4a13674a1e8f0c18f455a225d9d5b1bd3ff868033ae415fa99f7b330",
+  "currentCanonicalReceipt": "architecture-results/fit-1.8-20261015/iteration-4/budgets/receipt.json",
+  "canonicalReceiptHash": "628977ccd9dddbfb6b3cc8bc5fd58a46f03e862fc21e5b2d6d12ff6931e1fa04",
   "profileHash": "22aaa4b74df2064c44f791b62c977be07ecca00e77b148052ae6536fe1c59122",
   "baselineIndexHash": "e5cf8e8b729f90c8f504090c0ea30514f9513bfd321b45bddea227875508acfc",
   "previousEvidence": "eda439dcbd6f2a2610153e42dcc009efc8d8f2f7:tests/architecture/budgets/evidence.json",
@@ -78,6 +78,12 @@
       "screen-reader",
       "non-drag-pointer"
     ],
-    "next": "FIT-1.8-I1-B: attribute and repair instrumented Long Rust preparation (p50 280\u2013294ms) and commit (141\u2013149ms); separate portable core, bridge serialization and instrumentation perturbation before claims. Preserve same corpus/replay/limits and supply sufficient comparable tails; no unchanged run17 retry."
-  }
+    "next": "FIT-1.8-I1-B / PRF-02: repair/qualify retained ordinary-pointer thin-glyph and code-start autoscroll failures with independent native hit/caret-state evidence; Shift/prose result does not close them. Preserve all full PRF-01\u201307/accessibility/threshold requirements; do not rerun unchanged failed matrices."
+  },
+  "priorCanonicalReceipt": "architecture-results/fit-1.8-20261015/iteration-2/budgets/receipt.json",
+  "priorCanonicalReceiptHash": "30982eac4a13674a1e8f0c18f455a225d9d5b1bd3ff868033ae415fa99f7b330",
+  "gestureReceipt": "architecture-results/fit-1.8-20261015/iteration-4/gestures-9/results.json",
+  "gestureReceiptHash": "98c19817dc59478e57ad001abf11286555a544f0581ddc34655945b4bd57046f",
+  "gestureScope": "12/12 scoped browser diagnostics: unmodified prose range selection, canceled native text drag, Shift/prose nested autoscroll near real full-corpus boundary. No new checked child or full PRF qualification.",
+  "currentDeliveryReceipt": "architecture-results/fit-1.8-20261015/iteration-4/delivery-receipt.json"
 }
