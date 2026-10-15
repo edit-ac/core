@@ -405,3 +405,12 @@ qualification. Native bridge and compiled-WASM regressions cover repeated reads,
 UTF-16 replacement, structural/history/remote invalidation, rejection, observer
 reentrancy and disposal. Production loading measurements include the cache cost
 and retain the complete fixture, independent oracle reads and original limits.
+
+Changed-revision wire reads serialize the projection only once. The writer
+records byte spans for nonempty root `changedNodes` and `touchedRanges` values;
+the settled cache replaces exactly those spans with empty arrays. It never
+searches document text or nested attributes for field names. An independent
+`serde_json::Value` oracle checks both responses byte for byte, including nested
+diagnostic-like keys, escaped strings, Unicode and each empty/nonempty delta
+combination. This removes the second full run traversal while preserving the
+first-read diagnostics and the existing detached-read/invalidation contract.

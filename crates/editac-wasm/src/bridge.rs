@@ -684,28 +684,71 @@ impl Bridge {
                 return Ok(json.clone());
             }
         }
-        let mut snapshot = self.read()?;
-        let first = snapshot.to_string();
-        let dirty = snapshot["changedNodes"]
-            .as_array()
-            .is_some_and(|v| !v.is_empty())
-            || snapshot["touchedRanges"]
-                .as_array()
-                .is_some_and(|v| !v.is_empty());
-        let settled = if dirty {
-            snapshot["changedNodes"] = json!([]);
-            snapshot["touchedRanges"] = json!([]);
-            snapshot.to_string()
-        } else {
-            first.clone()
-        };
+        let (first, settled) = snapshot_wire_reads(self.read()?)?;
         *self.settled_read.borrow_mut() = Some((revision, settled));
         Ok(first)
     }
 }
+
+/// Serialize the projection once. Record only the two root diagnostic values'
+/// byte spans while writing; nested fields and escaped document text cannot
+/// select a span. Replacing those values preserves the ordinary Value wire
+/// ordering and avoids a second traversal of every visible run after each edit.
+fn snapshot_wire_reads(snapshot: Value) -> Result<(String, String)> {
+    let object = snapshot
+        .as_object()
+        .ok_or_else(|| err("EngineRejected", "read", "invalid projection object"))?;
+    let serialize_error = |_| err("EngineRejected", "read", "projection serialization failed");
+    let mut bytes = vec![b'{'];
+    let mut deltas = Vec::new();
+    for (i, (key, value)) in object.iter().enumerate() {
+        if i != 0 {
+            bytes.push(b',');
+        }
+        serde_json::to_writer(&mut bytes, key).map_err(serialize_error)?;
+        bytes.push(b':');
+        let start = bytes.len();
+        serde_json::to_writer(&mut bytes, value).map_err(serialize_error)?;
+        if matches!(key.as_str(), "changedNodes" | "touchedRanges")
+            && value.as_array().is_some_and(|v| !v.is_empty())
+        {
+            deltas.push(start..bytes.len());
+        }
+    }
+    bytes.push(b'}');
+    // serde_json only emits UTF-8; retain a typed boundary error nevertheless.
+    let first = String::from_utf8(bytes)
+        .map_err(|_| err("EngineRejected", "read", "invalid projection encoding"))?;
+    let mut settled = String::with_capacity(first.len());
+    let mut start = 0;
+    for span in deltas {
+        settled.push_str(&first[start..span.start]);
+        settled.push_str("[]");
+        start = span.end;
+    }
+    settled.push_str(&first[start..]);
+    Ok((first, settled))
+}
 #[cfg(test)]
 mod settled_read_tests {
     use super::*;
+
+    #[test]
+    fn wire_serialization_matches_independent_value_oracle() {
+        let nested = json!({"changedNodes":["nested"],"touchedRanges":[{"text":"a😀\n\"touchedRanges\":[1]"}]});
+        for changed in [json!([]), json!(["x", "😀"])] {
+            for touched in [json!([]), json!([{ "owner": "x", "from": 1, "to": 3 }])] {
+                let snapshot = json!({"changedNodes":changed,"hidden":[nested],"identity":{"documentId":"x"},"revision":3,"touchedRanges":touched,"visible":[{"runs":[{"text":"a😀\n\"changedNodes\":[1]","attributes":nested}]}]});
+                let (first, settled) = snapshot_wire_reads(snapshot.clone()).unwrap();
+                assert_eq!(first, snapshot.to_string());
+                let mut expected = snapshot;
+                expected["changedNodes"] = json!([]);
+                expected["touchedRanges"] = json!([]);
+                assert_eq!(settled, expected.to_string());
+            }
+        }
+        assert!(snapshot_wire_reads(json!([])).is_err());
+    }
 
     fn check_reads(b: &Bridge) -> Value {
         let first: Value = serde_json::from_str(&b.read_json().unwrap()).unwrap();
