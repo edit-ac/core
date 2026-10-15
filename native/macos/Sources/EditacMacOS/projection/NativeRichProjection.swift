@@ -102,6 +102,12 @@ extension NativeTextProjection {
         // Containers are retained shared structure, not editable text rows.
         // Their child block IDs/ranges remain stable through list/quote commands;
         // attributed paragraph/list presentation uses the shared descriptor registry.
+        var tables: [String: NativeTableDescriptor] = [:]
+        for node in next.values {
+            if let tuple = node.wire["blockAttributes"] as? [Any], tuple.first as? String == "module:editac.table" {
+                tables[node.id] = try NativeTableDescriptor(tuple)
+            }
+        }
         let ordered = next.values.filter { $0.kind == "block" }.sorted { $0.order == $1.order ? $0.id < $1.id : $0.order < $1.order }
         // Text-only mapper remains the coordinate implementation, with one native
         // attachment unit per shared atom. It never edits the shared document.
@@ -182,6 +188,7 @@ extension NativeTextProjection {
         defer { refreshTypingStyle() }
         richNodes = next; richSequence = sequence; richIdentity = lineage
         attachmentIdentities = attachments
+        try reconcileTables(tables)
         if savedAnchored, let prior {
             guard update.selection.count == 2,
                   update.selection.allSatisfy({ read in
