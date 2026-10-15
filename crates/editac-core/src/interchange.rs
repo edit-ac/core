@@ -345,6 +345,12 @@ pub enum Command {
         anchor: CommandPosition,
         focus: CommandPosition,
     },
+    AtomicContent {
+        owner: String,
+        expected: Value,
+        at: String,
+        replacement: Option<Value>,
+    },
     TableCell {
         owner: String,
         expected: Value,
@@ -514,6 +520,7 @@ impl Command {
         "markAt",
         "selectionAt",
         "historySelectionAt",
+        "atomicContent",
         "tableCell",
         "tableStructure",
         "insert",
@@ -576,6 +583,32 @@ impl Command {
                 anchor: anchor.native(),
                 focus: focus.native(),
             },
+            Command::AtomicContent {
+                owner,
+                expected,
+                at,
+                replacement,
+            } => {
+                let expected = Any::from_json(&expected.to_string())
+                    .map_err(|e| kernel("atomicContent", e))?;
+                let replacement = replacement
+                    .map(|value| {
+                        let tuple = Any::from_json(&value.to_string())
+                            .map_err(|e| kernel("atomicContent", e))?;
+                        crate::modules::content::Content::from_tuple(&tuple)
+                            .map_err(|e| kernel("atomicContent", e))?
+                            .ok_or_else(|| {
+                                err("InvalidInput", "atomicContent", "unregistered content")
+                            })
+                    })
+                    .transpose()?;
+                EditorCommand::AtomicContent {
+                    target: owner,
+                    expected,
+                    at: anchor(&at)?,
+                    replacement,
+                }
+            }
             Command::TableCell {
                 owner,
                 expected,

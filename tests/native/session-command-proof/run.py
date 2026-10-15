@@ -22,6 +22,7 @@ def main():
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--rich-fixture', type=Path)
     parser.add_argument('--table-fixture', type=Path)
+    parser.add_argument('--attachment-fixture', type=Path)
     parser.add_argument('--authority-fixture', type=Path)
     parser.add_argument('--case', action='append', default=[])
     parser.add_argument('--host-transport', action='store_true', help='compose STB-1.4 host transport cases with the table harness')
@@ -81,6 +82,8 @@ def main():
             canonical = CORE / 'tests/native/session-probe/main.swift'
             host = work / 'main.swift'
             extra_entry = 'runTablePolicyCases()\nrunRemoteCases()\n' if args.table_fixture else ''
+            if args.attachment_fixture:
+                extra_entry += 'runAtomicContentCases()\n'
             if args.host_transport:
                 extra_entry += 'runHostTransportCases()\nrunPresenceCases()\n'
             if args.authority_fixture:
@@ -92,6 +95,11 @@ def main():
             (attempt / 'main.swift').write_bytes(host.read_bytes())
             rich_source = CORE / 'tests/native/session-probe/RichCases.swift'
             table_sources = [CORE / 'tests/native/table-session-proof/TablePolicyCases.swift', CORE / 'tests/native/table-session-proof/RemoteCases.swift'] if args.table_fixture else []
+            if args.attachment_fixture:
+                table_sources.append(CORE / 'tests/native/table-session-proof/AtomicContentCases.swift')
+                receipt['sourceHashes']['tests/native/table-session-proof/AtomicContentCases.swift'] = digest(table_sources[-1])
+                receipt['attachmentFixtureManifestSha256'] = digest(args.attachment_fixture)
+                receipt['attachmentFixtureStoreSha256'] = digest(Path(json.loads(args.attachment_fixture.read_text())['path']))
             if args.host_transport:
                 table_sources.extend([CORE / 'tests/native/table-session-proof/HostTransportCases.swift', CORE / 'tests/native/table-session-proof/PresenceCases.swift'])
                 for p in ['crates/editac-core/src/presence.rs', 'crates/editac-ffi/src/session_presence.rs']:
@@ -106,6 +114,8 @@ def main():
                 for source in table_sources:
                     receipt['sourceHashes'][str(source.relative_to(CORE))] = digest(source)
             rich_args = ['--rich-fixture', args.rich_fixture.resolve()] if args.rich_fixture else []
+            if args.attachment_fixture:
+                rich_args += ['--attachment-fixture', args.attachment_fixture.resolve()]
             if args.fixture_writer:
                 rich_args += ['--fixture-writer', args.fixture_writer.resolve()]
                 receipt['fixtureWriterSha256'] = digest(args.fixture_writer)

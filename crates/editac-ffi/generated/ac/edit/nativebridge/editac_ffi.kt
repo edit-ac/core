@@ -753,6 +753,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_rich_snapshot(
     ): Int
+    external fun uniffi_editac_ffi_checksum_method_nativesession_set_atomic_content_policy(
+    ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_set_permission(
     ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_set_table_policy(
@@ -905,6 +907,8 @@ internal object UniffiLib {
     ): RustBuffer.ByValue
     external fun uniffi_editac_ffi_fn_method_nativesession_rich_snapshot(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
+    external fun uniffi_editac_ffi_fn_method_nativesession_set_atomic_content_policy(`ptr`: Long,`images`: Byte,`references`: Byte,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
     external fun uniffi_editac_ffi_fn_method_nativesession_set_permission(`ptr`: Long,`writable`: Byte,`expiresAt`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     external fun uniffi_editac_ffi_fn_method_nativesession_set_table_policy(`ptr`: Long,`enabled`: Byte,uniffi_out_err: UniffiRustCallStatus, 
@@ -1173,6 +1177,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_editac_ffi_checksum_method_nativesession_rich_snapshot() and 0xFFFF) != 43350) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_editac_ffi_checksum_method_nativesession_set_atomic_content_policy() and 0xFFFF) != 12956) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_editac_ffi_checksum_method_nativesession_set_permission() and 0xFFFF) != 8942) {
@@ -2304,6 +2311,12 @@ public interface NativeSessionInterface {
     fun `richSnapshot`(): NativeSessionProjection
     
     /**
+     * Trusted host opt-in for bounded inert image/reference edits. This grants
+     * neither write permission nor network/resolver authority, and is not stored.
+     */
+    fun `setAtomicContentPolicy`(`images`: kotlin.Boolean, `references`: kotlin.Boolean)
+    
+    /**
      * Trusted host permission replacement, serialized with every prepared admission.
      */
     fun `setPermission`(`writable`: kotlin.Boolean, `expiresAt`: kotlin.ULong?)
@@ -2860,6 +2873,25 @@ open class NativeSession: Disposable, AutoCloseable, NativeSessionInterface
     }
     )
     }
+    
+
+    
+    /**
+     * Trusted host opt-in for bounded inert image/reference edits. This grants
+     * neither write permission nor network/resolver authority, and is not stored.
+     */
+    @Throws(NativeSessionException::class)override fun `setAtomicContentPolicy`(`images`: kotlin.Boolean, `references`: kotlin.Boolean)
+        = 
+    callWithHandle {
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_method_nativesession_set_atomic_content_policy(
+        it,
+        
+        FfiConverterBoolean.lower(`images`),
+        FfiConverterBoolean.lower(`references`),_status)
+}
+    }
+    
     
 
     

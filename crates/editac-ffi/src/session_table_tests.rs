@@ -24,6 +24,12 @@ impl Fixture {
         Self::with_unmerged_v2(false)
     }
     fn with_unmerged_v2(unmerged: bool) -> Self {
+        Self::with_corpus(unmerged, false)
+    }
+    fn attachments() -> Self {
+        Self::with_corpus(false, true)
+    }
+    fn with_corpus(unmerged: bool, attachments: bool) -> Self {
         static NEXT: AtomicU64 = AtomicU64::new(1);
         let n = NEXT.fetch_add(1, Ordering::Relaxed);
         let directory = std::env::var_os("EDITAC_NATIVE_SESSION_EVIDENCE")
@@ -46,9 +52,11 @@ impl Fixture {
         .unwrap();
         let owner = doc.snapshot().unwrap().visible[0].id.clone();
         let at = doc.anchor(&owner, Utf16Offset(0), Bias::Right).unwrap();
-        let mut corpus: Value = serde_json::from_str(include_str!(
-            "../../../native/macos/tests/TablesFixture/corpus.json"
-        ))
+        let mut corpus: Value = serde_json::from_str(if attachments {
+            include_str!("../../../native/macos/tests/AttachmentsFixture/corpus.json")
+        } else {
+            include_str!("../../../native/macos/tests/TablesFixture/corpus.json")
+        })
         .unwrap();
         if unmerged {
             let cell = json!({"paragraphs":[{"style":["heading",2],"runs":[["rich 😀",[["bold"]]]]}],"rowSpan":1,"columnSpan":1,"header":true});
@@ -1968,4 +1976,363 @@ fn lifecycle_host_completion_can_read_revoke_rejoin_and_replay_without_callback_
     local.receive_host_peer(next, update, 0).unwrap();
     assert_eq!(revision(&local), committed);
     assert_eq!(local.history_state(0).unwrap().undo_groups, 0);
+}
+
+fn atomic_command(s: &NativeSession, index: usize, replacement: Value) -> Value {
+    let node = visible(s)[index].clone();
+    let anchor = s
+        .capture_anchors(
+            revision(s),
+            vec![crate::AnchorInput {
+                node: node["id"].as_str().unwrap().into(),
+                offset_utf16: 0,
+                bias: crate::AnchorBias::Right,
+            }],
+        )
+        .unwrap()
+        .remove(0);
+    json!([{"type":"atomicContent","owner":node["id"],"expected":node["blockAttributes"],
+        "at":anchor.token,"replacement":replacement}])
+}
+fn replacement(index: usize) -> Value {
+    if index == 1 {
+        json!(["module:editac.image",1,{"url":"https://assets.example.invalid/new.png",
+        "alt":"New 😀","title":"Replacement","source":"![New 😀](https://assets.example.invalid/new.png)"}])
+    } else {
+        json!(["module:editac.reference",1,{"targetId":"document-new","label":"New reference 😀"}])
+    }
+}
+#[test]
+fn atomic_content_success_history_reopen_and_surrounding_retention() {
+    for index in [1, 2] {
+        let f = Fixture::attachments();
+        let s = f.open();
+        s.set_atomic_content_policy(true, true).unwrap();
+        let before = visible(&s);
+        let command = atomic_command(&s, index, replacement(index));
+        let p = prepare(&s, &command);
+        assert_eq!(visible(&s), before);
+        let commit = s.commit_commands(p.token, 0).unwrap().unwrap();
+        assert_eq!(commit.durability, NativeSessionDurability::ProcessCrash);
+        let after = visible(&s);
+        assert_eq!(after[index]["blockAttributes"], replacement(index));
+        assert_eq!(after[index]["id"], before[index]["id"]);
+        for i in 0..before.as_array().unwrap().len() {
+            if i != index {
+                assert_eq!(after[i], before[i]);
+            }
+        }
+        s.undo(revision(&s), 0).unwrap().unwrap();
+        assert_eq!(visible(&s), before);
+        s.redo(revision(&s), 0).unwrap().unwrap();
+        assert_eq!(visible(&s), after);
+        let p = prepare(&s, &atomic_command(&s, index, Value::Null));
+        s.commit_commands(p.token, 0).unwrap().unwrap();
+        let removed = visible(&s);
+        assert_eq!(removed[index]["blockAttributes"], json!(["paragraph"]));
+        assert_eq!(removed[index]["id"], before[index]["id"]);
+        assert!(
+            removed[index]["runs"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|r| r["text"] == "")
+        );
+        s.undo(revision(&s), 0).unwrap().unwrap();
+        assert_eq!(visible(&s), after);
+        s.redo(revision(&s), 0).unwrap().unwrap();
+        assert_eq!(visible(&s), removed);
+        s.dispose().unwrap();
+        let reopened = f.open();
+        assert_eq!(visible(&reopened), removed);
+        assert!(
+            !reopened
+                .command_catalog(0)
+                .unwrap()
+                .routes
+                .iter()
+                .find(|r| r.id == "atomicContent")
+                .unwrap()
+                .available
+        );
+        reopened.dispose().unwrap();
+    }
+}
+#[test]
+fn atomic_content_default_policy_transitions_permissions_cancel_and_disposal() {
+    let f = Fixture::attachments();
+    let s = f.open();
+    let c = atomic_command(&s, 1, replacement(1));
+    let before = visible(&s);
+    assert!(matches!(
+        s.check_commands(revision(&s), c.to_string(), "asset".into(), 0),
+        Err(NativeSessionError::UnsupportedModule)
+    ));
+    s.set_atomic_content_policy(false, true).unwrap();
+    assert!(
+        s.check_commands(revision(&s), c.to_string(), "asset".into(), 0)
+            .is_err()
+    );
+    s.set_atomic_content_policy(true, false).unwrap();
+    let p = prepare(&s, &c);
+    s.set_atomic_content_policy(false, false).unwrap();
+    assert!(matches!(
+        s.commit_commands(p.token, 0),
+        Err(NativeSessionError::UnsupportedModule)
+    ));
+    s.set_atomic_content_policy(true, true).unwrap();
+    let p = prepare(&s, &c);
+    s.cancel_commands(p.token.clone()).unwrap();
+    assert!(matches!(
+        s.commit_commands(p.token, 0),
+        Err(NativeSessionError::InvalidPlan)
+    ));
+    for (writable, expiry, now) in [(false, None, 0), (true, Some(5), 5)] {
+        s.set_permission(true, None).unwrap();
+        let p = prepare(&s, &c);
+        s.set_permission(writable, expiry).unwrap();
+        assert!(s.commit_commands(p.token, now).is_err());
+        assert_eq!(visible(&s), before);
+    }
+    s.dispose().unwrap();
+    assert!(matches!(
+        s.set_atomic_content_policy(true, true),
+        Err(NativeSessionError::Disposed)
+    ));
+}
+#[test]
+fn atomic_content_descriptor_anchor_version_bounds_and_payload_rejections_are_silent() {
+    let f = Fixture::attachments();
+    let s = f.open();
+    s.set_atomic_content_policy(true, true).unwrap();
+    let before = visible(&s);
+    let rev = revision(&s);
+    let good = atomic_command(&s, 1, replacement(1));
+    let other = atomic_command(&s, 2, replacement(2));
+    let mut cases = vec![];
+    let mut c = good.clone();
+    c[0]["expected"][2]["alt"] = json!("wrong");
+    cases.push(c);
+    let mut c = good.clone();
+    c[0]["owner"] = before[2]["id"].clone();
+    cases.push(c);
+    let mut c = good.clone();
+    c[0]["at"] = other[0]["at"].clone();
+    cases.push(c);
+    let mut c = good.clone();
+    c[0]["replacement"][1] = json!(2);
+    cases.push(c);
+    let mut c = good.clone();
+    c[0]["replacement"][2]["url"] = json!("javascript:alert(1)");
+    cases.push(c);
+    let mut c = good.clone();
+    c[0]["replacement"][2]["alt"] = json!("x".repeat(8193));
+    cases.push(c);
+    let mut c = good.clone();
+    c[0]["replacement"] = replacement(2);
+    cases.push(c);
+    let mut c = other.clone();
+    c[0]["replacement"][2]["targetId"] = json!("bad\nidentity");
+    cases.push(c);
+    let mut c = other.clone();
+    c[0]["replacement"][2]["label"] = json!("x".repeat(513));
+    cases.push(c);
+    for c in cases {
+        assert!(
+            s.check_commands(rev.clone(), c.to_string(), "invalid".into(), 0)
+                .is_err(),
+            "{c}"
+        );
+        assert_eq!(visible(&s), before);
+        assert_eq!(revision(&s), rev);
+    }
+    let p = prepare(&s, &good);
+    let q = prepare(&s, &other);
+    s.commit_commands(q.token, 0).unwrap();
+    let after = visible(&s);
+    assert!(s.commit_commands(p.token, 0).is_err());
+    assert_eq!(visible(&s), after);
+    s.dispose().unwrap();
+}
+#[test]
+fn atomic_content_append_failure_retains_update_freezes_and_recovers_exactly_once() {
+    for (index, remove) in [(1, false), (1, true), (2, false), (2, true)] {
+        for boundary in [FaultBoundary::BeforeCommit, FaultBoundary::AfterCommit] {
+            let f = Fixture::attachments();
+            let s = f.open();
+            s.set_atomic_content_policy(true, true).unwrap();
+            let before = visible(&s);
+            let p = prepare(
+                &s,
+                &atomic_command(
+                    &s,
+                    index,
+                    if remove {
+                        Value::Null
+                    } else {
+                        replacement(index)
+                    },
+                ),
+            );
+            f.store
+                .inject_once(InjectedFault {
+                    boundary,
+                    error: PortError::Quota,
+                })
+                .unwrap();
+            assert!(s.commit_commands(p.token, 0).is_err());
+            let r = s.read(0).unwrap();
+            assert!(r.revision.is_none());
+            assert!(s.recovery_export().unwrap().unjournaled_update.is_some());
+            assert!(
+                s.prepare_commands(vec![], "[]".into(), "blocked".into(), 0)
+                    .is_err()
+            );
+            s.recover().unwrap();
+            let after = visible(&s);
+            assert_ne!(after, before);
+            assert_eq!(
+                after[index]["blockAttributes"],
+                if remove {
+                    json!(["paragraph"])
+                } else {
+                    replacement(index)
+                }
+            );
+            let rev = revision(&s);
+            s.recover().unwrap();
+            assert_eq!(revision(&s), rev);
+            assert_eq!(visible(&s), after);
+            s.undo(revision(&s), 0).unwrap().unwrap();
+            assert_eq!(visible(&s), before);
+            s.dispose().unwrap();
+        }
+    }
+}
+
+#[test]
+fn atomic_content_actual_distinct_sqlite_remote_stale_and_local_history_preserves_remote() {
+    let f = Fixture::attachments();
+    let s = f.open();
+    let (_, peer) = remote_peer(&f);
+    s.set_atomic_content_policy(true, true).unwrap();
+    peer.set_atomic_content_policy(true, true).unwrap();
+    let stale = prepare(&s, &atomic_command(&s, 1, replacement(1)));
+    let q = prepare(&peer, &atomic_command(&peer, 2, replacement(2)));
+    let commit = peer.commit_commands(q.token, 0).unwrap().unwrap();
+    let entry = peer
+        .pending_updates()
+        .unwrap()
+        .into_iter()
+        .find(|e| e.writer == commit.writer && e.sequence == commit.sequence)
+        .unwrap();
+    s.reserve_peer_writer(entry.writer).unwrap();
+    s.receive_peer(entry.clone()).unwrap();
+    assert_eq!(visible(&s), visible(&peer));
+    let remote = visible(&s);
+    assert!(s.commit_commands(stale.token, 0).is_err());
+    assert_eq!(visible(&s), remote);
+    let p = prepare(&s, &atomic_command(&s, 1, Value::Null));
+    s.commit_commands(p.token, 0).unwrap();
+    s.undo(revision(&s), 0).unwrap().unwrap();
+    assert_eq!(visible(&s), remote);
+    s.redo(revision(&s), 0).unwrap().unwrap();
+    assert_eq!(visible(&s)[2], remote[2]);
+    s.receive_peer(entry).unwrap();
+    assert_eq!(visible(&s)[2], remote[2]);
+    s.dispose().unwrap();
+    peer.dispose().unwrap();
+}
+
+#[test]
+fn atomic_content_foreign_released_and_nonzero_anchor_never_retargets_host_completion() {
+    let f = Fixture::attachments();
+    let s = f.open();
+    let (_, peer) = remote_peer(&f);
+    s.set_atomic_content_policy(true, true).unwrap();
+    peer.set_atomic_content_policy(true, true).unwrap();
+    let before = visible(&s);
+    let good = atomic_command(&s, 2, replacement(2));
+    let foreign = atomic_command(&peer, 2, replacement(2));
+    let mut wrong = good.clone();
+    wrong[0]["at"] = foreign[0]["at"].clone();
+    assert!(
+        s.check_commands(revision(&s), wrong.to_string(), "foreign".into(), 0)
+            .is_err()
+    );
+    let owner = before[2]["id"].as_str().unwrap().to_owned();
+    let a = s
+        .capture_anchors(
+            revision(&s),
+            vec![crate::AnchorInput {
+                node: owner,
+                offset_utf16: 1,
+                bias: crate::AnchorBias::Right,
+            }],
+        )
+        .unwrap()
+        .remove(0);
+    wrong[0]["at"] = json!(a.token);
+    assert!(
+        s.check_commands(revision(&s), wrong.to_string(), "partial".into(), 0)
+            .is_err()
+    );
+    s.release_anchor(good[0]["at"].as_str().unwrap().into())
+        .unwrap();
+    assert!(
+        s.check_commands(revision(&s), good.to_string(), "released".into(), 0)
+            .is_err()
+    );
+    assert_eq!(visible(&s), before);
+    s.dispose().unwrap();
+    peer.dispose().unwrap();
+}
+
+#[test]
+fn atomic_content_both_families_all_actions_recheck_admission_and_cancellation() {
+    for (index, remove) in [(1, false), (1, true), (2, false), (2, true)] {
+        let f = Fixture::attachments();
+        let s = f.open();
+        let before = visible(&s);
+        let command = atomic_command(
+            &s,
+            index,
+            if remove {
+                Value::Null
+            } else {
+                replacement(index)
+            },
+        );
+        assert!(matches!(
+            s.check_commands(revision(&s), command.to_string(), "policy".into(), 0),
+            Err(NativeSessionError::UnsupportedModule)
+        ));
+        s.set_atomic_content_policy(index != 1, index != 2).unwrap();
+        assert!(matches!(
+            s.check_commands(revision(&s), command.to_string(), "policy".into(), 0),
+            Err(NativeSessionError::UnsupportedModule)
+        ));
+        s.set_atomic_content_policy(true, true).unwrap();
+        let p = prepare(&s, &command);
+        s.set_atomic_content_policy(index != 1, index != 2).unwrap();
+        assert!(matches!(
+            s.commit_commands(p.token, 0),
+            Err(NativeSessionError::UnsupportedModule)
+        ));
+        s.set_atomic_content_policy(true, true).unwrap();
+        let p = prepare(&s, &command);
+        s.cancel_commands(p.token.clone()).unwrap();
+        assert!(matches!(
+            s.commit_commands(p.token, 0),
+            Err(NativeSessionError::InvalidPlan)
+        ));
+        for (writable, expiry, now) in [(false, None, 0), (true, Some(7), 7)] {
+            s.set_permission(true, None).unwrap();
+            let p = prepare(&s, &command);
+            s.set_permission(writable, expiry).unwrap();
+            assert!(s.commit_commands(p.token, now).is_err());
+            assert_eq!(visible(&s), before);
+        }
+        s.dispose().unwrap();
+    }
 }

@@ -302,6 +302,22 @@ impl<S: SessionStore> EditService<S> {
                     Content::Reference { .. } => requirements.references = true,
                     Content::InertExtension { .. } => {}
                 },
+                EditorCommand::AtomicContent {
+                    expected,
+                    replacement,
+                    ..
+                } => {
+                    let old = Content::from_tuple(expected)
+                        .map_err(|_| ServiceError::Engine(EditorError::InvalidCommand))?
+                        .ok_or(ServiceError::Engine(EditorError::UnsupportedTarget))?;
+                    for content in std::iter::once(&old).chain(replacement.iter()) {
+                        match content {
+                            Content::Image { .. } => requirements.images = true,
+                            Content::Reference { .. } => requirements.references = true,
+                            _ => return Err(ServiceError::Engine(EditorError::UnsupportedTarget)),
+                        }
+                    }
+                }
                 EditorCommand::TableCell { .. } | EditorCommand::TableStructure { .. } => {
                     requirements.tables = true
                 }

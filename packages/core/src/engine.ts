@@ -21,6 +21,7 @@ export type EditorCommand =
   | { type: "replaceAt"; owner: string; from: number; to: number; text: string }
   | { type: "markAt"; owner: string; from: number; to: number; mark: MarkCommand["mark"]; action: FormatAction; href?: string | null }
   | { type: "selectionAt" | "historySelectionAt"; anchor: EditorPosition; focus: EditorPosition }
+  | { type: "atomicContent"; owner: string; expected: Json; at: AnchorToken; replacement: Json | null }
   | { type: "tableCell"; owner: string; expected: Json; row: number; column: number; text: string }
   | { type: "tableStructure"; owner: string; expected: Json; action: "insertRow" | "deleteRow" | "insertColumn" | "deleteColumn"; index: number }
   | { type: "insert"; at: AnchorToken; text: string }

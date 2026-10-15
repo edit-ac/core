@@ -1025,7 +1025,10 @@ impl NativeSession {
                 .map(|id| {
                     let available = identity.has_editor()
                         && (!matches!(*id, "tableCell" | "tableStructure")
-                            || caps.policy.codecs.tables);
+                            || caps.policy.codecs.tables)
+                        && (*id != "atomicContent"
+                            || caps.policy.codecs.images
+                            || caps.policy.references);
                     NativeCommandRoute {
                         id: (*id).into(),
                         available,
@@ -1065,12 +1068,18 @@ impl NativeSession {
                 ("editac.code", "contract-fixture-only"),
                 ("editac.pairs", "contract-fixture-only"),
             ] {
+                let atomic = (id == "editac.images" && caps.policy.codecs.images)
+                    || (id == "editac.references" && caps.policy.references);
                 profiles.push(NativeCommandProfile {
                     id: id.into(),
-                    available: id == "editac.tables"
-                        && identity.has_editor()
-                        && caps.policy.codecs.tables,
-                    reason: if id == "editac.tables"
+                    available: identity.has_editor()
+                        && (atomic
+                            || id == "editac.tables"
+                                && identity.has_editor()
+                                && caps.policy.codecs.tables),
+                    reason: if atomic && identity.has_editor() {
+                        "bounded-inert-replacement-removal-host-resolution-target-check-required"
+                    } else if id == "editac.tables"
                         && identity.has_editor()
                         && caps.policy.codecs.tables
                     {
@@ -1140,6 +1149,17 @@ impl NativeSession {
         self.call(move |state| {
             let mut policy = state.service.capabilities(0).policy;
             policy.codecs.tables = enabled;
+            state.service.set_policy(policy);
+            Ok(())
+        })
+    }
+    /// Trusted host opt-in for bounded inert image/reference edits. This grants
+    /// neither write permission nor network/resolver authority, and is not stored.
+    pub fn set_atomic_content_policy(&self, images: bool, references: bool) -> Result<()> {
+        self.call(move |state| {
+            let mut policy = state.service.capabilities(0).policy;
+            policy.codecs.images = images;
+            policy.references = references;
             state.service.set_policy(policy);
             Ok(())
         })

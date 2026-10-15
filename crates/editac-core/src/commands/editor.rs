@@ -83,6 +83,14 @@ pub enum EditorCommand {
         target: String,
         content: crate::modules::content::Content,
     },
+    /// Replace an admitted image/reference atom, or remove its entire payload.
+    /// The host must retain the complete descriptor and a source-owned anchor.
+    AtomicContent {
+        target: String,
+        expected: Any,
+        at: crate::anchors::Anchor,
+        replacement: Option<crate::modules::content::Content>,
+    },
     /// Compare the full retained descriptor before editing an opaque table atom.
     TableCell {
         target: String,
@@ -1758,6 +1766,105 @@ impl Document {
                         .map_err(EditorError::Text)?;
                     super::text::apply_prepared_to_stage(&stage, plan);
                     m::set(&stage, 4, id, tuple);
+                }
+                EditorCommand::AtomicContent {
+                    target: id,
+                    expected,
+                    at,
+                    replacement,
+                } => {
+                    use crate::modules::content::Content;
+                    let o = target(&stage, stable, id)?;
+                    if o.kind != "block" || &o.attrs != expected {
+                        return Err(EditorError::PresentationConflict);
+                    }
+                    let old = Content::from_tuple(expected)
+                        .map_err(|_| EditorError::InvalidCommand)?
+                        .ok_or(EditorError::UnsupportedTarget)?;
+                    if !matches!(old, Content::Image { .. } | Content::Reference { .. }) {
+                        return Err(EditorError::UnsupportedTarget);
+                    }
+                    let d = self.virtual_document(&stage)?;
+                    let p = super::text::position(
+                        d.resolve_anchor(at)
+                            .map_err(|_| EditorError::InvalidCommand)?,
+                    )
+                    .map_err(EditorError::Text)?;
+                    if p.node != *id || p.offset.0 != 0 {
+                        return Err(EditorError::InvalidCommand);
+                    }
+                    let (tuple, fallback) = if let Some(content) = replacement {
+                        if !matches!(
+                            (&old, content),
+                            (Content::Image { .. }, Content::Image { .. })
+                                | (Content::Reference { .. }, Content::Reference { .. })
+                        ) {
+                            return Err(EditorError::UnsupportedTarget);
+                        }
+                        let tuple = content.tuple().map_err(|e| {
+                            if e == crate::modules::content::ContentError::ResourceLimit {
+                                EditorError::ResourceLimit
+                            } else {
+                                EditorError::InvalidCommand
+                            }
+                        })?;
+                        let fallback = match content {
+                            Content::Reference { label, .. } => label.as_str(),
+                            Content::Image { source, .. } => source.as_str(),
+                            _ => return Err(EditorError::UnsupportedTarget),
+                        }
+                        .to_owned();
+                        (tuple, fallback)
+                    } else {
+                        (
+                            crate::document::BlockAttributes::Paragraph.tuple(),
+                            String::new(),
+                        )
+                    };
+                    // As for table edits and whole-atom fragment replacement, expose
+                    // fallback text only on disposable staging state. The live commit
+                    // carries descriptor and text together under the existing origin.
+                    m::set(
+                        &stage,
+                        4,
+                        id,
+                        crate::document::BlockAttributes::Paragraph.tuple(),
+                    );
+                    let d = self.virtual_document(&stage)?;
+                    let node = d
+                        .inspect()
+                        .map_err(|_| EditorError::InvalidCommand)?
+                        .visible
+                        .into_iter()
+                        .find(|n| n.id == *id)
+                        .ok_or(EditorError::UnsupportedTarget)?;
+                    let length = node
+                        .runs
+                        .iter()
+                        .map(|r| r.text.encode_utf16().count())
+                        .sum::<usize>();
+                    let selection = d
+                        .selection(
+                            (id, crate::Utf16Offset(0), crate::anchors::Bias::Right),
+                            (
+                                id,
+                                crate::Utf16Offset(length as u32),
+                                crate::anchors::Bias::Left,
+                            ),
+                        )
+                        .map_err(|_| EditorError::InvalidCommand)?;
+                    let plan = d
+                        .prepare_text(
+                            &super::text::TextCommand::Replace {
+                                selection,
+                                text: fallback,
+                            },
+                            origin,
+                        )
+                        .map_err(EditorError::Text)?;
+                    super::text::apply_prepared_to_stage(&stage, plan);
+                    m::set(&stage, 4, id, tuple);
+                    result_owner = Some(id.clone());
                 }
                 EditorCommand::Content {
                     target: id,

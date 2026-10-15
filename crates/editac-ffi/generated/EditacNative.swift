@@ -1031,6 +1031,12 @@ public protocol NativeSessionProtocol: AnyObject, Sendable {
     func richSnapshot() throws  -> NativeSessionProjection
     
     /**
+     * Trusted host opt-in for bounded inert image/reference edits. This grants
+     * neither write permission nor network/resolver authority, and is not stored.
+     */
+    func setAtomicContentPolicy(images: Bool, references: Bool) throws 
+    
+    /**
      * Trusted host permission replacement, serialized with every prepared admission.
      */
     func setPermission(writable: Bool, expiresAt: UInt64?) throws 
@@ -1454,6 +1460,20 @@ open func richSnapshot()throws  -> NativeSessionProjection  {
             self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
+}
+    
+    /**
+     * Trusted host opt-in for bounded inert image/reference edits. This grants
+     * neither write permission nor network/resolver authority, and is not stored.
+     */
+open func setAtomicContentPolicy(images: Bool, references: Bool)throws   {try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_set_atomic_content_policy(
+            self.uniffiCloneHandle(),
+        FfiConverterBool.lower(images),
+        FfiConverterBool.lower(references),uniffiCallStatus
+    )
+}
 }
     
     /**
@@ -4904,6 +4924,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_editac_ffi_checksum_method_nativesession_rich_snapshot() != 43350) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_set_atomic_content_policy() != 12956) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_editac_ffi_checksum_method_nativesession_set_permission() != 8942) {
