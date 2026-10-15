@@ -19,11 +19,12 @@ const cjk = JSON.parse(await read(index.directory+'/cjk-result.json'));
 const cjkAX = JSON.parse(await read(index.directory+'/cjk-accessibility.json'));
 let observations, cjkObservations;
 const workloadObservations=[];
+const rejectedControls=[];
 const nativeBuild = Object.fromEntries(await Promise.all([
   ['graph','native-target-graph.log'],['rustc','native-rustc.log'],['library','libeditac_ffi.a'],['app','NativeFitness']
 ].map(async([key,path])=>[key,await read(index.directory+'/'+path)])));
 test('fresh native execution binds actual current target features, compiler and rebuilt library/app',async()=>{
-  const cargo=spawnSync(resolve(homedir(),'.cargo/bin/cargo'),['+1.97.1','tree','--locked','--offline','--target','aarch64-apple-ios-sim','-p','editac-ffi','--edges','normal,build,features','--prefix','none','--format','{p}|{f}'],{cwd:root,encoding:'utf8'});
+  const cargo=spawnSync(resolve(homedir(),'.cargo/bin/cargo'),['+1.97.1','tree','--locked','--offline','--target','aarch64-apple-ios-sim','-p','editac-ffi','--features','fitness-trace','--edges','normal,build,features','--prefix','none','--format','{p}|{f}'],{cwd:root,encoding:'utf8'});
   assert.equal(cargo.status,0,cargo.stderr); assert.equal(cargo.stdout,nativeBuild.graph.toString());
   const rustc=spawnSync(resolve(homedir(),'.cargo/bin/rustc'),['+1.97.1','-vV'],{cwd:root,encoding:'utf8'});
   assert.equal(rustc.status,0,rustc.stderr); assert.equal(rustc.stdout,nativeBuild.rustc.toString());
@@ -83,6 +84,8 @@ test('native OS keyboard, accessibility client, semantic preservation and displa
   observations = inspectNativeInput(profile,receipt,result,accessibility);
 });
 const mutations = {
+  'missing native focus acknowledgment': (r,n) => delete n.cases.find(c=>c.id==='os-keyboard-committed-source').observed.focusRequests,
+  'unbounded native focus retries': (r,n) => n.cases.find(c=>c.id==='os-keyboard-committed-source').observed.focusRequests=4,
   'skipped native case': (r,n) => n.counts.skipped++,
   'skipped XCTest': r => r.xctestCounts.skippedTests++,
   'unexecuted XCTest': r => r.checks.find(c=>c.id==='xctest').exit=1,
@@ -108,13 +111,17 @@ const mutations = {
   'accessibility source mismatch': (r,n,a) => a.value='different'
 };
 for (const [name,mutate] of Object.entries(mutations)) test('native admission rejects '+name,()=>{
+  assert.doesNotThrow(()=>inspectNativeInput(profile,receipt,result,accessibility), 'valid current native contrast');
   const r=structuredClone(receipt),n=structuredClone(result),a=structuredClone(accessibility); mutate(r,n,a);
-  assert.throws(()=>inspectNativeInput(profile,r,n,a));
+  assert.throws(()=>inspectNativeInput(profile,r,n,a), error=>{
+    rejectedControls.push({family:'ASCII',name,reason:error.message.slice(0,512)}); return true;
+  });
 });
 test('OS Pinyin candidate composition, commit, cancellation and accessibility geometry admit exact native artifacts',()=>{
   cjkObservations=inspectNativeCJK(profile,receipt,cjk,cjkAX);
 });
 const cjkMutations={
+  'invented CJK focus request':(r,n)=>n.cases[1].observed.focusRequests=1,
   'missing marked input':(r,n)=>n.compositionEvents=n.compositionEvents.filter(e=>!e.marked),
   'wrong keyboard':(r,n)=>n.compositionEvents[0].inputMode='en-US',
   'marked text commits early':(r,n)=>n.compositionEvents.find(e=>e.marked).committedAfter+='x',
@@ -133,15 +140,18 @@ const cjkMutations={
   'composition AX source corruption':(r,n,a)=>a.keys[0].source+='n'
 };
 for(const [name,mutate] of Object.entries(cjkMutations)) test('CJK admission rejects '+name,()=>{
+  assert.doesNotThrow(()=>inspectNativeCJK(profile,receipt,cjk,cjkAX), 'valid current CJK contrast');
   const r=structuredClone(receipt),n=structuredClone(cjk),a=structuredClone(cjkAX); mutate(r,n,a);
-  assert.throws(()=>inspectNativeCJK(profile,r,n,a));
+  assert.throws(()=>inspectNativeCJK(profile,r,n,a),error=>{
+    rejectedControls.push({family:'CJK',name,reason:error.message.slice(0,512)}); return true;
+  });
 });
 test('native diagnostic cannot lower tail bar or reduce the fixed scenario',()=>{
   for (const mutate of [p=>p.minimumTailSamples=12,p=>p.samples=1,p=>p.features.pop(),p=>p.typed='a',p=>p.runtimeBuildVersion='mock']) {
     const p=structuredClone(profile); mutate(p); assert.throws(()=>inspectNativeInput(p,receipt,result,accessibility));
   }
 });
-after(async()=>{if(process.env.EDITAC_ARCHITECTURE_OUTPUT) await writeFile(resolve(process.env.EDITAC_ARCHITECTURE_OUTPUT,'native-input-inventory.json'),JSON.stringify({version:1,parent:'FIT-1.8',receiptHash:index.receiptHash,observations,cjkObservations,workloadObservations},null,2));});
+after(async()=>{if(process.env.EDITAC_ARCHITECTURE_OUTPUT) await writeFile(resolve(process.env.EDITAC_ARCHITECTURE_OUTPUT,'native-input-inventory.json'),JSON.stringify({version:1,parent:'FIT-1.8',receiptHash:index.receiptHash,observations,cjkObservations,workloadObservations,rejectedControls},null,2));});
 
 for (const name of ['Task','Long']) {
   const load=async p=>JSON.parse(await read(index.directory+'/'+p));
@@ -160,11 +170,36 @@ for (const name of ['Task','Long']) {
     'failed memory probe':v=>v[2].resources[0].status=1,
     'broadened mutation':v=>v[2].samples[0].changedBlocks=2,
     'clock reversal':v=>v[2].samples[0].layoutDoneAt=0,
+    'missing focus acknowledgment':v=>delete v[2].focusRequests,
+    'unbounded focus retries':v=>v[2].focusRequests=4,
+    'missing native attribution':v=>delete v[2].samples[0].rustTrace,
+    'missing anchor attribution':v=>delete v[2].samples[0].anchorDoneAt,
+    'reversed request construction':v=>v[2].samples[0].batchStartAt=v[2].samples[0].focusDoneAt-1,
+    'missing Rust JSON span':v=>delete v[2].samples[0].rustTrace.resultJsonMs,
+    'nonfinite Rust commit':v=>v[2].samples[0].rustTrace.commitMs=Infinity,
+    'invented Rust duration':v=>v[2].samples[0].rustTrace.prepareMs=1e9,
+    'negative JSON duration':v=>v[2].samples[0].rustTrace.patchJsonMs=-1,
     'false size':v=>v[2].setup.textUtf8Bytes--,
     'lower tail bar':v=>v[0].workloads.minimumTailSamples=12,
     'empty checkpoint':v=>v[7]=Buffer.alloc(0)
   };
   for(const [label,mutate] of Object.entries(mutations)) test(name+' native workload rejects '+label,()=>{
-    const copy=structuredClone(inputs); mutate(copy); assert.throws(()=>inspectNativeWorkload(...copy));
+    assert.doesNotThrow(()=>inspectNativeWorkload(...inputs), 'valid current trace-bearing workload contrast');
+    const copy=structuredClone(inputs); mutate(copy);
+    const reasons={
+      'missing focus acknowledgment': /missing actual workload focus acknowledgment/,
+      'unbounded focus retries': /missing actual workload focus acknowledgment/,
+      'missing native attribution': /missing native Rust trace version/,
+      'missing anchor attribution': /native attribution timeline/,
+      'reversed request construction': /native attribution timeline/,
+      'missing Rust JSON span': /missing native Rust span/,
+      'nonfinite Rust commit': /missing native Rust span/,
+      'invented Rust duration': /Rust spans exceed enclosing actual FFI call/,
+      'negative JSON duration': /missing native Rust span/
+    };
+    assert.throws(()=>inspectNativeWorkload(...copy), error=>{
+      if(reasons[label]) assert.match(error.message,reasons[label]);
+      rejectedControls.push({family:name,name:label,reason:error.message.slice(0,512)}); return true;
+    });
   });
 }

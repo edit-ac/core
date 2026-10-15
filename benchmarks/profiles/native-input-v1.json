@@ -12,7 +12,8 @@
     "UITextView-TextKit1",
     "generated-Swift-FFI",
     "XCTest-OS-keyboard",
-    "XCTest-accessibility-client"
+    "XCTest-accessibility-client",
+    "native-fitness-trace"
   ],
   "typed": "abcdefghijkl",
   "samples": 12,
@@ -74,6 +75,8 @@
     "qualification": "unqualified",
     "scenario": "os-keyboard-overwrite-fixed-corpus-v1",
     "target": "last ASCII letter of final block; replace one UTF-16 unit at constant corpus bytes, matching browser overwrite policy",
-    "reviewedAt": "2026-10-15T05:32:00Z"
+    "reviewedAt": "2026-10-15T05:32:00Z",
+    "attribution": "monotonic Swift anchor/focus/request/execute/decode/TextStorage/layout timestamps; opt-in Rust prepare/commit/patch-build/patch-JSON/result-JSON durations; FFI residual includes executor, transfer and diagnostic overhead, not zero-copy or compositor",
+    "attributionReviewedAt": "2026-10-15T05:58:00Z"
   }
 }

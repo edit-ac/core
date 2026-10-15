@@ -1,6 +1,17 @@
 import XCTest
 
 final class NativeFitnessUITests: XCTestCase {
+    func focus(_ app: XCUIApplication, button: XCUIElement, status: XCUIElement, value: String) {
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+        let ready = NSPredicate(format: "value == %@", value)
+        for _ in 0..<3 {
+            app.activate()
+            button.press(forDuration: 0.1)
+            if ready.evaluate(with: status) || XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: ready, object: status)], timeout: 5) == .completed { return }
+        }
+        XCTFail("UIKit did not acknowledge an actual foreground focus action")
+    }
+
     func workload(_ name: String) throws {
         continueAfterFailure = false
         let app = XCUIApplication(bundleIdentifier: "ac.edit.nativefitness")
@@ -12,7 +23,8 @@ final class NativeFitnessUITests: XCTestCase {
             let p = NSPredicate(format: "value == %@", value)
             XCTAssertTrue(p.evaluate(with: status) || XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: p, object: status)], timeout: 30) == .completed)
         }
-        XCTAssertEqual(status.label, "ready"); editor.tap()
+        XCTAssertEqual(status.label, "ready")
+        focus(app, button: app.buttons["workload-focus"], status: status, value: "keyboard-ready")
         awaitValue("keyboard-ready")
         for (i, letter) in "abcdefghijkl".enumerated() {
             let key = app.keys[String(letter)]; XCTAssertTrue(key.waitForExistence(timeout: 5)); XCTAssertTrue(key.isHittable)
@@ -36,10 +48,17 @@ final class NativeFitnessUITests: XCTestCase {
         XCTAssertTrue(editor.waitForExistence(timeout: 30))
         let initial = "A😀éZ"
         XCTAssertEqual(editor.value as? String, initial)
-        editor.tap()
+        focus(app, button: app.buttons["focus-append"], status: app.staticTexts["scenario-status"], value: "ascii-ready")
         // A fresh OS image presents its swipe-typing tutorial above the keys.
         let tutorial = app.staticTexts["Continue"]
-        if tutorial.waitForExistence(timeout: 5) { tutorial.tap() }
+        if tutorial.waitForExistence(timeout: 5) {
+            tutorial.tap()
+            XCTAssertTrue(tutorial.waitForNonExistence(timeout: 10))
+            // Continue dismisses system UI, which is not proof that the text
+            // service is rebound to our editor. Request fresh UIKit focus
+            // before measuring the first actual key; never retry a lost key.
+            focus(app, button: app.buttons["focus-append"], status: app.staticTexts["scenario-status"], value: "ascii-ready")
+        }
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 10))
         let ready = NSPredicate(format: "value == %@", "ascii-ready")
         let status = app.staticTexts["scenario-status"]

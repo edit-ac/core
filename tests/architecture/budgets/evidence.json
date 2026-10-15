@@ -11,10 +11,10 @@
   "sourceRevision": "78b3fd484f3af6ca9ab61b5457cfb1aa45474dbba889a88e863949d9d631cb74",
   "implementationReceipt": "architecture-results/fit-1.8-20261015/native-workloads-1/delivery-receipt.json",
   "implementationReceiptHash": "37f0f2c0894151cdede1772448ec53584cc364dfdd51699bee949d075d8b4db6",
-  "currentCanonicalReceipt": "architecture-results/fit-1.8-20261015/native-workloads-1/budgets-2/receipt.json",
-  "canonicalReceiptHash": "553802eeb65b07686c57d4e60ef8e21c465b273dbb066e0b5ace32bec4a658fe",
+  "currentCanonicalReceipt": "architecture-results/fit-1.8-20261015/native-scaling-3/budgets-1/receipt.json",
+  "canonicalReceiptHash": "1c3d273e5c476ba513cf4bbe6bb799d7277c8aa1e0723fcacec274939067c067",
   "profileHash": "22aaa4b74df2064c44f791b62c977be07ecca00e77b148052ae6536fe1c59122",
-  "baselineIndexHash": "91bac3bd19be877abdb48f3cd433eaed55750371018dce901b0667779fb42f63",
+  "baselineIndexHash": "69bdb568ac1b10191733abab4641cefee9d9f384e9dd941a1bfb46c794d0fcc9",
   "previousEvidence": "efa173313713b8a91f5ea26baf2c3e804c8e641f:tests/architecture/budgets/evidence.json",
   "priorDeliveryReceipt": "architecture-results/fit-1.8-20261015/iteration-3/prf05-delivery-receipt.json",
   "remaining": {
@@ -85,11 +85,11 @@
   "priorCanonicalReceiptHash": "29a882a762a321ec020afcbc7e26d6e89d966842a506b271ef775f9c632f3f8c",
   "gestureReceipt": "architecture-results/fit-1.8-20261015/source-refresh-1/gestures-1/results.json",
   "gestureReceiptHash": "ed461eb185b454a4973a4ce2305b1db672e93d67ff1460ad995d11485fa175c6",
-  "gestureScope": "16/16 actual-public-editor ordinary-pointer diagnostics: exact thin-glyph range endpoints, canceled native text drag, prose/code nested autoscroll across unchanged Task/Long \u00d7 baseline/Task, bounded native controls and cancellation. No full performance/platform qualification or new checked child.",
+  "gestureScope": "16/16 actual-public-editor ordinary-pointer diagnostics: exact thin-glyph range endpoints, canceled native text drag, prose/code nested autoscroll across unchanged Task/Long × baseline/Task, bounded native controls and cancellation. No full performance/platform qualification or new checked child.",
   "currentDeliveryReceipt": "architecture-results/fit-1.8-20261015/native-workloads-1/delivery-receipt.json",
   "serviceReceipt": "architecture-results/fit-1.8-20261015/source-refresh-1/services-1/results.json",
   "serviceReceiptHash": "ac8448b57c0b2287dd5e7ef1c4ad9f73881b94771712eb9d9157843712598b95",
-  "serviceScope": "16/16 actual-public-editor/lifecycle/resolver/sync diagnostic observations across unchanged full Task/Long \u00d7 baseline/Task. Prepared noncooperative host responses; constant-size atomic replacements, bounded queue/stale-result invalidation, exact local/remote commit and DOM node scopes, convergence and cleanup. Highlight/asset/conversion runtimes pending; no full PRF-03/performance/platform qualification or new checked child.",
+  "serviceScope": "16/16 actual-public-editor/lifecycle/resolver/sync diagnostic observations across unchanged full Task/Long × baseline/Task. Prepared noncooperative host responses; constant-size atomic replacements, bounded queue/stale-result invalidation, exact local/remote commit and DOM node scopes, convergence and cleanup. Highlight/asset/conversion runtimes pending; no full PRF-03/performance/platform qualification or new checked child.",
   "prf04": {
     "state": "diagnostic-prerequisite; parent remains open",
     "owningResults": "architecture-results/fit-1.8-20261015/source-refresh-1/workloads-1/results.json",
@@ -137,10 +137,10 @@
   "nativeCJKScope": "Existing ASCII plus actual OS Simplified Chinese Pinyin ni candidate commit and hao host cancellation; exact source isolation, AX candidate geometry/action, checkpoint, display callback and disposal diagnostics only",
   "nativeCJKRemaining": "CJK remains one commit, below100-sample tails; full native renderer, peak/plateau, compositor, optional/accessibility/target-runtime and startup/Long/Brotli qualification remain. Task/Long diagnostic workloads are now delivered, with measured Long misses.",
   "currentSourceRefresh": {
-    "path": "architecture-results/fit-1.8-20261015/native-workloads-1/delivery-receipt.json",
-    "sha256": "37f0f2c0894151cdede1772448ec53584cc364dfdd51699bee949d075d8b4db6"
+    "path": "architecture-results/fit-1.8-20261015/native-scaling-3/delivery-receipt.json",
+    "sha256": "1473249ec55dd3fbf6569c6344c6d04d079a16dafaaa76fa2d448e490f8a76b4"
   },
-  "currentSourceRefreshScope": "Current-profile admission: actual native Task/Long plus preserved ASCII/Pinyin and refreshed browser baseline; remaining producer source closures unchanged and canonical330/330. Diagnostic prerequisite only.",
+  "currentSourceRefreshScope": "Complete the preserved native causal preparation/trace prerequisite with actual current-union OS keyboard, fixed Task/Long corpus, exact restoration and raw resource evidence; repair tutorial input binding and current valid negative contrasts. No full performance, tails, compositor, accessibility, native SDK or release qualification.",
   "nativeWorkloads": {
     "receipt": {
       "path": "architecture-results/fit-1.8-20261015/native-workloads-1/owning-3/receipt.json",
@@ -148,5 +148,13 @@
     },
     "scope": "Actual fixed-corpus Task/Long iOS Simulator OS keyboard overwrite, full committed checkpoint/reopen, native input/layout and sampled task memory. No full native renderer, tail, compositor, peak/plateau, SDK or release qualification.",
     "remaining": "Original FIT-1.8/I1/I1-B/V1 open. Long native median575.7ms and input/layout911.6ms miss phone33ms;12-sample tails inconclusive under unchanged100 minimum. Full mixed native renderer, comparable tails/compositor, peak/plateau, full optional/table/highlighter/accessibility/target-runtime criteria and retained startup/Long/Brotli findings remain. Next: causal Long native commit/FFI/projection scaling repair before another feature measurement."
+  },
+  "nativeScalingPartial": {
+    "delivery": {
+      "path": "architecture-results/fit-1.8-20261015/native-scaling-2/partial-delivery-receipt.json",
+      "sha256": "74eda9c4aeff04db1e9c26165063a65ff60037ad5ae3e05db7ec8c04f7fb071c"
+    },
+    "state": "PARTIAL",
+    "scope": "Validated Rust preparation/trace prerequisite plus actual native observations and current browser refresh. Native ASCII first key failed; original FIT and B3 remain open. No native family is canonically admitted from a failed suite."
   }
 }

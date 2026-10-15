@@ -294,3 +294,44 @@ preserves the phone 33 ms target and minimum 100 tail samples; twelve-edit summa
 remain inconclusive. No compositor, full SDK, VoiceOver or physical thermal claim
 follows from this text-service envelope. Canonical admission rejects incomplete
 workload/corpus/resource/restoration evidence in addition to ASCII/Pinyin checks.
+
+PRF-07 causal scaling attribution uses an explicit native `fitness-trace` feature.
+The default ABI artifact has no diagnostic result fields. The instrumented build
+retains the same generated Swift ABI and semantic editor command path, but adds
+numeric Rust prepare, commit, detached-patch construction and JSON durations in
+`resultJson.fitnessTrace`. Workload samples split both actual anchor calls,
+request construction, enclosing synchronous FFI call, Swift decode, TextStorage
+projection, callback wait and TextKit layout. Request construction and callback
+wait are retained separately from engine, projection and layout work. The FFI residual includes executor scheduling,
+transfer and diagnostic encoding overhead; no zero-copy or uninstrumented latency
+claim follows. Admission rejects absent, reversed, negative or impossible spans.
+
+The shared editor prepares its first text command read-only against the unchanged
+original document, then rebinds and applies the prepared edits to its disposable
+batch. Later commands still prepare against staged state. This removes one full
+restore/validation without changing the final batch validation, exact-byte stale
+check, atomic commit, history or detached patch. Unit regressions compare encoded
+updates against the staged path on v4/v5 and exercise later rejection, stale plans,
+Unicode and undo/redo. `cargo run --release --locked --offline -p editac-ffi
+--features fitness-trace --example fitness-batch-cost -- <native-checkpoint.json>`
+retains host causal spans for the same twelve fixed-range edits. Host observations
+and instrumented target observations remain separate; twelve samples cannot
+qualify tails or the full performance/accessibility gate.
+
+The native workload driver requests UIKit focus through an actual app button and
+waits for the native first-responder selection handshake before OS key events.
+This avoids inferring focus from a tap in a large scrolled text surface. The
+ASCII scenario uses its existing focus action. Failed initial tap-only execution
+and screenshots remain retained; no input observations are prepared or replayed.
+The focus preflight confirms foreground activation and allows at most three
+actual 100ms button presses, each with a five-second native acknowledgment wait.
+Focus-request counters are retained before requesting UIKit focus; measured
+ASCII/Task/Long admission requires a nonzero bounded acknowledgment. These
+pre-measurement retries do not retry or substitute any measured edit.
+On a fresh simulator, dismissing the OS swipe tutorial is followed by a new
+UIKit text-service binding through the same focus button before the first key.
+The ASCII acknowledgment is retained in the committed-source case observation;
+workload acknowledgments are retained on their workload records. Negative ASCII
+and workload controls first validate their unchanged current runtime contrast,
+then mutate one fault. The canonical inventory retains their rejection reasons;
+trace-field controls require the intended timing/trace rejection specifically.

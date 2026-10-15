@@ -6,7 +6,7 @@ const geometry = r => r && ['x','y','width','height'].every(k => Number.isFinite
 // Fresh target execution, never an exemption for changed workspace manifests.
 export function inspectNativeBuild(receipt, { graph, rustc, library, app }) {
   const b = receipt.nativeBuild;
-  assert.deepEqual(b, { target:'aarch64-apple-ios-sim', package:'editac-ffi', profile:'release', features:'default',
+  assert.deepEqual(b, { target:'aarch64-apple-ios-sim', package:'editac-ffi', profile:'release', features:'fitness-trace',
     graphHash:digest(graph), rustcHash:digest(rustc), libraryHash:digest(library), measurementReuse:false });
   assert.match(graph.toString(), /^editac-ffi v0\.0\.0 /);
   assert.match(graph.toString(), /editac-core feature "default"/);
@@ -22,16 +22,21 @@ export function inspectNativeBuild(receipt, { graph, rustc, library, app }) {
   }
   const build = receipt.checks.find(c=>c.id==='native-build').command;
   for (const flag of ['+1.97.1','--lib','--release','--locked','--offline','--target aarch64-apple-ios-sim','-p editac-ffi']) assert(build.includes(flag));
-  assert(!/--(?:all-features|no-default-features|features)(?:\s|=|$)/.test(build));
+  assert(/--features fitness-trace(?:\s|$)/.test(build));
+  assert.equal((build.match(/--features/g)||[]).length,1);
+  assert(!/--(?:all-features|no-default-features)(?:\s|=|$)/.test(build));
+  assert.match(graph.toString(), /editac-ffi v0\.0\.0 .*fitness-trace/);
 }
 export function inspectNativeInput(profile, receipt, result, accessibility) {
+  const focusRequests = result.cases?.find(c => c.id === 'os-keyboard-committed-source')?.observed?.focusRequests;
+  assert(Number.isSafeInteger(focusRequests) && focusRequests >= 1 && focusRequests <= 3, 'missing actual native focus acknowledgment');
   assert.equal(profile.id, 'native-input-v1'); assert.equal(profile.version, 1);
   assert.equal(profile.scenario, 'ascii-keyboard-append/native-marked-cancel/checkpoint-reopen/accessibility-query-v1');
   assert.equal(profile.device, 'com.apple.CoreSimulator.SimDeviceType.iPhone-17');
   assert.equal(profile.runtime, 'com.apple.CoreSimulator.SimRuntime.iOS-26-5');
   assert.equal(profile.runtimeBuildVersion, '23F77'); assert.equal(profile.initialTextUtf8Bytes, 9); assert.equal(profile.initialUtf16Units, 6);
   assert.equal(profile.fixture, 'tests/native/fixtures/bounded-abi.json');
-  assert.deepEqual(profile.features, ['v5-native-engine','UITextView-TextKit1','generated-Swift-FFI','XCTest-OS-keyboard','XCTest-accessibility-client']);
+  assert.deepEqual(profile.features, ['v5-native-engine','UITextView-TextKit1','generated-Swift-FFI','XCTest-OS-keyboard','XCTest-accessibility-client','native-fitness-trace']);
   assert.equal(profile.typed, 'abcdefghijkl'); assert.equal(profile.samples, 12); assert.equal(profile.warmups, 0);
   assert.equal(profile.minimumTailSamples, 100); assert(Number.isFinite(Date.parse(profile.reviewedAt)));
   assert(Date.parse(profile.reviewedAt) <= Date.parse(receipt.startedUtc));
@@ -121,7 +126,9 @@ export function inspectNativeCJK(profile, receipt, result, ax) {
     if(e.marked) {assert.equal(e.committedBefore,e.committedAfter); assert(e.markedText.length>0); assert(geometry(e.markedRect)); assert(e.projected.startsWith(e.committedBefore));}
   }
   assert.equal(result.cases[0].observed.inputMode,'zh-Hans'); assert.equal(result.cases[0].observed.events,marked.length);
-  assert.deepEqual(result.cases[1].observed,{typed:'你',committed:expected,selectionUtf16:expected.length});
+  // This scenario enters the actual text control directly; unlike ASCII and
+  // workloads it does not press the app's focus-request button.
+  assert.deepEqual(result.cases[1].observed,{typed:'你',focusRequests:0,committed:expected,selectionUtf16:expected.length});
   const cancel=result.cases[2].observed;
   assert.equal(cancel.before,expected); assert.equal(cancel.after,expected); assert.equal(cancel.projectedAfter,expected); assert.equal(cancel.markedAfter,false);
   assert(cancel.projectedBefore.startsWith(expected) && cancel.projectedBefore!==expected); assert(geometry(cancel.markedRect)); assert(finite(cancel.at));
@@ -154,6 +161,7 @@ export function inspectNativeCJK(profile, receipt, result, ax) {
 // Actual Task/Long runtime proof; twelve samples remain diagnostic. A receipt
 // with only the small keyboard fixture cannot satisfy this envelope.
 export function inspectNativeWorkload(profile, receipt, result, fixture, initial, final, reopened, checkpoint, metadata) {
+  assert(Number.isSafeInteger(result.focusRequests) && result.focusRequests >= 1 && result.focusRequests <= 3, 'missing actual workload focus acknowledgment');
   const p = profile.workloads, i = p.names.indexOf(result.name);
   assert(i >= 0); assert.deepEqual(p.names,['Task','Long']); assert.deepEqual(p.blocks,[20,2000]);
   assert.deepEqual(p.textUtf8Bytes,[10240,1048576]); assert.equal(p.samples,12); assert.equal(p.warmups,0);
@@ -187,6 +195,13 @@ export function inspectNativeWorkload(profile, receipt, result, fixture, initial
   for(const [j,s] of result.samples.entries()) {
     const times=['inputAt','engineDoneAt','projectionDoneAt','layoutStartAt','layoutDoneAt'].map(k=>s[k]);
     assert(times.every(finite)&&times.every((t,k)=>k===0||t>=times[k-1]));
+    const spans=['inputAt','anchorDoneAt','focusDoneAt','batchStartAt','engineDoneAt','decodedAt','projectionDoneAt'].map(k=>s[k]);
+    assert(spans.every(finite)&&spans.every((t,k)=>k===0||t>=spans[k-1]),'native attribution timeline');
+    assert.equal(s.rustTrace?.version,1,'missing native Rust trace version');
+    const rustKeys=['prepareMs','commitMs','patchBuildMs','patchJsonMs','resultJsonMs'];
+    assert(rustKeys.every(k=>finite(s.rustTrace[k])),'missing native Rust span');
+    const rustTotal=rustKeys.reduce((sum,k)=>sum+s.rustTrace[k],0);
+    assert(rustTotal<=(s.engineDoneAt-s.batchStartAt)*1000+0.1,'Rust spans exceed enclosing actual FFI call');
     assert.equal(s.changedBlocks,1); assert.equal(s.replacementUtf16,1); assert.equal(s.rangeUtf16,setup.targetOffsetUtf16); assert.equal(s.removedUtf16,1);
     assert.equal(s.firstResponder,true); assert.equal(s.firstResponderAtFrame,true); assert.equal(s.inputMode,'en-US');
     assert(geometry(s.caretRect)); assert([0,1,2,3].includes(s.thermal)); assert(s.targetTimestamp>s.displayTimestamp);
@@ -203,7 +218,14 @@ export function inspectNativeWorkload(profile, receipt, result, fixture, initial
     restoration:{scope:'every snapshot field except session-local revision/changedNodes/touchedRanges; raw snapshots retained',beforeRevision:final.revision,reopenedRevision:reopened.revision},
     inputToLayoutCallbackMs:rawSummary(result.samples.map(s=>(s.layoutDoneAt-s.inputAt)*1000),100),
     nativeCommitMs:rawSummary(result.samples.map(s=>(s.engineDoneAt-s.inputAt)*1000),100),
-    projectionMs:rawSummary(result.samples.map(s=>(s.projectionDoneAt-s.engineDoneAt)*1000),100),
+    anchorMs:rawSummary(result.samples.map(s=>(s.anchorDoneAt-s.inputAt)*1000),100),
+    focusMs:rawSummary(result.samples.map(s=>(s.focusDoneAt-s.anchorDoneAt)*1000),100),
+    requestConstructionMs:rawSummary(result.samples.map(s=>(s.batchStartAt-s.focusDoneAt)*1000),100),
+    callbackWaitMs:rawSummary(result.samples.map(s=>(s.layoutStartAt-s.projectionDoneAt)*1000),100),
+    rust:Object.fromEntries(['prepareMs','commitMs','patchBuildMs','patchJsonMs','resultJsonMs'].map(k=>[k,rawSummary(result.samples.map(s=>s.rustTrace[k]),100)])),
+    ffiExecutorAndInstrumentationResidualMs:rawSummary(result.samples.map(s=>Math.max(0,(s.engineDoneAt-s.batchStartAt)*1000-['prepareMs','commitMs','patchBuildMs','patchJsonMs','resultJsonMs'].reduce((sum,k)=>sum+s.rustTrace[k],0))),100),
+    decodeMs:rawSummary(result.samples.map(s=>(s.decodedAt-s.engineDoneAt)*1000),100),
+    projectionMs:rawSummary(result.samples.map(s=>(s.projectionDoneAt-s.decodedAt)*1000),100),
     layoutMs:rawSummary(result.samples.map(s=>(s.layoutDoneAt-s.layoutStartAt)*1000),100),
     resources:result.resources,gaps:result.gaps};
 }
