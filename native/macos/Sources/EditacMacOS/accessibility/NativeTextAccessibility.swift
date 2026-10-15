@@ -6,7 +6,7 @@ import AppKit
 @MainActor
 public final class NativeTextAccessibility {
     private weak var view: NativeEditorView?
-    public var label = "Document editor"
+    public var label: String?
     init(view: NativeEditorView) { self.view = view }
 
     var help: String {
@@ -20,8 +20,7 @@ public final class NativeTextAccessibility {
     }
 
     func valid(_ range: NSRange) -> Bool {
-        guard let view, !view.isDisposed else { return false }
-        let text = view.textView.string as NSString
+        guard let view, !view.isDisposed, let text = view.textView.textStorage?.mutableString else { return false }
         guard range.location != NSNotFound, range.location <= text.length,
               range.length <= text.length - range.location else { return false }
         // UTF-16 ranges may not split a scalar (including either half of emoji).

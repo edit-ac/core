@@ -17,7 +17,7 @@ final class AccessibilityTextTests: XCTestCase {
         guard case let .snapshot(snapshot) = try await send(view, .read(now: 0)) else { throw Unexpected() }
         return snapshot
     }
-    private func fixture(_ text: String = "A🦀 אבג e\u{301} Z", body: (NativeEditorView, NSWindow) async throws -> Void) async throws {
+    private func fixture(_ text: String = "A🦀 אבג e\u{301} Z", body: @MainActor (NativeEditorView, NSWindow) async throws -> Void) async throws {
         _ = NSApplication.shared
         if !Self.launched {
             NSApp.setActivationPolicy(.regular); NSApp.finishLaunching(); Self.launched = true
@@ -155,7 +155,7 @@ final class AccessibilityTextTests: XCTestCase {
                 trace("NAT-13 magnification=\(scale) screenFrame=\(frame) hit=\(index)")
             }
             XCTAssertGreaterThan(heights[2], heights[0])
-            let last = NSRange(location: (text.string as NSString).length - 3, length: 2)
+            let last = NSRange(location: (text.string as NSString).length - 2, length: 2)
             text.scrollRangeToVisible(last)
             let visible = text.accessibilityVisibleCharacterRange()
             XCTAssertGreaterThan(visible.location + visible.length, last.location)
@@ -165,6 +165,11 @@ final class AccessibilityTextTests: XCTestCase {
             text.layoutManager?.ensureLayout(for: text.textContainer!)
             XCTAssertEqual(text.accessibilityString(for: NSRange(location: 4, length: 3)), "אבג")
             XCTAssertGreaterThan(text.accessibilityFrame(for: NSRange(location: 4, length: 3)).width, 0)
+            text.setAccessibilitySelectedTextRange(NSRange(location: 5, length: 0))
+            text.moveLeft(nil)
+            XCTAssertEqual(text.accessibilitySelectedTextRange(), text.selectedRange())
+            XCTAssertNotEqual(text.selectedRange().location, 5)
+            XCTAssertGreaterThan(text.accessibilityFrame(for: text.selectedRange()).height, 0)
             trace("NAT-13 after-edit current geometry; previous=\(before)")
         }
     }
@@ -211,6 +216,9 @@ final class AccessibilityTextTests: XCTestCase {
                 XCTAssertNotNil(view.textView.accessibilityString(for: NSRange(location: 0, length: 1)))
                 original?(update)
                 XCTAssertEqual(view.textView.accessibilityValue() as? String, view.textView.string)
+                view.textView.setAccessibilityValue("recursive overwrite")
+                XCTAssertTrue(view.input.isPending, "accepted edit stays pending through projection callback")
+                XCTAssertNotEqual(view.textView.string, "recursive overwrite")
                 view.textView.textStorage?.endEditing()
                 XCTAssertGreaterThan(view.textView.accessibilityFrame(for: NSRange(location: 0, length: 1)).height, 0)
                 traces += 1

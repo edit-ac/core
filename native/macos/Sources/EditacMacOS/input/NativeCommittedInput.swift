@@ -38,7 +38,7 @@ public final class NativeCommittedInput: NSObject, NSTextViewDelegate {
         guard let view, !view.isDisposed, !view.applyingProjection else { return }
         view.projection.refreshTypingStyle()
         view.commands.refreshControls()
-        NSAccessibility.post(element: textView, notification: .selectedTextChanged)
+        NSAccessibility.post(element: view.textView, notification: .selectedTextChanged)
     }
 
     private func route(range: NSRange, replacement: String?) {

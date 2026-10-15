@@ -11,7 +11,7 @@ public struct NativeReplacementTarget: Sendable {
 /// marked text is written locally; committed content always enters the Session.
 @MainActor
 final class NativeInputTextView: NSTextView {
-    override func accessibilityLabel() -> String? { editor?.accessibility.label }
+    override func accessibilityLabel() -> String? { editor?.accessibility.label ?? super.accessibilityLabel() }
     override func accessibilityHelp() -> String? { editor?.accessibility.help }
     override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? { editor?.accessibility.actions }
     override func setAccessibilityValue(_ value: Any?) {
