@@ -815,6 +815,8 @@ dependencies = [
  "syntect",
  "two-face",
  "wasm-bindgen",
+]
+
 [[package]]
 name = "editac-html"
 version = "0.0.0"
