@@ -134,6 +134,15 @@ does not observe paint; no tail or performance qualification is inferred.
 Highlight/asset/conversion adapters remain pending. Resource limits are fixed in
 `services-v1.json` before measurement; performance thresholds remain unreviewed.
 
+The service producer admits the existing optional-loading source build before
+launching its matrix. It retains the receipt, three build commands/logs and five
+WASM/glue outputs, checks the current source closure, and executes the matching
+engine WASM, wrapper and shared runtime. Admission rebuilds the service bundle
+and rejects missing/stale/failed build proof or substituted runtime bytes. A new
+source closure requires a fresh complete service execution; historical raw
+observations cannot be repinned. This provenance does not qualify pending
+providers or add performance limits.
+
 The monitor's native link/session integration changed broad source pins in older
 browser receipts without changing the browser dependency closure. The bounded
 `browser-source-reuse.json` policy admits only those exact before/after Git

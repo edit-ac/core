@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { validateBaselinePolicy } from './architecture-budgets.mjs';
 
 export function validateServicePolicy(profile, record) {
@@ -10,6 +11,44 @@ export function validateServicePolicy(profile, record) {
 const require = (ok, message) => { if (!ok) throw Error(message); };
 const finite = x => Number.isFinite(x) && x >= 0;
 const pin = x => typeof x === 'string' && /^[a-f0-9]{64}$/.test(x);
+export function serviceInputs(root) {
+  const tracked = spawnSync('git', ['ls-files', 'crates', 'packages', 'fixtures/schema-v5', 'Cargo.lock', 'Cargo.toml', 'package-lock.json', 'package.json'], { cwd: root, encoding: 'utf8' });
+  require(tracked.status === 0, 'Cannot pin service source closure');
+  return [...new Set([...tracked.stdout.trim().split('\n'), 'benchmarks/profiles/services-v1.json', 'benchmarks/profiles/fitness-v1.json',
+    'benchmarks/config.json', 'scripts/architecture-budgets.mjs', 'contracts/services.json', 'benchmarks/service-client.mjs',
+    'benchmarks/fixtures.mjs', 'benchmarks/presets.mjs', 'scripts/service-evidence.mjs', 'scripts/bench-services.mjs',
+    'scripts/optional-loading-evidence.mjs',
+    'scripts/build-wasm.mjs', 'scripts/share-wasm-glue.mjs', 'scripts/build-wasm-notices.mjs', 'scripts/test-toolchain.mjs',
+    'rust-toolchain.toml', '.node-version', 'tsconfig.base.json'])].sort();
+}
+export function serviceBuildProof(optional, receiptHash) {
+  return { version: 1, source: 'optional-loading-v3', receiptHash, startedAt: optional.startedAt,
+    outputs: optional.buildOutputs,
+    commands: optional.commands.slice(0, 3).map(c => ({ label: c.label, command: c.command, exit: c.exit, log: c.log, sha256: c.sha256 })) };
+}
+export function inspectServiceBuild(record, optional) {
+  const proof = record.buildProvenance;
+  require(proof?.version === 1 && proof.source === 'optional-loading-v3' && pin(proof.receiptHash), 'Missing service source build');
+  require(proof.receiptHash === record.metadata?.optionalLoading?.receiptHash && record.artifacts?.['inputs/optional-loading.json'] === proof.receiptHash, 'Service build receipt mismatch');
+  require(Number.isFinite(Date.parse(proof.startedAt)) && Date.parse(proof.startedAt) < Date.parse(record.metadata.startedAt), 'Service source build must precede execution');
+  const files = ['packages/core/dist/wasm/editac_wasm_bg.wasm', 'packages/core/dist/wasm/editac_wasm.js', 'packages/core/dist/wasm/editac_runtime.js',
+    'packages/markdown/dist/wasm/editac_markdown_wasm_bg.wasm', 'packages/markdown/dist/wasm/editac_markdown_wasm.js'];
+  require(JSON.stringify(Object.keys(proof.outputs ?? {}).sort()) === JSON.stringify(files.sort()) && files.every(f => pin(proof.outputs[f])), 'Incomplete service source build outputs');
+  require(proof.commands?.length === 3, 'Missing service source build commands');
+  for (const [i, label, args] of [[0, 'build-engine-wasm', ['scripts/build-wasm.mjs']], [1, 'build-markdown-wasm', ['scripts/build-wasm.mjs', '--markdown']], [2, 'build-packages', ['run', 'build']]]) {
+    const c = proof.commands[i];
+    require(c.label === label && c.exit === 0 && c.command?.length === args.length + 1 && JSON.stringify(c.command.slice(1)) === JSON.stringify(args) && (i === 2 ? c.command[0] === 'npm' : c.command[0] === record.metadata.command[0]) && pin(c.sha256) && typeof c.log === 'string' && record.artifacts[`source-build/${c.log}`] === c.sha256, 'Failed/wrong service source build');
+  }
+  for (const file of files) require(record.artifacts[`source-build/${file}`] === proof.outputs[file], 'Retained service build output mismatch');
+  for (const file of files.filter(f => f.startsWith('packages/core/'))) {
+    const asset = file.split('/wasm/')[1];
+    require(record.artifacts[`harness/wasm/${asset}`] === proof.outputs[file], 'Executed service WASM/glue differs from source build');
+  }
+  if (optional) {
+    require(JSON.stringify(proof) === JSON.stringify(serviceBuildProof(optional, proof.receiptHash)), 'Retained service source build mismatch');
+    for (const [file, hash] of Object.entries(optional.sourceInputs)) if (Object.hasOwn(record.sourceInputs, file)) require(hash === record.sourceInputs[file], `Service build source mismatch: ${file}`);
+  }
+}
 export function inspectService(profile, item, o) {
   require(o && profile.requiredObservations.includes(o.kind), 'Unknown observation');
   if (o.kind === 'queue') {

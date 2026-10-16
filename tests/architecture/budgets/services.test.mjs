@@ -1,13 +1,13 @@
 import { build } from 'esbuild';
-import { spawnSync } from 'node:child_process';
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { digest, verifyPins, validateFitnessProfile } from '../../../scripts/architecture-budgets.mjs';
+import { admitOptionalLoading } from '../../../scripts/optional-loading-evidence.mjs';
 import { verifyBrowserSources } from '../../../scripts/browser-source-reuse.mjs';
-import { inspectServices, validateServicePolicy } from '../../../scripts/service-evidence.mjs';
+import { inspectServices, validateServicePolicy, serviceInputs, serviceBuildProof, inspectServiceBuild } from '../../../scripts/service-evidence.mjs';
 import { fixture } from '../../../benchmarks/fixtures.mjs';
 import { presets } from '../../../benchmarks/presets.mjs';
 const root = fileURLToPath(new URL('../../../', import.meta.url));
@@ -23,11 +23,15 @@ test('owning actual editor/lifecycle/resolver/sync matrix retains exact sources,
   validateServicePolicy(fitnessPolicy, record);
   assert.equal(record.status, 'diagnostic'); assert.deepEqual(record.errors, []);
   assert.equal(index.resultsHash, digest(resultBytes)); assert.equal(record.profileHash, digest(profileBytes));
-  const tracked = spawnSync('git', ['ls-files', 'crates', 'packages', 'fixtures/schema-v5', 'Cargo.lock', 'Cargo.toml', 'package-lock.json', 'package.json', 'scripts/build-wasm.mjs'], { cwd: root, encoding: 'utf8' }); assert.equal(tracked.status, 0);
-  const inputs = [...new Set([...tracked.stdout.trim().split('\n'), 'benchmarks/profiles/services-v1.json', 'benchmarks/profiles/fitness-v1.json', 'benchmarks/config.json', 'scripts/architecture-budgets.mjs', 'contracts/services.json', 'benchmarks/service-client.mjs', 'benchmarks/fixtures.mjs', 'benchmarks/presets.mjs', 'scripts/service-evidence.mjs', 'scripts/bench-services.mjs'])];
-  assert.deepEqual(Object.keys(record.sourceInputs).sort(), inputs.sort());
+  assert.deepEqual(Object.keys(record.sourceInputs).sort(), serviceInputs(root));
   await verifyPins(root, record.sourceInputs); await verifyPins(resolve(root, index.directory), record.artifacts);
-  for (const file of ['editac_wasm.js', 'editac_wasm_bg.wasm']) assert.equal(digest(await read(`packages/core/dist/wasm/${file}`)), record.artifacts[`harness/wasm/${file}`]);
+  for (const file of ['editac_wasm.js', 'editac_wasm_bg.wasm', 'editac_runtime.js']) assert.equal(digest(await read(`packages/core/dist/wasm/${file}`)), record.artifacts[`harness/wasm/${file}`]);
+  const optionalBytes = await read(`${record.metadata.optionalLoading.directory}/optional-loading.json`);
+  assert.equal(digest(optionalBytes), record.metadata.optionalLoading.receiptHash);
+  const optional = JSON.parse(optionalBytes);
+  await admitOptionalLoading(root, record.metadata.optionalLoading.directory, optional);
+  assert.deepEqual(JSON.parse(await read(`${index.directory}/inputs/optional-loading.json`)), optional);
+  inspectServiceBuild(record, optional);
   const rebuilt = await build({ stdin: { contents: 'export {createEditor,taskPreset,CheckpointStorage} from "@edit-ac/web"; export {init} from "@edit-ac/core"; export {ServiceLifecycle,ReferenceLookupSession} from "@edit-ac/web/modules"; export {DirectSyncAdapter} from "./packages/web/src/sync/protocol.ts";', resolveDir: root },
     write: false, bundle: true, minify: true, format: 'esm', platform: 'browser', target: 'es2022' });
   assert.equal(digest(rebuilt.outputFiles[0].contents), record.artifacts['harness/sdk.js'], 'Changed service executable; historical observations cannot be reused');
@@ -83,6 +87,28 @@ for (const [name, change] of [
   ['stale policy review', r => r.metadata.verificationPolicy.reviewedAt = '2000-01-01T00:00:00.000Z'],
   ['measurement before review', r => r.metadata.startedAt = fitnessPolicy.reviewedAt],
 ]) test(`service policy rejects ${name}`, () => assert.throws(() => validateServicePolicy(fitnessPolicy, mutate(change))));
+for (const [name, change] of [
+  ['missing build', r => delete r.buildProvenance],
+  ['stale receipt', r => r.buildProvenance.receiptHash = '0'.repeat(64)],
+  ['missing receipt', r => delete r.artifacts['inputs/optional-loading.json']],
+  ['future build', r => r.buildProvenance.startedAt = r.metadata.startedAt],
+  ['missing output', r => delete r.buildProvenance.outputs['packages/core/dist/wasm/editac_runtime.js']],
+  ['unretained output', r => delete r.artifacts['source-build/packages/core/dist/wasm/editac_wasm_bg.wasm']],
+  ['different executed WASM', r => r.artifacts['harness/wasm/editac_wasm_bg.wasm'] = '0'.repeat(64)],
+  ['different executed glue', r => r.artifacts['harness/wasm/editac_runtime.js'] = '0'.repeat(64)],
+  ['missing command', r => r.buildProvenance.commands.pop()],
+  ['failed source build', r => r.buildProvenance.commands[0].exit = 1],
+  ['wrong source build', r => r.buildProvenance.commands[0].command.push('--markdown')],
+  ['unretained log', r => delete r.artifacts[`source-build/${r.buildProvenance.commands[0].log}`]],
+]) test(`service source build rejects ${name}`, () => assert.throws(() => inspectServiceBuild(mutate(change))));
+test('service source build rejects changed upstream inputs and command identities', async () => {
+  const optional = JSON.parse(await read(`${record.metadata.optionalLoading.directory}/optional-loading.json`));
+  const stale = structuredClone(optional); stale.sourceInputs['Cargo.lock'] = '0'.repeat(64);
+  assert.throws(() => inspectServiceBuild(record, stale), /source mismatch/);
+  const wrong = structuredClone(optional); wrong.commands[0].label = 'prepared';
+  assert.throws(() => inspectServiceBuild(record, wrong), /build mismatch/);
+  assert.deepEqual(record.buildProvenance, serviceBuildProof(optional, record.metadata.optionalLoading.receiptHash));
+});
 test('resource/matrix/method drift and unreviewed performance qualification fail admission', () => {
   for (const change of [p => p.limits.queue++, p => p.fixtures.pop(), p => p.burst--, p => p.editMethod = 'truncate', p => p.performanceLimits = { latencyMs: 999 }]) {
     const p = structuredClone(profile); change(p); assert.throws(() => inspectServices(p, record));
