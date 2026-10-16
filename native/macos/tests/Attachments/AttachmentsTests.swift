@@ -31,7 +31,6 @@ final class AttachmentsTests: XCTestCase {
     }
     private func fixture(_ body: @MainActor (NativeEditorView, [String: Any]) async throws -> Void) async throws {
         _ = NSApplication.shared
-        _ = NSApplication.shared
         if !Self.launched { NSApp.setActivationPolicy(.regular); NSApp.finishLaunching(); Self.launched = true }
         guard let path = ProcessInfo.processInfo.environment["EDITAC_MACOS_ATTACHMENT_FIXTURE"] else {
             XCTFail("Missing actual Rust/SQLite attachment fixture; no DTO or skip substitute"); throw FixtureError()
@@ -94,7 +93,7 @@ final class AttachmentsTests: XCTestCase {
             attempts += 1
             NSApp.activate(ignoringOtherApps: true)
             window.makeKeyAndOrderFront(nil); window.makeFirstResponder(textView)
-            if window.isKeyWindow || attempts >= 100 {
+            if NSApp.isActive && window.isKeyWindow && window.firstResponder === textView || attempts >= 100 {
                 NSApp.stop(nil)
                 NSApp.postEvent(NSEvent.otherEvent(with: .applicationDefined, location: .zero, modifierFlags: [],
                     timestamp: 0, windowNumber: 0, context: nil, subtype: 0, data1: 0, data2: 0)!, atStart: true)
@@ -104,9 +103,12 @@ final class AttachmentsTests: XCTestCase {
             }
             if stop { timer.invalidate() }
         }
-        NSApp.run(); window.makeKey(); window.makeFirstResponder(view.textView)
+        NSApp.run()
+        XCTAssertTrue(NSApp.isActive)
+        XCTAssertTrue(window.isKeyWindow)
+        XCTAssertTrue(window.firstResponder === view.textView)
+        print("NATIVE_FOCUS active=\(NSApp.isActive) key=\(window.isKeyWindow) responder=\(window.firstResponder === view.textView) attempts=\(attempts)")
         view.commands.refreshControls()
-        XCTAssertTrue(window.isKeyWindow, "active=\(NSApp.isActive) visible=\(window.isVisible) eligible=\(window.canBecomeKey)")
     }
     private func perform(_ view: NativeEditorView, _ action: () throws -> Void) async throws {
         let wait = CommandWait()

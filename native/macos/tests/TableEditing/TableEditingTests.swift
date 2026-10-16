@@ -109,7 +109,7 @@ final class TableEditingTests: XCTestCase {
             attempts += 1
             NSApp.activate(ignoringOtherApps: true)
             window.makeKeyAndOrderFront(nil); window.makeFirstResponder(textView)
-            if window.isKeyWindow || attempts >= 100 {
+            if NSApp.isActive && window.isKeyWindow && window.firstResponder === textView || attempts >= 100 {
                 NSApp.stop(nil)
                 NSApp.postEvent(NSEvent.otherEvent(with: .applicationDefined, location: .zero, modifierFlags: [],
                     timestamp: 0, windowNumber: 0, context: nil, subtype: 0, data1: 0, data2: 0)!, atStart: true)
@@ -119,8 +119,11 @@ final class TableEditingTests: XCTestCase {
             }
             if stop { timer.invalidate() }
         }
-        NSApp.run(); window.makeKey()
+        NSApp.run()
+        XCTAssertTrue(NSApp.isActive)
         XCTAssertTrue(window.isKeyWindow)
+        XCTAssertTrue(window.firstResponder === view.textView)
+        print("NATIVE_FOCUS active=\(NSApp.isActive) key=\(window.isKeyWindow) responder=\(window.firstResponder === view.textView) attempts=\(attempts)")
     }
     private func perform(_ view: NativeEditorView, _ action: () throws -> Void) async throws {
         let wait = CommandWait()
