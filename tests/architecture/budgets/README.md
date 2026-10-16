@@ -280,19 +280,36 @@ identity, linked static library and app executable. Admission compares the graph
 and compiler with the current checkout/toolchain and verifies every artifact.
 Workspace changes do not grant a source exception or permit relabeling previous
 measurements. Changed native inputs require a fresh owning execution here.
-Both drivers tap the native text view and require its UIKit editing-begin
+Both drivers activate the native focus control and require its UIKit editing-begin
 callback to observe first-responder ownership and the expected input mode before
 typing. A button tap or a cached visible keyboard does not establish readiness.
 The append selection is installed after UIKit finishes handling the focus tap;
 otherwise the native tap can overwrite selection and compose before the seed.
 Automatic capitalization is disabled for the reviewed lowercase key sequence.
-The CJK driver requires the Pinyin input mode and presses each hittable software key
-for 0.1 seconds. ASCII verifies the visible keyboard and dispatches each character
+The CJK driver requires the Pinyin input mode and visible hittable software keys,
+then dispatches each character once through the same OS keyboard-events API.
+Native marked text and actual candidate commit/cancellation remain mandatory;
+literal direct insertion cannot satisfy the scenario. Software-key touches that
+produced no native callback despite acknowledged focus remain failed evidence.
+ASCII verifies the visible keyboard and dispatches each character
 once through XCTest's application keyboard-events API (`typeText`), which requires
 a focused descendant. It never sets text directly or retries an unacknowledged key.
+If a fresh English keyboard presents the OS slide-typing tutorial, ASCII sends
+one ordinary touch at the observed Continue button center, requires actual
+dismissal and retains a timestamped activation attachment before reacquiring
+UIKit focus. A sustained press that leaves the tutorial visible is a failed
+interaction, not permission to suppress system UI or replay input.
 ASCII observations assert native focus before/after commit and
 at the display callback; CJK marked text and the selected candidate must still
 be observed. Readiness and key dispatch alone cannot pass either scenario.
+Both append scenarios now use the explicit native focus action and require
+keyboard-did-show, installed end selection, matching input mode and key-window
+ownership before readiness is exposed. Those clocks and selection are retained
+and admitted with missing/reversed/wrong-selection negative controls. The
+fixture keeps focus/cancel/verify actions in the safe top row; XCTest requires
+verification to remain outside the active keyboard frame. This preserves the
+editor and full workload geometry while preventing OS input from covering the
+verification control.
 
 The same owning command additionally runs the frozen `profile.cjk` scenario on
 that private simulator, configured with English and Simplified Chinese Pinyin.

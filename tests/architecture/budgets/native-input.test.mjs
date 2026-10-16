@@ -103,6 +103,9 @@ test('native OS keyboard, accessibility client, semantic preservation and displa
   observations = inspectNativeInput(profile,receipt,result,accessibility);
 });
 const mutations = {
+  'missing append focus clocks': (r,n) => delete n.focusReadiness,
+  'reversed append focus clocks': (r,n) => n.focusReadiness.readyAt=0,
+  'wrong append focus selection': (r,n) => n.focusReadiness.selectionUtf16=[0,0],
   'missing native focus acknowledgment': (r,n) => delete n.cases.find(c=>c.id==='os-keyboard-committed-source').observed.focusRequests,
   'unbounded native focus retries': (r,n) => n.cases.find(c=>c.id==='os-keyboard-committed-source').observed.focusRequests=4,
   'skipped native case': (r,n) => n.counts.skipped++,
@@ -140,7 +143,12 @@ test('OS Pinyin candidate composition, commit, cancellation and accessibility ge
   cjkObservations=inspectNativeCJK(profile,receipt,cjk,cjkAX);
 });
 const cjkMutations={
-  'invented CJK focus request':(r,n)=>n.cases[1].observed.focusRequests=1,
+  'missing CJK focus request':(r,n)=>n.cases[1].observed.focusRequests=0,
+  'unbounded CJK focus requests':(r,n)=>n.cases[1].observed.focusRequests=4,
+  'missing CJK focus clocks':(r,n)=>delete n.focusReadiness,
+  'wrong CJK focus selection':(r,n)=>n.focusReadiness.selectionUtf16=[0,0],
+  'reversed CJK focus clocks':(r,n)=>n.focusReadiness.readyAt=0,
+  'missing OS CJK dispatch transport':(r,n,a)=>delete a.transport,
   'missing marked input':(r,n)=>n.compositionEvents=n.compositionEvents.filter(e=>!e.marked),
   'wrong keyboard':(r,n)=>n.compositionEvents[0].inputMode='en-US',
   'marked text commits early':(r,n)=>n.compositionEvents.find(e=>e.marked).committedAfter+='x',

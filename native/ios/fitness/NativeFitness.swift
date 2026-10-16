@@ -69,6 +69,9 @@ final class FitnessController: UIViewController, UITextViewDelegate {
     var errors: [String] = []
     var attempts: [[String: Any]] = []
     var focusRequests = 0
+    var keyboardShownAt: CFTimeInterval?
+    var selectionInstalledAt: CFTimeInterval?
+    var focusReadiness: [String: Any] = [:]
     var display: CADisplayLink?
     var composing = false
     var keyboardToken: NSObjectProtocol?
@@ -119,7 +122,10 @@ final class FitnessController: UIViewController, UITextViewDelegate {
         } catch { errors.append(String(describing: error)); status.text = "setup failed" }
         keyboardToken = NotificationCenter.default.addObserver(forName: UIResponder.keyboardDidShowNotification, object: nil, queue: .main) { [weak self] n in
             let r = (n.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue ?? .zero
-            self?.keyboards.append(["at": CACurrentMediaTime(), "frame": rect(r), "local": n.userInfo?[UIResponder.keyboardIsLocalUserInfoKey] as? Bool ?? false])
+            let at = CACurrentMediaTime()
+            self?.keyboards.append(["at": at, "frame": rect(r), "local": n.userInfo?[UIResponder.keyboardIsLocalUserInfoKey] as? Bool ?? false])
+            self?.keyboardShownAt = at
+            self?.completeAppendFocus()
         }
         display = CADisplayLink(target: self, selector: #selector(frame(_:)))
         display?.add(to: .main, forMode: .common)
@@ -135,17 +141,21 @@ final class FitnessController: UIViewController, UITextViewDelegate {
         editor.frame = CGRect(x: 20, y: top + 50, width: width, height: 300)
         committedLabel.frame = CGRect(x: 20, y: top + 355, width: width, height: 25)
         status.frame = CGRect(x: 20, y: top + 385, width: width, height: 40)
+        // Every action must remain above the software keyboard, including
+        // verification while the editor still owns the real input session.
+        let actionWidth = (view.bounds.width - 60) / 3
         for button in view.subviews.compactMap({ $0 as? UIButton }) {
             switch button.accessibilityIdentifier {
-            case "focus-append": button.frame = CGRect(x: 20, y: top, width: 170, height: 40)
-            case "cancel-composition": button.frame = CGRect(x: 200, y: top, width: 170, height: 40)
-            case "verify-source": button.frame = CGRect(x: 20, y: top + 435, width: width, height: 40)
+            case "focus-append": button.frame = CGRect(x: 20, y: top, width: actionWidth, height: 40)
+            case "cancel-composition": button.frame = CGRect(x: 30 + actionWidth, y: top, width: actionWidth, height: 40)
+            case "verify-source": button.frame = CGRect(x: 40 + 2 * actionWidth, y: top, width: actionWidth, height: 40)
             default: break
             }
         }
     }
     @objc func focusAppend() {
         focusRequests += 1
+        selectionInstalledAt = nil; focusReadiness = [:]
         partial()
         // Rebind after first-run keyboard UI as well as a language relaunch.
         // The swipe tutorial can leave visible keys and acknowledged focus
@@ -155,7 +165,6 @@ final class FitnessController: UIViewController, UITextViewDelegate {
         editor.becomeFirstResponder()
         editor.reloadInputViews()
         editor.selectedRange = NSRange(location: editor.textStorage.length, length: 0)
-        if cjk { status.accessibilityValue = editor.isFirstResponder && editor.textInputMode?.primaryLanguage == "zh-Hans" ? "pinyin-ready" : "focus failed" }
         partial()
     }
     func textViewDidBeginEditing(_ textView: UITextView) {
@@ -167,15 +176,28 @@ final class FitnessController: UIViewController, UITextViewDelegate {
         DispatchQueue.main.async { [weak self, weak textView] in
             guard let self = self, let textView = textView else { return }
             textView.selectedRange = NSRange(location: textView.textStorage.length, length: 0)
-            self.status.accessibilityValue = textView.isFirstResponder && textView.textInputMode?.primaryLanguage == (self.cjk ? "zh-Hans" : "en-US") ? (self.cjk ? "pinyin-ready" : "ascii-ready") : "focus failed"
+            self.selectionInstalledAt = CACurrentMediaTime()
+            self.completeAppendFocus()
             self.partial()
         }
+    }
+    func completeAppendFocus() {
+        let mode = cjk ? "zh-Hans" : "en-US"
+        guard let keyboardAt = keyboardShownAt, let selectionAt = selectionInstalledAt,
+              editor.isFirstResponder, editor.window?.isKeyWindow == true,
+              editor.selectedRange == NSRange(location: editor.textStorage.length, length: 0),
+              editor.textInputMode?.primaryLanguage == mode else { return }
+        focusReadiness = ["keyboardDidShowAt": keyboardAt, "selectionInstalledAt": selectionAt,
+            "readyAt": CACurrentMediaTime(), "keyWindow": true,
+            "selectionUtf16": [editor.textStorage.length, 0], "inputMode": mode]
+        status.accessibilityValue = cjk ? "pinyin-ready" : "ascii-ready"
+        partial()
     }
     func partial() {
         let value: [String: Any] = ["errors": errors, "attempts": attempts, "typed": typed, "focusRequests": focusRequests,
             "firstResponder": editor.isFirstResponder, "inputMode": editor.textInputMode?.primaryLanguage ?? "unavailable",
             "committed": (try? text(engine)) ?? "unavailable", "projected": editor.text ?? "",
-            "selectionUtf16": editor.selectedRange.location, "samples": samples, "frames": frameTrace, "compositionEvents": compositionEvents, "cancellation": cancellation, "inputModes": UITextInputMode.activeInputModes.map { $0.primaryLanguage ?? "unknown" }]
+            "selectionUtf16": editor.selectedRange.location, "focusReadiness": focusReadiness, "samples": samples, "frames": frameTrace, "compositionEvents": compositionEvents, "cancellation": cancellation, "inputModes": UITextInputMode.activeInputModes.map { $0.primaryLanguage ?? "unknown" }]
         let path = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent(cjk ? "cjk-partial.json" : "partial.json")
         if let bytes = try? fitnessJSON(value) { try? Data(bytes.utf8).write(to: path, options: .atomic) }
     }
@@ -322,7 +344,7 @@ final class FitnessController: UIViewController, UITextViewDelegate {
         let failed = cases.filter { $0["state"] as? String == "failed" }.count
         let record: [String: Any] = ["version": 1, "qualification": "unqualified", "cases": cases,
             "counts": ["executed": cases.count, "passed": cases.count-failed, "failed": failed, "skipped": 0],
-            "samples": samples, "frames": frameTrace, "keyboards": keyboards, "errors": errors, "compositionEvents": compositionEvents,
+            "focusReadiness": focusReadiness, "samples": samples, "frames": frameTrace, "keyboards": keyboards, "errors": errors, "compositionEvents": compositionEvents,
             "host": ["system": UIDevice.current.systemVersion, "physical": false, "locale": Locale.current.identifier,
                 "thermalStart": thermalStart, "thermalEnd": ProcessInfo.processInfo.thermalState.rawValue,
                 "inputModes": UITextInputMode.activeInputModes.map { $0.primaryLanguage ?? "unknown" }],
@@ -384,7 +406,7 @@ final class FitnessController: UIViewController, UITextViewDelegate {
         let failed = cases.filter { $0["state"] as? String == "failed" }.count
         let record: [String: Any] = ["version": 1, "qualification": "unqualified", "cases": cases,
             "counts": ["executed": cases.count, "passed": cases.count-failed, "failed": failed, "skipped": 0],
-            "samples": samples, "frames": frameTrace, "keyboards": keyboards, "errors": errors,
+            "focusReadiness": focusReadiness, "samples": samples, "frames": frameTrace, "keyboards": keyboards, "errors": errors,
             "host": ["system": UIDevice.current.systemVersion, "model": UIDevice.current.model, "physical": false,
                 "thermalStart": thermalStart, "thermalEnd": ProcessInfo.processInfo.thermalState.rawValue,
                 "thermalScope": "simulator ProcessInfo observation; physical thermal behavior unavailable", "locale": Locale.current.identifier,

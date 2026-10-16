@@ -27,7 +27,15 @@ export function inspectNativeBuild(receipt, { graph, rustc, library, app }) {
   assert(!/--(?:all-features|no-default-features)(?:\s|=|$)/.test(build));
   assert.match(graph.toString(), /editac-ffi v0\.0\.0 .*fitness-trace/);
 }
+function inspectAppendFocus(result, mode, initialUnits) {
+  const r = result.focusReadiness;
+  assert(r && finite(r.keyboardDidShowAt) && finite(r.selectionInstalledAt) && finite(r.readyAt), 'missing native append focus clocks');
+  assert(r.keyboardDidShowAt <= r.readyAt && r.selectionInstalledAt <= r.readyAt, 'reversed native append focus clocks');
+  assert.equal(r.keyWindow, true); assert.equal(r.inputMode, mode);
+  assert.deepEqual(r.selectionUtf16, [initialUnits, 0]);
+}
 export function inspectNativeInput(profile, receipt, result, accessibility) {
+  inspectAppendFocus(result, 'en-US', profile.initialUtf16Units);
   const focusRequests = result.cases?.find(c => c.id === 'os-keyboard-committed-source')?.observed?.focusRequests;
   assert(Number.isSafeInteger(focusRequests) && focusRequests >= 1 && focusRequests <= 3, 'missing actual native focus acknowledgment');
   assert.equal(profile.id, 'native-input-v1'); assert.equal(profile.version, 1);
@@ -126,9 +134,11 @@ export function inspectNativeCJK(profile, receipt, result, ax) {
     if(e.marked) {assert.equal(e.committedBefore,e.committedAfter); assert(e.markedText.length>0); assert(geometry(e.markedRect)); assert(e.projected.startsWith(e.committedBefore));}
   }
   assert.equal(result.cases[0].observed.inputMode,'zh-Hans'); assert.equal(result.cases[0].observed.events,marked.length);
-  // This scenario enters the actual text control directly; unlike ASCII and
-  // workloads it does not press the app's focus-request button.
-  assert.deepEqual(result.cases[1].observed,{typed:'你',focusRequests:0,committed:expected,selectionUtf16:expected.length});
+  inspectAppendFocus(result, 'zh-Hans', profile.initialUtf16Units);
+  assert.equal(ax.transport, 'XCTest application KeyboardEvents.typeText; one dispatch per key, no replay or setter');
+  const focusRequests = result.cases[1].observed.focusRequests;
+  assert(Number.isSafeInteger(focusRequests) && focusRequests >= 1 && focusRequests <= 3, 'missing actual CJK focus acknowledgment');
+  assert.deepEqual(result.cases[1].observed,{typed:'你',focusRequests,committed:expected,selectionUtf16:expected.length});
   const cancel=result.cases[2].observed;
   assert.equal(cancel.before,expected); assert.equal(cancel.after,expected); assert.equal(cancel.projectedAfter,expected); assert.equal(cancel.markedAfter,false);
   assert(cancel.projectedBefore.startsWith(expected) && cancel.projectedBefore!==expected); assert(geometry(cancel.markedRect)); assert(finite(cancel.at));
