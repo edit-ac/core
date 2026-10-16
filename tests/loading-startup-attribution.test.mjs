@@ -1,9 +1,29 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFile } from 'node:fs/promises';
-import { inspectStartup, installStartupAttribution, startupNames } from '../benchmarks/loading-startup-attribution.mjs';
+import { inspectStartup, installStartupAttribution, startupNames, navigationPhases } from '../benchmarks/loading-startup-attribution.mjs';
 import { instrumentStartupSource } from '../scripts/startup-instrumentation.mjs';
 const sample = () => ({ version: 'packed-startup-v1', startMs: 1, elapsedMs: 100, frames: [], frameTiming: 'unavailable', marks: startupNames.map((name, i) => ({ name, elapsedMs: i + 1 })) });
+test('navigation metrics keep their observed clocks across delayed bookkeeping without losing elapsed work', () => {
+  let now = 10, reads = 0;
+  const { phases, phase } = navigationPhases(() => { reads++; return now; });
+  const moduleMs = now; now = 35; phase('module', moduleMs);
+  now = 40; phase('wasmInit');
+  const readyMs = 50; now = 500; phase('editorReady', readyMs);
+  const firstFrameMs = 610; now = 900; phase('firstFrame', firstFrameMs);
+  now = 1200; phase('initialRead');
+  assert.deepEqual(phases, [
+    { name: 'module', startMs: 0, endMs: 10, durationMs: 10 },
+    { name: 'wasmInit', startMs: 10, endMs: 40, durationMs: 30 },
+    { name: 'editorReady', startMs: 40, endMs: 50, durationMs: 10 },
+    { name: 'firstFrame', startMs: 50, endMs: 610, durationMs: 560 },
+    { name: 'initialRead', startMs: 610, endMs: 1200, durationMs: 590 },
+  ]);
+  assert.equal(phases.reduce((sum, p) => sum + p.durationMs, 0), now);
+  assert.equal(reads, 2, 'explicit observations never resample their clocks');
+  for (const invalid of [-1, 1199, NaN, Infinity]) assert.throws(() => phase('invalid', invalid));
+  assert.equal(phases.length, 5);
+});
 test('valid browser frame retains numeric render/layout timing only', () => { const trace = sample(); trace.frameTiming = 'long-animation-frame'; trace.frames = [{ startTime: 1, duration: 80, blockingDuration: 30, renderStart: 40, styleAndLayoutStart: 50 }]; assert.equal(inspectStartup(trace).length, startupNames.length); });
 test('startup observer partitions packed recovery/render/readiness and two frame waits without payloads', () => {
   let now = 0;

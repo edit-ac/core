@@ -311,11 +311,15 @@ function ownHandle(allocation: RawEngine): EngineHandle {
     try {
       while (raw && queue.length) {
         const frame = queue.shift()!;
+        // The queued patch is private and immutable. Serialize lazily once,
+        // then decode a detached payload for every matching observer.
+        let payload = '';
         for (const [id, listener] of frame.listeners) {
-          if (!raw || listeners.get(id) !== listener || !matches(listener.scope, frame.patch)) continue;
+          // Subscription IDs are never reused, including during reentrant edits.
+          if (!raw || !listeners.has(id) || !matches(listener.scope, frame.patch)) continue;
           try {
             // Each observer owns its detached projection/envelope and byte buffer.
-            const clone = JSON.parse(JSON.stringify(frame.patch)) as RawPatch;
+            const clone = JSON.parse(payload ||= JSON.stringify(frame.patch)) as RawPatch;
             listener.callback({...clone, update:clone.update ? {identity:clone.update.identity, bytes:Uint8Array.from(clone.update.bytes)} : null});
           } catch (error) {
             if (failures.length === 64) failures.shift();
@@ -331,7 +335,7 @@ function ownHandle(allocation: RawEngine): EngineHandle {
   const mutate = <T>(operation: string, action: (engine: RawEngine) => T): T => {
     const result = use(operation, action);
     const patch = use("patch", e => JSON.parse(e.take_patch()) as RawPatch | null);
-    if (patch && listeners.size) queue.push({patch, listeners:[...listeners.entries()]});
+    if (patch && listeners.size) queue.push({patch, listeners:[...listeners]});
     dispatch();
     return result;
   };

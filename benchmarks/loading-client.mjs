@@ -1,4 +1,4 @@
-import { installStartupAttribution } from '/fixture/harness/loading-startup-attribution.mjs';
+import { installStartupAttribution, navigationPhases } from '/fixture/harness/loading-startup-attribution.mjs';
 import * as sdk from '@loading/sdk';
 import { installCommandAttribution } from '/fixture/harness/loading-command-attribution.mjs';
 const { createEditor, taskPreset, CheckpointStorage, init } = sdk;
@@ -8,15 +8,11 @@ const hash = async value => Array.from(new Uint8Array(await crypto.subtle.digest
 const check = (ok, message) => { if (!ok) throw Error(message); };
 window.loadingRun = (async () => {
   const { identity, databaseName, preset, mode, name } = JSON.parse(document.querySelector('#options').textContent);
-  const samples = { moduleMs: performance.now() }, phases = [], commands = [];
-  let boundary = 0;
+  const samples = { moduleMs: performance.now() }, commands = [];
+  const { phases, phase } = navigationPhases();
   // Contiguous navigation-clock intervals retain harness/oracle overhead rather
   // than subtracting it from the original accepted-edit budget observation.
-  const phase = name => {
-    const endMs = performance.now();
-    phases.push({ name, startMs: boundary, endMs, durationMs: endMs - boundary }); boundary = endMs;
-  };
-  phase('module');
+  phase('module', samples.moduleMs);
   const start = performance.now(); await init('/fixture/assets/wasm/editac_wasm_bg.wasm'); samples.initMs = performance.now() - start; phase('wasmInit');
   if (mode === 'cold') {
     const transfer = performance.now(), response = await fetch(`/fixture/corpus/${name}.checkpoint.json`);
@@ -38,8 +34,8 @@ window.loadingRun = (async () => {
     editor = createEditor(document.querySelector('#editor'), { databaseName, identity, indexedDB, locks: navigator.locks,
       assetUrl: '/fixture/assets/wasm/editac_wasm_bg.wasm', ...(preset === 'task' ? taskPreset() : { preset: 'minimal', typingShortcuts: false, plainPasteControl: false, plainTextPolicy: 'literal' }) });
     phase('editorCreate');
-    await editor.ready; startupAttribution?.mark('editor.ready'); samples.restoreMs = performance.now() - restore; samples.readyMs = performance.now(); phase('editorReady');
-    await new Promise(requestAnimationFrame); startupAttribution?.mark('frame.first'); await new Promise(requestAnimationFrame); startupAttribution?.mark('frame.second'); startupTrace = startupAttribution?.end(); samples.firstFrameMs = performance.now(); phase('firstFrame');
+    await editor.ready; startupAttribution?.mark('editor.ready'); samples.restoreMs = performance.now() - restore; samples.readyMs = performance.now(); phase('editorReady', samples.readyMs);
+    await new Promise(requestAnimationFrame); startupAttribution?.mark('frame.first'); await new Promise(requestAnimationFrame); startupAttribution?.mark('frame.second'); startupTrace = startupAttribution?.end(); samples.firstFrameMs = performance.now(); phase('firstFrame', samples.firstFrameMs);
     let initialSnapshot = editor.read(); phase('initialRead');
     let initialSemantics = projectedSemantics(initialSnapshot); phase('initialProjection');
     const initial = await hash(initialSemantics); phase('initialHash'); initialSnapshot = initialSemantics = null;

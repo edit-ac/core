@@ -1,4 +1,15 @@
 export const startupNames = ['recovery.begin','recovery.runtime','recovery.checkpointOpen','recovery.journalOpen','checkpoint.read','checkpoint.entries','checkpoint.validated','writer.restored','writer.checkpoint','recovery.writerRestore','recovery.lifecycle','surface.begin','render.begin','render.snapshot','render.modules','render.domBegin','render.nodes','render.arranged','render.subscribed','surface.bound','surface.ready','editor.ready','frame.first','frame.second'];
+// Reuse an observed metric's clock when bookkeeping happens after its boundary.
+// Any delay remains in the following interval; navigation totals never shrink.
+export function navigationPhases(clock = () => performance.now()) {
+  const phases = [];
+  let boundary = 0;
+  return { phases, phase(name, endMs = clock()) {
+    if (!Number.isFinite(endMs) || endMs < boundary) throw Error('Invalid navigation clock');
+    phases.push({ name, startMs: boundary, endMs, durationMs: endMs - boundary });
+    boundary = endMs;
+  } };
+}
 export function inspectStartup(trace) {
   const check = (ok, reason) => { if (!ok) throw Error(`Invalid startup attribution: ${reason}`); };
   check(trace?.version === 'packed-startup-v1' && Object.keys(trace).sort().join() === 'elapsedMs,frameTiming,frames,marks,startMs,version', 'identity/payload');

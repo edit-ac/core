@@ -39,8 +39,14 @@ test('public web exports resolve implemented entrypoints and explicit task defau
     'ReferencePresenter', 'ReorderPresenter', 'SlashPresenter', 'contentModules',
     'mountEditor', 'mountEditorSurface', 'referenceBlock', 'referenceSuggestions',
     'reorderControls', 'slashCommands', 'createEditor', 'taskPreset',
+    'ChangeReview', 'DEFAULT_REVIEW_LIMITS', 'HistoryRestorer', 'HistoryReview',
+    'PrivateReferenceView', 'ReferenceLookupSession', 'WebHistoryStore',
+    'exportChangeModel', 'importChangeModel', 'linkEnrichment', 'prepareReview', 'privateReferenceDisplay',
   ].sort());
-  for (const value of Object.values(web)) assert.equal(typeof value, 'function');
+  for (const [name, value] of Object.entries(web)) {
+    assert.equal(typeof value, name === 'DEFAULT_REVIEW_LIMITS' ? 'object' : 'function', name);
+  }
+  assert.equal(Object.isFrozen(web.DEFAULT_REVIEW_LIMITS), true);
   for (const name of ['can', 'chain', 'attachSync', 'subscribe', 'flush', 'destroy']) {
     assert.equal(typeof web.BrowserEditor.prototype[name], 'function', name);
   }
@@ -77,6 +83,58 @@ test('unsupported commands and invalid JSON reject before mutation, including a 
     assert.equal(text(engine), 'A😀B');
     engine.releaseAnchor(at);
     assert.throws(() => runtime.createEngine({ profile: 'unsupported', documentId: 'x', epoch: 'one', nodes: [] }), rejects('InvalidInput', 'create'));
+  } finally { engine.dispose(); }
+});
+
+test('patch observers retain independent payloads through reentrant history and observer errors', () => {
+  const engine = create(), expected = [], received = [], order = [];
+  let nested = false;
+  try {
+    const at = engine.anchor(engine.read().visible[0].id, 3, 'right');
+    engine.subscribe({ type: 'all' }, patch => {
+      order.push('first');
+      expected.push(structuredClone(patch));
+      patch.identity.documentId = 'corrupted';
+      patch.changedNodes.length = 0;
+      patch.nodes[0].node.runs[0].text = 'corrupted';
+      patch.update.bytes.fill(0);
+      if (!nested) { nested = true; engine.history({ type: 'undo' }); }
+    });
+    engine.subscribe({ type: 'all' }, () => { order.push('throw'); throw Error('isolated'); });
+    engine.subscribe({ type: 'updates' }, patch => { order.push('last'); received.push(patch); });
+    engine.subscribe({ type: 'nodes', ids: ['absent'] }, () => assert.fail('unmatched observer'));
+    const plan = engine.prepare({ kind: 'text', origin: 'local:sdk', command: { type: 'insert', at, text: '!' } });
+    engine.commit(plan); engine.releasePlan(plan);
+    assert.equal(text(engine), 'A😀B');
+    assert.deepEqual(order, ['first', 'throw', 'last', 'first', 'throw', 'last']);
+    assert.deepEqual(received, expected);
+    assert.equal(received[0].nodes[0].node.runs[0].text, 'A😀!B');
+    assert.equal(received[1].nodes[0].node.runs[0].text, 'A😀B');
+    assert.notStrictEqual(received[0].update.bytes, received[1].update.bytes);
+    assert.deepEqual(engine.takeObserverErrors().map(error => error.message), ['isolated', 'isolated']);
+    engine.releaseAnchor(at);
+  } finally { engine.dispose(); }
+});
+
+test('queued observers honor unsubscription, newly registered callbacks and disposal', () => {
+  const engine = create(), calls = [];
+  try {
+    const at = engine.anchor(engine.read().visible[0].id, 3, 'right');
+    let nested = false, removed;
+    engine.subscribe({ type: 'all' }, () => {
+      calls.push('first');
+      if (!nested) {
+        nested = true; removed.dispose();
+        engine.subscribe({ type: 'all' }, () => { calls.push('new'); engine.dispose(); });
+        engine.history({ type: 'undo' });
+      }
+    });
+    removed = engine.subscribe({ type: 'all' }, () => assert.fail('unsubscribed observer'));
+    const last = engine.subscribe({ type: 'all' }, () => calls.push('last'));
+    const plan = engine.prepare({ kind: 'text', origin: 'local:sdk', command: { type: 'insert', at, text: '!' } });
+    engine.commit(plan);
+    assert.deepEqual(calls, ['first', 'last', 'first', 'last', 'new']);
+    assert.equal(last.active, false);
   } finally { engine.dispose(); }
 });
 
@@ -166,7 +224,7 @@ test('README examples and public error/command types compile against built decla
   try {
     const readme = await readFile(new URL('../packages/web/README.md', import.meta.url), 'utf8');
     const examples = [...readme.matchAll(/```ts\n([\s\S]*?)```/g)];
-    assert.equal(examples.length, 1);
+    assert.equal(examples.length, 2);
     await writeFile(`${directory}/examples.mts`, `
       import type { DocumentIdentity, EngineErrorCode, EngineHandle } from '@edit-ac/core';
       import type { AttachSyncOptions, SyncAttachment } from '@edit-ac/web';
@@ -183,7 +241,13 @@ test('README examples and public error/command types compile against built decla
       // @ts-expect-error sync attachment requires transport, identity and authorization
       editor.attachSync({});
     `);
-    const result = spawnSync(process.execPath, ['node_modules/typescript/bin/tsc', '--noEmit', '--strict', '--target', 'ES2022', '--module', 'NodeNext', '--lib', 'ES2022,DOM', `${directory}/examples.mts`], {
+    await writeFile(`${directory}/history.mts`, `
+      import type { EngineHandle, PlanToken, CommitResult } from '@edit-ac/core';
+      declare const engine: EngineHandle, moduleProfile: string, hostWritable: boolean, container: HTMLElement;
+      declare const storage: { commitPrepared(plan: PlanToken): CommitResult };
+      ${examples[1][1]}
+    `);
+    const result = spawnSync(process.execPath, ['node_modules/typescript/bin/tsc', '--noEmit', '--strict', '--target', 'ES2022', '--module', 'NodeNext', '--lib', 'ES2022,DOM', `${directory}/examples.mts`, `${directory}/history.mts`], {
       cwd: fileURLToPath(new URL('../', import.meta.url)), encoding: 'utf8',
     });
     assert.equal(result.error, undefined);
