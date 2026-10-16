@@ -79,7 +79,8 @@ test('built and packed SSR imports perform no browser access, fetch or WASM init
       globalThis.fetch = forbidden;
       globalThis.WebAssembly = new Proxy(WebAssembly, { get: forbidden });
       const runtime = await import(${JSON.stringify(mode === 'built' ? new URL('../packages/core/dist/index.js', import.meta.url).href : '@edit-ac/core')});
-      assert.deepEqual(Object.keys(runtime), ['EngineError', 'init']);
+      const links = await import(${JSON.stringify(mode === 'built' ? new URL('../packages/core/dist/links/index.js', import.meta.url).href : '@edit-ac/core/links')});
+      assert.deepEqual(Object.keys(runtime), ['EngineError', 'init', ...Object.keys(links)].sort());
       await assert.rejects(runtime.init(''), /nonempty/);
       ${mode === 'packed' ? "assert.ok(import.meta.resolve('@edit-ac/core/fixture/wasm').endsWith('/dist/wasm-fixture/editac_wasm_bg.wasm'));" : ''}
     `;

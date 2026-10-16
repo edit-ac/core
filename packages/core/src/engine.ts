@@ -186,6 +186,9 @@ function invoke<T>(operation: string, action: () => T): T {
     throw new EngineError("InvalidInput", operation, error instanceof Error ? error.message : String(error));
   }
 }
+function invalid(operation: string, message: string): never {
+  throw new EngineError("InvalidInput", operation, message);
+}
 /** Avoid JSON.stringify's coercion of NaN, bigint, undefined, custom toJSON and sparse arrays. */
 function encode(value: unknown, operation: string): string {
   let count = 0;
@@ -194,21 +197,21 @@ function encode(value: unknown, operation: string): string {
     if (++count > 100_000 || depth > 32) throw new EngineError("ResourceLimit", operation, "request exceeds structure limit");
     if (v === null || typeof v === "string" || typeof v === "boolean") return;
     if (typeof v === "number" && Number.isSafeInteger(v)) return;
-    if (typeof v !== "object" || seen.has(v)) throw new EngineError("InvalidInput", operation, "request must contain plain JSON values");
-    const proto = Object.getPrototypeOf(v);
-    if ((Array.isArray(v) && proto !== Array.prototype) || (!Array.isArray(v) && proto !== Object.prototype && proto !== null)) throw new EngineError("InvalidInput", operation, "request must contain plain objects");
+    if (typeof v !== "object" || seen.has(v)) invalid(operation, "request must contain plain JSON values");
+    const proto = Object.getPrototypeOf(v), array = Array.isArray(v);
+    if ((array && proto !== Array.prototype) || (!array && proto !== Object.prototype && proto !== null)) invalid(operation, "request must contain plain objects");
     seen.add(v);
-    if (Array.isArray(v)) {
-      if (v.length > 100_000 || Object.keys(v).length !== v.length) throw new EngineError("InvalidInput", operation, "sparse or decorated array");
+    if (array) {
+      if (v.length > 100_000 || Object.keys(v).length !== v.length) invalid(operation, "sparse or decorated array");
       for (let i = 0; i < v.length; i++) {
         const d = Object.getOwnPropertyDescriptor(v, String(i));
-        if (!d || !("value" in d)) throw new EngineError("InvalidInput", operation, "accessor input");
+        if (!d || !("value" in d)) invalid(operation, "accessor input");
         visit(d.value, depth + 1);
       }
     } else {
       for (const key of Reflect.ownKeys(v)) {
         const d = Object.getOwnPropertyDescriptor(v, key)!;
-        if (typeof key !== "string" || !("value" in d) || !d.enumerable) throw new EngineError("InvalidInput", operation, "accessor or hidden input");
+        if (typeof key !== "string" || !("value" in d) || !d.enumerable) invalid(operation, "accessor or hidden input");
         visit(d.value, depth + 1);
       }
     }
@@ -219,12 +222,12 @@ function encode(value: unknown, operation: string): string {
 }
 function utf8Length(text: string): number { return new TextEncoder().encode(text).length; }
 function token(value: unknown, operation: string): string {
-  if (typeof value !== "string" || value.length > 128) throw new EngineError("InvalidInput", operation, "invalid opaque token");
+  if (typeof value !== "string" || value.length > 128) invalid(operation, "invalid opaque token");
   return value;
 }
 const MAX_BYTES = 16 * 1024 * 1024;
 function bytes(value: unknown, operation: string): Uint8Array {
-  if (!(value instanceof Uint8Array) || Object.getPrototypeOf(value) !== Uint8Array.prototype) throw new EngineError("InvalidInput", operation, "expected Uint8Array");
+  if (!(value instanceof Uint8Array) || Object.getPrototypeOf(value) !== Uint8Array.prototype) invalid(operation, "expected Uint8Array");
   const size = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Uint8Array.prototype), "byteLength")!.get!.call(value) as number;
   if (size > MAX_BYTES) throw new EngineError("ResourceLimit", operation, "byte limit exceeded");
   const owned = new Uint8Array(size);
@@ -232,9 +235,9 @@ function bytes(value: unknown, operation: string): Uint8Array {
   return owned;
 }
 function envelope(value: unknown, keys: string[], operation: string): Record<string, unknown> {
-  if (!value || typeof value !== "object" || Object.getPrototypeOf(value) !== Object.prototype) throw new EngineError("InvalidInput", operation, "expected plain envelope");
+  if (!value || typeof value !== "object" || Object.getPrototypeOf(value) !== Object.prototype) invalid(operation, "expected plain envelope");
   const descriptors = Object.getOwnPropertyDescriptors(value);
-  if (Reflect.ownKeys(value).length !== keys.length || keys.some(k => !descriptors[k] || !("value" in descriptors[k]!) || !descriptors[k]!.enumerable)) throw new EngineError("InvalidInput", operation, "invalid envelope fields");
+  if (Reflect.ownKeys(value).length !== keys.length || keys.some(k => !descriptors[k] || !("value" in descriptors[k]!) || !descriptors[k]!.enumerable)) invalid(operation, "invalid envelope fields");
   return Object.fromEntries(keys.map(k => [k, descriptors[k]!.value]));
 }
 export function createHandle(construct: (json: string) => RawEngine, options: CreateOptions): EngineHandle {
@@ -250,7 +253,7 @@ export function restoreHandle(construct: (json: string, bytes: Uint8Array) => Ra
     let totalBytes = checkpointBytes.byteLength;
     const entries = Array.from({length:journal.length}, (_, i) => {
       const d = descriptors[String(i)];
-      if (!d || !("value" in d)) throw new EngineError("InvalidInput", "restore", "invalid journal entry");
+      if (!d || !("value" in d)) invalid("restore", "invalid journal entry");
       const u = envelope(d.value, ["identity", "bytes"], "restore");
       const copied = bytes(u.bytes, "restore");
       totalBytes += copied.byteLength;
@@ -344,15 +347,15 @@ function ownHandle(allocation: RawEngine): EngineHandle {
   return Object.freeze({
     read: () => use("read", e => JSON.parse(e.read()) as Snapshot),
     validateFragment: (input: string) => use("validateFragment", e => {
-      if (typeof input !== "string") throw new EngineError("InvalidInput", "validateFragment", "expected fragment JSON");
+      if (typeof input !== "string") invalid("validateFragment", "expected fragment JSON");
       if (utf8Length(input) > 1048576) throw new EngineError("ResourceLimit", "validateFragment", "fragment-limit");
       e.validate_fragment(input);
     }),
     importMarkdown, exportMarkdown,
     get markdownAvailable() { return !!raw && !!markdown; },
     registerMarkdown: (candidate: MarkdownCodec): PatchSubscription => use("registerMarkdown", () => {
-      if (!candidate || typeof candidate.importMarkdown !== "function" || typeof candidate.exportMarkdown !== "function") throw new EngineError("InvalidInput", "registerMarkdown", "invalid Markdown codec");
-      if (markdown) throw new EngineError("InvalidInput", "registerMarkdown", "Markdown already registered");
+      if (!candidate || typeof candidate.importMarkdown !== "function" || typeof candidate.exportMarkdown !== "function") invalid("registerMarkdown", "invalid Markdown codec");
+      if (markdown) invalid("registerMarkdown", "Markdown already registered");
       markdown = candidate;
       let active = true;
       return Object.freeze({ get active() { return active && !!raw && markdown === candidate; }, dispose() { if (active && markdown === candidate) markdown = undefined; active = false; } });
@@ -387,10 +390,10 @@ function ownHandle(allocation: RawEngine): EngineHandle {
     subscribe: (scope: PatchScope, callback: (patch: Patch) => void): PatchSubscription => use("subscribe", () => {
       const detached = JSON.parse(encode(scope, "subscribe")) as PatchScope;
       const fields = Object.keys(detached);
-      if (!detached || !["all", "updates", "selection", "nodes", "sources"].includes(detached.type) || typeof callback !== "function") throw new EngineError("InvalidInput", "subscribe", "invalid listener");
+      if (!detached || !["all", "updates", "selection", "nodes", "sources"].includes(detached.type) || typeof callback !== "function") invalid("subscribe", "invalid listener");
       if (detached.type === "nodes" || detached.type === "sources") {
-        if (fields.length !== 2 || !Array.isArray(detached.ids) || detached.ids.length > 4096 || detached.ids.some(id => typeof id !== "string")) throw new EngineError("InvalidInput", "subscribe", "invalid scope");
-      } else if (fields.length !== 1) throw new EngineError("InvalidInput", "subscribe", "invalid scope fields");
+        if (fields.length !== 2 || !Array.isArray(detached.ids) || detached.ids.length > 4096 || detached.ids.some(id => typeof id !== "string")) invalid("subscribe", "invalid scope");
+      } else if (fields.length !== 1) invalid("subscribe", "invalid scope fields");
       if (listeners.size >= 1024 || nextId === Number.MAX_SAFE_INTEGER) throw new EngineError("ResourceLimit", "subscribe", "subscription limit");
       const id = ++nextId;
       listeners.set(id, {scope:detached, callback});
