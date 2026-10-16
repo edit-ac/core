@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { digest, verifyPins } from '../../../scripts/architecture-budgets.mjs';
-import { inspectLoadings, loadingInputs, summarizeLoading } from '../../../scripts/loading-evidence.mjs';
+import { digest, verifyPins, validateFitnessProfile } from '../../../scripts/architecture-budgets.mjs';
+import { validateLoadingPolicy, inspectLoadings, loadingInputs, summarizeLoading } from '../../../scripts/loading-evidence.mjs';
 import { fixture } from '../../../benchmarks/fixtures.mjs';
 import { admitMeasuredConsumer } from '../../../scripts/consumers-loading.mjs';
 const root = fileURLToPath(new URL('../../../', import.meta.url));
@@ -14,7 +14,10 @@ const index = JSON.parse(await read('benchmarks/profiles/loading-evidence.json')
 assert.match(index.directory, /^architecture-results\/fit-1\.8-[a-z0-9/-]+$/); assert(!index.directory.includes('..'));
 const bytes = await read(`${index.directory}/results.json`), record = JSON.parse(bytes);
 const evidence = { version: 1, parent: 'FIT-1.8', scope: 'PRF-06 actual external packed cold/warm diagnostic', artifacts: {}, observations: null };
+const fitnessPolicy = JSON.parse(await read('benchmarks/profiles/fitness-v1.json'));
 test('packed real WASM cold/warm matrix admits exact profile/source/runtime/artifacts and cache/evaluation traces', async () => {
+  validateFitnessProfile(fitnessPolicy, await read('benchmarks/config.json'), await read('../architecture/specs/verification.md'));
+  validateLoadingPolicy(fitnessPolicy, record);
   assert.equal(record.metadata.commandAttribution, 'none', 'Observer derivative cannot replace production evidence');
   assert.equal(digest(bytes), index.resultsHash); assert.equal(record.profileHash, digest(profileBytes));
   assert.deepEqual(Object.keys(record.sourceInputs).sort(), [...loadingInputs].sort());
@@ -70,3 +73,14 @@ test('changed source and missing or mutated owning artifacts fail admission', as
   await assert.rejects(verifyPins(resolve(root, index.directory), { 'missing.json': '0'.repeat(64) }));
 });
 after(async () => { if (process.env.EDITAC_ARCHITECTURE_OUTPUT) await writeFile(resolve(process.env.EDITAC_ARCHITECTURE_OUTPUT, 'loading-inventory.json'), JSON.stringify(evidence, null, 2)); });
+
+for (const [name, mutate] of Object.entries({
+  'absent policy': r => delete r.metadata.verificationPolicy,
+  'changed policy': r => r.metadata.verificationPolicy.sha256 = '0'.repeat(64),
+  'missing retained policy': r => delete r.artifacts['policy/verification.md'],
+  'measurement before review': r => r.metadata.startedAt = r.metadata.verificationPolicy.reviewedAt,
+  'changed review': r => r.metadata.verificationPolicy.reviewedAt = '2020-01-01T00:00:00Z',
+})) test(`loading policy admission rejects ${name}`, () => {
+  const candidate = structuredClone(record); mutate(candidate);
+  assert.throws(() => validateLoadingPolicy(fitnessPolicy, candidate), /policy|review/i);
+});

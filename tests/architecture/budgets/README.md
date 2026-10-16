@@ -204,6 +204,8 @@ mutated artifacts and invented qualification; this receipt cannot close FIT-1.8.
 
 PRF-06 uses `node scripts/bench-loading.mjs --seed-directory <retained-owning-directory> --output <unique-directory>`.
 
+Production loading and numeric rendering capture validate the shared fitness/config/verification policy before measurement and retain `policy/verification.md`. Both admissions reject absent or stale policy, changed review identity and measurements preceding review. Rendering also checks the current packed consumer inputs and WASM bytes. These full fixed-matrix observations remain diagnostics; passing admission does not qualify startup limits, tails, compositor or accessibility.
+
 `EDITAC_LOADING_RENDER_TRACE=1` adds Chromium main-thread `UpdateLayoutTree`,
 `Layout`, `PrePaint`, `Paint` and `Layerize` events to that same packed replay.
 Only closed event names and numeric navigation-relative start/duration clocks

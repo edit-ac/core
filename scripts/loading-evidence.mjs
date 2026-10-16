@@ -1,3 +1,4 @@
+import { validateBaselinePolicy } from './architecture-budgets.mjs';
 import { inspectStartup } from '../benchmarks/loading-startup-attribution.mjs';
 import { inspectRenderTrace } from './loading-render-attribution.mjs';
 import { summarizeCommand } from '../benchmarks/loading-command-attribution.mjs';
@@ -9,8 +10,16 @@ const check = (ok, message) => { if (!ok) throw Error(message); };
 const tracked = spawnSync('git', ['ls-files', 'crates', 'packages', 'Cargo.toml', 'Cargo.lock', 'package.json', 'package-lock.json', 'fixtures/schema-v4/mapping.rs', 'fixtures/schema-v5/mapping.rs'], { encoding: 'utf8' });
 if (tracked.status !== 0) throw Error('Cannot inventory runtime closure');
 export const loadingInputs = [...new Set([...tracked.stdout.trim().split('\n'),
-  'crates/editac-core/src/fitness.rs', 'scripts/build-wasm.mjs', 'benchmarks/config.json', 'benchmarks/presets.mjs', 'benchmarks/profiles/loading-v1.json', 'benchmarks/loading-client.mjs', 'benchmarks/loading-command-attribution.mjs', 'benchmarks/fixtures.mjs',
+  'crates/editac-core/src/fitness.rs', 'scripts/build-wasm.mjs', 'benchmarks/config.json', 'benchmarks/profiles/fitness-v1.json', 'benchmarks/presets.mjs', 'benchmarks/profiles/loading-v1.json', 'benchmarks/loading-client.mjs', 'benchmarks/loading-command-attribution.mjs', 'benchmarks/fixtures.mjs',
   'scripts/loading-ax-coverage.mjs', 'scripts/loading-layout-probe.mjs', 'scripts/loading-render-attribution.mjs', 'scripts/startup-instrumentation.mjs', 'benchmarks/loading-startup-attribution.mjs', 'scripts/loading-evidence.mjs', 'scripts/bench-loading.mjs', 'scripts/check-browser-size.mjs', 'scripts/consumers-loading.mjs', 'scripts/browser-size-contract.mjs', 'scripts/minify-task.mjs', 'scripts/architecture-budgets.mjs', 'scripts/test-toolchain.mjs', 'scripts/fitness-instrumentation.mjs', 'benchmarks/attribution.mjs', '.node-version', 'examples/task-editor/index.html'])];
+// Reuse the shared preregistered verification policy boundary for both production
+// loading and the observer derivative. Historical captures remain immutable.
+export function validateLoadingPolicy(profile, record) {
+  validateBaselinePolicy(profile, {
+    metadata: { ...record.metadata, timestamp: record.metadata?.startedAt },
+    artifactInputs: record.artifacts,
+  });
+}
 const finite = v => Number.isFinite(v) && v >= 0;
 const phaseNames = ['module','wasmInit','editorCreate','editorReady','firstFrame','initialRead','initialProjection','initialHash','expectedFixture','expectedHash','targetRead','targetSelect','editAnchors','editCommand','editRelease','editVerify','restoreAnchors','restoreCommand','restoreRelease','finalRead','finalProjection','finalHash','flush'];
 const coldPhases = ['checkpointFetch','checkpointDecode','checkpointOpen','checkpointPublish','checkpointClose'];
