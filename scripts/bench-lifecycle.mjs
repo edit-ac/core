@@ -9,7 +9,7 @@ import { startFixtureServer } from '../tests/browser/fixture-server.mjs';
 import { fixture } from '../benchmarks/fixtures.mjs';
 import { presets } from '../benchmarks/presets.mjs';
 import { digest, validateFitnessProfile, verifyPins } from './architecture-budgets.mjs';
-import { inspectLifecycles, inspectLifecycle, validateLifecyclePolicy } from './lifecycle-evidence.mjs';
+import { inspectLifecycles, inspectLifecycle, validateLifecyclePolicy, lifecycleInputs, lifecycleBuildProof, inspectLifecycleBuild } from './lifecycle-evidence.mjs';
 import { requireTestNode } from './test-toolchain.mjs';
 import { prepareProcessMemory, startProcessMemory } from './process-memory.mjs';
 import { inspectProcessMemoryMethod } from './process-memory-evidence.mjs';
@@ -34,12 +34,7 @@ const record = { version: 1, qualification: 'unqualified', profileHash: digest(p
     verificationPolicy: { source: 'architecture/specs/verification.md', sha256: digest(verificationPolicy), reviewedAt: fitnessPolicy.reviewedAt },
     provenance: 'headless-browser-on-host', node: process.version, replay: profile.replay, memoryMethod: profile.memoryMethod, liveMemoryMethod: profile.liveMemoryMethod },
   counts: { executed: 0, passed: 0, failed: 0, skipped: profile.fixtures.length * profile.presets.length * profile.optionalProfiles.length * profile.requiredObservations.length }, cases: [], sourceInputs: {}, artifacts: {}, errors: [], cleanup: {} };
-const tracked = spawnSync('git', ['ls-files', 'crates', 'packages', 'fixtures/schema-v5', 'Cargo.lock', 'Cargo.toml', 'package-lock.json', 'package.json', 'scripts/build-wasm.mjs'], { encoding: 'utf8' });
-if (tracked.status !== 0) throw Error('Cannot pin source closure');
-const inputs = [...new Set([...tracked.stdout.trim().split('\n'), profilePath, fitnessPath, 'benchmarks/config.json', 'scripts/architecture-budgets.mjs', 'contracts/services.json', 'benchmarks/lifecycle-client.mjs',
-  'benchmarks/fixtures.mjs', 'benchmarks/presets.mjs', 'benchmarks/resource-probe.mjs', 'scripts/lifecycle-evidence.mjs', 'scripts/bench-lifecycle.mjs',
-  'scripts/process-memory.c', 'scripts/process-memory.mjs', 'scripts/process-memory-evidence.mjs'])];
-for (const file of inputs) record.sourceInputs[file] = digest(await readFile(file));
+for (const file of lifecycleInputs(root)) record.sourceInputs[file] = digest(await readFile(file));
 const temporary = await mkdtemp(join(tmpdir(), 'editac-prf05-'));
 let browser, controller, server, interrupted = false;
 const stop = () => { interrupted = true; void browser?.close(); };
@@ -54,6 +49,13 @@ try {
   if (digest(optionalBytes) !== optionalIndex.receiptHash) throw Error('Optional packed receipt identity changed');
   const optionalRecord = JSON.parse(optionalBytes);
   await admitOptionalLoading(root, optionalDirectory, optionalRecord);
+  record.buildProvenance = lifecycleBuildProof(optionalRecord, optionalIndex.receiptHash);
+  for (const command of record.buildProvenance.commands) await retain(`source-build/${command.log}`, await readFile(join(optionalDirectory, command.log)));
+  for (const [file, hash] of Object.entries(record.buildProvenance.outputs)) {
+    const bytes = await readFile(file);
+    if (digest(bytes) !== hash) throw Error(`Current lifecycle source build drift: ${file}`);
+    await retain(`source-build/${file}`, bytes);
+  }
   record.metadata.optionalLoading = { ...optionalIndex, profiles: Object.fromEntries(profile.optionalProfiles.map(name => [name, {
     packs: optionalRecord.profiles[name].measurement.packs, assets: optionalRecord.profiles[name].measurement.assets,
     bytes: optionalRecord.profiles[name].measurement.result,
@@ -92,6 +94,8 @@ try {
     const page = html.replace('<style>', '<link rel="stylesheet" href="./task.css"><style>');
     await writeFile(join(directory, 'index.html'), page); await retain(`harness/${optional}/index.html`, page);
   }
+  inspectLifecycleBuild(record, optionalRecord);
+  await verifyPins(root, record.sourceInputs);
   server = await startFixtureServer({ fixtureDirectory: temporary });
   record.metadata.server = { pid: process.pid, port: server.port, workspace: root, purpose: 'PRF-05', log: output };
   controller = await chromium.launchServer({ headless: true });

@@ -44,3 +44,25 @@ test('collector fails closed on missing navigation/main-thread evidence and rele
   await assert.rejects(finish(raw), /navigation\/thread clock/);
   assert.equal(cdp.listenerCount('Tracing.dataCollected'), 0);
 });
+
+test('opt-in collector links only timed main-thread roots and resolves them after tracing stops', async () => {
+  const values = events();
+  for (const e of values.filter(e => e.name === 'Layout')) e.args = { beginData: { dirtyObjects: 2, totalObjects: 4, partialLayout: false }, endData: { layoutRoots: [{ nodeId: 1 }] } };
+  values.push({ ...values[1], tid: 9, args: { beginData: { dirtyObjects: 1, totalObjects: 4, partialLayout: true }, endData: { layoutRoots: [{ nodeId: 999 }] } } });
+  class RootsCDP extends CDP {
+    async send(name) {
+      if (name === 'DOM.getDocument') { assert.equal(this.listenerCount('Tracing.tracingComplete'), 0); return { root: { backendNodeId: 1, nodeName: '#document', children: [{ backendNodeId: 2, nodeName: 'DIV', attributes: ['id', 'editor'], children: [{ backendNodeId: 3, nodeName: 'P' }] }] } }; }
+      return super.send(name);
+    }
+  }
+  const cdp = new RootsCDP(values), finish = await startRenderTrace(cdp, { layoutRoots: true }), observation = structuredClone(raw);
+  assert.deepEqual(await finish(observation), sample());
+  assert.equal(observation.layoutRoots.layouts.length, 2); assert.equal(observation.layoutRoots.roots.length, 1);
+  assert.equal(observation.layoutRoots.roots[0].backendNodeId, 1); assert.equal(observation.layoutRoots.roots[0].containsEditor, true);
+  assert.equal(cdp.listenerCount('Tracing.dataCollected'), 0);
+});
+test('opt-in collector rejects missing root metadata and releases tracing listeners', async () => {
+  const cdp = new CDP(events()), finish = await startRenderTrace(cdp, { layoutRoots: true });
+  await assert.rejects(finish(structuredClone(raw)), /missing\/overflow layout roots/);
+  assert.equal(cdp.listenerCount('Tracing.dataCollected'), 0);
+});

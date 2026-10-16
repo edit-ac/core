@@ -207,6 +207,14 @@ samples retain raw JS/backing-storage/DOM observations per cycle. Continuous OS
 browser-tree accounting and per-process lifetime maxima have the separate scope
 documented below.
 
+The lifecycle producer reuses the admitted optional producer's source builds,
+not a new inferred build or a repinned historical observation. It retains the
+three original build commands/logs and five WASM/glue outputs, checks matching
+current source inputs before execution, and binds executed default/Markdown
+WASM to those outputs. Package/current-dist hashes and the independently rebuilt
+resolver remain checked. Fresh cycles are still mandatory after source changes;
+missing, stale, failed, later or mismatched source-build proof fails admission.
+
 Enabled cases prove rich parser use through actual clipboard decoding of `**Z**`
 to a bold run, followed by exact full-corpus undo and persisted reopen, plus a
 Markdown codec round trip. A single-byte replacement preserves the fixed text
@@ -235,6 +243,17 @@ milestones, and retain a separate production matrix. The profile, fixtures,
 sample counts, accepted edit, exact restoration and limits are unchanged.
 `tests/architecture/budgets/rendering.test.mjs` admits the pinned diagnostic
 matrix and rejects missing, mislabeled and content-bearing rendering evidence.
+`EDITAC_LOADING_LAYOUT_ROOTS=1` additionally captures bounded numeric dirty/total
+layout-object counts and navigation-local backend root IDs. It requires rendering
+capture. After timing ends, a DOM walk resolves each root to its tag/ancestor chain
+and nested editor block-family counts; text, attributes, URLs, stacks and quads are
+not retained. Missing or unresolved roots fail capture. Admission compares every
+root event with the original numeric trace and checks complete fixed-corpus family
+counts across all 96 cold/warm windows. Root/subtree scope cannot assign inclusive
+layout cost to descendant families. A document-wide root does not establish a
+safe whitespace, bidi or offscreen-containment optimization. Keep the separate
+production matrix; these instrumented observations do not establish improvement.
+
 The fixed `loading-v1.json` policy retains twelve cold/warm pairs per Task/Long ×
 baseline/Task combination. The shared SDK-1.8 size producer packs and installs
 public artifacts into a clean offline consumer, audits every input and required

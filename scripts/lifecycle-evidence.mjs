@@ -1,9 +1,51 @@
+import { spawnSync } from 'node:child_process';
 import { presets } from '../benchmarks/presets.mjs';
 import { validateBaselinePolicy } from './architecture-budgets.mjs';
 import { inspectProcessMemoryMethod, inspectProcessMemory } from './process-memory-evidence.mjs';
 const require = (ok, message) => { if (!ok) throw Error(message); };
 const finite = value => Number.isFinite(value) && value >= 0;
 const pin = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
+// The same current source closure is required at capture and admission. The
+// packed producer already compiles both WASM profiles; consume that immutable
+// build rather than claiming a package-only rebuild establishes Rust provenance.
+export function lifecycleInputs(root) {
+  const tracked = spawnSync('git', ['ls-files', 'crates', 'packages', 'fixtures/schema-v5', 'Cargo.lock', 'Cargo.toml', 'package-lock.json', 'package.json'], { cwd: root, encoding: 'utf8' });
+  require(tracked.status === 0, 'Cannot pin lifecycle source closure');
+  return [...new Set([...tracked.stdout.trim().split('\n'), 'benchmarks/profiles/lifecycle-v1.json', 'benchmarks/profiles/fitness-v1.json',
+    'benchmarks/config.json', 'scripts/architecture-budgets.mjs', 'contracts/services.json', 'benchmarks/lifecycle-client.mjs',
+    'benchmarks/fixtures.mjs', 'benchmarks/presets.mjs', 'benchmarks/resource-probe.mjs', 'scripts/lifecycle-evidence.mjs', 'scripts/bench-lifecycle.mjs',
+    'scripts/process-memory.c', 'scripts/process-memory.mjs', 'scripts/process-memory-evidence.mjs', 'scripts/optional-loading-evidence.mjs',
+    'scripts/build-wasm.mjs', 'scripts/share-wasm-glue.mjs', 'scripts/build-wasm-notices.mjs', 'scripts/test-toolchain.mjs',
+    'rust-toolchain.toml', '.node-version', 'tsconfig.base.json'])].sort();
+}
+export function lifecycleBuildProof(optional, receiptHash) {
+  return { version: 1, source: 'optional-loading-v3', receiptHash, startedAt: optional.startedAt,
+    outputs: optional.buildOutputs,
+    commands: optional.commands.slice(0, 3).map(c => ({ label: c.label, command: c.command, exit: c.exit, log: c.log, sha256: c.sha256 })) };
+}
+export function inspectLifecycleBuild(record, optional) {
+  const proof = record.buildProvenance;
+  require(proof?.version === 1 && proof.source === 'optional-loading-v3' && pin(proof.receiptHash), 'Missing lifecycle source build');
+  require(proof.receiptHash === record.metadata?.optionalLoading?.receiptHash && record.artifacts?.['inputs/optional-loading.json'] === proof.receiptHash, 'Lifecycle build receipt mismatch');
+  require(Number.isFinite(Date.parse(proof.startedAt)) && Date.parse(proof.startedAt) < Date.parse(record.metadata.startedAt), 'Lifecycle source build must precede execution');
+  const files = ['packages/core/dist/wasm/editac_wasm_bg.wasm', 'packages/core/dist/wasm/editac_wasm.js', 'packages/core/dist/wasm/editac_runtime.js',
+    'packages/markdown/dist/wasm/editac_markdown_wasm_bg.wasm', 'packages/markdown/dist/wasm/editac_markdown_wasm.js'];
+  require(JSON.stringify(Object.keys(proof.outputs ?? {}).sort()) === JSON.stringify(files.sort()) && files.every(f => pin(proof.outputs[f])), 'Incomplete lifecycle source build outputs');
+  require(proof.commands?.length === 3, 'Missing lifecycle source build commands');
+  for (const [i, label, args] of [[0, 'build-engine-wasm', ['scripts/build-wasm.mjs']], [1, 'build-markdown-wasm', ['scripts/build-wasm.mjs', '--markdown']], [2, 'build-packages', ['run', 'build']]]) {
+    const c = proof.commands[i];
+    require(c.label === label && c.exit === 0 && c.command?.length === args.length + 1 && JSON.stringify(c.command.slice(1)) === JSON.stringify(args) && (i === 2 ? c.command[0] === 'npm' : c.command[0] === record.metadata.command[0]) && pin(c.sha256) && typeof c.log === 'string' && record.artifacts[`source-build/${c.log}`] === c.sha256, 'Failed/wrong lifecycle source build');
+  }
+  for (const file of files) require(record.artifacts[`source-build/${file}`] === proof.outputs[file], 'Retained lifecycle build output mismatch');
+  for (const name of ['default', 'markdown']) for (const file of files.filter(f => f.endsWith('_bg.wasm') && (name === 'markdown' || !f.includes('/markdown/')))) {
+    const asset = file.split('/wasm/')[1];
+    require(record.artifacts[`harness/${name}/wasm/${asset}`] === proof.outputs[file], 'Executed lifecycle WASM/glue differs from source build');
+  }
+  if (optional) {
+    require(JSON.stringify(proof) === JSON.stringify(lifecycleBuildProof(optional, proof.receiptHash)), 'Retained lifecycle source build mismatch');
+    for (const [file, hash] of Object.entries(optional.sourceInputs)) if (Object.hasOwn(record.sourceInputs, file)) require(hash === record.sourceInputs[file], `Lifecycle build source mismatch: ${file}`);
+  }
+}
 // Lifecycle records retain the shared policy in the same shape as gesture evidence.
 export function validateLifecyclePolicy(profile, record) {
   validateBaselinePolicy(profile, {
@@ -65,6 +107,7 @@ export function inspectLifecycle(profile, item, observation) {
   return { fixture: item.fixture, preset: item.preset, optional: item.optional, kind: observation.kind, status: observation.kind === 'memory-plateau' ? 'inconclusive' : 'observed' };
 }
 export function inspectLifecycles(profile, record) {
+  inspectLifecycleBuild(record);
   require(profile?.version === 1 && profile.id === 'lifecycle-v1' && profile.cycles === 12 && profile.idleMs === 200 && profile.performanceLimits === null && JSON.stringify(profile.resourceBounds) === JSON.stringify(bounds), 'Unreviewed lifecycle policy drift');
   require(JSON.stringify(profile.fixtures) === '["Task","Long"]' && JSON.stringify(profile.presets) === '["baseline","task"]' && JSON.stringify(profile.requiredObservations) === '["disposal","canceled-transfer","unload","memory-plateau","resources","idle"]', 'Lifecycle matrix drift');
   require(profile.replay === 'positive-paste-undo/cancel-paste/unload-resolver/destroy/late-complete/reopen/destroy/delete-v1' && profile.memoryMethod === 'CDP HeapProfiler.collectGarbage then Performance.getMetrics, Runtime.getHeapUsage and Memory.getDOMCounters; post-disposal; no process/native peak claim', 'Replay/memory method drift');

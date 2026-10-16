@@ -1,3 +1,4 @@
+import { fixture } from '../../../benchmarks/fixtures.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -62,3 +63,62 @@ for (const [name, mutate] of Object.entries({
   const candidate = structuredClone(record); mutate(candidate);
   assert.throws(() => validateLoadingPolicy(fitnessPolicy, candidate), /policy|review/i);
 });
+
+// Backend IDs are local to each navigation. The retained roots describe the
+// timed layout's scope, not separate per-family costs or a production speedup.
+function inspectRoots(raw) {
+  const value = raw.layoutRoots;
+  assert.equal(value?.version, 'cdp-layout-roots-v1');
+  assert.deepEqual(Object.keys(value).sort(), ['domNodes', 'editorFamilies', 'layouts', 'roots', 'scope', 'version', 'windowMs']);
+  assert.equal(value.windowMs, raw.samples.firstFrameMs);
+  const events = raw.renderTrace.events.filter(e => e.name === 'Layout');
+  assert.deepEqual(value.layouts.map(e => ({ name: 'Layout', startMs: e.startMs, durationMs: e.durationMs })), events);
+  assert(value.domNodes > 0 && value.roots.length > 0);
+  const byId = new Map(value.roots.map(r => [r.backendNodeId, r]));
+  assert.equal(byId.size, value.roots.length);
+  for (const event of value.layouts) {
+    assert.deepEqual(Object.keys(event).sort(), ['backendNodeIds', 'dirtyObjects', 'durationMs', 'partialLayout', 'startMs', 'totalObjects']);
+    assert(event.dirtyObjects >= 0 && event.totalObjects >= event.dirtyObjects);
+    assert.equal(typeof event.partialLayout, 'boolean'); assert(event.backendNodeIds.length > 0);
+    for (const id of event.backendNodeIds) assert(byId.has(id), 'Unresolved timed layout root');
+  }
+  for (const root of value.roots) {
+    assert.deepEqual(Object.keys(root).sort(), ['ancestors', 'backendNodeId', 'containsEditor', 'families', 'family', 'insideEditor', 'tag']);
+    for (const ancestor of root.ancestors) assert.deepEqual(Object.keys(ancestor).sort(), ['backendNodeId', 'tag']);
+    for (const [family, count] of Object.entries(root.families)) { assert(['paragraph', 'heading', 'code', 'list', 'list-item', 'quote'].includes(family)); assert(Number.isSafeInteger(count) && count > 0); }
+    assert(Number.isSafeInteger(root.backendNodeId) && root.backendNodeId > 0);
+    assert.equal(root.ancestors[0].backendNodeId, root.backendNodeId);
+    assert.equal(root.ancestors[0].tag, root.tag);
+    if (root.containsEditor) assert.deepEqual(root.families, value.editorFamilies);
+  }
+  return value;
+}
+test('layout-root attribution covers every exact packed cold/warm corpus and resolves timed backend IDs', () => {
+  assert.equal(record.metadata.layoutRootAttribution, 'cdp-layout-roots-v1');
+  let windows = 0;
+  for (const item of record.cases) {
+    const data = fixture(item.fixture);
+    const expected = {
+      paragraph: data.blocks.filter(b => b.attributes.type === 'paragraph').length,
+      heading: data.blocks.filter(b => b.attributes.type === 'heading').length,
+      code: data.blocks.filter(b => b.attributes.type === 'code').length,
+      list: new Set(data.blocks.flatMap(b => (b.containers ?? []).map(c => c.key))).size,
+      'list-item': data.blocks.filter(b => b.containers?.length).length,
+    };
+    for (const pair of item.pairs) for (const mode of ['cold', 'warm']) {
+      assert.deepEqual(inspectRoots(pair[mode]).editorFamilies, expected); windows++;
+    }
+  }
+  assert.equal(windows, 96);
+});
+for (const [name, mutate] of Object.entries({
+  missing: r => delete r.layoutRoots,
+  clock: r => r.layoutRoots.windowMs++,
+  'missing timed root': r => r.layoutRoots.layouts[0].backendNodeIds = [],
+  unresolved: r => r.layoutRoots.layouts[0].backendNodeIds = [2147483647],
+  'wrong event': r => r.layoutRoots.layouts[0].durationMs++,
+  'wrong families': r => r.layoutRoots.roots[0].families.paragraph++,
+  duplicate: r => r.layoutRoots.roots.push(r.layoutRoots.roots[0]),
+  payload: r => r.layoutRoots.roots[0].text = 'private',
+  'trace payload': r => r.layoutRoots.layouts[0].url = 'private',
+})) test(`layout-root attribution rejects ${name}`, () => { const raw = structuredClone(record.cases[0].pairs[0].cold); mutate(raw); assert.throws(() => inspectRoots(raw)); });

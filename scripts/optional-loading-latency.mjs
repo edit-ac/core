@@ -9,7 +9,7 @@ import { inspectStartupPhases } from './loading-evidence.mjs';
 import { fixture } from '../benchmarks/fixtures.mjs';
 import { presets } from '../benchmarks/presets.mjs';
 
-export const optionalLatencyInputs = ['scripts/optional-loading-latency.mjs', 'scripts/loading-evidence.mjs',
+export const optionalLatencyInputs = ['scripts/optional-loading-latency.mjs', 'scripts/loading-evidence.mjs', 'scripts/loading-render-attribution.mjs', 'scripts/loading-layout-roots.mjs',
   'benchmarks/optional-loading-sdk.mjs', 'benchmarks/loading-client.mjs', 'benchmarks/loading-command-attribution.mjs',
   'benchmarks/loading-startup-attribution.mjs', 'benchmarks/fixtures.mjs', 'benchmarks/presets.mjs', 'benchmarks/profiles/loading-v1.json'];
 const finite = n => Number.isFinite(n) && n >= 0;

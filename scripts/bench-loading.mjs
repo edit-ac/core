@@ -22,6 +22,8 @@ const engineTrace = process.env.EDITAC_LOADING_ENGINE_TRACE === '1';
 const layoutProbe = process.env.EDITAC_LOADING_LAYOUT_PROBE;
 const probeCss = layoutProbe ? layoutProbeCss(layoutProbe) : '';
 const renderTrace = process.env.EDITAC_LOADING_RENDER_TRACE === '1';
+const layoutRoots = process.env.EDITAC_LOADING_LAYOUT_ROOTS === '1';
+if (layoutRoots && !renderTrace) throw Error('Layout roots require rendering attribution');
 if (engineTrace && !commandTrace) throw Error('Internal attribution requires the command observer');
 if (!relative(root, output) || relative(root, output).startsWith('..')) throw Error('Retain output inside repository');
 await mkdir(output, { recursive: false });
@@ -36,6 +38,7 @@ const record = { version: 1, qualification: 'unqualified', profileHash: digest(p
   commandAttribution: commandTrace ? 'packed-observer-exports-v1' : 'none', engineAttribution: engineTrace ? 'fitness-preparation-v1' : 'none',
   ...(layoutProbe ? { layoutProbe: `experimental-${layoutProbe}-v1`, accessibilityMode: 'cdp-enabled-before-navigation-owner-stages-v2', axStageProbes: process.env.EDITAC_LOADING_AX_STAGES === '1' } : {}),
   renderAttribution: renderTrace ? 'cdp-rendering-v1' : 'none',
+  ...(layoutRoots ? { layoutRootAttribution: 'cdp-layout-roots-v1' } : {}),
   phaseAttribution: profile.phaseAttribution, phaseScope: profile.phaseScope, replay: profile.replay, cacheScope: profile.cacheScope, timingScope: profile.timingScope, coverageMethod: profile.coverageMethod, warmupPolicy: profile.warmupPolicy, sampleOrder: profile.sampleOrder },
   counts: { executed: 0, passed: 0, failed: 0, skipped: 24 }, cases: [], sourceInputs: {}, artifacts: {}, errors: [], cleanup: {} };
 for (const path of loadingInputs) record.sourceInputs[path] = digest(await readFile(path));
@@ -113,7 +116,7 @@ try {
         const pair = { index }; await writeFile(join(output, 'progress.json'), JSON.stringify({ fixture: name, preset, index, at: new Date().toISOString() })); item.pairs.push(pair);
         for (const mode of ['cold','warm']) {
           requests.length = responses.length = 0;
-          const finishRender = renderTrace ? await startRenderTrace(cdp) : undefined;
+          const finishRender = renderTrace ? await startRenderTrace(cdp, { layoutRoots }) : undefined;
           // Best-effort coverage avoids recompiling/instrumenting the WASM engine during startup.
           await page.goto(`${origin}/?name=${name}&preset=${preset}&mode=${mode}&database=prf06-${name}-${preset}-${index}`);
           await page.waitForFunction(() => !!window.loadingRun);

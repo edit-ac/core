@@ -1,4 +1,5 @@
 // Diagnostic CDP evidence only. Never retain trace args, stacks, URLs or text.
+import { captureLayoutRoots, layoutEventData } from './loading-layout-roots.mjs';
 export const renderEvents = ['UpdateLayoutTree', 'Layout', 'PrePaint', 'Paint', 'Layerize'];
 const finite = v => Number.isFinite(v) && v >= 0;
 const check = (ok, reason) => { if (!ok) throw Error(`Invalid rendering attribution: ${reason}`); };
@@ -19,14 +20,16 @@ export function inspectRenderTrace(trace, raw) {
     return { name, count: events.length, durationMs: events.reduce((n, e) => n + e.durationMs, 0), maxMs: Math.max(0, ...events.map(e => e.durationMs)) };
   });
 }
-export async function startRenderTrace(cdp) {
-  const events = [], threads = new Set(); let overflow = false;
+export async function startRenderTrace(cdp, { layoutRoots = false } = {}) {
+  const events = [], threads = new Set(); let overflow = false, layoutError;
   const collect = ({ value }) => {
     for (const event of value) {
       if (event.ph === 'M' && event.name === 'thread_name' && event.args?.name === 'CrRendererMain') threads.add(`${event.pid}/${event.tid}`);
       if (event.ph !== 'X' || !renderEvents.includes(event.name)) continue;
       if (events.length === 4096) { overflow = true; continue; }
-      events.push({ thread: `${event.pid}/${event.tid}`, name: event.name, start: event.ts, duration: event.dur });
+      let layout;
+      if (layoutRoots && event.name === 'Layout') { try { layout = layoutEventData(event.args); } catch (error) { layoutError = error; } }
+      events.push({ thread: `${event.pid}/${event.tid}`, name: event.name, start: event.ts, duration: event.dur, ...(layoutRoots && event.name === 'Layout' ? { layout } : {}) });
     }
   };
   cdp.on('Tracing.dataCollected', collect);
@@ -45,7 +48,16 @@ export async function startRenderTrace(cdp) {
         .map(e => ({ name: e.name, startMs: e.start / 1000 - origin * 1000, durationMs: e.duration / 1000 }))
         .filter(e => e.startMs >= 0 && e.startMs < raw.samples.firstFrameMs)
         .sort((a, b) => a.startMs - b.startMs) };
-      inspectRenderTrace(trace, raw); return trace;
+      inspectRenderTrace(trace, raw);
+      if (layoutRoots) {
+        if (layoutError) throw layoutError;
+        const layouts = events.filter(e => threads.has(e.thread) && e.name === 'Layout')
+          .map(e => ({ startMs: e.start / 1000 - origin * 1000, durationMs: e.duration / 1000, ...e.layout }))
+          .filter(e => e.startMs >= 0 && e.startMs < raw.samples.firstFrameMs).sort((a, b) => a.startMs - b.startMs);
+        // Resolve after all timed work. This is root scope, never per-descendant cost.
+        raw.layoutRoots = await captureLayoutRoots(cdp, layouts, raw.samples.firstFrameMs);
+      }
+      return trace;
     } finally { clearTimeout(timer); cdp.off('Tracing.dataCollected', collect); }
   };
 }

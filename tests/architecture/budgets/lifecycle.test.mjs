@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { digest, verifyPins, validateFitnessProfile } from '../../../scripts/architecture-budgets.mjs';
-import { inspectLifecycles, validateLifecyclePolicy } from '../../../scripts/lifecycle-evidence.mjs';
+import { inspectLifecycles, validateLifecyclePolicy, lifecycleInputs, inspectLifecycleBuild } from '../../../scripts/lifecycle-evidence.mjs';
 import { admitOptionalLoading } from '../../../scripts/optional-loading-evidence.mjs';
 import { fixture } from '../../../benchmarks/fixtures.mjs';
 import { presets } from '../../../benchmarks/presets.mjs';
@@ -21,13 +21,13 @@ test('actual editor disposal/canceled-transfer/unload matrix pins full source, r
   validateFitnessProfile(fitnessPolicy, await read('benchmarks/config.json'), await read('../architecture/specs/verification.md'));
   validateLifecyclePolicy(fitnessPolicy, record);
   assert.equal(record.status, 'diagnostic'); assert.equal(index.resultsHash, digest(bytes)); assert.equal(record.profileHash, digest(profileBytes));
-  const tracked = spawnSync('git', ['ls-files', 'crates', 'packages', 'fixtures/schema-v5', 'Cargo.lock', 'Cargo.toml', 'package-lock.json', 'package.json', 'scripts/build-wasm.mjs'], { cwd: root, encoding: 'utf8' }); assert.equal(tracked.status, 0);
-  const inputs = [...new Set([...tracked.stdout.trim().split('\n'), 'benchmarks/profiles/lifecycle-v1.json', 'benchmarks/profiles/fitness-v1.json', 'benchmarks/config.json', 'scripts/architecture-budgets.mjs', 'contracts/services.json', 'benchmarks/lifecycle-client.mjs', 'benchmarks/fixtures.mjs', 'benchmarks/presets.mjs', 'benchmarks/resource-probe.mjs', 'scripts/lifecycle-evidence.mjs', 'scripts/bench-lifecycle.mjs', 'scripts/process-memory.c', 'scripts/process-memory.mjs', 'scripts/process-memory-evidence.mjs'])];
-  assert.deepEqual(Object.keys(record.sourceInputs).sort(), inputs.sort()); await verifyPins(root, record.sourceInputs); await verifyPins(resolve(root, index.directory), record.artifacts);
+  assert.deepEqual(Object.keys(record.sourceInputs).sort(), lifecycleInputs(root));
+  await verifyPins(root, record.sourceInputs); await verifyPins(resolve(root, index.directory), record.artifacts);
   const optionalIndex = JSON.parse(await read('benchmarks/profiles/optional-loading-evidence.json'));
   const optionalBytes = await read(`${optionalIndex.directory}/optional-loading.json`), optional = JSON.parse(optionalBytes);
   assert.equal(digest(optionalBytes), optionalIndex.receiptHash);
   await admitOptionalLoading(root, resolve(root, optionalIndex.directory), optional);
+  inspectLifecycleBuild(record, optional);
   assert.deepEqual(record.metadata.optionalLoading, { ...optionalIndex, profiles: Object.fromEntries(profile.optionalProfiles.map(name => [name, {
     packs: optional.profiles[name].measurement.packs, assets: optional.profiles[name].measurement.assets, bytes: optional.profiles[name].measurement.result,
   }])) });
@@ -136,4 +136,30 @@ for (const [name, mutate] of [
 ]) test(`lifecycle policy rejects ${name}`, () => {
   const changed = structuredClone(record); mutate(changed);
   assert.throws(() => validateLifecyclePolicy(fitnessPolicy, changed));
+});
+
+for (const [name, change] of Object.entries({
+  missing: r => delete r.buildProvenance,
+  receipt: r => r.buildProvenance.receiptHash = '0'.repeat(64),
+  output: r => r.buildProvenance.outputs['packages/core/dist/wasm/editac_wasm_bg.wasm'] = '0'.repeat(64),
+  glue: r => r.buildProvenance.outputs['packages/core/dist/wasm/editac_runtime.js'] = '0'.repeat(64),
+  markdown: r => r.buildProvenance.outputs['packages/markdown/dist/wasm/editac_markdown_wasm_bg.wasm'] = '0'.repeat(64),
+  'missing output': r => delete r.buildProvenance.outputs['packages/core/dist/wasm/editac_wasm.js'],
+  'package-only': r => r.buildProvenance.commands.splice(0, 2),
+  'failed build': r => r.buildProvenance.commands[0].exit = 1,
+  'wrong build profile': r => r.buildProvenance.commands[1].command.pop(),
+  'missing build log': r => delete r.buildProvenance.commands[0].sha256,
+  'later build': r => r.buildProvenance.startedAt = r.metadata.startedAt,
+  'stale execution': r => r.artifacts['harness/default/wasm/editac_wasm_bg.wasm'] = '0'.repeat(64),
+})) test(`lifecycle source-build admission rejects ${name}`, () => {
+  const candidate = structuredClone(record); change(candidate); assert.throws(() => inspectLifecycleBuild(candidate));
+});
+test('lifecycle source-build admission rejects mismatched retained build and source identities', async () => {
+  const optionalIndex = JSON.parse(await read('benchmarks/profiles/optional-loading-evidence.json'));
+  const optional = JSON.parse(await read(`${optionalIndex.directory}/optional-loading.json`));
+  let candidate = structuredClone(record); candidate.buildProvenance.commands[0].sha256 = '0'.repeat(64);
+  candidate.artifacts[`source-build/${candidate.buildProvenance.commands[0].log}`] = '0'.repeat(64);
+  assert.throws(() => inspectLifecycleBuild(candidate, optional), /Retained/);
+  candidate = structuredClone(record); candidate.sourceInputs['crates/editac-core/src/commands/editor.rs'] = '0'.repeat(64);
+  assert.throws(() => inspectLifecycleBuild(candidate, optional), /source mismatch/);
 });
