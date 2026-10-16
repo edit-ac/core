@@ -251,24 +251,26 @@ export function restoreHandle(construct: (json: string, bytes: Uint8Array) => Ra
     // Inspect descriptors before reading any journal element.
     const descriptors = Object.getOwnPropertyDescriptors(journal);
     let totalBytes = checkpointBytes.byteLength;
-    const entries = Array.from({length:journal.length}, (_, i) => {
+    const buffers: Uint8Array[] = [];
+    const binaryJournal = Array.from({length:journal.length}, (_, i) => {
       const d = descriptors[String(i)];
       if (!d || !("value" in d)) invalid("restore", "invalid journal entry");
       const u = envelope(d.value, ["identity", "bytes"], "restore");
       const copied = bytes(u.bytes, "restore");
       totalBytes += copied.byteLength;
       if (totalBytes > MAX_BYTES) throw new EngineError("ResourceLimit", "restore", "checkpoint and journal exceed byte limit");
-      return {identity:u.identity, bytes:copied};
+      buffers.push(copied);
+      return {identity:u.identity, byteLength:copied.byteLength};
     });
     const metadata: Record<string, unknown> = {expected, identity:c.identity, initialized:c.initialized, writerId:c.writerId, journal:[]};
     let payload = checkpointBytes;
-    if (entries.length) {
+    if (buffers.length) {
       metadata.checkpointBytes = checkpointBytes.byteLength;
-      metadata.binaryJournal = entries.map(u => ({identity:u.identity, byteLength:u.bytes.byteLength}));
+      metadata.binaryJournal = binaryJournal;
       payload = new Uint8Array(totalBytes);
       payload.set(checkpointBytes);
       let offset = checkpointBytes.byteLength;
-      for (const entry of entries) { payload.set(entry.bytes, offset); offset += entry.bytes.byteLength; }
+      for (const buffer of buffers) { payload.set(buffer, offset); offset += buffer.byteLength; }
     }
     return ownHandle(construct(encode(metadata, "restore"), payload));
   });
