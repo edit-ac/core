@@ -1,7 +1,15 @@
+import { validateBaselinePolicy } from './architecture-budgets.mjs';
 import { inspectProcessMemoryMethod, inspectProcessMemory } from './process-memory-evidence.mjs';
 const require = (ok, message) => { if (!ok) throw Error(message); };
 const finite = value => Number.isFinite(value) && value >= 0;
 const pin = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
+// Lifecycle records retain the shared policy in the same shape as gesture evidence.
+export function validateLifecyclePolicy(profile, record) {
+  validateBaselinePolicy(profile, {
+    metadata: { ...record.metadata, timestamp: record.metadata?.startedAt },
+    artifactInputs: record.artifacts,
+  });
+}
 const bounds = { listeners: 0, observers: 0, workers: 0, timers: 0, frames: 0 };
 const livePhases = ['before-mount', 'mounted', 'active-transfer', 'feature-unloaded', 'disposed', 'reopened', 'drained'];
 const liveMethod = 'CDP phase snapshots without explicit GC; sampled JS heap/backing-storage/DOM high-water only, not process/native or true peak';

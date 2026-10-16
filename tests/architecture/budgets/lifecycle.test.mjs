@@ -1,25 +1,32 @@
+import { build } from 'esbuild';
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { digest, verifyPins } from '../../../scripts/architecture-budgets.mjs';
-import { inspectLifecycles } from '../../../scripts/lifecycle-evidence.mjs';
+import { digest, verifyPins, validateFitnessProfile } from '../../../scripts/architecture-budgets.mjs';
+import { inspectLifecycles, validateLifecyclePolicy } from '../../../scripts/lifecycle-evidence.mjs';
 import { fixture } from '../../../benchmarks/fixtures.mjs';
 import { presets } from '../../../benchmarks/presets.mjs';
 const root = fileURLToPath(new URL('../../../', import.meta.url)), read = path => readFile(resolve(root, path));
 const profileBytes = await read('benchmarks/profiles/lifecycle-v1.json'), profile = JSON.parse(profileBytes);
+const fitnessPolicy = JSON.parse(await read('benchmarks/profiles/fitness-v1.json'));
 const index = JSON.parse(await read('benchmarks/profiles/lifecycle-evidence.json'));
 assert.match(index.directory, /^architecture-results\/fit-1\.8-[a-z0-9/-]+$/); assert(!index.directory.includes('..'));
 const bytes = await read(`${index.directory}/results.json`), record = JSON.parse(bytes);
 const evidence = { version: 1, parent: 'FIT-1.8', scope: 'PRF-05 actual browser lifecycle diagnostics; memory inconclusive', artifacts: {}, observations: null };
 test('actual editor disposal/canceled-transfer/unload matrix pins full source, runtime, corpus and raw resource/heap/idle series', async () => {
+  validateFitnessProfile(fitnessPolicy, await read('benchmarks/config.json'), await read('../architecture/specs/verification.md'));
+  validateLifecyclePolicy(fitnessPolicy, record);
   assert.equal(record.status, 'diagnostic'); assert.equal(index.resultsHash, digest(bytes)); assert.equal(record.profileHash, digest(profileBytes));
   const tracked = spawnSync('git', ['ls-files', 'crates', 'packages', 'fixtures/schema-v5', 'Cargo.lock', 'Cargo.toml', 'package-lock.json', 'package.json', 'scripts/build-wasm.mjs'], { cwd: root, encoding: 'utf8' }); assert.equal(tracked.status, 0);
-  const inputs = [...new Set([...tracked.stdout.trim().split('\n'), 'benchmarks/profiles/lifecycle-v1.json', 'contracts/services.json', 'benchmarks/lifecycle-client.mjs', 'benchmarks/fixtures.mjs', 'benchmarks/presets.mjs', 'benchmarks/resource-probe.mjs', 'scripts/lifecycle-evidence.mjs', 'scripts/bench-lifecycle.mjs', 'scripts/process-memory.c', 'scripts/process-memory.mjs', 'scripts/process-memory-evidence.mjs'])];
+  const inputs = [...new Set([...tracked.stdout.trim().split('\n'), 'benchmarks/profiles/lifecycle-v1.json', 'benchmarks/profiles/fitness-v1.json', 'benchmarks/config.json', 'scripts/architecture-budgets.mjs', 'contracts/services.json', 'benchmarks/lifecycle-client.mjs', 'benchmarks/fixtures.mjs', 'benchmarks/presets.mjs', 'benchmarks/resource-probe.mjs', 'scripts/lifecycle-evidence.mjs', 'scripts/bench-lifecycle.mjs', 'scripts/process-memory.c', 'scripts/process-memory.mjs', 'scripts/process-memory-evidence.mjs'])];
   assert.deepEqual(Object.keys(record.sourceInputs).sort(), inputs.sort()); await verifyPins(root, record.sourceInputs); await verifyPins(resolve(root, index.directory), record.artifacts);
   for (const file of ['editac_wasm.js', 'editac_wasm_bg.wasm']) assert.equal(digest(await read(`packages/core/dist/wasm/${file}`)), record.artifacts[`harness/wasm/${file}`]);
+  const rebuilt = await build({ stdin: { contents: 'export {createEditor,taskPreset,CheckpointStorage} from "@edit-ac/web"; export {init} from "@edit-ac/core"; export {ServiceLifecycle,ReferenceLookupSession} from "@edit-ac/web/modules"; export {DirectSyncAdapter} from "./packages/web/src/sync/protocol.ts";', resolveDir: root },
+    write: false, bundle: true, minify: true, format: 'esm', platform: 'browser', target: 'es2022' });
+  assert.equal(digest(rebuilt.outputFiles[0].contents), record.artifacts['harness/sdk.js'], 'Changed lifecycle executable; historical observations cannot be reused');
   const services = JSON.parse(await read('contracts/services.json'));
   assert.equal(services.families.find(f => f.id === 'resolver').registration, 'implemented');
   assert.equal(services.families.find(f => f.id === 'highlight').registration, 'pending');
@@ -94,3 +101,16 @@ test('mutated source and retained artifact pins fail canonical admission', async
   await assert.rejects(verifyPins(resolve(root, index.directory), { 'harness/lifecycle-client.mjs': '0'.repeat(64) }));
 });
 after(async () => { assert(process.env.EDITAC_ARCHITECTURE_OUTPUT); await writeFile(resolve(process.env.EDITAC_ARCHITECTURE_OUTPUT, 'lifecycle-inventory.json'), JSON.stringify(evidence, null, 2) + '\n'); });
+
+for (const [name, mutate] of [
+  ['missing policy', r => delete r.metadata.verificationPolicy],
+  ['stale policy', r => r.metadata.verificationPolicy.sha256 = '0'.repeat(64)],
+  ['wrong policy source', r => r.metadata.verificationPolicy.source = 'prepared'],
+  ['missing retained policy', r => delete r.artifacts['policy/verification.md']],
+  ['changed retained policy', r => r.artifacts['policy/verification.md'] = '0'.repeat(64)],
+  ['stale policy review', r => r.metadata.verificationPolicy.reviewedAt = '2000-01-01T00:00:00.000Z'],
+  ['measurement before review', r => r.metadata.startedAt = fitnessPolicy.reviewedAt],
+]) test(`lifecycle policy rejects ${name}`, () => {
+  const changed = structuredClone(record); mutate(changed);
+  assert.throws(() => validateLifecyclePolicy(fitnessPolicy, changed));
+});
