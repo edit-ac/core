@@ -8,19 +8,20 @@ import { digest, verifyPins, validateFitnessProfile } from './architecture-budge
 import { admitMeasuredConsumer } from './consumers-loading.mjs';
 import { testCounts } from './check-architecture.mjs';
 import { requireTestNode } from './test-toolchain.mjs';
+import { optionalLatencyInputs, produceOptionalLatency, inspectOptionalLatency } from './optional-loading-latency.mjs';
 
 const implementation = ['scripts/optional-loading-evidence.mjs', 'scripts/check-browser-size.mjs',
   'scripts/consumers-loading.mjs', 'scripts/browser-size-contract.mjs', 'scripts/minify-task.mjs',
   'scripts/architecture-budgets.mjs', 'scripts/architecture-layers.mjs', 'scripts/check-architecture.mjs',
   'scripts/test-toolchain.mjs', 'tests/browser-size-runtime.test.mjs', '.node-version',
-  'benchmarks/profiles/fitness-v1.json', 'benchmarks/config.json'];
+  'benchmarks/profiles/fitness-v1.json', 'benchmarks/config.json', 'tests/architecture/budgets/optional-loading.test.mjs', ...optionalLatencyInputs];
 export function optionalLoadingInputs(root) {
   const result = spawnSync('git', ['ls-files', 'crates', 'packages', 'Cargo.toml', 'Cargo.lock', 'package.json', 'package-lock.json'], { cwd: root, encoding: 'utf8' });
   assert.equal(result.status, 0, 'Cannot inventory optional runtime closure');
   return [...new Set([...result.stdout.trim().split('\n'), ...implementation])].sort();
 }
 export function inspectOptionalLoading(record) {
-  assert.equal(record.version, 1);
+  assert.equal(record.version, 2);
   assert.equal(record.scope, 'current-packed-default-and-markdown');
   assert.deepEqual(record.errors, [], 'Optional loading producer failed');
   assert(Number.isFinite(Date.parse(record.startedAt)) && Date.parse(record.reviewedAt) < Date.parse(record.startedAt), 'Policy must precede measurement');
@@ -50,8 +51,9 @@ export function inspectOptionalLoading(record) {
   for (const name of ['core', 'web']) assert.equal(baseline.packs.find(p => p.name === name).sha256, enabled.packs.find(p => p.name === name).sha256, 'Optional delta needs identical base packages');
   const incremental = Object.fromEntries(['total', 'js'].map(key => [key, enabled.result[key].bytes - baseline.result[key].bytes]));
   assert(incremental.total > 0 && incremental.js > 0);
-  return { baseline: baseline.result, enabled: enabled.result, incremental,
-    scope: 'Exact current packed gzip costs and three-browser behavior; no optional latency/memory, highlighter, target-platform or release qualification' };
+  const latency = inspectOptionalLatency(record.latency, record.loadingPolicy, { default: baseline, markdown: enabled });
+  return { baseline: baseline.result, enabled: enabled.result, incremental, latency,
+    scope: 'Exact current packed gzip costs, three-browser behavior and Chromium full-corpus optional latency diagnostics; no tail/memory, highlighter, target-platform or release qualification' };
 }
 
 async function currentPack(root, directory, pack) {
@@ -83,6 +85,10 @@ export async function admitOptionalLoading(root, directory, record) {
   assert.equal(digest(await readFile(resolve(root, '../architecture/specs/verification.md'))), record.verificationSpecHash, 'Current optional policy drift');
   assert.equal(record.artifacts['policy/verification.md'], record.verificationSpecHash);
   await verifyPins(directory, record.artifacts);
+  assert.deepEqual(JSON.parse(await readFile(join(root, 'benchmarks/profiles/loading-v1.json'))), record.loadingPolicy, 'Current optional loading policy drift');
+  assert.deepEqual(JSON.parse(await readFile(join(directory, 'latency/loading-policy.json'))), record.loadingPolicy, 'Retained optional loading policy changed');
+  assert.deepEqual(JSON.parse(await readFile(join(directory, 'latency/results.json'))), record.latency, 'Retained optional latency changed');
+  for (const name of record.loadingPolicy.fixtures) assert.equal(digest(await readFile(join(directory, 'latency', name + '.checkpoint.json'))), record.latency.checkpoints[name], 'Changed optional corpus');
   for (const name of ['default', 'markdown']) {
     const dir = join(directory, name), item = record.profiles[name];
     const measured = await admitMeasuredConsumer(dir, { markdown: name === 'markdown' });
@@ -102,7 +108,8 @@ async function main() {
   const profile = JSON.parse(await readFile(join(root, 'benchmarks/profiles/fitness-v1.json')));
   const spec = await readFile(resolve(root, '../architecture/specs/verification.md'));
   validateFitnessProfile(profile, await readFile(join(root, 'benchmarks/config.json')), spec);
-  const record = { version: 1, scope: 'current-packed-default-and-markdown', startedAt: new Date().toISOString(), reviewedAt: profile.reviewedAt,
+  assert(process.env.EDITAC_OPTIONAL_LOADING_SEED, 'Explicit retained loading seed directory required');
+  const record = { version: 2, scope: 'current-packed-default-and-markdown', startedAt: new Date().toISOString(), reviewedAt: profile.reviewedAt,
     verificationSpecHash: digest(spec), revision: spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).stdout.trim(),
     node: process.version, sourceInputs: {}, commands: [], profiles: {}, artifacts: {}, errors: [] };
   const env = { ...process.env }; delete env.NODE_TEST_CONTEXT;
@@ -128,6 +135,9 @@ async function main() {
       await run(name + '-runtime', process.execPath, ['--test', '--test-reporter=tap', 'tests/browser-size-runtime.test.mjs'], { EDITAC_SIZE_RUNTIME_ARTIFACTS: directory, EDITAC_SIZE_RUNTIME_RESULTS: directory }, true);
       record.profiles[name] = { measurement, runtime: JSON.parse(await readFile(join(directory, 'runtime-harness.json'))) };
     }
+    record.loadingPolicy = JSON.parse(await readFile(join(root, 'benchmarks/profiles/loading-v1.json')));
+    record.latency = await produceOptionalLatency(root, output, process.env.EDITAC_OPTIONAL_LOADING_SEED,
+      Object.fromEntries(Object.entries(record.profiles).map(([name, item]) => [name, item.measurement])));
   } catch (error) { record.errors.push(error.message); process.exitCode = 1; }
   const inventory = async directory => {
     for (const entry of await readdir(directory, { withFileTypes: true })) {

@@ -520,12 +520,21 @@ Keep failed owning output, even when partial input-only observations pass. `tabl
 Both PRF-04 workload producers validate the reviewed fitness/config/verification policy before measurement and retain its exact bytes. Admission requires the complete current source closure, retained raw/fixture/runtime identities and an SDK rebuild matching the executed bundle. Policy negatives reject absent, stale, mismatched or post-measurement policy evidence. Full current observations remain diagnostics with `performanceLimits:null`; trusted browser input and Chromium AX are separate from screen-reader/compositor qualification.
 
 The optional-loading input now requires `benchmarks/profiles/optional-loading-evidence.json`.
-Produce it with `EDITAC_OPTIONAL_LOADING_OUTPUT=/absolute/new/directory node scripts/optional-loading-evidence.mjs`.
+Produce it with `EDITAC_OPTIONAL_LOADING_OUTPUT=/absolute/new/directory EDITAC_OPTIONAL_LOADING_SEED=/absolute/retained/checkpoint/directory node scripts/optional-loading-evidence.mjs`.
 This orchestrates the existing FIT-1.6 packed-size and three-browser runtime checks,
 retains original policy/source/command/artifact identities, and admits current dist
 bytes against both exact packed profiles. The default excludes Markdown fetches;
 the enabled profile executes the parser. CSS is counted by the existing gzip
 harness; the browser behavior fixture exercises JS/WASM. Report default, enabled
 and incremental costs separately. Historical FIT-1.6 costs remain historical;
-these byte/behavior inputs do not qualify optional latency, memory, highlighter
-or target-platform performance. No second size or runtime harness is introduced.
+Version 2 also reuses the ordinary loading client and its independent full-corpus
+restoration oracle for Task/Long × baseline/Task × disabled/enabled Markdown,
+twelve cold/warm pairs each. A retained test-host SDK wrapper measures actual
+parser initialization and first-use round trip before mounting the optional
+extension. Navigation timings include these phases and all harness/oracle work;
+no cost is subtracted. Warm is same-context HTTP cache plus acknowledged storage
+restore, with a new WASM instance rather than shared-realm reuse. Raw timings,
+requests, cache provenance, exact assets, checkpoint and policy identities are
+retained. Original 300 ms cold and 50/200 ms warm diagnostics remain unchanged;
+twelve samples leave p95/p99 inconclusive. These observations do not qualify
+memory, highlighter, compositor, target-platform or release performance.
