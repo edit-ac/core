@@ -1386,6 +1386,11 @@ impl Document {
         let mut text_snapshot = None;
         let mut pending: VecDeque<_> = commands.to_vec().into();
         let mut expanded = 0usize;
+        // Until a potentially mutating command runs, this replica still contains
+        // the exact baseline admitted above. Read-only bookmarks do not change
+        // its encoded size. After any possible write, use the original exact
+        // encoding again, even for no-ops or command expansion.
+        let mut pristine = true;
         while let Some(c) = pending.pop_front() {
             expanded += 1;
             if expanded > 16384 {
@@ -1406,6 +1411,12 @@ impl Document {
             if !matches!(&c, EditorCommand::Text(_)) {
                 text_snapshot = None;
             }
+            let read_only = matches!(
+                &c,
+                EditorCommand::HistorySelectionAt { .. }
+                    | EditorCommand::ResultCaretAt(_)
+                    | EditorCommand::SelectionAt { .. }
+            );
             match &c {
                 EditorCommand::ReplaceAt {
                     owner,
@@ -1416,32 +1427,41 @@ impl Document {
                     // Capture offsets against the same disposable stage used by
                     // the remaining batch. A restored Document would serialize,
                     // replay and validate the whole replica before final admission.
+                    // Capture both endpoints and plan against one admitted
+                    // snapshot. No stage mutation intervenes; separate reads
+                    // would only copy the same complete projected document.
+                    let snapshot = text_projection
+                        .read()
+                        .map_err(|_| EditorError::InvalidCommand)?;
+                    let capture = |offset, bias| {
+                        crate::anchors::capture(
+                            &stage.transact(),
+                            self.identity(),
+                            &snapshot,
+                            owner,
+                            offset,
+                            bias,
+                        )
+                        .map_err(|_| EditorError::InvalidCommand)
+                    };
                     let selection = Selection {
-                        anchor: self.editor_stage_anchor(
-                            &stage,
-                            &text_projection,
-                            owner,
-                            *from,
-                            crate::anchors::Bias::Right,
-                        )?,
-                        focus: self.editor_stage_anchor(
-                            &stage,
-                            &text_projection,
-                            owner,
-                            *to,
-                            crate::anchors::Bias::Left,
-                        )?,
+                        anchor: capture(*from, crate::anchors::Bias::Right)?,
+                        focus: capture(*to, crate::anchors::Bias::Left)?,
                     };
                     let plan = self
-                        .prepare_text_on_editor_stage(
+                        .prepare_text_on_editor_snapshot(
                             &super::text::TextCommand::Replace {
                                 selection,
                                 text: text.clone(),
                             },
                             origin,
-                            m::bytes(&stage).len(),
+                            if pristine {
+                                baseline.len()
+                            } else {
+                                m::bytes(&stage).len()
+                            },
                             &stage,
-                            &text_projection,
+                            &snapshot,
                         )
                         .map_err(EditorError::Text)?;
                     super::text::apply_prepared_to_stage(&stage, plan);
@@ -1541,7 +1561,7 @@ impl Document {
                 EditorCommand::Text(command) => {
                     // Text preparation is read-only; only application touches disposable
                     // staged state. No live observer or identity is changed.
-                    let plan = if expanded == 1 {
+                    let plan = if pristine {
                         // Before the first command, the staged and live bytes are
                         // identical. Read-only preparation on the original avoids
                         // restoring/validating a second whole document. The enclosing
@@ -2146,6 +2166,7 @@ impl Document {
                     );
                 }
             }
+            pristine &= read_only;
             if needs_ownership_replay {
                 crate::editor::view(&stage, stable).map_err(error)?;
             }
@@ -2888,7 +2909,20 @@ mod transaction_tests {
             let legacy = m::replica(d.writer_id() as u64);
             m::apply(&legacy, &before.bytes).unwrap();
             let sv = legacy.transact().state_vector();
-            let mut commands = Vec::new();
+            // Leading bookmarks must retain exact-update equivalence; the later
+            // delete must still use the size/state after the first replacement.
+            let point = EditorPosition {
+                owner: id.clone(),
+                offset: U(1),
+                bias: Bias::Right,
+            };
+            let mut commands = vec![
+                EditorCommand::HistorySelectionAt {
+                    anchor: point.clone(),
+                    focus: point.clone(),
+                },
+                EditorCommand::ResultCaretAt(point),
+            ];
             for (from, to, text) in [(1, 3, "界"), (4, 5, "")] {
                 // Independent old path: restore/admit each complete intermediate
                 // replica, capture public offsets, prepare and apply its text plan.
@@ -2952,7 +2986,7 @@ mod transaction_tests {
             );
             assert_eq!(d.checkpoint().bytes, before.bytes);
             let mut surrogate = commands.clone();
-            surrogate[0] = EditorCommand::ReplaceAt {
+            surrogate[2] = EditorCommand::ReplaceAt {
                 owner: id.clone(),
                 from: U(2),
                 to: U(3),

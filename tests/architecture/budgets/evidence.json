@@ -11,8 +11,8 @@
   "sourceRevision": "78b3fd484f3af6ca9ab61b5457cfb1aa45474dbba889a88e863949d9d631cb74",
   "implementationReceipt": "architecture-results/fit-1.8-20261015/native-scaling-4/partial-delivery-receipt.json",
   "implementationReceiptHash": "36d19d22bdab44ace25687d2234e7c792558931ede259edfe24768cf58f837b2",
-  "currentCanonicalReceipt": "architecture-results/fit-1.8-20261016/main-adoption-startup-1/canonical/receipt.json",
-  "canonicalReceiptHash": "a0cb9de2986f9e50672f2b0971baf057958486f24a09355da8da08f2f0f5684b",
+  "currentCanonicalReceipt": "architecture-results/fit-1.8-20261016/pristine-size-1/admission/receipt.json",
+  "canonicalReceiptHash": "3044c7a0a075f253f8cb04d8600d9b6c1b8228959f01d7252b749937b9ed71cb",
   "profileHash": "22aaa4b74df2064c44f791b62c977be07ecca00e77b148052ae6536fe1c59122",
   "baselineIndexHash": "35e558be0a31523ecded86f89e6e2b9790a5e97b2fefd0277f912d77945be799",
   "previousEvidence": "e7dcb870c622a05ecc3c4afc7606988196a63985:tests/architecture/budgets/evidence.json",
@@ -86,7 +86,7 @@
   "gestureReceipt": "architecture-results/fit-1.8-20261015/source-refresh-1/gestures-1/results.json",
   "gestureReceiptHash": "ed461eb185b454a4973a4ce2305b1db672e93d67ff1460ad995d11485fa175c6",
   "gestureScope": "16/16 actual-public-editor ordinary-pointer diagnostics: exact thin-glyph range endpoints, canceled native text drag, prose/code nested autoscroll across unchanged Task/Long \u00d7 baseline/Task, bounded native controls and cancellation. No full performance/platform qualification or new checked child.",
-  "currentDeliveryReceipt": "architecture-results/fit-1.8-20261016/native-touch-1/delivery-receipt.json",
+  "currentDeliveryReceipt": "architecture-results/fit-1.8-20261016/pristine-size-1/delivery-receipt.json",
   "serviceReceipt": "architecture-results/fit-1.8-20261015/source-refresh-1/services-1/results.json",
   "serviceReceiptHash": "ac8448b57c0b2287dd5e7ef1c4ad9f73881b94771712eb9d9157843712598b95",
   "serviceScope": "16/16 actual-public-editor/lifecycle/resolver/sync diagnostic observations across unchanged full Task/Long \u00d7 baseline/Task. Prepared noncooperative host responses; constant-size atomic replacements, bounded queue/stale-result invalidation, exact local/remote commit and DOM node scopes, convergence and cleanup. Highlight/asset/conversion runtimes pending; no full PRF-03/performance/platform qualification or new checked child.",
@@ -135,7 +135,7 @@
   "loadingScope": "Production24/24 and observer24/24; each48pairs/96navigations/96exactrestorations;192 separately labeled command windows. Long preparation diagnostic reduction remains above startup targets;12-sample tails unqualified.",
   "nativeCJKDelivery": "architecture-results/fit-1.8-20261015/native-workloads-1/delivery-receipt.json",
   "nativeCJKScope": "Existing ASCII plus actual OS Simplified Chinese Pinyin ni candidate commit and hao host cancellation; exact source isolation, AX candidate geometry/action, checkpoint, display callback and disposal diagnostics only",
-  "nativeCJKRemaining": "CJK remains one commit, below100-sample tails; full native renderer, peak/plateau, compositor, optional/accessibility/target-runtime and startup/Long/Brotli qualification remain. Task/Long diagnostic workloads are now delivered, with measured Long misses.",
+  "nativeCJKRemaining": "Fresh changed-artifact Pinyin first-marked/candidate/commit/cancel proof is unfinished; no physical-only blocker or full native/platform/performance qualification.",
   "currentSourceRefresh": {
     "delivery": {
       "path": "architecture-results/fit-1.8-20261016/main-adoption-startup-1/delivery-receipt.json",
@@ -144,7 +144,7 @@
     "state": "PARTIAL",
     "scope": "Locked main adoption/preservation; actual current full Task/Long diagnostic observations plus fail-closed edit/resource-window checks. Full native command, original FIT/performance/platform/release remain unqualified."
   },
-  "currentSourceRefreshScope": "Complete the preserved native causal preparation/trace prerequisite with actual current-union OS keyboard, fixed Task/Long corpus, exact restoration and raw resource evidence; repair tutorial input binding and current valid negative contrasts. No full performance, tails, compositor, accessibility, native SDK or release qualification.",
+  "currentSourceRefreshScope": "Prior source-refresh receipts retain historical exact-build scope. Current delivery admits source/artifact integrity, full packed production/rendering24/24 each, and Task/Long native observations; current full native admission fails.",
   "nativeWorkloads": {
     "receipt": {
       "path": "architecture-results/fit-1.8-20261015/native-workloads-1/owning-3/receipt.json",
@@ -161,10 +161,10 @@
     "state": "PARTIAL",
     "scope": "Current Task/Long each3/3,12OS KeyboardEvents/16resources, full checkpoint/reopen; full native2/4fails. No index/current canonical admission."
   },
-  "currentCanonicalState": "No new canonical run: final current native2/4fails ASCII tutorial dismissal and first Pinyin composing wait. Prior516/569,53fail,0skip remains historical; native/baseline indexes unchanged.",
-  "activeChild": "FIT-1.8-I1-B4a",
+  "currentCanonicalState": "574/584,10fail,0skip: prior8failures plus2reopened native source/admission checks. Fresh native3/4 fails first Pinyin composing wait; last admitted focus-ack-1 index remains historical, not current qualification.",
+  "activeChild": "FIT-1.8-I1-B4",
   "nativeProfileHash": "5e80df8d90c38acd6ca191b2856c5d6c66ea9630ec87e5f943fe0e42a99d4fd9",
-  "lastRelevantChange": "2026-10-16: ordinary software-key Pinyin dispatch with geometry admission/negatives; application-screen tutorial action remains unreliable; workload KeyboardEvents await actual native acknowledgments rather than per-key software-key lookup. Final Task/Long pass, ASCII/Pinyin fail; no gate closes.",
+  "lastRelevantChange": "2026-10-16: reuse pristine editor byte length and one admitted offset-edit snapshot. Rust unit113, packed browser115, compiled-WASM39 and both owning packed matrices24/24 pass; core845pass/4inherited failures (base control reproduces4). Long Rust prepare p50 69.37 to55.65ms in12samples; fresh native3/4 and canonical574/584 remain unqualified. No checkbox closes.",
   "startupAttributionPartial": {
     "path": "architecture-results/fit-1.8-20261015/startup-phases-1/partial-delivery-receipt.json",
     "sha256": "fa192635d3fa520b1303eb8d9521e7aa3493269a034a43521927460e202806ab",
@@ -187,20 +187,14 @@
     "sourceRevision": "c353c87f04046a451645445cf3b8d7c05fdd2b43d4cc683bf44c1b9cf2e6a11a",
     "state": "Implemented/verified B5h prerequisite only: Rust872, compiled WASM64, packed browser112, full startup24 observations/48 pairs/96 exact restorations and focused admission28; zero failures/skips. Long Task1455/1394.1ms still misses300/200ms, tails inconclusive; no full FIT/native/optional/accessibility/resource claim."
   },
-  "currentDeliveryReceiptHash": "6e9630b07353c0412f42c90773af4f898404a5aa60beaa85f8b4bae1061a425e",
+  "currentDeliveryReceiptHash": "3de423feb8253a4ca4cdd3d868b420d45c3abc6c0dde1ccbabaf18bae73ab913",
   "nativeActivationPartial": {
     "delivery": {
-      "path": "architecture-results/fit-1.8-20261016/native-touch-1/delivery-receipt.json",
-      "sha256": "6e9630b07353c0412f42c90773af4f898404a5aa60beaa85f8b4bae1061a425e"
+      "path": "architecture-results/fit-1.8-20261016/pristine-size-1/delivery-receipt.json",
+      "sha256": "3de423feb8253a4ca4cdd3d868b420d45c3abc6c0dde1ccbabaf18bae73ab913"
     },
-    "state": "Final native2/4,0skips: Task/Long pass, ASCII tutorial and first Pinyin marked key fail; original parent/child open",
-    "scopedPriorEvidence": "Pinyin6/6 in owning-2/3; ASCII5/5 in owning-3; no combination with current Task/Long",
-    "detectorCounts": {
-      "executed": 7,
-      "passed": 7,
-      "failed": 0,
-      "skipped": 0
-    },
-    "nextImplementation": "Defer unchanged native dispatch attempts; B5 startup repair from retained phases before any startup rerun. Native retry requires a concrete changed OS control/text-service interaction, not center-tap/readiness/duration-only repetition."
+    "state": "Current changed-artifact native3/4,1fail/0skip. ASCII5/5 and full Task/Long3/3 each pass; Pinyin first n dispatch leaves source/status unchanged, six CJK checks unfinished. Parent/B4 remain open.",
+    "failureEvidence": "architecture-results/fit-1.8-20261016/pristine-size-1/failed-native-fingerprint.json",
+    "nextImplementation": "Instrument actual UIKit insertText/setMarkedText/delegate acknowledgment against software-key dispatch and repair the missing marked transition before a full fixed-matrix retry; no payload replay or unchanged retry."
   }
 }
