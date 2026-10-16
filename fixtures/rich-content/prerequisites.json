@@ -1,0 +1,148 @@
+{
+  "schemaVersion": 1,
+  "scope": "RCH-1.1 mapping prerequisite audit",
+  "entries": [
+    {
+      "roadmap": "05",
+      "receipt": "architecture/evidence/link-upstream-qualification/current/prerequisites.json",
+      "sha256": "36fe7ebbea88eeb0f5e7343ba0387d63b007f8941202ae4d65a0c244d504cf07",
+      "reuse": "historical portable/browser semantic prerequisite evidence only; no full current platform/release claim",
+      "checks": [
+        {
+          "command": [
+            "cargo",
+            "+1.97.1",
+            "test",
+            "--locked",
+            "--offline",
+            "-p",
+            "editac-core"
+          ],
+          "log": "architecture/evidence/link-upstream-qualification/lqr-1.2-20261014/attempt-214409-f43c0/native-core-0.log",
+          "sha256": "64aa4dfae1a8a19306732a4c48407b3b12a244567889cf48f8e30a933a994784",
+          "executed": 777,
+          "passed": 777,
+          "failed": 0,
+          "skipped": 0
+        },
+        {
+          "command": [
+            "cargo",
+            "+1.97.1",
+            "test",
+            "--locked",
+            "--offline",
+            "-p",
+            "editac-markdown"
+          ],
+          "log": "architecture/evidence/link-upstream-qualification/lqr-1.2-20261014/attempt-214409-f43c0/native-markdown-0.log",
+          "sha256": "f9b5e0c51c02e39740aa69462c806a33b9e7ca135bb4f18a722dab660f017021",
+          "executed": 53,
+          "passed": 53,
+          "failed": 0,
+          "skipped": 0
+        }
+      ]
+    },
+    {
+      "roadmap": "07",
+      "receipt": "architecture/evidence/modules-matrix/receipt.json",
+      "sha256": "52dc5aed089330c6e31f9fed6a1c5e988b8583af45b5f68577aafb5f320fd2de",
+      "reuse": "historical portable/browser semantic prerequisite evidence only; no full current platform/release claim",
+      "checks": [
+        {
+          "command": "node --test tests/module-bundles.test.mjs",
+          "log": "architecture/evidence/modules-matrix/module-bundles.log",
+          "sha256": "f14923a5820e6c996906f37066bfca5c9e7af4a4e08a158484a0354f8fbe7e89",
+          "executed": 9,
+          "passed": 9,
+          "failed": 0,
+          "skipped": 0
+        }
+      ]
+    },
+    {
+      "roadmap": "12",
+      "receipt": "architecture/evidence/client-contracts/conformance-20261013/receipt.json",
+      "sha256": "6353f19fc33b5c8aad02b31b03473c3d338d4856524ab85c791b2241eaff90cf",
+      "reuse": "historical portable/browser semantic prerequisite evidence only; no full current platform/release claim",
+      "checks": [
+        {
+          "command": "cargo test -p editac-session --locked",
+          "log": "architecture/evidence/client-contracts/conformance-20261013/session-default.log",
+          "sha256": "2ef602caf972345cc7a7f049881b1f832f343cd42cb6b0f7eda6e7033b2bb087",
+          "executed": 127,
+          "passed": 127,
+          "failed": 0,
+          "skipped": 0
+        },
+        {
+          "command": "cargo test -p editac-session --features native-store --locked",
+          "log": "architecture/evidence/client-contracts/conformance-20261013/session-native.log",
+          "sha256": "0b723b61e168a694d69fd4b8073b4fcf85a1504b823e09f0f122daf1db8862d2",
+          "executed": 169,
+          "passed": 169,
+          "failed": 0,
+          "skipped": 0
+        }
+      ]
+    },
+    {
+      "roadmap": "13",
+      "receipt": "architecture/evidence/diff/review-apply-20261013/receipt.json",
+      "sha256": "4f903cdbc7723060a1313272a7a753e49ef8cdeb62ede24a451d4c4dcec23afb",
+      "reuse": "historical portable/browser semantic prerequisite evidence only; no full current platform/release claim",
+      "checks": [
+        {
+          "command": "cargo test -p editac-session --test review_apply --locked",
+          "log": "architecture/evidence/diff/review-apply-20261013/canonical-qualified.log",
+          "sha256": "997dc3c0d2869bd3dd1bc6678560b30a66d73db66ef78caccbaf7cf2659741b9",
+          "executed": 41,
+          "passed": 41,
+          "failed": 0,
+          "skipped": 0
+        },
+        {
+          "command": "/Users/bpstr/.cargo/bin/cargo test -p editac-session --test edit_service --test origins --test revisions --locked",
+          "log": "architecture/evidence/diff/review-apply-20261013/session-regressions.log",
+          "sha256": "8f451deab293cf6dde390803159cc7112ebaf28b5f4766a33faa2f6d5a950149",
+          "executed": 43,
+          "passed": 43,
+          "failed": 0,
+          "skipped": 0
+        }
+      ]
+    },
+    {
+      "roadmap": "21",
+      "receipt": "architecture/evidence/extension-presenters/receipt.json",
+      "sha256": "9cd332eadae73243a8c319c8b3726df08dd568d44d3df496dc867e2650d5ee49",
+      "reuse": "historical portable/browser semantic prerequisite evidence only; no full current platform/release claim",
+      "checks": [
+        {
+          "command": "node --test tests/extension-presenters.test.mjs",
+          "log": "architecture/evidence/extension-presenters/presenters-final.log",
+          "sha256": "dd95509070e75ce095bb73d392a2eb0557e588f7e61efbed6e119e852a030c05",
+          "executed": 57,
+          "passed": 57,
+          "failed": 0,
+          "skipped": 0
+        },
+        {
+          "command": "node --test tests/extension-lifecycle.test.mjs tests/module-runtime.test.mjs",
+          "log": "architecture/evidence/extension-presenters/regressions-isolated.log",
+          "sha256": "43f664b4d210ac51a6abe74728ccd40749b0ad2fd85b327655179d1fc57bac82",
+          "executed": 33,
+          "passed": 33,
+          "failed": 0,
+          "skipped": 0
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "Historical complete labels do not qualify changed source or current built artifacts.",
+    "EXT-1.13 formatting partial/failures retained; RCH-1.23 must qualify required palette/transfer behavior before closing.",
+    "Native/performance qualification deferred under feature-first amendment; AI SDK/browser/mobile entry remains separate."
+  ]
+}
