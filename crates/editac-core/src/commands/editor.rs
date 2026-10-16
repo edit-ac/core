@@ -1340,6 +1340,7 @@ impl Document {
                 && self.matches_checkpoint_stamp(&stage.stamp)
                 && stage.bytes == baseline
         });
+        let mut inherited_structure_admission = retained.is_some();
         let (stage, retained_projection) = if let Some(retained) = retained {
             (retained.doc, Some(retained.projection))
         } else {
@@ -1408,6 +1409,11 @@ impl Document {
                     | EditorCommand::ResultCaretAt(_)
                     | EditorCommand::SelectionAt { .. }
             );
+            // Only these private operations preserve every owner, parent,
+            // immutable map and source identity. A retained stage already passed
+            // hierarchy/identity admission at these exact baseline bytes. Any
+            // other command (including expansion) permanently loses that proof.
+            inherited_structure_admission &= !needs_ownership_replay;
             if !matches!(&c, EditorCommand::Text(_)) {
                 text_snapshot = None;
             }
@@ -2228,8 +2234,10 @@ impl Document {
         let _validation_phase = crate::fitness::Span::new("engine.editor.validation.projection");
         // Reuse the stage-owned index. It observes every text/structural mutation,
         // including delete-only changes, and consumes only disposable-stage
-        // deltas. General ownership still uses its qualified complete replay. Final read still admits the complete resulting hierarchy;
-        // immutable structure and selections retain their independent checks.
+        // deltas. A text/bookmark-only continuation of an exactly matched admitted
+        // stage preserves topology and source identity. First-use and all other
+        // batches retain complete hierarchy/immutable admission. Text projection,
+        // selections and exact encoded size are always checked.
         let final_projection = text_projection;
         let hierarchy = final_projection
             .read()
@@ -2261,22 +2269,26 @@ impl Document {
                 }
             }
         }
-        super::lists::validate_editor_hierarchy(&hierarchy, &[]).map_err(|e| {
-            if matches!(
-                e,
-                super::lists::HierarchyError::ResourceLimit
-                    | super::lists::HierarchyError::DepthLimit(_)
-            ) {
-                EditorError::ResourceLimit
-            } else {
-                EditorError::InvalidCommand
-            }
-        })?;
+        if !inherited_structure_admission {
+            super::lists::validate_editor_hierarchy(&hierarchy, &[]).map_err(|e| {
+                if matches!(
+                    e,
+                    super::lists::HierarchyError::ResourceLimit
+                        | super::lists::HierarchyError::DepthLimit(_)
+                ) {
+                    EditorError::ResourceLimit
+                } else {
+                    EditorError::InvalidCommand
+                }
+            })?;
+        }
         #[cfg(feature = "fitness-trace")]
         drop(_validation_phase);
-        final_projection
-            .validate_immutable_structure(&self.doc)
-            .map_err(EditorError::Admission)?;
+        if !inherited_structure_admission {
+            final_projection
+                .validate_immutable_structure(&self.doc)
+                .map_err(EditorError::Admission)?;
+        }
         #[cfg(feature = "fitness-trace")]
         drop(_phase);
         #[cfg(feature = "fitness-trace")]
@@ -2461,6 +2473,96 @@ mod transaction_tests {
                     .sum(),
             ),
             text: text.into(),
+        }
+    }
+    #[test]
+    fn retained_admission_preserves_mixed_batch_fallback_and_atomic_rejection() {
+        use crate::{Utf16Offset as U, anchors::Bias};
+        for stable in [false, true] {
+            for case in 0..4 {
+                let mut d = retained_fixture(20 + case, stable);
+                let origin = TextOrigin::new("retained-admission-fallback").unwrap();
+                d.enable_history(crate::history::HistoryConfig::default())
+                    .unwrap();
+                d.commit_editor(
+                    d.prepare_editor(&[retained_replace(&d, "A😀Z")], &origin)
+                        .unwrap(),
+                )
+                .unwrap();
+                let id = d.snapshot().unwrap().visible[0].id.clone();
+                let point = EditorPosition {
+                    owner: id.clone(),
+                    offset: U(1),
+                    bias: Bias::Right,
+                };
+                let text = EditorCommand::ReplaceAt {
+                    owner: id.clone(),
+                    from: U(1),
+                    to: U(3),
+                    text: "界".into(),
+                };
+                let block = EditorCommand::Block {
+                    target: id.clone(),
+                    tuple: m::arr(vec![Any::from("heading"), Any::from(2)]),
+                };
+                let commands = match case {
+                    0 => vec![
+                        EditorCommand::HistorySelectionAt {
+                            anchor: point.clone(),
+                            focus: point.clone(),
+                        },
+                        text,
+                        EditorCommand::ResultCaretAt(point),
+                    ],
+                    1 => vec![text, block],
+                    2 => vec![block, text],
+                    _ => vec![
+                        text,
+                        EditorCommand::Place {
+                            target: id.clone(),
+                            parent: id.clone(),
+                            before: None,
+                        },
+                    ],
+                };
+                let before = d.checkpoint();
+                // Independent full admission: discard only the disposable cache,
+                // preserving the real writer, history, anchors and baseline.
+                let retained = d.editor_stage.borrow_mut().take();
+                let cold = d.prepare_editor(&commands, &origin);
+                *d.editor_stage.borrow_mut() = retained;
+                let warm = d.prepare_editor(&commands, &origin);
+                assert_eq!(d.checkpoint().bytes, before.bytes);
+                match (cold, warm) {
+                    (Ok(cold), Ok(warm)) => {
+                        assert_ne!(case, 3, "illegal hierarchy must reject");
+                        assert_eq!(cold.update, warm.update);
+                        d.commit_editor(warm).unwrap();
+                        let snapshot = d.snapshot().unwrap();
+                        let reopened =
+                            Document::restore(d.identity(), &d.checkpoint(), &[]).unwrap();
+                        assert_eq!(snapshot.visible, reopened.snapshot().unwrap().visible);
+                        d.undo().unwrap();
+                        assert_eq!(
+                            d.snapshot().unwrap().visible[0]
+                                .runs
+                                .iter()
+                                .map(|r| r.text.as_str())
+                                .collect::<String>(),
+                            "A😀Z"
+                        );
+                        assert!(matches!(
+                            d.commit_editor(cold),
+                            Err(EditorError::Text(TextError::StalePlan))
+                        ));
+                    }
+                    (Err(cold), Err(warm)) => {
+                        assert_eq!(case, 3);
+                        assert_eq!(cold, warm);
+                    }
+                    _ => panic!("retained and full admission disagree, case {case}"),
+                }
+            }
         }
     }
     #[test]
