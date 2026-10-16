@@ -5,8 +5,8 @@ import assert from 'node:assert/strict';
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
-import { digest, verifyPins } from '../../../scripts/architecture-budgets.mjs';
-import { inspectGestures } from '../../../scripts/gesture-evidence.mjs';
+import { digest, verifyPins, validateFitnessProfile } from '../../../scripts/architecture-budgets.mjs';
+import { inspectGestures, validateGesturePolicy } from '../../../scripts/gesture-evidence.mjs';
 import { fixture } from '../../../benchmarks/fixtures.mjs';
 import { presets } from '../../../benchmarks/presets.mjs';
 const root = fileURLToPath(new URL('../../../', import.meta.url));
@@ -14,9 +14,13 @@ const read = file => readFile(resolve(root, file));
 const profileBytes = await read('benchmarks/profiles/gestures-v1.json'), profile = JSON.parse(profileBytes);
 const index = JSON.parse(await read('benchmarks/profiles/gesture-evidence.json'));
 const resultBytes = await read(`${index.directory}/results.json`), record = JSON.parse(resultBytes);
+const fitnessPolicy = JSON.parse(await read('benchmarks/profiles/fitness-v1.json'));
 const evidence = { version: 1, parent: 'FIT-1.8', scope: 'PRF-02 browser diagnostics only', artifacts: {}, observations: null };
 test('owning trusted-input gesture matrix has current source/artifact/fixture identities and exact runtime counts', async () => {
   assert.equal(index.resultsHash, digest(resultBytes)); assert.equal(record.profileHash, digest(profileBytes));
+  validateFitnessProfile(fitnessPolicy, await read('benchmarks/config.json'), await read('../architecture/specs/verification.md'));
+  validateGesturePolicy(fitnessPolicy, record);
+  for (const path of ['benchmarks/profiles/fitness-v1.json', 'benchmarks/config.json', 'scripts/architecture-budgets.mjs']) assert(record.sourceInputs[path], `Missing policy source ${path}`);
   await verifyPins(root, record.sourceInputs);
   for (const file of ['editac_wasm.js', 'editac_wasm_bg.wasm']) assert.equal(digest(await read(`packages/core/dist/wasm/${file}`)), record.artifacts[`harness/wasm/${file}`]);
   const rebuilt = await build({ plugins: [gestureInstrumentation()], stdin: { contents: 'export {createEditor,taskPreset,CheckpointStorage} from "@edit-ac/web"; export {init} from "@edit-ac/core";', resolveDir: root }, outfile: resolve(root, 'architecture-results/reuse-sdk.js'), write: false, bundle: true, minify: true, format: 'esm', platform: 'browser', target: 'es2022' });
@@ -84,3 +88,13 @@ test('changing native modifier or replay matrix invalidates the diagnostic profi
 after(async () => {
   assert(process.env.EDITAC_ARCHITECTURE_OUTPUT); await writeFile(resolve(process.env.EDITAC_ARCHITECTURE_OUTPUT, 'gestures-inventory.json'), JSON.stringify(evidence, null, 2) + '\n');
 });
+
+for (const [name, mutate] of [
+  ['missing policy', r => delete r.metadata.verificationPolicy],
+  ['stale policy', r => r.metadata.verificationPolicy.sha256 = '0'.repeat(64)],
+  ['wrong policy source', r => r.metadata.verificationPolicy.source = 'prepared'],
+  ['missing retained policy', r => delete r.artifacts['policy/verification.md']],
+  ['changed retained policy', r => r.artifacts['policy/verification.md'] = '0'.repeat(64)],
+  ['stale policy review', r => r.metadata.verificationPolicy.reviewedAt = '2000-01-01T00:00:00.000Z'],
+  ['measurement before review', r => r.metadata.startedAt = fitnessPolicy.reviewedAt],
+]) test(`gesture policy rejects ${name}`, () => assert.throws(() => validateGesturePolicy(fitnessPolicy, change(mutate))));

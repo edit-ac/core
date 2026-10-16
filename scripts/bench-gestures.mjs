@@ -10,8 +10,8 @@ import { gestureInstrumentation } from './gesture-instrumentation.mjs';
 import { gestureVersion } from '../benchmarks/gesture-trace.mjs';
 import { fixture } from '../benchmarks/fixtures.mjs';
 import { presets } from '../benchmarks/presets.mjs';
-import { digest } from './architecture-budgets.mjs';
-import { inspectGestures, inspectGesture } from './gesture-evidence.mjs';
+import { digest, validateFitnessProfile, verifyPins } from './architecture-budgets.mjs';
+import { inspectGestures, inspectGesture, validateGesturePolicy } from './gesture-evidence.mjs';
 import { requireTestNode } from './test-toolchain.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url)); process.chdir(root); await requireTestNode();
@@ -21,15 +21,21 @@ const seeds = resolve(root, args[1]), output = resolve(root, args[3]);
 if (!relative(root, output) || relative(root, output).startsWith('..')) throw Error('Retain output inside repository');
 await mkdir(output, { recursive: false });
 const profilePath = 'benchmarks/profiles/gestures-v1.json', profileBytes = await readFile(profilePath), profile = JSON.parse(profileBytes);
+const fitnessPath = 'benchmarks/profiles/fitness-v1.json';
+const fitnessPolicy = JSON.parse(await readFile(fitnessPath));
+const verificationPolicy = await readFile(resolve(root, '../architecture/specs/verification.md'));
+// Fail before launching a browser; a receipt must capture the policy measured.
+validateFitnessProfile(fitnessPolicy, await readFile('benchmarks/config.json'), verificationPolicy);
 const record = { version: gestureVersion, qualification: 'unqualified', profileHash: digest(profileBytes),
   metadata: { startedAt: new Date().toISOString(), command: [process.execPath, ...process.argv.slice(1)],
     revision: spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout.trim(),
     cpu: cpus()[0].model, cores: cpus().length, memoryBytes: totalmem(), hostOS: `${platform()}/${release()}/${arch()}`,
+    verificationPolicy: { source: 'architecture/specs/verification.md', sha256: digest(verificationPolicy), reviewedAt: fitnessPolicy.reviewedAt },
     provenance: 'headless-browser-on-host', node: process.version, input: profile.input },
   counts: { executed: 0, passed: 0, failed: 0, skipped: profile.fixtures.length * profile.presets.length * profile.gestures.length }, cases: [], sourceInputs: {}, artifacts: {}, errors: [], cleanup: {} };
 const tracked = spawnSync('git', ['ls-files', 'crates', 'packages', 'fixtures/schema-v5', 'Cargo.lock', 'Cargo.toml', 'package-lock.json', 'package.json', 'scripts/build-wasm.mjs'], { encoding: 'utf8' });
 if (tracked.status !== 0) throw Error('Cannot pin source closure');
-const inputs = [...new Set([...tracked.stdout.trim().split('\n'), profilePath, 'benchmarks/gesture-trace.mjs', 'benchmarks/gesture-client.mjs',
+const inputs = [...new Set([...tracked.stdout.trim().split('\n'), profilePath, fitnessPath, 'benchmarks/config.json', 'scripts/architecture-budgets.mjs', 'benchmarks/gesture-trace.mjs', 'benchmarks/gesture-client.mjs',
   'benchmarks/fixtures.mjs', 'benchmarks/presets.mjs', 'scripts/gesture-instrumentation.mjs', 'scripts/gesture-evidence.mjs', 'scripts/bench-gestures.mjs'])];
 for (const file of inputs) record.sourceInputs[file] = digest(await readFile(file));
 const temporary = await mkdtemp(join(tmpdir(), 'editac-prf02-'));
@@ -38,6 +44,8 @@ const stop = () => { interrupted = true; void browser?.close(); };
 process.once('SIGINT', stop); process.once('SIGTERM', stop);
 async function retain(file, bytes) { await mkdir(join(output, file, '..'), { recursive: true }); await writeFile(join(output, file), bytes); record.artifacts[file] = digest(bytes); }
 try {
+  await retain('policy/verification.md', verificationPolicy);
+  validateGesturePolicy(fitnessPolicy, record);
   await mkdir(join(temporary, 'wasm'));
   await build({ plugins: [gestureInstrumentation()], stdin: { contents: 'export {createEditor,taskPreset,CheckpointStorage} from "@edit-ac/web"; export {init} from "@edit-ac/core";', resolveDir: root },
     outfile: join(temporary, 'sdk.js'), bundle: true, minify: true, format: 'esm', platform: 'browser', target: 'es2022' });
@@ -122,7 +130,11 @@ finally {
   process.removeListener('SIGINT', stop); process.removeListener('SIGTERM', stop);
 }
 // Exact executed/pass/fail counts also survive admission failure.
-try { record.observations = inspectGestures(profile, record); }
+try {
+  await verifyPins(root, record.sourceInputs);
+  if (digest(await readFile(resolve(root, '../architecture/specs/verification.md'))) !== digest(verificationPolicy)) throw Error('Verification policy changed during measurement');
+  validateGesturePolicy(fitnessPolicy, record); record.observations = inspectGestures(profile, record);
+}
 catch (error) { record.errors.push(error.message); }
 if (record.errors.length) record.status = 'failed'; else record.status = 'diagnostic';
 await writeFile(join(output, 'results.json'), JSON.stringify(record, null, 2) + '\n');

@@ -1,7 +1,15 @@
+import { validateBaselinePolicy } from './architecture-budgets.mjs';
 import { gestureVersion } from '../benchmarks/gesture-trace.mjs';
 const require = (ok, message) => { if (!ok) throw Error(message); };
 const finite = x => Number.isFinite(x) && x >= 0;
 const pin = x => typeof x === 'string' && /^[a-f0-9]{64}$/.test(x);
+// Reuse the reviewed fitness policy contract with this producer's record shape.
+export function validateGesturePolicy(profile, record) {
+  validateBaselinePolicy(profile, {
+    metadata: { ...record.metadata, timestamp: record.metadata?.startedAt },
+    artifactInputs: record.artifacts,
+  });
+}
 export function inspectGestures(profile, record) {
   require(profile?.version === 1 && profile.id === 'prf-02-diagnostics-v2' && profile.performanceLimits === null, 'Unknown gesture diagnostic profile');
   require(JSON.stringify(profile.fixtures) === '["Task","Long"]' && JSON.stringify(profile.presets) === '["baseline","task"]'
