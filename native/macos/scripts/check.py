@@ -16,7 +16,7 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 CORE = ROOT.parents[1]
 SUITES = {
-    "extensions": ("EditacMacOSExtensionsTests.ExtensionsTests", 18),
+    "extensions": ("EditacMacOSExtensionsTests.ExtensionsTests", 26),
     "collaboration": ("EditacMacOSCollaborationTests.CollaborationTests", 16),
     "collaboration-lifecycle": ("EditacMacOSCollaborationLifecycleTests.CollaborationLifecycleTests", 13),
     "accessibility-text": ("EditacMacOSAccessibilityTextTests.AccessibilityTextTests", 10),
@@ -254,7 +254,7 @@ def main():
             env["EDITAC_MACOS_EXTENSION_FIXTURE"] = str(manifest)
             env["EDITAC_MACOS_EXTENSION_EVIDENCE"] = str(output)
             fixture = json.loads(manifest.read_text())
-            receipt["extensionsScope"] = "native-renderer-prerequisite-only-14-actual-session-4-prepared-no-custom-or-math-edit-qualification"
+            receipt["extensionsScope"] = "native-extension-editing-22-actual-session-4-prepared-presentation-guards"
             receipt["extensionFixture"] = {"manifest": str(manifest),
                 "manifestSha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
                 "storeSha256": hashlib.sha256(Path(fixture["path"]).read_bytes()).hexdigest(),

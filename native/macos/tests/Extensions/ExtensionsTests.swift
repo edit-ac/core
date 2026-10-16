@@ -24,11 +24,14 @@ final class ExtensionsTests: XCTestCase {
             catch { c.resume(throwing: error) }
         }
     }
+    private let registry = """
+    [{"type":"fixture.note","version":1,"kind":"mark","attributes":{"label":{"type":"string","required":true,"maxUtf16":32}},"content":{"type":"text","maxUtf16":32},"fallback":{"type":"text","source":"content"}}]
+    """
     private func open(_ view: NativeEditorView, _ manifest: [String: Any]) async throws {
         let options = NativeSessionOptions(path: manifest["openedPath"] as! String, documentId: manifest["documentId"] as! String,
             epoch: manifest["epoch"] as! String, writable: true, permissionExpiresAt: nil)
         let _: NativeSessionResponse = try await withCheckedThrowingContinuation { c in
-            do { try view.session.open(options: options, now: 0) { c.resume(with: $0.mapError { $0 as Error }) } }
+            do { try view.session.open(options: options, now: 0, registryJSON: registry) { c.resume(with: $0.mapError { $0 as Error }) } }
             catch { c.resume(throwing: error) }
         }
         XCTAssertNil(view.projectionFailure)
@@ -91,7 +94,7 @@ final class ExtensionsTests: XCTestCase {
             XCTAssertEqual(math.sourceView.string, "\\frac{a}{")
             XCTAssertTrue(math.diagnostic.contains("Math source only"))
             XCTAssertTrue(view.extensions.mathSourcePresentation)
-            XCTAssertFalse(view.extensions.mathSourceEditing); XCTAssertFalse(view.extensions.mathTypesetting)
+            XCTAssertTrue(view.extensions.mathSourceEditing); XCTAssertFalse(view.extensions.mathTypesetting)
             XCTAssertFalse(math.sourceView.isEditable)
         }
     }
@@ -204,6 +207,151 @@ final class ExtensionsTests: XCTestCase {
         }) { view, _ in
             XCTAssertTrue(view.extensions.views.isEmpty); XCTAssertNil(renderer.view.superview)
             XCTAssertEqual(renderer.disposals, 1)
+        }
+        XCTAssertEqual(renderer.disposals, 1)
+    }
+    private func enable(_ view: NativeEditorView) async throws {
+        _ = try await send(view, .extensionPolicy(enabled: true))
+    }
+    private func completed(_ view: NativeEditorView, _ action: () throws -> Void) async throws {
+        let done = expectation(description: "shared native command completion")
+        var result: Result<Void, NativeCommandFailure>?
+        view.commands.onCompletion = { result = $0; done.fulfill() }
+        defer { view.commands.onCompletion = nil }
+        try action()
+        await fulfillment(of: [done], timeout: 5)
+        try XCTUnwrap(result).get()
+        XCTAssertNil(view.projectionFailure)
+    }
+    func testActualSourceEditOneHistoryIdentityAndUndoRedo() async throws {
+        try await fixture { view, m in
+            try await self.enable(view)
+            let child = try self.child(view, m, "math"), before = child.descriptor
+            let target = try await view.extensions.captureEdit(child.nodeID)
+            XCTAssertTrue(child.sourceView.isEditable)
+            try await self.completed(view) { try view.extensions.replace(target: target, source: "\\invalid{🦀") }
+            XCTAssertTrue(try self.child(view, m, "math") === child)
+            XCTAssertEqual(child.descriptor.source, "\\invalid{🦀")
+            XCTAssertEqual(child.descriptor.payloadJSON, before.payloadJSON)
+            XCTAssertEqual(view.commands.history?.undoGroups, 1)
+            XCTAssertThrowsError(try view.extensions.replace(target: target, source: "reused"))
+            try await self.completed(view) { view.commands.perform(.undo) }
+            XCTAssertEqual(child.descriptor, before)
+            try await self.completed(view) { view.commands.perform(.redo) }
+            XCTAssertEqual(child.descriptor.source, "\\invalid{🦀")
+        }
+    }
+    func testActualUnknownSourceEditingPreservesEnvelopeAndReopen() async throws {
+        try await fixture { view, m in
+            try await self.enable(view)
+            let child = try self.child(view, m, "unknown"), before = child.descriptor
+            let target = try await view.extensions.captureEdit(child.nodeID)
+            try await self.completed(view) { try view.extensions.replace(target: target, source: "new <script>🦀</script>") }
+            XCTAssertEqual(child.descriptor.type, before.type); XCTAssertEqual(child.descriptor.version, before.version)
+            XCTAssertEqual(child.descriptor.payloadJSON, before.payloadJSON)
+            let after = child.descriptor
+            await withCheckedContinuation { c in view.dispose { c.resume() } }
+            let other = NativeEditorView(frame: view.frame)
+            do { try await self.open(other, m); XCTAssertEqual(try self.child(other, m, "unknown").descriptor, after) }
+            catch { await withCheckedContinuation { c in other.dispose { c.resume() } }; throw error }
+            await withCheckedContinuation { c in other.dispose { c.resume() } }
+        }
+    }
+    func testActualSourceCancelStaleAndBoundedInput() async throws {
+        try await fixture { view, m in
+            try await self.enable(view)
+            let child = try self.child(view, m, "custom"), before = child.descriptor
+            let cancelled = try await view.extensions.captureEdit(child.nodeID)
+            child.sourceView.string = "draft"; child.cancelButton.performClick(nil)
+            XCTAssertEqual(child.sourceView.string, before.source); XCTAssertFalse(child.sourceView.isEditable)
+            XCTAssertThrowsError(try view.extensions.replace(target: cancelled, source: "cancelled"))
+            let bounded = try await view.extensions.captureEdit(child.nodeID)
+            XCTAssertThrowsError(try view.extensions.replace(target: bounded, source: String(repeating: "🦀", count: 4097)))
+            let stale = try await view.extensions.captureEdit(child.nodeID)
+            try await self.editNeighbor(view, m)
+            XCTAssertThrowsError(try view.extensions.replace(target: stale, source: "stale"))
+            XCTAssertEqual(child.descriptor, before)
+        }
+    }
+    func testActualSourceReadOnlyPolicyAndDisposalGuards() async throws {
+        try await fixture { view, m in
+            let child = try self.child(view, m, "math"), before = child.descriptor
+            XCTAssertFalse(child.editButton.isEnabled)
+            try await self.enable(view)
+            let target = try await view.extensions.captureEdit(child.nodeID)
+            _ = try await self.send(view, .permission(writable: false, expiresAt: nil))
+            XCTAssertThrowsError(try view.extensions.replace(target: target, source: "denied"))
+            XCTAssertEqual(child.descriptor, before)
+            _ = try await self.send(view, .permission(writable: true, expiresAt: nil))
+            let revoked = try await view.extensions.captureEdit(child.nodeID)
+            _ = try await self.send(view, .extensionPolicy(enabled: false))
+            XCTAssertThrowsError(try view.extensions.replace(target: revoked, source: "revoked"))
+            try await self.enable(view)
+            let disposed = try await view.extensions.captureEdit(child.nodeID)
+            await withCheckedContinuation { c in view.dispose { c.resume() } }
+            XCTAssertThrowsError(try view.extensions.replace(target: disposed, source: "disposed"))
+        }
+    }
+    func testActualCustomMarkPresentationHistoryAndRemoval() async throws {
+        try await fixture(setup: { try $0.extensions.registerMark(attribute: "module:fixture.note", present: { _ in [.backgroundColor: NSColor.yellow] }) }) { view, m in
+            try await self.enable(view)
+            let node = try XCTUnwrap(view.projection.nodes.first { $0.id == m["text"] as? String })
+            func target() throws -> NativeTextSelectionTarget { try view.projection.capture(range: NSRange(location: node.range.location, length: 6), backwards: false, affinity: .downstream) }
+            let value = Data("[1,{\"label\":\"native\"}]".utf8)
+            try await self.completed(view) { try view.extensions.applyMark(attribute: "module:fixture.note", valueJSON: value, target: target()) }
+            XCTAssertEqual(view.textView.textStorage?.attribute(.backgroundColor, at: 0, effectiveRange: nil) as? NSColor, .yellow)
+            XCTAssertEqual(view.commands.history?.undoGroups, 1)
+            try await self.completed(view) { view.commands.perform(.undo) }
+            XCTAssertNotEqual(view.textView.textStorage?.attribute(.backgroundColor, at: 0, effectiveRange: nil) as? NSColor, .yellow)
+            try await self.completed(view) { view.commands.perform(.redo) }
+            XCTAssertEqual(view.textView.textStorage?.attribute(.backgroundColor, at: 0, effectiveRange: nil) as? NSColor, .yellow)
+            try await self.completed(view) { try view.extensions.applyMark(attribute: "module:fixture.note", valueJSON: nil, target: target()) }
+            XCTAssertNotEqual(view.textView.textStorage?.attribute(.backgroundColor, at: 0, effectiveRange: nil) as? NSColor, .yellow)
+        }
+    }
+    func testActualCustomMarkStaleTargetAndReadOnly() async throws {
+        try await fixture(setup: { try $0.extensions.registerMark(attribute: "module:fixture.note", present: { _ in [:] }) }) { view, m in
+            try await self.enable(view)
+            let target = try view.projection.capture(range: NSRange(location: 0, length: 6), backwards: false, affinity: .downstream)
+            try await self.editNeighbor(view, m)
+            XCTAssertThrowsError(try view.extensions.applyMark(attribute: "module:fixture.note", valueJSON: nil, target: target))
+            _ = try await self.send(view, .permission(writable: false, expiresAt: nil))
+            let current = try view.projection.capture(range: NSRange(location: 0, length: 6), backwards: false, affinity: .downstream)
+            let done = self.expectation(description: "read-only mark rejected")
+            view.commands.onCompletion = { if case .success = $0 { XCTFail("read-only mutation") }; done.fulfill() }
+            try view.extensions.applyMark(attribute: "module:fixture.note", valueJSON: Data("[1,{\"label\":\"denied\"}]".utf8), target: current)
+            await self.fulfillment(of: [done], timeout: 5)
+            XCTAssertEqual(view.commands.history?.undoGroups, 1)
+        }
+    }
+    func testActualNativeMarkButtonDispatchAndRevocation() async throws {
+        try await fixture(setup: { try $0.extensions.registerMark(attribute: "module:fixture.note", present: { _ in [.backgroundColor: NSColor.yellow] }) }) { view, _ in
+            let button = view.extensions.makeMarkButton(attribute: "module:fixture.note", valueJSON: Data("[1,{\"label\":\"button\"}]".utf8), title: "Highlight note")
+            XCTAssertFalse(button.isEnabled)
+            try await self.enable(view)
+            try await view.select(range: NSRange(location: 0, length: 6), backwards: false, affinity: .downstream)
+            XCTAssertTrue(button.isEnabled)
+            try await self.completed(view) { button.performClick(nil) }
+            XCTAssertEqual(view.textView.textStorage?.attribute(.backgroundColor, at: 0, effectiveRange: nil) as? NSColor, .yellow)
+            _ = try await self.send(view, .extensionPolicy(enabled: false))
+            XCTAssertFalse(button.isEnabled)
+            view.extensions.dispose(); XCTAssertFalse(button.isEnabled)
+        }
+    }
+    func testActualNativeSourceSaveUpdatesRegisteredRenderer() async throws {
+        let renderer = Renderer()
+        try await fixture(setup: { try $0.extensions.registerAtom(type: "example.badge", version: 1) { _ in renderer } }) { view, m in
+            try await self.enable(view)
+            let child = try self.child(view, m, "custom")
+            child.editButton.performClick(nil)
+            for _ in 0..<100 where !child.sourceView.isEditable { try await Task.sleep(nanoseconds: 10_000_000) }
+            XCTAssertTrue(child.sourceView.isEditable)
+            XCTAssertFalse(child.sourceView.isHidden)
+            child.sourceView.string = "Edited badge 🦀"
+            try await self.completed(view) { child.saveButton.performClick(nil) }
+            XCTAssertEqual(child.descriptor.source, "Edited badge 🦀")
+            XCTAssertEqual((renderer.view as! NSTextField).stringValue, "Native badge: Edited badge 🦀")
+            XCTAssertFalse(child.sourceView.isEditable); XCTAssertFalse(renderer.view.isHidden)
         }
         XCTAssertEqual(renderer.disposals, 1)
     }

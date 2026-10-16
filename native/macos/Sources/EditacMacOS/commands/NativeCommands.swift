@@ -68,6 +68,7 @@ public final class NativeCommands {
         return button
     }
     public func refreshControls() {
+        view?.extensions.refresh()
         view?.tables.refresh()
         view?.attachments.refresh()
         buttons.removeAll { $0.value == nil }

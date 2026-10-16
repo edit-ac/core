@@ -57,6 +57,9 @@ public final class NativeExtensionView: NSView {
     public private(set) var diagnostic: String
     public private(set) var renderer: (any NativeAtomRenderer)?
     public let sourceView = NSTextView()
+    public let editButton = NSButton(title: "Edit source", target: nil, action: nil)
+    public let saveButton = NSButton(title: "Save", target: nil, action: nil)
+    public let cancelButton = NSButton(title: "Cancel", target: nil, action: nil)
     public let selectButton = NSButton(title: "Select atom", target: nil, action: nil)
     private let title = NSTextField(labelWithString: "")
     private weak var owner: NativeExtensions?
@@ -69,11 +72,15 @@ public final class NativeExtensionView: NSView {
         sourceView.isEditable = false; sourceView.isSelectable = true
         sourceView.isRichText = false; sourceView.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
         selectButton.target = self; selectButton.action = #selector(selectAtom)
-        for child in [title, sourceView, selectButton] { addSubview(child) }
+        editButton.target = self; editButton.action = #selector(editSource)
+        saveButton.target = self; saveButton.action = #selector(saveSource)
+        cancelButton.target = self; cancelButton.action = #selector(cancelSource)
+        for child in [title, sourceView, selectButton, editButton, saveButton, cancelButton] { addSubview(child) }
         presentFallback()
     }
     func update(_ value: NativeExtensionDescriptor, factory: NativeExtensions.AtomFactory?) {
         guard !released else { return }
+        let draft = owner?.isEditing(nodeID) == true ? sourceView.string : nil
         let changed = value != descriptor
         if descriptor.type != value.type || descriptor.version != value.version { releaseRenderer() }
         descriptor = value
@@ -87,7 +94,7 @@ public final class NativeExtensionView: NSView {
             if let renderer {
                 try renderer.update(value)
                 guard !released else { return }
-                diagnostic = "Native host renderer; editing unavailable"
+                diagnostic = "Native host renderer"
                 if renderer.view.superview !== self { addSubview(renderer.view) }
                 sourceView.isHidden = true
             } else { presentFallback() }
@@ -97,11 +104,31 @@ public final class NativeExtensionView: NSView {
         guard !released else { return }
         title.stringValue = value.type + " v\(value.version) — " + diagnostic
         setAccessibilityLabel(value.type + ": " + value.source)
+        if let draft { sourceView.string = draft }
+        refreshEditing()
         needsLayout = true
     }
+    func refreshEditing() {
+        let editing = owner?.isEditing(nodeID) == true
+        sourceView.isEditable = editing
+        if editing { sourceView.isHidden = false; renderer?.view.isHidden = true }
+        else { renderer?.view.isHidden = false }
+        editButton.isEnabled = owner?.canEdit(nodeID) == true && !editing
+        saveButton.isEnabled = editing && owner?.canEdit(nodeID) == true
+        cancelButton.isEnabled = editing
+    }
+    @objc private func editSource() {
+        Task { [weak self] in
+            guard let self else { return }
+            do { _ = try await owner?.captureEdit(nodeID); refreshEditing(); window?.makeFirstResponder(sourceView) }
+            catch { editButton.toolTip = String(describing: error) }
+        }
+    }
+    @objc private func saveSource() { do { try owner?.save(nodeID, source: sourceView.string) } catch { saveButton.toolTip = String(describing: error) } }
+    @objc private func cancelSource() { owner?.cancel(nodeID) }
     private func presentFallback(keepDiagnostic: Bool = false) {
         if !keepDiagnostic {
-            diagnostic = descriptor.type == "editac.math" ? "Math source only; typesetting and source editing unavailable" : "Source fallback — renderer unavailable"
+            diagnostic = descriptor.type == "editac.math" ? "Math source only; typesetting unavailable" : "Source fallback — renderer unavailable"
         }
         sourceView.string = descriptor.source; sourceView.isHidden = false
         sourceView.setAccessibilityLabel(descriptor.type == "editac.math" ? "Math source" : "Preserved extension source")
@@ -122,6 +149,9 @@ public final class NativeExtensionView: NSView {
         let body = NSRect(x: 8, y: 32, width: max(1, bounds.width - 16), height: 78)
         sourceView.frame = body; renderer?.view.frame = body
         selectButton.frame = NSRect(x: 4, y: 2, width: 110, height: 28)
+        editButton.frame = NSRect(x: 116, y: 2, width: 110, height: 28)
+        saveButton.frame = NSRect(x: 228, y: 2, width: 66, height: 28)
+        cancelButton.frame = NSRect(x: 296, y: 2, width: 76, height: 28)
     }
     @objc private func selectAtom() {
         Task { [weak self] in guard let self else { return }; try? await owner?.select(nodeID) }
@@ -129,8 +159,25 @@ public final class NativeExtensionView: NSView {
     @available(*, unavailable) public required init?(coder: NSCoder) { fatalError() }
 }
 
+/// Host-installed native formatting action; no document callback or semantic model.
+@MainActor public final class NativeExtensionMarkButton: NSButton {
+    fileprivate weak var owner: NativeExtensions?
+    fileprivate let attribute: String
+    fileprivate let valueJSON: Data?
+    fileprivate init(owner: NativeExtensions, attribute: String, valueJSON: Data?, title: String) {
+        self.owner = owner; self.attribute = attribute; self.valueJSON = valueJSON
+        super.init(frame: .zero); self.title = title; target = self; action = #selector(invoke)
+        setAccessibilityLabel(title)
+    }
+    @objc private func invoke() {
+        do { try owner?.applySelectedMark(attribute: attribute, valueJSON: valueJSON) }
+        catch { toolTip = String(describing: error) }
+    }
+    @available(*, unavailable) public required init?(coder: NSCoder) { fatalError() }
+}
+
 /// Registry is per editor and freezes at attachment. Native hooks cannot mutate
-/// retained payloads. Full editing awaits the owning shared prepared edit port.
+/// retained payloads. Edits use the shared prepared Session port.
 @MainActor
 public final class NativeExtensions {
     public typealias AtomFactory = @MainActor (NativeExtensionDescriptor) throws -> any NativeAtomRenderer
@@ -143,8 +190,19 @@ public final class NativeExtensions {
     public private(set) var views: [String: NativeExtensionView] = [:]
     public private(set) var isFrozen = false
     private var disposed = false
+    public struct EditTarget: Equatable, Sendable {
+        fileprivate let id: UUID
+        public let nodeID: String
+        public let descriptor: NativeExtensionDescriptor
+        public let revision: Data
+        fileprivate let anchor: String
+    }
+    private var edits: [String: EditTarget] = [:]
+    private var captures: [String: UUID] = [:]
+    private struct WeakButton { weak var value: NativeExtensionMarkButton? }
+    private var buttons: [WeakButton] = []
     public let mathSourcePresentation = true
-    public let mathSourceEditing = false
+    public let mathSourceEditing = true
     public let mathTypesetting = false
     init(view: NativeEditorView) { self.view = view }
 
@@ -187,6 +245,7 @@ public final class NativeExtensions {
     func reconcile() throws {
         guard let view, !disposed, !view.isDisposed else { return }
         isFrozen = true
+        for id in Array(edits.keys) where edits[id]?.revision != view.projection.revision { cancel(id) }
         var descriptors: [String: NativeExtensionDescriptor] = [:]
         for node in view.projection.richNodes.values {
             if let tuple = node.wire["blockAttributes"] as? [Any], let value = try NativeExtensionDescriptor(tuple) { descriptors[node.id] = value }
@@ -204,6 +263,93 @@ public final class NativeExtensions {
         if let storage = view.textView.textStorage { presentMarks(in: storage) }
         view.projection.layoutTables()
     }
+    func refresh() {
+        for child in views.values { child.refreshEditing() }
+        buttons.removeAll { $0.value == nil }
+        for box in buttons {
+            guard let button = box.value else { continue }
+            button.isEnabled = !disposed && marks[button.attribute] != nil &&
+                view?.commands.catalog?.routes.first(where: { $0.id == "customMarkAt" })?.available == true &&
+                view?.commands.availability(.serviceReplacement) == .enabled
+        }
+    }
+    public func makeMarkButton(attribute: String, valueJSON: Data?, title: String) -> NativeExtensionMarkButton {
+        let button = NativeExtensionMarkButton(owner: self, attribute: attribute, valueJSON: valueJSON, title: title)
+        buttons.append(WeakButton(value: button)); refresh(); return button
+    }
+    public func applySelectedMark(attribute: String, valueJSON: Data?) throws {
+        guard let view else { throw NativeExtensionFailure.disposed }
+        let target = try view.projection.capture(range: view.textView.selectedRange(), backwards: false, affinity: view.textView.selectionAffinity)
+        try applyMark(attribute: attribute, valueJSON: valueJSON, target: target)
+    }
+    func isEditing(_ nodeID: String) -> Bool { edits[nodeID] != nil }
+    func canEdit(_ nodeID: String) -> Bool {
+        guard let view, !disposed, !view.isDisposed, let child = views[nodeID],
+              child.descriptor.tupleJSON.count > 0, view.projectionFailure == nil,
+              view.commands.availability(.serviceReplacement) == .enabled,
+              view.commands.catalog?.routes.first(where: { $0.id == "extensionSource" })?.available == true else { return false }
+        // Only the qualified inert envelope has a source edit contract. Unknown
+        // type/version and payload remain inert and are preserved by that port.
+        return (try? JSONSerialization.jsonObject(with: child.descriptor.tupleJSON) as? [Any])?.first as? String == "module:editac.inert-extension"
+    }
+    @discardableResult public func setPolicy(enabled: Bool, completion: NativeSessionExecutor.Completion? = nil) throws -> NativeSessionOperation {
+        guard let view, !disposed else { throw NativeExtensionFailure.disposed }
+        if !enabled { for id in Set(edits.keys).union(captures.keys) { cancel(id) } }
+        return try view.session.submit(.extensionPolicy(enabled: enabled), completion: completion)
+    }
+    public func captureEdit(_ nodeID: String) async throws -> EditTarget {
+        guard let view, !disposed, !view.isDisposed else { throw NativeExtensionFailure.disposed }
+        guard canEdit(nodeID), let descriptor = views[nodeID]?.descriptor, let revision = view.projection.revision else { throw NativeExtensionFailure.unavailableEditing }
+        cancel(nodeID)
+        let id = UUID(); captures[nodeID] = id
+        let response: NativeSessionResponse
+        do {
+            response = try await withCheckedThrowingContinuation { c in
+                do { try view.session.submit(.captureAttachment(revision: revision, node: nodeID)) { c.resume(with: $0.mapError { $0 as Error }) } }
+                catch { c.resume(throwing: error) }
+            }
+        } catch { if captures[nodeID] == id { captures.removeValue(forKey: nodeID) }; throw error }
+        guard case let .anchors(anchors) = response, let anchor = anchors.first else { throw NativeExtensionFailure.staleTarget }
+        let target = EditTarget(id: id, nodeID: nodeID, descriptor: descriptor, revision: revision, anchor: anchor.token)
+        guard captures[nodeID] == id, !disposed, !view.isDisposed, view.projection.revision == revision,
+              views[nodeID]?.descriptor == descriptor, canEdit(nodeID) else {
+            try? view.session.submit(.releaseAttachment(token: anchor.token)); throw NativeExtensionFailure.staleTarget
+        }
+        captures.removeValue(forKey: nodeID); edits[nodeID] = target
+        views[nodeID]?.refreshEditing()
+        return target
+    }
+    public func cancel(_ nodeID: String) {
+        captures.removeValue(forKey: nodeID)
+        if let target = edits.removeValue(forKey: nodeID) { try? view?.session.submit(.releaseAttachment(token: target.anchor)) }
+        if let child = views[nodeID] { child.sourceView.string = child.descriptor.source; child.refreshEditing() }
+    }
+    public func save(_ nodeID: String, source: String) throws {
+        guard let target = edits[nodeID] else { throw NativeExtensionFailure.staleTarget }
+        try replace(target: target, source: source)
+    }
+    public func replace(target: EditTarget, source: String) throws {
+        guard let view, !disposed, !view.isDisposed else { throw NativeExtensionFailure.disposed }
+        guard edits[target.nodeID] == target else { throw NativeExtensionFailure.staleTarget }
+        defer { cancel(target.nodeID) }
+        guard source.utf16.count <= 8192 else { throw NativeExtensionFailure.invalidDescriptor }
+        guard target.revision == view.projection.revision, views[target.nodeID]?.descriptor == target.descriptor,
+              canEdit(target.nodeID) else { throw NativeExtensionFailure.staleTarget }
+        let tuple = try JSONSerialization.jsonObject(with: target.descriptor.tupleJSON)
+        let json = try JSONSerialization.data(withJSONObject: [["type": "extensionSource", "owner": target.nodeID,
+            "expected": tuple, "at": target.anchor, "source": source]], options: [.sortedKeys])
+        view.commands.perform(commandsJSON: String(decoding: json, as: UTF8.self), revision: target.revision)
+    }
+    public func applyMark(attribute: String, valueJSON: Data?, target: NativeTextSelectionTarget) throws {
+        guard let view, !disposed, !view.isDisposed else { throw NativeExtensionFailure.disposed }
+        guard marks[attribute] != nil, target.owner == view.projection.owner,
+              target.revision == view.projection.revision, target.anchor.node == target.focus.node else { throw NativeExtensionFailure.staleTarget }
+        let value: Any = try valueJSON.map { try JSONSerialization.jsonObject(with: $0, options: [.fragmentsAllowed]) } ?? NSNull()
+        let json = try JSONSerialization.data(withJSONObject: [["type": "customMarkAt", "owner": target.anchor.node,
+            "from": min(target.anchor.offsetUTF16, target.focus.offsetUTF16), "to": max(target.anchor.offsetUTF16, target.focus.offsetUTF16),
+            "key": attribute, "value": value]], options: [.sortedKeys])
+        view.commands.perform(commandsJSON: String(decoding: json, as: UTF8.self), revision: target.revision)
+    }
     public func select(_ nodeID: String) async throws {
         guard let view, !disposed, !view.isDisposed else { throw NativeExtensionFailure.disposed }
         guard view.projectionFailure == nil, views[nodeID] != nil,
@@ -212,7 +358,10 @@ public final class NativeExtensions {
         view.window?.makeFirstResponder(view.textView)
     }
     func dispose() {
-        guard !disposed else { return }; disposed = true
+        guard !disposed else { return }
+        for id in Set(edits.keys).union(captures.keys) { cancel(id) }
+        disposed = true
+        for button in buttons { button.value?.isEnabled = false; button.value?.owner = nil }; buttons = []
         let children = views; views = [:]
         for child in children.values { child.dispose() }
         let hooks = marks; marks = [:]; atoms = [:]

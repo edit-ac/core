@@ -1,39 +1,36 @@
-# Native renderer prerequisite
+# Native extension presentation and editing
 
-`NativeEditorView.extensions` owns a per-editor registry of trusted native atom
-factories and mark presentation callbacks. Register before opening the Session;
-the registry freezes on its first projection. Duplicate registration fails without
-replacing the original. This registry selects presentation; it cannot register
-schema, reinterpret data versions or grant a mutation capability.
+`NativeEditorView.extensions` owns trusted native atom factories and mark
+presenters. Register before opening; the native registry freezes on its first
+projection. Pass the portable data-only definitions separately as `registryJSON`
+to `session.open`. The shared Session validates and freezes those definitions
+before opening or creating SQLite. Native callbacks grant no schema or policy.
 
-Atom renderers receive owned descriptors and return real AppKit controls. Updates
-retain node/view identity. The adapter owns attachment metrics and shared-anchor
-selection. Renderer failures dispose the renderer and expose preserved source;
-unchanged failed descriptors are not repeatedly retried. Removed nodes and editor
-disposal release native views and hooks once. Callbacks run on the main actor after
-the Session transaction. Host code must bound its work; exception isolation cannot
-preempt an infinite loop. Factories/renderers are host objects, never document data.
+Call `extensions.setPolicy(enabled: true)` to opt into the shared prepared edit
+ports. The default is disabled. `makeMarkButton` supplies a native formatting
+action for the current selection; `applyMark` accepts an explicitly captured
+revision-scoped selection. Values use the portable `[version, attributes]` JSON
+envelope, or nil for removal. Registered presenters supply display attributes
+only; shared metadata, geometry, links and coordinates cannot be overwritten.
 
-Descriptors retain the exact semantic JSON tuple and payload with deterministic
-key ordering. Unknown types/versions use a selectable, nonediting NSTextView with
-an explicit diagnostic. The adapter never evaluates source or resolves assets.
-`editac.math` source (including invalid source) remains visible. Source presentation,
-source editing and typesetting are separate booleans; the latter two are currently
-false. A registered renderer alone does not qualify math typesetting.
+Inert atom views expose Edit source, Save and Cancel controls. An edit captures
+one shared source-owned anchor, the exact tuple and revision. Save uses the shared
+`extensionSource` command through the ordinary command gate, durability and
+history. Targets are single use, cancelled on changed revision and released on
+cancel/disposal. Current permissions and extension policy are rechecked by the
+Session. Source is bounded to 8192 UTF-16 units. Unknown type/version/payload and
+invalid math source survive unchanged apart from the explicitly edited source.
+Unknown executable behavior never runs. Unsupported non-inert tuples remain
+read-only. Source drafts are temporary native UI state, never another replica.
 
-Mark callbacks receive owned JSON and can supply only font/color/decoration keys.
-Shared wire attributes, link targets, attachment geometry and paragraph coordinates
-cannot be replaced. Throwing callbacks leave source metadata intact. Prepared mark
-presentation tests do not qualify actual custom-mark editing.
+Native renderers receive owned descriptors. Stable nodes retain native view
+identity; updates, removal and disposal release resources once. Renderer failure
+exposes preserved source. Callbacks run on the main actor after the transaction;
+hosts must bound work. No network, source evaluation or asset resolution occurs.
+Math preserves and edits source; typesetting remains unavailable and separately
+reported. A registered renderer alone does not qualify math typesetting.
 
-DSK-1.12 remains open. The native Session's six built-in mark commands and bounded
-image/reference atomicContent port do not provide custom-mark registration/editing
-or math/inert-atom source replacement. The shared owner must qualify those prepared
-edit boundaries before this adapter can add native edit controls and full history,
-stale/cancellation/read-only proof. No local semantic store or direct native-text
-mutation is substituted for that dependency.
-
-`bash native/macos/scripts/check.sh extensions` builds both pinned CPU slices and
-runs 14 actual Rust-checkpoint/SQLite/generated-Swift/Session/AppKit cases plus four
-prepared presentation/admission guards. OS IME, VoiceOver, platform support,
-clipboard, packaging and release qualification are separate gates.
+The canonical `bash native/macos/scripts/check.sh extensions` builds pinned arm64
+and x86_64 slices and runs actual Rust/SQLite/generated-Swift/AppKit cases plus
+separately labeled prepared presentation guards. Platform/IME/VoiceOver,
+clipboard, packaging and release qualification remain separate gates.
