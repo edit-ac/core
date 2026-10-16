@@ -16,6 +16,7 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 CORE = ROOT.parents[1]
 SUITES = {
+    "change-review-presentation": ("EditacMacOSChangeReviewPresentationTests.ChangeReviewPresentationTests", 22),
     "accessibility-structure": ("EditacMacOSAccessibilityStructureTests.AccessibilityStructureTests", 19),
     "clipboard-transport": ("EditacMacOSClipboardTransportTests.ClipboardTransportTests", 24),
     "extensions": ("EditacMacOSExtensionsTests.ExtensionsTests", 26),
@@ -115,6 +116,9 @@ def main():
                "startedUtc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                "commands": [], "counts": None, "failure": None,
                "qualification": "unqualified", "sourceHashes": {}}
+    if suite == "change-review-presentation":
+        receipt["reviewScope"] = "native-detached-presenter-with-shared-Rust-exported-prepared-ingress-only"
+        receipt["originalGateClosed"] = False
     if suite == "clipboard-transport":
         receipt["clipboardScope"] = "native-pasteboard-provider-and-actual-session-delayed-admission-prerequisite-only"
         receipt["originalGateClosed"] = False
@@ -214,6 +218,25 @@ def main():
         receipt["ffiLibraries"] = ffi_libraries
         receipt["generatedBindings"] = {str(p.relative_to(CORE)): hashlib.sha256(p.read_bytes()).hexdigest()
             for p in (CORE / "crates/editac-ffi/generated").glob("EditacNative*") if p.is_file()}
+        if suite == "change-review-presentation":
+            fixture = output / "portable-models.json"
+            env["EDITAC_DIFF_PORTABLE_OUTPUT"] = str(fixture)
+            concurrent = output / "concurrent-model.json"
+            env["EDITAC_DIFF_CONCURRENT_OUTPUT"] = str(concurrent)
+            log = run("portable-model-export", [str(Path.home() / ".cargo/bin/cargo"), "+1.97.1",
+                "test", "-p", "editac-diff", "--test", "portable", "--locked", "--offline"], timeout=300)
+            if not re.search(r"test result: ok. 4 passed; 0 failed; 0 ignored;", log):
+                raise RuntimeError("Shared portable export tests missing/failed/skipped")
+            models = json.loads(fixture.read_text())
+            models["concurrent"] = json.loads(concurrent.read_text())
+            fixture.write_text(json.dumps(models, ensure_ascii=False, sort_keys=True) + "\n")
+            receipt["portableCounts"] = dict(executed=4, passed=4, failed=0, skipped=0)
+            receipt["portableFixture"] = {"path": str(fixture), "sha256": hashlib.sha256(fixture.read_bytes()).hexdigest()}
+            env["EDITAC_MACOS_REVIEW_FIXTURE"] = str(fixture)
+            receipt["sharedReviewSources"] = {str(p.relative_to(CORE)): hashlib.sha256(p.read_bytes()).hexdigest()
+                for p in [*sorted((CORE / "crates/editac-diff").rglob("*.rs")),
+                          CORE / "crates/editac-diff/Cargo.toml", CORE / "fixtures/browser-review/model.json",
+                          CORE / "fixtures/browser-review-concurrent/concurrent.json"]}
         if suite == "projection":
             fixture_root = output / "rich-fixture"
             fixture_root.mkdir()
