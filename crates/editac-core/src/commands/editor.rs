@@ -1604,8 +1604,17 @@ impl Document {
                         }
                         .map_err(EditorError::Text)?
                     };
-                    text_snapshot =
-                        super::text::apply_prepared_to_stage_with_snapshot(&stage, plan);
+                    // Only an immediately following Text command can consume
+                    // this planning-only snapshot. All other commands clear it,
+                    // and final admission reads the observed stage projection.
+                    // Avoid scanning every owner and materializing the changed
+                    // source twice for the ordinary single-text batch.
+                    text_snapshot = if matches!(pending.front(), Some(EditorCommand::Text(_))) {
+                        super::text::apply_prepared_to_stage_with_snapshot(&stage, plan)
+                    } else {
+                        super::text::apply_prepared_to_stage(&stage, plan);
+                        None
+                    };
                 }
                 EditorCommand::Split { owner, at } | EditorCommand::HeadingEnd { owner, at } => {
                     let heading_end = matches!(c, EditorCommand::HeadingEnd { .. });
@@ -2473,6 +2482,102 @@ mod transaction_tests {
                     .sum(),
             ),
             text: text.into(),
+        }
+    }
+    #[cfg(feature = "fitness-trace")]
+    #[test]
+    fn text_refresh_only_materializes_views_consumed_by_the_next_command() {
+        use crate::{Utf16Offset as U, anchors::Bias, commands::text::TextCommand};
+        thread_local! {
+            static REFRESHES: std::cell::RefCell<Vec<&'static str>> = const {
+                std::cell::RefCell::new(Vec::new())
+            };
+        }
+        fn observe(name: &'static str, end: Option<f64>) -> f64 {
+            if end.is_some() && name.starts_with("engine.editor.textRefresh.") {
+                REFRESHES.with(|events| events.borrow_mut().push(name));
+            }
+            0.0
+        }
+        for stable in [false, true] {
+            for case in 0..5 {
+                let mut d = retained_fixture(40 + case, stable);
+                d.enable_history(crate::history::HistoryConfig::default())
+                    .unwrap();
+                let before = d.checkpoint();
+                let id = d.snapshot().unwrap().visible[0].id.clone();
+                let at = d.anchor(&id, U(1), Bias::Right).unwrap();
+                let text = EditorCommand::Text(TextCommand::Insert {
+                    at,
+                    text: "界😀".into(),
+                });
+                let point = EditorPosition {
+                    owner: id.clone(),
+                    offset: U(1),
+                    bias: Bias::Right,
+                };
+                let mut commands = vec![text.clone()];
+                match case {
+                    1 => commands.push(text.clone()),
+                    2 => commands.extend([text.clone(), text.clone()]),
+                    3 => commands.extend([EditorCommand::ResultCaretAt(point), text.clone()]),
+                    4 => commands.push(EditorCommand::Block {
+                        target: "missing".into(),
+                        tuple: m::arr(vec![Any::from("paragraph")]),
+                    }),
+                    _ => {}
+                }
+                REFRESHES.with(|events| events.borrow_mut().clear());
+                let guard = crate::fitness::observe(observe);
+                let result =
+                    d.prepare_editor(&commands, &TextOrigin::new("refresh-consumers").unwrap());
+                drop(guard);
+                let expected = match case {
+                    1 => 1,
+                    2 => 2,
+                    _ => 0,
+                };
+                REFRESHES.with(|events| {
+                    let events = events.borrow();
+                    for phase in [
+                        "engine.editor.textRefresh.prepare",
+                        "engine.editor.textRefresh.finish",
+                    ] {
+                        assert_eq!(
+                            events.iter().filter(|&&name| name == phase).count(),
+                            expected,
+                            "case {case}, {phase}, stable {stable}"
+                        );
+                    }
+                });
+                assert_eq!(
+                    d.checkpoint().bytes,
+                    before.bytes,
+                    "preparation stays silent"
+                );
+                if case == 4 {
+                    assert!(
+                        result.is_err(),
+                        "later invalid structural command rejects atomically"
+                    );
+                    continue;
+                }
+                d.commit_editor(result.unwrap()).unwrap();
+                let after = d.snapshot().unwrap().visible;
+                let reopened = Document::restore(d.identity(), &d.checkpoint(), &[]).unwrap();
+                assert_eq!(after, reopened.snapshot().unwrap().visible);
+                d.undo().unwrap();
+                assert_eq!(
+                    d.snapshot().unwrap().visible[0]
+                        .runs
+                        .iter()
+                        .map(|r| r.text.as_str())
+                        .collect::<String>(),
+                    "A😀e\u{301}Z"
+                );
+                d.redo().unwrap();
+                assert_eq!(after, d.snapshot().unwrap().visible);
+            }
         }
     }
     #[test]

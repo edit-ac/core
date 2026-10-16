@@ -129,6 +129,8 @@ impl EditorTextRefresh {
         snapshot: Snapshot,
         sources: &BTreeSet<String>,
     ) -> Option<Self> {
+        #[cfg(feature = "fitness-trace")]
+        let _phase = crate::fitness::Span::new("engine.editor.textRefresh.prepare");
         let txn = doc.transact();
         let texts = txn.get_map(ROOTS[1])?;
         let mut seen = BTreeSet::new();
@@ -163,6 +165,8 @@ impl EditorTextRefresh {
         Some(Self { snapshot, owners })
     }
     pub(crate) fn finish(mut self, doc: &Doc) -> Result<Snapshot, ProjectionError> {
+        #[cfg(feature = "fitness-trace")]
+        let _phase = crate::fitness::Span::new("engine.editor.textRefresh.finish");
         let txn = doc.transact();
         let texts = txn
             .get_map(ROOTS[1])
