@@ -16,7 +16,7 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 CORE = ROOT.parents[1]
 SUITES = {
-    "accessibility-structure": ("EditacMacOSAccessibilityStructureTests.AccessibilityStructureTests", 18),
+    "accessibility-structure": ("EditacMacOSAccessibilityStructureTests.AccessibilityStructureTests", 19),
     "clipboard-transport": ("EditacMacOSClipboardTransportTests.ClipboardTransportTests", 24),
     "extensions": ("EditacMacOSExtensionsTests.ExtensionsTests", 26),
     "collaboration": ("EditacMacOSCollaborationTests.CollaborationTests", 16),
@@ -264,7 +264,7 @@ def main():
                 "manifestSha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
                 "storeSha256": hashlib.sha256(Path(fixture["path"]).read_bytes()).hexdigest(),
                 "factory": fixture["factory"], "providerCalls": fixture["providerCalls"]}
-        if suite == "extensions":
+        if suite in ("extensions", "accessibility-structure"):
             fixture_root = output / "extension-fixture"
             env["EDITAC_NATIVE_SESSION_EVIDENCE"] = str(fixture_root)
             factory = ROOT / "tests/ExtensionsFixture/Cargo.toml"
@@ -281,7 +281,7 @@ def main():
                 "manifestSha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
                 "storeSha256": hashlib.sha256(Path(fixture["path"]).read_bytes()).hexdigest(),
                 "factory": fixture["factory"], "providerCalls": fixture["providerCalls"]}
-        if suite == "attachments":
+        if suite in ("attachments", "accessibility-structure"):
             fixture_root = output / "attachment-fixture"
             env["EDITAC_NATIVE_SESSION_EVIDENCE"] = str(fixture_root)
             factory = ROOT / "tests/AttachmentsFixture/Cargo.toml"
@@ -298,7 +298,7 @@ def main():
                 "manifestSha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
                 "storeSha256": hashlib.sha256(Path(fixture["path"]).read_bytes()).hexdigest(),
                 "factory": fixture["factory"], "providerCalls": fixture["providerCalls"]}
-        if suite in ("table-projection", "table-editing"):
+        if suite in ("table-projection", "table-editing", "accessibility-structure"):
             fixture_root = output / "table-fixture"
             env["EDITAC_NATIVE_SESSION_EVIDENCE"] = str(fixture_root)
             factory = ROOT / "tests/TablesFixture/Cargo.toml"

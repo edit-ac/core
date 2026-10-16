@@ -103,10 +103,13 @@ public final class NativeAttachmentView: NSView {
     }
     public override func accessibilityPerformPress() -> Bool {
         guard owner != nil, window != nil, selectButton.isEnabled else { return false }
-        return window?.makeFirstResponder(selectButton) == true
+        let focused = window?.makeFirstResponder(selectButton) == true
+        owner?.refresh()
+        return focused
     }
     public override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? {
-        NativeStructureAccessibility.buttonActions(in: self,
+        owner?.refresh()
+        return NativeStructureAccessibility.buttonActions(in: self,
             buttons: [activateButton, selectButton, replaceButton, removeButton, cancelButton])
     }
     func fit(width: CGFloat) -> NSSize { NSSize(width: width, height: descriptor.kind == .image ? 190 : 96) }
@@ -263,6 +266,11 @@ public final class NativeAttachments {
         let profile = child.descriptor.kind == .image ? "editac.images" : "editac.references"
         return view.commands.profileAvailability(profile)?.available == true
             && view.commands.catalog?.routes.first(where: { $0.id == "atomicContent" })?.canPrepare == true
+    }
+    var ownsFirstResponder: Bool {
+        guard let view, !disposed, !view.isDisposed,
+              let responder = view.window?.firstResponder as? NSView else { return false }
+        return views.values.contains { responder.isDescendant(of: $0) }
     }
     func refresh() {
         for child in views.values {

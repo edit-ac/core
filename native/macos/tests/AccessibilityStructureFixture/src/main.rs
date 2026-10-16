@@ -53,10 +53,9 @@ fn main() {
         .publish(0, CheckpointRecord::new(doc.checkpoint(), vec![]).unwrap())
         .unwrap();
     drop(store);
-    let visible = doc.snapshot().unwrap().visible;
     let manifest = serde_json::json!({"path":path,"documentId":document_id,"epoch":epoch,
         "expected":expected,"factory":"native/macos/tests/AccessibilityStructureFixture/src/main.rs",
-        "providerCalls":0,"custom":visible[1].id,"unknown":visible[2].id,"math":visible[3].id,"text":visible[0].id});
+        "providerCalls":0});
     let manifest_path = root.join("manifest.json");
     std::fs::write(&manifest_path, serde_json::to_vec_pretty(&manifest).unwrap()).unwrap();
     println!("{}", manifest_path.display());

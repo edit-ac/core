@@ -151,10 +151,13 @@ public final class NativeExtensionView: NSView {
     }
     public override func accessibilityPerformPress() -> Bool {
         guard !released, window != nil, selectButton.isEnabled else { return false }
-        return window?.makeFirstResponder(selectButton) == true
+        let focused = window?.makeFirstResponder(selectButton) == true
+        refreshEditing()
+        return focused
     }
     public override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? {
         guard !released else { return [] }
+        refreshEditing()
         return NativeStructureAccessibility.buttonActions(in: self,
             buttons: [selectButton, editButton, saveButton, cancelButton])
     }
@@ -301,8 +304,9 @@ public final class NativeExtensions {
         try applyMark(attribute: attribute, valueJSON: valueJSON, target: target)
     }
     var ownsFirstResponder: Bool {
-        guard let responder = view?.window?.firstResponder else { return false }
-        return views.values.contains { edits[$0.nodeID] != nil && responder === $0.sourceView }
+        guard let view, !disposed, !view.isDisposed,
+              let responder = view.window?.firstResponder as? NSView else { return false }
+        return views.values.contains { responder.isDescendant(of: $0) }
     }
     func isCapturing(_ nodeID: String) -> Bool { captures[nodeID] != nil }
     func isEditing(_ nodeID: String) -> Bool { edits[nodeID] != nil }

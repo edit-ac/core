@@ -3,6 +3,14 @@ import XCTest
 @testable import EditacMacOS
 
 private struct Unexpected: Error {}
+@MainActor private final class StructureRenderer: NativeAtomRenderer {
+    let view: NSView = NSTextField(labelWithString: "")
+    func update(_ descriptor: NativeExtensionDescriptor) throws {
+        (view as! NSTextField).stringValue = "Badge: " + descriptor.source
+        view.setAccessibilityLabel(descriptor.source)
+    }
+    func dispose() { view.removeFromSuperview() }
+}
 
 @MainActor
 final class AccessibilityStructureTests: XCTestCase {
@@ -26,6 +34,7 @@ final class AccessibilityStructureTests: XCTestCase {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("editac-accessibility-structure-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let view = NativeEditorView(frame: NSRect(x: 0, y: 0, width: 520, height: 220))
+        try view.extensions.registerAtom(type: "example.badge", version: 1) { _ in StructureRenderer() }
         let window = NSWindow(contentRect: view.frame, styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false; window.contentView = view; window.makeKeyAndOrderFront(nil)
         defer { window.contentView = nil; window.close(); try? FileManager.default.removeItem(at: root) }
@@ -210,6 +219,7 @@ final class AccessibilityStructureTests: XCTestCase {
     func testExtensionUnknownAndMathExposeHonestLabelsAndActions() async throws {
         try await fixture { view, _ in
             XCTAssertGreaterThanOrEqual(view.extensions.views.count, 3)
+            XCTAssertNotNil(try self.atom(view).renderer)
             for atom in view.extensions.views.values {
                 XCTAssertEqual(atom.accessibilityRole(), .group)
                 XCTAssertTrue(atom.accessibilityLabel()?.hasPrefix(atom.descriptor.type + ":") == true)
@@ -223,6 +233,7 @@ final class AccessibilityStructureTests: XCTestCase {
     func testExtensionAXEditUsesSharedCapturedSourceGateAndCancel() async throws {
         try await fixture { view, window in
             let atom = try self.atom(view)
+            XCTAssertTrue(atom.accessibilityPerformPress())
             let edit = try self.action("Edit source", atom.accessibilityCustomActions())
             XCTAssertTrue(edit.handler?() == true)
             for _ in 0..<100 where !atom.sourceView.isEditable { try await Task.sleep(for: .milliseconds(10)) }
@@ -339,6 +350,29 @@ final class AccessibilityStructureTests: XCTestCase {
             XCTAssertNil(old.control); XCTAssertNil(row.accessibilityParent())
             XCTAssertTrue(row.accessibilityChildren()?.isEmpty == true)
             XCTAssertTrue(window.firstResponder === view.textView)
+        }
+    }
+    func testFocusedImageAXRemovalCommitsOnceAndSharedUndoRestoresRelationships() async throws {
+        try await fixture { view, _ in
+            let image = try self.image(view), id = image.nodeID
+            XCTAssertTrue(image.accessibilityPerformPress())
+            let remove = try self.action("Remove", image.accessibilityCustomActions())
+            let result: Result<Void, NativeCommandFailure> = await withCheckedContinuation { c in
+                view.commands.onResult = { result in view.commands.onResult = nil; c.resume(returning: result) }
+                XCTAssertTrue(remove.handler?() == true)
+            }
+            try result.get()
+            XCTAssertNil(view.attachments.views[id]); XCTAssertNil(image.window)
+            XCTAssertFalse(remove.handler?() ?? true)
+            XCTAssertTrue(view.structureAccessibility.focus(direction: 0))
+            let undo: Result<Void, NativeCommandFailure> = await withCheckedContinuation { c in
+                view.commands.onResult = { result in view.commands.onResult = nil; c.resume(returning: result) }
+                view.commands.perform(.undo)
+            }
+            try undo.get()
+            let restored = try XCTUnwrap(view.attachments.views[id])
+            XCTAssertFalse(restored === image)
+            XCTAssertEqual(restored.accessibilityLabel(), image.accessibilityLabel())
         }
     }
 }

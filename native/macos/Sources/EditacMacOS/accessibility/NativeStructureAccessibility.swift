@@ -18,7 +18,7 @@ final class NativeAccessibleTable {
         guard let table else { return }
         func groups(_ existing: [NSAccessibilityElement], count: Int, role: NSAccessibility.Role) -> [NSAccessibilityElement] {
             (0..<count).map { index in
-                let element = index < existing.count ? existing[index] : NSAccessibilityElement()
+                let element = index < existing.count ? existing[index] : NativeAccessibleTableGroup()
                 element.setAccessibilityRole(role); element.setAccessibilityParent(table)
                 element.setAccessibilityIndex(index)
                 element.setAccessibilityLabel("\(role == .row ? "Row" : "Column") \(index + 1)")
@@ -34,6 +34,7 @@ final class NativeAccessibleTable {
         cells = table.cells.mapValues { control in
             let element = cells[control.coordinate] ?? NativeAccessibleCell()
             element.control = control; element.table = table
+            element.setAccessibilityLabel(control.accessibilityLabel())
             element.setAccessibilityRole(.cell)
             element.setAccessibilityParent(rows[control.coordinate.row])
             control.setAccessibilityParent(element)
@@ -65,6 +66,14 @@ final class NativeAccessibleTable {
 }
 
 @MainActor
+private final class NativeAccessibleTableGroup: NSAccessibilityElement {
+    override func accessibilityFrame() -> NSRect {
+        (accessibilityChildren() ?? []).compactMap { $0 as? NativeAccessibleCell }
+            .reduce(NSRect.null) { $0.union($1.accessibilityFrame()) }
+    }
+}
+
+@MainActor
 final class NativeAccessibleCell: NSAccessibilityElement {
     weak var control: NativeTableCellView?
     weak var table: NativeTableView?
@@ -77,7 +86,6 @@ final class NativeAccessibleCell: NSAccessibilityElement {
         }
     }
     override func accessibilityChildren() -> [Any]? { control.map { [$0] } ?? [] }
-    override func accessibilityLabel() -> String? { control?.accessibilityLabel() }
     override func accessibilityRowIndexRange() -> NSRange {
         control.map { NSRange(location: $0.coordinate.row, length: $0.rowSpan) } ?? NSRange(location: NSNotFound, length: 0)
     }
@@ -139,6 +147,7 @@ public final class NativeStructureAccessibility {
         let next = index.map { $0 + (direction > 0 ? 1 : -1) } ?? (direction > 0 ? 0 : controls.count - 1)
         let target = direction == 0 || !controls.indices.contains(next) ? view.textView : controls[next]
         guard window.makeFirstResponder(target) else { return false }
+        view.commands.refreshControls()
         target.scrollToVisible(target.bounds)
         NSAccessibility.post(element: target, notification: .focusedUIElementChanged)
         refreshAnnouncement()
