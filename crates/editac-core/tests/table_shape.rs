@@ -720,3 +720,40 @@ fn decoded_fragment_cells_admit_plain_text_and_reject_lossy_marks_or_line_bounda
     d.undo().unwrap().unwrap();
     assert_eq!(attrs(&d), original);
 }
+
+#[test]
+fn public_rectangle_command_uses_existing_preparation_atomically() {
+    use editac_core::interchange::Command;
+    for v2 in [false, true] {
+        let t = tuple(v2);
+        let mut d = engine(&t);
+        let translate = |cells: Value, protected: Value, rows: usize| {
+            serde_json::from_value::<Command>(
+                json!({"type":"tableRectangle","owner":OWNER,"expected":t,
+                "row":0,"column":0,"rows":rows,"columns":2,"cells":cells,"protected":protected}),
+            )
+            .unwrap()
+            .translate(|_| panic!("no table anchors"))
+            .unwrap()
+        };
+        let before = d.checkpoint().bytes;
+        for command in [
+            translate(json!([["a"]]), json!([]), 1),
+            translate(Value::Null, json!([[0, 1]]), 1),
+            translate(Value::Null, json!([]), 0),
+        ] {
+            assert!(d.prepare_editor(&[command], &origin()).is_err());
+            assert_eq!(d.checkpoint().bytes, before);
+            assert_eq!(d.history_state().undo_groups, 0);
+        }
+        let command = translate(json!([["x😀", "אב"]]), json!([]), 1);
+        let plan = d.prepare_editor(&[command], &origin()).unwrap();
+        assert_eq!(d.checkpoint().bytes, before);
+        d.commit_editor(plan).unwrap();
+        assert_eq!(d.history_state().undo_groups, 1);
+        assert_ne!(attrs(&d), t);
+        d.undo().unwrap();
+        assert_eq!(attrs(&d), t);
+    }
+    assert!(Command::TYPES.contains(&"tableRectangle"));
+}

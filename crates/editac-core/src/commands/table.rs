@@ -253,6 +253,24 @@ fn edit_runs(runs: &Any, text: &str) -> Result<Any, EditorError> {
 }
 /// Returns the validated descriptor and text projection for one staged atom edit.
 pub(super) fn plan(expected: &Any, command: &EditorCommand) -> Result<(Any, String), EditorError> {
+    if let EditorCommand::TableRectangle {
+        target,
+        rectangle,
+        cells,
+        protected,
+        ..
+    } = command
+    {
+        let edit = cells
+            .as_deref()
+            .map_or(RectangleEdit::Clear, RectangleEdit::Paste);
+        let commands = rectangle_commands(target, expected, *rectangle, edit, protected)?;
+        let mut result = (expected.clone(), String::new());
+        for command in commands {
+            result = plan(&result.0, &command)?;
+        }
+        return Ok(result);
+    }
     if !matches!(
         Content::from_tuple(expected).map_err(error)?,
         Some(Content::Table { .. } | Content::RichTable { .. })

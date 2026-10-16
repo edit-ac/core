@@ -114,6 +114,15 @@ pub enum EditorCommand {
         column: usize,
         text: String,
     },
+    /// Rectangle clear/literal paste uses the existing bounded table preparation.
+    TableRectangle {
+        target: String,
+        expected: Any,
+        rectangle: super::table::CellRectangle,
+        /// None clears; Some preserves explicit row/column boundaries.
+        cells: Option<Vec<Vec<String>>>,
+        protected: Vec<(usize, usize)>,
+    },
     /// Bounded unmerged row/column operation on an exact captured descriptor.
     TableStructure {
         target: String,
@@ -1797,6 +1806,11 @@ impl Document {
                         .map_err(error)?;
                 }
                 EditorCommand::TableCell {
+                    target: id,
+                    expected,
+                    ..
+                }
+                | EditorCommand::TableRectangle {
                     target: id,
                     expected,
                     ..

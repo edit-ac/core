@@ -25,6 +25,8 @@ export type EditorCommand =
   | { type: "selectionAt" | "historySelectionAt"; anchor: EditorPosition; focus: EditorPosition }
   | { type: "atomicContent"; owner: string; expected: Json; at: AnchorToken; replacement: Json | null }
   | { type: "tableCell"; owner: string; expected: Json; row: number; column: number; text: string }
+  /** Exact-descriptor, bounded simple-cell clear or literal matrix paste. Host policy supplies protected coordinates. */
+  | { type: "tableRectangle"; owner: string; expected: Json; row: number; column: number; rows: number; columns: number; cells: readonly (readonly string[])[] | null; protected: readonly (readonly [number, number])[] }
   | { type: "tableStructure"; owner: string; expected: Json; action: "insertRow" | "deleteRow" | "insertColumn" | "deleteColumn"; index: number }
   | { type: "insert"; at: AnchorToken; text: string }
   | { type: "delete"; range: StableRange }

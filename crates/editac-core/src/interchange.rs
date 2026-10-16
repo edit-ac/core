@@ -371,6 +371,16 @@ pub enum Command {
         column: usize,
         text: String,
     },
+    TableRectangle {
+        owner: String,
+        expected: Value,
+        row: usize,
+        column: usize,
+        rows: usize,
+        columns: usize,
+        cells: Option<Vec<Vec<String>>>,
+        protected: Vec<(usize, usize)>,
+    },
     TableStructure {
         owner: String,
         expected: Value,
@@ -538,6 +548,7 @@ impl Command {
         "atomicContent",
         "tableCell",
         "tableStructure",
+        "tableRectangle",
         "insert",
         "delete",
         "replace",
@@ -664,6 +675,28 @@ impl Command {
                 row,
                 column,
                 text,
+            },
+            Command::TableRectangle {
+                owner,
+                expected,
+                row,
+                column,
+                rows,
+                columns,
+                cells,
+                protected,
+            } => EditorCommand::TableRectangle {
+                target: owner,
+                expected: Any::from_json(&expected.to_string())
+                    .map_err(|e| kernel("tableRectangle", e))?,
+                rectangle: crate::commands::table::CellRectangle {
+                    row,
+                    column,
+                    rows,
+                    columns,
+                },
+                cells,
+                protected,
             },
             Command::TableStructure {
                 owner,
