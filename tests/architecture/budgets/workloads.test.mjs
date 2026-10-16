@@ -1,19 +1,23 @@
+import { build } from 'esbuild';
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { digest, verifyPins } from '../../../scripts/architecture-budgets.mjs';
-import { inspectWorkloads } from '../../../scripts/workload-evidence.mjs';
+import { digest, verifyPins, validateFitnessProfile } from '../../../scripts/architecture-budgets.mjs';
+import { inspectWorkloads, validateWorkloadPolicy } from '../../../scripts/workload-evidence.mjs';
 import { workload, expectedWorkload } from '../../../benchmarks/workloads.mjs';
 const root = fileURLToPath(new URL('../../../', import.meta.url)), read = file => readFile(resolve(root, file));
 const profileBytes = await read('benchmarks/profiles/workloads-v1.json'), profile = JSON.parse(profileBytes);
+const fitnessPolicy = JSON.parse(await read('benchmarks/profiles/fitness-v1.json'));
 const index = JSON.parse(await read('benchmarks/profiles/workload-evidence.json'));
 assert.match(index.directory, /^architecture-results\/fit-1\.8-[a-z0-9/-]+$/); assert(!index.directory.includes('..'));
 const resultBytes = await read(`${index.directory}/results.json`), record = JSON.parse(resultBytes);
 const evidence = { version: 1, parent: 'FIT-1.8', scope: 'PRF-04 actual editor/content-module workload diagnostics; no performance/peak qualification', artifacts: {}, observations: null };
 test('owning workload matrix pins actual runtime, independent full workload oracles, preset checkpoints and raw heap/replay samples', async () => {
+  validateFitnessProfile(fitnessPolicy, await read('benchmarks/config.json'), await read('../architecture/specs/verification.md'));
+  validateWorkloadPolicy(fitnessPolicy, record);
   assert.equal(record.status, 'diagnostic'); assert.deepEqual(record.errors, []);
   assert.equal(index.resultsHash, digest(resultBytes)); assert.equal(record.profileHash, digest(profileBytes));
   assert.equal(profile.warmupPolicy, 'WASM initialized before each mount timer; twelve sequential replays, no discarded warmup samples');
@@ -22,10 +26,13 @@ test('owning workload matrix pins actual runtime, independent full workload orac
   for (const field of ['warmupPolicy', 'seedContext', 'semanticPolicy']) assert.equal(record.metadata[field], profile[field]);
   const tracked = spawnSync('git', ['ls-files', 'crates', 'packages', 'fixtures/schema-v5', 'Cargo.lock', 'Cargo.toml', 'package-lock.json', 'package.json', 'scripts/build-wasm.mjs'], { cwd: root, encoding: 'utf8' });
   assert.equal(tracked.status, 0);
-  const inputs = [...new Set([...tracked.stdout.trim().split('\n'), 'benchmarks/profiles/workloads-v1.json', 'benchmarks/workload-client.mjs', 'benchmarks/workloads.mjs', 'benchmarks/workload-image.png', 'benchmarks/fixtures.mjs', 'benchmarks/presets.mjs', 'scripts/workload-evidence.mjs', 'scripts/table-workload-accessibility.mjs', 'scripts/bench-workloads.mjs'])];
+  const inputs = [...new Set([...tracked.stdout.trim().split('\n'), 'benchmarks/profiles/workloads-v1.json', 'benchmarks/profiles/fitness-v1.json', 'benchmarks/config.json', 'scripts/architecture-budgets.mjs', 'benchmarks/workload-client.mjs', 'benchmarks/workloads.mjs', 'benchmarks/workload-image.png', 'benchmarks/fixtures.mjs', 'benchmarks/presets.mjs', 'scripts/workload-evidence.mjs', 'scripts/table-workload-accessibility.mjs', 'scripts/bench-workloads.mjs'])];
   assert.deepEqual(Object.keys(record.sourceInputs).sort(), inputs.sort()); await verifyPins(root, record.sourceInputs);
   await verifyPins(resolve(root, index.directory), record.artifacts);
   for (const file of ['editac_wasm.js', 'editac_wasm_bg.wasm']) assert.equal(digest(await read(`packages/core/dist/wasm/${file}`)), record.artifacts[`harness/wasm/${file}`]);
+  const rebuilt = await build({ stdin: { contents: 'export {createEditor,taskPreset,CheckpointStorage} from "@edit-ac/web"; export {init} from "@edit-ac/core"; export {contentModules} from "@edit-ac/web";', resolveDir: root },
+    write: false, bundle: true, minify: true, format: 'esm', platform: 'browser', target: 'es2022' });
+  assert.equal(digest(rebuilt.outputFiles[0].contents), record.artifacts['harness/sdk.js']);
   assert.equal(digest(await read('benchmarks/workload-image.png')), record.artifacts['harness/workload-image.png']);
   for (const item of record.cases) {
     const key = `${item.scale}-${item.kind}`, bytes = await read(`${index.directory}/fixtures/${key}.json`);
@@ -71,5 +78,17 @@ test('profile rejects workload reductions, sample drift and invented release lim
   for (const change of [p => p.samples--, p => p.limits.tableRows.Long--, p => p.limits.textBytes.Long--, p => p.limits.images.Long--, p => p.workloads.pop(), p => p.performanceLimits = { latencyMs: 999 }]) {
     const p = structuredClone(profile); change(p); assert.throws(() => inspectWorkloads(p, record));
   }
+});
+for (const [name, change] of [
+  ['missing policy', r => delete r.metadata.verificationPolicy],
+  ['stale policy', r => r.metadata.verificationPolicy.sha256 = '0'.repeat(64)],
+  ['wrong policy source', r => r.metadata.verificationPolicy.source = 'prepared'],
+  ['missing retained policy', r => delete r.artifacts['policy/verification.md']],
+  ['changed retained policy', r => r.artifacts['policy/verification.md'] = '0'.repeat(64)],
+  ['unreviewed policy', r => r.metadata.verificationPolicy.reviewedAt = r.metadata.startedAt],
+  ['measurement before review', r => r.metadata.startedAt = fitnessPolicy.reviewedAt],
+]) test(`workload policy rejects ${name}`, () => {
+  const changed = structuredClone(record); change(changed);
+  assert.throws(() => validateWorkloadPolicy(fitnessPolicy, changed));
 });
 after(async () => { assert(process.env.EDITAC_ARCHITECTURE_OUTPUT); await writeFile(resolve(process.env.EDITAC_ARCHITECTURE_OUTPUT, 'workloads-inventory.json'), JSON.stringify(evidence, null, 2) + '\n'); });

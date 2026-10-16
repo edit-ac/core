@@ -8,8 +8,8 @@ import { chromium } from 'playwright';
 import { startFixtureServer } from '../tests/browser/fixture-server.mjs';
 import { workload, expectedWorkload, canonicalWorkload } from '../benchmarks/workloads.mjs';
 import { presets } from '../benchmarks/presets.mjs';
-import { digest } from './architecture-budgets.mjs';
-import { inspectWorkloads, inspectWorkload } from './workload-evidence.mjs';
+import { digest, validateFitnessProfile } from './architecture-budgets.mjs';
+import { inspectWorkloads, inspectWorkload, validateWorkloadPolicy } from './workload-evidence.mjs';
 import { replayTableInput } from './table-workload-accessibility.mjs';
 import { requireTestNode } from './test-toolchain.mjs';
 
@@ -21,15 +21,20 @@ const output = resolve(root, args[1]);
 if (!relative(root, output) || relative(root, output).startsWith('..')) throw Error('Retain output inside repository');
 await mkdir(output, { recursive: false });
 const profilePath = tableAccessibility ? 'benchmarks/profiles/table-accessibility-v1.json' : 'benchmarks/profiles/workloads-v1.json', profileBytes = await readFile(profilePath), profile = JSON.parse(profileBytes);
+const fitnessPath = 'benchmarks/profiles/fitness-v1.json';
+const fitnessPolicy = JSON.parse(await readFile(fitnessPath));
+const verificationPolicy = await readFile(resolve(root, '../architecture/specs/verification.md'));
+validateFitnessProfile(fitnessPolicy, await readFile('benchmarks/config.json'), verificationPolicy);
 const record = { version: 1, qualification: 'unqualified', profileHash: digest(profileBytes),
   metadata: { startedAt: new Date().toISOString(), command: [process.execPath, ...process.argv.slice(1)],
     revision: spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout.trim(),
     cpu: cpus()[0].model, cores: cpus().length, memoryBytes: totalmem(), hostOS: `${platform()}/${release()}/${arch()}`,
+    verificationPolicy: { source: 'architecture/specs/verification.md', sha256: digest(verificationPolicy), reviewedAt: fitnessPolicy.reviewedAt },
     provenance: 'headless-browser-on-host', node: process.version, warmupPolicy: profile.warmupPolicy, seedContext: profile.seedContext, semanticPolicy: profile.semanticPolicy },
   counts: { executed: 0, passed: 0, failed: 0, skipped: profile.scales.length * profile.presets.length * profile.workloads.length }, cases: [], sourceInputs: {}, artifacts: {}, errors: [], cleanup: {} };
 const tracked = spawnSync('git', ['ls-files', 'crates', 'packages', 'fixtures/schema-v5', 'Cargo.lock', 'Cargo.toml', 'package-lock.json', 'package.json', 'scripts/build-wasm.mjs'], { encoding: 'utf8' });
 if (tracked.status !== 0) throw Error('Cannot pin source closure');
-const inputs = [...new Set([...tracked.stdout.trim().split('\n'), profilePath, 'benchmarks/workload-client.mjs', 'benchmarks/workloads.mjs', 'benchmarks/workload-image.png',
+const inputs = [...new Set([...tracked.stdout.trim().split('\n'), profilePath, fitnessPath, 'benchmarks/config.json', 'scripts/architecture-budgets.mjs', 'benchmarks/workload-client.mjs', 'benchmarks/workloads.mjs', 'benchmarks/workload-image.png',
   'benchmarks/fixtures.mjs', 'benchmarks/presets.mjs', 'scripts/workload-evidence.mjs', 'scripts/table-workload-accessibility.mjs', 'scripts/bench-workloads.mjs'])];
 for (const file of inputs) record.sourceInputs[file] = digest(await readFile(file));
 const temporary = await mkdtemp(join(tmpdir(), 'editac-prf04-'));
@@ -38,6 +43,8 @@ const stop = () => { interrupted = true; void browser?.close(); };
 process.once('SIGINT', stop); process.once('SIGTERM', stop);
 async function retain(file, bytes) { await mkdir(join(output, file, '..'), { recursive: true }); await writeFile(join(output, file), bytes); record.artifacts[file] = digest(bytes); }
 try {
+  await retain('policy/verification.md', verificationPolicy);
+  validateWorkloadPolicy(fitnessPolicy, record);
   await mkdir(join(temporary, 'wasm'));
   await build({ stdin: { contents: 'export {createEditor,taskPreset,CheckpointStorage} from "@edit-ac/web"; export {init} from "@edit-ac/core"; export {contentModules} from "@edit-ac/web";', resolveDir: root },
     outfile: join(temporary, 'sdk.js'), bundle: true, minify: true, format: 'esm', platform: 'browser', target: 'es2022' });

@@ -1,7 +1,14 @@
 import { workload, expectedWorkload, canonicalWorkload } from '../benchmarks/workloads.mjs';
 import { presets } from '../benchmarks/presets.mjs';
-import { digest } from './architecture-budgets.mjs';
+import { digest, validateBaselinePolicy } from './architecture-budgets.mjs';
 import { inspectTableAccessibility, tableInputScope } from './table-workload-accessibility.mjs';
+export function validateWorkloadPolicy(profile, record) {
+  validateBaselinePolicy(profile, {
+    metadata: { ...record.metadata, timestamp: record.metadata?.startedAt },
+    artifactInputs: record.artifacts,
+  });
+}
+
 const require = (value, message) => { if (!value) throw Error(message); };
 const finite = n => Number.isFinite(n) && n >= 0;
 const pin = value => /^[a-f0-9]{64}$/.test(value ?? '');
