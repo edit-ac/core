@@ -88,6 +88,41 @@ async function withContext(name, action) {
   finally { await context.close(); }
 }
 
+for (const readOnly of [false, true]) test(`initial publication exposes the complete nested owner tree (${readOnly ? 'read-only' : 'editable'})`, async () => withContext(`publication-${readOnly}`, async (context, fact) => {
+  const page = await open(context);
+  await page.evaluate(() => window.renderFixture.mount());
+  const result = await page.evaluate(async readOnly => {
+    const f = window.renderFixture, root = document.createElement('div');
+    document.body.append(root);
+    const observer = new MutationObserver(() => {});
+    observer.observe(root, { subtree: true, childList: true });
+    const publications = [], append = root.append;
+    root.append = function (...children) {
+      append.apply(this, children);
+      if (this.childNodes.length) publications.push([...this.querySelectorAll('[data-node-id]')].map(n => n.dataset.nodeId));
+    };
+    const r = new f.DOMRenderer(root, f.engine, { readOnly });
+    try {
+      const expected = f.engine.read().visible.map(n => n.id).sort();
+      const mutations = observer.takeRecords().filter(m => m.addedNodes.length);
+      observer.disconnect();
+      const id = f.ids[0], block = r.getBlock(id), other = r.getBlock(f.ids[1]);
+      await f.edit(id, 0, '!');
+      return { expected, publications, additions: mutations.length,
+        rootOnly: mutations.every(m => m.target === root), nested: !!root.querySelector('li li'),
+        retained: block === r.getBlock(id) && other === r.getBlock(f.ids[1]),
+        edited: r.getBlock(id).textContent === f.engine.read().visible.find(n => n.id === id).runs.map(run => run.text).join(''),
+        editable: root.contentEditable };
+    } finally { observer.disconnect(); r.dispose(); root.remove(); }
+  }, readOnly);
+  fact.publication = result;
+  assert.equal(result.publications.length, 1);
+  assert.deepEqual(result.publications[0].sort(), result.expected);
+  assert.equal(result.additions, 1); assert.equal(result.rootOnly, true);
+  assert.equal(result.nested, true); assert.equal(result.retained, true); assert.equal(result.edited, true);
+  assert.equal(result.editable, readOnly ? 'false' : 'true');
+}));
+
 for (const readOnly of [false, true]) test(`authored whitespace stays visible across block kinds and heading replacement (${readOnly ? 'read-only' : 'editable'})`, async () => withContext(`whitespace-${readOnly}`, async (context, fact) => {
   const page = await open(context);
   await page.evaluate(readOnly => window.renderFixture.mount(readOnly), readOnly);

@@ -44,7 +44,8 @@ export class DOMRenderer {
     root.contentEditable = options.readOnly ? "false" : "true";
     const nodes = new Map(snapshot.visible.map(node => [node.id, node]));
     for (const node of snapshot.visible) this.#update(node, nodes.get(node.parent));
-    this.#arrange();
+    // Build every nested owner while disconnected, then publish the tree once.
+    root.append(this.#arrange(root.ownerDocument.createDocumentFragment()));
     this.#subscription = engine.subscribe({ type: "all" }, patch => this.#apply(patch));
   }
   /** Input reads admitted model text, including updates held during native
@@ -231,12 +232,12 @@ export class DOMRenderer {
     if (entry.content.style.whiteSpace !== whiteSpace) entry.content.style.whiteSpace = whiteSpace;
     this.#patchRuns(entry, node.runs, tag === "pre");
   }
-  #arrange(): void {
-    const groups = new Map<HTMLElement, Set<HTMLElement>>();
+  #arrange(root: HTMLElement | DocumentFragment = this.root): HTMLElement | DocumentFragment {
+    const groups = new Map<HTMLElement | DocumentFragment, Set<HTMLElement>>();
     for (const entry of [...this.#entries.values()].sort((a, b) => a.node.order - b.node.order)) {
       const parent = this.#entries.get(entry.node.parent);
       // Nested containers follow a list item's paragraph, never sit inside it.
-      const target = parent ? (parent.node.kind === "block" && parent.outer !== parent.content ? parent.outer : parent.content) : this.root;
+      const target = parent ? (parent.node.kind === "block" ? parent.outer : parent.content) : root;
       const children = groups.get(target) ?? new Set<HTMLElement>(); children.add(entry.outer); groups.set(target, children);
     }
     for (const [parent, children] of groups) {
@@ -248,6 +249,7 @@ export class DOMRenderer {
         cursor = child.nextSibling;
       }
     }
+    return root;
   }
   #markKey(run: Run): string {
     const a = run.attributes;

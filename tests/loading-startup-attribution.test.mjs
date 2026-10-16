@@ -41,6 +41,15 @@ for (const kind of ['entry','editor','render','writer','checkpoint']) test(`star
   assert.throws(() => instrumentStartupSource(kind, source.replace(kind === 'render' ? 'const snapshot = engine.read();' : kind === 'entry' ? 'const identity = { ...options.identity };' : kind === 'writer' ? 'writerId = engine.checkpoint().writerId;' : kind === 'checkpoint' ? 'const raw = await this.#readRaw(expected);' : 'this.#session = session;', m => m + m)));
   assert.throws(() => instrumentStartupSource(kind, ''));
 });
+test('render startup attribution brackets complete initial publication and rejects the old boundary', async () => {
+  const source = await readFile('packages/web/dist/dom/render.js', 'utf8');
+  const publication = 'root.append(this.#arrange(root.ownerDocument.createDocumentFragment()));';
+  const result = instrumentStartupSource('render', source);
+  assert(result.indexOf('__editacStartupMark("render.nodes")') < result.indexOf(publication));
+  assert(result.indexOf(publication) < result.indexOf('__editacStartupMark("render.arranged")'));
+  assert.throws(() => instrumentStartupSource('render', source.replace(publication, 'this.#arrange();')));
+  assert.throws(() => instrumentStartupSource('render', source.replace(publication, publication + publication)));
+});
 test('late browser frame delivery is retained without waiting and later command frames are discarded', () => {
   const previous = globalThis.PerformanceObserver;
   let callback, instance, now = 0, disconnected = false;

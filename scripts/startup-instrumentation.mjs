@@ -32,8 +32,8 @@ export function instrumentStartupSource(kind, source) {
       ['const snapshot = engine.read();', 'render.snapshot', true],
       ['root.replaceChildren();', 'render.modules', false],
       ['const nodes = new Map(snapshot.visible.map(node => [node.id, node]));', 'render.domBegin', false],
-      ['this.#arrange();', 'render.nodes', false],
-      ['this.#arrange();', 'render.arranged', true],
+      ['root.append(this.#arrange(root.ownerDocument.createDocumentFragment()));', 'render.nodes', false],
+      ['root.append(this.#arrange(root.ownerDocument.createDocumentFragment()));', 'render.arranged', true],
       ['this.#subscription = engine.subscribe({ type: "all" }, patch => this.#apply(patch));', 'render.subscribed', true],
     ],
   }[kind];
