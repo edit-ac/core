@@ -2,7 +2,7 @@
   "contractVersion": 1,
   "id": "native.macos.pending.v1",
   "implementation": {
-    "revision": "42fa88069cf768647d76f14fb85e8e6e63832a44",
+    "revision": "0d81f87296a886e035751b083f852652ce9ebffd",
     "package": "EditacMacOS",
     "version": "0.0.0"
   },
@@ -349,7 +349,7 @@
     },
     {
       "path": "native/macos/Sources/EditacMacOS/extensions/NativeExtensions.swift",
-      "sha256": "ddec1cda632d547980daf72d24e150ee92c3bfa9df9871a9b711e46f3b072fa8"
+      "sha256": "54a5c5d0041af1a8afe361e21552ae1d33fac472a096f2da1a68e7c2cf4ce4b8"
     },
     {
       "path": "native/macos/Sources/EditacMacOS/extensions/README.md",
@@ -357,7 +357,7 @@
     },
     {
       "path": "native/macos/tests/Extensions/ExtensionsTests.swift",
-      "sha256": "a4d86f3451a51169e5ed1ea854efeeab5b4757095364799b139001c927a145bc"
+      "sha256": "04a907bccd66f24df49909389d94bc39b82e33642a81de6a22fcb5cc96db756c"
     },
     {
       "path": "native/macos/tests/ExtensionsFixture/Cargo.lock",
