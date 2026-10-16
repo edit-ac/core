@@ -2,7 +2,7 @@
   "contractVersion": 1,
   "id": "native.macos.pending.v1",
   "implementation": {
-    "revision": "6e379313cebc3889f20281a2eda2541420416e15",
+    "revision": "409b52ba97e5d7eec5d8754581a235d64d033bec",
     "package": "EditacMacOS",
     "version": "0.0.0"
   },
@@ -317,7 +317,7 @@
     },
     {
       "path": "native/macos/Package.swift",
-      "sha256": "4be6ef408338ca265c733bdc5abd445a75429281322e5312778c0748ff290608"
+      "sha256": "52d0c734436419b2ce869a798996e42617e6c162e3ad4f7227c275caf39d67c5"
     },
     {
       "path": "native/macos/toolchain.json",
@@ -346,6 +346,34 @@
     {
       "path": "native/macos/tests/Collaboration/CollaborationTests.swift",
       "sha256": "bbf9a988146cb8970dd61dc225fbc45560a722b0eb7398ad65be1701b3f48882"
+    },
+    {
+      "path": "native/macos/Sources/EditacMacOS/extensions/NativeExtensions.swift",
+      "sha256": "96b76a3e285b0a02742101b52ce21ca84365e412357e7e483331d749bbbcccd5"
+    },
+    {
+      "path": "native/macos/Sources/EditacMacOS/extensions/README.md",
+      "sha256": "7824480b2de1cb77301b9cbad5fba8e49965949921020142d2417a27a6e1c4cb"
+    },
+    {
+      "path": "native/macos/tests/Extensions/ExtensionsTests.swift",
+      "sha256": "fe1d5b3656479f73edb1421b4c65c07d9b412d926154b8d3888f2777848de601"
+    },
+    {
+      "path": "native/macos/tests/ExtensionsFixture/Cargo.lock",
+      "sha256": "3e5393aaa3064729f4e3a93b746430cd6ee1629dc74221fe207368e81a097b94"
+    },
+    {
+      "path": "native/macos/tests/ExtensionsFixture/Cargo.toml",
+      "sha256": "27046c656e631de3c16f448ad74e33ef29bb870e141c318db705b15e566216d7"
+    },
+    {
+      "path": "native/macos/tests/ExtensionsFixture/corpus.json",
+      "sha256": "937e01e10c58b5999d87dd462b4781528e360432a78b7ef9d6e2846691f20b90"
+    },
+    {
+      "path": "native/macos/tests/ExtensionsFixture/src/main.rs",
+      "sha256": "c1ca9480b94dcaff9667916b5f8e4e949cc324b49f40eba7c1d2ccdeb05849ed"
     }
   ],
   "evidence": []
