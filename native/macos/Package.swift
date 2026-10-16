@@ -32,6 +32,8 @@ let package = Package(
                     path: "tests/CollaborationLifecycle"),
         .testTarget(name: "EditacMacOSDurabilityTests", dependencies: ["EditacMacOS"],
                     path: "tests/Durability"),
+        .testTarget(name: "EditacMacOSAccessibilityStructureTests", dependencies: ["EditacMacOS"],
+                    path: "tests/AccessibilityStructure"),
         .testTarget(name: "EditacMacOSAccessibilityTextTests", dependencies: ["EditacMacOS"],
                     path: "tests/AccessibilityText"),
         .testTarget(name: "EditacMacOSCommandsTests", dependencies: ["EditacMacOS"],

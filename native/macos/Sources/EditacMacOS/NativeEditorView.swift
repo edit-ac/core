@@ -7,6 +7,7 @@ public final class NativeEditorView: NSView {
     public let session = NativeSessionExecutor()
     public private(set) lazy var clipboard = NativeClipboardInput(view: self)
     public private(set) lazy var collaboration = NativeCollaboration(view: self)
+    public private(set) lazy var structureAccessibility = NativeStructureAccessibility(view: self)
     public private(set) lazy var accessibility = NativeTextAccessibility(view: self)
     public private(set) lazy var storage = NativeDocumentLifecycle(view: self)
     public private(set) var sessionSnapshot: NativeSessionRead?
@@ -27,6 +28,16 @@ public final class NativeEditorView: NSView {
     var applyingProjection = false
     public let scrollView: NSScrollView
     public let textView: NSTextView
+
+    /// Control-Command-arrows traverse structure without inserting text or
+    /// requiring full keyboard access to be enabled in System Settings.
+    public override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == [.control, .command],
+           event.keyCode == 123 || event.keyCode == 124 {
+            return structureAccessibility.focus(direction: event.keyCode == 124 ? 1 : -1)
+        }
+        return super.performKeyEquivalent(with: event)
+    }
 
     public override init(frame frameRect: NSRect) {
         let localFrame = NSRect(origin: .zero, size: frameRect.size)
@@ -90,6 +101,7 @@ public final class NativeEditorView: NSView {
                 self.projectionFailure = nil
                 try self.attachments.reconcile()
                 try self.extensions.reconcile()
+                self.structureAccessibility.refresh()
                 self.collaboration.projectionDidChange()
                 self.textView.setAccessibilityLabel("Editor (native projection)")
                 if previousText != self.textView.string {
@@ -153,6 +165,7 @@ public final class NativeEditorView: NSView {
     /// The embedding host calls this when its editor/document is closed.
     public func dispose(completion: @escaping @MainActor @Sendable () -> Void = {}) {
         isDisposed = true
+        structureAccessibility.dispose()
         clipboard.dispose()
         collaboration.dispose()
         storage.dispose()

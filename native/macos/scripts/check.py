@@ -16,6 +16,7 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 CORE = ROOT.parents[1]
 SUITES = {
+    "accessibility-structure": ("EditacMacOSAccessibilityStructureTests.AccessibilityStructureTests", 18),
     "clipboard-transport": ("EditacMacOSClipboardTransportTests.ClipboardTransportTests", 24),
     "extensions": ("EditacMacOSExtensionsTests.ExtensionsTests", 26),
     "collaboration": ("EditacMacOSCollaborationTests.CollaborationTests", 16),
@@ -102,7 +103,7 @@ def stop_command_tree(process):
 
 def main():
     if len(sys.argv) != 2 or sys.argv[1] not in SUITES:
-        print("Usage: bash native/macos/scripts/check.sh {extensions|collaboration|collaboration-lifecycle|accessibility-text|durability|bootstrap|toolkit|session|projection|edits|composition|commands|styles|table-projection|table-editing|attachments}; unknown/unimplemented suite", file=sys.stderr)
+        print("Usage: bash native/macos/scripts/check.sh {accessibility-structure|extensions|collaboration|collaboration-lifecycle|accessibility-text|durability|bootstrap|toolkit|session|projection|edits|composition|commands|styles|table-projection|table-editing|attachments}; unknown/unimplemented suite", file=sys.stderr)
         return 2
     suite = sys.argv[1]
     signal.signal(signal.SIGTERM, interrupted)
@@ -243,6 +244,23 @@ def main():
             env["EDITAC_MACOS_STYLE_EVIDENCE"] = str(output)
             fixture = json.loads(manifest.read_text())
             receipt["styleFixture"] = {"manifest": str(manifest),
+                "manifestSha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
+                "storeSha256": hashlib.sha256(Path(fixture["path"]).read_bytes()).hexdigest(),
+                "factory": fixture["factory"], "providerCalls": fixture["providerCalls"]}
+        if suite == "accessibility-structure":
+            fixture_root = output / "structure-fixture"
+            env["EDITAC_NATIVE_SESSION_EVIDENCE"] = str(fixture_root)
+            factory = ROOT / "tests/AccessibilityStructureFixture/Cargo.toml"
+            fixture_log = run("structure-fixture", [str(Path.home() / ".cargo/bin/cargo"), "+1.97.1", "run",
+                "--manifest-path", str(factory), "--locked", "--offline",
+                "--target", {"arm64": "aarch64-apple-darwin", "x86_64": "x86_64-apple-darwin"}[actual["cpu"]],
+                "--target-dir", str(CORE / "target/native-macos-ffi")], timeout=300)
+            manifest = Path(fixture_log.strip().splitlines()[-1])
+            env["EDITAC_MACOS_STRUCTURE_FIXTURE"] = str(manifest)
+            env["EDITAC_MACOS_STRUCTURE_EVIDENCE"] = str(output)
+            fixture = json.loads(manifest.read_text())
+            receipt["structureScope"] = "actual-session-sqlite-native-table-attachment-extension-ax-structure-focus"
+            receipt["structureFixture"] = {"manifest": str(manifest),
                 "manifestSha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
                 "storeSha256": hashlib.sha256(Path(fixture["path"]).read_bytes()).hexdigest(),
                 "factory": fixture["factory"], "providerCalls": fixture["providerCalls"]}

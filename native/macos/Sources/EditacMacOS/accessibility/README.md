@@ -36,3 +36,25 @@ read-only mode, scroll/magnify, and confirm spoken text/selection/action state
 matches the projection without duplicate edits. Preserve failures and unsupported
 routes, label physical versus virtual runtime, and leave qualification unchecked
 until that run passes.
+
+
+DSK-1.17 adds native AX tables with indexed rows/columns, cell span ranges,
+column-header relationships and the original text controls as cell children.
+Surviving coordinates retain AX identity. Removed/disposed elements detach and
+cannot focus stale controls. Image/reference groups use shared alt/label data;
+atom actions wrap the existing enabled native buttons and recheck admission.
+Unknown atoms and math retain source labels without claiming typesetting.
+
+Control-Command-Right/Left moves through cells and attachment/extension selection
+buttons in document order, returning to text at either end. The text accessibility
+actions expose the same Next structure, Previous structure and Return to editor
+routes; native cell Press focuses the actual text control. Read-only navigation
+remains available. Focus/status announcements coalesce once per main queue turn,
+truncate to 256 characters, suppress duplicates and stop on disposal.
+
+`bash native/macos/scripts/check.sh accessibility-structure` mounts a combined
+actual Rust/SQLite corpus in real AppKit windows. It checks structure, spans,
+shared labels/actions, keyboard and AX focus, permission changes, actual shared
+row removal, resync identity, teardown and bounded announcements. It qualifies
+programmatic OS-host implementation only. Roadmap 20 must verify VoiceOver speech,
+rotor navigation and platform settings with recorded physical/virtual provenance.
