@@ -571,7 +571,14 @@ bytes against both exact packed profiles. The default excludes Markdown fetches;
 the enabled profile executes the parser. CSS is counted by the existing gzip
 harness; the browser behavior fixture exercises JS/WASM. Report default, enabled
 and incremental costs separately. Historical FIT-1.6 costs remain historical;
-Version 2 also reuses the ordinary loading client and its independent full-corpus
+Version 3 requires pinned-toolchain, offline production engine and Markdown WASM
+builds before the package build. Exact build commands/logs and generated WASM/glue
+hashes accompany the receipt. Admission compares source-built WASM to each
+measured distribution and generated glue to the current packed package; a
+TypeScript-only rebuild cannot admit stale Rust binaries. Build adapters and the
+Rust toolchain file belong to the required source closure.
+
+The producer also reuses the ordinary loading client and its independent full-corpus
 restoration oracle for Task/Long × baseline/Task × disabled/enabled Markdown,
 twelve cold/warm pairs each. A retained test-host SDK wrapper measures actual
 parser initialization and first-use round trip before mounting the optional

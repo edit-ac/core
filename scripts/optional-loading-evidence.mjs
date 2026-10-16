@@ -11,6 +11,7 @@ import { requireTestNode } from './test-toolchain.mjs';
 import { optionalLatencyInputs, produceOptionalLatency, inspectOptionalLatency } from './optional-loading-latency.mjs';
 
 const implementation = ['scripts/optional-loading-evidence.mjs', 'scripts/check-browser-size.mjs',
+  'scripts/build-wasm.mjs', 'scripts/share-wasm-glue.mjs', 'scripts/build-wasm-notices.mjs', 'rust-toolchain.toml',
   'scripts/consumers-loading.mjs', 'scripts/browser-size-contract.mjs', 'scripts/minify-task.mjs',
   'scripts/architecture-budgets.mjs', 'scripts/architecture-layers.mjs', 'scripts/check-architecture.mjs',
   'scripts/test-toolchain.mjs', 'tests/browser-size-runtime.test.mjs', '.node-version',
@@ -20,12 +21,24 @@ export function optionalLoadingInputs(root) {
   assert.equal(result.status, 0, 'Cannot inventory optional runtime closure');
   return [...new Set([...result.stdout.trim().split('\n'), ...implementation])].sort();
 }
+const buildFiles = {
+  engine: ['packages/core/dist/wasm/editac_wasm_bg.wasm', 'packages/core/dist/wasm/editac_wasm.js', 'packages/core/dist/wasm/editac_runtime.js'],
+  markdown: ['packages/markdown/dist/wasm/editac_markdown_wasm_bg.wasm', 'packages/markdown/dist/wasm/editac_markdown_wasm.js'],
+};
 export function inspectOptionalLoading(record) {
-  assert.equal(record.version, 2);
+  assert.equal(record.version, 3);
   assert.equal(record.scope, 'current-packed-default-and-markdown');
   assert.deepEqual(record.errors, [], 'Optional loading producer failed');
   assert(Number.isFinite(Date.parse(record.startedAt)) && Date.parse(record.reviewedAt) < Date.parse(record.startedAt), 'Policy must precede measurement');
-  assert.deepEqual(record.commands.map(c => c.label), ['build-packages', 'default-measurement', 'default-runtime', 'markdown-measurement', 'markdown-runtime']);
+  assert.deepEqual(record.commands.map(c => c.label), ['build-engine-wasm', 'build-markdown-wasm', 'build-packages', 'default-measurement', 'default-runtime', 'markdown-measurement', 'markdown-runtime']);
+  for (const [index, args] of [[0, []], [1, ['--markdown']]]) {
+    const command = record.commands[index].command;
+    assert.equal(command.length, 2 + args.length, 'Unexpected WASM build command');
+    assert.equal(command[1], 'scripts/build-wasm.mjs', 'Missing source WASM build');
+    assert.deepEqual(command.slice(2), args, 'Wrong WASM build profile');
+  }
+  assert.deepEqual(Object.keys(record.buildOutputs).sort(), Object.values(buildFiles).flat().sort(), 'Incomplete built WASM outputs');
+  for (const hash of Object.values(record.buildOutputs)) assert.match(hash, /^[0-9a-f]{64}$/, 'Invalid built WASM hash');
   for (const command of record.commands) {
     assert.equal(command.exit, 0, 'Failed optional loading command'); assert.equal(command.error, null);
     assert.equal(record.artifacts[command.log], command.sha256, 'Command log must be retained');
@@ -48,6 +61,10 @@ export function inspectOptionalLoading(record) {
     }
   }
   const baseline = record.profiles.default.measurement, enabled = record.profiles.markdown.measurement;
+  for (const [measurement, source, asset] of [[baseline, buildFiles.engine[0], 'wasm/editac_wasm_bg.wasm'],
+    [enabled, buildFiles.engine[0], 'wasm/editac_wasm_bg.wasm'], [enabled, buildFiles.markdown[0], 'wasm/editac_markdown_wasm_bg.wasm']]) {
+    assert.equal(measurement.assets.find(a => a.name === asset)?.sha256, record.buildOutputs[source], 'Measured WASM differs from source build');
+  }
   for (const name of ['core', 'web']) assert.equal(baseline.packs.find(p => p.name === name).sha256, enabled.packs.find(p => p.name === name).sha256, 'Optional delta needs identical base packages');
   const incremental = Object.fromEntries(['total', 'js'].map(key => [key, enabled.result[key].bytes - baseline.result[key].bytes]));
   assert(incremental.total > 0 && incremental.js > 0);
@@ -82,6 +99,7 @@ export async function admitOptionalLoading(root, directory, record) {
   const summary = inspectOptionalLoading(record);
   assert.deepEqual(Object.keys(record.sourceInputs).sort(), optionalLoadingInputs(root), 'Incomplete current optional source closure');
   await verifyPins(root, record.sourceInputs);
+  await verifyPins(root, record.buildOutputs);
   assert.equal(digest(await readFile(resolve(root, '../architecture/specs/verification.md'))), record.verificationSpecHash, 'Current optional policy drift');
   assert.equal(record.artifacts['policy/verification.md'], record.verificationSpecHash);
   await verifyPins(directory, record.artifacts);
@@ -109,9 +127,9 @@ async function main() {
   const spec = await readFile(resolve(root, '../architecture/specs/verification.md'));
   validateFitnessProfile(profile, await readFile(join(root, 'benchmarks/config.json')), spec);
   assert(process.env.EDITAC_OPTIONAL_LOADING_SEED, 'Explicit retained loading seed directory required');
-  const record = { version: 2, scope: 'current-packed-default-and-markdown', startedAt: new Date().toISOString(), reviewedAt: profile.reviewedAt,
+  const record = { version: 3, scope: 'current-packed-default-and-markdown', startedAt: new Date().toISOString(), reviewedAt: profile.reviewedAt,
     verificationSpecHash: digest(spec), revision: spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).stdout.trim(),
-    node: process.version, sourceInputs: {}, commands: [], profiles: {}, artifacts: {}, errors: [] };
+    node: process.version, sourceInputs: {}, buildOutputs: {}, commands: [], profiles: {}, artifacts: {}, errors: [] };
   const env = { ...process.env }; delete env.NODE_TEST_CONTEXT;
   // Inherited diagnostic transforms must never contaminate delivered-byte proof.
   for (const key of Object.keys(env)) if (/^EDITAC_(LOADING|BROWSER_SIZE|SIZE_RUNTIME)/.test(key)) delete env[key];
@@ -127,6 +145,11 @@ async function main() {
   try {
     for (const path of optionalLoadingInputs(root)) record.sourceInputs[path] = digest(await readFile(join(root, path)));
     await mkdir(join(output, 'policy')); await writeFile(join(output, 'policy/verification.md'), spec);
+    // Package/TypeScript builds do not compile Rust. Rebuild both actual WASM
+    // profiles before packing so current source pins cannot bless stale binaries.
+    await run('build-engine-wasm', process.execPath, ['scripts/build-wasm.mjs']);
+    await run('build-markdown-wasm', process.execPath, ['scripts/build-wasm.mjs', '--markdown']);
+    for (const path of Object.values(buildFiles).flat()) record.buildOutputs[path] = digest(await readFile(join(root, path)));
     await run('build-packages', 'npm', ['run', 'build']);
     for (const name of ['default', 'markdown']) {
       const directory = join(output, name);

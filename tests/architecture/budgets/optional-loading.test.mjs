@@ -16,13 +16,21 @@ test('current optional loading admits exact current packages, disabled/enabled c
   assert.deepEqual(evidence.observations, record.summary);
 });
 for (const [name, mutate] of [
+  ['missing source build', r => r.commands.shift()],
+  ['fixture build substituted', r => r.commands[0].command.push('--fixture')],
+  ['swapped WASM profiles', r => r.commands[1].command.pop()],
+  ['different build adapter', r => r.commands[0].command[1] = 'other.mjs'],
+  ['missing generated glue', r => delete r.buildOutputs['packages/core/dist/wasm/editac_wasm.js']],
+  ['invalid build digest', r => r.buildOutputs['packages/core/dist/wasm/editac_wasm.js'] = 'invalid'],
+  ['stale engine WASM', r => r.buildOutputs['packages/core/dist/wasm/editac_wasm_bg.wasm'] = '0'.repeat(64)],
+  ['stale Markdown WASM', r => r.buildOutputs['packages/markdown/dist/wasm/editac_markdown_wasm_bg.wasm'] = '0'.repeat(64)],
   ['failed producer', r => r.errors.push('failure')],
   ['post-hoc policy', r => r.reviewedAt = r.startedAt],
   ['missing command', r => r.commands.pop()],
-  ['failed measurement', r => r.commands[1].exit = 1],
+  ['failed measurement', r => r.commands.find(c => c.label === 'default-measurement').exit = 1],
   ['unretained command log', r => r.commands[0].sha256 = '0'.repeat(64)],
-  ['skipped browser', r => r.commands[2].counts.skipped = 1],
-  ['zero browser cases', r => r.commands[2].counts = { tests: 0, pass: 0, fail: 0, cancelled: 0, skipped: 0, todo: 0 }],
+  ['skipped browser', r => r.commands.find(c => c.label === 'default-runtime').counts.skipped = 1],
+  ['zero browser cases', r => r.commands.find(c => c.label === 'default-runtime').counts = { tests: 0, pass: 0, fail: 0, cancelled: 0, skipped: 0, todo: 0 }],
   ['missing enabled profile', r => delete r.profiles.markdown],
   ['duplicate browser engine', r => r.profiles.default.runtime.cases[1].engine = 'chromium'],
   ['failed runtime', r => r.profiles.default.runtime.cases[0].passed = false],
@@ -65,6 +73,7 @@ for (const [name, mutate, pattern] of [
   ['incomplete source closure', r => delete r.sourceInputs['Cargo.lock'], /source closure/],
   ['stale current source', r => r.sourceInputs['Cargo.lock'] = '0'.repeat(64), /Changed/],
   ['stale retained asset', r => r.artifacts[Object.keys(r.artifacts).find(p => p.endsWith('/task.js'))] = '0'.repeat(64), /Changed/],
+  ['stale generated glue', r => r.buildOutputs['packages/core/dist/wasm/editac_wasm.js'] = '0'.repeat(64), /Changed/],
   ['changed retained policy', r => r.verificationSpecHash = '0'.repeat(64), /policy drift/],
 ]) test('current optional loading rejects ' + name, async () => {
   const changed = structuredClone(record); mutate(changed); await assert.rejects(admitOptionalLoading(root, directory, changed), pattern);
