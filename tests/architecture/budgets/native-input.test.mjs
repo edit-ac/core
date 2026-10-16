@@ -6,7 +6,26 @@ import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { digest, verifyPins } from '../../../scripts/architecture-budgets.mjs';
-import { inspectNativeInput, inspectNativeCJK, inspectNativeBuild, inspectNativeWorkload } from '../../../scripts/native-input-evidence.mjs';
+import { inspectNativeInput, inspectNativeCJK, inspectNativeBuild, inspectNativeWorkload, inspectNativeEditWindows } from '../../../scripts/native-input-evidence.mjs';
+// Prepared detector controls qualify ordering sensitivity only, never runtime support.
+const windowSamples=Array.from({length:12},(_,i)=>({inputAt:100+i*10,layoutDoneAt:105+i*10}));
+const windowResources=[{at:10},{at:20},...windowSamples.map(s=>({at:s.layoutDoneAt+1})),{at:230},{at:240}];
+test('prepared native edit windows accept serialized callbacks and associated resources',()=>{
+  inspectNativeEditWindows(windowSamples,windowResources);
+});
+for(const [name,mutate,reason] of [
+  ['reordered edits',(s,r)=>{[s[0],s[1]]=[s[1],s[0]];[r[2],r[3]]=[r[3],r[2]];},/overlapping or reordered/],
+  ['overlapping edits',s=>s[0].layoutDoneAt=s[1].inputAt+1,/overlapping or reordered/],
+  ['resource before acknowledgment',(s,r)=>r[2].at=s[0].layoutDoneAt-0.001,/resource outside acknowledged/],
+  ['resource after next input',(s,r)=>r[2].at=s[1].inputAt+0.001,/resource outside acknowledged/],
+  ['missing resource',(s,r)=>r.pop(),/missing native edit resources/],
+  ['nonfinite input',s=>s[0].inputAt=NaN,/invalid native edit window/],
+  ['reversed layout',s=>s[0].layoutDoneAt=s[0].inputAt-1,/invalid native edit window/],
+  ['empty edits',s=>s.length=0,/missing native edit windows/],
+]) test('prepared native edit windows reject '+name,()=>{
+  const samples=structuredClone(windowSamples),resources=structuredClone(windowResources);
+  mutate(samples,resources);assert.throws(()=>inspectNativeEditWindows(samples,resources),reason);
+});
 const root = fileURLToPath(new URL('../../../',import.meta.url));
 const read = p => readFile(resolve(root,p));
 const profileBytes = await read('benchmarks/profiles/native-input-v1.json'), profile = JSON.parse(profileBytes);

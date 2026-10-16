@@ -427,11 +427,16 @@ final class WorkloadController: UIViewController, UITextViewDelegate {
     var attempts: [[String: Any]] = []
     var inputEvents: [[String: Any]] = []
     var focusRequests = 0
+    var keyboardObservers: [NSObjectProtocol] = []
+    var keyboardShownAt: CFTimeInterval?
+    var selectionInstalledAt: CFTimeInterval?
+    var focusReadiness: [String: Any] = [:]
     func partial() {
         let value: [String: Any] = ["name": name, "setup": setup, "attempts": attempts, "inputEvents": inputEvents,
             "samples": samples, "resources": resources, "typed": typed, "focusRequests": focusRequests, "errors": errors,
             "selectionUtf16": editor.selectedRange.location, "projectedUtf16": editor.textStorage.length,
-            "firstResponder": editor.isFirstResponder, "inputMode": editor.textInputMode?.primaryLanguage ?? "unavailable"]
+            "firstResponder": editor.isFirstResponder, "inputMode": editor.textInputMode?.primaryLanguage ?? "unavailable",
+            "focusReadiness": focusReadiness]
         let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent(name + "-partial.json")
         if let bytes = try? fitnessJSON(value) { try? Data(bytes.utf8).write(to: url, options: .atomic) }
     }
@@ -462,6 +467,14 @@ final class WorkloadController: UIViewController, UITextViewDelegate {
         editor.autocorrectionType = .no; editor.spellCheckingType = .no; editor.autocapitalizationType = .none
         editor.smartQuotesType = .no; editor.smartDashesType = .no; editor.font = .systemFont(ofSize: 16)
         editor.delegate = self
+        keyboardObservers = [
+            NotificationCenter.default.addObserver(forName: UIResponder.keyboardDidShowNotification, object: nil, queue: .main) { [weak self] _ in
+                self?.keyboardShownAt = CACurrentMediaTime(); self?.completeFocus()
+            },
+            NotificationCenter.default.addObserver(forName: UIResponder.keyboardDidHideNotification, object: nil, queue: .main) { [weak self] _ in
+                self?.keyboardShownAt = nil
+            }
+        ]
         editor.inputObserved = { [weak self] kind, entering in
             self?.inputEvents.append(["kind": kind, "entering": entering, "at": CACurrentMediaTime()])
         }
@@ -523,6 +536,7 @@ final class WorkloadController: UIViewController, UITextViewDelegate {
     }
     @objc func focusWorkload() {
         focusRequests += 1
+        selectionInstalledAt = nil; focusReadiness = [:]
         partial()
         // An explicit OS button action requests UIKit focus. A tap in a huge
         // scrolled text surface does not prove a text-service session exists.
@@ -536,10 +550,22 @@ final class WorkloadController: UIViewController, UITextViewDelegate {
             guard let self = self else { return }
             self.editor.selectedRange = NSRange(location: self.targetOffset, length: 1)
             self.editor.scrollRangeToVisible(self.editor.selectedRange)
-            self.status.accessibilityValue = self.editor.isFirstResponder ? "keyboard-ready" : "focus-failed"
+            self.selectionInstalledAt = CACurrentMediaTime()
+            self.completeFocus()
             self.partial()
         }
     }
+    func completeFocus() {
+        guard let keyboardAt = keyboardShownAt, let selectionAt = selectionInstalledAt,
+              editor.isFirstResponder, editor.window?.isKeyWindow == true,
+              editor.selectedRange == NSRange(location: targetOffset, length: 1),
+              editor.textInputMode?.primaryLanguage == "en-US" else { return }
+        focusReadiness = ["keyboardDidShowAt": keyboardAt, "selectionInstalledAt": selectionAt,
+            "readyAt": CACurrentMediaTime(), "keyWindow": true, "selectionUtf16": [targetOffset, 1]]
+        status.accessibilityValue = "keyboard-ready"
+        partial()
+    }
+    deinit { for observer in keyboardObservers { NotificationCenter.default.removeObserver(observer) } }
     func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText replacement: String) -> Bool {
         let start = CACurrentMediaTime()
         attempts.append(["rangeUtf16": range.location, "removedUtf16": range.length, "replacement": replacement, "pending": pending != nil])
@@ -631,6 +657,8 @@ final class WorkloadController: UIViewController, UITextViewDelegate {
         }
         check("resources-and-disposal") {
             resources.append(memory("before-disposal")); try engine.dispose(); display?.invalidate(); display = nil
+            for observer in keyboardObservers { NotificationCenter.default.removeObserver(observer) }
+            keyboardObservers.removeAll()
             resources.append(memory("after-disposal"))
             try expect(resources.allSatisfy { ($0["status"] as? Int32) == KERN_SUCCESS && ($0["residentBytes"] as? UInt64 ?? 0) > 0 }, "executed task memory observations")
         }
@@ -638,6 +666,7 @@ final class WorkloadController: UIViewController, UITextViewDelegate {
         let record: [String: Any] = ["version": 1, "name": name, "qualification": "unqualified", "setup": setup, "cases": cases,
             "counts": ["executed": cases.count, "passed": cases.count - failed, "failed": failed, "skipped": 0],
             "samples": samples, "resources": resources, "errors": errors, "typed": typed, "focusRequests": focusRequests,
+            "focusReadiness": focusReadiness,
             "inputEvents": inputEvents,
             "host": ["system": UIDevice.current.systemVersion, "physical": false, "refreshMaximum": UIScreen.main.maximumFramesPerSecond],
             "gaps": ["plain-text projection; mixed-block native renderer not qualified", "callback is not compositor", "12 samples below 100-sample tail minimum", "sampled resident memory is not peak or plateau", "no VoiceOver or physical thermal claim"]]

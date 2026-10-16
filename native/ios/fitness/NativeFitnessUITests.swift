@@ -29,15 +29,15 @@ final class NativeFitnessUITests: XCTestCase {
         var dispatches: [[String: Any]] = []
         for (i, letter) in "abcdefghijkl".enumerated() {
             let key = app.keys[String(letter)]; XCTAssertTrue(key.waitForExistence(timeout: 5)); XCTAssertTrue(key.isHittable)
-            // The retained Long failure lost its second 100ms touch before its
-            // text-delegate callback. Use one deliberate OS press, never replay a
-            // lost edit or insert through a host-control shortcut.
+            // Software-key touches can finish without reaching UITextInput on
+            // the Long surface. Dispatch one OS keyboard event sequence to the
+            // focused descendant instead; no direct setter, fallback or replay.
             let before = ProcessInfo.processInfo.systemUptime
-            key.press(forDuration: 0.2); awaitValue("samples-\(i + 1)")
+            app.typeText(String(letter)); awaitValue("samples-\(i + 1)")
             dispatches.append(["key": String(letter), "before": before, "after": ProcessInfo.processInfo.systemUptime])
         }
         let data = try JSONSerialization.data(withJSONObject: ["client": "XCTest OS workload key press", "name": name,
-            "pressDurationSeconds": 0.2, "clock": "ProcessInfo.systemUptime; no cross-process join", "dispatches": dispatches], options: [.sortedKeys])
+            "transport": "XCTest application KeyboardEvents.typeText; one dispatch, no replay or setter", "clock": "ProcessInfo.systemUptime; no cross-process join", "dispatches": dispatches], options: [.sortedKeys])
         let attachment = XCTAttachment(data: data, uniformTypeIdentifier: "public.json")
         attachment.name = name + " OS dispatches"; attachment.lifetime = .keepAlways; add(attachment)
         app.buttons["workload-verify"].tap()
@@ -81,7 +81,7 @@ final class NativeFitnessUITests: XCTestCase {
             let key = app.keys[String(letter)]
             XCTAssertTrue(key.waitForExistence(timeout: 5)); XCTAssertTrue(key.isHittable)
             let before = ProcessInfo.processInfo.systemUptime
-            key.press(forDuration: 0.1); prefix += String(letter)
+            app.typeText(String(letter)); prefix += String(letter)
             let committed = NSPredicate(format: "value == %@", prefix)
             XCTAssertTrue(committed.evaluate(with: editor) || XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: committed, object: editor)], timeout: 10) == .completed)
             let observed = editor.value as? String ?? ""

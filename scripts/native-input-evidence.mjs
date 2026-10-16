@@ -160,6 +160,19 @@ export function inspectNativeCJK(profile, receipt, result, ax) {
 
 // Actual Task/Long runtime proof; twelve samples remain diagnostic. A receipt
 // with only the small keyboard fixture cannot satisfy this envelope.
+export function inspectNativeEditWindows(samples, resources) {
+  assert(Array.isArray(samples)&&samples.length>0,'missing native edit windows');
+  assert(Array.isArray(resources)&&resources.length===samples.length+4,'missing native edit resources');
+  for(const [i,s] of samples.entries()) {
+    assert(finite(s.inputAt)&&finite(s.layoutDoneAt)&&s.inputAt<=s.layoutDoneAt,'invalid native edit window');
+    assert(i===0||samples[i-1].layoutDoneAt<=s.inputAt,'overlapping or reordered native workload samples');
+  }
+  for(const [i,s] of samples.entries()) {
+    const at=resources[i+2].at;
+    assert(finite(at)&&at>=s.layoutDoneAt&&
+      (i===samples.length-1||at<=samples[i+1].inputAt),'native resource outside acknowledged edit window');
+  }
+}
 export function inspectNativeWorkload(profile, receipt, result, fixture, initial, final, reopened, checkpoint, metadata) {
   assert(Number.isSafeInteger(result.focusRequests) && result.focusRequests >= 1 && result.focusRequests <= 3, 'missing actual workload focus acknowledgment');
   const p = profile.workloads, i = p.names.indexOf(result.name);
@@ -195,6 +208,7 @@ export function inspectNativeWorkload(profile, receipt, result, fixture, initial
   assert.equal(setup.fullSnapshotRestored,true); assert(setup.checkpointBytes>0);
   assert(finite(setup.restoreStartAt)&&setup.restoreStartAt<=setup.restoredAt&&setup.restoredAt<=setup.projectionLayoutDoneAt);
   assert.equal(result.samples.length,12);
+  inspectNativeEditWindows(result.samples,result.resources);
   for(const [j,s] of result.samples.entries()) {
     const times=['inputAt','engineDoneAt','projectionDoneAt','layoutStartAt','layoutDoneAt'].map(k=>s[k]);
     assert(times.every(finite)&&times.every((t,k)=>k===0||t>=times[k-1]));

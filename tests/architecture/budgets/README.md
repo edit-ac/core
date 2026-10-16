@@ -286,8 +286,11 @@ typing. A button tap or a cached visible keyboard does not establish readiness.
 The append selection is installed after UIKit finishes handling the focus tap;
 otherwise the native tap can overwrite selection and compose before the seed.
 Automatic capitalization is disabled for the reviewed lowercase key sequence.
-The CJK driver requires the Pinyin input mode. Both drivers press each hittable OS key
-for 0.1 seconds. ASCII observations assert native focus before/after commit and
+The CJK driver requires the Pinyin input mode and presses each hittable software key
+for 0.1 seconds. ASCII verifies the visible keyboard and dispatches each character
+once through XCTest's application keyboard-events API (`typeText`), which requires
+a focused descendant. It never sets text directly or retries an unacknowledged key.
+ASCII observations assert native focus before/after commit and
 at the display callback; CJK marked text and the selected candidate must still
 be observed. Readiness and key dispatch alone cannot pass either scenario.
 
@@ -321,9 +324,16 @@ checkpoints, full snapshots and logs. The app restores the complete native
 engine state, verifies every generated block and projects all block text joined
 by newlines into TextKit1. Mixed-block native rendering remains unqualified.
 
-XCTest presses twelve actual English OS keys per size, overwriting the last
-ASCII letter of the final block at a fixed UTF-16 range. This matches the browser
-corpus-bound policy: Long already reaches the engine's 1 MiB text cap, so an append
+XCTest dispatches twelve actual English OS keyboard events per size, overwriting the last
+ASCII letter of the final block at a fixed UTF-16 range. It uses the same
+single-dispatch keyboard-events transport as ASCII; software-key touch attempts
+that lost delegate delivery remain retained as failed evidence.
+Workload readiness requires the actual keyboard-did-show
+notification, installed selection and key-window first-responder ownership;
+their separate native timestamps are retained in `focusReadiness`. This repairs
+the early readiness signal without replaying a lost key
+or substituting host input. Readiness itself cannot qualify a missing callback.
+This matches the browser corpus-bound policy: Long already reaches the engine's 1 MiB text cap, so an append
 is correctly rejected. Corpus bytes remain constant; no resource limit is raised. Raw native observations
 separate engine acknowledgment, bounded TextStorage overwrite and the next display
 callback's forced layout. Every edit must change exactly one block and preserve
@@ -334,8 +344,12 @@ including identity, full visible nodes/runs/spans/attributes and recovery, must
 match. Both unmodified raw snapshots are retained. Final/reopened snapshots, checkpoint bytes and
 metadata are retained. `mach_task_basic_info` records raw resident/virtual bytes
 before restore, after initial projection, after each edit and around disposal.
-These samples are not continuous peaks, footprint or plateau proof. The profile
-preserves the phone 33 ms target and minimum 100 tail samples; twelve-edit summaries
+These samples are not continuous peaks, footprint or plateau proof. Admission
+requires workload edits only in callback-completion order, with no overlapping
+input/layout windows. Each per-edit resource sample must follow that edit's
+layout acknowledgment and precede the next input; reordered, overlapping and
+misassociated samples fail admission even when their individual spans are valid.
+The profile preserves the phone 33 ms target and minimum 100 tail samples; twelve-edit summaries
 remain inconclusive. No compositor, full SDK, VoiceOver or physical thermal claim
 follows from this text-service envelope. Canonical admission rejects incomplete
 workload/corpus/resource/restoration evidence in addition to ASCII/Pinyin checks.
