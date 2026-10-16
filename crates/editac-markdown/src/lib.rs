@@ -7,6 +7,7 @@ pub mod import;
 pub mod optional;
 pub mod profile;
 pub mod reconcile;
+pub mod table_format;
 
 /// Stable v1 codec facade. Hooks are trusted host code, never document data.
 pub mod v1 {

@@ -253,6 +253,20 @@ fn edit_runs(runs: &Any, text: &str) -> Result<Any, EditorError> {
 }
 /// Returns the validated descriptor and text projection for one staged atom edit.
 pub(super) fn plan(expected: &Any, command: &EditorCommand) -> Result<(Any, String), EditorError> {
+    if let EditorCommand::TableSource { source, .. } = command {
+        let Some(Content::Table {
+            alignments, rows, ..
+        }) = Content::from_tuple(expected).map_err(error)?
+        else {
+            return Err(EditorError::UnsupportedTarget);
+        };
+        let content = Content::Table {
+            alignments,
+            rows,
+            source: source.clone(),
+        };
+        return Ok((content.tuple().map_err(error)?, String::new()));
+    }
     if let EditorCommand::TableRectangle {
         target,
         rectangle,

@@ -140,6 +140,13 @@ pub enum EditorCommand {
         header: Option<bool>,
         protected: Vec<(usize, usize)>,
     },
+    /// Retain formatter source without changing table semantics or backing text.
+    /// Markdown parsing/semantic equality belongs to the optional codec owner.
+    TableSource {
+        target: String,
+        expected: Any,
+        source: String,
+    },
     Container {
         target: String,
         tuple: Any,
@@ -1904,6 +1911,11 @@ impl Document {
                     target: id,
                     expected,
                     ..
+                }
+                | EditorCommand::TableSource {
+                    target: id,
+                    expected,
+                    ..
                 } => {
                     use crate::anchors::{Bias, Selection};
                     let o = target(&stage, stable, id)?;
@@ -1914,7 +1926,10 @@ impl Document {
                         return Err(EditorError::PresentationConflict);
                     }
                     let (tuple, fallback) = super::table::plan(expected, &c)?;
-                    if matches!(c, EditorCommand::TableAttributes { .. }) {
+                    if matches!(
+                        c,
+                        EditorCommand::TableAttributes { .. } | EditorCommand::TableSource { .. }
+                    ) {
                         // Metadata never replaces the backing text: retain Y.Text
                         // item identities, anchors and remote text ownership.
                         m::set(&stage, 4, id, tuple);
