@@ -324,10 +324,10 @@ final class ExtensionsTests: XCTestCase {
             XCTAssertFalse(child.editButton.isEnabled)
             try await self.enable(view)
             let target = try await view.extensions.captureEdit(child.nodeID)
-            _ = try await self.send(view, .permission(writable: false, expiresAt: nil))
+            _ = try await self.send(view, .commandPermission(writable: false, expiresAt: nil, now: 0))
             XCTAssertThrowsError(try view.extensions.replace(target: target, source: "denied"))
             XCTAssertEqual(child.descriptor, before)
-            _ = try await self.send(view, .permission(writable: true, expiresAt: nil))
+            _ = try await self.send(view, .commandPermission(writable: true, expiresAt: nil, now: 0))
             let revoked = try await view.extensions.captureEdit(child.nodeID)
             _ = try await self.send(view, .extensionPolicy(enabled: false))
             XCTAssertThrowsError(try view.extensions.replace(target: revoked, source: "revoked"))
@@ -360,7 +360,7 @@ final class ExtensionsTests: XCTestCase {
             let target = try view.projection.capture(range: NSRange(location: 0, length: 6), backwards: false, affinity: .downstream)
             try await self.editNeighbor(view, m)
             XCTAssertThrowsError(try view.extensions.applyMark(attribute: "module:fixture.note", valueJSON: nil, target: target))
-            _ = try await self.send(view, .permission(writable: false, expiresAt: nil))
+            _ = try await self.send(view, .commandPermission(writable: false, expiresAt: nil, now: 0))
             let current = try view.projection.capture(range: NSRange(location: 0, length: 6), backwards: false, affinity: .downstream)
             let done = self.expectation(description: "read-only mark rejected")
             view.commands.onResult = { if case .success = $0 { XCTFail("read-only mutation") }; done.fulfill() }
@@ -392,7 +392,12 @@ final class ExtensionsTests: XCTestCase {
             for _ in 0..<100 where !child.sourceView.isEditable { try await Task.sleep(nanoseconds: 10_000_000) }
             XCTAssertTrue(child.sourceView.isEditable)
             XCTAssertFalse(child.sourceView.isHidden)
-            child.sourceView.string = "Edited badge 🦀"
+            XCTAssertTrue(child.sourceScrollView.documentView === child.sourceView)
+            XCTAssertTrue(child.sourceScrollView.hasVerticalScroller)
+            XCTAssertTrue(view.window?.firstResponder === child.sourceView)
+            child.sourceView.setSelectedRange(NSRange(location: 0, length: child.sourceView.string.utf16.count))
+            child.sourceView.insertText("Edited badge 🦀", replacementRange: child.sourceView.selectedRange())
+            XCTAssertEqual(child.descriptor.source, "Badge 🦀") // provisional native draft only
             try await self.completed(view) { child.saveButton.performClick(nil) }
             XCTAssertEqual(child.descriptor.source, "Edited badge 🦀")
             XCTAssertEqual((renderer.view as! NSTextField).stringValue, "Native badge: Edited badge 🦀")

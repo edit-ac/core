@@ -57,6 +57,7 @@ public final class NativeExtensionView: NSView {
     public private(set) var diagnostic: String
     public private(set) var renderer: (any NativeAtomRenderer)?
     public let sourceView = NSTextView()
+    public let sourceScrollView = NSScrollView()
     public let editButton = NSButton(title: "Edit source", target: nil, action: nil)
     public let saveButton = NSButton(title: "Save", target: nil, action: nil)
     public let cancelButton = NSButton(title: "Cancel", target: nil, action: nil)
@@ -70,12 +71,16 @@ public final class NativeExtensionView: NSView {
         diagnostic = "Source fallback — renderer unavailable"
         super.init(frame: .zero)
         sourceView.isEditable = false; sourceView.isSelectable = true
+        sourceView.frame = NSRect(x: 0, y: 0, width: 300, height: 78)
+        sourceView.isVerticallyResizable = true; sourceView.isHorizontallyResizable = false
+        sourceView.autoresizingMask = .width; sourceView.textContainer?.widthTracksTextView = true
+        sourceScrollView.hasVerticalScroller = true; sourceScrollView.documentView = sourceView
         sourceView.isRichText = false; sourceView.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
         selectButton.target = self; selectButton.action = #selector(selectAtom)
         editButton.target = self; editButton.action = #selector(editSource)
         saveButton.target = self; saveButton.action = #selector(saveSource)
         cancelButton.target = self; cancelButton.action = #selector(cancelSource)
-        for child in [title, sourceView, selectButton, editButton, saveButton, cancelButton] { addSubview(child) }
+        for child in [title, sourceScrollView, selectButton, editButton, saveButton, cancelButton] { addSubview(child) }
         presentFallback()
     }
     func update(_ value: NativeExtensionDescriptor, factory: NativeExtensions.AtomFactory?) {
@@ -112,6 +117,7 @@ public final class NativeExtensionView: NSView {
         let editing = owner?.isEditing(nodeID) == true
         sourceView.isEditable = editing && owner?.canEdit(nodeID) == true
         sourceView.isHidden = renderer != nil && !editing
+        sourceScrollView.isHidden = sourceView.isHidden
         renderer?.view.isHidden = editing
         editButton.isEnabled = owner?.canEdit(nodeID) == true && !editing && owner?.isCapturing(nodeID) != true
         saveButton.isEnabled = editing && owner?.canEdit(nodeID) == true
@@ -140,18 +146,20 @@ public final class NativeExtensionView: NSView {
     }
     func dispose() {
         guard !released else { return }; released = true; owner = nil
-        releaseRenderer(); removeFromSuperview()
+        releaseRenderer(); refreshEditing(); removeFromSuperview()
     }
     func fit(width: CGFloat) -> NSSize { NSSize(width: width, height: 140) }
     public override func layout() {
         super.layout()
         title.frame = NSRect(x: 8, y: 112, width: max(1, bounds.width - 16), height: 24)
         let body = NSRect(x: 8, y: 32, width: max(1, bounds.width - 16), height: 78)
-        sourceView.frame = body; renderer?.view.frame = body
-        selectButton.frame = NSRect(x: 4, y: 2, width: 110, height: 28)
-        editButton.frame = NSRect(x: 116, y: 2, width: 110, height: 28)
-        saveButton.frame = NSRect(x: 228, y: 2, width: 66, height: 28)
-        cancelButton.frame = NSRect(x: 296, y: 2, width: 76, height: 28)
+        sourceScrollView.frame = body; renderer?.view.frame = body
+        sourceView.setFrameSize(NSSize(width: sourceScrollView.contentSize.width,
+            height: max(sourceView.frame.height, sourceScrollView.contentSize.height)))
+        selectButton.frame = NSRect(x: 4, y: 2, width: 92, height: 28)
+        editButton.frame = NSRect(x: 98, y: 2, width: 96, height: 28)
+        saveButton.frame = NSRect(x: 196, y: 2, width: 58, height: 28)
+        cancelButton.frame = NSRect(x: 256, y: 2, width: 66, height: 28)
     }
     @objc private func selectAtom() {
         Task { [weak self] in guard let self else { return }; try? await owner?.select(nodeID) }
