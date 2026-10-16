@@ -2,7 +2,12 @@ import { captureAXOwners } from './loading-ax-coverage.mjs';
 import { fixture } from '../benchmarks/fixtures.mjs';
 
 export function layoutProbeCss(mode) {
-  if (!['control', 'auto', 'auto-dirty'].includes(mode)) throw Error('Unknown layout probe');
+  if (!['control', 'auto', 'auto-dirty', 'layout'].includes(mode)) throw Error('Unknown layout probe');
+  // Localize layout/style invalidation without skipping any subtree. Unlike
+  // content-visibility:auto, this preserves initial offscreen AX ownership and
+  // needs no observer to materialize changed, inserted or replaced owners.
+  // Avoid paint/size containment: owners retain their full content geometry.
+  if (mode === 'layout') return '#editor > [data-node-id]{contain:layout style}';
   return mode !== 'control' ? '#editor > [data-node-id]{content-visibility:auto;contain-intrinsic-block-size:auto 24px}' : '';
 }
 

@@ -3,12 +3,13 @@ import assert from 'node:assert/strict';
 import { layoutProbeCss, runLayoutAction, installLayoutProbe } from '../scripts/loading-layout-probe.mjs';
 import { inspectLoadings } from '../scripts/loading-evidence.mjs';
 import { fixture } from '../benchmarks/fixtures.mjs';
+import { captureAXOwners } from '../scripts/loading-ax-coverage.mjs';
 test('unknown CSS experiment fails before launching a browser', () => {
   assert.throws(() => layoutProbeCss('hidden'), /Unknown/);
   assert.equal(layoutProbeCss('control'), '');
   assert.match(layoutProbeCss('auto'), /content-visibility:auto/);
 });
-for (const mode of ['control', 'auto', 'auto-dirty']) test(`experimental ${mode} cannot enter canonical loading admission`, () => {
+for (const mode of ['control', 'auto', 'auto-dirty', 'layout']) test(`experimental ${mode} cannot enter canonical loading admission`, () => {
   assert.throws(() => inspectLoadings({}, { metadata: { layoutProbe: `experimental-${mode}-v1` } }), /Experimental layout/);
 });
 test('removing metadata cannot launder experimental behavior into admission', () => {
@@ -86,5 +87,37 @@ test('dirty containment materializes changed text and containing lists on every 
       document.querySelector('#editor').append(added);
     });
     assert.equal(await page.locator('[data-node-id="after"]').evaluate(e => e.style.contentVisibility), '');
+  } finally { await browser.close(); }
+});
+
+test('non-eliding layout retains initial and changed offscreen owners without materialization', async () => {
+  const { chromium } = await import('playwright');
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Accessibility.enable');
+    await page.setContent(`<style>${layoutProbeCss('layout')}</style><div id="editor" contenteditable role="textbox" style="height:40px;overflow:auto"></div>`);
+    await page.evaluate(installLayoutProbe, { enabled: false, mode: 'layout' });
+    await page.evaluate(() => {
+      document.querySelector('#editor').innerHTML = Array.from({ length: 80 }, (_, i) => `<p data-node-id="p${i}">owner ${i} 😀</p>`).join('') + '<ul data-node-id="list"><li data-node-id="nested">nested owner</li></ul>';
+    });
+    const observe = async () => {
+      const owners = await page.locator('#editor p, #editor li').evaluateAll(els => els.map(e => ({ id: e.dataset.nodeId })));
+      const coverage = await captureAXOwners(cdp, owners);
+      assert.equal(coverage.logicalBlocks, owners.length);
+      assert.deepEqual(coverage.missingIndices, []);
+      assert(await page.locator('#editor > *').evaluateAll(els => els.every(e => getComputedStyle(e).contentVisibility === 'visible' && !e.style.contentVisibility)));
+      assert.equal(await page.locator('#editor').evaluate(e => e.scrollTop), 0);
+    };
+    await observe();
+    await page.evaluate(() => {
+      document.querySelector('[data-node-id="nested"]').firstChild.replaceData(0, 6, 'changed');
+      document.querySelector('[data-node-id="p79"]').outerHTML = '<p data-node-id="replacement">replaced owner</p><p data-node-id="inserted">inserted owner</p>';
+    });
+    await observe();
+    await page.evaluate(() => dispatchEvent(new Event('pagehide')));
+    await page.evaluate(() => { document.querySelector('[data-node-id="inserted"]').textContent = 'after teardown'; });
+    await observe();
   } finally { await browser.close(); }
 });
