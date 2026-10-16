@@ -198,7 +198,7 @@ impl Document {
         destination: &crate::anchors::Selection,
         origin: &TextOrigin,
     ) -> Result<PreparedEditorEdit, EditorError> {
-        use crate::anchors::Resolution;
+        use crate::anchors::{Anchor, Resolution};
         let blocks = crate::transfer::range_blocks(self, source)?;
         let snapshot = self.inspect().map_err(|_| EditorError::InvalidCommand)?;
         let coordinate = |anchor: &Anchor| {
@@ -246,12 +246,10 @@ impl Document {
             return Err(EditorError::ResourceLimit);
         }
         Ok(PreparedEditorEdit {
-            stage: None,
             identity: self.identity().clone(),
             writer: self.writer_id(),
             revision: self.revision(),
             baseline: baseline.bytes,
-            baseline_stamp: self.checkpoint_stamp(),
             update: stage
                 .update_v1(&self.state_vector_v1())
                 .map_err(EditorError::Admission)?,
