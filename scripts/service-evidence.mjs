@@ -1,3 +1,12 @@
+import { validateBaselinePolicy } from './architecture-budgets.mjs';
+
+export function validateServicePolicy(profile, record) {
+  validateBaselinePolicy(profile, {
+    metadata: { ...record.metadata, timestamp: record.metadata?.startedAt },
+    artifactInputs: record.artifacts,
+  });
+}
+
 const require = (ok, message) => { if (!ok) throw Error(message); };
 const finite = x => Number.isFinite(x) && x >= 0;
 const pin = x => typeof x === 'string' && /^[a-f0-9]{64}$/.test(x);

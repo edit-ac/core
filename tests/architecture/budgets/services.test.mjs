@@ -1,24 +1,36 @@
+import { build } from 'esbuild';
+import { spawnSync } from 'node:child_process';
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
-import { digest, verifyPins } from '../../../scripts/architecture-budgets.mjs';
+import { digest, verifyPins, validateFitnessProfile } from '../../../scripts/architecture-budgets.mjs';
 import { verifyBrowserSources } from '../../../scripts/browser-source-reuse.mjs';
-import { inspectServices } from '../../../scripts/service-evidence.mjs';
+import { inspectServices, validateServicePolicy } from '../../../scripts/service-evidence.mjs';
 import { fixture } from '../../../benchmarks/fixtures.mjs';
 import { presets } from '../../../benchmarks/presets.mjs';
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const read = file => readFile(resolve(root, file));
 const profileBytes = await read('benchmarks/profiles/services-v1.json'), profile = JSON.parse(profileBytes);
+const fitnessPolicy = JSON.parse(await read('benchmarks/profiles/fitness-v1.json'));
 const index = JSON.parse(await read('benchmarks/profiles/service-evidence.json'));
+assert.match(index.directory, /^architecture-results\/fit-1\.8-[a-z0-9/-]+$/); assert(!index.directory.includes('..'));
 const resultBytes = await read(`${index.directory}/results.json`), record = JSON.parse(resultBytes);
 const evidence = { version: 1, parent: 'FIT-1.8', scope: 'PRF-03 browser diagnostics with prepared host responses; no optional runtime/performance qualification', artifacts: {}, observations: null };
 test('owning actual editor/lifecycle/resolver/sync matrix retains exact sources, runtime, corpus and raw observations', async () => {
+  validateFitnessProfile(fitnessPolicy, await read('benchmarks/config.json'), await read('../architecture/specs/verification.md'));
+  validateServicePolicy(fitnessPolicy, record);
   assert.equal(record.status, 'diagnostic'); assert.deepEqual(record.errors, []);
   assert.equal(index.resultsHash, digest(resultBytes)); assert.equal(record.profileHash, digest(profileBytes));
+  const tracked = spawnSync('git', ['ls-files', 'crates', 'packages', 'fixtures/schema-v5', 'Cargo.lock', 'Cargo.toml', 'package-lock.json', 'package.json', 'scripts/build-wasm.mjs'], { cwd: root, encoding: 'utf8' }); assert.equal(tracked.status, 0);
+  const inputs = [...new Set([...tracked.stdout.trim().split('\n'), 'benchmarks/profiles/services-v1.json', 'benchmarks/profiles/fitness-v1.json', 'benchmarks/config.json', 'scripts/architecture-budgets.mjs', 'contracts/services.json', 'benchmarks/service-client.mjs', 'benchmarks/fixtures.mjs', 'benchmarks/presets.mjs', 'scripts/service-evidence.mjs', 'scripts/bench-services.mjs'])];
+  assert.deepEqual(Object.keys(record.sourceInputs).sort(), inputs.sort());
   await verifyPins(root, record.sourceInputs); await verifyPins(resolve(root, index.directory), record.artifacts);
   for (const file of ['editac_wasm.js', 'editac_wasm_bg.wasm']) assert.equal(digest(await read(`packages/core/dist/wasm/${file}`)), record.artifacts[`harness/wasm/${file}`]);
+  const rebuilt = await build({ stdin: { contents: 'export {createEditor,taskPreset,CheckpointStorage} from "@edit-ac/web"; export {init} from "@edit-ac/core"; export {ServiceLifecycle,ReferenceLookupSession} from "@edit-ac/web/modules"; export {DirectSyncAdapter} from "./packages/web/src/sync/protocol.ts";', resolveDir: root },
+    write: false, bundle: true, minify: true, format: 'esm', platform: 'browser', target: 'es2022' });
+  assert.equal(digest(rebuilt.outputFiles[0].contents), record.artifacts['harness/sdk.js'], 'Changed service executable; historical observations cannot be reused');
   const servicePolicy = JSON.parse(await read('contracts/services.json'));
   assert.equal(servicePolicy.families.find(f => f.id === 'resolver').registration, 'implemented');
   assert.equal(servicePolicy.families.find(f => f.id === 'highlight').registration, 'pending');
@@ -62,6 +74,15 @@ for (const [name, change] of [
   ['lost remote commit', r => observation(r, 'collaboration').remotePatches.pop()], ['remote diverged', r => observation(r, 'collaboration').converged = false],
   ['remote stale result admitted', r => observation(r, 'collaboration').staleOutcome.results++], ['remote unrelated DOM mutation', r => observation(r, 'collaboration').mutations.push(r.cases[0].unrelated)],
 ]) test(`service admission rejects ${name}`, () => assert.throws(() => inspectServices(profile, mutate(change))));
+for (const [name, change] of [
+  ['missing policy', r => delete r.metadata.verificationPolicy],
+  ['stale policy', r => r.metadata.verificationPolicy.sha256 = '0'.repeat(64)],
+  ['wrong policy source', r => r.metadata.verificationPolicy.source = 'prepared'],
+  ['missing retained policy', r => delete r.artifacts['policy/verification.md']],
+  ['changed retained policy', r => r.artifacts['policy/verification.md'] = '0'.repeat(64)],
+  ['stale policy review', r => r.metadata.verificationPolicy.reviewedAt = '2000-01-01T00:00:00.000Z'],
+  ['measurement before review', r => r.metadata.startedAt = fitnessPolicy.reviewedAt],
+]) test(`service policy rejects ${name}`, () => assert.throws(() => validateServicePolicy(fitnessPolicy, mutate(change))));
 test('resource/matrix/method drift and unreviewed performance qualification fail admission', () => {
   for (const change of [p => p.limits.queue++, p => p.fixtures.pop(), p => p.burst--, p => p.editMethod = 'truncate', p => p.performanceLimits = { latencyMs: 999 }]) {
     const p = structuredClone(profile); change(p); assert.throws(() => inspectServices(p, record));

@@ -112,6 +112,13 @@ The producer validates the existing fitness profile against current verification
 
 The earlier ordinary-pointer/code-start failures and narrower Shift/prose receipt remain immutable historical diagnostics. The current receipt must independently prove ordinary-pointer endpoints, code/prose nested scroll movement and cancellation in all four unchanged fixture/preset combinations before admission. Neither receipt qualifies gesture thresholds, browser internals, compositor presentation or full FIT-1.8 acceptance.
 
+Service capture validates the shared fitness policy before measurement, retains
+its verification bytes and exact config/profile/source identities, and rechecks
+those inputs after teardown. Admission requires the complete producer source
+closure and rebuilds the SDK bundle to match the executed artifact. Missing,
+stale or post-measurement policy identity fails admission; historical observations
+cannot be repinned to new source bytes.
+
 PRF-03 diagnostics use `node scripts/bench-services.mjs --seed-directory
 <retained-owning-directory> --output <unique-directory>`. The same full Task/Long
 checkpoints and baseline/Task presets run through the public editor, real WASM
