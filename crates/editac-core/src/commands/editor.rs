@@ -199,6 +199,76 @@ pub struct FragmentBlock {
 }
 
 impl Document {
+    /// Atomically delete a captured range and insert its owned fragment at a
+    /// disjoint retained destination. Both stages remain disposable until admission.
+    pub fn prepare_fragment_move(
+        &self,
+        source: &crate::anchors::Selection,
+        destination: &crate::anchors::Selection,
+        origin: &TextOrigin,
+    ) -> Result<PreparedEditorEdit, EditorError> {
+        use crate::anchors::{Anchor, Resolution};
+        let blocks = crate::transfer::range_blocks(self, source)?;
+        let snapshot = self.inspect().map_err(|_| EditorError::InvalidCommand)?;
+        let coordinate = |anchor: &Anchor| {
+            let Resolution::Position(p) = self
+                .resolve_anchor(anchor)
+                .map_err(|_| EditorError::InvalidCommand)?
+            else {
+                return Err(EditorError::UnsupportedTarget);
+            };
+            let index = snapshot
+                .visible
+                .iter()
+                .position(|n| n.id == p.node)
+                .ok_or(EditorError::UnsupportedTarget)?;
+            Ok((index, p.offset))
+        };
+        let a = coordinate(&source.anchor)?;
+        let b = coordinate(&source.focus)?;
+        let left = a.min(b);
+        let right = a.max(b);
+        let d = coordinate(&destination.anchor)?;
+        if d != coordinate(&destination.focus)? || left == right || (left..=right).contains(&d) {
+            return Err(EditorError::InvalidCommand);
+        }
+        let baseline = self.checkpoint();
+        let mut stage =
+            Document::restore(self.identity(), &baseline, &[]).map_err(EditorError::Admission)?;
+        let empty = FragmentBlock {
+            runs: vec![FragmentRun {
+                text: String::new(),
+                marks: vec![],
+            }],
+            attributes: None,
+            containers: vec![],
+            checked: None,
+        };
+        let deletion = stage.prepare_fragment(source, &[empty], origin)?;
+        stage.commit_editor(deletion)?;
+        let insertion = stage.prepare_fragment(destination, &blocks, origin)?;
+        let result_caret = insertion.result_caret.clone();
+        stage.commit_editor(insertion)?;
+        crate::document::validate_immutable_structure(&self.doc, &stage.doc, true)
+            .map_err(EditorError::Admission)?;
+        if stage.checkpoint().bytes.len() > MAX_RESTORE_BYTES {
+            return Err(EditorError::ResourceLimit);
+        }
+        Ok(PreparedEditorEdit {
+            identity: self.identity().clone(),
+            writer: self.writer_id(),
+            revision: self.revision(),
+            baseline: baseline.bytes,
+            update: stage
+                .update_v1(&self.state_vector_v1())
+                .map_err(EditorError::Admission)?,
+            origin: origin.clone(),
+            next_operation: self.next_structure_counter,
+            result_caret,
+            result_selection: None,
+            entry_selection: Some(source.clone()),
+        })
+    }
     /// Stage the complete transfer on an isolated replica. Only the final admitted
     /// update reaches the live document, history, subscribers and persistence.
     pub fn prepare_fragment(

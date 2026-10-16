@@ -125,6 +125,8 @@ pub enum NativeSessionError {
     AnchorTarget { message: String },
     #[error("command input: {message}")]
     CommandInput { message: String },
+    #[error("review input: {reason:?}")]
+    ReviewInput { reason: NativeReviewFailure },
 }
 type Result<T> = std::result::Result<T, NativeSessionError>;
 impl From<PortError> for NativeSessionError {
@@ -405,6 +407,7 @@ impl ProjectionQueue {
 struct State {
     service: EditService<Arc<NativeStore>>,
     plans: BTreeMap<String, PreparedEdit>,
+    transfers: BTreeMap<String, session_transfer::TransferPlan>,
     next_plan: u64,
     anchors: BTreeMap<String, Anchor>,
     anchor_owner: u64,
@@ -413,6 +416,7 @@ struct State {
     _projection_subscription: editac_core::patches::Subscription,
     host_transport: Option<session_collaboration::HostConnection>,
     next_connection: u64,
+    review_history: editac_session::history_store::HistoryStore,
 }
 impl State {
     #[cfg(test)]
@@ -437,6 +441,7 @@ impl State {
         Ok(Self {
             service: EditService::with_registry(session, HostPolicy::default(), registry),
             plans: BTreeMap::new(),
+            transfers: BTreeMap::new(),
             next_plan: 0,
             anchors: BTreeMap::new(),
             anchor_owner,
@@ -445,6 +450,7 @@ impl State {
             _projection_subscription: subscription,
             host_transport: None,
             next_connection: 0,
+            review_history: new_review_history()?,
         })
     }
     fn receive_peer_update(
@@ -2095,3 +2101,11 @@ mod tests {
 #[path = "session_collaboration.rs"]
 mod session_collaboration;
 pub use session_collaboration::*;
+
+#[path = "session_review.rs"]
+mod session_review;
+pub use session_review::*;
+
+#[path = "session_transfer.rs"]
+mod session_transfer;
+pub use session_transfer::*;

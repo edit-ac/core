@@ -126,6 +126,10 @@ export interface MarkdownCodec {
   importMarkdown(source: string, options?: MarkdownOptions): PreparedMarkdown;
   exportMarkdown(blocks: readonly FragmentBlock[], options?: MarkdownOptions): MarkdownExport;
 }
+/** Inert HTML tokenizer data; shared Rust owns semantic admission. */
+export type HTMLNode = { kind: "text"; text: string } | { kind: "inert" } | {
+  kind: "element"; tag: string; attributes: readonly { name: string; value: string; namespaced: boolean }[]; children: readonly HTMLNode[];
+};
 export interface EngineHandle {
   readonly markdownAvailable: boolean;
   /** Explicit per-document opt-in; disposal removes only this registration. */
@@ -135,6 +139,7 @@ export interface EngineHandle {
   read(): Snapshot;
   /** Pure bounded clipboard shape check; semantic/target admission is separate. */
   validateFragment(raw: string): void;
+  importHTML(tree: readonly HTMLNode[]): { blocks: readonly FragmentBlock[]; diagnostics: readonly string[] };
   anchor(node: string, offset: number, bias: Bias): AnchorToken;
   exportAnchor(anchor: AnchorToken): PortableAnchor;
   importAnchor(anchor: PortableAnchor): AnchorToken;
@@ -166,6 +171,7 @@ export class EngineError extends Error {
 /** Internal compiled boundary; application clients use EngineHandle. */
 export interface RawEngine {
   validate_fragment(input: string): string;
+  import_html(input: string): string;
   read(): string; anchor(input: string): string; resolve(token: string): string;
   export_anchor(token: string): string; import_anchor(input: string): string;
   prepare(input: string): string; can(input: string): string; commit(token: string): string; history(input: string): string;
@@ -349,6 +355,11 @@ function ownHandle(allocation: RawEngine): EngineHandle {
       if (typeof input !== "string") throw new EngineError("InvalidInput", "validateFragment", "expected fragment JSON");
       if (utf8Length(input) > 1048576) throw new EngineError("ResourceLimit", "validateFragment", "fragment-limit");
       e.validate_fragment(input);
+    }),
+    importHTML: (tree: readonly HTMLNode[]) => use("importHTML", e => {
+      const input = JSON.stringify(tree);
+      if (utf8Length(input) > 8 * 1048576) throw new EngineError("ResourceLimit", "importHTML", "html-limit");
+      return JSON.parse(e.import_html(input)) as { blocks: readonly FragmentBlock[]; diagnostics: readonly string[] };
     }),
     importMarkdown, exportMarkdown,
     get markdownAvailable() { return !!raw && !!markdown; },

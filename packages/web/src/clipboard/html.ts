@@ -1,76 +1,26 @@
-import type { ContainerStyle, FragmentBlock, FragmentRun } from '@edit-ac/core';
-import { safeLink } from '../dom/links.js';
-import { inlineTags, htmlMarks } from '../dom/marks.js';
+import type { EngineHandle, FragmentBlock, HTMLNode } from '@edit-ac/core';
+import { inlineTags } from '../dom/marks.js';
 
-/** Parse into an inert template and construct portable data from a whitelist.
- * No imported node, style, handler, script or resource enters the live document. */
-export function importHTML(document: Document, raw: string, diagnose: (code: string) => void = () => {}): readonly FragmentBlock[] {
-  if (new TextEncoder().encode(raw).length > 1024 * 1024) throw Error('html-limit');
-  const warnings = new Set<string>();
-  const warn = (code: string) => { if (!warnings.has(code)) { warnings.add(code); diagnose(code); } };
-  const allowed = new Set(['p','div','span','li','ul','ol','blockquote','h1','h2','h3','h4','h5','h6','pre','br','b','strong','i','em','s','del','strike','u','code','a']);
+/** Inert HTML5 tokenization only. Rust owns the whitelist and semantic mapping. */
+export function importHTML(document: Document, raw: string, engine: EngineHandle, diagnose: (code: string) => void): readonly FragmentBlock[] {
+  if (new TextEncoder().encode(raw).length > 1048576) throw Error('html-limit');
   const template = document.createElement('template'); template.innerHTML = raw;
-  const blocks: FragmentBlock[] = [];
-  let visits = 0, sequence = 0, bytes = 0, runs = 0;
-  const walk = (node: Node, marks: FragmentRun['marks'], path: NonNullable<FragmentBlock['containers']>, depth: number,
-    block: { runs: FragmentRun[]; attributes: FragmentBlock['attributes']; containers: NonNullable<FragmentBlock['containers']> }): void => {
-    if (++visits > 4096 || depth > 32 || blocks.length > 128) throw Error('html-limit');
-    if (node.nodeType === 3) { const text = node.textContent ?? ''; bytes += new TextEncoder().encode(text).length; if (bytes > 1024 * 1024 || ++runs > 1024) throw Error('html-limit'); if (text) block.runs.push({ text, marks }); return; }
-    if (node.nodeType !== 1 && node.nodeType !== 11) return;
-    const element = node.nodeType === 1 ? node as HTMLElement : null;
-    const tag = element?.tagName.toLowerCase() ?? '';
-    if (element) for (const attr of element.attributes) {
-      if (attr.value.length > 4096) throw Error('html-attribute-limit');
-      if (!['href','start','style'].includes(attr.name)) warn('html-attribute-dropped');
-    }
-    if (['script', 'style', 'iframe', 'object', 'embed', 'link', 'meta', 'noscript', 'template'].includes(tag)) { warn('html-executable-dropped'); return; }
-    if (tag && !allowed.has(tag)) warn('html-element-dropped');
-    if (['table', 'img', 'video', 'audio', 'canvas', 'math', 'svg'].includes(tag)) throw Error(`html-${tag}-requires-extension-codec`);
-    if (tag === 'br') { block.runs.push({ text: '\n', marks }); return; }
-    let nextMarks = [...marks];
-    const add = (mark: FragmentRun['marks'][number]['mark'], href?: string) => {
-      nextMarks = nextMarks.filter(m => m.mark !== mark);
-      nextMarks.push(href ? { mark, href } : { mark });
-    };
-    const mark = Object.hasOwn(htmlMarks, tag) ? htmlMarks[tag] : undefined;
-    if (mark && (mark !== 'code' || block.attributes?.type !== 'code')) add(mark);
-    if (tag === 'a') {
-      const href = element?.getAttribute('href');
-      if (href) { const safe = safeLink(href); if (safe) add('link', safe); else warn('html-url-dropped'); }
-    }
-    const css = element?.getAttribute('style') ?? '';
-    if (css) warn('html-css-reduced-to-marks');
-    if (/font-weight\s*:\s*(bold|[7-9]00)\b/i.test(css)) add('bold');
-    if (/font-style\s*:\s*italic\b/i.test(css)) add('italic');
-    if (/text-decoration[^:]*\s*:[^;]*\bunderline\b/i.test(css)) add('underline');
-    if (/text-decoration[^:]*\s*:[^;]*\bline-through\b/i.test(css)) add('strike');
-    if (['ul', 'ol', 'blockquote'].includes(tag)) {
-      if (block.runs.length) { blocks.push({ ...block }); block.runs = []; }
-      const style: ContainerStyle = tag === 'blockquote' ? { type: 'quote' } : tag === 'ol'
-        ? { type: 'ordered', start: Math.max(1, Math.min(2147483647, Number(element?.getAttribute('start')) || 1)) } : { type: 'unordered' };
-      const next = [...path, { key: `html-${++sequence}`, style }];
-      const nested = { runs: [] as FragmentRun[], attributes: { type: 'paragraph' } as const, containers: next };
-      for (const child of node.childNodes) walk(child, nextMarks, next, depth + 1, nested);
-      if (nested.runs.length) blocks.push(nested);
-      return;
-    }
-    if (/^(p|div|li|h[1-6]|pre)$/.test(tag)) {
-      if (block.runs.length) { blocks.push({ ...block }); block.runs = []; }
-      const attributes: FragmentBlock['attributes'] = /^h[1-6]$/.test(tag) ? { type: 'heading', level: Number(tag[1]) }
-        : tag === 'pre' ? { type: 'code', language: '' } : { type: 'paragraph' };
-      const next = { runs: [] as FragmentRun[], attributes, containers: path };
-      for (const child of node.childNodes) walk(child, nextMarks, path, depth + 1, next);
-      if (next.runs.length || !node.childNodes.length) blocks.push(next);
-      return;
-    }
-    for (const child of node.childNodes) walk(child, nextMarks, path, depth + 1, block);
+  let visits = 0;
+  const tokenize = (node: Node, depth: number): HTMLNode => {
+    if (++visits > 4096 || depth > 32) throw Error('html-limit');
+    if (node.nodeType === 3) return { kind: 'text', text: node.textContent ?? '' };
+    if (node.nodeType !== 1) return { kind: 'inert' };
+    const element = node as Element;
+    return { kind: 'element', tag: element.localName, attributes: Array.from(element.attributes, a => {
+      if (a.value.length > 4096) throw Error('html-attribute-limit');
+      return { name: a.localName, value: a.value, namespaced: a.namespaceURI !== null };
+    }), children: Array.from(node.childNodes, c => tokenize(c, depth + 1)) };
   };
-  const root = { runs: [] as FragmentRun[], attributes: { type: 'paragraph' } as const, containers: [] };
-  walk(template.content, [], [], 0, root);
-  if (root.runs.length) blocks.push(root);
-  if (!blocks.length) throw Error('html-empty');
-  return blocks;
+  const imported = engine.importHTML(Array.from(template.content.childNodes, n => tokenize(n, 1)));
+  for (const code of imported.diagnostics) diagnose(code);
+  return imported.blocks;
 }
+
 const escape = (text: string): string => text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 export function exportHTML(blocks: readonly FragmentBlock[]): string {
   const body = (block: FragmentBlock): string => {

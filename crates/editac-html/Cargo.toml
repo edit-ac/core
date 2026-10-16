@@ -1,0 +1,22 @@
+[package]
+name = "editac-html"
+description = "Bounded inert HTML to shared edit.ac fragment codec"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[features]
+default = ["parser"]
+parser = ["dep:html5ever", "dep:markup5ever_rcdom"]
+
+[dependencies]
+editac-core = { path = "../editac-core" }
+html5ever = { version = "=0.39.0", optional = true }
+markup5ever_rcdom = { version = "=0.39.0", optional = true }
+serde_json = "=1.0.152"
+
+[lints]
+workspace = true

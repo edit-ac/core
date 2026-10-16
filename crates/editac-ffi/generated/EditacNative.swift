@@ -1121,6 +1121,48 @@ public protocol NativeSessionProtocol: AnyObject, Sendable {
      */
     func takeHostPresenceFrames(token: String, maxFrames: UInt32, now: UInt64) throws  -> [NativeHostFrame]
     
+    /**
+     * Explicit acknowledged-state capture; never called from typing/edit/history hooks.
+     */
+    func captureReviewRevision(revision: Data, name: String, requiredKeyProfile: String?) throws  -> NativeReviewRevision
+    
+    func compareReviewRevisions(before: NativeReviewRevision, after: NativeReviewRevision, beforeKeyProfile: String?, afterKeyProfile: String?, maxBytes: UInt64) throws  -> NativeReviewComparison
+    
+    func readReviewRevision(revision: NativeReviewRevision, availableKeyProfile: String?) throws  -> NativeReviewRead
+    
+    /**
+     * Tightening immediately prunes; widening cannot recreate evicted history.
+     */
+    func setReviewRetention(maxRevisions: UInt32, maxTotalBytes: UInt64) throws 
+    
+    /**
+     * Canonical shared decoder/validator. No native semantic parser or author inference.
+     */
+    func validateChangeModel(bytes: Data, maxBytes: UInt64) throws  -> NativeChangeModel
+    
+    func cancelTransfer(token: String) throws 
+    
+    /**
+     * Ordinary paste never deletes a source. For cut, acknowledge the clipboard;
+     * for cross-document deletion, supply an opaque qualified destination receipt.
+     * Every attempt consumes the plan, including rejected or stale admission.
+     */
+    func commitTransfer(token: String, clipboardAcknowledged: Bool, destinationReceipt: NativeTransferReceipt?, now: UInt64) throws  -> NativeTransferCommit
+    
+    func exportTransfer(revision: Data, range: NativeTransferRange, now: UInt64) throws  -> NativeTransferExport
+    
+    func prepareCut(revision: Data, range: NativeTransferRange, now: UInt64) throws  -> NativePreparedTransfer
+    
+    func preparePaste(revision: Data, range: NativeTransferRange, input: NativeTransferInput, source: NativeTransferSource?, now: UInt64) throws  -> NativePreparedTransfer
+    
+    func prepareTransferMove(revision: Data, source: NativeTransferRange, destination: NativeTransferRange, now: UInt64) throws  -> NativePreparedTransfer
+    
+    /**
+     * Trusted host registration of the existing callout codec. No resolver or
+     * network authority; retained transfers recheck this setting at admission.
+     */
+    func setCalloutPolicy(enabled: Bool) throws 
+    
 }
 /**
  * Foreign aliases share this single serialized owner. No callback API is exported;
@@ -1743,6 +1785,164 @@ open func takeHostPresenceFrames(token: String, maxFrames: UInt32, now: UInt64)t
 })
 }
     
+    /**
+     * Explicit acknowledged-state capture; never called from typing/edit/history hooks.
+     */
+open func captureReviewRevision(revision: Data, name: String, requiredKeyProfile: String?)throws  -> NativeReviewRevision  {
+    return try  FfiConverterTypeNativeReviewRevision_lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_capture_review_revision(
+            self.uniffiCloneHandle(),
+        FfiConverterData.lower(revision),
+        FfiConverterString.lower(name),
+        FfiConverterOptionString.lower(requiredKeyProfile),uniffiCallStatus
+    )
+})
+}
+    
+open func compareReviewRevisions(before: NativeReviewRevision, after: NativeReviewRevision, beforeKeyProfile: String?, afterKeyProfile: String?, maxBytes: UInt64)throws  -> NativeReviewComparison  {
+    return try  FfiConverterTypeNativeReviewComparison_lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_compare_review_revisions(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeNativeReviewRevision_lower(before),
+        FfiConverterTypeNativeReviewRevision_lower(after),
+        FfiConverterOptionString.lower(beforeKeyProfile),
+        FfiConverterOptionString.lower(afterKeyProfile),
+        FfiConverterUInt64.lower(maxBytes),uniffiCallStatus
+    )
+})
+}
+    
+open func readReviewRevision(revision: NativeReviewRevision, availableKeyProfile: String?)throws  -> NativeReviewRead  {
+    return try  FfiConverterTypeNativeReviewRead_lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_read_review_revision(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeNativeReviewRevision_lower(revision),
+        FfiConverterOptionString.lower(availableKeyProfile),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Tightening immediately prunes; widening cannot recreate evicted history.
+     */
+open func setReviewRetention(maxRevisions: UInt32, maxTotalBytes: UInt64)throws   {try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_set_review_retention(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(maxRevisions),
+        FfiConverterUInt64.lower(maxTotalBytes),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Canonical shared decoder/validator. No native semantic parser or author inference.
+     */
+open func validateChangeModel(bytes: Data, maxBytes: UInt64)throws  -> NativeChangeModel  {
+    return try  FfiConverterTypeNativeChangeModel_lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_validate_change_model(
+            self.uniffiCloneHandle(),
+        FfiConverterData.lower(bytes),
+        FfiConverterUInt64.lower(maxBytes),uniffiCallStatus
+    )
+})
+}
+    
+open func cancelTransfer(token: String)throws   {try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_cancel_transfer(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(token),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Ordinary paste never deletes a source. For cut, acknowledge the clipboard;
+     * for cross-document deletion, supply an opaque qualified destination receipt.
+     * Every attempt consumes the plan, including rejected or stale admission.
+     */
+open func commitTransfer(token: String, clipboardAcknowledged: Bool, destinationReceipt: NativeTransferReceipt?, now: UInt64)throws  -> NativeTransferCommit  {
+    return try  FfiConverterTypeNativeTransferCommit_lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_commit_transfer(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(token),
+        FfiConverterBool.lower(clipboardAcknowledged),
+        FfiConverterOptionTypeNativeTransferReceipt.lower(destinationReceipt),
+        FfiConverterUInt64.lower(now),uniffiCallStatus
+    )
+})
+}
+    
+open func exportTransfer(revision: Data, range: NativeTransferRange, now: UInt64)throws  -> NativeTransferExport  {
+    return try  FfiConverterTypeNativeTransferExport_lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_export_transfer(
+            self.uniffiCloneHandle(),
+        FfiConverterData.lower(revision),
+        FfiConverterTypeNativeTransferRange_lower(range),
+        FfiConverterUInt64.lower(now),uniffiCallStatus
+    )
+})
+}
+    
+open func prepareCut(revision: Data, range: NativeTransferRange, now: UInt64)throws  -> NativePreparedTransfer  {
+    return try  FfiConverterTypeNativePreparedTransfer_lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_prepare_cut(
+            self.uniffiCloneHandle(),
+        FfiConverterData.lower(revision),
+        FfiConverterTypeNativeTransferRange_lower(range),
+        FfiConverterUInt64.lower(now),uniffiCallStatus
+    )
+})
+}
+    
+open func preparePaste(revision: Data, range: NativeTransferRange, input: NativeTransferInput, source: NativeTransferSource?, now: UInt64)throws  -> NativePreparedTransfer  {
+    return try  FfiConverterTypeNativePreparedTransfer_lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_prepare_paste(
+            self.uniffiCloneHandle(),
+        FfiConverterData.lower(revision),
+        FfiConverterTypeNativeTransferRange_lower(range),
+        FfiConverterTypeNativeTransferInput_lower(input),
+        FfiConverterOptionTypeNativeTransferSource.lower(source),
+        FfiConverterUInt64.lower(now),uniffiCallStatus
+    )
+})
+}
+    
+open func prepareTransferMove(revision: Data, source: NativeTransferRange, destination: NativeTransferRange, now: UInt64)throws  -> NativePreparedTransfer  {
+    return try  FfiConverterTypeNativePreparedTransfer_lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_prepare_transfer_move(
+            self.uniffiCloneHandle(),
+        FfiConverterData.lower(revision),
+        FfiConverterTypeNativeTransferRange_lower(source),
+        FfiConverterTypeNativeTransferRange_lower(destination),
+        FfiConverterUInt64.lower(now),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Trusted host registration of the existing callout codec. No resolver or
+     * network authority; retained transfers recheck this setting at admission.
+     */
+open func setCalloutPolicy(enabled: Bool)throws   {try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_set_callout_policy(
+            self.uniffiCloneHandle(),
+        FfiConverterBool.lower(enabled),uniffiCallStatus
+    )
+}
+}
+    
 
     
 }
@@ -1786,6 +1986,232 @@ public func FfiConverterTypeNativeSession_lift(_ handle: UInt64) throws -> Nativ
 #endif
 public func FfiConverterTypeNativeSession_lower(_ value: NativeSession) -> UInt64 {
     return FfiConverterTypeNativeSession.lower(value)
+}
+
+
+
+
+
+
+/**
+ * Only produced after a nonempty, durable destination Session commit. Opaque
+ * provenance binds the exact exported payload and captured source operation.
+ */
+public protocol NativeTransferReceiptProtocol: AnyObject, Sendable {
+    
+}
+/**
+ * Only produced after a nonempty, durable destination Session commit. Opaque
+ * provenance binds the exact exported payload and captured source operation.
+ */
+open class NativeTransferReceipt: NativeTransferReceiptProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_editac_ffi_fn_clone_nativetransferreceipt(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_editac_ffi_fn_free_nativetransferreceipt(handle, $0) }
+    }
+
+    
+
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeTransferReceipt: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = NativeTransferReceipt
+
+    public static func lift(_ handle: UInt64) throws -> NativeTransferReceipt {
+        return NativeTransferReceipt(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: NativeTransferReceipt) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeTransferReceipt {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: NativeTransferReceipt, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeTransferReceipt_lift(_ handle: UInt64) throws -> NativeTransferReceipt {
+    return try FfiConverterTypeNativeTransferReceipt.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeTransferReceipt_lower(_ value: NativeTransferReceipt) -> UInt64 {
+    return FfiConverterTypeNativeTransferReceipt.lower(value)
+}
+
+
+
+
+
+
+/**
+ * Process-local provenance, never writable by a consumer or a clipboard payload.
+ */
+public protocol NativeTransferSourceProtocol: AnyObject, Sendable {
+    
+}
+/**
+ * Process-local provenance, never writable by a consumer or a clipboard payload.
+ */
+open class NativeTransferSource: NativeTransferSourceProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_editac_ffi_fn_clone_nativetransfersource(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_editac_ffi_fn_free_nativetransfersource(handle, $0) }
+    }
+
+    
+
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeTransferSource: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = NativeTransferSource
+
+    public static func lift(_ handle: UInt64) throws -> NativeTransferSource {
+        return NativeTransferSource(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: NativeTransferSource) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeTransferSource {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: NativeTransferSource, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeTransferSource_lift(_ handle: UInt64) throws -> NativeTransferSource {
+    return try FfiConverterTypeNativeTransferSource.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeTransferSource_lower(_ value: NativeTransferSource) -> UInt64 {
+    return FfiConverterTypeNativeTransferSource.lower(value)
 }
 
 
@@ -1976,6 +2402,70 @@ public func FfiConverterTypeBatchResult_lift(_ buf: RustBuffer) throws -> BatchR
 #endif
 public func FfiConverterTypeBatchResult_lower(_ value: BatchResult) -> RustBuffer {
     return FfiConverterTypeBatchResult.lower(value)
+}
+
+
+public struct NativeChangeModel: Equatable, Hashable {
+    /**
+     * Canonical editac-change-model-v1 bytes, not a writable replica.
+     */
+    public var json: Data
+    public var representation: NativeReviewRepresentation
+    public var attribution: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Canonical editac-change-model-v1 bytes, not a writable replica.
+         */json: Data, representation: NativeReviewRepresentation, attribution: String) {
+        self.json = json
+        self.representation = representation
+        self.attribution = attribution
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NativeChangeModel: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeChangeModel: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeChangeModel {
+        return
+            try NativeChangeModel(
+                json: FfiConverterData.read(from: &buf), 
+                representation: FfiConverterTypeNativeReviewRepresentation.read(from: &buf), 
+                attribution: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NativeChangeModel, into buf: inout [UInt8]) {
+        FfiConverterData.write(value.json, into: &buf)
+        FfiConverterTypeNativeReviewRepresentation.write(value.representation, into: &buf)
+        FfiConverterString.write(value.attribution, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeChangeModel_lift(_ buf: RustBuffer) throws -> NativeChangeModel {
+    return try FfiConverterTypeNativeChangeModel.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeChangeModel_lower(_ value: NativeChangeModel) -> RustBuffer {
+    return FfiConverterTypeNativeChangeModel.lower(value)
 }
 
 
@@ -2477,6 +2967,74 @@ public func FfiConverterTypeNativePreparedCommands_lower(_ value: NativePrepared
 }
 
 
+public struct NativePreparedTransfer {
+    public var token: String
+    public var diagnostics: [String]
+    /**
+     * Retain every original flavor for unsupported-codec recovery; never executed.
+     */
+    public var source: NativeTransferInput?
+    public var exported: NativeTransferExport?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(token: String, diagnostics: [String], 
+        /**
+         * Retain every original flavor for unsupported-codec recovery; never executed.
+         */source: NativeTransferInput?, exported: NativeTransferExport?) {
+        self.token = token
+        self.diagnostics = diagnostics
+        self.source = source
+        self.exported = exported
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NativePreparedTransfer: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativePreparedTransfer: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativePreparedTransfer {
+        return
+            try NativePreparedTransfer(
+                token: FfiConverterString.read(from: &buf), 
+                diagnostics: FfiConverterSequenceString.read(from: &buf), 
+                source: FfiConverterOptionTypeNativeTransferInput.read(from: &buf), 
+                exported: FfiConverterOptionTypeNativeTransferExport.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NativePreparedTransfer, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.token, into: &buf)
+        FfiConverterSequenceString.write(value.diagnostics, into: &buf)
+        FfiConverterOptionTypeNativeTransferInput.write(value.source, into: &buf)
+        FfiConverterOptionTypeNativeTransferExport.write(value.exported, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativePreparedTransfer_lift(_ buf: RustBuffer) throws -> NativePreparedTransfer {
+    return try FfiConverterTypeNativePreparedTransfer.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativePreparedTransfer_lower(_ value: NativePreparedTransfer) -> RustBuffer {
+    return FfiConverterTypeNativePreparedTransfer.lower(value)
+}
+
+
 public struct NativePresenceSelection: Equatable, Hashable {
     public var anchor: NativeAnchorResolution
     public var focus: NativeAnchorResolution
@@ -2528,6 +3086,90 @@ public func FfiConverterTypeNativePresenceSelection_lift(_ buf: RustBuffer) thro
 #endif
 public func FfiConverterTypeNativePresenceSelection_lower(_ value: NativePresenceSelection) -> RustBuffer {
     return FfiConverterTypeNativePresenceSelection.lower(value)
+}
+
+
+public struct NativeReviewRevision: Equatable, Hashable {
+    /**
+     * Opaque, process-local HistoryStore key. Never a persisted ordering token.
+     */
+    public var key: String
+    public var documentId: String
+    public var epoch: String
+    public var schema: String
+    public var moduleProfile: String
+    public var observedRevision: Data
+    public var representation: NativeReviewRepresentation
+    public var hash: Data
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Opaque, process-local HistoryStore key. Never a persisted ordering token.
+         */key: String, documentId: String, epoch: String, schema: String, moduleProfile: String, observedRevision: Data, representation: NativeReviewRepresentation, hash: Data) {
+        self.key = key
+        self.documentId = documentId
+        self.epoch = epoch
+        self.schema = schema
+        self.moduleProfile = moduleProfile
+        self.observedRevision = observedRevision
+        self.representation = representation
+        self.hash = hash
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NativeReviewRevision: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeReviewRevision: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeReviewRevision {
+        return
+            try NativeReviewRevision(
+                key: FfiConverterString.read(from: &buf), 
+                documentId: FfiConverterString.read(from: &buf), 
+                epoch: FfiConverterString.read(from: &buf), 
+                schema: FfiConverterString.read(from: &buf), 
+                moduleProfile: FfiConverterString.read(from: &buf), 
+                observedRevision: FfiConverterData.read(from: &buf), 
+                representation: FfiConverterTypeNativeReviewRepresentation.read(from: &buf), 
+                hash: FfiConverterData.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NativeReviewRevision, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.key, into: &buf)
+        FfiConverterString.write(value.documentId, into: &buf)
+        FfiConverterString.write(value.epoch, into: &buf)
+        FfiConverterString.write(value.schema, into: &buf)
+        FfiConverterString.write(value.moduleProfile, into: &buf)
+        FfiConverterData.write(value.observedRevision, into: &buf)
+        FfiConverterTypeNativeReviewRepresentation.write(value.representation, into: &buf)
+        FfiConverterData.write(value.hash, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeReviewRevision_lift(_ buf: RustBuffer) throws -> NativeReviewRevision {
+    return try FfiConverterTypeNativeReviewRevision.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeReviewRevision_lower(_ value: NativeReviewRevision) -> RustBuffer {
+    return FfiConverterTypeNativeReviewRevision.lower(value)
 }
 
 
@@ -3411,6 +4053,250 @@ public func FfiConverterTypeNativeSessionSeed_lower(_ value: NativeSessionSeed) 
 }
 
 
+public struct NativeTransferCommit {
+    public var commit: NativeSessionCommit?
+    public var destinationReceipt: NativeTransferReceipt?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(commit: NativeSessionCommit?, destinationReceipt: NativeTransferReceipt?) {
+        self.commit = commit
+        self.destinationReceipt = destinationReceipt
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NativeTransferCommit: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeTransferCommit: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeTransferCommit {
+        return
+            try NativeTransferCommit(
+                commit: FfiConverterOptionTypeNativeSessionCommit.read(from: &buf), 
+                destinationReceipt: FfiConverterOptionTypeNativeTransferReceipt.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NativeTransferCommit, into buf: inout [UInt8]) {
+        FfiConverterOptionTypeNativeSessionCommit.write(value.commit, into: &buf)
+        FfiConverterOptionTypeNativeTransferReceipt.write(value.destinationReceipt, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeTransferCommit_lift(_ buf: RustBuffer) throws -> NativeTransferCommit {
+    return try FfiConverterTypeNativeTransferCommit.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeTransferCommit_lower(_ value: NativeTransferCommit) -> RustBuffer {
+    return FfiConverterTypeNativeTransferCommit.lower(value)
+}
+
+
+public struct NativeTransferExport {
+    public var revision: Data
+    public var fragmentJson: String
+    public var markdown: String
+    public var plainText: String
+    public var diagnostics: [String]
+    public var source: NativeTransferSource
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(revision: Data, fragmentJson: String, markdown: String, plainText: String, diagnostics: [String], source: NativeTransferSource) {
+        self.revision = revision
+        self.fragmentJson = fragmentJson
+        self.markdown = markdown
+        self.plainText = plainText
+        self.diagnostics = diagnostics
+        self.source = source
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NativeTransferExport: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeTransferExport: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeTransferExport {
+        return
+            try NativeTransferExport(
+                revision: FfiConverterData.read(from: &buf), 
+                fragmentJson: FfiConverterString.read(from: &buf), 
+                markdown: FfiConverterString.read(from: &buf), 
+                plainText: FfiConverterString.read(from: &buf), 
+                diagnostics: FfiConverterSequenceString.read(from: &buf), 
+                source: FfiConverterTypeNativeTransferSource.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NativeTransferExport, into buf: inout [UInt8]) {
+        FfiConverterData.write(value.revision, into: &buf)
+        FfiConverterString.write(value.fragmentJson, into: &buf)
+        FfiConverterString.write(value.markdown, into: &buf)
+        FfiConverterString.write(value.plainText, into: &buf)
+        FfiConverterSequenceString.write(value.diagnostics, into: &buf)
+        FfiConverterTypeNativeTransferSource.write(value.source, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeTransferExport_lift(_ buf: RustBuffer) throws -> NativeTransferExport {
+    return try FfiConverterTypeNativeTransferExport.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeTransferExport_lower(_ value: NativeTransferExport) -> RustBuffer {
+    return FfiConverterTypeNativeTransferExport.lower(value)
+}
+
+
+public struct NativeTransferInput: Equatable, Hashable {
+    public var fragmentJson: String?
+    public var markdown: String?
+    public var html: String?
+    public var plainText: String?
+    public var literal: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(fragmentJson: String?, markdown: String?, html: String?, plainText: String?, literal: Bool) {
+        self.fragmentJson = fragmentJson
+        self.markdown = markdown
+        self.html = html
+        self.plainText = plainText
+        self.literal = literal
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NativeTransferInput: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeTransferInput: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeTransferInput {
+        return
+            try NativeTransferInput(
+                fragmentJson: FfiConverterOptionString.read(from: &buf), 
+                markdown: FfiConverterOptionString.read(from: &buf), 
+                html: FfiConverterOptionString.read(from: &buf), 
+                plainText: FfiConverterOptionString.read(from: &buf), 
+                literal: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NativeTransferInput, into buf: inout [UInt8]) {
+        FfiConverterOptionString.write(value.fragmentJson, into: &buf)
+        FfiConverterOptionString.write(value.markdown, into: &buf)
+        FfiConverterOptionString.write(value.html, into: &buf)
+        FfiConverterOptionString.write(value.plainText, into: &buf)
+        FfiConverterBool.write(value.literal, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeTransferInput_lift(_ buf: RustBuffer) throws -> NativeTransferInput {
+    return try FfiConverterTypeNativeTransferInput.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeTransferInput_lower(_ value: NativeTransferInput) -> RustBuffer {
+    return FfiConverterTypeNativeTransferInput.lower(value)
+}
+
+
+public struct NativeTransferRange: Equatable, Hashable {
+    public var anchor: String
+    public var focus: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(anchor: String, focus: String) {
+        self.anchor = anchor
+        self.focus = focus
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NativeTransferRange: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeTransferRange: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeTransferRange {
+        return
+            try NativeTransferRange(
+                anchor: FfiConverterString.read(from: &buf), 
+                focus: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NativeTransferRange, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.anchor, into: &buf)
+        FfiConverterString.write(value.focus, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeTransferRange_lift(_ buf: RustBuffer) throws -> NativeTransferRange {
+    return try FfiConverterTypeNativeTransferRange.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeTransferRange_lower(_ value: NativeTransferRange) -> RustBuffer {
+    return FfiConverterTypeNativeTransferRange.lower(value)
+}
+
+
 public struct OwnedCheckpoint: Equatable, Hashable {
     public var metadataJson: String
     public var bytes: Data
@@ -3812,6 +4698,455 @@ public func FfiConverterTypeNativeHostReceiptResult_lower(_ value: NativeHostRec
 
 
 
+public enum NativeReviewComparison: Equatable, Hashable {
+    
+    case available(model: NativeChangeModel
+    )
+    case unavailable(side: NativeReviewSide, reason: NativeReviewUnavailable
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension NativeReviewComparison: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeReviewComparison: FfiConverterRustBuffer {
+    typealias SwiftType = NativeReviewComparison
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeReviewComparison {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .available(model: try FfiConverterTypeNativeChangeModel.read(from: &buf)
+        )
+        
+        case 2: return .unavailable(side: try FfiConverterTypeNativeReviewSide.read(from: &buf), reason: try FfiConverterTypeNativeReviewUnavailable.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: NativeReviewComparison, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .available(model):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeNativeChangeModel.write(model, into: &buf)
+            
+        
+        case let .unavailable(side,reason):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeNativeReviewSide.write(side, into: &buf)
+            FfiConverterTypeNativeReviewUnavailable.write(reason, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeReviewComparison_lift(_ buf: RustBuffer) throws -> NativeReviewComparison {
+    return try FfiConverterTypeNativeReviewComparison.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeReviewComparison_lower(_ value: NativeReviewComparison) -> RustBuffer {
+    return FfiConverterTypeNativeReviewComparison.lower(value)
+}
+
+
+
+
+public enum NativeReviewFailure: Equatable, Hashable {
+    
+    case invalid
+    case scopeMismatch
+    case representationMismatch
+    case hashMismatch
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension NativeReviewFailure: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeReviewFailure: FfiConverterRustBuffer {
+    typealias SwiftType = NativeReviewFailure
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeReviewFailure {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .invalid
+        
+        case 2: return .scopeMismatch
+        
+        case 3: return .representationMismatch
+        
+        case 4: return .hashMismatch
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: NativeReviewFailure, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .invalid:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .scopeMismatch:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .representationMismatch:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .hashMismatch:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeReviewFailure_lift(_ buf: RustBuffer) throws -> NativeReviewFailure {
+    return try FfiConverterTypeNativeReviewFailure.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeReviewFailure_lower(_ value: NativeReviewFailure) -> RustBuffer {
+    return FfiConverterTypeNativeReviewFailure.lower(value)
+}
+
+
+
+
+public enum NativeReviewRead: Equatable, Hashable {
+    
+    case available(name: String, bytes: Data
+    )
+    case unavailable(reason: NativeReviewUnavailable
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension NativeReviewRead: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeReviewRead: FfiConverterRustBuffer {
+    typealias SwiftType = NativeReviewRead
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeReviewRead {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .available(name: try FfiConverterString.read(from: &buf), bytes: try FfiConverterData.read(from: &buf)
+        )
+        
+        case 2: return .unavailable(reason: try FfiConverterTypeNativeReviewUnavailable.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: NativeReviewRead, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .available(name,bytes):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(name, into: &buf)
+            FfiConverterData.write(bytes, into: &buf)
+            
+        
+        case let .unavailable(reason):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeNativeReviewUnavailable.write(reason, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeReviewRead_lift(_ buf: RustBuffer) throws -> NativeReviewRead {
+    return try FfiConverterTypeNativeReviewRead.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeReviewRead_lower(_ value: NativeReviewRead) -> RustBuffer {
+    return FfiConverterTypeNativeReviewRead.lower(value)
+}
+
+
+
+
+public enum NativeReviewRepresentation: Equatable, Hashable {
+    
+    case exactSource
+    case projectedMarkdown(serializer: String, dialect: String
+    )
+    case semantic
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension NativeReviewRepresentation: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeReviewRepresentation: FfiConverterRustBuffer {
+    typealias SwiftType = NativeReviewRepresentation
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeReviewRepresentation {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .exactSource
+        
+        case 2: return .projectedMarkdown(serializer: try FfiConverterString.read(from: &buf), dialect: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 3: return .semantic
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: NativeReviewRepresentation, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .exactSource:
+            writeInt(&buf, Int32(1))
+        
+        
+        case let .projectedMarkdown(serializer,dialect):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(serializer, into: &buf)
+            FfiConverterString.write(dialect, into: &buf)
+            
+        
+        case .semantic:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeReviewRepresentation_lift(_ buf: RustBuffer) throws -> NativeReviewRepresentation {
+    return try FfiConverterTypeNativeReviewRepresentation.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeReviewRepresentation_lower(_ value: NativeReviewRepresentation) -> RustBuffer {
+    return FfiConverterTypeNativeReviewRepresentation.lower(value)
+}
+
+
+
+
+public enum NativeReviewSide: Equatable, Hashable {
+    
+    case before
+    case after
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension NativeReviewSide: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeReviewSide: FfiConverterRustBuffer {
+    typealias SwiftType = NativeReviewSide
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeReviewSide {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .before
+        
+        case 2: return .after
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: NativeReviewSide, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .before:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .after:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeReviewSide_lift(_ buf: RustBuffer) throws -> NativeReviewSide {
+    return try FfiConverterTypeNativeReviewSide.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeReviewSide_lower(_ value: NativeReviewSide) -> RustBuffer {
+    return FfiConverterTypeNativeReviewSide.lower(value)
+}
+
+
+
+
+public enum NativeReviewUnavailable: Equatable, Hashable {
+    
+    case missing
+    case pruned
+    case incompatibleSchema
+    case keyUnavailable
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension NativeReviewUnavailable: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeReviewUnavailable: FfiConverterRustBuffer {
+    typealias SwiftType = NativeReviewUnavailable
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeReviewUnavailable {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .missing
+        
+        case 2: return .pruned
+        
+        case 3: return .incompatibleSchema
+        
+        case 4: return .keyUnavailable
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: NativeReviewUnavailable, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .missing:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .pruned:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .incompatibleSchema:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .keyUnavailable:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeReviewUnavailable_lift(_ buf: RustBuffer) throws -> NativeReviewUnavailable {
+    return try FfiConverterTypeNativeReviewUnavailable.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeReviewUnavailable_lower(_ value: NativeReviewUnavailable) -> RustBuffer {
+    return FfiConverterTypeNativeReviewUnavailable.lower(value)
+}
+
+
+
+
 public enum NativeRevisionFailure: Equatable, Hashable {
     
     case invalidToken
@@ -4022,6 +5357,8 @@ enum NativeSessionError: Swift.Error, Equatable, Hashable, Foundation.LocalizedE
     )
     case CommandInput(message: String
     )
+    case ReviewInput(reason: NativeReviewFailure
+    )
 
     
 
@@ -4101,6 +5438,9 @@ public struct FfiConverterTypeNativeSessionError: FfiConverterRustBuffer {
             )
         case 28: return .CommandInput(
             message: try FfiConverterString.read(from: &buf)
+            )
+        case 29: return .ReviewInput(
+            reason: try FfiConverterTypeNativeReviewFailure.read(from: &buf)
             )
 
          default: throw UniffiInternalError.unexpectedEnumCase
@@ -4236,6 +5576,11 @@ public struct FfiConverterTypeNativeSessionError: FfiConverterRustBuffer {
         case let .CommandInput(message):
             writeInt(&buf, Int32(28))
             FfiConverterString.write(message, into: &buf)
+            
+        
+        case let .ReviewInput(reason):
+            writeInt(&buf, Int32(29))
+            FfiConverterTypeNativeReviewFailure.write(reason, into: &buf)
             
         }
     }
@@ -4460,6 +5805,54 @@ fileprivate struct FfiConverterOptionData: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeNativeTransferReceipt: FfiConverterRustBuffer {
+    typealias SwiftType = NativeTransferReceipt?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeNativeTransferReceipt.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeNativeTransferReceipt.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeNativeTransferSource: FfiConverterRustBuffer {
+    typealias SwiftType = NativeTransferSource?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeNativeTransferSource.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeNativeTransferSource.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeNativeHostReceipt: FfiConverterRustBuffer {
     typealias SwiftType = NativeHostReceipt?
 
@@ -4524,6 +5917,54 @@ fileprivate struct FfiConverterOptionTypeNativeSessionCommit: FfiConverterRustBu
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeNativeSessionCommit.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeNativeTransferExport: FfiConverterRustBuffer {
+    typealias SwiftType = NativeTransferExport?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeNativeTransferExport.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeNativeTransferExport.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeNativeTransferInput: FfiConverterRustBuffer {
+    typealias SwiftType = NativeTransferInput?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeNativeTransferInput.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeNativeTransferInput.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -5019,6 +6460,42 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_editac_ffi_checksum_method_nativesession_take_host_presence_frames() != 57315) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_capture_review_revision() != 48179) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_compare_review_revisions() != 39331) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_read_review_revision() != 6152) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_set_review_retention() != 55963) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_validate_change_model() != 36818) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_cancel_transfer() != 27842) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_commit_transfer() != 21819) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_export_transfer() != 24800) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_prepare_cut() != 46733) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_prepare_paste() != 48370) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_prepare_transfer_move() != 16880) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_set_callout_policy() != 43396) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_editac_ffi_checksum_constructor_nativeengine_create() != 33211) {
