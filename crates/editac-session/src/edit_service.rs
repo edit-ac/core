@@ -336,9 +336,10 @@ impl<S: SessionStore> EditService<S> {
                         }
                     }
                 }
-                EditorCommand::TableCell { .. } | EditorCommand::TableStructure { .. } => {
-                    requirements.tables = true
-                }
+                EditorCommand::TableCell { .. }
+                | EditorCommand::TableStructure { .. }
+                | EditorCommand::TableRectangle { .. }
+                | EditorCommand::TableAttributes { .. } => requirements.tables = true,
                 _ => {}
             }
         }

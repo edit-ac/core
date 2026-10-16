@@ -130,6 +130,16 @@ pub enum EditorCommand {
         action: super::table::TableAction,
         index: usize,
     },
+    /// Header flags address cells; alignment addresses their entire columns.
+    /// Host-protected coordinates are checked before either attribute changes.
+    TableAttributes {
+        target: String,
+        expected: Any,
+        rectangle: super::table::CellRectangle,
+        alignment: Option<crate::modules::content::Alignment>,
+        header: Option<bool>,
+        protected: Vec<(usize, usize)>,
+    },
     Container {
         target: String,
         tuple: Any,
@@ -1889,6 +1899,11 @@ impl Document {
                     target: id,
                     expected,
                     ..
+                }
+                | EditorCommand::TableAttributes {
+                    target: id,
+                    expected,
+                    ..
                 } => {
                     use crate::anchors::{Bias, Selection};
                     let o = target(&stage, stable, id)?;
@@ -1899,6 +1914,12 @@ impl Document {
                         return Err(EditorError::PresentationConflict);
                     }
                     let (tuple, fallback) = super::table::plan(expected, &c)?;
+                    if matches!(c, EditorCommand::TableAttributes { .. }) {
+                        // Metadata never replaces the backing text: retain Y.Text
+                        // item identities, anchors and remote text ownership.
+                        m::set(&stage, 4, id, tuple);
+                        continue;
+                    }
                     // Temporarily expose the existing source to the ordinary text planner
                     // on disposable state, then install the validated descriptor. One live
                     // commit preserves owner identity and groups metadata/text history.

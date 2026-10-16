@@ -278,7 +278,7 @@ pub(super) fn plan(expected: &Any, command: &EditorCommand) -> Result<(Any, Stri
         return Err(EditorError::UnsupportedTarget);
     }
     let mut envelope = array(expected)?.to_vec();
-    let v2 = envelope[1] == Any::from(2u32);
+    let mut v2 = envelope[1] == Any::from(2u32);
     let data = data_mut(&mut envelope[2]);
     let mut rows: Vec<Vec<Any>> = array(&data["rows"])?
         .iter()
@@ -286,6 +286,83 @@ pub(super) fn plan(expected: &Any, command: &EditorCommand) -> Result<(Any, Stri
         .collect::<Result<_, _>>()?;
     let mut alignments = array(&data["alignments"])?.to_vec();
     match command {
+        EditorCommand::TableAttributes {
+            rectangle,
+            alignment,
+            header,
+            protected,
+            ..
+        } => {
+            let CellRectangle {
+                row,
+                column,
+                rows: height,
+                columns: width,
+            } = *rectangle;
+            let count = height
+                .checked_mul(width)
+                .ok_or(EditorError::ResourceLimit)?;
+            let end_row = row.checked_add(height).ok_or(EditorError::ResourceLimit)?;
+            let end_column = column
+                .checked_add(width)
+                .ok_or(EditorError::ResourceLimit)?;
+            if count > 128 || protected.len() > 4096 {
+                return Err(EditorError::ResourceLimit);
+            }
+            if height == 0
+                || width == 0
+                || end_row > rows.len()
+                || end_column > alignments.len()
+                || (alignment.is_none() && header.is_none())
+            {
+                return Err(EditorError::InvalidCommand);
+            }
+            if (v2 && !simple_cells(&rows))
+                || protected.iter().any(|&(r, c)| {
+                    (column..end_column).contains(&c)
+                        && ((header.is_some() && (row..end_row).contains(&r))
+                            || (alignment.is_some() && r < rows.len()))
+                })
+            {
+                return Err(EditorError::UnsupportedTarget);
+            }
+            // v1 headers are implicit. Promote only when the requested flags cannot
+            // be represented there; retain every existing run, source and coordinate.
+            if !v2 && header.is_some_and(|h| (row..end_row).any(|r| h != (r == 0))) {
+                for (r, cells) in rows.iter_mut().enumerate() {
+                    for cell in cells {
+                        let mut promoted = empty_cell(true);
+                        let data = data_mut(&mut promoted);
+                        data.insert("header".into(), Any::Bool(r == 0));
+                        data.insert(
+                            "paragraphs".into(),
+                            values(vec![Any::Map(Arc::new(HashMap::from([
+                                ("style".into(), values(vec![Any::from("paragraph")])),
+                                ("runs".into(), cell.clone()),
+                            ])))]),
+                        );
+                        *cell = promoted;
+                    }
+                }
+                v2 = true;
+            }
+            if let Some(h) = header.filter(|_| v2) {
+                for cells in &mut rows[row..end_row] {
+                    for cell in &mut cells[column..end_column] {
+                        data_mut(cell).insert("header".into(), Any::Bool(h));
+                    }
+                }
+            }
+            if let Some(alignment) = alignment {
+                let value = match alignment {
+                    crate::modules::content::Alignment::None => "none",
+                    crate::modules::content::Alignment::Left => "left",
+                    crate::modules::content::Alignment::Center => "center",
+                    crate::modules::content::Alignment::Right => "right",
+                };
+                alignments[column..end_column].fill(Any::from(value));
+            }
+        }
         EditorCommand::TableCell {
             row, column, text, ..
         } => {
@@ -401,6 +478,7 @@ pub(super) fn plan(expected: &Any, command: &EditorCommand) -> Result<(Any, Stri
         values(rows.into_iter().map(values).collect()),
     );
     data.insert("alignments".into(), values(alignments));
+    envelope[1] = Any::from(if v2 { 2u32 } else { 1u32 });
     let tuple = values(envelope);
     Content::from_tuple(&tuple)
         .map_err(error)?

@@ -18,6 +18,39 @@ function fixture(v2) {
 const table=e=>e.read().visible.find(n=>n.blockAttributes?.[0]==='module:editac.table');
 const command=(e,type,rest)=>({kind:'editor',origin:'table-wasm',commands:[{type,owner:table(e).id,expected:table(e).blockAttributes,...rest}]});
 for(const v2 of [false,true]) {
+ test(`v${v2?2:1} production WASM attributes preserve text identity, history and recovery`,()=>{
+  const e=fixture(v2);try {
+   const original=structuredClone(table(e)), owner=original.id, anchor=e.anchor(owner,0,'right');
+   try {
+    const position=e.resolve(anchor), c=command(e,'tableAttributes',{row:0,column:0,rows:1,columns:2,alignment:'center',header:false,protected:[]});
+    const p=e.prepare(c);assert.deepEqual(table(e),original);e.commit(p);
+    const edited=structuredClone(table(e));
+    assert.equal(edited.id,owner);assert.deepEqual(edited.runs,original.runs);assert.deepEqual(e.resolve(anchor),position);
+    assert.equal(edited.blockAttributes[1],2);assert.deepEqual(edited.blockAttributes[2].alignments,['center','center']);
+    assert.equal(edited.blockAttributes[2].rows[0][0].header,false);assert.equal(edited.blockAttributes[2].source,'exact retained source');
+    assert.equal(e.history({type:'state'}).undoGroups,1);assert.equal(e.can(c),false);
+    e.history({type:'undo'});assert.deepEqual(table(e),original);
+    e.history({type:'redo'});assert.deepEqual(table(e),edited);
+    const cp=e.checkpoint(), reopened=runtime.restoreEngine(cp.identity,cp);try{assert.deepEqual(table(reopened).blockAttributes,edited.blockAttributes);}finally{reopened.dispose();}
+   }finally{e.releaseAnchor(anchor);}
+  }finally{e.dispose();}
+ });
+ test(`v${v2?2:1} production WASM invalid or protected attributes have zero effects`,()=>{
+  const e=fixture(v2);try {
+   const before=e.checkpoint();
+   for(const rest of [
+    {alignment:'justify',header:null,protected:[]},
+    {alignment:null,header:'false',protected:[]},
+    {alignment:null,header:null,protected:[]},
+    {alignment:'center',header:null,protected:[[1,0]]},
+    {alignment:null,header:false,protected:[[0,1]]},
+   ]) {
+    const c=command(e,'tableAttributes',{row:0,column:0,rows:1,columns:2,...rest});
+    assert.equal(e.can(c),false);assert.throws(()=>e.prepare(c));assert.deepEqual(e.checkpoint().bytes,before.bytes);
+    assert.equal(e.history({type:'state'}).undoGroups,0);
+   }
+  }finally{e.dispose();}
+ });
  test(`v${v2?2:1} production WASM cell and all four structure actions retain tuple and history`,()=>{
   const e=fixture(v2);try {
    const original=structuredClone(table(e)), captured=command(e,'tableCell',{row:0,column:0,text:'abX😀'});

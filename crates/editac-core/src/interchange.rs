@@ -321,6 +321,15 @@ pub enum TableAction {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum TableAlignment {
+    None,
+    Left,
+    Center,
+    Right,
+}
+
+#[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
 pub enum Command {
     CustomMarkAt {
@@ -386,6 +395,17 @@ pub enum Command {
         expected: Value,
         action: TableAction,
         index: usize,
+    },
+    TableAttributes {
+        owner: String,
+        expected: Value,
+        row: usize,
+        column: usize,
+        rows: usize,
+        columns: usize,
+        alignment: Option<TableAlignment>,
+        header: Option<bool>,
+        protected: Vec<(usize, usize)>,
     },
     Insert {
         at: String,
@@ -696,6 +716,35 @@ impl Command {
                     columns,
                 },
                 cells,
+                protected,
+            },
+            Command::TableAttributes {
+                owner,
+                expected,
+                row,
+                column,
+                rows,
+                columns,
+                alignment,
+                header,
+                protected,
+            } => EditorCommand::TableAttributes {
+                target: owner,
+                expected: Any::from_json(&expected.to_string())
+                    .map_err(|e| kernel("tableAttributes", e))?,
+                rectangle: crate::commands::table::CellRectangle {
+                    row,
+                    column,
+                    rows,
+                    columns,
+                },
+                alignment: alignment.map(|a| match a {
+                    TableAlignment::None => crate::modules::content::Alignment::None,
+                    TableAlignment::Left => crate::modules::content::Alignment::Left,
+                    TableAlignment::Center => crate::modules::content::Alignment::Center,
+                    TableAlignment::Right => crate::modules::content::Alignment::Right,
+                }),
+                header,
                 protected,
             },
             Command::TableStructure {

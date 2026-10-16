@@ -125,6 +125,119 @@ fn policy() -> HostPolicy {
         ..HostPolicy::default()
     }
 }
+
+#[test]
+fn attributes_recheck_authority_and_codec_then_persist_one_group_with_exact_recovery() {
+    use editac_core::{commands::table::CellRectangle, modules::content::Alignment};
+    for v2 in [false, true] {
+        let f = Fixture::new(v2);
+        let (store, mut service) = f.service("attributes");
+        let original = tuple(&service, &f.table);
+        let commands = [EditorCommand::TableAttributes {
+            target: f.table.clone(),
+            expected: service
+                .session()
+                .document()
+                .fragment_for_node(&f.table)
+                .unwrap()
+                .attributes
+                .unwrap()
+                .tuple(),
+            rectangle: CellRectangle {
+                row: 0,
+                column: 0,
+                rows: 1,
+                columns: 2,
+            },
+            alignment: Some(Alignment::Center),
+            header: Some(false),
+            protected: vec![],
+        }];
+        let revision = service.read(0).unwrap().revision;
+        let prepared = service
+            .prepare_commands(&revision, &commands, &origin(), 0)
+            .unwrap();
+        let before = service.session().document().checkpoint().bytes;
+        service.set_policy(HostPolicy {
+            writable: false,
+            ..policy()
+        });
+        assert!(matches!(
+            service.apply(prepared, 0),
+            Err(ServiceError::ReadOnly)
+        ));
+        assert!(matches!(
+            service.prepare_commands(&revision, &commands, &origin(), 0),
+            Err(ServiceError::ReadOnly)
+        ));
+        service.set_policy(HostPolicy::default());
+        let rectangle = [EditorCommand::TableRectangle {
+            target: f.table.clone(),
+            expected: service
+                .session()
+                .document()
+                .fragment_for_node(&f.table)
+                .unwrap()
+                .attributes
+                .unwrap()
+                .tuple(),
+            rectangle: CellRectangle {
+                row: 0,
+                column: 0,
+                rows: 1,
+                columns: 1,
+            },
+            cells: None,
+            protected: vec![],
+        }];
+        assert!(matches!(
+            service.prepare_commands(&revision, &rectangle, &origin(), 0),
+            Err(ServiceError::UnsupportedModule)
+        ));
+        assert!(matches!(
+            service.prepare_commands(&revision, &commands, &origin(), 0),
+            Err(ServiceError::UnsupportedModule)
+        ));
+        assert_eq!(service.session().document().checkpoint().bytes, before);
+        assert_eq!(store.pending(&f.id).unwrap().len(), 0);
+        assert_eq!(service.session().document().history_state().undo_groups, 0);
+        service.set_policy(policy());
+        let prepared = service
+            .prepare_commands(&revision, &commands, &origin(), 0)
+            .unwrap();
+        service.set_policy(HostPolicy::default());
+        assert!(matches!(
+            service.apply(prepared, 0),
+            Err(ServiceError::UnsupportedModule)
+        ));
+        assert_eq!(store.pending(&f.id).unwrap().len(), 0);
+        service.set_policy(policy());
+        let prepared = service
+            .prepare_commands(&revision, &commands, &origin(), 0)
+            .unwrap();
+        let receipt = service.apply(prepared, 0).unwrap().unwrap();
+        assert_eq!(
+            service.local_receipt(&receipt.update).unwrap(),
+            Some(receipt)
+        );
+        assert_eq!(store.pending(&f.id).unwrap().len(), 1);
+        assert_eq!(service.session().document().history_state().undo_groups, 1);
+        let edited = tuple(&service, &f.table);
+        assert_eq!(edited[2]["alignments"], json!(["center", "center"]));
+        assert_eq!(edited[2]["rows"][0][0]["header"], false);
+        let revision = service.read(0).unwrap().revision;
+        service.undo(&revision, 0).unwrap().unwrap();
+        assert_eq!(tuple(&service, &f.table), original);
+        let revision = service.read(0).unwrap().revision;
+        service.redo(&revision, 0).unwrap().unwrap();
+        assert_eq!(tuple(&service, &f.table), edited);
+        let reopened = EditService::new(
+            Session::open(store.clone(), &f.id, CachedPermission::LOCAL).unwrap(),
+            policy(),
+        );
+        assert_eq!(tuple(&reopened, &f.table), edited);
+    }
+}
 fn origin() -> TextOrigin {
     TextOrigin::new("table-session").unwrap()
 }
