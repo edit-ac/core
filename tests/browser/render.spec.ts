@@ -88,6 +88,42 @@ async function withContext(name, action) {
   finally { await context.close(); }
 }
 
+for (const readOnly of [false, true]) test(`initial publication exposes the complete nested owner tree (${readOnly ? 'read-only' : 'editable'})`, async () => withContext(`publication-${readOnly}`, async (context, fact) => {
+  const page = await open(context);
+  await page.evaluate(() => window.renderFixture.mount());
+  const result = await page.evaluate(async readOnly => {
+    const f = window.renderFixture, root = document.createElement('div');
+    document.body.append(root);
+    const observer = new MutationObserver(() => {});
+    observer.observe(root, { subtree: true, childList: true });
+    const publications = [], append = root.append;
+    root.append = function (...children) {
+      append.apply(this, children);
+      if (this.childNodes.length) publications.push([...this.querySelectorAll('[data-node-id]')].map(n => n.dataset.nodeId));
+    };
+    const { DOMRenderer } = await import('/web/dom/render.js');
+    const r = new DOMRenderer(root, f.engine, { readOnly });
+    try {
+      const expected = f.engine.read().visible.map(n => n.id).sort();
+      const mutations = observer.takeRecords().filter(m => m.addedNodes.length);
+      observer.disconnect();
+      const id = f.ids[0], block = r.getBlock(id), other = r.getBlock(f.ids[1]);
+      await f.edit(id, 0, '!');
+      return { expected, publications, additions: mutations.length,
+        rootOnly: mutations.every(m => m.target === root), nested: !!root.querySelector('li li'),
+        retained: block === r.getBlock(id) && other === r.getBlock(f.ids[1]),
+        edited: r.getBlock(id).textContent === f.engine.read().visible.find(n => n.id === id).runs.map(run => run.text).join(''),
+        editable: root.contentEditable };
+    } finally { observer.disconnect(); r.dispose(); root.remove(); }
+  }, readOnly);
+  fact.publication = result;
+  assert.equal(result.publications.length, 1);
+  assert.deepEqual(result.publications[0].sort(), result.expected);
+  assert.equal(result.additions, 1); assert.equal(result.rootOnly, true);
+  assert.equal(result.nested, true); assert.equal(result.retained, true); assert.equal(result.edited, true);
+  assert.equal(result.editable, readOnly ? 'false' : 'true');
+}));
+
 for (const readOnly of [false, true]) test(`authored whitespace stays visible across block kinds and heading replacement (${readOnly ? 'read-only' : 'editable'})`, async () => withContext(`whitespace-${readOnly}`, async (context, fact) => {
   const page = await open(context);
   await page.evaluate(readOnly => window.renderFixture.mount(readOnly), readOnly);
@@ -130,12 +166,12 @@ test('one-character patch preserves unrelated blocks and marked spans', async ()
   const result = await page.evaluate(async ({ids}) => {
     const f = window.renderFixture, r = f.renderer, root = r.root;
     const unrelated = r.getBlock(ids[1]), first = r.getBlock(ids[0]);
-    const marked = first.querySelector('strong'), link = first.querySelector('a'), last = first.lastChild, text = last.firstChild;
+    const marked = first.querySelector('strong'), link = first.querySelector('a'), last = first.lastChild, text = r.positions(ids[0]).at(-1).node;
     const selection = window.getSelection(); const range = document.createRange(); range.selectNodeContents(unrelated); selection.removeAllRanges(); selection.addRange(range);
     const beforeSelection = selection.toString();
     const records=[]; const observer=new MutationObserver(mutations=>records.push(...mutations)); observer.observe(root,{childList:true,subtree:true,characterData:true,attributes:true});
     const snapshot = await f.edit(ids[0],7,'!'); await new Promise(resolve=>queueMicrotask(resolve)); observer.disconnect();
-    return {text:first.textContent, same:[unrelated===r.getBlock(ids[1]),marked===first.querySelector('strong'),link===first.querySelector('a'),last===first.lastChild,text===last.firstChild],
+    return {text:first.textContent, same:[unrelated===r.getBlock(ids[1]),marked===first.querySelector('strong'),link===first.querySelector('a'),last===first.lastChild,text===r.positions(ids[0]).at(-1).node],
       selection:selection.toString(),beforeSelection, mutations:records.map(m=>({type:m.type,old:m.oldValue})), model:snapshot.visible.find(n=>n.id===ids[0]).runs.map(r=>r.text).join(''),
       map:r.positions(ids[0]).map(p=>({start:p.start,length:p.length})), owner:r.getNodeId(text)};
   },mounted);
@@ -143,6 +179,42 @@ test('one-character patch preserves unrelated blocks and marked spans', async ()
   assert.equal(result.selection,result.beforeSelection); assert.equal(result.owner,mounted.ids[0]);
   assert.ok(result.mutations.length>0); assert.ok(result.mutations.every(m=>m.type==='characterData'));
   assert.equal(result.map.reduce((sum,p)=>sum+p.length,0),8);
+}));
+
+test('plain run boundaries preserve UTF-16 owners through marks, breaks and native reconciliation', async () => withContext('plain-runs', async context => {
+  const page = await open(context); await page.evaluate(() => window.renderFixture.mount());
+  const result = await page.evaluate(async () => {
+    const { DOMRenderer } = await import('/web/dom/render.js');
+    const root = document.createElement('div'); document.body.append(root);
+    let revision = 0, notify;
+    const node = { id: 'plain-owner', kind: 'block', parent: '@root', order: 0, spans: [], editor: null,
+      runs: [{ text: 'a😀z', attributes: {} }], blockAttributes: ['paragraph'] };
+    const engine = { read: () => ({ revision, identity: { documentId: 'plain', epoch: 'one' }, visible: [node] }),
+      subscribe: (_, callback) => { notify = callback; return { dispose() {} }; } };
+    const renderer = new DOMRenderer(root, engine), block = renderer.getBlock(node.id);
+    const observations = [];
+    const capture = () => observations.push({ text: block.textContent, tags: [...block.children].map(e => e.tagName),
+      units: renderer.positions(node.id).reduce((n, p) => n + p.length, 0),
+      mapped: renderer.positions(node.id).every(p => renderer.getNodeId(p.node) === node.id),
+      model: node.runs.map(r => r.text).join('') });
+    const patch = (text, attributes = {}) => {
+      node.runs = [{ text, attributes }]; notify({ revision: ++revision, nodes: [{ type: 'visible', node: { ...node } }] }); capture();
+    };
+    capture(); const initialText = renderer.positions(node.id)[0].node;
+    patch('a😀z!'); const retained = initialText === renderer.positions(node.id)[0].node;
+    patch('a😀z!', { bold: true });
+    patch('a😀\nz!');
+    patch('a😀z!');
+    renderer.hold(node.id); renderer.positions(node.id)[0].node.splitText(1); renderer.resume(node.id, true); capture();
+    patch('a😀z!', { 'module:future': [99, {}] });
+    renderer.dispose(); root.remove(); return { observations, retained };
+  });
+  assert.equal(result.retained, true);
+  assert.deepEqual(result.observations.map(o => o.tags), [[], [], ['SPAN'], ['SPAN'], [], [], ['SPAN']]);
+  for (const observation of result.observations) {
+    assert.equal(observation.text, observation.model.replaceAll('\n', ''));
+    assert.equal(observation.units, observation.model.length); assert.equal(observation.mapped, true);
+  }
 }));
 
 test('semantic headings marks nested lists checklist quote code and atoms', async () => withContext('semantics', async context => {

@@ -8,7 +8,7 @@ import type { ContentFactory, ContentView } from '../modules/content.js';
 
 export interface DOMPosition { node: Node; start: number; length: number }
 type Run = ProjectedNode["runs"][number];
-interface RenderedRun { element: HTMLElement; key: string | null; contentKey: string; text: string | null; positions: DOMPosition[]; views: { key: string; version: number; kind: 'mark' | 'inline-atom'; view: ModuleView }[] }
+interface RenderedRun { element: HTMLElement | Text; key: string | null; contentKey: string; text: string | null; positions: DOMPosition[]; views: { key: string; version: number; kind: 'mark' | 'inline-atom'; view: ModuleView }[] }
 interface Entry { node: ProjectedNode; outer: HTMLElement; content: HTMLElement; key: string; runs: RenderedRun[]; contentView?: ContentView; contentDescriptorKey?: string }
 const moduleAttributes = (run: Run) => Object.entries(run.attributes).filter(([key]) => key.startsWith('module:')).sort(([a], [b]) => a.localeCompare(b));
 const tuple = (value: Json | undefined): Json[] => Array.isArray(value) ? value : [];
@@ -42,7 +42,8 @@ export class DOMRenderer {
     root.contentEditable = options.readOnly ? "false" : "true";
     const nodes = new Map(snapshot.visible.map(node => [node.id, node]));
     for (const node of snapshot.visible) this.#update(node, nodes.get(node.parent));
-    this.#arrange();
+    // Publish only after every nested owner is assembled off-document.
+    root.append(this.#arrange(root.ownerDocument.createDocumentFragment()));
     this.#subscription = engine.subscribe({ type: "all" }, patch => this.#apply(patch));
   }
   getBlock(id: string): HTMLElement | undefined { return this.#entries.get(id)?.content; }
@@ -210,12 +211,12 @@ export class DOMRenderer {
     if (entry.content.style.whiteSpace !== whiteSpace) entry.content.style.whiteSpace = whiteSpace;
     this.#patchRuns(entry, node.runs, tag === "pre");
   }
-  #arrange(): void {
-    const groups = new Map<HTMLElement, Set<HTMLElement>>();
+  #arrange(root: HTMLElement | DocumentFragment = this.root): HTMLElement | DocumentFragment {
+    const groups = new Map<HTMLElement | DocumentFragment, Set<HTMLElement>>();
     for (const entry of [...this.#entries.values()].sort((a, b) => a.node.order - b.node.order)) {
       const parent = this.#entries.get(entry.node.parent);
       // Nested containers follow a list item's paragraph, never sit inside it.
-      const target = parent ? (parent.node.kind === "block" && parent.outer !== parent.content ? parent.outer : parent.content) : this.root;
+      const target = parent ? (parent.node.kind === "block" ? parent.outer : parent.content) : root;
       const children = groups.get(target) ?? new Set<HTMLElement>(); children.add(entry.outer); groups.set(target, children);
     }
     for (const [parent, children] of groups) {
@@ -227,14 +228,15 @@ export class DOMRenderer {
         cursor = child.nextSibling;
       }
     }
+    return root;
   }
   #markKey(run: Run): string {
     const a = run.attributes;
-    return JSON.stringify([...inlineMarks.map(mark => a[mark] === true), safeLink(a.link, this.root.ownerDocument.baseURI), this.#moduleKeys(run, true)]);
+    return JSON.stringify([...inlineMarks.map(mark => a[mark] === true), safeLink(a.link, this.root.ownerDocument.baseURI), this.#moduleKeys(run)]);
   }
-  #moduleKeys(run: Run, identityOnly = false): Json[] {
+  #moduleKeys(run: Run): Json[] {
     return moduleAttributes(run).map(([key, value]) => {
-        try { return [key, identityOnly && Array.isArray(value) ? value[0] ?? null : value, this.#modules?.resolve(key, value, run.text)?.presentation?.tag ?? null]; }
+        try { return [key, Array.isArray(value) ? value[0] ?? null : value, this.#modules?.resolve(key, value, run.text)?.presentation?.tag ?? null]; }
         catch { return [key, value, null]; }
       });
   }
@@ -274,7 +276,9 @@ export class DOMRenderer {
       if (i) { const br = this.root.ownerDocument.createElement("br"); target.append(br); positions.push({ node: br, start: 0, length: 1 }); }
       const text = this.root.ownerDocument.createTextNode(part); target.append(text); positions.push({ node: text, start: 0, length: part.length });
     });
-    return { element, text: run.text, key: this.#markKey(run), contentKey: JSON.stringify(this.#moduleKeys(run)), positions, views };
+    // Keep the run's Text as its boundary when no semantic wrapper or BR
+    // group is needed. Its parent block still owns selection/input mapping.
+    return { element: target === element && positions.length === 1 ? positions[0]!.node as Text : element, text: run.text, key: this.#markKey(run), contentKey: JSON.stringify(moduleAttributes(run)), positions, views };
   }
   #disposeRuns(entry: Entry): void { entry.contentView?.dispose(); delete entry.contentView; for (const run of entry.runs) for (const owned of run.views) owned.view.dispose(); }
   #patchRuns(entry: Entry, runs: readonly Run[], code: boolean): void {
@@ -282,7 +286,7 @@ export class DOMRenderer {
     const desired = runs.length ? runs : [{ text: "", attributes: {} }];
     const old = entry.runs;
     let prefix = 0, suffix = 0;
-    const same = (a: RenderedRun, b: Run) => a.text === b.text && a.key === this.#markKey(b) && a.contentKey === JSON.stringify(this.#moduleKeys(b));
+    const same = (a: RenderedRun, b: Run) => a.text === b.text && a.key === this.#markKey(b) && a.contentKey === JSON.stringify(moduleAttributes(b));
     while (prefix < old.length && prefix < desired.length && same(old[prefix]!, desired[prefix]!)) prefix++;
     while (suffix < old.length - prefix && suffix < desired.length - prefix && same(old[old.length - suffix - 1]!, desired[desired.length - suffix - 1]!)) suffix++;
     const middle: RenderedRun[] = [];
@@ -301,13 +305,13 @@ export class DOMRenderer {
           }
           position.length = part.length;
         });
-        existing.text = run.text; existing.contentKey = JSON.stringify(this.#moduleKeys(run));
+        existing.text = run.text; existing.contentKey = JSON.stringify(moduleAttributes(run));
         for (const owned of existing.views) owned.view.update({ type: owned.key.slice('module:'.length), version: owned.version,
           kind: owned.kind, text: run.text, attributes: (run.attributes[owned.key] as Json[])[1] as Record<string, Json> });
         middle.push(existing);
       } else middle.push(this.#createRun(run, code));
     }
-    const next = [...old.slice(0, prefix), ...middle, ...(suffix ? old.slice(old.length - suffix) : [])];
+    const next = [...old.slice(0, prefix), ...middle, ...old.slice(old.length - suffix)];
     for (const run of old) if (!next.includes(run)) { for (const owned of run.views) owned.view.dispose(); run.element.remove(); }
     let cursor: ChildNode | null = entry.content.firstChild;
     for (const run of next) { if (run.element !== cursor) entry.content.insertBefore(run.element, cursor); cursor = run.element.nextSibling; }
