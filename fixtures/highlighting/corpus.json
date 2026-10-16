@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "backend": "syntect-5.3.0/fancy/two-face-0.5.2+bat-0.26.1/newlines",
+  "cases": [
+    {"id":"rust", "language":"rust", "source":"// café 🦀\nfn main() {\n    let greeting = \"שלום\";\n    /* multi\n       line */ println!(\"{}\", greeting);\n}\n", "expected":[{"text":"fn", "scope":"storage.type"},{"text":"café", "scope":"comment"},{"text":"שלום", "scope":"string"}]},
+    {"id":"typescript", "language":"typescript", "source":"// café 🦀\ninterface Item { value: string; }\nconst label: string = `hello\nשלום`;\nconst count: number = 42;\n", "expected":[{"text":"interface", "scope":"storage.type"},{"text":"café", "scope":"comment"},{"text":"שלום", "scope":"string"},{"text":"42", "scope":"constant.numeric"}]},
+    {"id":"json", "language":"json", "source":"{\r\n  \"message\": \"café 🦀 שלום\",\r\n  \"count\": 42, \"active\": true, \"missing\": null\r\n}", "expected":[{"text":"café", "scope":"string"},{"text":"42", "scope":"constant.numeric"},{"text":"true", "scope":"constant.language"}]}
+  ]
+}

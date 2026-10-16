@@ -1,0 +1,96 @@
+{
+  "backend": "syntect-5.3.0/fancy/two-face-0.5.2+bat-0.26.1/newlines",
+  "grammarBundle": "two-face-0.5.2+bat-0.26.1",
+  "grammarVcs": {
+    "git": {
+      "sha1": "67b64e632ceefe70e5f20f3eb797d9e33560a11c"
+    },
+    "path_in_vcs": ""
+  },
+  "grammars": [
+    {
+      "extensions": [
+        "rs"
+      ],
+      "name": "Rust",
+      "scope": "source.rust"
+    },
+    {
+      "extensions": [
+        "ts",
+        "mts",
+        "cts"
+      ],
+      "name": "TypeScript",
+      "scope": "source.ts"
+    },
+    {
+      "extensions": [
+        "json",
+        "sublime-settings",
+        "sublime-menu",
+        "sublime-keymap",
+        "sublime-mousemap",
+        "sublime-theme",
+        "sublime-build",
+        "sublime-project",
+        "sublime-completions",
+        "sublime-commands",
+        "sublime-macro",
+        "sublime-color-scheme",
+        "ipynb",
+        "Pipfile.lock"
+      ],
+      "name": "JSON",
+      "scope": "source.json"
+    }
+  ],
+  "qualifiedLanguages": [
+    "rust",
+    "typescript",
+    "json"
+  ],
+  "assetInventory": [
+    {
+      "path": "generated/syntaxes-fancy-newlines.bin",
+      "bytes": 959011,
+      "gzip9Bytes": 867613,
+      "sha256": "758bf07782d9d81479db7a0c4651aebf844ef20510ceb5bee08c61158368b0f3"
+    },
+    {
+      "path": "generated/acknowledgements_full.bin",
+      "bytes": 11715,
+      "gzip9Bytes": 10865,
+      "sha256": "e4bf45ad159b67de6a7152874904728adb6421996eb15da01ca75406e6cd51fb"
+    }
+  ],
+  "licenses": "../../licenses/highlighting/acknowledgements.md",
+  "scope": "Full immutable bundled syntax asset is retained; other languages are not exposed. No query files or themes are loaded.",
+  "grammarLicenses": [
+    {
+      "language": "rust",
+      "license": "MIT",
+      "notice": "syntaxes/01_Packages/Rust/LICENSE.txt"
+    },
+    {
+      "language": "typescript",
+      "license": "Apache-2.0",
+      "notice": "syntaxes/02_Extra/TypeScript/LICENSE"
+    },
+    {
+      "language": "json",
+      "license": "Sublime permissive",
+      "notice": "syntaxes/01_Packages/LICENSE"
+    }
+  ],
+  "crateChecksums": {
+    "syntect": {
+      "version": "5.3.0",
+      "sha256": "656b45c05d95a5704399aeef6bd0ddec7b2b3531b7c9e900abbf7c4d2190c925"
+    },
+    "two-face": {
+      "version": "0.5.2+bat-0.26.1",
+      "sha256": "915be7adc2ff6f4338acbf71f3eda0a146f46003b992a1669c674308610efdac"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+[package]
+name = "editac-highlighting"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[features]
+default = []
+probe-wasm = ["dep:wasm-bindgen", "dep:serde_json"]
+
+[dependencies]
+syntect = { version = "=5.3.0", default-features = false, features = ["parsing", "regex-fancy"] }
+two-face = { version = "=0.5.2", default-features = false, features = ["syntect-fancy"] }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.152", optional = true }
+wasm-bindgen = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde_json = "=1.0.152"
+
+[lints]
+workspace = true
