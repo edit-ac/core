@@ -476,3 +476,9 @@ Admission rejects unresolved inconsistency, missing confirmation and decreasing
 counters. The raw first counters are never overwritten; summaries count these
 initial inconsistencies. This protocol still cannot establish cycle-local or
 simultaneous browser-tree peak qualification.
+
+## Table input and accessibility observations
+
+`node scripts/bench-workloads.mjs --table-accessibility --output <unique-directory>` extends the same fixed 16-case PRF-04 corpus. The separately reviewed `table-accessibility-v1.json` policy adds twelve trusted keyboard/mouse/emulated-touch replays per table configuration, full initial/final Chromium AX cell names/values and a fresh persisted reopen. These extra observations run after the existing programmatic replay samples; AX is enabled before navigation for table cases. Their timing includes test orchestration and cannot qualify compositor, screen-reader, physical-touch or tail performance. The default workload command retains its original policy and observations.
+
+Keep failed owning output, even when partial input-only observations pass. `table-accessibility-evidence.json` identifies that output; focused `table-accessibility.test.mjs` checks its pins and detector sensitivity, admits input-only observations separately and rejects incomplete full admission. Passing these contract checks does not turn a failed owning matrix into acceptance. Reopen must use the actual journal, including covered entries; never truncate it, widen restore limits or substitute an exported checkpoint to manufacture success.

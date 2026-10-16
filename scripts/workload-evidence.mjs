@@ -1,6 +1,7 @@
 import { workload, expectedWorkload, canonicalWorkload } from '../benchmarks/workloads.mjs';
 import { presets } from '../benchmarks/presets.mjs';
 import { digest } from './architecture-budgets.mjs';
+import { inspectTableAccessibility, tableInputScope } from './table-workload-accessibility.mjs';
 const require = (value, message) => { if (!value) throw Error(message); };
 const finite = n => Number.isFinite(n) && n >= 0;
 const pin = value => /^[a-f0-9]{64}$/.test(value ?? '');
@@ -11,6 +12,7 @@ export function inspectWorkloadProfile(profile) {
   require(same(profile.limits, { textBytes: { Task: 10240, Long: 1048576 }, bidiBlocks: 8, tableRows: { Task: 16, Long: 128 }, tableColumns: 8, cellUnits: 64, images: { Task: 4, Long: 32 }, imageWidth: 1024, imageHeight: 1024 }), 'Workload size policy drift');
   require(profile.memoryScope === 'CDP Runtime.getHeapUsage without forced GC at explicit replay boundaries; observed JS/backing-storage maxima, not native decoder/process peaks' && profile.inputScope === 'Public atomic commands and programmatic native DOM/control selections; no trusted input/compositor/OS accessibility claim', 'Unsupported measurement scope');
   require(Number.isFinite(Date.parse(profile.reviewedAt)), 'Missing preregistered policy');
+  require(profile.tableInputScope === undefined || profile.tableInputScope === tableInputScope, 'Missing preregistered table input scope');
 }
 export function inspectWorkload(profile, item) {
   inspectWorkloadProfile(profile);
@@ -36,6 +38,7 @@ export function inspectWorkload(profile, item) {
   require(item.dom.images?.length === (item.kind === 'images' ? d.images : 0) && item.dom.imagePolicyCalls === (item.kind === 'images' ? d.images : 0), 'Missing host image admission');
   if (item.kind === 'images') require(item.dom.sourceControls?.length === d.images && item.dom.sourceControls.every((c, i) => c.readOnly && c.value === document.blocks[i].attributes.tuple[2].source), 'Image source control loss');
   if (item.kind === 'images') require(item.dom.images.every(i => i.complete && i.width === d.width && i.height === d.height), 'Incomplete decoded image workload');
+  if (profile.tableInputScope && item.kind === 'table-selection') inspectTableAccessibility(profile, item, document.blocks[0].attributes.tuple[2].rows);
   for (const [index, sample] of item.samples.entries()) {
     require(sample.index === index && sample.semanticRestored === true && finite(sample.selectionLayoutMs) && finite(sample.replayMs) && sample.replayMs >= sample.selectionLayoutMs && sample.frames?.length === 2 && sample.frames.every(finite) && sample.frames[1] >= sample.frames[0], 'Missing/incomparable replay samples');
     require(finite(sample.startTime) && finite(sample.endTime) && sample.endTime >= sample.startTime && Math.abs(sample.endTime - sample.startTime - sample.replayMs) < 0.01, 'Missing raw replay attribution');

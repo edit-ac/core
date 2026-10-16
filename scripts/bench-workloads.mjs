@@ -10,15 +10,17 @@ import { workload, expectedWorkload, canonicalWorkload } from '../benchmarks/wor
 import { presets } from '../benchmarks/presets.mjs';
 import { digest } from './architecture-budgets.mjs';
 import { inspectWorkloads, inspectWorkload } from './workload-evidence.mjs';
+import { replayTableInput } from './table-workload-accessibility.mjs';
 import { requireTestNode } from './test-toolchain.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url)); process.chdir(root); await requireTestNode();
 const args = process.argv.slice(2);
+const tableAccessibility = args[0] === '--table-accessibility'; if (tableAccessibility) args.shift();
 if (args.length !== 2 || args[0] !== '--output') throw Error('Expected --output <unique directory>');
 const output = resolve(root, args[1]);
 if (!relative(root, output) || relative(root, output).startsWith('..')) throw Error('Retain output inside repository');
 await mkdir(output, { recursive: false });
-const profilePath = 'benchmarks/profiles/workloads-v1.json', profileBytes = await readFile(profilePath), profile = JSON.parse(profileBytes);
+const profilePath = tableAccessibility ? 'benchmarks/profiles/table-accessibility-v1.json' : 'benchmarks/profiles/workloads-v1.json', profileBytes = await readFile(profilePath), profile = JSON.parse(profileBytes);
 const record = { version: 1, qualification: 'unqualified', profileHash: digest(profileBytes),
   metadata: { startedAt: new Date().toISOString(), command: [process.execPath, ...process.argv.slice(1)],
     revision: spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout.trim(),
@@ -28,7 +30,7 @@ const record = { version: 1, qualification: 'unqualified', profileHash: digest(p
 const tracked = spawnSync('git', ['ls-files', 'crates', 'packages', 'fixtures/schema-v5', 'Cargo.lock', 'Cargo.toml', 'package-lock.json', 'package.json', 'scripts/build-wasm.mjs'], { encoding: 'utf8' });
 if (tracked.status !== 0) throw Error('Cannot pin source closure');
 const inputs = [...new Set([...tracked.stdout.trim().split('\n'), profilePath, 'benchmarks/workload-client.mjs', 'benchmarks/workloads.mjs', 'benchmarks/workload-image.png',
-  'benchmarks/fixtures.mjs', 'benchmarks/presets.mjs', 'scripts/workload-evidence.mjs', 'scripts/bench-workloads.mjs'])];
+  'benchmarks/fixtures.mjs', 'benchmarks/presets.mjs', 'scripts/workload-evidence.mjs', 'scripts/table-workload-accessibility.mjs', 'scripts/bench-workloads.mjs'])];
 for (const file of inputs) record.sourceInputs[file] = digest(await readFile(file));
 const temporary = await mkdtemp(join(tmpdir(), 'editac-prf04-'));
 let browser, controller, server, interrupted = false;
@@ -71,7 +73,7 @@ try {
     for (const preset of profile.presets) {
       if (interrupted) throw Error('Workload run interrupted');
       console.log(`${scale}/${kind}/${preset} → ${output}`);
-      const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, serviceWorkers: 'block' });
+      const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, serviceWorkers: 'block', hasTouch: tableAccessibility });
       const item = { scale, kind, preset, features: [...presets[preset].featureSet, ...(kind === 'images' || kind === 'table-selection' ? ['content-modules'] : [])], fixtureHash, samples: [] };
       record.cases.push(item);
       try {
@@ -81,12 +83,20 @@ try {
         await context.route('**/*', route => { const url = new URL(route.request().url()); item.requests.push({ pathname: url.pathname, sameOrigin: url.origin === new URL(server.url).origin }); return url.origin === new URL(server.url).origin ? route.continue() : route.abort(); });
         const cdp = await context.newCDPSession(page);
         await page.exposeFunction('workloadHeap', () => cdp.send('Runtime.getHeapUsage'));
+        if (tableAccessibility && kind === 'table-selection') {
+          await cdp.send('Accessibility.enable');
+          await page.exposeFunction('workloadTableInput', index => replayTableInput(page, cdp, profile, scale, index));
+        }
         await page.goto(server.url);
         await page.addScriptTag({ type: 'module', content: 'import * as workloads from "/fixture/workload-client.mjs"; window.workloads=workloads;' });
         await page.waitForFunction(() => !!window.workloads);
         item.checkpointHash = checkpointHash;
         const raw = await page.evaluate(({ profile, scale, kind, preset, frozen }) => window.workloads.run(profile, scale, kind, preset, frozen), { profile, scale, kind, preset, frozen });
         Object.assign(item, raw); item.semanticHash = digest(raw.initialSemantics ?? 'missing'); item.finalSemanticHash = digest(raw.finalSemantics ?? 'missing');
+        if (item.tableAccessibility) {
+          item.tableAccessibility.reopenHash = digest(item.tableAccessibility.reopenSemantics ?? 'missing');
+          delete item.tableAccessibility.reopenSemantics;
+        }
         item.expectedSemanticHash = digest(canonicalWorkload(expectedWorkload(document))); delete item.initialSemantics; delete item.finalSemantics;
         if (raw.failure) record.errors.push(`${scale}/${kind}/${preset}: ${raw.failure}`);
         record.counts.executed++; record.counts.skipped--;

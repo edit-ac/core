@@ -49,3 +49,15 @@ test('image source has keyboard selection and literal copy without asset mutatio
 test('empty-cell editing preserves the rectangle; multiline input restores committed data',()=>probe('empty-multiline',async(page,fact)=>{
  await cell(page).fill('');let s=await state(page,fact);assert.equal(table(s).blockAttributes[2].rows[1][0][0][0],'');const before=s;await cell(page).fill('unsupported\nrow');s=await state(page,fact);assert.deepEqual(s.nodes,before.nodes);assert.equal(await cell(page).inputValue(),'');assert.match(await page.locator('[data-content-module="table"] [role="status"]').textContent(),/rejected/);await page.evaluate(()=>window.inputFixture.reopen());assert.equal(await cell(page).inputValue(),'');
 }));
+
+test('registered content status mutations do not exhaust native reconciliation or freeze table input',()=>probe('owned-status',async(page,fact)=>{
+ const before=await state(page,fact);
+ await page.evaluate(()=>{const status=document.querySelector('[data-content-module="table"] [role="status"]');const fragment=document.createDocumentFragment();for(let i=0;i<2100;i++){const span=document.createElement('span');span.textContent='adapter status';fragment.append(span);}status.replaceChildren(fragment);});
+ const unchanged=await state(page,fact);assert.deepEqual(unchanged.nodes,before.nodes);assert(unchanged.inputs.filter(i=>i.value!=='').some(i=>!i.readOnly));assert.equal(await cell(page).isEditable(),true);
+ await cell(page).fill('owned status still editable');const after=await state(page,fact);assert.equal(table(after).blockAttributes[2].rows[1][0][0][0],'owned status still editable');
+}));
+test('authored module attributes outside a registered content view cannot bypass native recovery',()=>probe('unowned-status',async(page,fact)=>{
+ const before=await state(page,fact);
+ await page.evaluate(()=>{const fake=document.createElement('section');fake.dataset.contentModule='table';fake.dataset.moduleView='true';for(let i=0;i<2100;i++)fake.append(document.createElement('span'));document.querySelector('#projection').append(fake);});
+ const after=await state(page,fact);assert.deepEqual(after.nodes,before.nodes);assert.equal(await cell(page).isEditable(),false);assert.equal(await page.locator('#projection').getAttribute('contenteditable'),'false');
+}));

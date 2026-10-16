@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "id": "workloads-v1",
+  "parent": "FIT-1.8-I1-B",
+  "case": "PRF-04",
+  "scope": "FIT-1.8-I1-B7 additive full PRF-04 corpus table keyboard/mouse/emulated-touch/AX diagnostic and persisted reopen; no full accessibility/performance qualification",
+  "scales": [
+    "Task",
+    "Long"
+  ],
+  "presets": [
+    "baseline",
+    "task"
+  ],
+  "workloads": [
+    "long-line",
+    "bidi",
+    "table-selection",
+    "images"
+  ],
+  "samples": 12,
+  "limits": {
+    "textBytes": {
+      "Task": 10240,
+      "Long": 1048576
+    },
+    "bidiBlocks": 8,
+    "tableRows": {
+      "Task": 16,
+      "Long": 128
+    },
+    "tableColumns": 8,
+    "cellUnits": 64,
+    "images": {
+      "Task": 4,
+      "Long": 32
+    },
+    "imageWidth": 1024,
+    "imageHeight": 1024
+  },
+  "performanceLimits": null,
+  "reviewedAt": "2026-10-16T00:21:27.639360+00:00",
+  "sourceRequirement": "architecture/tests/desktop-editing-cases.md#PRF-04",
+  "owningCommand": "node scripts/bench-workloads.mjs --table-accessibility --output <unique-directory>",
+  "limitStatus": "Exact diagnostic workload sizes fixed before measurement; existing fitness-v1 budgets preserved; latency/memory release thresholds unreviewed",
+  "memoryScope": "CDP Runtime.getHeapUsage without forced GC at explicit replay boundaries; observed JS/backing-storage maxima, not native decoder/process peaks",
+  "inputScope": "Public atomic commands and programmatic native DOM/control selections; no trusted input/compositor/OS accessibility claim",
+  "contentLayout": "Public fragment insertion retains two empty editable boundary blocks around opaque content; these are included in every full semantic oracle",
+  "frameScope": "Two animation callbacks can share one refresh timestamp; retain duplicates; compositor and distinct-frame qualification unobserved",
+  "seedMethod": "Long logical line: constructor chunks <=131072 UTF-16 units split only at scalar boundaries, then public joins; bidi: constructor whole blocks; modules: public fragment with canonical fallback",
+  "warmupPolicy": "WASM initialized before each mount timer; twelve sequential replays, no discarded warmup samples",
+  "seedContext": "Isolated preparation context closed before both fresh preset contexts",
+  "semanticPolicy": "Preserve exact text, attributes, arrays and all distinct mark boundaries; canonical object keys and merge only adjacent runs with identical complete mark maps; retain raw initial run segments",
+  "tableInputScope": "Chromium trusted keyboard/mouse and emulated touch; complete browser AX cell names/values; no screen-reader/device/compositor qualification",
+  "tableInputPolicy": "Separate post-replay twelve-sample trusted input observations; full initial/final AX coverage with AX enabled before navigation; actual semantic edit/restore and fresh persisted reopen. Existing programmatic timing samples and limits unchanged."
+}

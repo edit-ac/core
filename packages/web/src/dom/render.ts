@@ -195,7 +195,13 @@ export class DOMRenderer {
         const view = this.#options.content({ element: entry.content, node, engine: this.#engine,
           commit: this.#options.commit ?? (request => this.#engine.commit(this.#engine.prepare(request))),
           readOnly: this.root.contentEditable === 'false' });
-        if (view) { this.#disposeRuns(entry); entry.runs = []; entry.content.replaceChildren(view.element); entry.contentView = view; }
+        if (view) {
+          this.#disposeRuns(entry); entry.runs = [];
+          // Registered content views own their asynchronous status/preview DOM,
+          // just like inline module views. It is never native source text.
+          this.#moduleDecorations.add(view.element);
+          entry.content.replaceChildren(view.element); entry.contentView = view;
+        }
       }
       entry.contentDescriptorKey = descriptorKey;
       if (entry.contentView) { entry.content.contentEditable = 'false'; return; }

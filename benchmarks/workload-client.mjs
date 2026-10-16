@@ -95,7 +95,29 @@ export async function run(profile, scale, kind, preset, frozen) {
       check(semantics(editor) === expected, 'Replay mutated/truncated full workload'); sample.semanticRestored = true;
       raw.samples.push(sample); await heap(`sample-${index}`);
     }
+    if (profile.tableInputScope && kind === 'table-selection') {
+      raw.tableAccessibility = { scope: profile.tableInputScope, samples: [] };
+      window.__tableCommittedCell = at => editor.read().visible.find(n => n.id === first.id).blockAttributes[2].rows[Math.floor(at / document.dimensions.columns)][at % document.dimensions.columns][0][0];
+      try {
+        for (let index = 0; index < profile.samples; index++) {
+          const sample = await window.workloadTableInput(index);
+          raw.tableAccessibility.samples.push(sample);
+          check(!sample.failure, 'Trusted table input failed: ' + JSON.stringify(sample.failure));
+          check(semantics(editor) === expected, 'Trusted input changed full table semantics');
+          sample.semanticRestored = true;
+        }
+      } finally { delete window.__tableCommittedCell; }
+    }
     await editor.flush({ target: 'local' }); raw.finalSemantics = semantics(editor); raw.correctness = 'observed';
+    if (profile.tableInputScope && kind === 'table-selection') {
+      const closed = await editor.destroy({ policy: 'flush' });
+      check(!closed.unsaved && views === 0, 'Pre-reopen table leaked unsaved state/views');
+      editor = createEditor(root, { databaseName, identity: frozen.identity, indexedDB, locks: navigator.locks, assetUrl: '/fixture/wasm/editac_wasm_bg.wasm', content, ...presetOptions(preset, { taskPreset }) });
+      await editor.ready;
+      raw.tableAccessibility.reopenSemantics = semantics(editor);
+      check(raw.tableAccessibility.reopenSemantics === expected, 'Trusted table edits failed exact persisted reopen');
+      raw.tableAccessibility.reopened = true;
+    }
     raw.memoryScope = profile.memoryScope; raw.inputScope = profile.inputScope;
     await new Promise(resolve => setTimeout(resolve, 30));
     raw.longTasks.push(...observer.takeRecords().map(e => ({ startTime: e.startTime, duration: e.duration })));

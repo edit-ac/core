@@ -296,6 +296,7 @@
         "tests/architecture/budgets/trace.test.mjs",
         "tests/architecture/budgets/services.test.mjs",
         "tests/architecture/budgets/workloads.test.mjs",
+        "tests/architecture/budgets/table-accessibility.test.mjs",
         "tests/architecture/budgets/lifecycle.test.mjs",
         "tests/architecture/budgets/loading.test.mjs",
         "tests/architecture/budgets/rendering.test.mjs",
@@ -355,6 +356,10 @@
         "scripts/workload-evidence.mjs",
         "scripts/bench-workloads.mjs",
         "tests/architecture/budgets/workloads.test.mjs",
+        "scripts/table-workload-accessibility.mjs",
+        "benchmarks/profiles/table-accessibility-v1.json",
+        "benchmarks/profiles/table-accessibility-evidence.json",
+        "tests/architecture/budgets/table-accessibility.test.mjs",
         "benchmarks/profiles/lifecycle-v1.json",
         "benchmarks/profiles/lifecycle-evidence.json",
         "benchmarks/lifecycle-client.mjs",
@@ -385,7 +390,8 @@
         "workloads-inventory.json",
         "lifecycle-inventory.json",
         "loading-inventory.json",
-        "native-input-inventory.json"
+        "native-input-inventory.json",
+        "table-accessibility-inventory.json"
       ]
     },
     "diagnostics": {
