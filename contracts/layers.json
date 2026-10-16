@@ -300,7 +300,8 @@
         "tests/architecture/budgets/lifecycle.test.mjs",
         "tests/architecture/budgets/loading.test.mjs",
         "tests/architecture/budgets/rendering.test.mjs",
-        "tests/architecture/budgets/native-input.test.mjs"
+        "tests/architecture/budgets/native-input.test.mjs",
+        "tests/architecture/budgets/optional-loading.test.mjs"
       ],
       "inputs": [
         "scripts/architecture-budgets.mjs",
@@ -381,7 +382,9 @@
         "scripts/prepare-native-workloads.mjs",
         "native/ios/fitness/NativeFitness.swift",
         "native/ios/fitness/NativeFitnessUITests.swift",
-        "tests/native/ios-fitness.py"
+        "tests/native/ios-fitness.py",
+        "scripts/optional-loading-evidence.mjs",
+        "benchmarks/profiles/optional-loading-evidence.json"
       ],
       "artifacts": [
         "budgets-inventory.json",
@@ -391,7 +394,8 @@
         "lifecycle-inventory.json",
         "loading-inventory.json",
         "native-input-inventory.json",
-        "table-accessibility-inventory.json"
+        "table-accessibility-inventory.json",
+        "optional-loading-inventory.json"
       ]
     },
     "diagnostics": {

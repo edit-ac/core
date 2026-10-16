@@ -143,7 +143,7 @@ for (const [name, mutate] of [
   ['truncated size', r => r.cases.find(c => c.measured).chars--],
 ]) test(`actual-baseline admission rejects ${name}`, () => { const r = clone(result); mutate(r); assert.throws(() => inspectBaseline(profile, r)); });
 
-test('optional loading consumes the existing pinned artifact/cap proof without a new measurement harness', async () => {
+test('historical optional loading costs retain their original exact-artifact scope', async () => {
   const loadingRoot = resolve(root, index.optionalLoading.directory);
   await verifyPins(loadingRoot, index.optionalLoading.pins);
   const receipt = JSON.parse(await readFile(resolve(loadingRoot, 'receipt.json')));
@@ -160,7 +160,7 @@ test('optional loading consumes the existing pinned artifact/cap proof without a
   assert.equal(incremental.total, inventory.profiles.markdown.result.total.incrementalBytes);
   assert.equal(incremental.js, inventory.profiles.markdown.result.js.incrementalBytes);
   assert.equal(baseline.total.preferredPass, false); assert.equal(baseline.js.preferredPass, false);
-  evidence.optionalLoading = { scope: index.optionalLoading.scope, baseline, enabled, incremental,
+  evidence.historicalOptionalLoading = { scope: index.optionalLoading.scope, baseline, enabled, incremental,
     remaining: 'Optional enabled-runtime/target-platform costs remain unqualified; PRF-06 cold/warm packed observations are admitted by loading.test.mjs' };
 });
 

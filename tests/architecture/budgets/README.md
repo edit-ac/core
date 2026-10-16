@@ -499,3 +499,14 @@ simultaneous browser-tree peak qualification.
 Keep failed owning output, even when partial input-only observations pass. `table-accessibility-evidence.json` identifies that output; focused `table-accessibility.test.mjs` checks its pins and detector sensitivity, admits input-only observations separately and rejects incomplete full admission. Passing these contract checks does not turn a failed owning matrix into acceptance. Reopen must use the actual journal, including covered entries; never truncate it, widen restore limits or substitute an exported checkpoint to manufacture success.
 
 Both PRF-04 workload producers validate the reviewed fitness/config/verification policy before measurement and retain its exact bytes. Admission requires the complete current source closure, retained raw/fixture/runtime identities and an SDK rebuild matching the executed bundle. Policy negatives reject absent, stale, mismatched or post-measurement policy evidence. Full current observations remain diagnostics with `performanceLimits:null`; trusted browser input and Chromium AX are separate from screen-reader/compositor qualification.
+
+The optional-loading input now requires `benchmarks/profiles/optional-loading-evidence.json`.
+Produce it with `EDITAC_OPTIONAL_LOADING_OUTPUT=/absolute/new/directory node scripts/optional-loading-evidence.mjs`.
+This orchestrates the existing FIT-1.6 packed-size and three-browser runtime checks,
+retains original policy/source/command/artifact identities, and admits current dist
+bytes against both exact packed profiles. The default excludes Markdown fetches;
+the enabled profile executes the parser. CSS is counted by the existing gzip
+harness; the browser behavior fixture exercises JS/WASM. Report default, enabled
+and incremental costs separately. Historical FIT-1.6 costs remain historical;
+these byte/behavior inputs do not qualify optional latency, memory, highlighter
+or target-platform performance. No second size or runtime harness is introduced.
