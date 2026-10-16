@@ -11,9 +11,8 @@ pub(crate) fn project(d: &Doc, stable: bool) -> v3::Result<v3::View> {
     }
     Ok(ownership_view(view(d, stable)?))
 }
-fn ownership_view(view: v4::View) -> v3::View {
-    let inherited = view
-        .retained
+fn inherited_owners(view: &v4::View) -> std::collections::BTreeMap<String, String> {
+    view.retained
         .iter()
         .filter_map(|(id, value)| {
             let Any::Array(a) = value else { return None };
@@ -26,7 +25,10 @@ fn ownership_view(view: v4::View) -> v3::View {
             }
             None
         })
-        .collect();
+        .collect()
+}
+fn ownership_view(view: v4::View) -> v3::View {
+    let inherited = inherited_owners(&view);
     v3::View {
         owners: view
             .owners
@@ -53,6 +55,35 @@ fn ownership_view(view: v4::View) -> v3::View {
         inherited,
     }
 }
+// Projection retains its structural view; copy only fields used by ownership.
+fn borrowed_ownership_view(view: &v4::View) -> v3::View {
+    let inherited = inherited_owners(view);
+    v3::View {
+        owners: view
+            .owners
+            .iter()
+            .map(|o| v3::Owner {
+                id: o.id.clone(),
+                version: o.version.clone(),
+                spans: o
+                    .spans
+                    .iter()
+                    .map(|s| v3::Span {
+                        source: s.source.clone(),
+                        start: s.start,
+                        end: s.end,
+                    })
+                    .collect(),
+                deleted: o.deleted,
+                attrs: o.attrs.clone(),
+            })
+            .collect(),
+        outcomes: view.outcomes.clone(),
+        retained: view.retained.clone(),
+        sources: view.sources.clone(),
+        inherited,
+    }
+}
 /// One qualified replay supplies all projection representations. No writes can
 /// occur between replay and serialization: the caller holds an immutable Doc.
 pub(crate) fn projection(d: &Doc, stable: bool) -> v3::Result<(v3::View, Any, Option<v4::View>)> {
@@ -61,14 +92,14 @@ pub(crate) fn projection(d: &Doc, stable: bool) -> v3::Result<(v3::View, Any, Op
     }
     let (view, retained) = if stable {
         let view = v5::project(d)?;
-        let retained = v5::snapshot_from_view(d, view.clone())?;
+        let retained = v5::snapshot_from_borrowed_view(d, &view)?;
         (stable_view(view), retained)
     } else {
         let view = v4::project(d)?;
         let retained = v4::snapshot_from_view(d, view.clone())?;
         (view, retained)
     };
-    Ok((ownership_view(view.clone()), retained, Some(view)))
+    Ok((borrowed_ownership_view(&view), retained, Some(view)))
 }
 #[cfg(test)]
 fn snapshot(d: &Doc, stable: bool) -> v3::Result<Any> {

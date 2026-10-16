@@ -836,16 +836,35 @@ pub fn snapshot(d: &Doc) -> Result<Any> {
 }
 /// Serialize a view already qualified by `project` on this unchanged replica.
 pub(crate) fn snapshot_from_view(d: &Doc, v: View) -> Result<Any> {
+    snapshot_parts(d, &v.owners, v.outcomes, v.retained, v.sources)
+}
+/// Retain the admitted view for projection without copying its owner graph.
+pub(crate) fn snapshot_from_borrowed_view(d: &Doc, v: &View) -> Result<Any> {
+    snapshot_parts(
+        d,
+        &v.owners,
+        v.outcomes.clone(),
+        v.retained.clone(),
+        v.sources.clone(),
+    )
+}
+fn snapshot_parts(
+    d: &Doc,
+    owners: &[Owner],
+    outcomes: BTreeMap<String, String>,
+    retained: BTreeMap<String, Any>,
+    sources: BTreeMap<String, Any>,
+) -> Result<Any> {
     let t = d.transact();
     let mut visible = vec![];
     let mut deleted = vec![];
     // Replay already guarantees unique owner IDs. Index parents once instead of
     // scanning the complete document twice for every serialized owner. Ordinals
     // follow the replay's owner order, including interleaved nested containers.
-    let parents: BTreeMap<_, _> = v.owners.iter().map(|o| (o.id.as_str(), o)).collect();
+    let parents: BTreeMap<_, _> = owners.iter().map(|o| (o.id.as_str(), o)).collect();
     let mut ordinals: BTreeMap<&str, u32> = BTreeMap::new();
     let mut checks = None;
-    for o in &v.owners {
+    for o in owners {
         let mut runs = vec![];
         let spans = o
             .spans
@@ -944,7 +963,7 @@ pub(crate) fn snapshot_from_view(d: &Doc, v: View) -> Result<Any> {
         (
             "outcomes",
             Any::Map(
-                v.outcomes
+                outcomes
                     .into_iter()
                     .map(|(k, v)| (k, Any::from(v)))
                     .collect::<HashMap<_, _>>()
@@ -953,11 +972,11 @@ pub(crate) fn snapshot_from_view(d: &Doc, v: View) -> Result<Any> {
         ),
         (
             "retained",
-            Any::Map(v.retained.into_iter().collect::<HashMap<_, _>>().into()),
+            Any::Map(retained.into_iter().collect::<HashMap<_, _>>().into()),
         ),
         (
             "sources",
-            Any::Map(v.sources.into_iter().collect::<HashMap<_, _>>().into()),
+            Any::Map(sources.into_iter().collect::<HashMap<_, _>>().into()),
         ),
     ]))
 }
