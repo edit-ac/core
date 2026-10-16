@@ -16,7 +16,7 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 CORE = ROOT.parents[1]
 SUITES = {
-    "clipboard-transport": ("EditacMacOSClipboardTransportTests.ClipboardTransportTests", 21),
+    "clipboard-transport": ("EditacMacOSClipboardTransportTests.ClipboardTransportTests", 23),
     "extensions": ("EditacMacOSExtensionsTests.ExtensionsTests", 26),
     "collaboration": ("EditacMacOSCollaborationTests.CollaborationTests", 16),
     "collaboration-lifecycle": ("EditacMacOSCollaborationLifecycleTests.CollaborationLifecycleTests", 13),

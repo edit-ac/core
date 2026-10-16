@@ -82,17 +82,37 @@ final class ClipboardTransportTests: XCTestCase {
         }
     }
     func testLiteralModeExcludesEveryRichCandidate() throws {
-        let offer = try NativeClipboardOffer([.fragment: Data("{}".utf8), .html: Data("<b>x</b>".utf8), .plain: Data("x".utf8)])
+        let offer = try NativeClipboardOffer([.fragment: Data("{}".utf8), .markdown: Data("**x**".utf8), .html: Data("<b>x</b>".utf8), .plain: Data("x".utf8)])
         XCTAssertEqual(offer.candidates(literal: true), [.plain])
-        XCTAssertEqual(offer.candidates(literal: false), [.fragment, .html, .plain])
+        XCTAssertEqual(offer.candidates(literal: false), [.fragment, .markdown, .html, .plain])
+        XCTAssertEqual(NativeClipboardFlavor.fragment.mimeType, "application/x-edit-ac-fragment+json")
+        XCTAssertEqual(NativeClipboardFlavor.extensionOffer.mimeType, "application/x-edit-ac-extension+json")
     }
-    func testOversizeAggregateRejectsBeforeClipboardReplacement() throws {
+    func testOversizeFlavorRejectsBeforeClipboardReplacement() throws {
         try board { board in
             let original = try NativeClipboardTransport.publish(offer("preserve"), to: board)
-            XCTAssertThrowsError(try NativeClipboardOffer([.plain: Data(repeating: 65, count: 524_289), .html: Data(repeating: 66, count: 524_288)])) {
+            XCTAssertThrowsError(try NativeClipboardOffer([.plain: Data(repeating: 65, count: 1_048_577)])) {
                 XCTAssertEqual($0 as? NativeClipboardFailure, .oversized)
             }
             XCTAssertTrue(original.isCurrent(on: board))
+        }
+    }
+    func testIndependentFlavorLimitsRetainCompleteRichAndLiteralBytes() throws {
+        try board { board in
+            let bytes = Data(repeating: 65, count: NativeClipboardOffer.maximumFlavorBytes)
+            let payload = try NativeClipboardOffer([.html: bytes, .plain: bytes])
+            _ = try NativeClipboardTransport.publish(payload, to: board)
+            XCTAssertEqual(try NativeClipboardTransport.read(from: board), payload)
+        }
+    }
+    func testOversizeIncomingOSFlavorIsDiagnosed() throws {
+        try board { board in
+            let item = NSPasteboardItem()
+            item.setData(Data(repeating: 65, count: NativeClipboardOffer.maximumFlavorBytes + 1), forType: .string)
+            XCTAssertTrue(board.writeObjects([item]))
+            XCTAssertThrowsError(try NativeClipboardTransport.read(from: board)) {
+                XCTAssertEqual($0 as? NativeClipboardFailure, .oversized)
+            }
         }
     }
     func testInvalidUTF8DiagnosedWithoutReplacingClipboard() throws {

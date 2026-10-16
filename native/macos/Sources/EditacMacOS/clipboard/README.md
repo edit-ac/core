@@ -1,9 +1,11 @@
 # Native clipboard transport prerequisite
 
 `NativeClipboardTransport` transports owned bytes through AppKit pasteboards.
-It recognizes the portable fragment and extension MIME identifiers plus native
-HTML, RTF, Markdown and UTF-8 plain-text types. The 1 MiB aggregate bound and UTF-8
-checks apply before publishing; all required flavors are staged and read back
+It maps the portable fragment and extension MIME identifiers to valid native
+UTIs (`ac.editac.fragment-json` and `ac.editac.extension-transfer-json`) alongside
+HTML, RTF, Markdown and UTF-8 plain-text types. MIME strings are not native UTIs.
+The shared 1 MiB per-flavor bound and UTF-8 checks apply before publishing; at
+most six known flavors occupy 6 MiB total. All flavors are staged and read back
 before an OS publication acknowledgement is returned. Replacing the pasteboard
 invalidates that acknowledgement. Multiple items and unavailable/failed provider
 data fail explicitly instead of silently discarding content. Tests use isolated

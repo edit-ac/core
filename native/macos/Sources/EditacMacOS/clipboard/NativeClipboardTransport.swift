@@ -3,14 +3,24 @@ import AppKit
 /// Transport identifiers only. Rust's transfer owner validates the contents;
 /// declaring a pasteboard type never grants schema or session authority.
 public enum NativeClipboardFlavor: String, CaseIterable, Sendable {
-    case fragment = "application/x-edit-ac-fragment+json"
-    case extensionOffer = "application/x-edit-ac-extension+json"
+    case fragment = "ac.editac.fragment-json"
+    case extensionOffer = "ac.editac.extension-transfer-json"
     case markdown = "net.daringfireball.markdown"
     case html = "public.html"
     case rtf = "public.rtf"
     case plain = "public.utf8-plain-text"
 
     public var pasteboardType: NSPasteboard.PasteboardType { .init(rawValue) }
+    public var mimeType: String {
+        switch self {
+        case .fragment: return "application/x-edit-ac-fragment+json"
+        case .extensionOffer: return "application/x-edit-ac-extension+json"
+        case .markdown: return "text/markdown"
+        case .html: return "text/html"
+        case .rtf: return "text/rtf"
+        case .plain: return "text/plain"
+        }
+    }
 }
 
 public enum NativeClipboardFailure: Error, Equatable, Sendable {
@@ -23,14 +33,16 @@ public enum NativeClipboardFailure: Error, Equatable, Sendable {
 /// Owned bytes, independent of a source control, session, or lazy host codec.
 /// This is an untrusted transport envelope, not an admitted engine fragment.
 public struct NativeClipboardOffer: Sendable, Equatable {
-    public static let maximumBytes = 1_048_576
+    public static let maximumFlavorBytes = 1_048_576
+    public static let maximumBytes = maximumFlavorBytes * NativeClipboardFlavor.allCases.count
     public let values: [NativeClipboardFlavor: Data]
 
     public init(_ values: [NativeClipboardFlavor: Data]) throws {
         guard !values.isEmpty else { throw NativeClipboardFailure.emptyOffer }
         var total = 0
         for (flavor, bytes) in values {
-            guard bytes.count <= Self.maximumBytes - total else { throw NativeClipboardFailure.oversized }
+            guard bytes.count <= Self.maximumFlavorBytes,
+                  bytes.count <= Self.maximumBytes - total else { throw NativeClipboardFailure.oversized }
             total += bytes.count
             if flavor != .rtf && String(data: bytes, encoding: .utf8) == nil {
                 throw NativeClipboardFailure.invalidUTF8(flavor)
@@ -113,7 +125,8 @@ public enum NativeClipboardTransport {
             guard let bytes = items[0].data(forType: flavor.pasteboardType) else {
                 throw NativeClipboardFailure.providerFailed
             }
-            guard bytes.count <= NativeClipboardOffer.maximumBytes - total else { throw NativeClipboardFailure.oversized }
+            guard bytes.count <= NativeClipboardOffer.maximumFlavorBytes,
+                  bytes.count <= NativeClipboardOffer.maximumBytes - total else { throw NativeClipboardFailure.oversized }
             total += bytes.count; values[flavor] = bytes
         }
         guard board.changeCount == generation else { throw NativeClipboardFailure.changedDuringRead }
