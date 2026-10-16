@@ -187,7 +187,7 @@ function invoke<T>(operation: string, action: () => T): T {
   }
 }
 /** Avoid JSON.stringify's coercion of NaN, bigint, undefined, custom toJSON and sparse arrays. */
-function encode(value: unknown, operation: string, ownedByteArrays?: WeakSet<object>): string {
+function encode(value: unknown, operation: string): string {
   let count = 0;
   const seen = new Set<object>();
   const visit = (v: unknown, depth: number): void => {
@@ -197,9 +197,6 @@ function encode(value: unknown, operation: string, ownedByteArrays?: WeakSet<obj
     if (typeof v !== "object" || seen.has(v)) throw new EngineError("InvalidInput", operation, "request must contain plain JSON values");
     const proto = Object.getPrototypeOf(v);
     if ((Array.isArray(v) && proto !== Array.prototype) || (!Array.isArray(v) && proto !== Object.prototype && proto !== null)) throw new EngineError("InvalidInput", operation, "request must contain plain objects");
-    // Replay bytes are copied and bounded before conversion. Their numeric
-    // elements are payload, not caller-supplied JSON metadata structure.
-    if (Array.isArray(v) && ownedByteArrays?.has(v)) return;
     seen.add(v);
     if (Array.isArray(v)) {
       if (v.length > 100_000 || Object.keys(v).length !== v.length) throw new EngineError("InvalidInput", operation, "sparse or decorated array");
@@ -250,22 +247,25 @@ export function restoreHandle(construct: (json: string, bytes: Uint8Array) => Ra
     if (!Array.isArray(journal) || Object.getPrototypeOf(journal) !== Array.prototype || Reflect.ownKeys(journal).length !== journal.length + 1 || journal.length > 4096) throw new EngineError("ResourceLimit", "restore", "invalid journal bounds");
     // Inspect descriptors before reading any journal element.
     const descriptors = Object.getOwnPropertyDescriptors(journal);
-    const ownedByteArrays = new WeakSet<object>();
-    let journalBytes = 0;
+    let totalBytes = checkpointBytes.byteLength;
     const entries = Array.from({length:journal.length}, (_, i) => {
       const d = descriptors[String(i)];
       if (!d || !("value" in d)) throw new EngineError("InvalidInput", "restore", "invalid journal entry");
       const u = envelope(d.value, ["identity", "bytes"], "restore");
       const copied = bytes(u.bytes, "restore");
-      journalBytes += copied.byteLength;
-      // The existing Rust request boundary is 2 MiB. Raw payload alone above
-      // it cannot fit its JSON envelope; reject before expanding byte arrays.
-      if (journalBytes > 2 * 1024 * 1024) throw new EngineError("ResourceLimit", "restore", "journal exceeds request byte limit");
-      const payload = Array.from(copied);
-      ownedByteArrays.add(payload);
-      return {identity:u.identity, bytes:payload};
+      totalBytes += copied.byteLength;
+      if (totalBytes > MAX_BYTES) throw new EngineError("ResourceLimit", "restore", "checkpoint and journal exceed byte limit");
+      return {identity:u.identity, bytes:copied};
     });
-    return ownHandle(construct(encode({expected, identity:c.identity, initialized:c.initialized, writerId:c.writerId, journal:entries}, "restore", ownedByteArrays), checkpointBytes));
+    if (!entries.length) return ownHandle(construct(encode({expected, identity:c.identity, initialized:c.initialized, writerId:c.writerId, journal:[]}, "restore"), checkpointBytes));
+    const metadata = encode({expected, identity:c.identity, initialized:c.initialized, writerId:c.writerId,
+      journal:[], checkpointBytes:checkpointBytes.byteLength,
+      binaryJournal:entries.map(u => ({identity:u.identity, byteLength:u.bytes.byteLength}))}, "restore");
+    const payload = new Uint8Array(totalBytes);
+    payload.set(checkpointBytes);
+    let offset = checkpointBytes.byteLength;
+    for (const entry of entries) { payload.set(entry.bytes, offset); offset += entry.bytes.byteLength; }
+    return ownHandle(construct(metadata, payload));
   });
 }
 function ownHandle(allocation: RawEngine): EngineHandle {

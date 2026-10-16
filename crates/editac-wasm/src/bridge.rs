@@ -66,6 +66,16 @@ struct Restore {
     initialized: bool,
     writer_id: u32,
     journal: Vec<WireUpdate>,
+    #[serde(default)]
+    checkpoint_bytes: Option<usize>,
+    #[serde(default)]
+    binary_journal: Option<Vec<BinaryUpdate>>,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+struct BinaryUpdate {
+    identity: Identity,
+    byte_length: usize,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -241,20 +251,62 @@ impl Bridge {
             ));
         }
         let expected = r.expected.admitted_v5("restore")?;
+        let (checkpoint_bytes, journal) = match (r.checkpoint_bytes, r.binary_journal) {
+            (None, None) => (
+                bytes,
+                r.journal
+                    .into_iter()
+                    .map(|u| ReplayUpdate {
+                        identity: u.identity.kernel(),
+                        bytes: u.bytes,
+                    })
+                    .collect::<Vec<_>>(),
+            ),
+            (Some(checkpoint_len), Some(entries)) if r.journal.is_empty() => {
+                if entries.len() > 4096 {
+                    return Err(err(
+                        "ResourceLimit",
+                        "restore",
+                        "journal exceeds entry limit",
+                    ));
+                }
+                let checkpoint = bytes
+                    .get(..checkpoint_len)
+                    .ok_or_else(|| err("InvalidInput", "restore", "invalid checkpoint length"))?;
+                let mut offset = checkpoint_len;
+                let mut journal = Vec::with_capacity(entries.len());
+                for entry in entries {
+                    let end = offset
+                        .checked_add(entry.byte_length)
+                        .ok_or_else(|| err("InvalidInput", "restore", "journal length overflow"))?;
+                    let update = bytes
+                        .get(offset..end)
+                        .ok_or_else(|| err("InvalidInput", "restore", "invalid journal length"))?;
+                    journal.push(ReplayUpdate {
+                        identity: entry.identity.kernel(),
+                        bytes: update.to_vec(),
+                    });
+                    offset = end;
+                }
+                if offset != bytes.len() {
+                    return Err(err("InvalidInput", "restore", "unclaimed restore bytes"));
+                }
+                (checkpoint, journal)
+            }
+            _ => {
+                return Err(err(
+                    "InvalidInput",
+                    "restore",
+                    "mixed or incomplete journal encoding",
+                ));
+            }
+        };
         let checkpoint = InitializedCheckpoint {
             identity: r.identity.kernel(),
             initialized: r.initialized,
             writer_id: r.writer_id,
-            bytes: bytes.to_vec(),
+            bytes: checkpoint_bytes.to_vec(),
         };
-        let journal = r
-            .journal
-            .into_iter()
-            .map(|u| ReplayUpdate {
-                identity: u.identity.kernel(),
-                bytes: u.bytes,
-            })
-            .collect::<Vec<_>>();
         let mut doc = Document::restore(&expected, &checkpoint, &journal)
             .map_err(|e| kernel("restore", e))?;
         doc.enable_history(HistoryConfig::default())

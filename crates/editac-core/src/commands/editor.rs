@@ -1822,24 +1822,38 @@ impl Document {
                         .into_iter()
                         .find(|n| n.id == *id)
                         .ok_or(EditorError::UnsupportedTarget)?;
-                    let length = node
-                        .runs
-                        .iter()
-                        .map(|r| r.text.encode_utf16().count())
+                    // Preserve unchanged fallback identities. Replacing the entire
+                    // table advances CRDT clocks/history for every untouched cell.
+                    let previous: String = node.runs.iter().map(|r| r.text.as_str()).collect();
+                    let prefix = previous
+                        .chars()
+                        .zip(fallback.chars())
+                        .take_while(|(a, b)| a == b)
+                        .map(|(c, _)| c.len_utf8())
                         .sum::<usize>();
+                    let suffix = previous[prefix..]
+                        .chars()
+                        .rev()
+                        .zip(fallback[prefix..].chars().rev())
+                        .take_while(|(a, b)| a == b)
+                        .map(|(c, _)| c.len_utf8())
+                        .sum::<usize>();
+                    let from = previous[..prefix].encode_utf16().count() as u32;
+                    let to = previous[..previous.len() - suffix].encode_utf16().count() as u32;
+                    let replacement = fallback[prefix..fallback.len() - suffix].to_owned();
                     let selection = Selection {
                         anchor: d
-                            .anchor(id, crate::Utf16Offset(0), Bias::Right)
+                            .anchor(id, crate::Utf16Offset(from), Bias::Right)
                             .map_err(|_| EditorError::InvalidCommand)?,
                         focus: d
-                            .anchor(id, crate::Utf16Offset(length as u32), Bias::Left)
+                            .anchor(id, crate::Utf16Offset(to), Bias::Left)
                             .map_err(|_| EditorError::InvalidCommand)?,
                     };
                     let plan = d
                         .prepare_text(
                             &super::text::TextCommand::Replace {
                                 selection,
-                                text: fallback,
+                                text: replacement,
                             },
                             origin,
                         )

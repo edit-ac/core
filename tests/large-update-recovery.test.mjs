@@ -4,6 +4,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { init } from '../packages/core/dist/index.js';
+import { Engine } from '../packages/core/dist/wasm/editac_wasm.js';
 import { createHandle, restoreHandle } from '../packages/core/dist/engine.js';
 
 let server, runtime;
@@ -74,10 +75,41 @@ test('oversized journal payload still rejects before replay or document allocati
   try {
     const identity = engine.read().identity, checkpoint = engine.checkpoint();
     let allocations = 0;
-    assert.throws(() => runtime.restoreEngine(identity, checkpoint, [{ identity, bytes: new Uint8Array(2 * 1024 * 1024 + 1) }]),
+    assert.throws(() => runtime.restoreEngine(identity, checkpoint, [{ identity, bytes: new Uint8Array(16 * 1024 * 1024 - checkpoint.bytes.length + 1) }]),
       error => error.code === 'ResourceLimit');
-    assert.throws(() => restoreHandle(() => { allocations++; throw Error('unexpected engine allocation'); }, identity, checkpoint, [{ identity, bytes: new Uint8Array(2 * 1024 * 1024 + 1) }]), error => error.code === 'ResourceLimit');
+    assert.throws(() => restoreHandle(() => { allocations++; throw Error('unexpected engine allocation'); }, identity, checkpoint, [{ identity, bytes: new Uint8Array(16 * 1024 * 1024 - checkpoint.bytes.length + 1) }]), error => error.code === 'ResourceLimit');
     assert.equal(allocations, 0);
     assert.equal(engine.read().visible.find(node => node.kind === 'block').runs[0].text, 'base');
   } finally { engine.dispose(); }
+});
+
+
+test('binary restore validates exact partitioning, identities and encoding before publication', () => {
+  const engine = runtime.createEngine({ profile:'v5', documentId:randomUUID(), epoch:randomUUID(), nodes:[{text:'base'}] });
+  try {
+    const checkpoint = engine.checkpoint(), identity = checkpoint.identity;
+    const update = engine.encodeUpdate();
+    const payload = new Uint8Array(checkpoint.bytes.length + update.bytes.length);
+    payload.set(checkpoint.bytes); payload.set(update.bytes, checkpoint.bytes.length);
+    const metadata = {expected:identity, identity, initialized:true, writerId:checkpoint.writerId,
+      journal:[], checkpointBytes:checkpoint.bytes.length, binaryJournal:[{identity, byteLength:update.bytes.length}]};
+    const raw = Engine.restore(JSON.stringify(metadata), payload); raw.dispose(); raw.free();
+    // Historical JSON journals remain admitted with the original request limit.
+    const legacy = {...metadata, journal:[{identity, bytes:[...update.bytes]}]};
+    delete legacy.checkpointBytes; delete legacy.binaryJournal;
+    const old = Engine.restore(JSON.stringify(legacy), checkpoint.bytes); old.dispose(); old.free();
+    for (const change of [
+      m => m.checkpointBytes++, m => m.checkpointBytes--,
+      m => m.binaryJournal[0].byteLength++, m => m.binaryJournal[0].byteLength--,
+      m => m.binaryJournal[0].byteLength = Number.MAX_SAFE_INTEGER,
+      m => m.binaryJournal[0].identity = {...m.binaryJournal[0].identity, epoch:randomUUID()},
+      m => m.binaryJournal = Array(4097).fill(m.binaryJournal[0]),
+      m => m.journal = [{identity, bytes:[...update.bytes]}],
+      m => delete m.checkpointBytes, m => delete m.binaryJournal,
+    ]) {
+      const invalid = structuredClone(metadata); change(invalid);
+      assert.throws(() => Engine.restore(JSON.stringify(invalid), payload));
+    }
+    assert.equal(engine.read().visible[0].runs[0].text, 'base');
+  } finally {engine.dispose();}
 });
