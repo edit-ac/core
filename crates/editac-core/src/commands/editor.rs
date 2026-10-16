@@ -1325,7 +1325,18 @@ impl Document {
         let stable = self.identity().has_stable_presentation();
         #[cfg(feature = "fitness-trace")]
         let _phase = crate::fitness::Span::new("engine.editor.baseline");
-        let baseline = self.checkpoint().bytes;
+        // Compare the live V1 encoding directly with the retained bytes. This
+        // still checks every byte (including deletions/GC), but does not allocate
+        // a second corpus-sized buffer merely to establish exact equality.
+        let retained = self.editor_stage.borrow_mut().take().filter(|stage| {
+            stage.committed
+                && self.matches_checkpoint_stamp(&stage.stamp)
+                && crate::checkpoint_encoding::matches(&self.doc, &stage.bytes)
+        });
+        let (baseline, retained) = match retained {
+            Some(mut stage) => (std::mem::take(&mut stage.bytes), Some(stage)),
+            None => (self.checkpoint().bytes, None),
+        };
         #[cfg(feature = "fitness-trace")]
         drop(_phase);
         #[cfg(feature = "fitness-trace")]
@@ -1335,11 +1346,6 @@ impl Document {
         // a partially mutated stage available to another preparation. History
         // may retain deleted structs that a disposable replica collects: exact
         // encoded equality is required as well as the owning transaction stamp.
-        let retained = self.editor_stage.borrow_mut().take().filter(|stage| {
-            stage.committed
-                && self.matches_checkpoint_stamp(&stage.stamp)
-                && stage.bytes == baseline
-        });
         let mut inherited_structure_admission = retained.is_some();
         let (stage, retained_projection) = if let Some(retained) = retained {
             (retained.doc, Some(retained.projection))
@@ -2668,6 +2674,60 @@ mod transaction_tests {
                     _ => panic!("retained and full admission disagree, case {case}"),
                 }
             }
+        }
+    }
+    #[test]
+    fn retained_checkpoint_buffer_is_moved_only_after_exact_encoding_match() {
+        for stable in [false, true] {
+            let mut d = retained_fixture(50, stable);
+            let origin = TextOrigin::new("retained-checkpoint-buffer").unwrap();
+            d.commit_editor(
+                d.prepare_editor(&[retained_replace(&d, "A😀Z")], &origin)
+                    .unwrap(),
+            )
+            .unwrap();
+            let command = retained_replace(&d, "B界Z");
+            let bytes_ptr = d.editor_stage.borrow().as_ref().unwrap().bytes.as_ptr();
+            let plan = d.prepare_editor(&[command.clone()], &origin).unwrap();
+            assert_eq!(
+                plan.baseline.as_ptr(),
+                bytes_ptr,
+                "move the admitted buffer, without copying it"
+            );
+            d.commit_editor(plan).unwrap();
+            let baseline = d.checkpoint().bytes;
+            // Even a matching private transaction stamp must not substitute for
+            // encoded equality: poison only the cached output, not the replica.
+            let retained = d.editor_stage.borrow_mut().take().unwrap();
+            let mut corrupt = retained;
+            let old_guid = corrupt.doc.guid().to_string();
+            corrupt.bytes[0] ^= 1;
+            *d.editor_stage.borrow_mut() = Some(corrupt);
+            let plan = d
+                .prepare_editor(&[retained_replace(&d, "C😀Z")], &origin)
+                .unwrap();
+            assert_eq!(plan.baseline, baseline);
+            assert_ne!(
+                d.editor_stage
+                    .borrow()
+                    .as_ref()
+                    .unwrap()
+                    .doc
+                    .guid()
+                    .as_ref(),
+                old_guid
+            );
+            assert_eq!(
+                d.checkpoint().bytes,
+                baseline,
+                "rejected cache cannot mutate live state"
+            );
+            d.commit_editor(plan).unwrap();
+            let reopened = Document::restore(d.identity(), &d.checkpoint(), &[]).unwrap();
+            assert_eq!(
+                d.snapshot().unwrap().visible,
+                reopened.snapshot().unwrap().visible
+            );
         }
     }
     #[test]

@@ -5,6 +5,7 @@
 //! persistence ports are subsequent gates.
 
 pub mod anchors;
+mod checkpoint_encoding;
 pub mod clipboard;
 pub mod commands;
 pub mod document;
