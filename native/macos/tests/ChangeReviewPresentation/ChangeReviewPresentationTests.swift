@@ -26,10 +26,10 @@ final class ChangeReviewPresentationTests: XCTestCase {
     func testExactSourceRetainsWireHashesAndNewlineMetadata() throws {
         let p = try model("source")
         XCTAssertEqual(p.representation, "Exact source (UTF-8 bytes)")
-        XCTAssertTrue(p.sections[0].text.contains("before_final_newline"))
+        XCTAssertTrue(p.preamble.contains("before_final_newline"))
         XCTAssertTrue(p.sections[0].text.contains("\r\n"))
         XCTAssertEqual(p.beforeHash.count, 64); XCTAssertEqual(p.afterHash.count, 64)
-        XCTAssertTrue(p.sections[0].text.contains(p.beforeHash))
+        XCTAssertTrue(p.preamble.contains(p.beforeHash))
     }
     func testProjectedMarkdownCarriesNormalizationAndVersionLabels() throws {
         let v = try view("projected")
@@ -155,7 +155,8 @@ final class ChangeReviewPresentationTests: XCTestCase {
         let v = try view("format")
         XCTAssertTrue(v.textView.string.contains("Formatting"))
         let p = try model("unchanged")
-        XCTAssertTrue(p.sections[0].text.contains("editac-exact-patch-v1"))
+        XCTAssertTrue(p.preamble.contains("editac-exact-patch-v1"))
+        XCTAssertTrue(p.sections.isEmpty)
         v.show(p, current: scope()); XCTAssertTrue(v.title.stringValue.contains("Exact source"))
     }
     func testReloadResetsCapturedRangesAndSelection() throws {
@@ -188,6 +189,35 @@ final class ChangeReviewPresentationTests: XCTestCase {
         v.dispose()
         XCTAssertEqual(try live.read(now: 0), before)
         XCTAssertEqual(try live.historyState(now: 0), history)
+    }
+
+    func testUnifiedNavigationKeepsOriginalLineCoordinatesAndExactWire() throws {
+        let p = try model("selection")
+        XCTAssertEqual(p.sections.count, 2)
+        let root = try XCTUnwrap(JSONSerialization.jsonObject(with: exported("selection")) as? [String: Any])
+        let input = try XCTUnwrap(root["input"] as? [String: Any])
+        XCTAssertEqual(p.preamble + p.sections.map(\.text).joined(), input["wire"] as? String)
+        let v = try view("selection")
+        v.next.performClick(nil); XCTAssertEqual(v.selectedChange, 0)
+        v.next.performClick(nil); XCTAssertEqual(v.selectedChange, 1)
+        XCTAssertTrue((v.textView.string as NSString).substring(with: v.textView.selectedRange()).contains("@@"))
+        XCTAssertTrue(v.textView.string.contains("source line coordinates"))
+    }
+    func testNativeLayoutFitsDeclaredReviewWidthAndExposesTextGeometry() throws {
+        let v = try view()
+        let window = NSWindow(contentRect: v.frame, styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false; window.contentView = v
+        defer { window.close() }
+        v.layoutSubtreeIfNeeded()
+        for label in [v.title, v.status] {
+            let rect = v.convert(label.bounds, from: label)
+            XCTAssertGreaterThanOrEqual(rect.minX, 0); XCTAssertLessThanOrEqual(rect.maxX, v.bounds.maxX)
+            XCTAssertGreaterThan(rect.height, 0)
+        }
+        let scroll = try XCTUnwrap(v.textView.enclosingScrollView)
+        XCTAssertGreaterThan(scroll.bounds.width, 40); XCTAssertGreaterThanOrEqual(scroll.bounds.height, 40)
+        XCTAssertTrue(v.navigate(to: 0))
+        XCTAssertGreaterThan(v.textView.layoutManager!.usedRect(for: v.textView.textContainer!).height, 0)
     }
 
 }

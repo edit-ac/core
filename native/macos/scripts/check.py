@@ -16,7 +16,7 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 CORE = ROOT.parents[1]
 SUITES = {
-    "change-review-presentation": ("EditacMacOSChangeReviewPresentationTests.ChangeReviewPresentationTests", 22),
+    "change-review-presentation": ("EditacMacOSChangeReviewPresentationTests.ChangeReviewPresentationTests", 24),
     "accessibility-structure": ("EditacMacOSAccessibilityStructureTests.AccessibilityStructureTests", 19),
     "clipboard-transport": ("EditacMacOSClipboardTransportTests.ClipboardTransportTests", 24),
     "extensions": ("EditacMacOSExtensionsTests.ExtensionsTests", 26),

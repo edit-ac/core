@@ -29,6 +29,8 @@ final class NativeChangeReviewView: NSView {
         super.init(frame: frame)
         setAccessibilityElement(false)
         title.maximumNumberOfLines = 0; status.maximumNumberOfLines = 0
+        title.lineBreakMode = .byWordWrapping; status.lineBreakMode = .byWordWrapping
+        title.cell?.wraps = true; status.cell?.wraps = true
         textView.isEditable = false; textView.isSelectable = true
         textView.isRichText = false; textView.allowsUndo = false
         textView.isAutomaticLinkDetectionEnabled = false
@@ -51,6 +53,8 @@ final class NativeChangeReviewView: NSView {
             stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
             stack.topAnchor.constraint(equalTo: topAnchor, constant: 8),
             stack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -8),
+            title.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            status.widthAnchor.constraint(equalTo: stack.widthAnchor),
             scroll.widthAnchor.constraint(equalTo: stack.widthAnchor),
             scroll.heightAnchor.constraint(greaterThanOrEqualToConstant: 40)
         ])
@@ -62,13 +66,13 @@ final class NativeChangeReviewView: NSView {
         guard !disposed else { return }
         presentation = value; currentScope = current; selectedChange = nil; ranges = []
         title.stringValue = "Read-only review: \(value.beforeLabel) → \(value.afterLabel)\n\(value.representation)\nDocument: \(value.scope.document); epoch: \(value.scope.epoch); schema: \(value.scope.schema); profile: \(value.scope.profile)\n\(value.attribution.label)\nBefore hash: \(value.beforeHash)\nAfter hash: \(value.afterHash)"
-        var content = ""
+        var content = value.preamble
         for section in value.sections {
             let start = (content as NSString).length
             content += section.label + "\n" + section.text + "\n\n"
             ranges.append(NSRange(location: start, length: (content as NSString).length - start))
         }
-        if value.sections.isEmpty { content = "No changes\n" }
+        if value.sections.isEmpty { content += "No changes\n" }
         textView.string = content
         textView.setSelectedRange(NSRange(location: 0, length: 0))
         updateStatus(); updateButtons()
@@ -104,6 +108,7 @@ final class NativeChangeReviewView: NSView {
         guard !disposed else { return }
         disposed = true; presentation = nil; currentScope = nil; ranges = []; selectedChange = nil
         title.stringValue = "Change review closed"; status.stringValue = "Disposed"
+        status.setAccessibilityLabel("Disposed")
         textView.string = ""; previous.target = nil; next.target = nil; updateButtons()
     }
 }

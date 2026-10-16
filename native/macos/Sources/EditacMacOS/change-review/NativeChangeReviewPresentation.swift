@@ -34,6 +34,7 @@ struct NativeChangeReviewPresentation {
     let beforeHash: String
     let afterHash: String
     let attribution: Attribution
+    let preamble: String
     let sections: [Section]
 
     /// Only consumes bytes already validated/exported by editac-diff. The native
@@ -56,6 +57,7 @@ struct NativeChangeReviewPresentation {
               let type = input["representation"] as? String else { throw Failure.unsupported }
         let representation: String
         let sections: [Section]
+        let preamble: String
         let beforeHash: String
         let afterHash: String
         switch type {
@@ -78,7 +80,15 @@ struct NativeChangeReviewPresentation {
             } else { representation = "Exact source (UTF-8 bytes)" }
             // Keep metadata/newline flags and unified line coordinates verbatim.
             // They are never converted into live editor offsets.
-            sections = [Section(label: "Unified changes", text: wire)]
+            let source = wire as NSString
+            let matches = try NSRegularExpression(pattern: "(?m)^@@ ").matches(in: wire,
+                range: NSRange(location: 0, length: source.length))
+            preamble = source.substring(to: matches.first?.range.location ?? source.length)
+            sections = matches.enumerated().map { index, match in
+                let end = index + 1 < matches.count ? matches[index + 1].range.location : source.length
+                return Section(label: "Unified change \(index + 1) — source line coordinates",
+                    text: source.substring(with: NSRange(location: match.range.location, length: end - match.range.location)))
+            }
         case "semantic":
             guard Set(input.keys) == ["representation", "model"],
                   let model = input["model"] as? [String: Any],
@@ -103,6 +113,7 @@ struct NativeChangeReviewPresentation {
             if let retained = model["retained_structure"], !(retained is NSNull) {
                 rows.append(Section(label: "Retained structure", text: try json(retained)))
             }
+            preamble = ""
             sections = rows
         default: throw Failure.unsupported
         }
@@ -110,7 +121,7 @@ struct NativeChangeReviewPresentation {
         guard isHash(beforeHash), isHash(afterHash) else { throw Failure.invalid }
         return Self(scope: scope, beforeLabel: beforeLabel, afterLabel: afterLabel,
             representation: representation, beforeHash: beforeHash, afterHash: afterHash,
-            attribution: attribution, sections: sections)
+            attribution: attribution, preamble: preamble, sections: sections)
     }
 
     private static func json(_ value: Any) throws -> String {
