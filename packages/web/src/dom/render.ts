@@ -253,36 +253,34 @@ export class DOMRenderer {
   }
   #markKey(run: Run): string {
     const a = run.attributes;
-    return JSON.stringify([...inlineMarks.map(mark => a[mark] === true), safeLink(a.link, this.root.ownerDocument.baseURI), this.#moduleKeys(run)]);
-  }
-  #moduleKeys(run: Run): Json[] {
-    return moduleAttributes(run).map(([key, value]) => {
-        try { return [key, Array.isArray(value) ? value[0] ?? null : value, this.#modules?.resolve(key, value, run.text)?.presentation?.tag ?? null]; }
-        catch { return [key, value, null]; }
-      });
+    return JSON.stringify([inlineMarks.filter(mark => a[mark] === true), safeLink(a.link, this.root.ownerDocument.baseURI), moduleAttributes(run).map(([key, value]) => {
+      try { return [key, Array.isArray(value) ? value[0] ?? null : value, this.#modules?.resolve(key, value, run.text)?.presentation?.tag ?? null]; }
+      catch { return [key, value, null]; }
+    })]);
   }
   #createRun(run: Run, code: boolean): RenderedRun {
-    const element = this.root.ownerDocument.createElement("span");
+    const modules = moduleAttributes(run), doc = this.root.ownerDocument;
+    const element = doc.createElement("span");
     let target: HTMLElement = element;
     const views: RenderedRun['views'] = [];
     const attrs = run.attributes;
-    for (const [name, tag] of Object.entries(inlineTags)) {
-      if (!code && attrs[name] === true) { const wrapper = this.root.ownerDocument.createElement(tag); target.append(wrapper); target = wrapper; }
+    for (const mark of inlineMarks) if (!code && attrs[mark] === true) {
+      const wrapper = doc.createElement(inlineTags[mark]); target.append(wrapper); target = wrapper;
     }
-    const href = code ? null : safeLink(attrs.link, this.root.ownerDocument.baseURI);
-    if (href) { const link = this.root.ownerDocument.createElement("a"); link.href = href; link.rel = "noopener noreferrer"; target.append(link); target = link; }
-    for (const [key, value] of moduleAttributes(run)) {
+    const href = code ? null : safeLink(attrs.link, doc.baseURI);
+    if (href) { const link = doc.createElement("a"); link.href = href; link.rel = "noopener noreferrer"; target.append(link); target = link; }
+    for (const [key, value] of modules) {
       // Invalid incoming/future data remains readable; no renderer can interpret
       // document strings as markup, URLs or executable behavior.
       let resolved: ReturnType<ModuleRegistry['resolve']>;
       try { resolved = this.#modules?.resolve(key, value, run.text); } catch { resolved = undefined; }
-      const wrapper = this.root.ownerDocument.createElement(resolved?.presentation?.tag ?? 'span');
+      const wrapper = doc.createElement(resolved?.presentation?.tag ?? 'span');
       wrapper.dataset.moduleType = key.slice('module:'.length);
       if (!resolved?.presentation) wrapper.dataset.moduleFallback = 'text';
       if (resolved?.definition.kind === 'inline-atom' && resolved.presentation) wrapper.contentEditable = 'false';
       target.append(wrapper); target = wrapper;
       if (resolved?.presentation && this.moduleRuntime) {
-        const decoration = this.root.ownerDocument.createElement('span');
+        const decoration = doc.createElement('span');
         decoration.dataset.moduleView = ''; decoration.contentEditable = 'false'; wrapper.append(decoration);
         const view = this.moduleRuntime.mountView(decoration, { type: resolved.definition.type, version: resolved.definition.version,
           kind: resolved.definition.kind, text: run.text, attributes: (value as Json[])[1] as Record<string, Json> },
@@ -293,13 +291,13 @@ export class DOMRenderer {
     }
     const parts = code ? [run.text] : run.text.split("\n");
     const positions: DOMPosition[] = [];
-    parts.forEach((part, i) => {
-      if (i) { const br = this.root.ownerDocument.createElement("br"); target.append(br); positions.push({ node: br, start: 0, length: 1 }); }
-      const text = this.root.ownerDocument.createTextNode(part); target.append(text); positions.push({ node: text, start: 0, length: part.length });
-    });
+    for (const part of parts) {
+      if (positions.length) { const br = doc.createElement("br"); target.append(br); positions.push({ node: br, start: 0, length: 1 }); }
+      const text = doc.createTextNode(part); target.append(text); positions.push({ node: text, start: 0, length: part.length });
+    }
     // Keep the run's Text as its boundary when no semantic wrapper or BR
     // group is needed. Its parent block still owns selection/input mapping.
-    return { element: target === element && positions.length === 1 ? positions[0]!.node as Text : element, text: run.text, key: this.#markKey(run), contentKey: JSON.stringify(moduleAttributes(run)), positions, views };
+    return { element: target === element && positions.length === 1 ? positions[0]!.node as Text : element, text: run.text, key: this.#markKey(run), contentKey: JSON.stringify(modules), positions, views };
   }
   #disposeRuns(entry: Entry): void { entry.contentView?.dispose(); delete entry.contentView; for (const run of entry.runs) for (const owned of run.views) owned.view.dispose(); }
   #patchRuns(entry: Entry, runs: readonly Run[], code: boolean): void {
