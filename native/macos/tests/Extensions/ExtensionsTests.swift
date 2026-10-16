@@ -216,8 +216,8 @@ final class ExtensionsTests: XCTestCase {
     private func completed(_ view: NativeEditorView, _ action: () throws -> Void) async throws {
         let done = expectation(description: "shared native command completion")
         var result: Result<Void, NativeCommandFailure>?
-        view.commands.onCompletion = { result = $0; done.fulfill() }
-        defer { view.commands.onCompletion = nil }
+        view.commands.onResult = { result = $0; done.fulfill() }
+        defer { view.commands.onResult = nil }
         try action()
         await fulfillment(of: [done], timeout: 5)
         try XCTUnwrap(result).get()
@@ -296,7 +296,7 @@ final class ExtensionsTests: XCTestCase {
         try await fixture(setup: { try $0.extensions.registerMark(attribute: "module:fixture.note", present: { _ in [.backgroundColor: NSColor.yellow] }) }) { view, m in
             try await self.enable(view)
             let node = try XCTUnwrap(view.projection.nodes.first { $0.id == m["text"] as? String })
-            func target() throws -> NativeTextSelectionTarget { try view.projection.capture(range: NSRange(location: node.range.location, length: 6), backwards: false, affinity: .downstream) }
+            @MainActor func target() throws -> NativeTextSelectionTarget { try view.projection.capture(range: NSRange(location: node.range.location, length: 6), backwards: false, affinity: .downstream) }
             let value = Data("[1,{\"label\":\"native\"}]".utf8)
             try await self.completed(view) { try view.extensions.applyMark(attribute: "module:fixture.note", valueJSON: value, target: target()) }
             XCTAssertEqual(view.textView.textStorage?.attribute(.backgroundColor, at: 0, effectiveRange: nil) as? NSColor, .yellow)
@@ -318,7 +318,7 @@ final class ExtensionsTests: XCTestCase {
             _ = try await self.send(view, .permission(writable: false, expiresAt: nil))
             let current = try view.projection.capture(range: NSRange(location: 0, length: 6), backwards: false, affinity: .downstream)
             let done = self.expectation(description: "read-only mark rejected")
-            view.commands.onCompletion = { if case .success = $0 { XCTFail("read-only mutation") }; done.fulfill() }
+            view.commands.onResult = { if case .success = $0 { XCTFail("read-only mutation") }; done.fulfill() }
             try view.extensions.applyMark(attribute: "module:fixture.note", valueJSON: Data("[1,{\"label\":\"denied\"}]".utf8), target: current)
             await self.fulfillment(of: [done], timeout: 5)
             XCTAssertEqual(view.commands.history?.undoGroups, 1)

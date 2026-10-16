@@ -110,12 +110,12 @@ public final class NativeExtensionView: NSView {
     }
     func refreshEditing() {
         let editing = owner?.isEditing(nodeID) == true
-        sourceView.isEditable = editing
-        if editing { sourceView.isHidden = false; renderer?.view.isHidden = true }
-        else { renderer?.view.isHidden = false }
-        editButton.isEnabled = owner?.canEdit(nodeID) == true && !editing
+        sourceView.isEditable = editing && owner?.canEdit(nodeID) == true
+        sourceView.isHidden = renderer != nil && !editing
+        renderer?.view.isHidden = editing
+        editButton.isEnabled = owner?.canEdit(nodeID) == true && !editing && owner?.isCapturing(nodeID) != true
         saveButton.isEnabled = editing && owner?.canEdit(nodeID) == true
-        cancelButton.isEnabled = editing
+        cancelButton.isEnabled = editing || owner?.isCapturing(nodeID) == true
     }
     @objc private func editSource() {
         Task { [weak self] in
@@ -282,6 +282,7 @@ public final class NativeExtensions {
         let target = try view.projection.capture(range: view.textView.selectedRange(), backwards: false, affinity: view.textView.selectionAffinity)
         try applyMark(attribute: attribute, valueJSON: valueJSON, target: target)
     }
+    func isCapturing(_ nodeID: String) -> Bool { captures[nodeID] != nil }
     func isEditing(_ nodeID: String) -> Bool { edits[nodeID] != nil }
     func canEdit(_ nodeID: String) -> Bool {
         guard let view, !disposed, !view.isDisposed, let child = views[nodeID],
@@ -301,7 +302,7 @@ public final class NativeExtensions {
         guard let view, !disposed, !view.isDisposed else { throw NativeExtensionFailure.disposed }
         guard canEdit(nodeID), let descriptor = views[nodeID]?.descriptor, let revision = view.projection.revision else { throw NativeExtensionFailure.unavailableEditing }
         cancel(nodeID)
-        let id = UUID(); captures[nodeID] = id
+        let id = UUID(); captures[nodeID] = id; views[nodeID]?.refreshEditing()
         let response: NativeSessionResponse
         do {
             response = try await withCheckedThrowingContinuation { c in
@@ -313,6 +314,7 @@ public final class NativeExtensions {
         let target = EditTarget(id: id, nodeID: nodeID, descriptor: descriptor, revision: revision, anchor: anchor.token)
         guard captures[nodeID] == id, !disposed, !view.isDisposed, view.projection.revision == revision,
               views[nodeID]?.descriptor == descriptor, canEdit(nodeID) else {
+            if captures[nodeID] == id { captures.removeValue(forKey: nodeID) }; views[nodeID]?.refreshEditing()
             try? view.session.submit(.releaseAttachment(token: anchor.token)); throw NativeExtensionFailure.staleTarget
         }
         captures.removeValue(forKey: nodeID); edits[nodeID] = target
