@@ -251,24 +251,15 @@ export class DOMRenderer {
   }
   #markKey(run: Run): string {
     const a = run.attributes;
-    return JSON.stringify([...inlineMarks.map(mark => a[mark] === true), safeLink(a.link, this.root.ownerDocument.baseURI), this.#moduleKeys(run, true)]);
+    return JSON.stringify([...inlineMarks.map(mark => a[mark] === true), safeLink(a.link, this.root.ownerDocument.baseURI), this.#moduleKeys(run)]);
   }
-  #moduleKeys(run: Run, identityOnly = false): Json[] {
+  #moduleKeys(run: Run): Json[] {
     return moduleAttributes(run).map(([key, value]) => {
-        try { return [key, identityOnly && Array.isArray(value) ? value[0] ?? null : value, this.#modules?.resolve(key, value, run.text)?.presentation?.tag ?? null]; }
+        try { return [key, Array.isArray(value) ? value[0] ?? null : value, this.#modules?.resolve(key, value, run.text)?.presentation?.tag ?? null]; }
         catch { return [key, value, null]; }
       });
   }
   #createRun(run: Run, code: boolean): RenderedRun {
-    // A plain, single-line run needs no inline box. Keep the Text itself as
-    // the run boundary: its parent block still owns selection/input mapping.
-    // Multi-line prose, marks and modules retain their grouped DOM boundary.
-    if (!moduleAttributes(run).length && (code || (!run.text.includes("\n") && !inlineMarks.some(mark => run.attributes[mark] === true)
-        && !safeLink(run.attributes.link, this.root.ownerDocument.baseURI)))) {
-      const text = this.root.ownerDocument.createTextNode(run.text);
-      return { element: text, text: run.text, key: this.#markKey(run), contentKey: JSON.stringify(this.#moduleKeys(run)),
-        positions: [{ node: text, start: 0, length: run.text.length }], views: [] };
-    }
     const element = this.root.ownerDocument.createElement("span");
     let target: HTMLElement = element;
     const views: RenderedRun['views'] = [];
@@ -304,7 +295,9 @@ export class DOMRenderer {
       if (i) { const br = this.root.ownerDocument.createElement("br"); target.append(br); positions.push({ node: br, start: 0, length: 1 }); }
       const text = this.root.ownerDocument.createTextNode(part); target.append(text); positions.push({ node: text, start: 0, length: part.length });
     });
-    return { element, text: run.text, key: this.#markKey(run), contentKey: JSON.stringify(this.#moduleKeys(run)), positions, views };
+    // Keep the run's Text as its boundary when no semantic wrapper or BR
+    // group is needed. Its parent block still owns selection/input mapping.
+    return { element: target === element && positions.length === 1 ? positions[0]!.node as Text : element, text: run.text, key: this.#markKey(run), contentKey: JSON.stringify(moduleAttributes(run)), positions, views };
   }
   #disposeRuns(entry: Entry): void { entry.contentView?.dispose(); delete entry.contentView; for (const run of entry.runs) for (const owned of run.views) owned.view.dispose(); }
   #patchRuns(entry: Entry, runs: readonly Run[], code: boolean): void {
@@ -312,7 +305,7 @@ export class DOMRenderer {
     const desired = runs.length ? runs : [{ text: "", attributes: {} }];
     const old = entry.runs;
     let prefix = 0, suffix = 0;
-    const same = (a: RenderedRun, b: Run) => a.text === b.text && a.key === this.#markKey(b) && a.contentKey === JSON.stringify(this.#moduleKeys(b));
+    const same = (a: RenderedRun, b: Run) => a.text === b.text && a.key === this.#markKey(b) && a.contentKey === JSON.stringify(moduleAttributes(b));
     while (prefix < old.length && prefix < desired.length && same(old[prefix]!, desired[prefix]!)) prefix++;
     while (suffix < old.length - prefix && suffix < desired.length - prefix && same(old[old.length - suffix - 1]!, desired[desired.length - suffix - 1]!)) suffix++;
     const middle: RenderedRun[] = [];
@@ -331,13 +324,13 @@ export class DOMRenderer {
           }
           position.length = part.length;
         });
-        existing.text = run.text; existing.contentKey = JSON.stringify(this.#moduleKeys(run));
+        existing.text = run.text; existing.contentKey = JSON.stringify(moduleAttributes(run));
         for (const owned of existing.views) owned.view.update({ type: owned.key.slice('module:'.length), version: owned.version,
           kind: owned.kind, text: run.text, attributes: (run.attributes[owned.key] as Json[])[1] as Record<string, Json> });
         middle.push(existing);
       } else middle.push(this.#createRun(run, code));
     }
-    const next = [...old.slice(0, prefix), ...middle, ...(suffix ? old.slice(old.length - suffix) : [])];
+    const next = [...old.slice(0, prefix), ...middle, ...old.slice(old.length - suffix)];
     for (const run of old) if (!next.includes(run)) { for (const owned of run.views) owned.view.dispose(); run.element.remove(); }
     let cursor: ChildNode | null = entry.content.firstChild;
     for (const run of next) { if (run.element !== cursor) entry.content.insertBefore(run.element, cursor); cursor = run.element.nextSibling; }
