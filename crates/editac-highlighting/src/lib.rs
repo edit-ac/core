@@ -1,5 +1,7 @@
 //! Optional syntax appearance over immutable source. No engine/document dependency.
 //! Only the three pinned languages are admitted. All failures return untouched source.
+pub mod cache;
+
 use serde::Serialize;
 use syntect::{
     easy::ScopeRegionIterator,
@@ -21,6 +23,8 @@ pub enum Status {
     UnknownLanguage,
     OverBudget,
     BackendError,
+    Cancelled,
+    UnsupportedGrammar,
 }
 
 /// Derived, non-overlapping runs. Public offsets count UTF-16 code units.
@@ -62,6 +66,18 @@ impl Backend {
         source: &'a str,
         enabled: bool,
     ) -> Highlight<'a> {
+        self.highlight_cancellable(language, source, enabled, || false)
+    }
+
+    /// Cooperative cancellation between parser lines and emitted regions. A single
+    /// bounded regex operation is not preemptible; worker termination is host-owned.
+    pub fn highlight_cancellable<'a>(
+        &self,
+        language: &'a str,
+        source: &'a str,
+        enabled: bool,
+        mut cancelled: impl FnMut() -> bool,
+    ) -> Highlight<'a> {
         let mut result = Highlight {
             source,
             language,
@@ -69,6 +85,10 @@ impl Backend {
             status: Status::Highlighted,
             spans: vec![],
         };
+        if cancelled() {
+            result.status = Status::Cancelled;
+            return result;
+        }
         if !enabled {
             result.status = Status::Disabled;
             return result;
@@ -99,12 +119,22 @@ impl Backend {
         let mut stack = ScopeStack::new();
         let mut offset = 0u32;
         for line in LinesWithEndings::from(source) {
+            if cancelled() {
+                result.status = Status::Cancelled;
+                result.spans.clear();
+                return result;
+            }
             let Ok(ops) = parser.parse_line(line, &self.syntaxes) else {
                 result.status = Status::BackendError;
                 result.spans.clear();
                 return result;
             };
             for (text, op) in ScopeRegionIterator::new(&ops, line) {
+                if cancelled() {
+                    result.status = Status::Cancelled;
+                    result.spans.clear();
+                    return result;
+                }
                 if stack.apply(op).is_err() {
                     result.status = Status::BackendError;
                     result.spans.clear();

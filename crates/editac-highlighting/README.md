@@ -36,3 +36,50 @@ Native functional samples use the debug profile; use the same suite with
 Qualification evidence and limitations are in the sibling architecture repository,
 `decisions/highlighting-backend.md` and `evidence/highlighting-backend/receipt.json`.
 No native UI, browser input, phone performance or additional language is qualified.
+
+## Revisioned block cache
+
+`cache::HighlightCache` owns one editing session. Pass an immutable `BlockInput`
+to `begin` (or `begin_with_prior` with a previously returned opaque cache handle),
+compute the move-only job with an optional worker's `Backend`, then call `publish`.
+The returned `Published` includes the exact input, projection and optional cache
+handle. Publication consumes its completion; superseding requests, cancellation,
+disposal and replacement sessions reject late work. Delete a block with
+`remove_block`; call `dispose` or drop the cache at session teardown.
+
+Incrementality is **per block**: a changed block reparses completely, preserving
+multiline parser state within that block; unrelated blocks reuse exact results.
+The key includes block identity, revision, exact source, language, enabled state,
+and grammar/query/theme identities. Reusing a revision for different bytes is a
+miss. Only the pinned `BACKEND_ID` is supported as a grammar identity; another
+version produces an explicit plain-source fallback. Syntect has no query asset;
+query/theme strings identify the host projection profile and invalidate reuse.
+A theme/query change does not claim a different parser implementation.
+
+Default hard limits are 64 entries, 2 MiB retained payload capacity, 32,768 token
+spans, and 16 pending blocks; callers may lower these limits. At most one cached
+revision per block is retained and pressure evicts least-recently-used entries.
+A result larger than the cache budget still returns validated tokens without a
+cache handle. `retained_bytes` accounts for owned string/vector capacities and
+entry records; fixed-cap container/allocator overhead is separate, not an RSS
+measurement. Counters distinguish hits, misses, completed-backend-call blocks,
+supplied bytes, evictions and rejected owned completions.
+
+The host owns outstanding jobs/completions and must bound its worker queue and
+release superseded snapshots. The port bounds its own pending records; it does
+not keep abandoned jobs alive. `cancel_block` cancels queued/running work.
+Cancellation is cooperative between bounded parser lines/regions, not inside a
+regex operation. Worker timeout/termination and browser scheduling belong to the
+browser scheduler gate. UTF-8/UTF-16 conversion and `validate_projection` reject
+split scalars, overlapping/gapped/out-of-range runs and partial fallback tokens.
+No cache operation accepts a writable document, CRDT or history handle.
+
+Focused checks:
+
+```sh
+cargo test -p editac-highlighting --test highlight_incremental --locked
+bash tests/highlight-engine-effects/check.sh
+```
+
+The isolated engine consumer uses its own lockfile and real engine checkpoint,
+edit, undo and redo APIs. It adds no dependency to minimum SDK consumers.

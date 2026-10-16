@@ -1,0 +1,14 @@
+[package]
+name = "highlight-engine-effects"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+# Isolated test consumer: no highlighting dependency enters the engine or its
+# minimum SDK graph, and the shared workspace lock remains untouched.
+[workspace]
+
+[dependencies]
+editac-core = { path = "../../crates/editac-core" }
+editac-highlighting = { path = "../../crates/editac-highlighting" }
+yrs = { version = "=0.28.0", features = ["small-client"] }
