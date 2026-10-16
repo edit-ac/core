@@ -16,6 +16,7 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 CORE = ROOT.parents[1]
 SUITES = {
+    "clipboard-transport": ("EditacMacOSClipboardTransportTests.ClipboardTransportTests", 21),
     "extensions": ("EditacMacOSExtensionsTests.ExtensionsTests", 26),
     "collaboration": ("EditacMacOSCollaborationTests.CollaborationTests", 16),
     "collaboration-lifecycle": ("EditacMacOSCollaborationLifecycleTests.CollaborationLifecycleTests", 13),
@@ -113,6 +114,9 @@ def main():
                "startedUtc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                "commands": [], "counts": None, "failure": None,
                "qualification": "unqualified", "sourceHashes": {}}
+    if suite == "clipboard-transport":
+        receipt["clipboardScope"] = "native-pasteboard-provider-and-actual-session-delayed-admission-prerequisite-only"
+        receipt["originalGateClosed"] = False
 
     def run(name, command, timeout=180):
         log = output / f"{name}.log"

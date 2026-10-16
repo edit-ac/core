@@ -5,6 +5,7 @@ import AppKit
 @MainActor
 public final class NativeEditorView: NSView {
     public let session = NativeSessionExecutor()
+    public private(set) lazy var clipboard = NativeClipboardInput(view: self)
     public private(set) lazy var collaboration = NativeCollaboration(view: self)
     public private(set) lazy var accessibility = NativeTextAccessibility(view: self)
     public private(set) lazy var storage = NativeDocumentLifecycle(view: self)
@@ -152,6 +153,7 @@ public final class NativeEditorView: NSView {
     /// The embedding host calls this when its editor/document is closed.
     public func dispose(completion: @escaping @MainActor @Sendable () -> Void = {}) {
         isDisposed = true
+        clipboard.dispose()
         collaboration.dispose()
         storage.dispose()
         extensions.dispose()
