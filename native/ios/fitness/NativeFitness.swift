@@ -52,6 +52,8 @@ final class FitnessController: UIViewController, UITextViewDelegate {
     var engine: NativeEngine!
     let cjk = ProcessInfo.processInfo.arguments.contains("--cjk")
     let committedLabel = UILabel()
+    let inputAcknowledgment = UILabel()
+    var inputCallbacks: [[String: Any]] = []
     var compositionEvents: [[String: Any]] = []
     var cancellation: [String: Any] = [:]
     var suppressNative = false
@@ -66,6 +68,8 @@ final class FitnessController: UIViewController, UITextViewDelegate {
     var attempts: [[String: Any]] = []
     var focusRequests = 0
     var focusRequestedAt: CFTimeInterval?
+    var refocusAfterKeyboardHide = false
+    var focusKeyboardHiddenAt: CFTimeInterval?
     var keyboardShownAt: CFTimeInterval?
     var selectionInstalledAt: CFTimeInterval?
     var focusReadiness: [String: Any] = [:]
@@ -89,6 +93,15 @@ final class FitnessController: UIViewController, UITextViewDelegate {
         editor.keyboardType = .default
         editor.changed = { [weak self] kind in self?.nativeMutation(kind) }
         editor.delegate = self
+        if cjk {
+            inputAcknowledgment.accessibilityIdentifier = "input-acknowledgment"
+            inputAcknowledgment.font = .systemFont(ofSize: 10)
+            inputAcknowledgment.text = "0"
+            view.addSubview(inputAcknowledgment)
+            editor.inputObserved = { [weak self] kind, entering in
+                self?.observeInput(kind, phase: entering ? "enter" : "exit")
+            }
+        }
         status.frame = CGRect(x: 20, y: 420, width: 350, height: 50)
         status.accessibilityIdentifier = "scenario-status"; status.text = "ready"
         let finish = UIButton(type: .system)
@@ -129,6 +142,11 @@ final class FitnessController: UIViewController, UITextViewDelegate {
         keyboardHideToken = NotificationCenter.default.addObserver(forName: UIResponder.keyboardDidHideNotification, object: nil, queue: .main) { [weak self] _ in
             guard let self = self else { return }
             self.keyboardShownAt = nil
+            if self.refocusAfterKeyboardHide {
+                self.refocusAfterKeyboardHide = false
+                self.focusKeyboardHiddenAt = CACurrentMediaTime()
+                DispatchQueue.main.async { [weak self] in self?.editor.becomeFirstResponder() }
+            }
             self.focusReadiness = [:]
             self.status.accessibilityValue = "focus-pending"
             self.partial()
@@ -150,6 +168,7 @@ final class FitnessController: UIViewController, UITextViewDelegate {
         editor.frame = CGRect(x: 20, y: top + 50, width: width, height: 300)
         committedLabel.frame = CGRect(x: 20, y: top + 355, width: width, height: 25)
         status.frame = CGRect(x: 20, y: top + 385, width: width, height: 40)
+        inputAcknowledgment.frame = CGRect(x: 20, y: top + 425, width: width, height: 18)
         // Every action must remain above the software keyboard, including
         // verification while the editor still owns the real input session.
         let actionWidth = (view.bounds.width - 60) / 3
@@ -168,17 +187,18 @@ final class FitnessController: UIViewController, UITextViewDelegate {
         sender.accessibilityValue = String(focusRequests)
         focusRequestedAt = CACurrentMediaTime()
         keyboardShownAt = nil; selectionInstalledAt = nil; focusReadiness = [:]
+        focusKeyboardHiddenAt = nil
         partial()
         // Rebind after first-run keyboard UI as well as a language relaunch.
         // The swipe tutorial can leave visible keys and acknowledged focus
         // without a live input session after Continue is dismissed.
         status.accessibilityValue = "focus-pending"
-        // Do not reload a keyboard while UIKit is establishing its remote input
-        // session. Rebinding an existing responder needs a separate native turn;
-        // readiness must use this request's did-show event, never a stale one.
+        // A main-queue turn is not acknowledgment of remote keyboard dismissal.
+        // Finish the existing session's actual hide before acquiring the next
+        // responder; readiness then requires this request's new did-show event.
         if editor.isFirstResponder {
+            refocusAfterKeyboardHide = true
             editor.resignFirstResponder()
-            DispatchQueue.main.async { [weak self] in self?.editor.becomeFirstResponder() }
         } else {
             editor.becomeFirstResponder()
         }
@@ -212,14 +232,29 @@ final class FitnessController: UIViewController, UITextViewDelegate {
             "applicationActive": true, "sceneActive": true,
             "readyAt": CACurrentMediaTime(), "keyWindow": true,
             "selectionUtf16": [editor.textStorage.length, 0], "inputMode": actualMode]
+        if let hiddenAt = focusKeyboardHiddenAt { focusReadiness["keyboardDidHideAt"] = hiddenAt }
         status.accessibilityValue = actualMode == mode ? (cjk ? "pinyin-ready" : "ascii-ready") : "input-mode:" + actualMode
         partial()
+    }
+    func observeInput(_ kind: String, phase: String) {
+        guard cjk, inputCallbacks.count < 256 else { return }
+        inputCallbacks.append(["sequence": inputCallbacks.count + 1, "kind": kind, "phase": phase,
+            "at": CACurrentMediaTime(), "firstResponder": editor.isFirstResponder,
+            "inputMode": editor.textInputMode?.primaryLanguage ?? "unavailable",
+            "marked": editor.markedTextRange != nil, "projectedUtf16": editor.textStorage.length,
+            "selectionUtf16": [editor.selectedRange.location, editor.selectedRange.length]])
+        inputAcknowledgment.text = String(inputCallbacks.count)
+        inputAcknowledgment.accessibilityValue = try? fitnessJSON(inputCallbacks.last!)
+        partial()
+    }
+    func textViewDidChangeSelection(_ textView: UITextView) {
+        observeInput("textViewDidChangeSelection", phase: "delegate")
     }
     func partial() {
         let value: [String: Any] = ["errors": errors, "attempts": attempts, "typed": typed, "focusRequests": focusRequests,
             "firstResponder": editor.isFirstResponder, "inputMode": editor.textInputMode?.primaryLanguage ?? "unavailable",
             "committed": (try? text(engine)) ?? "unavailable", "projected": editor.text ?? "",
-            "selectionUtf16": editor.selectedRange.location, "focusReadiness": focusReadiness, "samples": samples, "frames": frameTrace, "compositionEvents": compositionEvents, "cancellation": cancellation, "inputModes": UITextInputMode.activeInputModes.map { $0.primaryLanguage ?? "unknown" }]
+            "selectionUtf16": editor.selectedRange.location, "focusReadiness": focusReadiness, "samples": samples, "frames": frameTrace, "compositionEvents": compositionEvents, "inputCallbacks": inputCallbacks, "cancellation": cancellation, "inputModes": UITextInputMode.activeInputModes.map { $0.primaryLanguage ?? "unknown" }]
         let path = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent(cjk ? "cjk-partial.json" : "partial.json")
         if let bytes = try? fitnessJSON(value) { try? Data(bytes.utf8).write(to: path, options: .atomic) }
     }
@@ -240,6 +275,7 @@ final class FitnessController: UIViewController, UITextViewDelegate {
         partial()
     }
     func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText replacement: String) -> Bool {
+        observeInput("shouldChangeTextIn", phase: "delegate")
         if cjk || composing { return true }
         let start = CACurrentMediaTime()
         attempts.append(["rangeUtf16": range.location, "removedUtf16": range.length, "replacement": replacement])
@@ -272,6 +308,7 @@ final class FitnessController: UIViewController, UITextViewDelegate {
         return false
     }
     func textViewDidChange(_ textView: UITextView) {
+        observeInput("textViewDidChange", phase: "delegate")
         guard cjk && !suppressNative else { return }
         // UIKit can dispatch attributed input through its internal text service.
         // Observe the public delegate after its outer native mutation settles.

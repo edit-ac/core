@@ -32,6 +32,8 @@ export function inspectAppendFocus(result, mode, initialUnits) {
   assert(r && finite(r.keyboardDidShowAt) && finite(r.selectionInstalledAt) && finite(r.readyAt), 'missing native append focus clocks');
   assert(r.keyboardDidShowAt <= r.readyAt && r.selectionInstalledAt <= r.readyAt, 'reversed native append focus clocks');
   assert(finite(r.requestedAt) && r.keyboardDidShowAt >= r.requestedAt && r.selectionInstalledAt >= r.requestedAt, 'stale native input-session readiness');
+  const requests = result.cases.map(c=>c.observed?.focusRequests).find(Number.isSafeInteger);
+  if (requests > 1 || r.keyboardDidHideAt !== undefined) assert(finite(r.keyboardDidHideAt) && r.keyboardDidHideAt >= r.requestedAt && r.keyboardDidHideAt <= r.keyboardDidShowAt && r.keyboardDidHideAt <= r.selectionInstalledAt, 'missing or reversed native keyboard hide/show acknowledgment');
   assert.equal(r.applicationActive, true); assert.equal(r.sceneActive, true);
   assert.equal(r.keyWindow, true); assert.equal(r.inputMode, mode);
   assert.deepEqual(r.selectionUtf16, [initialUnits, 0]);
@@ -121,6 +123,39 @@ export function inspectPinyinDispatches(dispatches) {
     assert(finite(d.before) && d.before>=previous && finite(d.after) && d.after>=d.before,'invalid Pinyin dispatch ordering');
     previous=d.after;
   }
+}
+
+// Sequence joins use the app's callback IDs, never an uncalibrated driver/app
+// clock subtraction. Prepared controls exercise this detector, not UIKit delivery.
+export function inspectPinyinCallbacks(callbacks, dispatches) {
+  assert(Array.isArray(callbacks) && callbacks.length > 0 && callbacks.length < 256, 'missing or saturated UIKit callback trace');
+  let open, previous = 0;
+  const mutations = ['setMarkedText','setAttributedMarkedText','replace','unmarkText','insertText','deleteBackward'];
+  for (const [i,c] of callbacks.entries()) {
+    assert.equal(c.sequence, i + 1, 'missing or reordered UIKit callback sequence');
+    assert(finite(c.at) && c.at >= previous, 'invalid UIKit callback ordering'); previous = c.at;
+    assert(typeof c.marked === 'boolean' && typeof c.firstResponder === 'boolean');
+    assert(Number.isSafeInteger(c.projectedUtf16) && c.projectedUtf16 >= 0);
+    assert(Array.isArray(c.selectionUtf16) && c.selectionUtf16.length === 2 && c.selectionUtf16.every(n=>Number.isSafeInteger(n) && n>=0));
+    assert(c.selectionUtf16[0] + c.selectionUtf16[1] <= c.projectedUtf16);
+    if (c.phase === 'enter') { assert(mutations.includes(c.kind) && !open, 'invalid UIKit mutation entry'); open=c.kind; }
+    else if (c.phase === 'exit') { assert(mutations.includes(c.kind) && open, 'unpaired UIKit mutation exit'); assert.equal(c.kind, open, 'unpaired UIKit mutation exit'); open=undefined; }
+    else assert(c.phase === 'delegate' && ['shouldChangeTextIn','textViewDidChange','textViewDidChangeSelection'].includes(c.kind), 'unknown UIKit callback');
+  }
+  assert.equal(open, undefined, 'unfinished UIKit mutation');
+  assert.deepEqual(dispatches.map(d=>d.key), ['n','i','h','a','o']);
+  let after = 0;
+  for (const d of dispatches) {
+    for (const k of ['callbacksBefore','callbacksAfter']) assert(typeof d[k] === 'string' && /^(0|[1-9][0-9]*)$/.test(d[k]), 'invalid UIKit acknowledgment ID');
+    const start=Number(d.callbacksBefore), end=Number(d.callbacksAfter);
+    assert(start >= after && end > start && end <= callbacks.length, 'missing or stale UIKit key acknowledgment'); after=end;
+    const observed=callbacks.slice(start,end);
+    assert(observed.every(c=>c.firstResponder && c.inputMode==='zh-Hans'), 'key callback lost Pinyin focus/mode');
+    assert(observed.some(c=>c.phase==='delegate' && c.kind==='shouldChangeTextIn') && observed.some(c=>c.phase==='delegate' && c.kind==='textViewDidChange'), 'key missing UIKit delegate acknowledgment');
+    assert(observed.some(c=>c.phase==='enter' && ['setMarkedText','setAttributedMarkedText'].includes(c.kind)) && observed.some(c=>c.phase==='exit' && ['setMarkedText','setAttributedMarkedText'].includes(c.kind) && c.marked), 'key missing actual marked-text transition');
+    assert.deepEqual(JSON.parse(d.lastCallback), callbacks[end-1], 'key acknowledgment differs from retained UIKit callback');
+  }
+  return {callbacks:callbacks.length, acknowledgedKeys:dispatches.length, clockJoin:'app sequence IDs; no driver/app clock calibration'};
 }
 
 export function inspectNativeCJK(profile, receipt, result, ax, dispatches) {

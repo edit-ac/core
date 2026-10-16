@@ -16,17 +16,26 @@ final class NativeFitnessUITests: XCTestCase {
         let r = tutorial.frame, window = app.windows.firstMatch.frame
         XCTAssertTrue(window.contains(r)); XCTAssertGreaterThan(r.width, 0); XCTAssertGreaterThan(r.height, 0)
         let screenshot = XCTAttachment(screenshot: app.screenshot())
-        screenshot.name = "visible keyboard tutorial before center dispatch"; screenshot.lifetime = .keepAlways; add(screenshot)
+        screenshot.name = "visible keyboard tutorial before element action"; screenshot.lifetime = .keepAlways; add(screenshot)
         let before = ProcessInfo.processInfo.systemUptime
-        tutorial.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        let record: [String: Any] = ["action": "single ordinary OS touch at observed hittable tutorial control center",
+        // The retained input-ack-1 screenshot/AX tree proves that a center
+        // coordinate dispatch can leave this live system tutorial in place.
+        // Activate the selected hittable button through XCTest's element action.
+        tutorial.tap()
+        let record: [String: Any] = ["action": "single XCTest element tap on selected live hittable OS tutorial button",
             "matchingControls": candidates.count, "reportedHittableBeforeDispatch": true,
             "frame": ["x": r.minX, "y": r.minY, "width": r.width, "height": r.height],
-            "point": ["x": r.midX, "y": r.midY], "before": before, "after": ProcessInfo.processInfo.systemUptime]
-        let data = try JSONSerialization.data(withJSONObject: record, options: [.sortedKeys])
+            "reportedFrameCenter": ["x": r.midX, "y": r.midY], "before": before, "after": ProcessInfo.processInfo.systemUptime]
+        let dismissed = candidates.firstMatch.waitForNonExistence(timeout: 5)
+        var acknowledgedRecord = record
+        acknowledgedRecord["dismissed"] = dismissed
+        acknowledgedRecord["recovery"] = dismissed ? "rebind before payload" : "request bounded focus rebind; no payload permitted while tutorial exists"
+        let data = try JSONSerialization.data(withJSONObject: acknowledgedRecord, options: [.sortedKeys])
         let attachment = XCTAttachment(data: data, uniformTypeIdentifier: "public.json")
         attachment.name = "keyboard tutorial screen dispatch"; attachment.lifetime = .keepAlways; add(attachment)
-        XCTAssertTrue(candidates.firstMatch.waitForNonExistence(timeout: 10))
+        // A failed setup tap is retained, never promoted to a successful
+        // dismissal. The caller can still exercise its existing focus recovery.
+        // It must observe tutorial absence before sending any payload.
         return true
     }
     func focus(_ app: XCUIApplication, button: XCUIElement, status: XCUIElement, value: String) throws {
@@ -62,7 +71,10 @@ final class NativeFitnessUITests: XCTestCase {
                 "frame": ["x": r.minX, "y": r.minY, "width": r.width, "height": r.height]])
             guard acknowledged else { continue }
             guard app.keyboards.firstMatch.waitForExistence(timeout: 10) else { continue }
-            _ = try dismissKeyboardTutorial(app)
+            // Tutorial dismissal can replace the remote text-input session.
+            // Reacquire focus before any payload rather than trusting readiness
+            // published while the tutorial was still intercepting keyboard input.
+            if try dismissKeyboardTutorial(app) { continue }
             guard settled.evaluate(with: status) || XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: settled, object: status)], timeout: 5) == .completed else { continue }
             for _ in 0..<6 {
                 if transitions.count >= 6 { break }
@@ -84,8 +96,11 @@ final class NativeFitnessUITests: XCTestCase {
             // Input-mode notifications may precede remote keyboard presentation
             // or its dismissal. Mode status alone cannot acknowledge real keys.
             guard app.keyboards.firstMatch.waitForExistence(timeout: 10) else { continue }
-            _ = try dismissKeyboardTutorial(app)
-            if ready.evaluate(with: status) && app.keyboards.firstMatch.exists { focused = true; break }
+            if try dismissKeyboardTutorial(app) { continue }
+            let tutorialAbsent = !app.buttons.matching(NSPredicate(format: "label == %@", "Continue")).firstMatch.exists
+            // One initial presentation plus one acknowledged hide/show rebind
+            // within the existing three-action setup bound; no probe payload.
+            if attempt > 0 && tutorialAbsent && ready.evaluate(with: status) && app.keyboards.firstMatch.exists { focused = true; break }
         }
         let attachment = XCTAttachment(data: try JSONSerialization.data(withJSONObject: transitions, options: [.sortedKeys]), uniformTypeIdentifier: "public.json")
         attachment.name = "actual OS keyboard input-mode transitions"; attachment.lifetime = .keepAlways; add(attachment)
@@ -223,6 +238,8 @@ final class NativeFitnessUITests: XCTestCase {
             // Activate the ordinary software-key touch-up path at its observed
             // center. typeText injects unmarked literals instead of OS Pinyin.
             // Save dispatch evidence before a callback assertion can abort.
+            let ack = app.staticTexts["input-acknowledgment"]
+            let callbacksBefore = ack.label
             let before = ProcessInfo.processInfo.systemUptime
             key.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
             let observation: [String: Any] = ["key": letter,
@@ -231,6 +248,8 @@ final class NativeFitnessUITests: XCTestCase {
                 "keyboardFrame": ["x": keyboard.minX, "y": keyboard.minY, "width": keyboard.width, "height": keyboard.height],
                 "windowFrame": ["x": window.minX, "y": window.minY, "width": window.width, "height": window.height],
                 "before": before, "after": ProcessInfo.processInfo.systemUptime,
+                "callbacksBefore": callbacksBefore, "callbacksAfter": ack.label,
+                "lastCallback": ack.value as? String ?? "unavailable",
                 "transport": "single ordinary OS touch at observed software-key center; no replay or setter"]
             let data = try JSONSerialization.data(withJSONObject: observation, options: [.sortedKeys])
             let attachment = XCTAttachment(data: data, uniformTypeIdentifier: "public.json")

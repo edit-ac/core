@@ -140,6 +140,21 @@ def main():
         values['AppleLanguages'] = ['en-US', 'zh-Hans']
         preferences.parent.mkdir(parents=True, exist_ok=True); preferences.write_bytes(plistlib.dumps(values))
         shutil.copy2(preferences, output/'simulator-keyboard-preferences.plist')
+        # Qualification covers actual keyboard/IME edits, not first-run OS
+        # onboarding. input-ack-3/keyboard-state.json records these exact keys
+        # after UIKit presented the tutorial: they persist even when its modal
+        # Continue action does not reach the remote input view. Initialize only
+        # this disposable simulator's onboarding state; no input or result is
+        # injected. Driver still requires tutorial absence and fresh focus.
+        keyboardPreferences = preferences.parent/'com.apple.keyboard.preferences.plist'
+        keyboardValues = plistlib.loads(keyboardPreferences.read_bytes()) if keyboardPreferences.exists() else {}
+        onboarding = {'DidShowContinuousPathIntroduction': True, 'UIKeyboardDidShowInternationalInfoIntroduction': True}
+        keyboardValues.update(onboarding)
+        keyboardPreferences.write_bytes(plistlib.dumps(keyboardValues))
+        shutil.copy2(keyboardPreferences, output/'simulator-keyboard-onboarding.plist')
+        record['metadata']['simulatorSetup'] = {'scope':'private disposable simulator only; first-run keyboard onboarding already seen',
+            'preferences':'com.apple.keyboard.preferences', 'values':onboarding,
+            'qualification':'actual OS payload/candidate/cancel, callback and restoration checks remain required; no onboarding qualification'}
         run('simulator-boot' ,['xcrun','simctl','boot',simulator]); run('simulator-ready',['xcrun','simctl','bootstatus',simulator,'-b'],timeout=300)
         # Observe one real foreground UIKit turn before starting the AX client.
         # Boot completion alone previously preceded an AX initialization timeout.

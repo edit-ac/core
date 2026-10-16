@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { digest, verifyPins } from '../../../scripts/architecture-budgets.mjs';
-import { inspectNativeInput, inspectNativeCJK, inspectPinyinDispatches, inspectNativeBuild, inspectNativeWorkload, inspectNativeEditWindows } from '../../../scripts/native-input-evidence.mjs';
+import { inspectNativeInput, inspectNativeCJK, inspectPinyinDispatches, inspectPinyinCallbacks, inspectNativeBuild, inspectNativeWorkload, inspectNativeEditWindows } from '../../../scripts/native-input-evidence.mjs';
 // Prepared detector controls qualify ordering sensitivity only, never runtime support.
 const windowSamples=Array.from({length:12},(_,i)=>({inputAt:100+i*10,layoutDoneAt:105+i*10}));
 const windowResources=[{at:10},{at:20},...windowSamples.map(s=>({at:s.layoutDoneAt+1})),{at:230},{at:240}];
@@ -25,6 +25,38 @@ for(const [name,mutate,reason] of [
 ]) test('prepared native edit windows reject '+name,()=>{
   const samples=structuredClone(windowSamples),resources=structuredClone(windowResources);
   mutate(samples,resources);assert.throws(()=>inspectNativeEditWindows(samples,resources),reason);
+});
+const callbackFixture = () => {
+  const callbacks=[], dispatches=[];
+  for (const key of ['n','i','h','a','o']) {
+    const before=callbacks.length;
+    for (const [kind,phase] of [['shouldChangeTextIn','delegate'],['setAttributedMarkedText','enter'],['textViewDidChange','delegate'],['setAttributedMarkedText','exit']]) {
+      const sequence=callbacks.length+1;
+      callbacks.push({sequence,kind,phase,at:sequence,firstResponder:true,inputMode:'zh-Hans',marked:true,projectedUtf16:8,selectionUtf16:[8,0]});
+    }
+    dispatches.push({key,callbacksBefore:String(before),callbacksAfter:String(callbacks.length),lastCallback:JSON.stringify(callbacks.at(-1))});
+  }
+  return {callbacks,dispatches};
+};
+test('prepared UIKit callback detector accepts app sequence joins',()=>{
+  const {callbacks,dispatches}=callbackFixture(); inspectPinyinCallbacks(callbacks,dispatches);
+});
+for (const [name,mutate] of Object.entries({
+  'missing trace':(c,d)=>c.length=0,
+  'saturated trace':c=>{while(c.length<256)c.push(c.at(-1));},
+  'reordered sequence':c=>c[1].sequence=1,
+  'reversed timestamp':c=>c[1].at=0,
+  'unpaired mutation':c=>c[3].kind='insertText',
+  'missing delegate':c=>c[0].kind='textViewDidChangeSelection',
+  'lost focus':c=>c[0].firstResponder=false,
+  'wrong mode':c=>c[0].inputMode='en-US',
+  'unmarked exit':c=>c[3].marked=false,
+  'stale key acknowledgment':(c,d)=>d[0].callbacksAfter=d[0].callbacksBefore,
+  'noninteger acknowledgment':(c,d)=>d[0].callbacksAfter='4.5',
+  'foreign callback':(c,d)=>d[0].lastCallback=JSON.stringify(c[7]),
+})) test('prepared UIKit callback detector rejects '+name,()=>{
+  const {callbacks,dispatches}=callbackFixture(); mutate(callbacks,dispatches);
+  assert.throws(()=>inspectPinyinCallbacks(callbacks,dispatches));
 });
 const root = fileURLToPath(new URL('../../../',import.meta.url));
 const read = p => readFile(resolve(root,p));
@@ -95,6 +127,14 @@ for (const path of ['Cargo.toml','Cargo.lock','native/ios/fitness/NativeFitness.
 });
 test('native OS keyboard, accessibility client, semantic preservation and display callbacks admit exact target runtime artifacts', async () => {
   assert.equal(digest(bytes), index.receiptHash); assert.equal(digest(profileBytes),receipt.profileHash);
+  assert.deepEqual(receipt.metadata.simulatorSetup, {
+    scope:'private disposable simulator only; first-run keyboard onboarding already seen',
+    preferences:'com.apple.keyboard.preferences',
+    values:{DidShowContinuousPathIntroduction:true,UIKeyboardDidShowInternationalInfoIntroduction:true},
+    qualification:'actual OS payload/candidate/cancel, callback and restoration checks remain required; no onboarding qualification'
+  });
+  const onboarding=(await read(index.directory+'/simulator-keyboard-onboarding.plist')).toString();
+  for (const key of ['DidShowContinuousPathIntroduction','UIKeyboardDidShowInternationalInfoIntroduction']) assert(onboarding.includes('<key>'+key+'</key>\n\t<true/>'));
   const preflight = JSON.parse(await read(index.directory+'/runtime-ready.json'));
   assert.deepEqual(receipt.runtimePreflight,preflight);
   for (const field of ['applicationActive','sceneActive','keyWindow']) assert.equal(preflight[field],true);
@@ -162,6 +202,10 @@ for (const [name,mutate] of Object.entries(mutations)) test('native admission re
 test('OS Pinyin candidate composition, commit, cancellation and accessibility geometry admit exact native artifacts',()=>{
   cjkObservations=inspectNativeCJK(profile,receipt,cjk,cjkAX,pinyinDispatches);
 });
+test('actual OS Pinyin keys bind retained UIKit method and delegate acknowledgments',async()=>{
+  const partial=JSON.parse(await read(index.directory+'/cjk-partial.json'));
+  inspectPinyinCallbacks(partial.inputCallbacks,pinyinDispatches);
+});
 for(const [name,mutate] of Object.entries({
   'missing key':d=>d.pop(),
   'reordered keys':d=>[d[0],d[1]]=[d[1],d[0]],
@@ -174,6 +218,9 @@ for(const [name,mutate] of Object.entries({
   const changed=structuredClone(pinyinDispatches);mutate(changed);assert.throws(()=>inspectPinyinDispatches(changed));
 });
 const cjkMutations={
+  'missing keyboard hide acknowledgment': (r,n) => delete n.focusReadiness.keyboardDidHideAt,
+  'stale keyboard hide acknowledgment': (r,n) => n.focusReadiness.keyboardDidHideAt=n.focusReadiness.requestedAt-1,
+
   'missing CJK focus request':(r,n)=>n.cases[1].observed.focusRequests=0,
   'unbounded CJK focus requests':(r,n)=>n.cases[1].observed.focusRequests=4,
   'missing CJK focus clocks':(r,n)=>delete n.focusReadiness,
