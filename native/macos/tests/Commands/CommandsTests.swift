@@ -55,23 +55,46 @@ final class CommandsTests: XCTestCase {
             XCTAssertTrue(view.textView.window === window)
             XCTAssertNil(view.projectionFailure)
             view.input.now = { 0 }; view.composition.now = { 0 }; view.commands.now = { 0 }
-            // XCTest pumps CFRunLoop, but AppKit does not become an active
-            // application until its own event loop has run. A run-loop timer
-            // stops this bounded host bootstrap without blocking main-queue jobs.
-            Timer.scheduledTimer(withTimeInterval: 0.1, repeats: false) { _ in
-                MainActor.assumeIsolated {
-                    window.makeKey()
-                    NSApp.stop(nil)
-                    let wake = NSEvent.otherEvent(with: .applicationDefined, location: .zero,
-                        modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil,
-                        subtype: 0, data1: 0, data2: 0)!
-                    NSApp.postEvent(wake, atStart: true)
+            if let helper = ProcessInfo.processInfo.environment["EDITAC_MACOS_ACTIVATION_HELPER"],
+               let evidence = ProcessInfo.processInfo.environment["EDITAC_MACOS_ACTIVATION_EVIDENCE"] {
+                let directory = URL(fileURLWithPath: evidence)
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                let receipt = directory.appendingPathComponent(UUID().uuidString + ".json")
+                let process = Process(); process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+                process.arguments = ["-n", "-W", helper, "--args", "--yield-activation",
+                    String(ProcessInfo.processInfo.processIdentifier), receipt.path]
+                try process.run(); process.waitUntilExit()
+                let value = try JSONSerialization.jsonObject(with: Data(contentsOf: receipt)) as! [String: Any]
+                XCTAssertEqual(process.terminationStatus, 0)
+                XCTAssertEqual(value["activeBeforeYield"] as? Bool, true)
+                XCTAssertEqual(value["targetPID"] as? Int32, ProcessInfo.processInfo.processIdentifier)
+            }
+            // Activation is asynchronous. Pump AppKit until the OS grants this
+            // fixture real focus, rather than assuming a fixed delay is sufficient.
+            let textView = view.textView
+            var attempts = 0
+            Timer.scheduledTimer(withTimeInterval: 0.02, repeats: true) { timer in
+                let stop = MainActor.assumeIsolated {
+                    attempts += 1
+                    NSApp.activate(ignoringOtherApps: true)
+                    window.makeKeyAndOrderFront(nil)
+                    window.makeFirstResponder(textView)
+                    if NSApp.isActive && window.isKeyWindow && window.firstResponder === textView || attempts >= 100 {
+                        NSApp.stop(nil)
+                        NSApp.postEvent(NSEvent.otherEvent(with: .applicationDefined, location: .zero,
+                            modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil,
+                            subtype: 0, data1: 0, data2: 0)!, atStart: true)
+                        return true
+                    }
+                    return false
                 }
+                if stop { timer.invalidate() }
             }
             NSApp.run()
-            window.makeKey()
+            XCTAssertTrue(NSApp.isActive)
             XCTAssertTrue(window.isKeyWindow)
-            XCTAssertTrue(window.makeFirstResponder(view.textView))
+            XCTAssertTrue(window.firstResponder === view.textView)
+            print("NATIVE_FOCUS active=\(NSApp.isActive) key=\(window.isKeyWindow) responder=\(window.firstResponder === view.textView) attempts=\(attempts)")
             try await body(view, snapshot)
         } catch {
             await withCheckedContinuation { c in view.dispose { c.resume() } }
