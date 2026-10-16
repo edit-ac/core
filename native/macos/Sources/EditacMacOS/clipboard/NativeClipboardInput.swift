@@ -12,6 +12,7 @@ public struct NativeClipboardDelivery: Sendable {
 public final class NativeClipboardRead {
     public private(set) var isFinished = false
     private var progress: Progress?
+    private var provider: NSItemProvider?
     private var loading = false
     private var completion: (@MainActor (Result<NativeClipboardDelivery, NativeClipboardFailure>) -> Void)?
     private let validate: @MainActor () -> NativeClipboardFailure?
@@ -25,7 +26,6 @@ public final class NativeClipboardRead {
 
     public func cancel() {
         guard !isFinished else { return }
-        progress?.cancel()
         finish(.failure(.cancelled))
     }
 
@@ -42,7 +42,7 @@ public final class NativeClipboardRead {
         isFinished = true
         let callback = completion
         completion = nil
-        progress?.cancel(); progress = nil
+        progress?.cancel(); progress = nil; provider = nil
         callback?(result)
     }
 
@@ -57,10 +57,11 @@ public final class NativeClipboardRead {
             finish(.failure(.unsupportedTypes)); return
         }
         loading = true
-        load(provider, remaining: offered, values: [:])
+        self.provider = provider
+        load(remaining: offered, values: [:])
     }
 
-    private func load(_ provider: NSItemProvider, remaining: [NativeClipboardFlavor],
+    private func load(remaining: [NativeClipboardFlavor],
                       values: [NativeClipboardFlavor: Data]) {
         guard !isFinished else { return }
         if let failure = validate() { finish(.failure(failure)); return }
@@ -70,6 +71,7 @@ public final class NativeClipboardRead {
             catch { receive(.failure(.providerFailed)) }
             return
         }
+        guard let provider else { receive(.failure(.providerFailed)); return }
         progress = provider.loadDataRepresentation(forTypeIdentifier: flavor.rawValue) { [weak self] bytes, error in
             Task { @MainActor [weak self] in
                 guard let self, !self.isFinished else { return }
@@ -78,7 +80,7 @@ public final class NativeClipboardRead {
                 do { _ = try NativeClipboardOffer(combined) }
                 catch let failure as NativeClipboardFailure { self.receive(.failure(failure)); return }
                 catch { self.receive(.failure(.providerFailed)); return }
-                self.load(provider, remaining: Array(remaining.dropFirst()), values: combined)
+                self.load(remaining: Array(remaining.dropFirst()), values: combined)
             }
         }
     }
