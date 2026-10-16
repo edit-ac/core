@@ -128,6 +128,91 @@ fn policy() -> HostPolicy {
 fn origin() -> TextOrigin {
     TextOrigin::new("table-session").unwrap()
 }
+
+#[test]
+fn rectangle_uses_one_durable_receipt_and_rechecks_readonly_before_any_write() {
+    use editac_core::commands::table::{CellRectangle, RectangleEdit, rectangle_commands};
+    for v2 in [false, true] {
+        let f = Fixture::new(v2);
+        let (store, mut service) = f.service("rectangle");
+        let original = tuple(&service, &f.table);
+        let expected = service
+            .session()
+            .document()
+            .snapshot()
+            .unwrap()
+            .visible
+            .into_iter()
+            .find(|node| node.id == f.table)
+            .unwrap()
+            .block_attributes
+            .as_ref()
+            .unwrap()
+            .tuple();
+        let cells = vec![
+            vec!["one".into(), "two😀".into()],
+            vec!["three".into(), "four".into()],
+        ];
+        let commands = rectangle_commands(
+            &f.table,
+            &expected,
+            CellRectangle {
+                row: 0,
+                column: 0,
+                rows: 2,
+                columns: 2,
+            },
+            RectangleEdit::Paste(&cells),
+            &[],
+        )
+        .unwrap();
+        let before = service.session().document().checkpoint().bytes;
+        let revision = service.read(0).unwrap().revision;
+        let plan = service
+            .prepare_commands(&revision, &commands, &origin(), 0)
+            .unwrap();
+        assert_eq!(service.session().document().checkpoint().bytes, before);
+        service.set_policy(HostPolicy {
+            writable: false,
+            ..policy()
+        });
+        assert!(matches!(
+            service.apply(plan, 0),
+            Err(ServiceError::ReadOnly)
+        ));
+        assert!(matches!(
+            service.prepare_commands(&revision, &commands, &origin(), 0),
+            Err(ServiceError::ReadOnly)
+        ));
+        assert_eq!(service.session().document().checkpoint().bytes, before);
+        assert_eq!(store.pending(&f.id).unwrap().len(), 0);
+        assert_eq!(service.session().document().history_state().undo_groups, 0);
+        service.set_policy(policy());
+        let plan = service
+            .prepare_commands(&revision, &commands, &origin(), 0)
+            .unwrap();
+        let receipt = service.apply(plan, 0).unwrap().unwrap();
+        assert_eq!(
+            service.local_receipt(&receipt.update).unwrap(),
+            Some(receipt)
+        );
+        assert_eq!(store.pending(&f.id).unwrap().len(), 1);
+        assert_eq!(service.session().document().history_state().undo_groups, 1);
+        let pasted = tuple(&service, &f.table);
+        assert_ne!(pasted, original);
+        let revision = service.read(0).unwrap().revision;
+        service.undo(&revision, 0).unwrap().unwrap();
+        assert_eq!(tuple(&service, &f.table), original);
+        let revision = service.read(0).unwrap().revision;
+        service.redo(&revision, 0).unwrap().unwrap();
+        assert_eq!(tuple(&service, &f.table), pasted);
+        let reopened = EditService::new(
+            Session::open(store.clone(), &f.id, CachedPermission::LOCAL).unwrap(),
+            policy(),
+        );
+        assert_eq!(tuple(&reopened, &f.table), pasted);
+    }
+}
 fn tuple<S: SessionStore>(s: &EditService<Arc<S>>, owner: &str) -> Value {
     let n = s
         .session()

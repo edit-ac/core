@@ -1,5 +1,5 @@
 //! Bounded table edits on admitted opaque tuples; no new table representation.
-use super::editor::{EditorCommand, EditorError};
+use super::editor::{EditorCommand, EditorError, FragmentBlock};
 use crate::modules::content::{Content, ContentError};
 use std::{collections::HashMap, sync::Arc};
 use yrs::Any;
@@ -10,6 +10,171 @@ pub enum TableAction {
     DeleteRow,
     InsertColumn,
     DeleteColumn,
+}
+
+/// A cell selection, distinct from a text selection inside a native cell control.
+/// Indices are captured against the exact expected table descriptor.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CellRectangle {
+    pub row: usize,
+    pub column: usize,
+    pub rows: usize,
+    pub columns: usize,
+}
+
+pub enum RectangleEdit<'a> {
+    /// Delete/Backspace on cells clears content without removing geometry.
+    Clear,
+    /// Literal cells with explicit row/column boundaries; no implicit expansion.
+    Paste(&'a [Vec<String>]),
+    /// Internal/foreign decoded cells. The simple-cell profile admits only
+    /// unmarked paragraph text; nested content and lossy flattening reject.
+    PasteFragment(&'a [Vec<FragmentBlock>]),
+}
+
+fn simple_cells(rows: &[Vec<Any>]) -> bool {
+    rows.iter().flatten().all(|c| {
+        map(c).is_ok_and(|m| m["rowSpan"] == Any::from(1u32) && m["columnSpan"] == Any::from(1u32))
+    })
+}
+
+/// Pure bounded preparation for the existing command route. Submit the returned
+/// commands together to `Document::prepare_editor`, then commit once. Every step
+/// carries its exact staged descriptor; callers must not commit steps separately.
+/// Host-owned protected coordinates must be captured with the expected descriptor;
+/// the owning EditService still enforces whole-document permissions at commit.
+/// At most 128 cells and 1 MiB of replacement text are admitted per action.
+pub fn rectangle_commands(
+    target: &str,
+    expected: &Any,
+    rectangle: CellRectangle,
+    edit: RectangleEdit<'_>,
+    protected: &[(usize, usize)],
+) -> Result<Vec<EditorCommand>, EditorError> {
+    let CellRectangle {
+        row,
+        column,
+        rows,
+        columns,
+    } = rectangle;
+    let count = rows
+        .checked_mul(columns)
+        .ok_or(EditorError::ResourceLimit)?;
+    if rows == 0 || columns == 0 {
+        return Err(EditorError::InvalidCommand);
+    }
+    if count > 128 || protected.len() > 4096 {
+        return Err(EditorError::ResourceLimit);
+    }
+    let literal;
+    let edit = match edit {
+        RectangleEdit::PasteFragment(cells) => {
+            if cells.len() != rows || cells.iter().any(|r| r.len() != columns) {
+                return Err(EditorError::InvalidCommand);
+            }
+            let mut bytes = 0usize;
+            let mut runs = 0usize;
+            for block in cells.iter().flatten() {
+                if block.containers.len() > 16 {
+                    return Err(EditorError::ResourceLimit);
+                }
+                if !block.containers.is_empty()
+                    || block.checked.is_some()
+                    || !matches!(
+                        block.attributes,
+                        None | Some(crate::document::BlockAttributes::Paragraph)
+                    )
+                {
+                    return Err(EditorError::UnsupportedTarget);
+                }
+                for run in &block.runs {
+                    runs += 1;
+                    bytes = bytes
+                        .checked_add(run.text.len())
+                        .ok_or(EditorError::ResourceLimit)?;
+                    if runs > 1024 || bytes > 1_048_576 {
+                        return Err(EditorError::ResourceLimit);
+                    }
+                    if !run.marks.is_empty() {
+                        return Err(EditorError::UnsupportedTarget);
+                    }
+                }
+            }
+            literal = cells
+                .iter()
+                .map(|r| {
+                    r.iter()
+                        .map(|b| b.runs.iter().map(|r| r.text.as_str()).collect())
+                        .collect()
+                })
+                .collect::<Vec<Vec<String>>>();
+            RectangleEdit::Paste(&literal)
+        }
+        other => other,
+    };
+    if !matches!(
+        Content::from_tuple(expected).map_err(error)?,
+        Some(Content::Table { .. } | Content::RichTable { .. })
+    ) {
+        return Err(EditorError::UnsupportedTarget);
+    }
+    let envelope = array(expected)?;
+    let data = map(&envelope[2])?;
+    let table_rows: Vec<Vec<Any>> = array(&data["rows"])?
+        .iter()
+        .map(|r| array(r).map(<[Any]>::to_vec))
+        .collect::<Result<_, _>>()?;
+    let end_row = row.checked_add(rows).ok_or(EditorError::ResourceLimit)?;
+    let end_column = column
+        .checked_add(columns)
+        .ok_or(EditorError::ResourceLimit)?;
+    if end_row > table_rows.len() || end_column > array(&data["alignments"])?.len() {
+        return Err(EditorError::InvalidCommand);
+    }
+    if (envelope[1] == Any::from(2u32) && !simple_cells(&table_rows))
+        || protected
+            .iter()
+            .any(|&(r, c)| (row..end_row).contains(&r) && (column..end_column).contains(&c))
+    {
+        return Err(EditorError::UnsupportedTarget);
+    }
+    if let RectangleEdit::Paste(cells) = &edit {
+        if cells.len() != rows || cells.iter().any(|r| r.len() != columns) {
+            return Err(EditorError::InvalidCommand);
+        }
+        let mut bytes = 0usize;
+        for text in cells.iter().flatten() {
+            bytes = bytes
+                .checked_add(text.len())
+                .ok_or(EditorError::ResourceLimit)?;
+            if bytes > 1_048_576 {
+                return Err(EditorError::ResourceLimit);
+            }
+            if text.contains(['\n', '\r']) {
+                return Err(EditorError::InvalidCommand);
+            }
+        }
+    }
+    let mut staged = expected.clone();
+    let mut commands = Vec::with_capacity(count);
+    for r in 0..rows {
+        for c in 0..columns {
+            let command = EditorCommand::TableCell {
+                target: target.into(),
+                expected: staged.clone(),
+                row: row + r,
+                column: column + c,
+                text: match &edit {
+                    RectangleEdit::Clear => String::new(),
+                    RectangleEdit::Paste(cells) => cells[r][c].clone(),
+                    RectangleEdit::PasteFragment(_) => unreachable!(),
+                },
+            };
+            staged = plan(&staged, &command)?.0;
+            commands.push(command);
+        }
+    }
+    Ok(commands)
 }
 fn error(e: ContentError) -> EditorError {
     if e == ContentError::ResourceLimit {
@@ -134,13 +299,7 @@ pub(super) fn plan(expected: &Any, command: &EditorCommand) -> Result<(Any, Stri
         }
         EditorCommand::TableStructure { action, index, .. } => {
             // Editing a span boundary requires a separately qualified geometry policy.
-            if v2
-                && rows.iter().flatten().any(|c| {
-                    map(c).map_or(true, |m| {
-                        m["rowSpan"] != Any::from(1u32) || m["columnSpan"] != Any::from(1u32)
-                    })
-                })
-            {
+            if v2 && !simple_cells(&rows) {
                 return Err(EditorError::UnsupportedTarget);
             }
             match action {
