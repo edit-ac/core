@@ -12,6 +12,7 @@ export function inspectProcessMemoryMethod(profile, metadata) {
   require([c.before, c.afterFree].every(p => positive(p.footprintBytes) && positive(p.lifetimePeakFootprintBytes) && p.lifetimePeakFootprintBytes >= p.footprintBytes), 'Invalid allocation accounting');
   require(c.afterFree.lifetimePeakFootprintBytes - c.before.lifetimePeakFootprintBytes >= c.allocatedBytes * .9 && c.afterFree.lifetimePeakFootprintBytes - c.afterFree.footprintBytes >= c.allocatedBytes * .9, 'OS peak detector missed freed allocation');
   const tree = metadata.treeControl;
+  require(tree?.sample?.scheduling === processMemoryPolicy.scheduling, 'Missing actual collector scheduling control');
   require(positive(tree?.childPid) && tree.allocatedBytes === c.allocatedBytes && tree.sample?.processes.length >= 2, 'Missing executable child-tree control');
   const child = tree.sample.processes.find(p => p.pid === tree.childPid);
   require(child?.footprintBytes >= tree.allocatedBytes * .9 && child.lifetimePeakFootprintBytes >= child.footprintBytes, 'Process enumeration missed live child allocation');
@@ -33,6 +34,7 @@ export function inspectProcessMemory(record) {
   let last = -1;
   const identities = new Map();
   for (const sample of record.samples) {
+    require(sample.scheduling === processMemoryPolicy.scheduling, 'Missing actual collector scheduling');
     require(clock(sample.atMs) && clock(sample.endMs) && sample.atMs > last && sample.endMs >= sample.atMs && sample.endMs - sample.atMs <= processMemoryPolicy.maximumGapMs, 'Invalid process-memory clock/window');
     if (last >= 0) require(sample.atMs - last <= processMemoryPolicy.maximumGapMs, 'Continuous process-memory coverage gap');
     last = sample.atMs;

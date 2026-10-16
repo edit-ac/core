@@ -182,7 +182,8 @@ animation callbacks may share a refresh timestamp; keep those raw duplicates
 without inferring separate presented frames.
 
 PRF-05 uses `node scripts/bench-lifecycle.mjs --seed-directory <retained-owning-directory> --output <unique-directory>`.
-`lifecycle-v1.json` fixes Task/Long × baseline/Task, twelve cycles and a 200 ms
+`lifecycle-v1.json` fixes Task/Long × baseline/Task × disabled/enabled Markdown,
+twelve cycles (96 total) and a 200 ms
 idle window before measurement. Each cycle proves a live paste target with an
 actual committed paste/undo, cancels deferred clipboard preparation, unloads the
 production resolver with an abort-ignoring prepared host, destroys the editor,
@@ -197,7 +198,23 @@ then require detection and cleanup before the fixed replay. Retired probe entrie
 are pruned; workers require explicit termination even after handle collection.
 Observer accounting is conservative until disconnect (unobserve is not inferred).
 Idle checks count scheduled callbacks, not event-driven browser internals, OS work,
-property event handlers or unobserved ports. Optional providers are absent.
+property event handlers or unobserved ports. The producer admits the current
+optional-loading receipt, then executes its exact measured default/Markdown
+assets and retains their packed inputs. Feature, request, policy, hardware and
+artifact identities are checked together. Non-GC initialization samples precede
+and follow engine/parser initialization; seven live phases and post-disposal GC
+samples retain raw JS/backing-storage/DOM observations per cycle. Continuous OS
+browser-tree accounting and per-process lifetime maxima have the separate scope
+documented below.
+
+Enabled cases prove rich parser use through actual clipboard decoding of `**Z**`
+to a bold run, followed by exact full-corpus undo and persisted reopen, plus a
+Markdown codec round trip. A single-byte replacement preserves the fixed text
+limit. Matching inline paragraphs reuse the engine's prepared source-edit path;
+structural imports keep their separate source registrations. The retained initial
+Long undo failures explain the engine repair and remain available as failed
+evidence. Disabled cases reject Markdown parser requests. Missing enabled
+execution, changed pack/asset identities and incomplete matrices fail admission.
 Memory plateau has no reviewed limit and remains inconclusive. Canonical admission
 rejects missing cycles, resource leaks, idle polling, late mutation, lost recovery,
 mutated artifacts and invented qualification; this receipt cannot close FIT-1.8.
@@ -459,7 +476,9 @@ this optimization alone does not qualify startup or the full performance gate.
 
 The PRF-05 lifecycle producer also compiles the test-only macOS
 `scripts/process-memory.c` helper and samples the captured browser process tree
-every 20 ms in a separate process. `proc_pid_rusage(RUSAGE_INFO_V4)` supplies
+every 20 ms in a separate process. Only the collector thread requests
+user-initiated QoS; the admitted class is recorded and checked in every raw sample
+and the child-tree control. The coverage ceiling remains unchanged. `proc_pid_rusage(RUSAGE_INFO_V4)` supplies
 resident bytes, physical footprint and OS-maintained lifetime maximum physical
 footprint. The helper retains monotonic sample windows and process start identities;
 CDP process-role boundaries identify the browser and renderer. Admission rejects

@@ -328,6 +328,51 @@ impl Document {
                 }
             }
         }
+        // Inline paragraph imports need no new immutable source when their
+        // presentation already matches. Reuse the qualified atomic source-edit
+        // path so undo does not retain imported text in an additional source
+        // beyond the aggregate source-text ceiling.
+        if self.identity().has_stable_presentation()
+            && blocks.len() == 1
+            && blocks[0].attributes == Some(BlockAttributes::Paragraph)
+            && blocks[0].containers.is_empty()
+            && blocks[0].checked.is_none()
+        {
+            if let (Ok(Resolution::Position(a)), Ok(Resolution::Position(b))) = (
+                self.resolve_anchor(&selection.anchor),
+                self.resolve_anchor(&selection.focus),
+            ) {
+                if a.node == b.node
+                    && self
+                        .inspect()
+                        .map_err(|_| EditorError::InvalidCommand)?
+                        .visible
+                        .iter()
+                        .any(|node| {
+                            node.id == a.node
+                                && node.block_attributes == Some(BlockAttributes::Paragraph)
+                        })
+                {
+                    let range = if a.offset.0 <= b.offset.0 {
+                        selection.clone()
+                    } else {
+                        Selection {
+                            anchor: selection.focus.clone(),
+                            focus: selection.anchor.clone(),
+                        }
+                    };
+                    let mut plan =
+                        self.prepare_source_edits(&[(range, blocks.to_vec())], origin)?;
+                    plan.entry_selection = Some(selection.clone());
+                    let end = if a.offset.0 <= b.offset.0 { &b } else { &a };
+                    plan.result_caret = Some(
+                        self.anchor(&end.node, end.offset, Bias::Right)
+                            .map_err(|_| EditorError::InvalidCommand)?,
+                    );
+                    return Ok(plan);
+                }
+            }
+        }
         let baseline = self.checkpoint();
         let mut stage =
             Document::restore(self.identity(), &baseline, &[]).map_err(EditorError::Admission)?;

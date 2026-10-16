@@ -13,6 +13,7 @@ import { inspectLifecycles, inspectLifecycle, validateLifecyclePolicy } from './
 import { requireTestNode } from './test-toolchain.mjs';
 import { prepareProcessMemory, startProcessMemory } from './process-memory.mjs';
 import { inspectProcessMemoryMethod } from './process-memory-evidence.mjs';
+import { admitOptionalLoading } from './optional-loading-evidence.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url)); process.chdir(root); await requireTestNode();
 const args = process.argv.slice(2);
@@ -32,7 +33,7 @@ const record = { version: 1, qualification: 'unqualified', profileHash: digest(p
     cpu: cpus()[0].model, cores: cpus().length, memoryBytes: totalmem(), hostOS: `${platform()}/${release()}/${arch()}`,
     verificationPolicy: { source: 'architecture/specs/verification.md', sha256: digest(verificationPolicy), reviewedAt: fitnessPolicy.reviewedAt },
     provenance: 'headless-browser-on-host', node: process.version, replay: profile.replay, memoryMethod: profile.memoryMethod, liveMemoryMethod: profile.liveMemoryMethod },
-  counts: { executed: 0, passed: 0, failed: 0, skipped: profile.fixtures.length * profile.presets.length * profile.requiredObservations.length }, cases: [], sourceInputs: {}, artifacts: {}, errors: [], cleanup: {} };
+  counts: { executed: 0, passed: 0, failed: 0, skipped: profile.fixtures.length * profile.presets.length * profile.optionalProfiles.length * profile.requiredObservations.length }, cases: [], sourceInputs: {}, artifacts: {}, errors: [], cleanup: {} };
 const tracked = spawnSync('git', ['ls-files', 'crates', 'packages', 'fixtures/schema-v5', 'Cargo.lock', 'Cargo.toml', 'package-lock.json', 'package.json', 'scripts/build-wasm.mjs'], { encoding: 'utf8' });
 if (tracked.status !== 0) throw Error('Cannot pin source closure');
 const inputs = [...new Set([...tracked.stdout.trim().split('\n'), profilePath, fitnessPath, 'benchmarks/config.json', 'scripts/architecture-budgets.mjs', 'contracts/services.json', 'benchmarks/lifecycle-client.mjs',
@@ -47,23 +48,50 @@ async function retain(file, bytes) { await mkdir(join(output, file, '..'), { rec
 try {
   await retain('policy/verification.md', verificationPolicy);
   validateLifecyclePolicy(fitnessPolicy, record);
+  const optionalIndex = JSON.parse(await readFile('benchmarks/profiles/optional-loading-evidence.json'));
+  const optionalDirectory = resolve(root, optionalIndex.directory);
+  const optionalBytes = await readFile(join(optionalDirectory, 'optional-loading.json'));
+  if (digest(optionalBytes) !== optionalIndex.receiptHash) throw Error('Optional packed receipt identity changed');
+  const optionalRecord = JSON.parse(optionalBytes);
+  await admitOptionalLoading(root, optionalDirectory, optionalRecord);
+  record.metadata.optionalLoading = { ...optionalIndex, profiles: Object.fromEntries(profile.optionalProfiles.map(name => [name, {
+    packs: optionalRecord.profiles[name].measurement.packs, assets: optionalRecord.profiles[name].measurement.assets,
+    bytes: optionalRecord.profiles[name].measurement.result,
+  }])) };
+  await retain('inputs/optional-loading.json', optionalBytes);
   const processMemory = await prepareProcessMemory(temporary);
   record.metadata.processMemory = processMemory.metadata;
   inspectProcessMemoryMethod(profile, record.metadata.processMemory);
   await retain('harness/process-memory', await readFile(processMemory.binary));
-  await mkdir(join(temporary, 'wasm'));
-  await build({ stdin: { contents: 'export {createEditor,taskPreset,CheckpointStorage} from "@edit-ac/web"; export {init} from "@edit-ac/core"; export {ServiceLifecycle,ReferenceLookupSession} from "@edit-ac/web/modules"; export {DirectSyncAdapter} from "./packages/web/src/sync/protocol.ts";', resolveDir: root },
-    outfile: join(temporary, 'sdk.js'), bundle: true, minify: true, format: 'esm', platform: 'browser', target: 'es2022' });
-  for (const file of ['sdk.js']) await retain(`harness/${file}`, await readFile(join(temporary, file)));
-  for (const file of ['editac_wasm.js', 'editac_wasm_bg.wasm']) {
-    await copyFile(`packages/core/dist/wasm/${file}`, join(temporary, 'wasm', file));
-    await retain(`harness/wasm/${file}`, await readFile(join(temporary, 'wasm', file)));
+  // Execute the measured packed editor bytes, with only the separately packed
+  // resolver test port added. Never replace the editor with a source alias.
+  for (const pack of optionalRecord.profiles.markdown.measurement.packs) {
+    const packed = await readFile(join(optionalDirectory, 'markdown', pack.filename));
+    await retain(`packs/${pack.filename}`, packed);
+    const destination = join(temporary, 'node_modules/@edit-ac', pack.name);
+    await mkdir(destination, { recursive: true });
+    const unpack = spawnSync('tar', ['-xzf', join(output, 'packs', pack.filename), '--strip-components=1', '-C', destination], { encoding: 'utf8' });
+    if (unpack.status !== 0) throw Error('Cannot unpack retained runtime: ' + unpack.stderr);
   }
-  for (const file of ['lifecycle-client.mjs', 'resource-probe.mjs', 'fixtures.mjs', 'presets.mjs']) {
-    await copyFile(`benchmarks/${file}`, join(temporary, file)); await retain(`harness/${file}`, await readFile(`benchmarks/${file}`));
-  }
+  await build({ stdin: { contents: 'export {ReferenceLookupSession} from "@edit-ac/web/modules";', resolveDir: temporary },
+    outfile: join(temporary, 'resolver.js'), bundle: true, minify: true, format: 'esm', platform: 'browser', target: 'es2022' });
+  await retain('harness/resolver.js', await readFile(join(temporary, 'resolver.js')));
   const html = '<!doctype html><meta charset="utf-8"><title>PRF-05</title><style>body{margin:24px}#outer{width:900px;height:360px;overflow:auto;border:1px solid}#inner{margin:16px;height:240px;overflow:auto}#editor{font:16px/1.5 sans-serif;white-space:pre-wrap}#after{height:600px}</style><div id="outer"><div id="inner"><div id="editor"></div></div><div id="after"></div></div>';
-  await writeFile(join(temporary, 'index.html'), html); await retain('harness/index.html', html);
+  for (const optional of profile.optionalProfiles) {
+    const directory = join(temporary, optional); await mkdir(directory);
+    for (const asset of optionalRecord.profiles[optional].measurement.assets) {
+      const bytes = await readFile(join(optionalDirectory, optional, 'artifacts', asset.name));
+      await mkdir(join(directory, asset.name, '..'), { recursive: true }); await writeFile(join(directory, asset.name), bytes);
+      await retain(`harness/${optional}/${asset.name}`, bytes);
+    }
+    for (const file of ['lifecycle-client.mjs', 'resource-probe.mjs', 'fixtures.mjs', 'presets.mjs']) {
+      await copyFile(`benchmarks/${file}`, join(directory, file)); await retain(`harness/${optional}/${file}`, await readFile(`benchmarks/${file}`));
+    }
+    const entry = 'export * from "./task.js"; export {ReferenceLookupSession} from "../resolver.js";';
+    await writeFile(join(directory, 'sdk.js'), entry); await retain(`harness/${optional}/sdk.js`, entry);
+    const page = html.replace('<style>', '<link rel="stylesheet" href="./task.css"><style>');
+    await writeFile(join(directory, 'index.html'), page); await retain(`harness/${optional}/index.html`, page);
+  }
   server = await startFixtureServer({ fixtureDirectory: temporary });
   record.metadata.server = { pid: process.pid, port: server.port, workspace: root, purpose: 'PRF-05', log: output };
   controller = await chromium.launchServer({ headless: true });
@@ -75,21 +103,21 @@ try {
     const bytes = await readFile(join(seeds, 'fixtures', `${name}.checkpoint.json`)), frozen = JSON.parse(bytes);
     await retain(`fixtures/${name}.checkpoint.json`, bytes);
     await retain(`fixtures/${name}.json`, JSON.stringify(fixture(name)));
-    for (const preset of profile.presets) {
+    for (const preset of profile.presets) for (const optional of profile.optionalProfiles) {
       if (interrupted) throw Error('Service run interrupted');
-      console.log(`${name}/${preset} → ${output}`);
+      console.log(`${name}/${preset}/${optional} → ${output}`);
       const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, serviceWorkers: 'block' });
-      const item = { fixture: name, preset, features: presets[preset].featureSet, checkpointHash: digest(bytes), fixtureHash: digest(JSON.stringify(fixture(name))), observations: [], cycles: [], errors: [] };
+      const item = { fixture: name, preset, optional, features: [...presets[preset].featureSet, ...(optional === 'markdown' ? ['markdown'] : [])], checkpointHash: digest(bytes), fixtureHash: digest(JSON.stringify(fixture(name))), observations: [], cycles: [], requests: [], errors: [] };
       record.cases.push(item);
       try {
         const page = await context.newPage(); page.setDefaultTimeout(120000);
         await context.route('**/*', route => new URL(route.request().url()).origin === new URL(server.url).origin ? route.continue() : route.abort());
-        await page.goto(server.url);
-        await page.addScriptTag({ type: 'module', content: 'import * as services from "/fixture/lifecycle-client.mjs"; window.services=services;' });
+        page.on('request', request => item.requests.push(new URL(request.url()).pathname));
+        await page.goto(`${server.url}/fixture/${optional}/index.html`);
+        await page.addScriptTag({ type: 'module', content: `import * as services from "/fixture/${optional}/lifecycle-client.mjs"; window.services=services;` });
         await page.waitForFunction(() => !!window.services);
         page.on('pageerror', error => item.errors.push(error.message));
         const cdp = await context.newCDPSession(page); await cdp.send('Performance.enable');
-        item.probeControl = await page.evaluate(options => window.services.setup(options), { name, preset, frozen, profile });
         const memory = async (collected = true) => {
           if (collected) await cdp.send('HeapProfiler.collectGarbage');
           const { metrics } = await cdp.send('Performance.getMetrics');
@@ -98,6 +126,7 @@ try {
             ...await cdp.send('Memory.getDOMCounters'), heap: await cdp.send('Runtime.getHeapUsage') };
         };
         await page.exposeFunction('lifecycleHeap', () => memory(false));
+        item.probeControl = await page.evaluate(options => window.services.setup(options), { name, preset, optional, frozen, profile });
         item.baseline = await memory();
         for (let i = 0; i < profile.cycles; i++) {
           const sampler = await startProcessMemory(processMemory.binary, controller.process().pid);
@@ -113,7 +142,7 @@ try {
             processSeries = await sampler.stop();
             processSeries.roles = { before, after: await roles() };
             processSeries.hostWorkMs = hostWorkMs;
-            await retain(`process-memory/${name}-${preset}-${i}.json`, JSON.stringify(processSeries));
+            await retain(`process-memory/${name}-${preset}-${optional}-${i}.json`, JSON.stringify(processSeries));
           }
           raw.processMemory = processSeries;
           raw.sampledHighWater = Object.fromEntries(['jsHeapUsedBytes', 'nodes', 'documents', 'jsEventListeners', 'backingStorageBytes'].map(key =>

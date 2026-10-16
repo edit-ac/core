@@ -4,7 +4,7 @@
   "parent": "FIT-1.8-I1-B",
   "case": "PRF-05",
   "reviewedAt": "2026-10-15T01:49:43.498588+00:00",
-  "scope": "Actual browser editor/resolver/clipboard diagnostics; prepared host and scheduler; no optional-runtime or memory qualification",
+  "scope": "Actual packed browser editor and enabled Markdown parser/clipboard lifecycle resource diagnostics; prepared resolver host and scheduler; no peak/plateau or release qualification",
   "fixtures": [
     "Task",
     "Long"
@@ -50,7 +50,13 @@
     "intervalMs": 20,
     "maximumGapMs": 250,
     "counterReads": "current-and-reported-peak/confirm-reported-peak-v1",
+    "scheduling": "user-initiated",
     "scope": "Browser tree sampled resident/physical-footprint bytes; OS-maintained per-process lifetime maximum physical footprint. Not a simultaneous tree peak, cycle-local peak, JS allocation peak or plateau qualification."
   },
-  "processMemoryReviewedAt": "2026-10-15T22:51:40.951Z"
+  "processMemoryReviewedAt": "2026-10-16T07:10:15.699379+00:00",
+  "optionalProfiles": [
+    "default",
+    "markdown"
+  ],
+  "optionalReviewedAt": "2026-10-16T06:30:00.000Z"
 }

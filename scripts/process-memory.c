@@ -3,6 +3,8 @@
 #include <errno.h>
 #include <libproc.h>
 #include <poll.h>
+#include <pthread.h>
+#include <sys/qos.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -52,7 +54,8 @@ static int sample(pid_t root) {
       if (!found) { if (count == MAX_PROCESSES) return -1; pids[count++] = children[j]; }
     }
   }
-  printf("{\"atMs\":%.6f,\"processes\":[", now_ms());
+  if (qos_class_self() != QOS_CLASS_USER_INITIATED) return -1;
+  printf("{\"atMs\":%.6f,\"scheduling\":\"user-initiated\",\"processes\":[", now_ms());
   for (int i = 0; i < count; i++) {
     if (i) putchar(',');
     struct rusage_info_v4 r;
@@ -102,6 +105,9 @@ static int tree_control(void) {
   return result;
 }
 int main(int argc, char **argv) {
+  // Only this test collector thread changes QoS. Keep the coverage ceiling
+  // unchanged and fail closed if the OS cannot admit the declared scheduling.
+  if (pthread_set_qos_class_self_np(QOS_CLASS_USER_INITIATED, 0)) return 6;
   if (argc == 2 && strcmp(argv[1], "--allocation-control") == 0) return control();
   if (argc == 2 && strcmp(argv[1], "--tree-control") == 0) return tree_control();
   if (argc != 3) return 2;

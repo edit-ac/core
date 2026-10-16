@@ -1,13 +1,20 @@
 import { fixture, expectedSemantics, projectedSemantics } from './fixtures.mjs';
 import { presetOptions } from './presets.mjs';
 import { resourceProbe } from './resource-probe.mjs';
-import { createEditor, taskPreset, CheckpointStorage, init, ReferenceLookupSession } from './sdk.js';
+import * as sdk from './sdk.js';
+const { createEditor, taskPreset, CheckpointStorage, init, ReferenceLookupSession } = sdk;
+const assetUrl = new URL('./wasm/editac_wasm_bg.wasm', import.meta.url).href;
 const check = (ok, message) => { if (!ok) throw Error(message); };
 const deferred = () => { let resolve; const promise = new Promise(r => resolve = r); return { promise, resolve }; };
-let probe, frozen, name, preset, profile;
+let probe, frozen, name, preset, profile, optional, markdown;
 export async function setup(options) {
-  ({ frozen, name, preset, profile } = options);
-  await init('/fixture/wasm/editac_wasm_bg.wasm'); probe = resourceProbe();
+  ({ frozen, name, preset, profile, optional } = options);
+  const initialization = { optional, before: await window.lifecycleHeap() };
+  await init(assetUrl);
+  if (optional === 'markdown') markdown = sdk.markdownExtension(await sdk.initMarkdown(new URL('./wasm/editac_markdown_wasm_bg.wasm', import.meta.url).href));
+  initialization.after = await window.lifecycleHeap();
+  initialization.enabled = !!markdown;
+  probe = resourceProbe();
   const before = probe.snapshot(), target = new EventTarget(), fn = () => {};
   target.addEventListener('probe', fn);
   const observer = new MutationObserver(() => {}); observer.observe(document.body, { childList: true });
@@ -15,7 +22,7 @@ export async function setup(options) {
   const worker = new Worker(url), timer = setInterval(() => {}, 5), frame = requestAnimationFrame(() => {});
   const active = probe.snapshot(); cancelAnimationFrame(frame); await probe.wait(30);
   const polling = probe.snapshot(); clearInterval(timer); worker.terminate(); URL.revokeObjectURL(url); observer.disconnect(); target.removeEventListener('probe', fn);
-  return { before, active, polling, drained: probe.snapshot() };
+  return { before, active, polling, drained: probe.snapshot(), initialization };
 }
 export async function cycle(index) {
   const root = document.querySelector('#editor'), databaseName = `prf05-${crypto.randomUUID()}`;
@@ -31,7 +38,7 @@ export async function cycle(index) {
   try {
     await heap('before-mount'); const start = performance.now();
     editor = createEditor(root, { databaseName, identity: frozen.identity, indexedDB, locks: navigator.locks,
-      assetUrl: '/fixture/wasm/editac_wasm_bg.wasm', ...presetOptions(preset, { taskPreset }) });
+      assetUrl, ...presetOptions(preset, { taskPreset }), ...(markdown ? { markdown } : {}) });
     await editor.ready; result.samples.mountMs = performance.now() - start;
     await heap('mounted');
     const initial = JSON.stringify(projectedSemantics(editor.read()));
@@ -49,6 +56,21 @@ export async function cycle(index) {
     const positive = await control.result; check(positive.disposition === 'committed', `Clipboard positive control: ${JSON.stringify(positive)}`);
     root.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: /Mac|iPhone|iPad/.test(navigator.platform), ctrlKey: !/Mac|iPhone|iPad/.test(navigator.platform), bubbles: true, cancelable: true }));
     check(JSON.stringify(projectedSemantics(editor.read())) === initial, 'Clipboard control undo changed corpus');
+    if (markdown) {
+      // Exercise the installed parser through the actual editor clipboard port,
+      // then restore the complete corpus before cancellation/disposal.
+      // Replace one ASCII byte: the full Long corpus already meets its limit.
+      select();
+      const rich = await editor.pasteDeferred({ getData: mime => mime === 'text/markdown' || mime === 'text/plain' ? '**Z**' : '' }, { schedule: () => Promise.resolve() }).result;
+      check(rich.disposition === 'committed', 'Enabled Markdown paste did not commit');
+      const blocks = projectedSemantics(editor.read());
+      const bold = blocks.some(block => block.runs.some(run => run.text.includes('Z') && run.attributes.bold === true));
+      check(bold, 'Enabled Markdown rich parser was bypassed');
+      result.markdown = { committed: true, bold: true, export: markdown.codec.exportMarkdown(markdown.codec.importMarkdown('**PRF05 😀**').blocks).markdown };
+      root.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: /Mac|iPhone|iPad/.test(navigator.platform), ctrlKey: !/Mac|iPhone|iPad/.test(navigator.platform), bubbles: true, cancelable: true }));
+      check(JSON.stringify(projectedSemantics(editor.read())) === initial, 'Markdown undo changed corpus');
+      result.markdown.restored = true;
+    }
     await editor.flush({ target: 'local' }); select();
     const source = `PRF05 canceled source ${index}`;
     job = editor.pasteDeferred({ getData: mime => mime === 'text/plain' ? source : '' }, { literal: true, schedule: () => transfer.promise });
@@ -70,7 +92,7 @@ export async function cycle(index) {
     result.noLateDOMMutation = before === root.innerHTML;
     // Reopen acknowledged storage to reject late semantic mutation after teardown.
     editor = createEditor(root, { databaseName, identity: frozen.identity, indexedDB, locks: navigator.locks,
-      assetUrl: '/fixture/wasm/editac_wasm_bg.wasm', ...presetOptions(preset, { taskPreset }) });
+      assetUrl, ...presetOptions(preset, { taskPreset }), ...(markdown ? { markdown } : {}) });
     await editor.ready; result.reopenedPreserved = JSON.stringify(projectedSemantics(editor.read())) === initial;
     await heap('reopened');
     const reopenedClose = await editor.destroy({ policy: 'flush' }); result.unsaved ||= reopenedClose.unsaved;

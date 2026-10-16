@@ -1809,3 +1809,74 @@ fn rgs_clipboard_cut_fast_path_restores_entry_range_between_typing_groups() {
         }
     }
 }
+
+#[test]
+fn full_source_budget_inline_markdown_fragment_undo_retains_original_sources() {
+    use editac_core::document::{BlockAttributes, CreationPermit, InitialNode};
+    for (index, backward) in [false, true].into_iter().enumerate() {
+        let identity = DocumentIdentity::v5(
+            &format!("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaa55{index:04}"),
+            "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbb5500",
+        )
+        .unwrap();
+        let nodes = (0..4)
+            .map(|_| InitialNode {
+                kind: "block".into(),
+                text: "a".repeat(262144),
+            })
+            .collect::<Vec<_>>();
+        let mut d =
+            Document::create(CreationPermit::authorize_new(identity).unwrap(), &nodes).unwrap();
+        d.enable_history(HistoryConfig::default()).unwrap();
+        let before = d.snapshot().unwrap();
+        let owner = before.visible[0].id.clone();
+        let (start, end) = if backward { (1, 0) } else { (0, 1) };
+        let entry = d
+            .selection(
+                (&owner, U(start), Bias::Right),
+                (&owner, U(end), Bias::Left),
+            )
+            .unwrap();
+        let fragment = FragmentBlock {
+            runs: vec![FragmentRun {
+                text: "Z".into(),
+                marks: vec![(Mark::Bold, None)],
+            }],
+            attributes: Some(BlockAttributes::Paragraph),
+            containers: vec![],
+            checked: None,
+        };
+        let unchanged = (d.checkpoint().bytes, d.state_vector_v1(), d.revision());
+        let mut oversized = fragment.clone();
+        oversized.runs[0].text = "ZZ".into();
+        assert!(d.prepare_fragment(&entry, &[oversized], &origin()).is_err());
+        assert_eq!(
+            unchanged,
+            (d.checkpoint().bytes, d.state_vector_v1(), d.revision())
+        );
+        let plan = d.prepare_fragment(&entry, &[fragment], &origin()).unwrap();
+        assert_eq!(
+            unchanged,
+            (d.checkpoint().bytes, d.state_vector_v1(), d.revision())
+        );
+        d.commit_editor(plan).unwrap();
+        let edited = d.snapshot().unwrap();
+        assert_eq!(edited.visible[0].spans, before.visible[0].spans);
+        assert_eq!(text(&d, &owner).len(), 262144);
+        assert_eq!(&text(&d, &owner)[..1], "Z");
+        assert_eq!(
+            edited.visible[0].runs[0].attributes.get("bold"),
+            Some(&Any::Bool(true))
+        );
+        let undo = d.undo().unwrap().unwrap();
+        assert_eq!(text(&d, &owner), "a".repeat(262144));
+        assert_eq!(d.snapshot().unwrap().visible.len(), 4);
+        assert_eq!(bookmark_cuts(&d, &undo.selection.unwrap()).0, owner);
+        d.redo().unwrap().unwrap();
+        assert_eq!(&text(&d, &owner)[..1], "Z");
+        d.undo().unwrap().unwrap();
+        let checkpoint = d.checkpoint();
+        let reopened = Document::restore(d.identity(), &checkpoint, &[]).unwrap();
+        assert_eq!(text(&reopened, &owner), "a".repeat(262144));
+    }
+}

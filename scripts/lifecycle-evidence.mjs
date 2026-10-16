@@ -1,3 +1,4 @@
+import { presets } from '../benchmarks/presets.mjs';
 import { validateBaselinePolicy } from './architecture-budgets.mjs';
 import { inspectProcessMemoryMethod, inspectProcessMemory } from './process-memory-evidence.mjs';
 const require = (ok, message) => { if (!ok) throw Error(message); };
@@ -61,7 +62,7 @@ export function inspectLifecycle(profile, item, observation) {
       inspectProcessMemory(cycle.processMemory);
     }
   }
-  return { fixture: item.fixture, preset: item.preset, kind: observation.kind, status: observation.kind === 'memory-plateau' ? 'inconclusive' : 'observed' };
+  return { fixture: item.fixture, preset: item.preset, optional: item.optional, kind: observation.kind, status: observation.kind === 'memory-plateau' ? 'inconclusive' : 'observed' };
 }
 export function inspectLifecycles(profile, record) {
   require(profile?.version === 1 && profile.id === 'lifecycle-v1' && profile.cycles === 12 && profile.idleMs === 200 && profile.performanceLimits === null && JSON.stringify(profile.resourceBounds) === JSON.stringify(bounds), 'Unreviewed lifecycle policy drift');
@@ -74,13 +75,32 @@ export function inspectLifecycles(profile, record) {
   inspectProcessMemoryMethod(profile, record.metadata.processMemory);
   require(record.artifacts?.['harness/process-memory'] === record.metadata.processMemory.binaryHash, 'Process-memory collector binary mismatch');
   require(Date.parse(record.metadata.startedAt) > Date.parse(profile.processMemoryReviewedAt), 'Process-memory coverage policy not preregistered');
-  require(record.counts?.executed === 24 && record.counts.passed === 24 && record.counts.failed === 0 && record.counts.skipped === 0 && record.cases?.length === 4 && record.errors?.length === 0, 'Incomplete lifecycle matrix');
+  require(JSON.stringify(profile.optionalProfiles) === '["default","markdown"]' && Date.parse(record.metadata.startedAt) > Date.parse(profile.optionalReviewedAt), 'Optional lifecycle policy not preregistered');
+  const optional = record.metadata.optionalLoading;
+  require(pin(optional?.receiptHash) && record.artifacts['inputs/optional-loading.json'] === optional.receiptHash, 'Missing optional packed receipt');
+  require(record.counts?.executed === 48 && record.counts.passed === 48 && record.counts.failed === 0 && record.counts.skipped === 0 && record.cases?.length === 8 && record.errors?.length === 0, 'Incomplete lifecycle matrix');
   require(record.cleanup?.browserExited && record.cleanup.serverClosed && record.cleanup.temporaryRemoved, 'Leaked harness process');
   const keys = new Set(), summaries = [];
   for (const item of record.cases) {
-    const key = `${item.fixture}/${item.preset}`;
-    require(profile.fixtures.includes(item.fixture) && profile.presets.includes(item.preset) && !keys.has(key), 'Unknown/duplicate fixture/preset'); keys.add(key);
+    const key = `${item.fixture}/${item.preset}/${item.optional}`;
+    require(profile.fixtures.includes(item.fixture) && profile.presets.includes(item.preset) && profile.optionalProfiles.includes(item.optional) && !keys.has(key), 'Unknown/duplicate fixture/preset/optional profile'); keys.add(key);
     require(pin(item.fixtureHash) && pin(item.checkpointHash) && item.observations?.length === 6 && new Set(item.observations.map(o => o.kind)).size === 6, 'Missing identity/observation');
+    require(JSON.stringify(item.features) === JSON.stringify([...presets[item.preset].featureSet, ...(item.optional === 'markdown' ? ['markdown'] : [])]), 'Incorrect enabled feature identity');
+    const enabled = item.optional === 'markdown', initialization = item.probeControl?.initialization;
+    require(initialization?.optional === item.optional && initialization.enabled === enabled, 'Optional runtime not initialized');
+    for (const m of [initialization.before, initialization.after]) { heapSample(m); require(m.collected === false, 'Missing non-GC initialization samples'); }
+    require(initialization.after.at > initialization.before.at, 'Reordered initialization samples');
+    const packed = optional.profiles?.[item.optional];
+    require(packed?.packs?.length === (enabled ? 3 : 2) && packed.assets?.length === (enabled ? 4 : 3), 'Missing exact optional asset/package identities');
+    for (const pack of packed.packs) require(pin(pack.sha256) && record.artifacts[`packs/${pack.filename}`] === pack.sha256, 'Packed runtime identity mismatch');
+    for (const asset of packed.assets) {
+      require(pin(asset.sha256) && record.artifacts[`harness/${item.optional}/${asset.name}`] === asset.sha256, 'Measured runtime asset mismatch');
+      require(item.requests?.includes(`/fixture/${item.optional}/${asset.name}`), 'Measured runtime asset never requested');
+    }
+    require(item.requests.every(path => !path.includes('/wasm/editac_markdown') || enabled), 'Disabled Markdown loaded parser');
+    for (const cycle of item.cycles) require(enabled
+      ? cycle.markdown?.committed === true && cycle.markdown.bold === true && cycle.markdown.restored === true && typeof cycle.markdown.export === 'string' && cycle.markdown.export.trim() === '**PRF05 😀**'
+      : cycle.markdown === undefined, 'Missing/incorrect enabled Markdown parser, clipboard or restoration proof');
     for (const observation of item.observations) summaries.push(inspectLifecycle(profile, item, observation));
   }
   return { status: 'diagnostic', qualification: 'unqualified', summaries, gaps: ['Memory plateau limits unreviewed; no retained-memory qualification', 'Continuous browser-tree samples and OS per-process lifetime footprint maxima are not a simultaneous tree/cycle/JS-allocation peak; optional decoders and native editor runtime not observed', 'Other PRF/accessibility/platform criteria remain open'] };

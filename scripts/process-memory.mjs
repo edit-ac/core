@@ -8,6 +8,7 @@ export const processMemoryPolicy = Object.freeze({
   version: 2, method: 'macos-proc-pid-rusage-v4-browser-tree-confirmed-v2',
   intervalMs: 20, maximumGapMs: 250,
   counterReads: 'current-and-reported-peak/confirm-reported-peak-v1',
+  scheduling: 'user-initiated',
   scope: 'Browser tree sampled resident/physical-footprint bytes; OS-maintained per-process lifetime maximum physical footprint. Not a simultaneous tree peak, cycle-local peak, JS allocation peak or plateau qualification.',
 });
 
