@@ -2,7 +2,7 @@
   "contractVersion": 1,
   "id": "native.macos.pending.v1",
   "implementation": {
-    "revision": "0d81f87296a886e035751b083f852652ce9ebffd",
+    "revision": "1a72936d12f029b0c9f9a41dedd99005ad30c783",
     "package": "EditacMacOS",
     "version": "0.0.0"
   },
@@ -317,7 +317,7 @@
     },
     {
       "path": "native/macos/Package.swift",
-      "sha256": "52d0c734436419b2ce869a798996e42617e6c162e3ad4f7227c275caf39d67c5"
+      "sha256": "4e9744a725402dee3953ba7d454fa994f1f2002c466eed4c6857e3593e1315c5"
     },
     {
       "path": "native/macos/toolchain.json",
@@ -374,6 +374,26 @@
     {
       "path": "native/macos/tests/ExtensionsFixture/src/main.rs",
       "sha256": "c1ca9480b94dcaff9667916b5f8e4e949cc324b49f40eba7c1d2ccdeb05849ed"
+    },
+    {
+      "path": "native/macos/Sources/EditacMacOS/NativeEditorView.swift",
+      "sha256": "5f6174b3713911db07ada1017d264e6aa4565c27fc821ca7bd7a1ce2925d8512"
+    },
+    {
+      "path": "native/macos/Sources/EditacMacOS/clipboard/NativeClipboardTransport.swift",
+      "sha256": "ece064611d6c9ff79410de26a96a81102f5a110d56a1d532d2112cc356f5f98b"
+    },
+    {
+      "path": "native/macos/Sources/EditacMacOS/clipboard/NativeClipboardInput.swift",
+      "sha256": "8508c37325fbfeeaea0c80f31bb57740b23a76010e7ee2c3835a130228aef9f3"
+    },
+    {
+      "path": "native/macos/Sources/EditacMacOS/clipboard/README.md",
+      "sha256": "e5127b70badbac016a72912eb77dd610d22bcd8225f04111d5862f3dc9bda170"
+    },
+    {
+      "path": "native/macos/tests/ClipboardTransport/ClipboardTransportTests.swift",
+      "sha256": "6b689ae4c7dc91a6023bf7ea29f3637ab35eff12d407e3179d9301bace56b13f"
     }
   ],
   "evidence": []
