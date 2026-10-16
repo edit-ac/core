@@ -22,6 +22,7 @@ pub struct HostPolicy {
     pub history_view: bool,
     pub codecs: Codecs,
     pub references: bool,
+    pub extensions: bool,
     pub max_commands: usize,
     pub max_input_bytes: usize,
 }
@@ -32,6 +33,7 @@ impl Default for HostPolicy {
             history_view: false,
             codecs: Codecs::default(),
             references: false,
+            extensions: false,
             max_commands: 128,
             max_input_bytes: 1_048_576,
         }
@@ -99,6 +101,7 @@ struct Requirements {
     images: bool,
     tables: bool,
     references: bool,
+    extensions: bool,
 }
 impl Requirements {
     fn include(&mut self, other: Self) {
@@ -108,6 +111,7 @@ impl Requirements {
         self.images |= other.images;
         self.tables |= other.tables;
         self.references |= other.references;
+        self.extensions |= other.extensions;
     }
 }
 pub(crate) enum PreparedPlan {
@@ -132,6 +136,7 @@ impl PreparedEdit {
 }
 
 pub struct EditService<S: SessionStore> {
+    registry: editac_core::modules::registry::FrozenRegistry,
     session: Session<S>,
     policy: HostPolicy,
     history_requirements: Requirements,
@@ -140,9 +145,17 @@ pub struct EditService<S: SessionStore> {
 }
 impl<S: SessionStore> EditService<S> {
     pub fn new(session: Session<S>, policy: HostPolicy) -> Self {
+        Self::with_registry(session, policy, Default::default())
+    }
+    pub fn with_registry(
+        session: Session<S>,
+        policy: HostPolicy,
+        registry: editac_core::modules::registry::FrozenRegistry,
+    ) -> Self {
         let history = session.document().history_state();
         let history_qualified = history.undo_groups == 0 && history.redo_groups == 0;
         Self {
+            registry,
             session,
             policy,
             history_requirements: Requirements::default(),
@@ -257,6 +270,7 @@ impl<S: SessionStore> EditService<S> {
             || (r.images && !self.policy.codecs.images)
             || (r.tables && !self.policy.codecs.tables)
             || (r.references && !self.policy.references)
+            || (r.extensions && !self.policy.extensions)
         {
             return Err(ServiceError::UnsupportedModule);
         }
@@ -295,6 +309,9 @@ impl<S: SessionStore> EditService<S> {
                 .bytes
                 .saturating_add(format!("{command:?}").len());
             match command {
+                EditorCommand::CustomMarkAt { .. } | EditorCommand::ExtensionSource { .. } => {
+                    requirements.extensions = true
+                }
                 EditorCommand::Content { content, .. } => match content {
                     Content::Image { .. } => requirements.images = true,
                     Content::Table { .. } | Content::RichTable { .. } => requirements.tables = true,
@@ -314,6 +331,7 @@ impl<S: SessionStore> EditService<S> {
                         match content {
                             Content::Image { .. } => requirements.images = true,
                             Content::Reference { .. } => requirements.references = true,
+                            Content::InertExtension { .. } => requirements.extensions = true,
                             _ => return Err(ServiceError::Engine(EditorError::UnsupportedTarget)),
                         }
                     }
@@ -328,11 +346,11 @@ impl<S: SessionStore> EditService<S> {
         let plan = self
             .session
             .document()
-            .prepare_editor(commands, origin)
+            .prepare_editor_with_registry(commands, origin, &self.registry)
             .map_err(ServiceError::Engine)?;
         let mut replica = self.replica()?;
         let preview_plan = replica
-            .prepare_editor(commands, origin)
+            .prepare_editor_with_registry(commands, origin, &self.registry)
             .map_err(ServiceError::Engine)?;
         replica
             .commit_editor(preview_plan)
@@ -340,6 +358,13 @@ impl<S: SessionStore> EditService<S> {
         let preview = replica
             .snapshot()
             .map_err(|e| ServiceError::Engine(EditorError::Text(e.into())))?;
+        for node in &preview.visible {
+            for run in &node.runs {
+                self.registry
+                    .validate_run(&run.text, &run.attributes)
+                    .map_err(|_| ServiceError::Engine(EditorError::InvalidCommand))?;
+            }
+        }
         Ok(PreparedEdit {
             expected: expected.clone(),
             plan: PreparedPlan::Commands(plan),

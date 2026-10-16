@@ -65,6 +65,14 @@ pub struct FormatCommand {
     /// Required for link apply/toggle; forbidden for all other operations.
     pub href: Option<String>,
 }
+struct FormatIntent<'a> {
+    selection: &'a Selection,
+    key: &'a str,
+    value: Option<Any>,
+    action: FormatAction,
+    code: bool,
+    registry: Option<&'a crate::modules::registry::FrozenRegistry>,
+}
 /// A logical-owner selection includes empty blocks; duplicate IDs count once.
 #[derive(Clone, Debug)]
 pub struct BlockFormatCommand {
@@ -221,10 +229,73 @@ impl Document {
         blocks: &[BlockFormatCommand],
         origin: &TextOrigin,
     ) -> Result<PreparedFormatBatch, FormatError> {
+        let intents = commands
+            .iter()
+            .map(|c| {
+                Ok(FormatIntent {
+                    selection: &c.selection,
+                    key: c.mark.key(),
+                    value: value(c)?,
+                    action: c.action,
+                    code: c.mark == Mark::Code,
+                    registry: None,
+                })
+            })
+            .collect::<Result<Vec<_>, FormatError>>()?;
+        self.prepare_format_intents(&intents, blocks, origin)
+    }
+    /// Registered data uses the same UTF-16 planner and history as built-in marks.
+    pub fn prepare_registered_format(
+        &self,
+        selection: &Selection,
+        key: &str,
+        value: Option<Any>,
+        text: &str,
+        registry: &crate::modules::registry::FrozenRegistry,
+        origin: &TextOrigin,
+    ) -> Result<PreparedFormatBatch, FormatError> {
+        let definition = registry
+            .definition(key)
+            .ok_or(FormatError::InvalidAttributes)?;
+        if text.encode_utf16().count() > definition.max_utf16() {
+            return Err(FormatError::ResourceLimit);
+        }
+        if let Some(v) = &value {
+            if registry
+                .resolve(key, v, text)
+                .map_err(|_| FormatError::InvalidAttributes)?
+                .is_none()
+            {
+                return Err(FormatError::InvalidAttributes);
+            }
+        }
+        let action = if value.is_some() {
+            FormatAction::Apply
+        } else {
+            FormatAction::Remove
+        };
+        self.prepare_format_intents(
+            &[FormatIntent {
+                selection,
+                key,
+                value,
+                action,
+                code: false,
+                registry: Some(registry),
+            }],
+            &[],
+            origin,
+        )
+    }
+    fn prepare_format_intents(
+        &self,
+        commands: &[FormatIntent<'_>],
+        blocks: &[BlockFormatCommand],
+        origin: &TextOrigin,
+    ) -> Result<PreparedFormatBatch, FormatError> {
         if commands.len().saturating_add(blocks.len()) > MAX_FORMAT_COMMANDS {
             return Err(FormatError::ResourceLimit);
         }
-        let values = commands.iter().map(value).collect::<Result<Vec<_>, _>>()?;
         let snapshot = self.inspect().map_err(TextError::from)?;
         let txn = self.read();
         let state = txn.encode_state_as_update_v1(&StateVector::default());
@@ -237,7 +308,8 @@ impl Document {
         let mut sources: BTreeMap<String, Source> = BTreeMap::new();
         let mut edits = Vec::new();
         let mut budget = state.len();
-        for (command, value) in commands.iter().zip(values) {
+        for command in commands {
+            let value = command.value.clone();
             let a = position(anchors::resolve(
                 &txn,
                 self.identity(),
@@ -360,7 +432,7 @@ impl Document {
                     base += len;
                 }
             }
-            let key = command.mark.key();
+            let key = command.key;
             let all = !ranges.is_empty()
                 && ranges.iter().all(|(id, s, e)| {
                     sources[id]
@@ -388,12 +460,20 @@ impl Document {
                         });
                     }
                     let mut attrs = r.attrs.clone();
-                    if apply {
-                        if command.mark != Mark::Code && attrs.get("code") == Some(&Any::Bool(true))
+                    if let (Some(registry), Some(existing)) = (command.registry, attrs.get(key)) {
+                        if registry
+                            .resolve(key, existing, "")
+                            .map_err(|_| FormatError::InvalidAttributes)?
+                            .is_none()
                         {
+                            return Err(FormatError::InvalidAttributes);
+                        }
+                    }
+                    if apply {
+                        if !command.code && attrs.get("code") == Some(&Any::Bool(true)) {
                             return Err(FormatError::CodeConflict);
                         }
-                        if command.mark == Mark::Code {
+                        if command.code {
                             for k in ["bold", "italic", "strike", "underline", "link"] {
                                 attrs.remove(k);
                             }

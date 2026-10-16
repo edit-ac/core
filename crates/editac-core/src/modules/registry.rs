@@ -112,6 +112,9 @@ fn bounded(v: &Any, budget: &mut usize, depth: usize) -> Result<()> {
     Ok(())
 }
 impl Definition {
+    pub fn max_utf16(&self) -> usize {
+        self.max_utf16
+    }
     pub fn from_data(value: &Any) -> Result<Self> {
         bounded(value, &mut 65536, 0)?;
         let v = object(value)?;
@@ -190,7 +193,7 @@ impl Definition {
 pub struct Registry {
     definitions: BTreeMap<String, Definition>,
 }
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct FrozenRegistry {
     definitions: BTreeMap<String, Definition>,
 }
@@ -217,6 +220,9 @@ impl Registry {
     }
 }
 impl FrozenRegistry {
+    pub fn definition(&self, key: &str) -> Option<&Definition> {
+        self.definitions.get(key.strip_prefix("module:")?)
+    }
     pub fn len(&self) -> usize {
         self.definitions.len()
     }

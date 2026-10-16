@@ -18,6 +18,8 @@ export interface StableRange { anchor: AnchorToken; focus: AnchorToken }
 export type ContainerStyle = { type: "unordered" | "checklist" | "quote" } | { type: "ordered"; start: number };
 export interface MoveTarget { id: string; version: string }
 export type EditorCommand =
+  | { type: "customMarkAt"; owner: string; from: number; to: number; key: string; value: Json | null }
+  | { type: "extensionSource"; owner: string; expected: Json; at: AnchorToken; source: string }
   | { type: "replaceAt"; owner: string; from: number; to: number; text: string }
   | { type: "markAt"; owner: string; from: number; to: number; mark: MarkCommand["mark"]; action: FormatAction; href?: string | null }
   | { type: "selectionAt" | "historySelectionAt"; anchor: EditorPosition; focus: EditorPosition }

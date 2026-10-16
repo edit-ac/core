@@ -415,7 +415,14 @@ struct State {
     next_connection: u64,
 }
 impl State {
-    fn new(mut session: Session<Arc<NativeStore>>) -> Result<Self> {
+    #[cfg(test)]
+    fn new(session: Session<Arc<NativeStore>>) -> Result<Self> {
+        Self::new_with_registry(session, Default::default())
+    }
+    fn new_with_registry(
+        mut session: Session<Arc<NativeStore>>,
+        registry: editac_core::modules::registry::FrozenRegistry,
+    ) -> Result<Self> {
         let anchor_owner = NEXT_ANCHOR_OWNER
             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| n.checked_add(1))
             .map_err(|_| NativeSessionError::ResourceLimit)?;
@@ -428,7 +435,7 @@ impl State {
             .observe_projection(move |p| observed.borrow_mut().push(p))
             .map_err(|_| NativeSessionError::ResourceLimit)?;
         Ok(Self {
-            service: EditService::new(session, HostPolicy::default()),
+            service: EditService::with_registry(session, HostPolicy::default(), registry),
             plans: BTreeMap::new(),
             next_plan: 0,
             anchors: BTreeMap::new(),
@@ -651,6 +658,33 @@ fn permission(options: &NativeSessionOptions) -> CachedPermission {
         expires_at: options.permission_expires_at,
     }
 }
+fn extension_registry(input: &str) -> Result<editac_core::modules::registry::FrozenRegistry> {
+    use editac_core::modules::registry::Registry;
+    if input.len() > 1_048_576 {
+        return Err(NativeSessionError::ResourceLimit);
+    }
+    let definitions: Vec<serde_json::Value> =
+        serde_json::from_str(input).map_err(|e| NativeSessionError::CommandInput {
+            message: e.to_string(),
+        })?;
+    if definitions.len() > 256 {
+        return Err(NativeSessionError::ResourceLimit);
+    }
+    let mut registry = Registry::default();
+    for data in definitions {
+        let value = yrs::Any::from_json(&data.to_string()).map_err(|e| {
+            NativeSessionError::CommandInput {
+                message: e.to_string(),
+            }
+        })?;
+        registry
+            .register(&value)
+            .map_err(|e| NativeSessionError::CommandInput {
+                message: format!("registry: {e:?}"),
+            })?;
+    }
+    Ok(registry.freeze())
+}
 #[uniffi::export]
 impl NativeSession {
     /// Explicit exclusive file creation, never replacement or a failed-open fallback.
@@ -659,7 +693,17 @@ impl NativeSession {
         options: NativeSessionOptions,
         initial: Vec<NativeSessionSeed>,
     ) -> Result<Arc<Self>> {
+        Self::create_local_with_registry(options, initial, "[]".into())
+    }
+    /// Frozen data-only registry; validate every definition before creating a store.
+    #[uniffi::constructor]
+    pub fn create_local_with_registry(
+        options: NativeSessionOptions,
+        initial: Vec<NativeSessionSeed>,
+        registry_json: String,
+    ) -> Result<Arc<Self>> {
         Self::start(move || {
+            let registry = extension_registry(&registry_json)?;
             let id = identity(&options)?;
             let store = Arc::new(NativeStore::create_new(
                 &options.path,
@@ -675,19 +719,27 @@ impl NativeSession {
                 .collect::<Vec<_>>();
             let mut session = Session::create_local(store, id, &initial)?;
             session.set_permission(permission(&options));
-            State::new(session)
+            State::new_with_registry(session, registry)
         })
     }
     #[uniffi::constructor]
     pub fn open(options: NativeSessionOptions) -> Result<Arc<Self>> {
+        Self::open_with_registry(options, "[]".into())
+    }
+    #[uniffi::constructor]
+    pub fn open_with_registry(
+        options: NativeSessionOptions,
+        registry_json: String,
+    ) -> Result<Arc<Self>> {
         Self::start(move || {
+            let registry = extension_registry(&registry_json)?;
             let id = identity(&options)?;
             let store = Arc::new(NativeStore::open_existing(
                 &options.path,
                 id.clone(),
                 StoreLimits::default(),
             )?);
-            State::new(Session::open(store, &id, permission(&options))?)
+            State::new_with_registry(Session::open(store, &id, permission(&options))?, registry)
         })
     }
     /// Trusted host reserves an actual peer writer once, never an authentication grant.
@@ -1028,7 +1080,10 @@ impl NativeSession {
                             || caps.policy.codecs.tables)
                         && (*id != "atomicContent"
                             || caps.policy.codecs.images
-                            || caps.policy.references);
+                            || caps.policy.references
+                            || caps.policy.extensions)
+                        && (!matches!(*id, "customMarkAt" | "extensionSource")
+                            || caps.policy.extensions);
                     NativeCommandRoute {
                         id: (*id).into(),
                         available,
@@ -1160,6 +1215,15 @@ impl NativeSession {
             let mut policy = state.service.capabilities(0).policy;
             policy.codecs.images = images;
             policy.references = references;
+            state.service.set_policy(policy);
+            Ok(())
+        })
+    }
+    /// Opt in to registered marks/atoms and bounded inert source editing. No typesetting.
+    pub fn set_extension_policy(&self, enabled: bool) -> Result<()> {
+        self.call(move |state| {
+            let mut policy = state.service.capabilities(0).policy;
+            policy.extensions = enabled;
             state.service.set_policy(policy);
             Ok(())
         })

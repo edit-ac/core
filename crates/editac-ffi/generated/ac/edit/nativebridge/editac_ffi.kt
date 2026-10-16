@@ -755,6 +755,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_set_atomic_content_policy(
     ): Int
+    external fun uniffi_editac_ffi_checksum_method_nativesession_set_extension_policy(
+    ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_set_permission(
     ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_set_table_policy(
@@ -793,7 +795,11 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_editac_ffi_checksum_constructor_nativesession_create_local(
     ): Int
+    external fun uniffi_editac_ffi_checksum_constructor_nativesession_create_local_with_registry(
+    ): Int
     external fun uniffi_editac_ffi_checksum_constructor_nativesession_open(
+    ): Int
+    external fun uniffi_editac_ffi_checksum_constructor_nativesession_open_with_registry(
     ): Int
     external fun ffi_editac_ffi_uniffi_contract_version(
     ): Int
@@ -863,7 +869,11 @@ internal object UniffiLib {
     ): Unit
     external fun uniffi_editac_ffi_fn_constructor_nativesession_create_local(`options`: RustBuffer.ByValue,`initial`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Long
+    external fun uniffi_editac_ffi_fn_constructor_nativesession_create_local_with_registry(`options`: RustBuffer.ByValue,`initial`: RustBuffer.ByValue,`registryJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Long
     external fun uniffi_editac_ffi_fn_constructor_nativesession_open(`options`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Long
+    external fun uniffi_editac_ffi_fn_constructor_nativesession_open_with_registry(`options`: RustBuffer.ByValue,`registryJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Long
     external fun uniffi_editac_ffi_fn_method_nativesession_cancel_commands(`ptr`: Long,`token`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
@@ -908,6 +918,8 @@ internal object UniffiLib {
     external fun uniffi_editac_ffi_fn_method_nativesession_rich_snapshot(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     external fun uniffi_editac_ffi_fn_method_nativesession_set_atomic_content_policy(`ptr`: Long,`images`: Byte,`references`: Byte,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
+    external fun uniffi_editac_ffi_fn_method_nativesession_set_extension_policy(`ptr`: Long,`enabled`: Byte,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     external fun uniffi_editac_ffi_fn_method_nativesession_set_permission(`ptr`: Long,`writable`: Byte,`expiresAt`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
@@ -1182,6 +1194,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_editac_ffi_checksum_method_nativesession_set_atomic_content_policy() and 0xFFFF) != 12956) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if ((lib.uniffi_editac_ffi_checksum_method_nativesession_set_extension_policy() and 0xFFFF) != 39515) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_editac_ffi_checksum_method_nativesession_set_permission() and 0xFFFF) != 8942) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -1239,7 +1254,13 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_editac_ffi_checksum_constructor_nativesession_create_local() and 0xFFFF) != 17424) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if ((lib.uniffi_editac_ffi_checksum_constructor_nativesession_create_local_with_registry() and 0xFFFF) != 14055) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_editac_ffi_checksum_constructor_nativesession_open() and 0xFFFF) != 5860) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_editac_ffi_checksum_constructor_nativesession_open_with_registry() and 0xFFFF) != 9034) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
 }
@@ -2317,6 +2338,11 @@ public interface NativeSessionInterface {
     fun `setAtomicContentPolicy`(`images`: kotlin.Boolean, `references`: kotlin.Boolean)
     
     /**
+     * Opt in to registered marks/atoms and bounded inert source editing. No typesetting.
+     */
+    fun `setExtensionPolicy`(`enabled`: kotlin.Boolean)
+    
+    /**
      * Trusted host permission replacement, serialized with every prepared admission.
      */
     fun `setPermission`(`writable`: kotlin.Boolean, `expiresAt`: kotlin.ULong?)
@@ -2896,6 +2922,23 @@ open class NativeSession: Disposable, AutoCloseable, NativeSessionInterface
 
     
     /**
+     * Opt in to registered marks/atoms and bounded inert source editing. No typesetting.
+     */
+    @Throws(NativeSessionException::class)override fun `setExtensionPolicy`(`enabled`: kotlin.Boolean)
+        = 
+    callWithHandle {
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_method_nativesession_set_extension_policy(
+        it,
+        
+        FfiConverterBoolean.lower(`enabled`),_status)
+}
+    }
+    
+    
+
+    
+    /**
      * Trusted host permission replacement, serialized with every prepared admission.
      */
     @Throws(NativeSessionException::class)override fun `setPermission`(`writable`: kotlin.Boolean, `expiresAt`: kotlin.ULong?)
@@ -3225,6 +3268,24 @@ open class NativeSession: Disposable, AutoCloseable, NativeSessionInterface
     
 
         
+    /**
+     * Frozen data-only registry; validate every definition before creating a store.
+     */
+    @Throws(NativeSessionException::class) fun `createLocalWithRegistry`(`options`: NativeSessionOptions, `initial`: List<NativeSessionSeed>, `registryJson`: kotlin.String): NativeSession {
+            return FfiConverterTypeNativeSession.lift(
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_constructor_nativesession_create_local_with_registry(
+    
+        
+        FfiConverterTypeNativeSessionOptions.lower(`options`),
+        FfiConverterSequenceTypeNativeSessionSeed.lower(`initial`),
+        FfiConverterString.lower(`registryJson`),_status)
+}
+    )
+    }
+    
+
+        
     @Throws(NativeSessionException::class) fun `open`(`options`: NativeSessionOptions): NativeSession {
             return FfiConverterTypeNativeSession.lift(
     uniffiRustCallWithError(NativeSessionException) { _status ->
@@ -3232,6 +3293,20 @@ open class NativeSession: Disposable, AutoCloseable, NativeSessionInterface
     
         
         FfiConverterTypeNativeSessionOptions.lower(`options`),_status)
+}
+    )
+    }
+    
+
+        
+    @Throws(NativeSessionException::class) fun `openWithRegistry`(`options`: NativeSessionOptions, `registryJson`: kotlin.String): NativeSession {
+            return FfiConverterTypeNativeSession.lift(
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_constructor_nativesession_open_with_registry(
+    
+        
+        FfiConverterTypeNativeSessionOptions.lower(`options`),
+        FfiConverterString.lower(`registryJson`),_status)
 }
     )
     }

@@ -323,6 +323,19 @@ pub enum TableAction {
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
 pub enum Command {
+    CustomMarkAt {
+        owner: String,
+        from: u32,
+        to: u32,
+        key: String,
+        value: Option<Value>,
+    },
+    ExtensionSource {
+        owner: String,
+        expected: Value,
+        at: String,
+        source: String,
+    },
     ReplaceAt {
         owner: String,
         from: u32,
@@ -516,6 +529,8 @@ impl CommandAction {
 impl Command {
     /// Exact portable EditorCommand.type coverage; applicability is planner-owned.
     pub const TYPES: &'static [&'static str] = &[
+        "customMarkAt",
+        "extensionSource",
         "replaceAt",
         "markAt",
         "selectionAt",
@@ -549,6 +564,33 @@ impl Command {
     pub fn translate(self, anchor: impl Fn(&str) -> Result<Anchor>) -> Result<EditorCommand> {
         let c = self;
         Ok(match c {
+            Command::CustomMarkAt {
+                owner,
+                from,
+                to,
+                key,
+                value,
+            } => EditorCommand::CustomMarkAt {
+                owner,
+                from: Utf16Offset(from),
+                to: Utf16Offset(to),
+                key,
+                value: value
+                    .map(|v| Any::from_json(&v.to_string()).map_err(|e| kernel("customMarkAt", e)))
+                    .transpose()?,
+            },
+            Command::ExtensionSource {
+                owner,
+                expected,
+                at,
+                source,
+            } => EditorCommand::ExtensionSource {
+                target: owner,
+                expected: Any::from_json(&expected.to_string())
+                    .map_err(|e| kernel("extensionSource", e))?,
+                at: anchor(&at)?,
+                source,
+            },
             Command::ReplaceAt {
                 owner,
                 from,
