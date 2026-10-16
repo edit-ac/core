@@ -18,7 +18,7 @@ const MAX_ID_BYTES: usize = 256;
 /// Versions are host profile identities. Grammar must name the pinned backend;
 /// unknown grammar versions produce plain source, never mislabeled tokens.
 /// Syntect has no external query asset; query/theme identify consumer projections.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, serde::Deserialize)]
 pub struct BlockInput {
     pub block: String,
     pub revision: u64,

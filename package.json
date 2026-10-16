@@ -32,6 +32,7 @@
     "check:fixtures": "node --test tests/fixtures.test.mjs",
     "check:schema": "node --test tests/schema-profile.test.mjs tests/schema-interop.test.mjs",
     "check": "npm run check:rust && npm run check:packages && npm run check:protocol && npm run check:fixtures && npm run check:interop && npm run check:schema && npm run check:browser-baseline",
+    "build:highlight-worker": "node scripts/build-highlight-worker.mjs",
     "build:wasm": "node scripts/build-wasm.mjs",
     "check:wasm": "npm run build:wasm && npm run build:wasm:fixture && node --test tests/wasm-load.test.mjs",
     "bench": "node scripts/bench.mjs",

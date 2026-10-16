@@ -83,3 +83,28 @@ bash tests/highlight-engine-effects/check.sh
 
 The isolated engine consumer uses its own lockfile and real engine checkpoint,
 edit, undo and redo APIs. It adds no dependency to minimum SDK consumers.
+
+## Optional browser worker
+
+RCH-1.4 exposes the same cache through the opt-in `browser-wasm` binding
+(`BrowserHighlighter`), independent of the engine WASM ABI. Run `npm run build`
+and `npm run build:highlight-worker` from core with the pinned Rust/Node tools.
+The latter emits web-target bindings and WASM under
+`packages/web/dist/modules/code/backend/`; host these optional assets together.
+Serve the public `@edit-ac/web/highlight-worker` module entry with its relative
+JavaScript dependencies. Use `HighlightScheduler` and `createHighlightWorker`
+from `@edit-ac/web/modules`, passing explicit host-owned worker/backend URLs.
+Imports and disabled requests initialize no worker or grammar.
+
+Each scheduler owns one worker and at most sixteen pending immutable block
+inputs, coalesced by block. It admits the exact block/revision/source/language/
+grammar/query/theme/enabled identity; token offsets and scope memory are checked
+again before application. Timeout kills a stuck worker and returns unchanged
+source with no tokens. Superseded/disposed promises settle without application.
+Dispose the scheduler when its session ends; replacement workers start with a new
+cache. Startup includes worker boot and lazy grammar initialization; transfer,
+backend work and the optional host apply callback are timed independently. The
+apply callback must not mutate editor semantics and should return promptly.
+The scheduler does not implement the RCH-1.5 composing-subtree presenter policy.
+`node --test tests/highlight-scheduler.test.mjs` requires the built optional assets
+and includes actual Chromium module-worker/WASM execution, with no provider calls.

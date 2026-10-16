@@ -36,3 +36,7 @@ export { SupportDiagnostics, serviceDiagnostic, runWithDiagnostics, DIAGNOSTIC_L
 export type { DiagnosticSource, DiagnosticFailure, RecoveryAction } from '../services/diagnostics.js';
 
 export type { PrivateReferenceDisplayOptions } from './references/display.js';
+
+export { HighlightScheduler, HIGHLIGHT_BACKEND } from './code/scheduler.js';
+export type { HighlightInput, HighlightSpan, HighlightResult, HighlightTiming, HighlightSchedulerOptions, HighlightWorkerPort, HighlightClock } from './code/scheduler.js';
+export { createHighlightWorker } from './code/worker.js';

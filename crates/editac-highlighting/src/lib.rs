@@ -179,3 +179,44 @@ mod wasm_probe {
         }
     }
 }
+
+/// Optional browser binding. One worker owns one bounded projection cache.
+#[cfg(feature = "browser-wasm")]
+mod browser {
+    use super::*;
+    use crate::cache::{BlockInput, HighlightCache, Limits};
+    use wasm_bindgen::prelude::*;
+
+    #[wasm_bindgen]
+    pub struct BrowserHighlighter {
+        backend: Backend,
+        cache: HighlightCache,
+    }
+    #[wasm_bindgen]
+    impl BrowserHighlighter {
+        #[wasm_bindgen(constructor)]
+        pub fn new() -> Self {
+            Self {
+                backend: Backend::new(),
+                cache: HighlightCache::new(Limits::default()).expect("fixed limits"),
+            }
+        }
+        pub fn project(&mut self, input: &str) -> Result<String, JsValue> {
+            let input: BlockInput =
+                serde_json::from_str(input).map_err(|_| JsValue::from_str("invalid input"))?;
+            let job = self
+                .cache
+                .begin(input)
+                .map_err(|_| JsValue::from_str("input rejected"))?;
+            let done = job.compute(&self.backend);
+            let output = self
+                .cache
+                .publish(done)
+                .map_err(|_| JsValue::from_str("projection rejected"))?;
+            serde_json::to_string(&output).map_err(|_| JsValue::from_str("encoding rejected"))
+        }
+        pub fn dispose(&mut self) {
+            self.cache.dispose();
+        }
+    }
+}

@@ -23,6 +23,11 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./highlight-worker": {
+      "types": "./dist/modules/code/worker-entry.d.ts",
+      "import": "./dist/modules/code/worker-entry.js",
+      "default": "./dist/modules/code/worker-entry.js"
+    },
     "./math": {
       "types": "./dist/modules/math.d.ts",
       "import": "./dist/modules/math.js",
