@@ -71,8 +71,8 @@ do {
 // Ownership/cancel/permission and unsupported source diagnostics survive generated transport.
 do {
     let (_, s) = try fixture(6, "")
-    let p = try s.preparePaste(revision: revision(s), range: range(s, 0, 0), input: NativeTransferInput(fragmentJson: nil, markdown: nil, html: "<b>source</b>", plainText: "safe", literal: false), source: nil, now: 0)
-    try require(p.diagnostics == ["html-codec-unavailable-source-preserved"] && p.source?.html == "<b>source</b>", "source recovery")
+    let p = try s.preparePaste(revision: revision(s), range: range(s, 0, 0), input: NativeTransferInput(fragmentJson: nil, markdown: nil, html: "<img src='https://attack.invalid/x'>", plainText: "safe", literal: false), source: nil, now: 0)
+    try require(p.diagnostics == ["html-img-requires-extension-codec"] && p.source?.html == "<img src='https://attack.invalid/x'>", "source recovery")
     try s.setPermission(writable: false, expiresAt: nil)
     try reject { _ = try s.commitTransfer(token: p.token, clipboardAcknowledged: false, destinationReceipt: nil, now: 0) }
     try require(text(s) == "", "permission")
@@ -82,4 +82,36 @@ do {
     try reject { _ = try s.commitTransfer(token: cancelled.token, clipboardAcknowledged: false, destinationReceipt: nil, now: 0) }
     try s.dispose(); passed += 1
 }
-print("{\"executed\":5,\"passed\":\(passed),\"failed\":0,\"skipped\":0}")
+// Shared sanitized rich HTML survives generated transport, one history and SQLite reopen.
+do {
+    let (options, s) = try fixture(7, "")
+    let raw = "<h2><b>é😀</b></h2><ol start='3'><li><i>one</i></li></ol><pre> x\n y</pre>"
+    let p = try s.preparePaste(revision: revision(s), range: range(s, 0, 0), input: NativeTransferInput(fragmentJson: nil, markdown: nil, html: raw, plainText: "wrong", literal: false), source: nil, now: 0)
+    try require(p.diagnostics.isEmpty && p.source?.html == raw, "rich HTML recovery")
+    try require(text(s) == "", "HTML preparation mutated")
+    _ = try s.commitTransfer(token: p.token, clipboardAcknowledged: false, destinationReceipt: nil, now: 0)
+    let saved = try text(s)
+    try require(saved.contains("é😀") && !saved.contains("wrong"), "HTML precedence")
+    try require(s.historyState(now: 0).undoGroups == 1, "HTML history")
+    _ = try s.undo(revision: revision(s), now: 0); try require(text(s) == "", "HTML undo")
+    _ = try s.redo(revision: revision(s), now: 0); try s.dispose()
+    let reopened = try NativeSession.open(options: options); try require(text(reopened) == saved, "HTML SQLite reopen"); try reopened.dispose(); passed += 1
+}
+// Sanitization keeps exact source while dropping script, attributes and unsafe URLs.
+do {
+    let (_, s) = try fixture(8, "")
+    let raw = "<script>bad</script><p onclick='bad'><a href='java&#115;cript:bad'>safe</a></p>"
+    let p = try s.preparePaste(revision: revision(s), range: range(s, 0, 0), input: NativeTransferInput(fragmentJson: nil, markdown: nil, html: raw, plainText: nil, literal: false), source: nil, now: 0)
+    try require(p.diagnostics.contains("html-url-dropped") && p.diagnostics.contains("html-executable-dropped") && p.source?.html == raw, "HTML diagnostics")
+    _ = try s.commitTransfer(token: p.token, clipboardAcknowledged: false, destinationReceipt: nil, now: 0)
+    try require(text(s) == "safe", "sanitized HTML"); try s.dispose(); passed += 1
+}
+// Unsupported resources and bounded malformed input never mutate SQLite/history.
+do {
+    let (_, s) = try fixture(9, "keep")
+    for raw in ["<table><tr><td>x</td></tr></table>", String(repeating: "<div>", count: 34) + "x" + String(repeating: "</div>", count: 34)] {
+        try reject { _ = try s.preparePaste(revision: revision(s), range: range(s, 0, 4), input: NativeTransferInput(fragmentJson: nil, markdown: nil, html: raw, plainText: nil, literal: false), source: nil, now: 0) }
+    }
+    try require(text(s) == "keep" && s.historyState(now: 0).undoGroups == 0, "HTML rejection atomicity"); try s.dispose(); passed += 1
+}
+print("{\"executed\":8,\"passed\":\(passed),\"failed\":0,\"skipped\":0}")

@@ -49,3 +49,5 @@ export function init(assetUrl: string): Promise<EngineRuntime> {
 
 // Keep unbundled hosts with an existing root import map compatible.
 export * from "./links/index.js";
+
+export type { HTMLNode } from "./engine.js";

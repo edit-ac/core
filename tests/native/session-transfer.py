@@ -62,7 +62,7 @@ def main():
         receipt['runtime'] = json.loads(runtime.read_text())
         counts = {key: receipt['runtime'][key] for key in ['executed', 'passed', 'failed', 'skipped']}
         receipt['counts'] = counts
-        if counts['executed'] != 5 or counts['passed'] != 5 or counts['failed'] or counts['skipped']:
+        if counts['executed'] != 8 or counts['passed'] != 8 or counts['failed'] or counts['skipped']:
             raise RuntimeError('incomplete runtime evidence')
         receipt['state'] = 'PASS'
     except Exception as error:
