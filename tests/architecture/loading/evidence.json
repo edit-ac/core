@@ -6,32 +6,32 @@
   "loadedPromptRevision": "2e18a98412c7",
   "scope": "Current unpublished packed SDK identities; same-page and installed production SHR-01\u201308, standalone gzip and shared route costs; no arbitrary semver, native SDK, deployed, release or FIT-1.8 performance qualification",
   "receipt": {
-    "path": "architecture-results/fit-1.6-20261016/content-ownership-refresh-1/canonical/receipt.json",
-    "sha256": "f7ec37a9e472eb5def4f50b1cfd629010b7c83fe0f9e17b972b38ae01e445dde"
+    "path": "architecture-results/fit-1.6-20261016/loading-admission-2/canonical/receipt.json",
+    "sha256": "d2f9441212e469dcf24cb5409bf1f2b18fba2586f7f8a92bdfb9b50d9a648524"
   },
   "inventory": {
-    "path": "architecture-results/fit-1.6-20261016/content-ownership-refresh-1/canonical/consumers-loading-inventory.json",
-    "sha256": "d9cf15c190c4dc296ee732e2891417d49e2073ba8a963ca793fb43b645c9da3b"
+    "path": "architecture-results/fit-1.6-20261016/loading-admission-2/canonical/consumers-loading-inventory.json",
+    "sha256": "52b3a0b8c87cabd60a2a339d9c94e58a304edf9e3a8f1e509ce32e3049e21fca"
   },
   "sharedReceipt": {
-    "path": "architecture-results/fit-1.6-20261016/content-ownership-refresh-1/consolidated/shared-receipt.json",
-    "sha256": "548107c3f61550e5f03ff50084f47e0472116aeb1504777c6fffa74feb44d3d5"
+    "path": "architecture-results/fit-1.6-20261016/loading-admission-2/consolidated/shared-receipt.json",
+    "sha256": "5c65a626f8df126e9beb3048a6fa15de9643a1aceebfa9357685c42d535a762a"
   },
   "sourceSnapshot": {
-    "path": "architecture-results/fit-1.6-20261016/content-ownership-refresh-1/current-source-manifest.json",
-    "sha256": "ab13f8b2aab8343850773a4f011f62e8249890d2d4aa7bad049e504a6437f60a"
+    "path": "architecture-results/fit-1.6-20261016/loading-admission-2/current-source-manifest.json",
+    "sha256": "0241b93241a18540ea954de8d95cd30a27acfa3b9ebc3abee91460f4ec6338fd"
   },
   "compiledNativeConsumer": {
-    "path": "architecture-results/fit-1.6-20261016/content-ownership-refresh-1/native-abi-executable",
-    "sha256": "128da14469bb6a7d0ef17c742be57f12aad7363157c8e0f1a301cef885915b3d"
+    "path": "architecture-results/fit-1.6-20261016/loading-admission-2/native-abi-executable",
+    "sha256": "bf4f7480c8d3e71927000dd658537288f6ed00abe0889a5ee2922e1e0d304d3f"
   },
   "independentArtifactVerification": {
-    "path": "architecture-results/fit-1.6-20261016/content-ownership-refresh-1/retained-verification.json",
-    "sha256": "c86216ac5b64993b87e2c5083686b001cc6bbd85c0e140faa010182df96bdd33"
+    "path": "architecture-results/fit-1.6-20261016/loading-admission-2/retained-verification.json",
+    "sha256": "bcf45202d24c6067d7289d0a96399a7564a59bbe5bcdb918e1b392c65e88731f"
   },
   "cleanup": {
-    "path": "architecture-results/fit-1.6-20261016/content-ownership-refresh-1/cleanup.json",
-    "sha256": "de5f9861039af2d1143675797714ca3309bc0bc5a54a7e0fec4b0fda588ea5e5"
+    "path": "architecture-results/fit-1.6-20261016/loading-admission-2/cleanup.json",
+    "sha256": "cb6b7ca624689bd927c7aaa85ed86b1bed47fd1563d7e53223c50b59870f7e3b"
   },
   "counts": {
     "canonical": {
@@ -88,17 +88,17 @@
     "finalSkips": 0
   },
   "defaultGzip": {
-    "total": 512956,
-    "editorJs": 32758
+    "total": 515155,
+    "editorJs": 32768
   },
   "optionalGzip": {
     "combined": {
-      "total": 758652,
-      "editorJs": 35140
+      "total": 760992,
+      "editorJs": 35291
     },
     "incremental": {
-      "total": 245696,
-      "editorJs": 2382
+      "total": 245837,
+      "editorJs": 2523
     }
   },
   "preferred": {
@@ -110,35 +110,35 @@
   "siteCosts": {
     "chromium": {
       "task": {
-        "total": 515946,
-        "editorJs": 35901,
+        "total": 518150,
+        "editorJs": 35916,
         "urls": [
-          "/fixture/_astro/Layout.astro_astro_type_script_index_0_lang.DM4sEwLR.js",
-          "/fixture/_astro/dist.BKi2Lvtr.js",
+          "/fixture/_astro/Layout.astro_astro_type_script_index_0_lang.DR9KkEHW.js",
+          "/fixture/_astro/dist.Ch8sJNdd.js",
           "/fixture/_astro/editac_runtime.BovlEJOC.js",
-          "/fixture/_astro/editac_wasm_bg.DZqv2Mfs.wasm"
+          "/fixture/_astro/editac_wasm_bg.CbyvWUfy.wasm"
         ]
       },
       "documentUnion": {
-        "total": 763567,
-        "editorJs": 40208,
+        "total": 765772,
+        "editorJs": 40224,
         "urls": [
-          "/fixture/_astro/Layout.astro_astro_type_script_index_0_lang.DM4sEwLR.js",
-          "/fixture/_astro/dist.BKi2Lvtr.js",
-          "/fixture/_astro/dist.DQYFV8M0.js",
+          "/fixture/_astro/Layout.astro_astro_type_script_index_0_lang.DR9KkEHW.js",
+          "/fixture/_astro/dist.Ch8sJNdd.js",
+          "/fixture/_astro/dist.D6uKhBkH.js",
           "/fixture/_astro/editac_markdown_wasm.Dtq6uwHF.js",
           "/fixture/_astro/editac_markdown_wasm_bg.CZr_g0fv.wasm",
           "/fixture/_astro/editac_markdown_wasm_bg.DMov6h4p.js",
           "/fixture/_astro/editac_runtime.BovlEJOC.js",
-          "/fixture/_astro/editac_wasm_bg.DZqv2Mfs.wasm",
+          "/fixture/_astro/editac_wasm_bg.CbyvWUfy.wasm",
           "/fixture/_astro/web.CLn9ZfRf.js"
         ]
       },
       "documentIncrement": {
-        "total": 247621,
-        "editorJs": 4307,
+        "total": 247622,
+        "editorJs": 4308,
         "urls": [
-          "/fixture/_astro/dist.DQYFV8M0.js",
+          "/fixture/_astro/dist.D6uKhBkH.js",
           "/fixture/_astro/editac_markdown_wasm.Dtq6uwHF.js",
           "/fixture/_astro/editac_markdown_wasm_bg.CZr_g0fv.wasm",
           "/fixture/_astro/editac_markdown_wasm_bg.DMov6h4p.js",
@@ -146,35 +146,35 @@
         ]
       },
       "mixedBindings": {
-        "total": 585714,
-        "editorJs": 105669,
+        "total": 587921,
+        "editorJs": 105687,
         "urls": [
-          "/fixture/_astro/Layout.astro_astro_type_script_index_0_lang.DM4sEwLR.js",
-          "/fixture/_astro/client.BnmVOwqw.js",
-          "/fixture/_astro/dist.BKi2Lvtr.js",
-          "/fixture/_astro/dist.CmwvEXvC.js",
-          "/fixture/_astro/dist.Dem_f_1E.js",
+          "/fixture/_astro/Layout.astro_astro_type_script_index_0_lang.DR9KkEHW.js",
+          "/fixture/_astro/client.D1_Gl2Qv.js",
+          "/fixture/_astro/dist.BTB2qTg3.js",
+          "/fixture/_astro/dist.Ch8sJNdd.js",
+          "/fixture/_astro/dist.DYIm7OpG.js",
           "/fixture/_astro/editac_runtime.BovlEJOC.js",
-          "/fixture/_astro/editac_wasm_bg.DZqv2Mfs.wasm",
-          "/fixture/_astro/react.DE93RAt9.js"
+          "/fixture/_astro/editac_wasm_bg.CbyvWUfy.wasm",
+          "/fixture/_astro/react.BfSVEAsN.js"
         ]
       },
       "mixedFeatureUnion": {
-        "total": 833335,
-        "editorJs": 109976,
+        "total": 835543,
+        "editorJs": 109995,
         "urls": [
-          "/fixture/_astro/Layout.astro_astro_type_script_index_0_lang.DM4sEwLR.js",
-          "/fixture/_astro/client.BnmVOwqw.js",
-          "/fixture/_astro/dist.BKi2Lvtr.js",
-          "/fixture/_astro/dist.CmwvEXvC.js",
-          "/fixture/_astro/dist.DQYFV8M0.js",
-          "/fixture/_astro/dist.Dem_f_1E.js",
+          "/fixture/_astro/Layout.astro_astro_type_script_index_0_lang.DR9KkEHW.js",
+          "/fixture/_astro/client.D1_Gl2Qv.js",
+          "/fixture/_astro/dist.BTB2qTg3.js",
+          "/fixture/_astro/dist.Ch8sJNdd.js",
+          "/fixture/_astro/dist.D6uKhBkH.js",
+          "/fixture/_astro/dist.DYIm7OpG.js",
           "/fixture/_astro/editac_markdown_wasm.Dtq6uwHF.js",
           "/fixture/_astro/editac_markdown_wasm_bg.CZr_g0fv.wasm",
           "/fixture/_astro/editac_markdown_wasm_bg.DMov6h4p.js",
           "/fixture/_astro/editac_runtime.BovlEJOC.js",
-          "/fixture/_astro/editac_wasm_bg.DZqv2Mfs.wasm",
-          "/fixture/_astro/react.DE93RAt9.js",
+          "/fixture/_astro/editac_wasm_bg.CbyvWUfy.wasm",
+          "/fixture/_astro/react.BfSVEAsN.js",
           "/fixture/_astro/web.CLn9ZfRf.js"
         ]
       },
@@ -191,39 +191,39 @@
     },
     "firefox": {
       "task": {
-        "total": 516820,
-        "editorJs": 36775,
+        "total": 519024,
+        "editorJs": 36790,
         "urls": [
-          "/fixture/_astro/Editor.astro_astro_type_script_index_0_lang.DZJT3gVq.js",
-          "/fixture/_astro/Layout.astro_astro_type_script_index_0_lang.DM4sEwLR.js",
-          "/fixture/_astro/dist.BKi2Lvtr.js",
-          "/fixture/_astro/dist.Dem_f_1E.js",
+          "/fixture/_astro/Editor.astro_astro_type_script_index_0_lang.B-jeV5Nb.js",
+          "/fixture/_astro/Layout.astro_astro_type_script_index_0_lang.DR9KkEHW.js",
+          "/fixture/_astro/dist.BTB2qTg3.js",
+          "/fixture/_astro/dist.Ch8sJNdd.js",
           "/fixture/_astro/editac_runtime.BovlEJOC.js",
-          "/fixture/_astro/editac_wasm_bg.DZqv2Mfs.wasm"
+          "/fixture/_astro/editac_wasm_bg.CbyvWUfy.wasm"
         ]
       },
       "documentUnion": {
-        "total": 764441,
-        "editorJs": 41082,
+        "total": 766646,
+        "editorJs": 41098,
         "urls": [
-          "/fixture/_astro/Editor.astro_astro_type_script_index_0_lang.DZJT3gVq.js",
-          "/fixture/_astro/Layout.astro_astro_type_script_index_0_lang.DM4sEwLR.js",
-          "/fixture/_astro/dist.BKi2Lvtr.js",
-          "/fixture/_astro/dist.DQYFV8M0.js",
-          "/fixture/_astro/dist.Dem_f_1E.js",
+          "/fixture/_astro/Editor.astro_astro_type_script_index_0_lang.B-jeV5Nb.js",
+          "/fixture/_astro/Layout.astro_astro_type_script_index_0_lang.DR9KkEHW.js",
+          "/fixture/_astro/dist.BTB2qTg3.js",
+          "/fixture/_astro/dist.Ch8sJNdd.js",
+          "/fixture/_astro/dist.D6uKhBkH.js",
           "/fixture/_astro/editac_markdown_wasm.Dtq6uwHF.js",
           "/fixture/_astro/editac_markdown_wasm_bg.CZr_g0fv.wasm",
           "/fixture/_astro/editac_markdown_wasm_bg.DMov6h4p.js",
           "/fixture/_astro/editac_runtime.BovlEJOC.js",
-          "/fixture/_astro/editac_wasm_bg.DZqv2Mfs.wasm",
+          "/fixture/_astro/editac_wasm_bg.CbyvWUfy.wasm",
           "/fixture/_astro/web.CLn9ZfRf.js"
         ]
       },
       "documentIncrement": {
-        "total": 247621,
-        "editorJs": 4307,
+        "total": 247622,
+        "editorJs": 4308,
         "urls": [
-          "/fixture/_astro/dist.DQYFV8M0.js",
+          "/fixture/_astro/dist.D6uKhBkH.js",
           "/fixture/_astro/editac_markdown_wasm.Dtq6uwHF.js",
           "/fixture/_astro/editac_markdown_wasm_bg.CZr_g0fv.wasm",
           "/fixture/_astro/editac_markdown_wasm_bg.DMov6h4p.js",
@@ -231,37 +231,37 @@
         ]
       },
       "mixedBindings": {
-        "total": 585777,
-        "editorJs": 105732,
+        "total": 587984,
+        "editorJs": 105750,
         "urls": [
-          "/fixture/_astro/Editor.astro_astro_type_script_index_0_lang.DZJT3gVq.js",
-          "/fixture/_astro/Layout.astro_astro_type_script_index_0_lang.DM4sEwLR.js",
-          "/fixture/_astro/client.BnmVOwqw.js",
-          "/fixture/_astro/dist.BKi2Lvtr.js",
-          "/fixture/_astro/dist.CmwvEXvC.js",
-          "/fixture/_astro/dist.Dem_f_1E.js",
+          "/fixture/_astro/Editor.astro_astro_type_script_index_0_lang.B-jeV5Nb.js",
+          "/fixture/_astro/Layout.astro_astro_type_script_index_0_lang.DR9KkEHW.js",
+          "/fixture/_astro/client.D1_Gl2Qv.js",
+          "/fixture/_astro/dist.BTB2qTg3.js",
+          "/fixture/_astro/dist.Ch8sJNdd.js",
+          "/fixture/_astro/dist.DYIm7OpG.js",
           "/fixture/_astro/editac_runtime.BovlEJOC.js",
-          "/fixture/_astro/editac_wasm_bg.DZqv2Mfs.wasm",
-          "/fixture/_astro/react.DE93RAt9.js"
+          "/fixture/_astro/editac_wasm_bg.CbyvWUfy.wasm",
+          "/fixture/_astro/react.BfSVEAsN.js"
         ]
       },
       "mixedFeatureUnion": {
-        "total": 833398,
-        "editorJs": 110039,
+        "total": 835606,
+        "editorJs": 110058,
         "urls": [
-          "/fixture/_astro/Editor.astro_astro_type_script_index_0_lang.DZJT3gVq.js",
-          "/fixture/_astro/Layout.astro_astro_type_script_index_0_lang.DM4sEwLR.js",
-          "/fixture/_astro/client.BnmVOwqw.js",
-          "/fixture/_astro/dist.BKi2Lvtr.js",
-          "/fixture/_astro/dist.CmwvEXvC.js",
-          "/fixture/_astro/dist.DQYFV8M0.js",
-          "/fixture/_astro/dist.Dem_f_1E.js",
+          "/fixture/_astro/Editor.astro_astro_type_script_index_0_lang.B-jeV5Nb.js",
+          "/fixture/_astro/Layout.astro_astro_type_script_index_0_lang.DR9KkEHW.js",
+          "/fixture/_astro/client.D1_Gl2Qv.js",
+          "/fixture/_astro/dist.BTB2qTg3.js",
+          "/fixture/_astro/dist.Ch8sJNdd.js",
+          "/fixture/_astro/dist.D6uKhBkH.js",
+          "/fixture/_astro/dist.DYIm7OpG.js",
           "/fixture/_astro/editac_markdown_wasm.Dtq6uwHF.js",
           "/fixture/_astro/editac_markdown_wasm_bg.CZr_g0fv.wasm",
           "/fixture/_astro/editac_markdown_wasm_bg.DMov6h4p.js",
           "/fixture/_astro/editac_runtime.BovlEJOC.js",
-          "/fixture/_astro/editac_wasm_bg.DZqv2Mfs.wasm",
-          "/fixture/_astro/react.DE93RAt9.js",
+          "/fixture/_astro/editac_wasm_bg.CbyvWUfy.wasm",
+          "/fixture/_astro/react.BfSVEAsN.js",
           "/fixture/_astro/web.CLn9ZfRf.js"
         ]
       },
@@ -278,35 +278,35 @@
     },
     "webkit": {
       "task": {
-        "total": 515946,
-        "editorJs": 35901,
+        "total": 518150,
+        "editorJs": 35916,
         "urls": [
-          "/fixture/_astro/Layout.astro_astro_type_script_index_0_lang.DM4sEwLR.js",
-          "/fixture/_astro/dist.BKi2Lvtr.js",
+          "/fixture/_astro/Layout.astro_astro_type_script_index_0_lang.DR9KkEHW.js",
+          "/fixture/_astro/dist.Ch8sJNdd.js",
           "/fixture/_astro/editac_runtime.BovlEJOC.js",
-          "/fixture/_astro/editac_wasm_bg.DZqv2Mfs.wasm"
+          "/fixture/_astro/editac_wasm_bg.CbyvWUfy.wasm"
         ]
       },
       "documentUnion": {
-        "total": 763567,
-        "editorJs": 40208,
+        "total": 765772,
+        "editorJs": 40224,
         "urls": [
-          "/fixture/_astro/Layout.astro_astro_type_script_index_0_lang.DM4sEwLR.js",
-          "/fixture/_astro/dist.BKi2Lvtr.js",
-          "/fixture/_astro/dist.DQYFV8M0.js",
+          "/fixture/_astro/Layout.astro_astro_type_script_index_0_lang.DR9KkEHW.js",
+          "/fixture/_astro/dist.Ch8sJNdd.js",
+          "/fixture/_astro/dist.D6uKhBkH.js",
           "/fixture/_astro/editac_markdown_wasm.Dtq6uwHF.js",
           "/fixture/_astro/editac_markdown_wasm_bg.CZr_g0fv.wasm",
           "/fixture/_astro/editac_markdown_wasm_bg.DMov6h4p.js",
           "/fixture/_astro/editac_runtime.BovlEJOC.js",
-          "/fixture/_astro/editac_wasm_bg.DZqv2Mfs.wasm",
+          "/fixture/_astro/editac_wasm_bg.CbyvWUfy.wasm",
           "/fixture/_astro/web.CLn9ZfRf.js"
         ]
       },
       "documentIncrement": {
-        "total": 247621,
-        "editorJs": 4307,
+        "total": 247622,
+        "editorJs": 4308,
         "urls": [
-          "/fixture/_astro/dist.DQYFV8M0.js",
+          "/fixture/_astro/dist.D6uKhBkH.js",
           "/fixture/_astro/editac_markdown_wasm.Dtq6uwHF.js",
           "/fixture/_astro/editac_markdown_wasm_bg.CZr_g0fv.wasm",
           "/fixture/_astro/editac_markdown_wasm_bg.DMov6h4p.js",
@@ -314,35 +314,35 @@
         ]
       },
       "mixedBindings": {
-        "total": 585714,
-        "editorJs": 105669,
+        "total": 587921,
+        "editorJs": 105687,
         "urls": [
-          "/fixture/_astro/Layout.astro_astro_type_script_index_0_lang.DM4sEwLR.js",
-          "/fixture/_astro/client.BnmVOwqw.js",
-          "/fixture/_astro/dist.BKi2Lvtr.js",
-          "/fixture/_astro/dist.CmwvEXvC.js",
-          "/fixture/_astro/dist.Dem_f_1E.js",
+          "/fixture/_astro/Layout.astro_astro_type_script_index_0_lang.DR9KkEHW.js",
+          "/fixture/_astro/client.D1_Gl2Qv.js",
+          "/fixture/_astro/dist.BTB2qTg3.js",
+          "/fixture/_astro/dist.Ch8sJNdd.js",
+          "/fixture/_astro/dist.DYIm7OpG.js",
           "/fixture/_astro/editac_runtime.BovlEJOC.js",
-          "/fixture/_astro/editac_wasm_bg.DZqv2Mfs.wasm",
-          "/fixture/_astro/react.DE93RAt9.js"
+          "/fixture/_astro/editac_wasm_bg.CbyvWUfy.wasm",
+          "/fixture/_astro/react.BfSVEAsN.js"
         ]
       },
       "mixedFeatureUnion": {
-        "total": 833335,
-        "editorJs": 109976,
+        "total": 835543,
+        "editorJs": 109995,
         "urls": [
-          "/fixture/_astro/Layout.astro_astro_type_script_index_0_lang.DM4sEwLR.js",
-          "/fixture/_astro/client.BnmVOwqw.js",
-          "/fixture/_astro/dist.BKi2Lvtr.js",
-          "/fixture/_astro/dist.CmwvEXvC.js",
-          "/fixture/_astro/dist.DQYFV8M0.js",
-          "/fixture/_astro/dist.Dem_f_1E.js",
+          "/fixture/_astro/Layout.astro_astro_type_script_index_0_lang.DR9KkEHW.js",
+          "/fixture/_astro/client.D1_Gl2Qv.js",
+          "/fixture/_astro/dist.BTB2qTg3.js",
+          "/fixture/_astro/dist.Ch8sJNdd.js",
+          "/fixture/_astro/dist.D6uKhBkH.js",
+          "/fixture/_astro/dist.DYIm7OpG.js",
           "/fixture/_astro/editac_markdown_wasm.Dtq6uwHF.js",
           "/fixture/_astro/editac_markdown_wasm_bg.CZr_g0fv.wasm",
           "/fixture/_astro/editac_markdown_wasm_bg.DMov6h4p.js",
           "/fixture/_astro/editac_runtime.BovlEJOC.js",
-          "/fixture/_astro/editac_wasm_bg.DZqv2Mfs.wasm",
-          "/fixture/_astro/react.DE93RAt9.js",
+          "/fixture/_astro/editac_wasm_bg.CbyvWUfy.wasm",
+          "/fixture/_astro/react.BfSVEAsN.js",
           "/fixture/_astro/web.CLn9ZfRf.js"
         ]
       },
@@ -374,6 +374,30 @@
     {
       "path": "architecture-results/fit-1.6-20261015/delivery-1/retained-verification-1-failed.log",
       "sha256": "fc4ec578b55583fcea1e0e7ec7b17007feb803008ebbbb7079996d6ba75d828d"
+    },
+    {
+      "path": "architecture-results/fit-1.6-20261016/table-journal-refresh-1/default-measurement.log",
+      "sha256": "f6773d43c4c876f0baf492cb241d2eb4f79422ac58d63d9ff7f7f55a37d97d49"
+    },
+    {
+      "path": "architecture-results/fit-1.6-20261016/restore-envelope-refresh-1/default-measurement.log",
+      "sha256": "5848e71b7df3a2cb07741d24153f0773a445477ccbb66bb2bb4b66f1dce41a80"
+    },
+    {
+      "path": "architecture-results/fit-1.6-20261016/input-validation-refresh-1/default-measurement.log",
+      "sha256": "ed8fbc654ff81795c2de204449b679505a12949983f4b76cc8d3af8248574af0"
+    },
+    {
+      "path": "architecture-results/fit-1.6-20261016/journal-metadata-refresh-1/default-measurement.log",
+      "sha256": "f7849f67faa8d15eb45dcb0b90dabf4b7348704daf283f8dbd081701f51c907b"
+    },
+    {
+      "path": "architecture-results/fit-1.6-20261016/restore-metadata-refresh-1/default-measurement.log",
+      "sha256": "6930074f348419c437e0383286463d7ad16f210381ccce9a4a7d9e93ba40baba"
+    },
+    {
+      "path": "architecture-results/fit-1.6-20261016/loading-admission-1/default-measurement.log",
+      "sha256": "86a45677eb93c3f08138b896cd7240a1e74a6fc9225366e7103283a944372507"
     }
   ],
   "supersededPassingEvidence": {
@@ -384,36 +408,36 @@
     "path": "architecture-results/fit-1.6-20261014/validation-2/receipt.json",
     "sha256": "5bedf64c1b94c7131fb17e4dca0efd484e49224cc68ed1fec3b45920e8007a6e"
   },
-  "lastRelevantChange": "2026-10-16: requalify default and enabled Markdown exact-artifact SHR-01\u201308 after registered content-view ownership runtime change2768765; no FIT-1.8/platform/release qualification",
-  "implementationRevision": "864f0348726a79d4c7dcd3e7c947072cf9954604",
+  "lastRelevantChange": "2026-10-16: retain bounded binary journals at runtime42c9f6b; share restore validation/metadata/errors through current owned-byte-length repair; align SSR with public links. Full current FIT-1.6 loading proof only.",
+  "implementationRevision": "44642e68d1c3a636a507c3ac38495bec1b94678a",
   "previousSharedBoundary": {
     "delivery": {
-      "path": "architecture-results/fit-1.6-20261016/commit-stamp-refresh-1/delivery-receipt.json",
-      "sha256": "0cf5ffb44b400eac817ff592683ebda0f7033ce553ba7c42a2f617559111323b"
+      "path": "architecture-results/fit-1.6-20261016/content-ownership-refresh-1/delivery-receipt.json",
+      "sha256": "2d215153eb709e08c84e8bf1dab29b985df1789f4d6475238b6184e642b4e25d"
     },
-    "scope": "Historical pre-content-ownership runtime evidence, superseded only for current exact-artifact applicability"
+    "scope": "Historical pre-table-journal runtime evidence, superseded only for current exact-artifact applicability"
   },
   "producerCommands": {
-    "path": "architecture-results/fit-1.6-20261016/content-ownership-refresh-1/commands.json",
-    "sha256": "8f79b4b1b736a7782f83fc26fda1d49a32565aaadc8a5b712bf4530cdb8cd5ab"
+    "path": "architecture-results/fit-1.6-20261016/loading-admission-2/commands.json",
+    "sha256": "e51cea98a01a37f0d5c19460ecfd87d7b5da6e3861b12792c07957eee79d37ca"
   },
   "pinVerifier": {
-    "path": "architecture-results/fit-1.6-20261016/content-ownership-refresh-1/verify-pins.py",
+    "path": "architecture-results/fit-1.6-20261016/loading-admission-2/verify-pins.py",
     "sha256": "266afebda8a542698ed628a2e51f239ee3a4667656bef9d9b1241471355b754e"
   },
-  "evidenceBaseRevision": "864f0348726a79d4c7dcd3e7c947072cf9954604",
+  "evidenceBaseRevision": "44642e68d1c3a636a507c3ac38495bec1b94678a",
   "roadmapSnapshot": {
     "path": ".roadmap-runner/30-architecture-fitness-dceb3a8cc879/.roadmap-runner/30-architecture-fitness-3ac68e0bdf36/source-4a7016e77dea.md",
     "sha256": "c353c87f04046a451645445cf3b8d7c05fdd2b43d4cc683bf44c1b9cf2e6a11a"
   },
   "orchestration": {
     "run.py": {
-      "path": "architecture-results/fit-1.6-20261016/content-ownership-refresh-1/run.py",
-      "sha256": "e519c522f1eec7cfbdd68a7eb411ad56c25af56cc023ed3f479949efe5d6b9fe"
+      "path": "architecture-results/fit-1.6-20261016/loading-admission-2/run.py",
+      "sha256": "660814951a97f06ec0d2a4ee2ef2b5c8b3292e97279fd5bf8baac6a31dadd1a5"
     },
     "finalize.py": {
-      "path": "architecture-results/fit-1.6-20261016/content-ownership-refresh-1/finalize.py",
-      "sha256": "7c3640a15070bb17238495403796d8749f13173b7b5b47549086a8c793110697"
+      "path": "architecture-results/fit-1.6-20261016/loading-admission-2/finalize.py",
+      "sha256": "b0d43096ec90d9a3d7fa03dd3606dccdc3c5bf0d5d29dc09b3c91e01f7fa48cc"
     }
   },
   "executionEnvironment": {
@@ -424,14 +448,26 @@
       "/Users/bpstr/.nvm/versions/node/v24.19.0/bin",
       "/Users/bpstr/.cargo/bin"
     ],
-    "exchangeRoot": "architecture-results/fit-1.6-20261016/content-ownership-refresh-1/exchange"
+    "exchangeRoot": "architecture-results/fit-1.6-20261016/loading-admission-2/exchange"
   },
   "sharedRuntimeBaseline": "64aaefc (qualified main3ba8d89 merged with preserved private performance implementation)",
   "unrelatedArchitecturePreservation": {
     "baseline": {
-      "path": "architecture-results/fit-1.6-20261016/content-ownership-refresh-1/unrelated-architecture-baseline.json",
-      "sha256": "081be71bad27b5b55a100991001bcc0219cd6510cfdb38f1009c699383f80ba2"
+      "path": "architecture-results/fit-1.6-20261016/loading-admission-2/unrelated-architecture-baseline.json",
+      "sha256": "dfd85f0af4758fa2865e93fa61556ecda5e019c3d5f0e072f0500eeaa5a83157"
     },
-    "verifiedUnchangedFiles": 37568
+    "verifiedUnchangedFiles": 37450
+  },
+  "runtimeRepairCommits": [
+    "093289e",
+    "8fc813d",
+    "1969178",
+    "482be10",
+    "e984a2b",
+    "44642e6"
+  ],
+  "repairEvidence": {
+    "path": "architecture-results/fit-1.6-20261016/loading-admission-2/repair-evidence.json",
+    "sha256": "5ee4ee9f953eabc5084737617bce9034e84885cc0bf67de1413d5e09a250be92"
   }
 }
