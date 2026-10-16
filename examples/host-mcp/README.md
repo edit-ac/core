@@ -43,8 +43,9 @@ prepare and observe return their shared owner's data inside `{version:1,
 status:'ok',data}`; this adapter does not redefine the shared semantic/diff model.
 Prepare currently accepts complete candidates only, at most 65,536 UTF-16 units
 and 72 KiB for the complete UTF-8 request. Transport owners must also bound ingress
-before parsing. Upload/chunk sessions and semantic proposal forms require their
-own later schema revision; partial content must never reach apply.
+before parsing. Upload/chunk sessions are a separate host API below; exposing
+them as MCP tools requires their own schema version. Partial content never
+reaches preparation.
 
 Apply/receipt data follows `HOST_AGENT_RECEIPT_SCHEMA`: stable request ID, outcome,
 nullable resulting revision, local durability and independent remote durability.
@@ -76,3 +77,46 @@ It exercises this contract without a model, network request, production write,
 standalone server or CLI. Its mutation results are prepared fixtures. One read
 check uses the public production engine and confirms its checkpoint stays
 unchanged; this does not qualify persistence or realtime mutation.
+
+## Revision-bound Markdown service
+
+`createHostMarkdown(owner)` from `@edit-ac/web/host` supplies `services.read` and
+`services.prepare` for `createHostAgent`. The existing v1 complete-candidate schema
+is unchanged. The owner implements `capture(access)`, `prepare(target, candidate,
+access)`, `available(access)` and `release(target)`. Capture returns source,
+revision, profile, diagnostics and an opaque retained target. Bind that target to
+`EditService::capture_source` and the observed revision; prepare delegates to
+`EditService::prepare_source`. The source must be the exact retained opening
+representation with proved ordered owner IDs. A rendered or regenerated string
+alone is insufficient. Preserve opaque atoms with explicit diagnostics or block
+an unrepresentable proposal. Release target handles when asked. Current authority
+and source capabilities must also be checked by the shared owner.
+
+The helper hashes UTF-8 source with SHA-256, retains the target for five minutes,
+and binds it to host actor/document/epoch/revision/hash. Default bounds: 64 KiB
+source and candidate, 8 KiB each chunk, 64 chunks, 32 retained baselines, 16 pending
+uploads, 8 KiB diagnostic metadata. Hosts may lower limits. `beginUpload(access,
+{expectedRevision, sourceHash, totalBytes, checksum})` returns an expiring upload
+ID. `appendChunk(access, id, index, text, checksum)` admits ordered checksummed
+chunks; an identical retry is harmless. `finishUpload(access, id)` checks total
+bytes and the complete checksum, consumes the upload and prepares through the
+same owner. `cancelUpload` releases a pending upload; `dispose` releases all
+retained targets. Empty candidates are valid complete inputs and remain subject
+to reconciliation. Strings must be well-formed Unicode; lengths are UTF-8 bytes.
+
+Every chunk API call requires newly authorized host access, never tool-supplied
+identity. IDs, hashes and paths are not credentials. Revocation must make
+`owner.available` false; the owner rechecks permissions at execution. Host APIs
+throw `HostMarkdownError` for admission failures; v1 services return structured
+`{status:'rejected',code}` data. Owner reconciliation conflicts remain owner data.
+No preparation or upload applies edits or produces a durable apply receipt.
+
+The deterministic `session-owner.rs` example is a line-delimited process
+transport to a real in-memory Rust Session/EditService/SourceBaseline. It keeps
+an image atom opaque in the retained source and proves unchanged live checkpoints
+for both successful and rejected preparations. Build it with
+`cargo build -p editac-session --example host-markdown-owner --features native-store --locked --offline`,
+then run `node --test tests/agent-markdown.test.mjs`. Its fake auth, fixed document,
+fixture proposals and memory store are test/demo components. It has no apply
+endpoint, production storage, model provider or MCP server. An embedding app
+supplies its own authorized owner connection.
