@@ -145,6 +145,7 @@ pub struct PreparedEditorEdit {
     result_caret: Option<crate::anchors::Anchor>,
     result_selection: Option<crate::anchors::Selection>,
     entry_selection: Option<crate::anchors::Selection>,
+    stage: Option<std::sync::Arc<()>>,
 }
 impl PreparedEditorEdit {
     pub fn result_caret(&self) -> Option<&crate::anchors::Anchor> {
@@ -863,6 +864,7 @@ impl Document {
             return Err(EditorError::ResourceLimit);
         }
         Ok(PreparedEditorEdit {
+            stage: None,
             identity: self.identity().clone(),
             writer: self.writer_id(),
             revision: self.revision(),
@@ -1264,6 +1266,7 @@ impl Document {
             return Err(EditorError::ResourceLimit);
         }
         Ok(PreparedEditorEdit {
+            stage: None,
             identity: self.identity().clone(),
             writer: self.writer_id(),
             revision: self.revision(),
@@ -1327,16 +1330,34 @@ impl Document {
         drop(_phase);
         #[cfg(feature = "fitness-trace")]
         let _phase = crate::fitness::Span::new("engine.editor.stage");
-        let stage = m::replica(self.writer_id() as u64);
-        m::apply(&stage, &baseline).map_err(error)?;
+        // A prior successful commit already admitted this exact disposable
+        // replica. Take exclusive ownership; failed/dropped plans cannot leave
+        // a partially mutated stage available to another preparation. History
+        // may retain deleted structs that a disposable replica collects: exact
+        // encoded equality is required as well as the owning transaction stamp.
+        let retained = self.editor_stage.borrow_mut().take().filter(|stage| {
+            stage.committed
+                && self.matches_checkpoint_stamp(&stage.stamp)
+                && stage.bytes == baseline
+        });
+        let (stage, retained_projection) = if let Some(retained) = retained {
+            (retained.doc, Some(retained.projection))
+        } else {
+            let stage = m::replica(self.writer_id() as u64);
+            m::apply(&stage, &baseline).map_err(error)?;
+            (stage, None)
+        };
         let sv = stage.transact().state_vector();
         #[cfg(feature = "fitness-trace")]
         drop(_phase);
         #[cfg(feature = "fitness-trace")]
         let _phase = crate::fitness::Span::new("engine.editor.projection");
-        let text_projection = self
-            .editor_stage_projection(&stage)
-            .map_err(|_| EditorError::InvalidCommand)?;
+        let text_projection = match retained_projection {
+            Some(projection) => projection,
+            None => self
+                .editor_stage_projection(&stage)
+                .map_err(|_| EditorError::InvalidCommand)?,
+        };
         #[cfg(feature = "fitness-trace")]
         drop(_phase);
         #[cfg(feature = "fitness-trace")]
@@ -2224,7 +2245,8 @@ impl Document {
         drop(_phase);
         #[cfg(feature = "fitness-trace")]
         let _phase = crate::fitness::Span::new("engine.editor.size");
-        if m::bytes(&stage).len() > MAX_RESTORE_BYTES {
+        let stage_bytes = m::bytes(&stage);
+        if stage_bytes.len() > MAX_RESTORE_BYTES {
             return Err(EditorError::ResourceLimit);
         }
         #[cfg(feature = "fitness-trace")]
@@ -2232,6 +2254,17 @@ impl Document {
         #[cfg(feature = "fitness-trace")]
         let _phase = crate::fitness::Span::new("engine.editor.encoding");
         let update = stage.transact().encode_state_as_update_v1(&sv);
+        let token = std::sync::Arc::new(());
+        // Keep only one candidate per Document, not a full replica per public
+        // prepared handle. Only committing this exact plan makes it reusable.
+        *self.editor_stage.borrow_mut() = Some(crate::document::EditorStage {
+            doc: stage,
+            projection: final_projection,
+            stamp: self.checkpoint_stamp(),
+            bytes: stage_bytes,
+            token: token.clone(),
+            committed: false,
+        });
         Ok(PreparedEditorEdit {
             identity: self.identity().clone(),
             writer: self.writer_id(),
@@ -2244,6 +2277,7 @@ impl Document {
             result_caret,
             result_selection,
             entry_selection,
+            stage: Some(token),
         })
     }
     /// Only disposable-stage reads may consume their projection deltas. Every
@@ -2296,6 +2330,7 @@ impl Document {
             .ok_or(EditorError::ResourceLimit)?;
         let update = crate::ownership::decode(&plan.update).map_err(error)?;
         if update.is_empty() {
+            self.retain_editor_stage(plan.stage.as_ref());
             return Ok(EditorCommit {
                 result_caret: plan.result_caret,
                 result_selection: plan.result_selection,
@@ -2315,6 +2350,7 @@ impl Document {
             .transact_mut_with(plan.origin.as_str())
             .apply_update(update)
             .expect("validated editor update");
+        self.retain_editor_stage(plan.stage.as_ref());
         self.history_bookmarks(
             plan.entry_selection,
             plan.result_selection.clone().or_else(|| {
@@ -2355,6 +2391,237 @@ mod transaction_tests {
     use crate::document::{CreationPermit, InitialNode};
     use std::sync::{Arc, Mutex};
     use yrs::Origin;
+    fn retained_fixture(case: u8, stable: bool) -> Document {
+        let identity = if stable {
+            DocumentIdentity::v5
+        } else {
+            DocumentIdentity::v4
+        }(
+            &format!("aaaaaaaa-aaaa-4aaa-8aaa-aaaa66{case:02x}0001"),
+            &format!(
+                "bbbbbbbb-bbbb-4bbb-8bbb-bbbb66{case:02x}00{:02x}",
+                u8::from(stable)
+            ),
+        )
+        .unwrap();
+        Document::create(
+            CreationPermit::authorize_new(identity).unwrap(),
+            &[InitialNode {
+                kind: "block".into(),
+                text: "A😀e\u{301}Z".into(),
+            }],
+        )
+        .unwrap()
+    }
+    fn retained_replace(d: &Document, text: &str) -> EditorCommand {
+        let node = &d.snapshot().unwrap().visible[0];
+        EditorCommand::ReplaceAt {
+            owner: node.id.clone(),
+            from: crate::Utf16Offset(0),
+            to: crate::Utf16Offset(
+                node.runs
+                    .iter()
+                    .map(|r| r.text.encode_utf16().count() as u32)
+                    .sum(),
+            ),
+            text: text.into(),
+        }
+    }
+    #[test]
+    fn retained_editor_stage_matches_independent_fresh_stage_and_reopen() {
+        for stable in [false, true] {
+            let mut d = retained_fixture(1, stable);
+            let origin = TextOrigin::new("retained-stage-equivalence").unwrap();
+            d.enable_history(crate::history::HistoryConfig::default())
+                .unwrap();
+            let mut reused = 0;
+            for (insert, text) in [
+                (true, "界"),
+                (true, "😀"),
+                (true, ""),
+                (false, "界😀e\u{301}"),
+                (false, ""),
+                (false, "x"),
+                (false, "x"),
+                (false, "A😀e\u{301}Z"),
+            ] {
+                let mut command = retained_replace(&d, text);
+                if insert {
+                    if let EditorCommand::ReplaceAt { from, to, .. } = &mut command {
+                        *from = *to;
+                    }
+                }
+                // Force the independent oracle down the original fresh path.
+                let retained = d.editor_stage.borrow_mut().take();
+                let guid = retained
+                    .as_ref()
+                    .filter(|stage| stage.bytes == d.checkpoint().bytes)
+                    .map(|stage| stage.doc.guid().to_string());
+                let fresh = d.prepare_editor(&[command.clone()], &origin).unwrap();
+                let fresh_bytes = d.editor_stage.borrow().as_ref().unwrap().bytes.clone();
+                *d.editor_stage.borrow_mut() = retained;
+                let before = d.checkpoint();
+                let plan = d.prepare_editor(&[command], &origin).unwrap();
+                if let Some(guid) = guid {
+                    reused += 1;
+                    assert_eq!(
+                        d.editor_stage
+                            .borrow()
+                            .as_ref()
+                            .unwrap()
+                            .doc
+                            .guid()
+                            .to_string(),
+                        guid
+                    );
+                }
+                assert_eq!(fresh.update, plan.update);
+                assert_eq!(
+                    format!("{:?}", fresh.result_selection),
+                    format!("{:?}", plan.result_selection)
+                );
+                assert_eq!(d.checkpoint().bytes, before.bytes);
+                let expected = d.editor_stage.borrow().as_ref().unwrap().bytes.clone();
+                assert_eq!(expected, fresh_bytes);
+                d.commit_editor(plan).unwrap();
+                assert_eq!(d.editor_stage.borrow().as_ref().unwrap().bytes, expected);
+                let reopened = Document::restore(d.identity(), &d.checkpoint(), &[]).unwrap();
+                assert_eq!(
+                    reopened.snapshot().unwrap().visible,
+                    d.snapshot().unwrap().visible
+                );
+            }
+            assert!(reused > 0, "exercise the retained path, not only fallback");
+            d.undo().unwrap();
+            let stale_guid = d
+                .editor_stage
+                .borrow()
+                .as_ref()
+                .unwrap()
+                .doc
+                .guid()
+                .to_string();
+            let plan = d
+                .prepare_editor(&[retained_replace(&d, "undo-safe")], &origin)
+                .unwrap();
+            assert_ne!(
+                d.editor_stage
+                    .borrow()
+                    .as_ref()
+                    .unwrap()
+                    .doc
+                    .guid()
+                    .to_string(),
+                stale_guid
+            );
+            drop(plan);
+            d.redo().unwrap();
+            d.commit_editor(
+                d.prepare_editor(&[retained_replace(&d, "redo-safe")], &origin)
+                    .unwrap(),
+            )
+            .unwrap();
+        }
+    }
+    #[test]
+    fn retained_editor_stage_discards_raw_delete_noop_and_remote_changes() {
+        use yrs::Text;
+        for stable in [false, true] {
+            for case in 0..3 {
+                let mut d = retained_fixture(2 + case, stable);
+                let origin = TextOrigin::new("retained-stage-invalidation").unwrap();
+                d.commit_editor(
+                    d.prepare_editor(&[retained_replace(&d, "ABCDE")], &origin)
+                        .unwrap(),
+                )
+                .unwrap();
+                let guid = d
+                    .editor_stage
+                    .borrow()
+                    .as_ref()
+                    .unwrap()
+                    .doc
+                    .guid()
+                    .to_string();
+                if case == 0 {
+                    drop(d.doc.transact_mut());
+                } else if case == 1 {
+                    let id = d.snapshot().unwrap().visible[0].id.clone();
+                    m::text(&d.doc, &id).remove_range(&mut d.doc.transact_mut(), 0, 1);
+                } else {
+                    let mut remote = Document::restore(d.identity(), &d.checkpoint(), &[]).unwrap();
+                    let update = remote
+                        .commit_editor(
+                            remote
+                                .prepare_editor(&[retained_replace(&remote, "remote界")], &origin)
+                                .unwrap(),
+                        )
+                        .unwrap()
+                        .update;
+                    d.apply_replay(&update).unwrap();
+                }
+                let command = retained_replace(&d, "fresh😀");
+                let plan = d.prepare_editor(&[command.clone()], &origin).unwrap();
+                assert_ne!(
+                    d.editor_stage
+                        .borrow()
+                        .as_ref()
+                        .unwrap()
+                        .doc
+                        .guid()
+                        .to_string(),
+                    guid
+                );
+                let fresh = d.prepare_editor(&[command], &origin).unwrap();
+                assert_eq!(plan.update, fresh.update);
+                d.commit_editor(plan).unwrap();
+                assert!(matches!(
+                    d.commit_editor(fresh),
+                    Err(EditorError::Text(TextError::StalePlan))
+                ));
+            }
+        }
+    }
+    #[test]
+    fn retained_editor_stage_failed_or_abandoned_plan_never_poison_live_state() {
+        for stable in [false, true] {
+            let mut d = retained_fixture(5, stable);
+            let origin = TextOrigin::new("retained-stage-rejection").unwrap();
+            d.commit_editor(
+                d.prepare_editor(&[retained_replace(&d, "initial")], &origin)
+                    .unwrap(),
+            )
+            .unwrap();
+            let before = d.checkpoint().bytes;
+            let invalid = [
+                retained_replace(&d, "temporary"),
+                EditorCommand::Block {
+                    target: "missing".into(),
+                    tuple: m::arr(vec![Any::from("paragraph")]),
+                },
+            ];
+            assert!(d.prepare_editor(&invalid, &origin).is_err());
+            assert!(d.editor_stage.borrow().is_none());
+            assert_eq!(d.checkpoint().bytes, before);
+            let command = retained_replace(&d, "final");
+            drop(d.prepare_editor(&[command.clone()], &origin).unwrap());
+            assert!(!d.editor_stage.borrow().as_ref().unwrap().committed);
+            assert_eq!(d.checkpoint().bytes, before);
+            let plan = d.prepare_editor(&[command], &origin).unwrap();
+            let other = d
+                .prepare_editor(&[retained_replace(&d, "other")], &origin)
+                .unwrap();
+            d.commit_editor(plan).unwrap();
+            assert!(
+                d.editor_stage.borrow().is_none(),
+                "older valid plan cannot admit another candidate"
+            );
+            assert!(matches!(
+                d.commit_editor(other),
+                Err(EditorError::Text(TextError::StalePlan))
+            ));
+        }
+    }
     #[test]
     fn compound_text_stage_matches_restored_plans_including_delete_only_steps() {
         use crate::{

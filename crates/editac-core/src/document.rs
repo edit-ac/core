@@ -354,12 +354,25 @@ pub(crate) struct CheckpointStamp {
     value: u64,
 }
 
+/// At most one fully admitted disposable replica. It is never authoritative and
+/// can only be reused while its owning live replica has not been transacted on.
+#[derive(Debug)]
+pub(crate) struct EditorStage {
+    pub(crate) doc: Doc,
+    pub(crate) projection: crate::projection::ProjectionIndex,
+    pub(crate) stamp: CheckpointStamp,
+    pub(crate) bytes: Vec<u8>,
+    pub(crate) token: Arc<()>,
+    pub(crate) committed: bool,
+}
+
 /// One authoritative Yrs replica. No public mutable Yrs handle or clone is exposed.
 #[derive(Debug)]
 pub struct Document {
     pub(crate) doc: Doc,
     projection: crate::projection::ProjectionIndex,
     checkpoint_stamp: Arc<AtomicU64>,
+    pub(crate) editor_stage: std::cell::RefCell<Option<EditorStage>>,
     identity: DocumentIdentity,
     _writer: WriterLease,
     next_node_counter: u64,
@@ -464,6 +477,7 @@ impl Document {
         Ok(Self {
             projection: crate::projection::ProjectionIndex::with_identity(&doc, &permit.identity),
             checkpoint_stamp: observe_checkpoint_stamp(&doc),
+            editor_stage: Default::default(),
             doc,
             identity: permit.identity.clone(),
             _writer: writer,
@@ -609,6 +623,7 @@ impl Document {
         Ok(Self {
             projection,
             checkpoint_stamp: observe_checkpoint_stamp(&doc),
+            editor_stage: Default::default(),
             doc,
             identity: expected.clone(),
             _writer: writer,
@@ -785,10 +800,22 @@ impl Document {
         // re-encode the entire corpus. After any transaction (including a no-op)
         // retain the exact original byte comparison. Saturation cannot wrap and
         // accidentally admit an old plan.
-        (stamp.value != u64::MAX
+        self.matches_checkpoint_stamp(stamp) || self.checkpoint().bytes == bytes
+    }
+    pub(crate) fn matches_checkpoint_stamp(&self, stamp: &CheckpointStamp) -> bool {
+        stamp.value != u64::MAX
             && Arc::ptr_eq(&stamp.owner, &self.checkpoint_stamp)
-            && stamp.value == self.checkpoint_stamp.load(Ordering::Relaxed))
-            || self.checkpoint().bytes == bytes
+            && stamp.value == self.checkpoint_stamp.load(Ordering::Relaxed)
+    }
+    pub(crate) fn retain_editor_stage(&self, token: Option<&Arc<()>>) {
+        let mut retained = self.editor_stage.borrow_mut();
+        match (retained.as_mut(), token) {
+            (Some(stage), Some(token)) if Arc::ptr_eq(&stage.token, token) => {
+                stage.stamp = self.checkpoint_stamp();
+                stage.committed = true;
+            }
+            _ => *retained = None,
+        }
     }
     pub fn checkpoint(&self) -> InitializedCheckpoint {
         InitializedCheckpoint {
