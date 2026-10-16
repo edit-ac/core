@@ -2,7 +2,7 @@
   "contractVersion": 1,
   "id": "native.macos.pending.v1",
   "implementation": {
-    "revision": "d93f0f4cc58c2f253c8bc0aff028f02d06837c97",
+    "revision": "97f3eb289083f44836804a4d581963ed5fdbc0e6",
     "package": "EditacMacOS",
     "version": "0.0.0"
   },
@@ -317,7 +317,7 @@
     },
     {
       "path": "native/macos/Package.swift",
-      "sha256": "420459cbc1fc4dd8419234fed709bfe9c4f8cff1f7d087b59dbd7cfc7ff81a85"
+      "sha256": "d54e92c944c4f5412e36d4f6d0515e324040345dc8de6d0bad97197b1ac96b37"
     },
     {
       "path": "native/macos/toolchain.json",
@@ -422,6 +422,22 @@
     {
       "path": "native/macos/tests/AccessibilityStructureFixture/src/main.rs",
       "sha256": "77b22eca48ff69348e5af40fdb0da7156a6ecaf50b578677ea93260ed04f3ab3"
+    },
+    {
+      "path": "native/macos/Sources/EditacMacOS/change-review/NativeChangeReviewView.swift",
+      "sha256": "a16beb389862a4b9022b6a2bf07f6f228e7f7784cf97c501864c8b5b03f98ad6"
+    },
+    {
+      "path": "native/macos/Sources/EditacMacOS/change-review/NativeChangeReviewPresentation.swift",
+      "sha256": "11d74b4f192bd1a26e0af6bc88b30d696d056090292c957a41616bbb050b5fab"
+    },
+    {
+      "path": "native/macos/tests/ChangeReviewPresentation/ChangeReviewPresentationTests.swift",
+      "sha256": "b99aad2740cc2ed28a00a7d21004b3faaf5e10fce1c8bf7c1e3e85d6fb9f3e45"
+    },
+    {
+      "path": "native/macos/Sources/EditacMacOS/change-review/README.md",
+      "sha256": "75ecba0fd4bfcf6bbaee9123b3f1aaa33b0be9af428f826d066d9e34bc60358e"
     }
   ],
   "evidence": []
