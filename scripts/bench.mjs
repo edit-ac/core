@@ -19,12 +19,21 @@ import { requireTestNode } from './test-toolchain.mjs';
 import { fitnessInstrumentation } from './fitness-instrumentation.mjs';
 import { attributionVersion } from '../benchmarks/attribution.mjs';
 import { summarize } from '../benchmarks/statistics.mjs';
+import { validateFitnessProfile } from './architecture-budgets.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 process.chdir(root);
 await requireTestNode();
 const flags = options(process.argv.slice(2));
 const config = JSON.parse(await readFile('benchmarks/config.json', 'utf8'));
+// Reject stale/unreviewed limits before compilation or any measurement. Retain
+// exact external policy bytes instead of relabeling historical observations.
+let fitnessPolicy, verificationPolicy;
+if (flags.fitness) {
+  fitnessPolicy = JSON.parse(await readFile('benchmarks/profiles/fitness-v1.json', 'utf8'));
+  verificationPolicy = await readFile(resolve(root, '../architecture/specs/verification.md'));
+  validateFitnessProfile(fitnessPolicy, await readFile('benchmarks/config.json'), verificationPolicy);
+}
 const profile = flags.quick ? { ...config, runs: 1, warmups: 1, samples: 5, formatSamples: 2, memoryEdits: 100, mountCycles: 2, operationSamples: 2 }
   : { ...config, operationSamples: 5 };
 profile.fitness = flags.fitness === true;
@@ -150,6 +159,12 @@ async function bundles() {
 }
 
 try {
+  if (flags.fitness) {
+    await mkdir(join(output, 'policy'));
+    await writeFile(join(output, 'policy/verification.md'), verificationPolicy);
+    result.metadata.verificationPolicy = { source: 'architecture/specs/verification.md',
+      sha256: hash(verificationPolicy), reviewedAt: fitnessPolicy.reviewedAt };
+  }
   await command(['run', 'build:wasm'], 'build-wasm.log');
   await command(['run', 'build'], 'build-packages.log');
   temporary = await mkdtemp(join(tmpdir(), 'editac-benchmark-'));
@@ -306,6 +321,9 @@ finally {
   result.metadata.finalLoadAverage = loadavg();
   result.counts = scenarioCounts(result.cases, flags.fixtures.length * flags.presets.length * (profile.runs + profile.warmups));
   result.artifactInputs = {};
+  if (flags.fitness && result.metadata.verificationPolicy) {
+    result.artifactInputs['policy/verification.md'] = hash(await readFile(join(output, 'policy/verification.md')));
+  }
   for (const file of ['harness/client.mjs', 'harness/attribution.mjs', 'harness/wasm/editac_wasm.js', 'harness/wasm/editac_wasm_bg.wasm', 'harness/fixtures.mjs', 'harness/presets.mjs', 'harness/sdk.js', 'bundles/wasm/editac_wasm.js', 'bundles/wasm/editac_wasm_bg.wasm', 'config.json']) {
     try { result.artifactInputs[file] = hash(await readFile(join(output, file))); }
     catch (error) { result.errors.push(`Missing retained artifact ${file}: ${error.message}`); result.status = 'failed'; }

@@ -7,6 +7,12 @@ unknown profiles, skipped/failed cases, post-hoc limits and prepared runtime
 claims. The suite is an admission contract with actual baseline observations;
 a passing test receipt does not qualify all PRF cases or a release profile.
 
+The fitness producer validates the reviewed profile against the current verification
+policy before building or measuring. Each new run retains `policy/verification.md`
+and its hash/review identity; admission requires those exact bytes and a review
+before the measurement timestamp. Policy amendments require an applicability
+review at unchanged limits and new execution, never relabeling historical samples.
+
 The owning baseline command is the existing `npm run bench -- --fitness --quick
 --fixtures Task,Long --presets baseline,task --output <unique-directory>`. It rebuilds the real
 Rust/WASM engine and browser SDK and uses deterministic document checkpoints,

@@ -115,12 +115,23 @@ export async function verifyPins(root, pins) {
   return Object.keys(pins).length;
 }
 
+export function validateBaselinePolicy(profile, result) {
+  const policy = result.metadata?.verificationPolicy;
+  require(policy?.source === 'architecture/specs/verification.md'
+    && policy.sha256 === profile.verificationSpecHash
+    && policy.reviewedAt === profile.reviewedAt
+    && result.artifactInputs?.['policy/verification.md'] === policy.sha256,
+  'Missing or changed measured verification policy');
+  require(Date.parse(result.metadata.timestamp) > Date.parse(policy.reviewedAt), 'Measurement precedes policy review');
+}
+
 export function inspectBaseline(profile, result) {
   require(result?.version === 1 && result.signature?.fitness === true, 'Missing fitness-mode observation');
   require(result.errors?.length === 0 && result.counts?.failed === 0 && result.counts.skipped === 0 && result.counts.executed > 0 && result.counts.passed === result.counts.executed, 'Incomplete owning benchmark');
   require(result.cleanup?.browserExited && result.cleanup.serverClosed && result.cleanup.temporaryRemoved, 'Runtime cleanup incomplete');
   require(result.metadata?.cpu && result.metadata.browser && result.metadata.osRelease && result.metadata.totalMemoryBytes > 0, 'Hardware/runtime missing');
   require(Date.parse(result.metadata.timestamp) > Date.parse(profile.reviewedAt), 'Measurement precedes fixed limits');
+  validateBaselinePolicy(profile, result);
   require(result.profileInputs?.['benchmarks/profiles/fitness-v1.json'] && result.profileInputs['benchmarks/config.json'] === profile.benchmarkConfigHash, 'Unpinned measurement limits');
   require(JSON.stringify(result.signature.fixtures) === JSON.stringify(profile.fixtureNames), 'Missing required Task/Long fixtures');
   require(result.signature.replay === profile.inputReplay, 'Input replay signature drift');

@@ -3,7 +3,7 @@ import { test, after } from 'node:test';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { validateFitnessProfile, digest, rawSummary, comparable, evaluateFitnessEvidence, inspectBaseline, verifyPins, verifyMeasuredFixtures } from '../../../scripts/architecture-budgets.mjs';
+import { validateFitnessProfile, validateBaselinePolicy, digest, rawSummary, comparable, evaluateFitnessEvidence, inspectBaseline, verifyPins, verifyMeasuredFixtures } from '../../../scripts/architecture-budgets.mjs';
 import { options } from '../../../benchmarks/options.mjs';
 import { budgets, evaluateBudget, assertBudget } from '../../../scripts/browser-size-contract.mjs';
 const root = fileURLToPath(new URL('../../../', import.meta.url));
@@ -36,6 +36,27 @@ test('raw tails are inconclusive for a small sample set', () => {
   const summary = rawSummary(Array.from({ length: 100 }, (_, i) => i + 1));
   assert.equal(summary.p95, 95); assert.equal(summary.p99, 99);
   for (const invalid of [[], [NaN], [-1], [Infinity], ['1']]) assert.throws(() => rawSummary(invalid));
+});
+const policyObservation = () => ({
+  metadata: { timestamp: new Date(Date.parse(profile.reviewedAt) + 1000).toISOString(),
+    verificationPolicy: { source: 'architecture/specs/verification.md', sha256: profile.verificationSpecHash, reviewedAt: profile.reviewedAt } },
+  artifactInputs: { 'policy/verification.md': profile.verificationSpecHash },
+});
+test('baseline policy binds retained bytes and review before measurement', () => {
+  validateBaselinePolicy(profile, policyObservation());
+});
+for (const [name, mutate] of [
+  ['missing policy', r => delete r.metadata.verificationPolicy],
+  ['wrong source', r => r.metadata.verificationPolicy.source = 'prepared-policy'],
+  ['stale policy', r => r.metadata.verificationPolicy.sha256 = '0'.repeat(64)],
+  ['missing policy bytes', r => delete r.artifactInputs['policy/verification.md']],
+  ['changed policy bytes', r => r.artifactInputs['policy/verification.md'] = '0'.repeat(64)],
+  ['changed review', r => r.metadata.verificationPolicy.reviewedAt = '2000-01-01T00:00:00Z'],
+  ['post-hoc review', r => r.metadata.timestamp = profile.reviewedAt],
+  ['invalid measurement date', r => r.metadata.timestamp = 'unknown'],
+]) test(`baseline rejects ${name}`, () => {
+  const record = policyObservation(); mutate(record);
+  assert.throws(() => validateBaselinePolicy(profile, record));
 });
 const comparison = { implementationHash: '1'.repeat(64), hardware: { cpu: 'fixture', memory: 1 }, runtime: 'fixture',
   fixtureHash: '2'.repeat(64), featureSet: ['minimal'], size: 'Task', toolchain: 'fixture', warmups: 2, sampleMethod: 'fixture' };
