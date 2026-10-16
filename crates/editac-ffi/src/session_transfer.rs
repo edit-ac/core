@@ -266,17 +266,27 @@ impl NativeSession {
                         blocks = Some(parsed.blocks);
                     }
                 }
-                if blocks.is_none() && input.html.is_some() {
-                    diagnostics.push("html-codec-unavailable-source-preserved".into());
+                if blocks.is_none() {
+                    if let Some(raw) = &input.html {
+                        match editac_html::import(raw) {
+                            Ok(imported) => {
+                                diagnostics.extend(imported.diagnostics);
+                                blocks = Some(imported.blocks);
+                            }
+                            Err(reason) => diagnostics.push(reason),
+                        }
+                    }
                 }
             }
             let blocks = match blocks {
                 Some(blocks) => blocks,
                 None => literal(
-                    input
-                        .plain_text
-                        .as_deref()
-                        .ok_or_else(|| invalid("no supported flavor; source retained by caller"))?,
+                    input.plain_text.as_deref().ok_or_else(|| {
+                        invalid(&format!(
+                            "no supported flavor; {}; source retained by caller",
+                            diagnostics.join(",")
+                        ))
+                    })?,
                     in_code,
                 ),
             };

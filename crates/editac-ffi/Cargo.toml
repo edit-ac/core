@@ -22,6 +22,7 @@ path = "src/bin/bindgen.rs"
 required-features = ["bindgen"]
 
 [dependencies]
+editac-html = { path = "../editac-html" }
 editac-core = { path = "../editac-core" }
 editac-markdown = { path = "../editac-markdown" }
 editac-diff = { path = "../editac-diff" }

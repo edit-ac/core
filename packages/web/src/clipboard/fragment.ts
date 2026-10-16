@@ -140,7 +140,7 @@ export class ClipboardInput {
             if (exceedsLimit(raw)) throw Error('clipboard-limit');
             const codec = this.#codecs.find(c => c.mime === mime);
             if (codec) blocks = codec.prepare(raw);
-            else if (mime === 'text/html') blocks = importHTML(this.#renderer.root.ownerDocument, raw, code => { this.#diagnose(code); this.#recoverSource(mime, raw, code); });
+            else if (mime === 'text/html') blocks = importHTML(this.#renderer.root.ownerDocument, raw, this.#engine, code => { this.#diagnose(code); this.#recoverSource(mime, raw, code); });
             else if (mime === 'text/markdown' || mime === 'text/x-markdown') blocks = this.#markdown(raw, mime);
             else throw Error(`${mime}-importer-unavailable`);
             blocks = decodeFragment(JSON.stringify({ version: 1, schema: snapshot.identity.schema, blocks }), this.#engine).blocks;

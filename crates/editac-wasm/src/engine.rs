@@ -97,6 +97,20 @@ impl Engine {
                 .and_then(Bridge::read),
         )
     }
+    pub fn import_html(&self, input: &str) -> Result<String, JsValue> {
+        output(
+            self.inner
+                .as_ref()
+                .ok_or_else(|| disposed("importHTML"))
+                .and_then(|_| {
+                    editac_html::import_tree_json(input)
+                        .map(|v| v.wire())
+                        .map_err(|reason| {
+                            editac_core::interchange::err("InvalidInput", "importHTML", reason)
+                        })
+                }),
+        )
+    }
     pub fn validate_fragment(&self, input: &str) -> Result<String, JsValue> {
         output(
             self.inner

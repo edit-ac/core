@@ -225,14 +225,17 @@ fn unsupported_html_preserves_source_and_uses_explicit_plain_fallback() {
     let f = Fixture::new();
     let s = f.create("");
     let input = NativeTransferInput {
-        html: Some("<b>rich</b>".into()),
+        html: Some("<img src='https://attack.invalid/x'>".into()),
         ..plain("safe")
     };
     let p = s
         .prepare_paste(revision(&s), range(&s, 0, 0), input, None, 0)
         .unwrap();
-    assert_eq!(p.diagnostics, ["html-codec-unavailable-source-preserved"]);
-    assert_eq!(p.source.unwrap().html.as_deref(), Some("<b>rich</b>"));
+    assert_eq!(p.diagnostics, ["html-img-requires-extension-codec"]);
+    assert_eq!(
+        p.source.unwrap().html.as_deref(),
+        Some("<img src='https://attack.invalid/x'>")
+    );
     s.commit_transfer(p.token, false, None, 0).unwrap();
     assert_eq!(text(&s), "safe");
     let before = revision(&s);
@@ -242,7 +245,7 @@ fn unsupported_html_preserves_source_and_uses_explicit_plain_fallback() {
             range(&s, 0, 0),
             NativeTransferInput {
                 plain_text: None,
-                html: Some("<b>x</b>".into()),
+                html: Some("<table><tr><td>x</td></tr></table>".into()),
                 ..plain("")
             },
             None,
@@ -742,4 +745,177 @@ fn cutting_or_replacing_existing_typed_content_cannot_bypass_revoked_policy() {
         Err(NativeSessionError::UnsupportedModule)
     ));
     assert_eq!(revision(&s), before);
+}
+
+#[test]
+fn shared_html_rich_paste_is_prepared_durable_and_one_history_unit() {
+    let f = Fixture::new();
+    let s = f.create("");
+    let initial_pending = s.read(0).unwrap().pending_upload;
+    let raw = "<h2><b>é😀</b></h2><ol start='3'><li><i>one</i></li></ol><pre> x\n y</pre>";
+    let p = s
+        .prepare_paste(
+            revision(&s),
+            range(&s, 0, 0),
+            NativeTransferInput {
+                html: Some(raw.into()),
+                ..plain("wrong fallback")
+            },
+            None,
+            0,
+        )
+        .unwrap();
+    assert!(p.diagnostics.is_empty());
+    assert_eq!(text(&s), "");
+    assert_eq!(p.source.unwrap().html.as_deref(), Some(raw));
+    let committed = s
+        .commit_transfer(p.token.clone(), false, None, 0)
+        .unwrap()
+        .commit
+        .unwrap();
+    assert_eq!(committed.durability, NativeSessionDurability::ProcessCrash);
+    assert_eq!(s.read(0).unwrap().pending_upload, initial_pending + 1);
+    assert!(s.commit_transfer(p.token, false, None, 0).is_err());
+    assert!(text(&s).contains("é😀"));
+    assert!(!text(&s).contains("wrong"));
+    assert_eq!(s.history_state(0).unwrap().undo_groups, 1);
+    let saved = s
+        .export_transfer(revision(&s), all(&s), 0)
+        .unwrap()
+        .fragment_json;
+    s.undo(revision(&s), 0).unwrap();
+    assert_eq!(text(&s), "");
+    s.redo(revision(&s), 0).unwrap();
+    s.dispose().unwrap();
+    let reopened = f.open();
+    assert_eq!(
+        reopened
+            .export_transfer(revision(&reopened), all(&reopened), 0)
+            .unwrap()
+            .fragment_json,
+        saved
+    );
+    // Reopen restores content; history is process-local.
+    assert_eq!(reopened.history_state(0).unwrap().undo_groups, 0);
+}
+#[test]
+fn shared_html_sanitizes_and_retains_exact_source() {
+    let f = Fixture::new();
+    let s = f.create("");
+    let raw = "<script>bad</script><p onclick='bad'><a href='java&#115;cript:bad'>safe</a></p>";
+    let p = s
+        .prepare_paste(
+            revision(&s),
+            range(&s, 0, 0),
+            NativeTransferInput {
+                html: Some(raw.into()),
+                ..plain("wrong")
+            },
+            None,
+            0,
+        )
+        .unwrap();
+    assert!(p.diagnostics.contains(&"html-url-dropped".into()));
+    assert!(p.diagnostics.contains(&"html-executable-dropped".into()));
+    assert_eq!(p.source.unwrap().html.unwrap(), raw);
+    s.commit_transfer(p.token, false, None, 0).unwrap();
+    assert_eq!(text(&s), "safe");
+    assert!(
+        !s.export_transfer(revision(&s), all(&s), 0)
+            .unwrap()
+            .fragment_json
+            .contains("\"mark\":\"link\"")
+    );
+}
+#[test]
+fn shared_html_rejection_limits_leave_sqlite_and_history_unchanged() {
+    let f = Fixture::new();
+    let s = f.create("keep");
+    let admission = s.read(0).unwrap();
+    let before = s
+        .export_transfer(revision(&s), all(&s), 0)
+        .unwrap()
+        .fragment_json;
+    for raw in [
+        "<svg><script>bad</script></svg>".into(),
+        format!("{}x{}", "<div>".repeat(34), "</div>".repeat(34)),
+        format!("<p title='{}'>x</p>", "x".repeat(4097)),
+        "<p>x</p>".repeat(129),
+    ] {
+        assert!(
+            s.prepare_paste(
+                revision(&s),
+                all(&s),
+                NativeTransferInput {
+                    html: Some(raw),
+                    plain_text: None,
+                    ..plain("")
+                },
+                None,
+                0
+            )
+            .is_err()
+        );
+    }
+    assert_eq!(
+        s.export_transfer(revision(&s), all(&s), 0)
+            .unwrap()
+            .fragment_json,
+        before
+    );
+    assert_eq!(s.history_state(0).unwrap().undo_groups, 0);
+    let after = s.read(0).unwrap();
+    assert_eq!(after.revision, admission.revision);
+    assert_eq!(after.pending_upload, admission.pending_upload);
+    s.dispose().unwrap();
+    assert_eq!(
+        {
+            let reopened = f.open();
+            reopened
+                .export_transfer(revision(&reopened), all(&reopened), 0)
+                .unwrap()
+                .fragment_json
+        },
+        before
+    );
+}
+#[test]
+fn shared_html_precedence_literal_and_stale_permission_guards() {
+    let f = Fixture::new();
+    let s = f.create("");
+    paste(
+        &s,
+        range(&s, 0, 0),
+        NativeTransferInput {
+            markdown: Some("**markdown**".into()),
+            html: Some("<b>html</b>".into()),
+            ..plain("plain")
+        },
+    );
+    assert_eq!(text(&s), "markdown");
+    paste(
+        &s,
+        all(&s),
+        NativeTransferInput {
+            literal: true,
+            html: Some("<b>html</b>".into()),
+            ..plain("<b>literal</b>")
+        },
+    );
+    assert_eq!(text(&s), "<b>literal</b>");
+    let p = s
+        .prepare_paste(
+            revision(&s),
+            all(&s),
+            NativeTransferInput {
+                html: Some("<p>later</p>".into()),
+                ..plain("")
+            },
+            None,
+            0,
+        )
+        .unwrap();
+    s.set_permission(false, None).unwrap();
+    assert!(s.commit_transfer(p.token, false, None, 0).is_err());
+    assert_eq!(text(&s), "<b>literal</b>");
 }
