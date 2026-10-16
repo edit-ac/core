@@ -5,6 +5,7 @@ import AppKit
 @MainActor
 public final class NativeEditorView: NSView {
     public let session = NativeSessionExecutor()
+    public private(set) lazy var collaboration = NativeCollaboration(view: self)
     public private(set) lazy var accessibility = NativeTextAccessibility(view: self)
     public private(set) lazy var storage = NativeDocumentLifecycle(view: self)
     public private(set) var sessionSnapshot: NativeSessionRead?
@@ -86,6 +87,7 @@ public final class NativeEditorView: NSView {
                 }
                 self.projectionFailure = nil
                 try self.attachments.reconcile()
+                self.collaboration.projectionDidChange()
                 self.textView.setAccessibilityLabel("Editor (native projection)")
                 if previousText != self.textView.string {
                     NSAccessibility.post(element: self.textView, notification: .valueChanged)
@@ -148,6 +150,7 @@ public final class NativeEditorView: NSView {
     /// The embedding host calls this when its editor/document is closed.
     public func dispose(completion: @escaping @MainActor @Sendable () -> Void = {}) {
         isDisposed = true
+        collaboration.dispose()
         storage.dispose()
         attachments.dispose()
         commands.dispose()

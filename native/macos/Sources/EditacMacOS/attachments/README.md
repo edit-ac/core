@@ -18,13 +18,17 @@ accepting more results. Approved reference resolution is delivered to
 
 Images expose native image/alt metadata, loading, error and cancellation states.
 References keep their stored label even when a host supplies a destination.
-Controls expose selection and explicit activation; replacement/removal controls
-are visibly disabled with an unavailable-port explanation. The current shared
-NativeSession always constructs the default HostPolicy, reports image/reference
-profiles unavailable, and has no portable content replacement route. Both public
-mutation entry points fail closed. This prerequisite does not satisfy DSK-1.11's
-full edit-controls acceptance. The parent/I1/V1 stay open pending PRIMARY's shared
-policy/command ports and actual successful replacement/removal/history proof.
+Controls expose selection, explicit activation, replacement and removal. A trusted
+host calls `setPolicy(images:references:)` to enable the default-off shared codecs;
+permission remains independent. `replacementProvider` supplies validated inert
+same-family metadata, never asset bytes. The Replace button captures a single-use
+shared source anchor, exact descriptor and revision before invoking the host.
+Cancel, host-port replacement, revision changes and disposal invalidate results.
+Remove uses the same capture and portable `atomicContent` command. Both actions
+use the existing native command gate and Rust Session admission/history/durability.
+Applications may also capture an edit target and call `replace(target:with:)` or
+`remove(target:)`. A target belongs to its originating adapter and is consumed at
+most once. Host callbacks run on the main actor; nil replacement means cancellation.
 
 Run `bash native/macos/scripts/check.sh attachments` with the pinned Node on PATH.
 The suite creates a real Rust document/SQLite checkpoint and restores it through

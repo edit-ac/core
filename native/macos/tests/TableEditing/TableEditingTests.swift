@@ -83,17 +83,47 @@ final class TableEditingTests: XCTestCase {
         view.commands.now = { 0 }
         _ = try await send(view, .tablePolicy(enabled: true))
         _ = try await read(view)
+        if let helper = ProcessInfo.processInfo.environment["EDITAC_MACOS_ACTIVATION_HELPER"],
+           let evidence = ProcessInfo.processInfo.environment["EDITAC_MACOS_ACTIVATION_EVIDENCE"] {
+            let directory = URL(fileURLWithPath: evidence)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let receipt = directory.appendingPathComponent(UUID().uuidString + ".json")
+            let process = Process(); process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+            process.arguments = ["-n", "-W", helper, "--args", "--yield-activation",
+                String(ProcessInfo.processInfo.processIdentifier), receipt.path]
+            try process.run(); process.waitUntilExit()
+            let value = try JSONSerialization.jsonObject(with: Data(contentsOf: receipt)) as! [String: Any]
+            XCTAssertEqual(process.terminationStatus, 0)
+            XCTAssertEqual(value["activeBeforeYield"] as? Bool, true)
+            XCTAssertEqual(value["targetPID"] as? Int32, ProcessInfo.processInfo.processIdentifier)
+        }
         NSApp.activate(ignoringOtherApps: true)
         guard let window = view.window else { throw FixtureError() }
         window.makeKeyAndOrderFront(nil)
-        // Reuse the real command suite's bounded AppKit event-loop bootstrap.
-        Timer.scheduledTimer(withTimeInterval: 0.05, repeats: false) { _ in MainActor.assumeIsolated {
-            window.makeKey(); NSApp.stop(nil)
-            NSApp.postEvent(NSEvent.otherEvent(with: .applicationDefined, location: .zero, modifierFlags: [],
-                timestamp: 0, windowNumber: 0, context: nil, subtype: 0, data1: 0, data2: 0)!, atStart: true)
-        } }
-        NSApp.run(); window.makeKey()
+        // Wait for actual OS activation instead of assuming it arrives in 50ms.
+        // This is an AppKit event-loop wait, with an asserted bounded deadline.
+        var attempts = 0
+        let textView = view.textView
+        Timer.scheduledTimer(withTimeInterval: 0.02, repeats: true) { timer in
+            let stop = MainActor.assumeIsolated {
+            attempts += 1
+            NSApp.activate(ignoringOtherApps: true)
+            window.makeKeyAndOrderFront(nil); window.makeFirstResponder(textView)
+            if NSApp.isActive && window.isKeyWindow && window.firstResponder === textView || attempts >= 100 {
+                NSApp.stop(nil)
+                NSApp.postEvent(NSEvent.otherEvent(with: .applicationDefined, location: .zero, modifierFlags: [],
+                    timestamp: 0, windowNumber: 0, context: nil, subtype: 0, data1: 0, data2: 0)!, atStart: true)
+                return true
+            }
+            return false
+            }
+            if stop { timer.invalidate() }
+        }
+        NSApp.run()
+        XCTAssertTrue(NSApp.isActive)
         XCTAssertTrue(window.isKeyWindow)
+        XCTAssertTrue(window.firstResponder === view.textView)
+        print("NATIVE_FOCUS active=\(NSApp.isActive) key=\(window.isKeyWindow) responder=\(window.firstResponder === view.textView) attempts=\(attempts)")
     }
     private func perform(_ view: NativeEditorView, _ action: () throws -> Void) async throws {
         let wait = CommandWait()

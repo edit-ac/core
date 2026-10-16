@@ -3,9 +3,16 @@ import XCTest
 @testable import EditacMacOS
 
 private struct FixtureError: Error {}
+@MainActor private final class CommandWait {
+    var continuation: CheckedContinuation<Void, Error>?
+    func resolve(_ result: Result<Void, Error>) {
+        guard let c = continuation else { return }; continuation = nil; c.resume(with: result)
+    }
+}
 
 @MainActor
 final class AttachmentsTests: XCTestCase {
+    private static var launched = false
     private func send(_ view: NativeEditorView, _ request: NativeSessionRequest) async throws -> NativeSessionResponse {
         try await withCheckedThrowingContinuation { c in
             do { try view.session.submit(request) { c.resume(with: $0.mapError { $0 as Error }) } }
@@ -24,6 +31,7 @@ final class AttachmentsTests: XCTestCase {
     }
     private func fixture(_ body: @MainActor (NativeEditorView, [String: Any]) async throws -> Void) async throws {
         _ = NSApplication.shared
+        if !Self.launched { NSApp.setActivationPolicy(.regular); NSApp.finishLaunching(); Self.launched = true }
         guard let path = ProcessInfo.processInfo.environment["EDITAC_MACOS_ATTACHMENT_FIXTURE"] else {
             XCTFail("Missing actual Rust/SQLite attachment fixture; no DTO or skip substitute"); throw FixtureError()
         }
@@ -56,6 +64,70 @@ final class AttachmentsTests: XCTestCase {
     private func image() -> NSImage { NSImage(size: NSSize(width: 32, height: 24), flipped: false) { rect in
         NSColor.systemBlue.setFill(); rect.fill(); return true
     } }
+    private func enable(_ view: NativeEditorView) async throws {
+        view.commands.now = { 0 }
+        _ = try await send(view, .atomicContentPolicy(images: true, references: true))
+        if let helper = ProcessInfo.processInfo.environment["EDITAC_MACOS_ACTIVATION_HELPER"],
+           let evidence = ProcessInfo.processInfo.environment["EDITAC_MACOS_ACTIVATION_EVIDENCE"] {
+            let directory = URL(fileURLWithPath: evidence)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let receipt = directory.appendingPathComponent(UUID().uuidString + ".json")
+            let process = Process(); process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+            process.arguments = ["-n", "-W", helper, "--args", "--yield-activation",
+                String(ProcessInfo.processInfo.processIdentifier), receipt.path]
+            try process.run(); process.waitUntilExit()
+            let value = try JSONSerialization.jsonObject(with: Data(contentsOf: receipt)) as! [String: Any]
+            XCTAssertEqual(process.terminationStatus, 0)
+            XCTAssertEqual(value["activeBeforeYield"] as? Bool, true)
+            XCTAssertEqual(value["targetPID"] as? Int32, ProcessInfo.processInfo.processIdentifier)
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        guard let window = view.window else { throw FixtureError() }
+        window.makeKeyAndOrderFront(nil)
+        // Wait for actual OS activation instead of assuming it arrives in 50ms.
+        // This is an AppKit event-loop wait, with an asserted bounded deadline.
+        var attempts = 0
+        let textView = view.textView
+        Timer.scheduledTimer(withTimeInterval: 0.02, repeats: true) { timer in
+            let stop = MainActor.assumeIsolated {
+            attempts += 1
+            NSApp.activate(ignoringOtherApps: true)
+            window.makeKeyAndOrderFront(nil); window.makeFirstResponder(textView)
+            if NSApp.isActive && window.isKeyWindow && window.firstResponder === textView || attempts >= 100 {
+                NSApp.stop(nil)
+                NSApp.postEvent(NSEvent.otherEvent(with: .applicationDefined, location: .zero, modifierFlags: [],
+                    timestamp: 0, windowNumber: 0, context: nil, subtype: 0, data1: 0, data2: 0)!, atStart: true)
+                return true
+            }
+            return false
+            }
+            if stop { timer.invalidate() }
+        }
+        NSApp.run()
+        XCTAssertTrue(NSApp.isActive)
+        XCTAssertTrue(window.isKeyWindow)
+        XCTAssertTrue(window.firstResponder === view.textView)
+        print("NATIVE_FOCUS active=\(NSApp.isActive) key=\(window.isKeyWindow) responder=\(window.firstResponder === view.textView) attempts=\(attempts)")
+        view.commands.refreshControls()
+    }
+    private func perform(_ view: NativeEditorView, _ action: () throws -> Void) async throws {
+        let wait = CommandWait()
+        let deadline = Task { @MainActor in
+            do { try await Task.sleep(for: .seconds(5)) } catch { return }
+            wait.resolve(.failure(FixtureError()))
+        }
+        defer { deadline.cancel(); view.commands.onResult = nil }
+        try await withCheckedThrowingContinuation { c in
+            wait.continuation = c
+            view.commands.onResult = { wait.resolve($0.mapError { $0 as Error }) }
+            do { try action() } catch { wait.resolve(.failure(error)) }
+        }
+        XCTAssertNil(view.projectionFailure)
+    }
+    private func replacement(_ kind: NativeAttachmentDescriptor.Kind) throws -> NativeAttachmentDescriptor {
+        kind == .image ? try .image(url: "https://example.test/replaced.png", alt: "New alt 🦀", title: "New title", source: "![New alt 🦀](https://example.test/replaced.png)")
+            : try .reference(targetID: "ac://fixture/replaced", label: "New reference אב")
+    }
     func testNativeViewsRetainImageMetadataAndReferenceIdentityWithoutLoading() async throws {
         try await fixture { view, manifest in
             let image = try self.atom(view, manifest), reference = try self.atom(view, manifest, "reference")
@@ -267,6 +339,158 @@ final class AttachmentsTests: XCTestCase {
             XCTAssertEqual(callbacks.count, 2); XCTAssertEqual(cancellations, 1)
             let latest = self.image(); callbacks[1](.success(latest)); callbacks[0](.success(self.image()))
             XCTAssertTrue(child.imageView.image === latest)
+        }
+    }
+
+    func testImageReplacementUsesSharedHistoryAndKeepsNativeIdentity() async throws {
+        try await fixture { view, manifest in
+            try await self.enable(view)
+            let child = try self.atom(view, manifest), reference = try self.atom(view, manifest, "reference")
+            let before = try await self.read(view), descriptor = child.descriptor
+            let target = try await view.attachments.captureEdit(child.nodeID)
+            let replacement = try self.replacement(.image)
+            try await self.perform(view) { try view.attachments.replace(target: target, with: replacement) }
+            XCTAssertTrue(view.attachments.views[child.nodeID] === child)
+            XCTAssertTrue(view.attachments.views[reference.nodeID] === reference)
+            XCTAssertEqual(child.descriptor, replacement); XCTAssertEqual(child.label.stringValue, replacement.label)
+            XCTAssertEqual(child.state, .unresolved); XCTAssertNil(child.imageView.image)
+            let changed = try await self.read(view)
+            XCTAssertEqual(changed.nodes.map(\.id), before.nodes.map(\.id)); XCTAssertNotEqual(changed.revision, before.revision)
+            XCTAssertThrowsError(try view.attachments.replace(target: target, with: replacement))
+            try await self.perform(view) { view.commands.perform(.undo) }
+            XCTAssertEqual(child.descriptor, descriptor)
+            try await self.perform(view) { view.commands.perform(.redo) }
+            XCTAssertEqual(child.descriptor, replacement)
+        }
+    }
+    func testReferenceReplacementAndWholeAtomRemovalRestoreDescriptorAndFallback() async throws {
+        try await fixture { view, manifest in
+            try await self.enable(view)
+            let child = try self.atom(view, manifest, "reference"), id = child.nodeID
+            let original = child.descriptor, before = try await self.read(view)
+            let target = try await view.attachments.captureEdit(id), replacement = try self.replacement(.reference)
+            try await self.perform(view) { try view.attachments.replace(target: target, with: replacement) }
+            XCTAssertTrue(view.attachments.views[id] === child)
+            XCTAssertEqual(child.descriptor.target, replacement.target); XCTAssertEqual(child.label.stringValue, replacement.label)
+            let removal = try await view.attachments.captureEdit(id)
+            try await self.perform(view) { try view.attachments.remove(target: removal) }
+            XCTAssertNil(view.attachments.views[id]); XCTAssertNil(child.superview)
+            let removed = try await self.read(view)
+            XCTAssertEqual(removed.nodes.map(\.id), before.nodes.map(\.id))
+            XCTAssertEqual(removed.nodes.first(where: { $0.id == id })?.text, "")
+            try await self.perform(view) { view.commands.perform(.undo) }
+            XCTAssertEqual(try self.atom(view, manifest, "reference").descriptor, replacement)
+            try await self.perform(view) { view.commands.perform(.undo) }
+            XCTAssertEqual(try self.atom(view, manifest, "reference").descriptor, original)
+            let observed1 = try await self.read(view)
+            XCTAssertEqual(observed1.nodes.first(where: { $0.id == id })?.text, before.nodes.first(where: { $0.id == id })?.text)
+        }
+    }
+    func testNativeReplaceAndRemoveButtonsUseHostResultExactlyOnce() async throws {
+        try await fixture { view, manifest in
+            try await self.enable(view)
+            let child = try self.atom(view, manifest), replacement = try self.replacement(.image)
+            var calls = 0
+            var duplicate: (@MainActor (Result<NativeAttachmentDescriptor?, Error>) -> Void)?
+            view.attachments.replacementProvider = { target, complete in
+                calls += 1; XCTAssertEqual(target.nodeID, child.nodeID)
+                duplicate = complete; complete(.success(replacement))
+            }
+            XCTAssertTrue(child.replaceButton.isEnabled); XCTAssertTrue(child.removeButton.isEnabled)
+            try await self.perform(view) { child.replaceButton.performClick(nil) }
+            XCTAssertEqual(calls, 1); XCTAssertEqual(child.descriptor, replacement)
+            let before = try await self.read(view)
+            duplicate?(.success(try self.replacement(.image)))
+            let observed2 = try await self.read(view)
+            XCTAssertEqual(observed2.revision, before.revision)
+            try await self.perform(view) { child.removeButton.performClick(nil) }
+            XCTAssertNil(view.attachments.views[child.nodeID])
+            try await self.perform(view) { view.commands.perform(.undo) }
+            XCTAssertEqual(try self.atom(view, manifest).descriptor, replacement)
+        }
+    }
+    func testCancelledAndStaleEditTargetsCannotMutateEitherFamily() async throws {
+        try await fixture { view, manifest in
+            try await self.enable(view)
+            for key in ["image", "reference"] {
+                let child = try self.atom(view, manifest, key), before = try await self.read(view)
+                let cancelled = try await view.attachments.captureEdit(child.nodeID)
+                view.attachments.cancel(child.nodeID)
+                XCTAssertThrowsError(try view.attachments.replace(target: cancelled, with: self.replacement(child.descriptor.kind)))
+                let observed3 = try await self.read(view)
+                XCTAssertEqual(observed3.revision, before.revision)
+                let stale = try await view.attachments.captureEdit(child.nodeID)
+                try await self.commands(view, [["type":"replaceAt","owner":before.nodes[0].id,"from":0,"to":0,"text":"remote-like "]])
+                let changed = try await self.read(view)
+                XCTAssertThrowsError(try view.attachments.remove(target: stale))
+                let observed4 = try await self.read(view)
+                XCTAssertEqual(observed4.revision, changed.revision)
+            }
+        }
+    }
+    func testPermissionAndPolicyRevocationRejectCapturedEdits() async throws {
+        try await fixture { view, manifest in
+            try await self.enable(view)
+            let child = try self.atom(view, manifest), before = try await self.read(view)
+            let denied = try await view.attachments.captureEdit(child.nodeID)
+            _ = try await self.send(view, .commandPermission(writable: false, expiresAt: nil, now: 0))
+            XCTAssertThrowsError(try view.attachments.replace(target: denied, with: self.replacement(.image)))
+            XCTAssertFalse(child.removeButton.isEnabled)
+            _ = try await self.send(view, .commandPermission(writable: true, expiresAt: nil, now: 0))
+            let revoked = try await view.attachments.captureEdit(child.nodeID)
+            _ = try await self.send(view, .atomicContentPolicy(images: false, references: true))
+            XCTAssertThrowsError(try view.attachments.remove(target: revoked))
+            XCTAssertFalse(child.removeButton.isEnabled)
+            let observed5 = try await self.read(view)
+            XCTAssertEqual(observed5.revision, before.revision)
+        }
+    }
+    func testForeignSessionAndDisposedTargetsCannotRetarget() async throws {
+        try await fixture { view, manifest in
+            try await self.enable(view)
+            let child = try self.atom(view, manifest), target = try await view.attachments.captureEdit(child.nodeID)
+            try await self.fixture { other, _ in
+                try await self.enable(other)
+                let before = try await self.read(other)
+                XCTAssertThrowsError(try other.attachments.remove(target: target))
+                let observed6 = try await self.read(other)
+                XCTAssertEqual(observed6.revision, before.revision)
+            }
+            await withCheckedContinuation { c in view.dispose { c.resume() } }
+            XCTAssertThrowsError(try view.attachments.replace(target: target, with: self.replacement(.image)))
+        }
+    }
+    func testHostReplacementCancellationAndFailureLeaveDocumentUntouched() async throws {
+        try await fixture { view, manifest in
+            try await self.enable(view)
+            let child = try self.atom(view, manifest), before = try await self.read(view)
+            for fails in [false, true] {
+                let called = expectation(description: "host replacement callback")
+                view.attachments.replacementProvider = { _, complete in
+                    if fails { complete(.failure(FixtureError())) } else { complete(.success(nil)) }
+                    called.fulfill()
+                }
+                child.replaceButton.performClick(nil)
+                await fulfillment(of: [called], timeout: 5)
+                _ = try await self.read(view)
+                XCTAssertEqual(child.state, fails ? .failed("FixtureError()") : .cancelled)
+            }
+            let observed7 = try await self.read(view)
+            XCTAssertEqual(observed7.revision, before.revision)
+        }
+    }
+    func testSameFamilyValidationAndDefaultOffControlsFailClosed() async throws {
+        try await fixture { view, manifest in
+            let child = try self.atom(view, manifest)
+            XCTAssertFalse(child.removeButton.isEnabled)
+            try await self.enable(view)
+            XCTAssertTrue(child.removeButton.isEnabled); XCTAssertFalse(child.replaceButton.isEnabled)
+            let target = try await view.attachments.captureEdit(child.nodeID), before = try await self.read(view)
+            XCTAssertThrowsError(try view.attachments.replace(target: target, with: self.replacement(.reference)))
+            let observed8 = try await self.read(view)
+            XCTAssertEqual(observed8.revision, before.revision)
+            XCTAssertThrowsError(try NativeAttachmentDescriptor.image(url: "javascript:bad", alt: "unsafe"))
+            XCTAssertThrowsError(try NativeAttachmentDescriptor.reference(targetID: "bad\n", label: "unsafe"))
         }
     }
 
