@@ -3,18 +3,18 @@
   "gate": "FIT-1.6-I2",
   "state": "implemented-and-verified",
   "sourceRevision": "c353c87f04046a451645445cf3b8d7c05fdd2b43d4cc683bf44c1b9cf2e6a11a",
-  "implementationRevision": "eda13a57196e9adf6dc19856f58a0cf94e9115f0",
+  "implementationRevision": "82bc6e67a9d452caadee5d7585b3f9d09201ad5b",
   "deliveryReceipt": {
-    "path": "architecture-results/fit-1.6-20261016/stage-cache-refresh-1/delivery-receipt.json",
-    "sha256": "8d565fec38039e0894e40f423e6a1f0b600a26e000a3df9ee3ee738f0bb8cb2d"
+    "path": "architecture-results/fit-1.6-20261016/commit-stamp-refresh-1/delivery-receipt.json",
+    "sha256": "0cf5ffb44b400eac817ff592683ebda0f7033ce553ba7c42a2f617559111323b"
   },
   "sharedReceipt": {
-    "path": "architecture-results/fit-1.6-20261016/stage-cache-refresh-1/consolidated/shared-receipt.json",
-    "sha256": "9809841979ed69f10ab220dcbf4951bc635b72219c7108e626a0703c8d0bc042"
+    "path": "architecture-results/fit-1.6-20261016/commit-stamp-refresh-1/consolidated/shared-receipt.json",
+    "sha256": "10ead4d33487c90834b1af88153231dba482ed92a30afa79708896e327929c96"
   },
   "canonicalReceipt": {
-    "path": "architecture-results/fit-1.6-20261016/stage-cache-refresh-1/canonical/receipt.json",
-    "sha256": "af1d38c814908bed92c89811063f101314030042e3c40014225b6f1de566e826"
+    "path": "architecture-results/fit-1.6-20261016/commit-stamp-refresh-1/canonical/receipt.json",
+    "sha256": "37465c6c189014dc6db934b7137f1d587512ed28952b9af78b8e039c8c7d49d7"
   },
   "counts": {
     "canonical": {
@@ -27,10 +27,46 @@
     },
     "samePage": 39,
     "productionSite": 39,
-    "receiptControls": 39,
-    "packedConsumers": 15,
-    "measuredRuntime": 6,
-    "portableFfi": 8,
+    "nested": {
+      "default-runtime": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "markdown-runtime": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "shared-site-contracts": {
+        "tests": 39,
+        "pass": 39,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "packed-consumers": {
+        "tests": 15,
+        "pass": 15,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "native-abi": {
+        "tests": 8,
+        "pass": 8,
+        "fail": 0,
+        "skipped": 0
+      }
+    },
     "finalFailures": 0,
     "finalSkips": 0
   },
