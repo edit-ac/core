@@ -6,7 +6,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { digest, verifyPins, validateFitnessProfile } from '../../../scripts/architecture-budgets.mjs';
-import { inspectGestures, validateGesturePolicy } from '../../../scripts/gesture-evidence.mjs';
+import { inspectGestures, validateGesturePolicy, inspectGestureBuild, gestureInputs } from '../../../scripts/gesture-evidence.mjs';
 import { fixture } from '../../../benchmarks/fixtures.mjs';
 import { presets } from '../../../benchmarks/presets.mjs';
 const root = fileURLToPath(new URL('../../../', import.meta.url));
@@ -21,7 +21,9 @@ test('owning trusted-input gesture matrix has current source/artifact/fixture id
   validateFitnessProfile(fitnessPolicy, await read('benchmarks/config.json'), await read('../architecture/specs/verification.md'));
   validateGesturePolicy(fitnessPolicy, record);
   for (const path of ['benchmarks/profiles/fitness-v1.json', 'benchmarks/config.json', 'scripts/architecture-budgets.mjs']) assert(record.sourceInputs[path], `Missing policy source ${path}`);
+  assert.deepEqual(Object.keys(record.sourceInputs).sort(), gestureInputs(root), 'Incomplete gesture source/build closure');
   await verifyPins(root, record.sourceInputs);
+  await verifyPins(root, record.buildProvenance.outputs);
   for (const file of ['editac_wasm.js', 'editac_wasm_bg.wasm']) assert.equal(digest(await read(`packages/core/dist/wasm/${file}`)), record.artifacts[`harness/wasm/${file}`]);
   const rebuilt = await build({ plugins: [gestureInstrumentation()], stdin: { contents: 'export {createEditor,taskPreset,CheckpointStorage} from "@edit-ac/web"; export {init} from "@edit-ac/core";', resolveDir: root }, outfile: resolve(root, 'architecture-results/reuse-sdk.js'), write: false, bundle: true, minify: true, format: 'esm', platform: 'browser', target: 'es2022' });
   assert.equal(digest(rebuilt.outputFiles[0].contents), record.artifacts['harness/sdk.js'], 'Changed gesture executable; historical trace cannot be reused'); await verifyPins(resolve(root, index.directory), record.artifacts);
@@ -98,3 +100,16 @@ for (const [name, mutate] of [
   ['stale policy review', r => r.metadata.verificationPolicy.reviewedAt = '2000-01-01T00:00:00.000Z'],
   ['measurement before review', r => r.metadata.startedAt = fitnessPolicy.reviewedAt],
 ]) test(`gesture policy rejects ${name}`, () => assert.throws(() => validateGesturePolicy(fitnessPolicy, change(mutate))));
+
+for (const [name, mutate] of [
+  ['missing build', r => delete r.buildProvenance],
+  ['missing package build', r => r.buildProvenance.commands.pop()],
+  ['failed build', r => r.buildProvenance.commands[0].exit = 1],
+  ['fixture build', r => r.buildProvenance.commands[0].command.push('--fixture')],
+  ['wrong build tool', r => r.buildProvenance.commands[0].command[0] = 'unreviewed-node'],
+  ['missing build log', r => delete r.artifacts[r.buildProvenance.commands[0].log]],
+  ['changed build log', r => r.buildProvenance.commands[0].sha256 = '0'.repeat(64)],
+  ['missing output', r => delete r.buildProvenance.outputs['packages/core/dist/wasm/editac_wasm_bg.wasm']],
+  ['stale binary', r => r.buildProvenance.outputs['packages/core/dist/wasm/editac_wasm_bg.wasm'] = '0'.repeat(64)],
+  ['stale glue', r => r.buildProvenance.outputs['packages/core/dist/wasm/editac_wasm.js'] = '0'.repeat(64)],
+]) test(`gesture build rejects ${name}`, () => assert.throws(() => inspectGestureBuild(change(mutate))));

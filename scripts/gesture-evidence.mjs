@@ -1,8 +1,31 @@
+import { spawnSync } from 'node:child_process';
 import { validateBaselinePolicy } from './architecture-budgets.mjs';
 import { gestureVersion } from '../benchmarks/gesture-trace.mjs';
 const require = (ok, message) => { if (!ok) throw Error(message); };
 const finite = x => Number.isFinite(x) && x >= 0;
 const pin = x => typeof x === 'string' && /^[a-f0-9]{64}$/.test(x);
+export const gestureBuildOutputs = ['packages/core/dist/wasm/editac_wasm.js', 'packages/core/dist/wasm/editac_wasm_bg.wasm'];
+export function gestureInputs(root) {
+  const tracked = spawnSync('git', ['ls-files', 'crates', 'packages', 'fixtures/schema-v5', 'Cargo.lock', 'Cargo.toml', 'package-lock.json', 'package.json'], { cwd: root, encoding: 'utf8' });
+  require(tracked.status === 0, 'Cannot pin gesture source closure');
+  return [...new Set([...tracked.stdout.trim().split('\n'), 'benchmarks/profiles/gestures-v1.json', 'benchmarks/profiles/fitness-v1.json',
+    'benchmarks/config.json', 'scripts/architecture-budgets.mjs', 'benchmarks/gesture-trace.mjs', 'benchmarks/gesture-client.mjs',
+    'benchmarks/fixtures.mjs', 'benchmarks/presets.mjs', 'scripts/gesture-instrumentation.mjs', 'scripts/gesture-evidence.mjs', 'scripts/bench-gestures.mjs',
+    'scripts/build-wasm.mjs', 'scripts/share-wasm-glue.mjs', 'scripts/build-wasm-notices.mjs', 'scripts/test-toolchain.mjs',
+    'rust-toolchain.toml', '.node-version', 'tsconfig.base.json'])].sort();
+}
+export function inspectGestureBuild(record) {
+  const proof = record.buildProvenance;
+  require(proof?.version === 1 && proof.commands?.length === 2, 'Missing gesture source build');
+  for (const [index, label, args] of [[0, 'engine-wasm', ['scripts/build-wasm.mjs']], [1, 'packages', ['run', 'build']]]) {
+    const command = proof.commands[index];
+    require(command.label === label && command.exit === 0, 'Failed/wrong gesture build');
+    require(JSON.stringify(command.command) === JSON.stringify([index === 0 ? record.metadata.command[0] : 'npm', ...args]), 'Wrong gesture build profile');
+    require(command.log === `build/${label}.log` && pin(command.sha256) && record.artifacts[command.log] === command.sha256, 'Missing gesture build log');
+  }
+  require(JSON.stringify(Object.keys(proof.outputs).sort()) === JSON.stringify([...gestureBuildOutputs].sort()), 'Incomplete gesture build outputs');
+  for (const file of gestureBuildOutputs) require(pin(proof.outputs[file]) && proof.outputs[file] === record.artifacts[`harness/wasm/${file.split('/').at(-1)}`], 'Executed gesture WASM differs from source build');
+}
 // Reuse the reviewed fitness policy contract with this producer's record shape.
 export function validateGesturePolicy(profile, record) {
   validateBaselinePolicy(profile, {
@@ -11,6 +34,7 @@ export function validateGesturePolicy(profile, record) {
   });
 }
 export function inspectGestures(profile, record) {
+  inspectGestureBuild(record);
   require(profile?.version === 1 && profile.id === 'prf-02-diagnostics-v2' && profile.performanceLimits === null, 'Unknown gesture diagnostic profile');
   require(JSON.stringify(profile.fixtures) === '["Task","Long"]' && JSON.stringify(profile.presets) === '["baseline","task"]'
     && JSON.stringify(profile.gestures) === '["selection","drag","autoscroll","autoscroll-code"]' && profile.pointerSteps === 120

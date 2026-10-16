@@ -11,7 +11,7 @@ import { gestureVersion } from '../benchmarks/gesture-trace.mjs';
 import { fixture } from '../benchmarks/fixtures.mjs';
 import { presets } from '../benchmarks/presets.mjs';
 import { digest, validateFitnessProfile, verifyPins } from './architecture-budgets.mjs';
-import { inspectGestures, inspectGesture, validateGesturePolicy } from './gesture-evidence.mjs';
+import { inspectGestures, inspectGesture, validateGesturePolicy, gestureInputs, gestureBuildOutputs } from './gesture-evidence.mjs';
 import { requireTestNode } from './test-toolchain.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url)); process.chdir(root); await requireTestNode();
@@ -33,11 +33,8 @@ const record = { version: gestureVersion, qualification: 'unqualified', profileH
     verificationPolicy: { source: 'architecture/specs/verification.md', sha256: digest(verificationPolicy), reviewedAt: fitnessPolicy.reviewedAt },
     provenance: 'headless-browser-on-host', node: process.version, input: profile.input },
   counts: { executed: 0, passed: 0, failed: 0, skipped: profile.fixtures.length * profile.presets.length * profile.gestures.length }, cases: [], sourceInputs: {}, artifacts: {}, errors: [], cleanup: {} };
-const tracked = spawnSync('git', ['ls-files', 'crates', 'packages', 'fixtures/schema-v5', 'Cargo.lock', 'Cargo.toml', 'package-lock.json', 'package.json', 'scripts/build-wasm.mjs'], { encoding: 'utf8' });
-if (tracked.status !== 0) throw Error('Cannot pin source closure');
-const inputs = [...new Set([...tracked.stdout.trim().split('\n'), profilePath, fitnessPath, 'benchmarks/config.json', 'scripts/architecture-budgets.mjs', 'benchmarks/gesture-trace.mjs', 'benchmarks/gesture-client.mjs',
-  'benchmarks/fixtures.mjs', 'benchmarks/presets.mjs', 'scripts/gesture-instrumentation.mjs', 'scripts/gesture-evidence.mjs', 'scripts/bench-gestures.mjs'])];
-for (const file of inputs) record.sourceInputs[file] = digest(await readFile(file));
+for (const file of gestureInputs(root)) record.sourceInputs[file] = digest(await readFile(file));
+record.buildProvenance = { version: 1, commands: [], outputs: {} };
 const temporary = await mkdtemp(join(tmpdir(), 'editac-prf02-'));
 let browser, controller, server, interrupted = false;
 const stop = () => { interrupted = true; void browser?.close(); };
@@ -46,6 +43,17 @@ async function retain(file, bytes) { await mkdir(join(output, file, '..'), { rec
 try {
   await retain('policy/verification.md', verificationPolicy);
   validateGesturePolicy(fitnessPolicy, record);
+  // A current TypeScript bundle cannot establish that its WASM came from
+  // these Rust inputs. Compile the production profile before measuring either.
+  for (const [label, executable, args] of [['engine-wasm', process.execPath, ['scripts/build-wasm.mjs']], ['packages', 'npm', ['run', 'build']]]) {
+    const built = spawnSync(executable, args, { cwd: root, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
+    const log = `build/${label}.log`, bytes = (built.stdout ?? '') + (built.stderr ?? '') + (built.error?.message ?? '');
+    await retain(log, bytes);
+    record.buildProvenance.commands.push({ label, command: [executable, ...args], exit: built.status, log, sha256: digest(bytes) });
+    if (built.error || built.status !== 0) throw Error(`Gesture ${label} build failed: ${built.status}; see ${log}`);
+  }
+  for (const file of gestureBuildOutputs) record.buildProvenance.outputs[file] = digest(await readFile(file));
+  await verifyPins(root, record.sourceInputs);
   await mkdir(join(temporary, 'wasm'));
   await build({ plugins: [gestureInstrumentation()], stdin: { contents: 'export {createEditor,taskPreset,CheckpointStorage} from "@edit-ac/web"; export {init} from "@edit-ac/core";', resolveDir: root },
     outfile: join(temporary, 'sdk.js'), bundle: true, minify: true, format: 'esm', platform: 'browser', target: 'es2022' });
@@ -132,6 +140,7 @@ finally {
 // Exact executed/pass/fail counts also survive admission failure.
 try {
   await verifyPins(root, record.sourceInputs);
+  await verifyPins(root, record.buildProvenance.outputs);
   if (digest(await readFile(resolve(root, '../architecture/specs/verification.md'))) !== digest(verificationPolicy)) throw Error('Verification policy changed during measurement');
   validateGesturePolicy(fitnessPolicy, record); record.observations = inspectGestures(profile, record);
 }
