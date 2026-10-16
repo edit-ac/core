@@ -1343,7 +1343,22 @@ impl Document {
         let (stage, retained_projection) = if let Some(retained) = retained {
             (retained.doc, Some(retained.projection))
         } else {
-            let stage = m::replica(self.writer_id() as u64);
+            // Live history keeps deleted items for undo. A collecting replica
+            // loses those items even while restoring the admitted baseline, so
+            // every following replacement would fail exact byte equality. Keep
+            // deletion payloads in this one disposable stage when history is
+            // enabled; reuse still requires exact live bytes and the owner stamp.
+            // History eviction and untracked deletions can differ and deliberately
+            // fall back. The existing encoded-size limit also bounds this stage.
+            let stage = yrs::Doc::with_options(yrs::Options {
+                client_id: self.doc.client_id(),
+                offset_kind: yrs::OffsetKind::Utf16,
+                skip_gc: self.history.is_some(),
+                ..yrs::Options::default()
+            });
+            for root in m::ROOTS {
+                stage.get_or_insert_map(root);
+            }
             m::apply(&stage, &baseline).map_err(error)?;
             (stage, None)
         };
@@ -2491,7 +2506,7 @@ mod transaction_tests {
                     d.snapshot().unwrap().visible
                 );
             }
-            assert!(reused > 0, "exercise the retained path, not only fallback");
+            assert_eq!(reused, 7, "reuse after insertion, replacement and deletion");
             d.undo().unwrap();
             let stale_guid = d
                 .editor_stage
@@ -2521,6 +2536,55 @@ mod transaction_tests {
                     .unwrap(),
             )
             .unwrap();
+        }
+    }
+    #[test]
+    fn history_stage_matches_collecting_oracle_through_eviction_and_clear() {
+        for stable in [false, true] {
+            let mut d = retained_fixture(6, stable);
+            let origin = TextOrigin::new("history-stage-gc-oracle").unwrap();
+            d.enable_history(crate::history::HistoryConfig {
+                max_groups: 1,
+                ..crate::history::HistoryConfig::default()
+            })
+            .unwrap();
+            for (i, text) in ["界😀", "", "A😀e\u{301}Z", "x", "", "final😀"]
+                .iter()
+                .enumerate()
+            {
+                let before = d.checkpoint();
+                let command = retained_replace(&d, text);
+                // Independent original collecting path: no retained stage or
+                // history manager. Compare the exact emitted CRDT update, not
+                // merely visible text from two instances of the new path.
+                // Retain the writer lease as well as the input checkpoint: a
+                // separately restored Document must allocate a different writer.
+                let history = d.history.take();
+                let retained = d.editor_stage.borrow_mut().take();
+                let fresh = d.prepare_editor(&[command.clone()], &origin).unwrap();
+                assert!(!d.editor_stage.borrow().as_ref().unwrap().doc.skip_gc());
+                d.history = history;
+                *d.editor_stage.borrow_mut() = retained;
+                let plan = d.prepare_editor(&[command], &origin).unwrap();
+                assert_eq!(fresh.update, plan.update);
+                assert_eq!(
+                    format!("{:?}", fresh.result_selection),
+                    format!("{:?}", plan.result_selection)
+                );
+                assert_eq!(before.bytes, d.checkpoint().bytes, "preparation is atomic");
+                d.commit_editor(plan).unwrap();
+                let after = d.snapshot().unwrap().visible;
+                let restored = Document::restore(d.identity(), &d.checkpoint(), &[]).unwrap();
+                assert_eq!(after, restored.snapshot().unwrap().visible);
+                assert!(d.history_state().undo_groups <= 1);
+                if i % 2 == 1 {
+                    assert!(d.undo().unwrap().is_some());
+                    assert!(d.redo().unwrap().is_some());
+                    assert_eq!(after, d.snapshot().unwrap().visible);
+                    d.clear_history();
+                    assert_eq!(d.history_state().undo_groups, 0);
+                }
+            }
         }
     }
     #[test]
