@@ -86,7 +86,11 @@ fn catalog_reuses_all_portable_command_ids_and_exact_shared_identity() {
             .iter()
             .filter(|r| !matches!(
                 r.id.as_str(),
-                "tableCell" | "tableStructure" | "atomicContent"
+                "tableCell"
+                    | "tableStructure"
+                    | "atomicContent"
+                    | "customMarkAt"
+                    | "extensionSource"
             ))
             .all(|r| r.available && r.can_prepare && r.reason == "target-check-required")
     );

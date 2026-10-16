@@ -1037,6 +1037,11 @@ public protocol NativeSessionProtocol: AnyObject, Sendable {
     func setAtomicContentPolicy(images: Bool, references: Bool) throws 
     
     /**
+     * Opt in to registered marks/atoms and bounded inert source editing. No typesetting.
+     */
+    func setExtensionPolicy(enabled: Bool) throws 
+    
+    /**
      * Trusted host permission replacement, serialized with every prepared admission.
      */
     func setPermission(writable: Bool, expiresAt: UInt64?) throws 
@@ -1185,11 +1190,35 @@ public static func createLocal(options: NativeSessionOptions, initial: [NativeSe
 })
 }
     
+    /**
+     * Frozen data-only registry; validate every definition before creating a store.
+     */
+public static func createLocalWithRegistry(options: NativeSessionOptions, initial: [NativeSessionSeed], registryJson: String)throws  -> NativeSession  {
+    return try  FfiConverterTypeNativeSession_lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_constructor_nativesession_create_local_with_registry(
+        FfiConverterTypeNativeSessionOptions_lower(options),
+        FfiConverterSequenceTypeNativeSessionSeed.lower(initial),
+        FfiConverterString.lower(registryJson),uniffiCallStatus
+    )
+})
+}
+    
 public static func `open`(options: NativeSessionOptions)throws  -> NativeSession  {
     return try  FfiConverterTypeNativeSession_lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
         uniffiCallStatus in
     uniffi_editac_ffi_fn_constructor_nativesession_open(
         FfiConverterTypeNativeSessionOptions_lower(options),uniffiCallStatus
+    )
+})
+}
+    
+public static func openWithRegistry(options: NativeSessionOptions, registryJson: String)throws  -> NativeSession  {
+    return try  FfiConverterTypeNativeSession_lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_constructor_nativesession_open_with_registry(
+        FfiConverterTypeNativeSessionOptions_lower(options),
+        FfiConverterString.lower(registryJson),uniffiCallStatus
     )
 })
 }
@@ -1472,6 +1501,18 @@ open func setAtomicContentPolicy(images: Bool, references: Bool)throws   {try ru
             self.uniffiCloneHandle(),
         FfiConverterBool.lower(images),
         FfiConverterBool.lower(references),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Opt in to registered marks/atoms and bounded inert source editing. No typesetting.
+     */
+open func setExtensionPolicy(enabled: Bool)throws   {try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_set_extension_policy(
+            self.uniffiCloneHandle(),
+        FfiConverterBool.lower(enabled),uniffiCallStatus
     )
 }
 }
@@ -4929,6 +4970,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_editac_ffi_checksum_method_nativesession_set_atomic_content_policy() != 12956) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_editac_ffi_checksum_method_nativesession_set_extension_policy() != 39515) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_editac_ffi_checksum_method_nativesession_set_permission() != 8942) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -4986,7 +5030,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_editac_ffi_checksum_constructor_nativesession_create_local() != 17424) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_editac_ffi_checksum_constructor_nativesession_create_local_with_registry() != 14055) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_editac_ffi_checksum_constructor_nativesession_open() != 5860) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_constructor_nativesession_open_with_registry() != 9034) {
         return InitializationResult.apiChecksumMismatch
     }
 

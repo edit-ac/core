@@ -18,6 +18,21 @@ pub struct EditorPosition {
 
 #[derive(Clone, Debug)]
 pub enum EditorCommand {
+    /// A registered mark/inline atom envelope on an exact virtual UTF-16 range.
+    CustomMarkAt {
+        owner: String,
+        from: crate::Utf16Offset,
+        to: crate::Utf16Offset,
+        key: String,
+        value: Option<Any>,
+    },
+    /// Change only the source of a retained inert envelope (including math).
+    ExtensionSource {
+        target: String,
+        expected: Any,
+        at: crate::anchors::Anchor,
+        source: String,
+    },
     /// Resolve the range after all preceding commands on the disposable replica.
     ReplaceAt {
         owner: String,
@@ -1264,6 +1279,14 @@ impl Document {
         commands: &[EditorCommand],
         origin: &TextOrigin,
     ) -> Result<PreparedEditorEdit, EditorError> {
+        self.prepare_editor_with_registry(commands, origin, &Default::default())
+    }
+    pub fn prepare_editor_with_registry(
+        &self,
+        commands: &[EditorCommand],
+        origin: &TextOrigin,
+        registry: &crate::modules::registry::FrozenRegistry,
+    ) -> Result<PreparedEditorEdit, EditorError> {
         if !self.identity().has_editor() {
             return Err(EditorError::UnsupportedProfile);
         }
@@ -1289,6 +1312,80 @@ impl Document {
                 return Err(EditorError::ResourceLimit);
             }
             match &c {
+                EditorCommand::CustomMarkAt {
+                    owner,
+                    from,
+                    to,
+                    key,
+                    value,
+                } => {
+                    let mut d = self.virtual_document(&stage)?;
+                    let selection = d
+                        .selection(
+                            (owner, *from, crate::anchors::Bias::Right),
+                            (owner, *to, crate::anchors::Bias::Left),
+                        )
+                        .map_err(|_| EditorError::InvalidCommand)?;
+                    if from > to {
+                        return Err(EditorError::InvalidCommand);
+                    }
+                    let snapshot = d.inspect().map_err(|_| EditorError::InvalidCommand)?;
+                    let node = snapshot
+                        .visible
+                        .iter()
+                        .find(|n| n.id == *owner)
+                        .ok_or(EditorError::UnsupportedTarget)?;
+                    let text: String = node.runs.iter().map(|r| r.text.as_str()).collect();
+                    let selected = String::from_utf16(
+                        &text
+                            .encode_utf16()
+                            .skip(from.0 as usize)
+                            .take((to.0 - from.0) as usize)
+                            .collect::<Vec<_>>(),
+                    )
+                    .map_err(|_| EditorError::InvalidCommand)?;
+                    let plan = d
+                        .prepare_registered_format(
+                            &selection,
+                            key,
+                            value.clone(),
+                            &selected,
+                            registry,
+                            origin,
+                        )
+                        .map_err(EditorError::Format)?;
+                    let commit = d.commit_format(plan).map_err(EditorError::Format)?;
+                    if let Some(update) = commit.update {
+                        m::apply(&stage, &update.bytes).map_err(error)?;
+                    }
+                }
+                EditorCommand::ExtensionSource {
+                    target,
+                    expected,
+                    at,
+                    source,
+                } => {
+                    use crate::modules::content::Content;
+                    if source.encode_utf16().count() > 8192 {
+                        return Err(EditorError::ResourceLimit);
+                    }
+                    let Some(Content::InertExtension {
+                        data: Any::Map(data),
+                    }) = Content::from_tuple(expected).map_err(|_| EditorError::InvalidCommand)?
+                    else {
+                        return Err(EditorError::UnsupportedTarget);
+                    };
+                    let mut replacement = (*data).clone();
+                    replacement.insert("source".into(), Any::from(source.as_str()));
+                    pending.push_front(EditorCommand::AtomicContent {
+                        target: target.clone(),
+                        expected: expected.clone(),
+                        at: at.clone(),
+                        replacement: Some(Content::InertExtension {
+                            data: Any::Map(replacement.into()),
+                        }),
+                    });
+                }
                 EditorCommand::ReplaceAt {
                     owner,
                     from,
@@ -1781,7 +1878,12 @@ impl Document {
                     let old = Content::from_tuple(expected)
                         .map_err(|_| EditorError::InvalidCommand)?
                         .ok_or(EditorError::UnsupportedTarget)?;
-                    if !matches!(old, Content::Image { .. } | Content::Reference { .. }) {
+                    if !matches!(
+                        old,
+                        Content::Image { .. }
+                            | Content::Reference { .. }
+                            | Content::InertExtension { .. }
+                    ) {
                         return Err(EditorError::UnsupportedTarget);
                     }
                     let d = self.virtual_document(&stage)?;
@@ -1798,8 +1900,35 @@ impl Document {
                             (&old, content),
                             (Content::Image { .. }, Content::Image { .. })
                                 | (Content::Reference { .. }, Content::Reference { .. })
+                                | (
+                                    Content::InertExtension { .. },
+                                    Content::InertExtension { .. }
+                                )
                         ) {
                             return Err(EditorError::UnsupportedTarget);
+                        }
+                        if let (
+                            Content::InertExtension {
+                                data: Any::Map(old),
+                            },
+                            Content::InertExtension {
+                                data: Any::Map(new),
+                            },
+                        ) = (&old, content)
+                        {
+                            let mut a = (**old).clone();
+                            let mut b = (**new).clone();
+                            a.remove("source");
+                            b.remove("source");
+                            if a != b {
+                                return Err(EditorError::PresentationConflict);
+                            }
+                            if content
+                                .inert_source()
+                                .is_none_or(|s| s.encode_utf16().count() > 8192)
+                            {
+                                return Err(EditorError::ResourceLimit);
+                            }
                         }
                         let tuple = content.tuple().map_err(|e| {
                             if e == crate::modules::content::ContentError::ResourceLimit {
@@ -1811,6 +1940,9 @@ impl Document {
                         let fallback = match content {
                             Content::Reference { label, .. } => label.as_str(),
                             Content::Image { source, .. } => source.as_str(),
+                            Content::InertExtension { .. } => {
+                                content.inert_source().ok_or(EditorError::InvalidCommand)?
+                            }
                             _ => return Err(EditorError::UnsupportedTarget),
                         }
                         .to_owned();
