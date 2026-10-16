@@ -2,7 +2,7 @@
   "contractVersion": 1,
   "id": "native.macos.pending.v1",
   "implementation": {
-    "revision": "908e6998362210f87d029d8b0087bbfb8afa96bd",
+    "revision": "d93f0f4cc58c2f253c8bc0aff028f02d06837c97",
     "package": "EditacMacOS",
     "version": "0.0.0"
   },
@@ -325,7 +325,7 @@
     },
     {
       "path": "native/macos/Sources/EditacMacOS/tables/NativeTableEditing.swift",
-      "sha256": "0ab7a47490f7efafd4e8bad2ae15389e297ca68cb00e7bae892798f70111e687"
+      "sha256": "eaedffb317df0eebe45abf0fed5ba321806f3a2bfce2b61ee02f4bdbc6a7e533"
     },
     {
       "path": "native/macos/tests/TableEditing/TableEditingTests.swift",
@@ -377,7 +377,7 @@
     },
     {
       "path": "native/macos/Sources/EditacMacOS/NativeEditorView.swift",
-      "sha256": "e620c873a459824d10d7a202cf8ebb04da7d4a58b847236744aef4c618b0d4c5"
+      "sha256": "6cfb31c5a576a2e725bb99e9687dc1dcb9998213a37a0bce58d31da9eea2e619"
     },
     {
       "path": "native/macos/Sources/EditacMacOS/clipboard/NativeClipboardTransport.swift",
@@ -405,7 +405,7 @@
     },
     {
       "path": "native/macos/tests/AccessibilityStructure/AccessibilityStructureTests.swift",
-      "sha256": "d3597bd0d29e5e2b82da0087ae4dec94121153735de3e3d4382a9ace81139202"
+      "sha256": "d467e00929fea86446da342b98fa57e2b7af14aae5b30c29f35079136cc53ec1"
     },
     {
       "path": "native/macos/tests/AccessibilityStructureFixture/Cargo.toml",
