@@ -16,6 +16,11 @@ const finite = n => Number.isFinite(n) && n >= 0;
 const sha = n => typeof n === 'string' && /^[0-9a-f]{64}$/.test(n);
 const modes = ['cold', 'warm'];
 const keys = ['Task/baseline', 'Task/task', 'Long/baseline', 'Long/task'];
+export async function waitForOptionalBootstrap(page) {
+  // Module readiness does not require a rendering opportunity. Keep the
+  // existing bootstrap deadline even when the browser suspends animation frames.
+  await page.waitForFunction(() => !!window.loadingRun, undefined, { polling: 100, timeout: 30000 });
+}
 function policyCheck(p) {
   assert.equal(p.id, 'loading-v1'); assert.equal(p.version, 1);
   assert.deepEqual(p.fixtures, ['Task', 'Long']); assert.deepEqual(p.presets, ['baseline', 'task']);
@@ -151,22 +156,27 @@ export async function produceOptionalLatency(root, output, seedDirectory, packs)
           const pair = { index }; item.pairs.push(pair);
           try {
             for (const mode of modes) {
-              const requests = [], responses = [], errors = [];
+              const requests = [], responses = [], errors = [], failedRequests = [];
               const onRequest = req => { const url = new URL(req.url()); requests.push({ path: url.pathname, sameOrigin: url.origin === origin }); };
               const onResponse = res => responses.push({ path: new URL(res.url()).pathname, status: res.status(), fromServiceWorker: res.fromServiceWorker() });
               const onError = e => errors.push(e.message);
-              page.on('request', onRequest); page.on('response', onResponse); page.on('pageerror', onError);
+              const onFailedRequest = req => failedRequests.push({ path: new URL(req.url()).pathname, error: req.failure()?.errorText });
+              page.on('request', onRequest); page.on('response', onResponse); page.on('pageerror', onError); page.on('requestfailed', onFailedRequest);
               let deadline;
               record.counts.executed++; record.counts.skipped--;
               try {
                 const frozen = JSON.parse(await readFile(join(temp, 'corpus', name + '.checkpoint.json')));
                 const options = { name, preset, mode, databaseName: `optional-${profile}-${name}-${preset}-${index}`, identity: frozen.identity, optional: profile === 'markdown' };
                 await page.goto(`${origin}/?options=${encodeURIComponent(JSON.stringify(options))}`);
-                await page.waitForFunction(() => !!window.loadingRun);
+                await waitForOptionalBootstrap(page);
                 pair[mode] = await Promise.race([page.evaluate(async () => ({ ...await window.loadingRun, optional: window.optionalLoading })), new Promise((_, fail) => { deadline = setTimeout(() => fail(Error('Optional latency deadline')), policy.pageDeadlineMs); })]);
                 Object.assign(pair[mode], { requests, responses, errors, assets: packs[profile].assets.map(a => ({ name: a.name, sha256: a.sha256 })) });
                 assert.deepEqual(errors, []); record.counts.passed++;
-              } finally { clearTimeout(deadline); page.off('request', onRequest); page.off('response', onResponse); page.off('pageerror', onError); }
+              } catch (error) {
+                await writeFile(join(directory, 'failed-observation.json'), JSON.stringify({ profile, name, preset, index, mode,
+                  error: error.stack, requests, responses, errors, failedRequests, pageClosed: page.isClosed() }, null, 2) + '\n');
+                throw error;
+              } finally { clearTimeout(deadline); page.off('request', onRequest); page.off('response', onResponse); page.off('pageerror', onError); page.off('requestfailed', onFailedRequest); }
             }
             await page.evaluate(database => new Promise((ok, fail) => { const r = indexedDB.deleteDatabase(database); r.onsuccess = () => ok(); r.onerror = () => fail(r.error); r.onblocked = () => fail(Error('Database deletion blocked')); }), `optional-${profile}-${name}-${preset}-${index}`);
             pair.databaseDeleted = true;
