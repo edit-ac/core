@@ -2,12 +2,37 @@ import { captureAXOwners } from './loading-ax-coverage.mjs';
 import { fixture } from '../benchmarks/fixtures.mjs';
 
 export function layoutProbeCss(mode) {
-  if (!['control', 'auto'].includes(mode)) throw Error('Unknown layout probe');
-  return mode === 'auto' ? '#editor > [data-node-id]{content-visibility:auto;contain-intrinsic-block-size:auto 24px}' : '';
+  if (!['control', 'auto', 'auto-dirty'].includes(mode)) throw Error('Unknown layout probe');
+  return mode !== 'control' ? '#editor > [data-node-id]{content-visibility:auto;contain-intrinsic-block-size:auto 24px}' : '';
 }
 
-// Runs inside the browser AFTER accepted-edit timing. Never shipped in the SDK.
-export function installLayoutProbe({ enabled, stages = false }) {
+// Candidate runs from navigation onward, including every timed pair. Never
+// shipped in the SDK. Only the behavior diagnostics run after accepted timing.
+export function installLayoutProbe({ enabled, stages = false, mode }) {
+  if (mode === 'auto-dirty') {
+    let mounted = false;
+    const observer = new MutationObserver(records => {
+      const root = document.querySelector('#editor');
+      if (!root?.children.length) return;
+      // The initial projection is published synchronously in one DOM batch.
+      // Observe subsequent source changes, not initial owner construction.
+      if (!mounted) { mounted = true; return; }
+      const materialize = node => {
+        let owner = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+        if (!owner || owner === root || !root.contains(owner)) return;
+        while (owner.parentElement !== root) owner = owner.parentElement;
+        owner.style.contentVisibility = 'visible';
+      };
+      for (const record of records) {
+        // Chromium can retain stale AX text after mutating a skipped owner.
+        // Materialize changed owners permanently, including containing lists.
+        if (record.target === root) for (const node of record.addedNodes) materialize(node);
+        else materialize(record.target);
+      }
+    });
+    observer.observe(document, { childList: true, characterData: true, subtree: true });
+    addEventListener('pagehide', () => observer.disconnect(), { once: true });
+  }
   if (!enabled) return;
   window.__loadingAXStages = [];
   window.__loadingAXStage = async (editor, stage) => {
@@ -103,7 +128,11 @@ export function installLayoutProbe({ enabled, stages = false }) {
       }
       return { changedAndRestored: true };
     });
-    await test('accessibility-full-text-and-focus-action', async () => window.__loadingLayoutAction('accessibility', { name, targetId: last.id, owners: blocks.map(n => ({ id: n.id })) }));
+    await test('accessibility-full-text-and-focus-action', async () => {
+      const coverage = await window.__loadingLayoutAction('accessibility', { name, targetId: last.id, owners: blocks.map(n => ({ id: n.id })) });
+      if (stages) check(result.axStages.length === 6 && result.axStages.every(s => s.missingIndices.length === 0), 'Incomplete intermediate accessibility owner coverage');
+      return coverage;
+    });
     getSelection().removeAllRanges(); root.scrollTop = 0;
     return result;
   };

@@ -171,14 +171,29 @@ and the ordinary runner endpoint are preserved.
 
 ### Packed offscreen-layout experiment
 
-`EDITAC_LOADING_LAYOUT_PROBE=control` or `auto`, with the existing
+`EDITAC_LOADING_LAYOUT_PROBE=control`, `auto` or `auto-dirty`, with the existing
 `scripts/bench-loading.mjs` command, compares the unchanged packed renderer with
 an inline CSS derivative (`content-visibility:auto` on direct block/container
 children; an initial 24px intrinsic block-size estimate). This is an experiment,
-not shipped SDK CSS. Both modes enable Chromium accessibility before navigation.
+not shipped SDK CSS. All modes enable Chromium accessibility before navigation.
 Use the same pinned checkpoints, features, host/browser and complete 12-pair
 Task/Long matrix for each mode; preserve the existing limits and raw samples.
 Do not run the two measurement processes concurrently.
+
+`auto-dirty` additionally observes source mutations from navigation onward in
+every timed pair. After initial synchronous projection, it permanently removes
+content visibility containment from changed top-level owners, including lists
+containing changed text and inserted/replaced owners. This tests a repair for
+Chromium's stale AX text after editing a contained owner. Its observer disconnects
+on page hide. It is a fixture-lifetime candidate, not a production editor-lifetime
+implementation; all its runtime work stays inside measured navigation timing.
+`EDITAC_LOADING_AX_STAGES=1` also checks complete owner coverage before/after the
+first edit/restore and before/after offscreen edit/restore. Missing stages or
+owners fail the final AX case. Staged timings include those extra protocol
+queries and must remain separate from ordinary candidate startup timings.
+The retained `startup-dirty-1` experiment repairs final edited-owner coverage but
+still fails initial Long owner coverage. Whole-document selection can materialize
+previously absent AX text, so a later full-text pass cannot qualify earlier stages.
 
 After accepted-edit timing, the first cold/warm pair in each family executes
 UTF-16 selection/keyboard, scroll/range, code/list geometry, complete selection

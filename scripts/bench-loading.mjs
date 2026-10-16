@@ -102,7 +102,7 @@ try {
           await cdp.send('Accessibility.enable');
           await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin });
           await page.exposeBinding('__loadingLayoutAction', (_, action, data) => runLayoutAction(page, cdp, action, data));
-          await page.addInitScript(installLayoutProbe, { enabled: index === 0, stages: process.env.EDITAC_LOADING_AX_STAGES === '1' });
+          await page.addInitScript(installLayoutProbe, { enabled: index === 0, stages: process.env.EDITAC_LOADING_AX_STAGES === '1', mode: layoutProbe });
         }
         await cdp.send('Network.enable'); await cdp.send('Profiler.enable');
         if (renderTrace) await cdp.send('Performance.enable');
