@@ -1,7 +1,42 @@
+import { spawnSync } from 'node:child_process';
 import { workload, expectedWorkload, canonicalWorkload } from '../benchmarks/workloads.mjs';
 import { presets } from '../benchmarks/presets.mjs';
 import { digest, validateBaselinePolicy } from './architecture-budgets.mjs';
 import { inspectTableAccessibility, tableInputScope } from './table-workload-accessibility.mjs';
+export function workloadInputs(root, profilePath) {
+  const tracked = spawnSync('git', ['ls-files', 'crates', 'packages', 'fixtures/schema-v5', 'Cargo.lock', 'Cargo.toml', 'package-lock.json', 'package.json', 'scripts/build-wasm.mjs'], { cwd: root, encoding: 'utf8' });
+  if (tracked.status !== 0) throw Error('Cannot pin workload source closure');
+  return [...new Set([...tracked.stdout.trim().split('\n'), profilePath, 'benchmarks/profiles/fitness-v1.json', 'benchmarks/config.json', 'scripts/architecture-budgets.mjs', 'benchmarks/workload-client.mjs', 'benchmarks/workloads.mjs', 'benchmarks/workload-image.png',
+  'benchmarks/fixtures.mjs', 'benchmarks/presets.mjs', 'scripts/workload-evidence.mjs', 'scripts/table-workload-accessibility.mjs', 'scripts/bench-workloads.mjs', 'scripts/optional-loading-evidence.mjs', 'scripts/build-wasm-notices.mjs', 'scripts/share-wasm-glue.mjs', 'scripts/test-toolchain.mjs', 'rust-toolchain.toml', '.node-version', 'tsconfig.base.json'])].sort();
+}
+export function workloadBuildProof(optional, receiptHash) {
+  return { version: 1, source: 'optional-loading-v3', receiptHash, startedAt: optional.startedAt,
+    outputs: optional.buildOutputs,
+    commands: optional.commands.slice(0, 3).map(c => ({ label: c.label, command: c.command, exit: c.exit, log: c.log, sha256: c.sha256 })) };
+}
+export function inspectWorkloadBuild(record, optional) {
+  const proof = record.buildProvenance;
+  require(proof?.version === 1 && proof.source === 'optional-loading-v3' && pin(proof.receiptHash), 'Missing workload source build');
+  require(proof.receiptHash === record.metadata?.optionalLoading?.receiptHash && record.artifacts?.['inputs/optional-loading.json'] === proof.receiptHash, 'Workload build receipt mismatch');
+  require(Number.isFinite(Date.parse(proof.startedAt)) && Date.parse(proof.startedAt) < Date.parse(record.metadata.startedAt), 'Workload source build must precede execution');
+  const files = ['packages/core/dist/wasm/editac_wasm_bg.wasm', 'packages/core/dist/wasm/editac_wasm.js', 'packages/core/dist/wasm/editac_runtime.js',
+    'packages/markdown/dist/wasm/editac_markdown_wasm_bg.wasm', 'packages/markdown/dist/wasm/editac_markdown_wasm.js'];
+  require(JSON.stringify(Object.keys(proof.outputs ?? {}).sort()) === JSON.stringify(files.sort()) && files.every(f => pin(proof.outputs[f])), 'Incomplete workload source build outputs');
+  require(proof.commands?.length === 3, 'Missing workload source build commands');
+  for (const [i, label, args] of [[0, 'build-engine-wasm', ['scripts/build-wasm.mjs']], [1, 'build-markdown-wasm', ['scripts/build-wasm.mjs', '--markdown']], [2, 'build-packages', ['run', 'build']]]) {
+    const c = proof.commands[i];
+    require(c.label === label && c.exit === 0 && c.command?.length === args.length + 1 && JSON.stringify(c.command.slice(1)) === JSON.stringify(args) && (i === 2 ? c.command[0] === 'npm' : c.command[0] === record.metadata.command[0]) && pin(c.sha256) && typeof c.log === 'string' && record.artifacts[`source-build/${c.log}`] === c.sha256, 'Failed/wrong workload source build');
+  }
+  for (const file of files) require(record.artifacts[`source-build/${file}`] === proof.outputs[file], 'Retained workload build output mismatch');
+  for (const file of files.filter(f => f.startsWith('packages/core/'))) {
+    const asset = file.split('/wasm/')[1];
+    require(record.artifacts[`harness/wasm/${asset}`] === proof.outputs[file], 'Executed workload WASM/glue differs from source build');
+  }
+  if (optional) {
+    require(JSON.stringify(proof) === JSON.stringify(workloadBuildProof(optional, proof.receiptHash)), 'Retained workload source build mismatch');
+    for (const [file, hash] of Object.entries(optional.sourceInputs)) if (Object.hasOwn(record.sourceInputs, file)) require(hash === record.sourceInputs[file], `Workload build source mismatch: ${file}`);
+  }
+}
 export function validateWorkloadPolicy(profile, record) {
   validateBaselinePolicy(profile, {
     metadata: { ...record.metadata, timestamp: record.metadata?.startedAt },

@@ -1,12 +1,12 @@
+import { admitOptionalLoading } from '../../../scripts/optional-loading-evidence.mjs';
 import { build } from 'esbuild';
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
-import { spawnSync } from 'node:child_process';
 import { digest, verifyPins, validateFitnessProfile } from '../../../scripts/architecture-budgets.mjs';
-import { inspectWorkloads, validateWorkloadPolicy } from '../../../scripts/workload-evidence.mjs';
+import { inspectWorkloads, validateWorkloadPolicy, workloadInputs, workloadBuildProof, inspectWorkloadBuild } from '../../../scripts/workload-evidence.mjs';
 import { workload, expectedWorkload } from '../../../benchmarks/workloads.mjs';
 const root = fileURLToPath(new URL('../../../', import.meta.url)), read = file => readFile(resolve(root, file));
 const profileBytes = await read('benchmarks/profiles/workloads-v1.json'), profile = JSON.parse(profileBytes);
@@ -24,12 +24,16 @@ test('owning workload matrix pins actual runtime, independent full workload orac
   assert.equal(profile.seedContext, 'Isolated preparation context closed before both fresh preset contexts');
   assert.equal(profile.semanticPolicy, 'Preserve exact text, attributes, arrays and all distinct mark boundaries; canonical object keys and merge only adjacent runs with identical complete mark maps; retain raw initial run segments');
   for (const field of ['warmupPolicy', 'seedContext', 'semanticPolicy']) assert.equal(record.metadata[field], profile[field]);
-  const tracked = spawnSync('git', ['ls-files', 'crates', 'packages', 'fixtures/schema-v5', 'Cargo.lock', 'Cargo.toml', 'package-lock.json', 'package.json', 'scripts/build-wasm.mjs'], { cwd: root, encoding: 'utf8' });
-  assert.equal(tracked.status, 0);
-  const inputs = [...new Set([...tracked.stdout.trim().split('\n'), 'benchmarks/profiles/workloads-v1.json', 'benchmarks/profiles/fitness-v1.json', 'benchmarks/config.json', 'scripts/architecture-budgets.mjs', 'benchmarks/workload-client.mjs', 'benchmarks/workloads.mjs', 'benchmarks/workload-image.png', 'benchmarks/fixtures.mjs', 'benchmarks/presets.mjs', 'scripts/workload-evidence.mjs', 'scripts/table-workload-accessibility.mjs', 'scripts/bench-workloads.mjs'])];
+  const inputs = workloadInputs(root, 'benchmarks/profiles/workloads-v1.json');
   assert.deepEqual(Object.keys(record.sourceInputs).sort(), inputs.sort()); await verifyPins(root, record.sourceInputs);
   await verifyPins(resolve(root, index.directory), record.artifacts);
-  for (const file of ['editac_wasm.js', 'editac_wasm_bg.wasm']) assert.equal(digest(await read(`packages/core/dist/wasm/${file}`)), record.artifacts[`harness/wasm/${file}`]);
+  for (const file of ['editac_wasm.js', 'editac_wasm_bg.wasm', 'editac_runtime.js']) assert.equal(digest(await read(`packages/core/dist/wasm/${file}`)), record.artifacts[`harness/wasm/${file}`]);
+  const optionalBytes = await read(`${record.metadata.optionalLoading.directory}/optional-loading.json`);
+  assert.equal(digest(optionalBytes), record.metadata.optionalLoading.receiptHash);
+  const optional = JSON.parse(optionalBytes);
+  await admitOptionalLoading(root, record.metadata.optionalLoading.directory, optional);
+  assert.deepEqual(JSON.parse(await read(`${index.directory}/inputs/optional-loading.json`)), optional);
+  inspectWorkloadBuild(record, optional);
   const rebuilt = await build({ stdin: { contents: 'export {createEditor,taskPreset,CheckpointStorage} from "@edit-ac/web"; export {init} from "@edit-ac/core"; export {contentModules} from "@edit-ac/web";', resolveDir: root },
     write: false, bundle: true, minify: true, format: 'esm', platform: 'browser', target: 'es2022' });
   assert.equal(digest(rebuilt.outputFiles[0].contents), record.artifacts['harness/sdk.js']);
@@ -92,3 +96,27 @@ for (const [name, change] of [
   assert.throws(() => validateWorkloadPolicy(fitnessPolicy, changed));
 });
 after(async () => { assert(process.env.EDITAC_ARCHITECTURE_OUTPUT); await writeFile(resolve(process.env.EDITAC_ARCHITECTURE_OUTPUT, 'workloads-inventory.json'), JSON.stringify(evidence, null, 2) + '\n'); });
+
+const changedRecord = change => { const r = structuredClone(record); change(r); return r; };
+for (const [name, change] of [
+  ['missing build', r => delete r.buildProvenance],
+  ['stale receipt', r => r.buildProvenance.receiptHash = '0'.repeat(64)],
+  ['missing receipt', r => delete r.artifacts['inputs/optional-loading.json']],
+  ['future build', r => r.buildProvenance.startedAt = r.metadata.startedAt],
+  ['missing output', r => delete r.buildProvenance.outputs['packages/core/dist/wasm/editac_runtime.js']],
+  ['unretained output', r => delete r.artifacts['source-build/packages/core/dist/wasm/editac_wasm_bg.wasm']],
+  ['different executed WASM', r => r.artifacts['harness/wasm/editac_wasm_bg.wasm'] = '0'.repeat(64)],
+  ['different executed glue', r => r.artifacts['harness/wasm/editac_runtime.js'] = '0'.repeat(64)],
+  ['missing command', r => r.buildProvenance.commands.pop()],
+  ['failed source build', r => r.buildProvenance.commands[0].exit = 1],
+  ['wrong source build', r => r.buildProvenance.commands[0].command.push('--markdown')],
+  ['unretained log', r => delete r.artifacts[`source-build/${r.buildProvenance.commands[0].log}`]],
+]) test(`workload source build rejects ${name}`, () => assert.throws(() => inspectWorkloadBuild(changedRecord(change))));
+test('workload source build rejects changed upstream inputs and command identities', async () => {
+  const optional = JSON.parse(await read(`${record.metadata.optionalLoading.directory}/optional-loading.json`));
+  const stale = structuredClone(optional); stale.sourceInputs['Cargo.lock'] = '0'.repeat(64);
+  assert.throws(() => inspectWorkloadBuild(record, stale), /source mismatch/);
+  const wrong = structuredClone(optional); wrong.commands[0].label = 'prepared';
+  assert.throws(() => inspectWorkloadBuild(record, wrong), /build mismatch/);
+  assert.deepEqual(record.buildProvenance, workloadBuildProof(optional, record.metadata.optionalLoading.receiptHash));
+});

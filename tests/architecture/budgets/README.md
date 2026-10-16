@@ -617,3 +617,5 @@ requests, cache provenance, exact assets, checkpoint and policy identities are
 retained. Original 300 ms cold and 50/200 ms warm diagnostics remain unchanged;
 twelve samples leave p95/p99 inconclusive. These observations do not qualify
 memory, highlighter, compositor, target-platform or release performance.
+
+Workload and table-accessibility observations retain the admitted optional-loading source build, its exact commands/logs and outputs, and executed engine WASM/shared glue. Both modes verify the source closure before and after the complete unchanged matrix; missing/stale/substituted/failed builds fail admission. These observations remain diagnostics at the existing reviewed/null limits.

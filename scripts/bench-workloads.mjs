@@ -8,9 +8,10 @@ import { chromium } from 'playwright';
 import { startFixtureServer } from '../tests/browser/fixture-server.mjs';
 import { workload, expectedWorkload, canonicalWorkload } from '../benchmarks/workloads.mjs';
 import { presets } from '../benchmarks/presets.mjs';
-import { digest, validateFitnessProfile } from './architecture-budgets.mjs';
-import { inspectWorkloads, inspectWorkload, validateWorkloadPolicy } from './workload-evidence.mjs';
+import { digest, verifyPins, validateFitnessProfile } from './architecture-budgets.mjs';
+import { inspectWorkloads, inspectWorkload, validateWorkloadPolicy, workloadInputs, workloadBuildProof, inspectWorkloadBuild } from './workload-evidence.mjs';
 import { replayTableInput } from './table-workload-accessibility.mjs';
+import { admitOptionalLoading } from './optional-loading-evidence.mjs';
 import { requireTestNode } from './test-toolchain.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url)); process.chdir(root); await requireTestNode();
@@ -32,11 +33,7 @@ const record = { version: 1, qualification: 'unqualified', profileHash: digest(p
     verificationPolicy: { source: 'architecture/specs/verification.md', sha256: digest(verificationPolicy), reviewedAt: fitnessPolicy.reviewedAt },
     provenance: 'headless-browser-on-host', node: process.version, warmupPolicy: profile.warmupPolicy, seedContext: profile.seedContext, semanticPolicy: profile.semanticPolicy },
   counts: { executed: 0, passed: 0, failed: 0, skipped: profile.scales.length * profile.presets.length * profile.workloads.length }, cases: [], sourceInputs: {}, artifacts: {}, errors: [], cleanup: {} };
-const tracked = spawnSync('git', ['ls-files', 'crates', 'packages', 'fixtures/schema-v5', 'Cargo.lock', 'Cargo.toml', 'package-lock.json', 'package.json', 'scripts/build-wasm.mjs'], { encoding: 'utf8' });
-if (tracked.status !== 0) throw Error('Cannot pin source closure');
-const inputs = [...new Set([...tracked.stdout.trim().split('\n'), profilePath, fitnessPath, 'benchmarks/config.json', 'scripts/architecture-budgets.mjs', 'benchmarks/workload-client.mjs', 'benchmarks/workloads.mjs', 'benchmarks/workload-image.png',
-  'benchmarks/fixtures.mjs', 'benchmarks/presets.mjs', 'scripts/workload-evidence.mjs', 'scripts/table-workload-accessibility.mjs', 'scripts/bench-workloads.mjs'])];
-for (const file of inputs) record.sourceInputs[file] = digest(await readFile(file));
+for (const file of workloadInputs(root, profilePath)) record.sourceInputs[file] = digest(await readFile(file));
 const temporary = await mkdtemp(join(tmpdir(), 'editac-prf04-'));
 let browser, controller, server, interrupted = false;
 const stop = () => { interrupted = true; void browser?.close(); };
@@ -45,11 +42,26 @@ async function retain(file, bytes) { await mkdir(join(output, file, '..'), { rec
 try {
   await retain('policy/verification.md', verificationPolicy);
   validateWorkloadPolicy(fitnessPolicy, record);
+  const optionalIndex = JSON.parse(await readFile('benchmarks/profiles/optional-loading-evidence.json'));
+  const optionalDirectory = resolve(root, optionalIndex.directory);
+  const optionalBytes = await readFile(join(optionalDirectory, 'optional-loading.json'));
+  if (digest(optionalBytes) !== optionalIndex.receiptHash) throw Error('Changed workload source-build receipt');
+  const optionalRecord = JSON.parse(optionalBytes);
+  await admitOptionalLoading(root, optionalDirectory, optionalRecord);
+  record.metadata.optionalLoading = optionalIndex;
+  record.buildProvenance = workloadBuildProof(optionalRecord, optionalIndex.receiptHash);
+  await retain('inputs/optional-loading.json', optionalBytes);
+  for (const command of record.buildProvenance.commands) await retain(`source-build/${command.log}`, await readFile(join(optionalDirectory, command.log)));
+  for (const [file, hash] of Object.entries(record.buildProvenance.outputs)) {
+    const bytes = await readFile(file);
+    if (digest(bytes) !== hash) throw Error(`Current workload source build drift: ${file}`);
+    await retain(`source-build/${file}`, bytes);
+  }
   await mkdir(join(temporary, 'wasm'));
   await build({ stdin: { contents: 'export {createEditor,taskPreset,CheckpointStorage} from "@edit-ac/web"; export {init} from "@edit-ac/core"; export {contentModules} from "@edit-ac/web";', resolveDir: root },
     outfile: join(temporary, 'sdk.js'), bundle: true, minify: true, format: 'esm', platform: 'browser', target: 'es2022' });
   for (const file of ['sdk.js']) await retain(`harness/${file}`, await readFile(join(temporary, file)));
-  for (const file of ['editac_wasm.js', 'editac_wasm_bg.wasm']) {
+  for (const file of ['editac_wasm.js', 'editac_wasm_bg.wasm', 'editac_runtime.js']) {
     await copyFile(`packages/core/dist/wasm/${file}`, join(temporary, 'wasm', file));
     await retain(`harness/wasm/${file}`, await readFile(join(temporary, 'wasm', file)));
   }
@@ -58,6 +70,8 @@ try {
   }
   const html = '<!doctype html><meta charset="utf-8"><title>PRF-04</title><style>body{margin:24px}#outer{width:900px;height:360px;overflow:auto;border:1px solid}#inner{margin:16px;height:240px;overflow:auto}#editor{font:16px/1.5 sans-serif;white-space:pre-wrap;overflow-wrap:anywhere}#after{height:600px}</style><div id="outer"><div id="inner"><div id="editor"></div></div><div id="after"></div></div>';
   await writeFile(join(temporary, 'index.html'), html); await retain('harness/index.html', html);
+  inspectWorkloadBuild(record, optionalRecord);
+  await verifyPins(root, record.sourceInputs);
   server = await startFixtureServer({ fixtureDirectory: temporary });
   record.metadata.server = { pid: process.pid, port: server.port, workspace: root, purpose: 'PRF-04', log: output };
   controller = await chromium.launchServer({ headless: true });
@@ -128,7 +142,13 @@ finally {
   process.removeListener('SIGINT', stop); process.removeListener('SIGTERM', stop);
 }
 // Exact executed/pass/fail counts also survive admission failure.
-try { record.observations = inspectWorkloads(profile, record); }
+try {
+  await verifyPins(root, record.sourceInputs);
+  if (digest(await readFile(resolve(root, '../architecture/specs/verification.md'))) !== digest(verificationPolicy)) throw Error('Verification policy changed during measurement');
+  validateWorkloadPolicy(fitnessPolicy, record);
+  inspectWorkloadBuild(record);
+  record.observations = inspectWorkloads(profile, record);
+}
 catch (error) { record.errors.push(error.message); }
 if (record.errors.length) record.status = 'failed'; else record.status = 'diagnostic';
 await writeFile(join(output, 'results.json'), JSON.stringify(record, null, 2) + '\n');
