@@ -58,3 +58,8 @@ shared labels/actions, keyboard and AX focus, permission changes, actual shared
 row removal, resync identity, teardown and bounded announcements. It qualifies
 programmatic OS-host implementation only. Roadmap 20 must verify VoiceOver speech,
 rotor navigation and platform settings with recorded physical/virtual provenance.
+
+Cell accessibility actions expose bounded unmerged row/column insertion/deletion
+through the existing shared table command gate. Read-only/unsupported routes are
+omitted; retained actions reject changed captured tuples or revisions. Generic
+text-service ranges apply only to main-text focus; atoms use their owned anchors.

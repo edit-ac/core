@@ -275,6 +275,7 @@ final class AccessibilityStructureTests: XCTestCase {
             let table = try self.table(view)
             let last = try XCTUnwrap(table.cells.values.max { ($0.coordinate.row, $0.coordinate.column) < ($1.coordinate.row, $1.coordinate.column) })
             XCTAssertFalse(last.isEditable); XCTAssertTrue(last.accessibilityPerformPress())
+            XCTAssertTrue(last.accessibilityCustomActions()?.isEmpty == true)
             last.doCommand(by: #selector(NSTextView.insertTab(_:)))
             XCTAssertTrue(window.firstResponder === view.textView)
         }
@@ -325,14 +326,27 @@ final class AccessibilityStructureTests: XCTestCase {
         try await fixture { view, window in
             let revision = view.projection.revision
             let right = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero,
-                modifierFlags: [.control, .command], timestamp: 0, windowNumber: window.windowNumber,
+                modifierFlags: [.control, .command, .function, .numericPad], timestamp: 0, windowNumber: window.windowNumber,
                 context: nil, characters: "", charactersIgnoringModifiers: "", isARepeat: false, keyCode: 124))
             XCTAssertTrue(window.performKeyEquivalent(with: right))
             XCTAssertTrue(window.firstResponder is NativeTableCellView)
             XCTAssertTrue(window.performKeyEquivalent(with: right))
             XCTAssertTrue(window.firstResponder is NativeTableCellView)
             XCTAssertEqual(view.projection.revision, revision)
+            let container = NSView(frame: view.frame)
+            let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 200, height: 24))
+            window.contentView = container; container.addSubview(view); container.addSubview(field)
+            XCTAssertTrue(window.makeFirstResponder(field))
+            XCTAssertFalse(view.performKeyEquivalent(with: right))
+            XCTAssertTrue(window.firstResponder === field.currentEditor())
         }
+    }
+    private func perform(_ view: NativeEditorView, _ action: NSAccessibilityCustomAction) async throws {
+        let result: Result<Void, NativeCommandFailure> = await withCheckedContinuation { c in
+            view.commands.onResult = { result in view.commands.onResult = nil; c.resume(returning: result) }
+            if action.handler?() != true { view.commands.onResult = nil; c.resume(returning: .failure(.invalidCommand)) }
+        }
+        try result.get()
     }
     func testActualSharedTableRemovalDetachesAXCellAndOrphanRow() async throws {
         try await fixture { view, window in
@@ -341,21 +355,36 @@ final class AccessibilityStructureTests: XCTestCase {
             let old = try XCTUnwrap(table.accessibilityCell(forColumn: 0, row: index) as? NativeAccessibleCell)
             let row = try XCTUnwrap(table.accessibilityRows()?.last as? NSAccessibilityElement)
             XCTAssertTrue(old.accessibilityPerformPress())
-            let result: Result<Void, NativeCommandFailure> = await withCheckedContinuation { c in
-                view.commands.onResult = { result in view.commands.onResult = nil; c.resume(returning: result) }
-                view.tables.performStructure(tableID: table.nodeID, action: .deleteRow, index: index)
-            }
-            try result.get()
+            let stale = try self.action("Insert column after", old.control?.accessibilityCustomActions())
+            try await self.perform(view, self.action("Delete row", old.control?.accessibilityCustomActions()))
             XCTAssertEqual(table.rowCount, index)
             XCTAssertNil(old.control); XCTAssertNil(row.accessibilityParent())
             XCTAssertTrue(row.accessibilityChildren()?.isEmpty == true)
             XCTAssertTrue(window.firstResponder === view.textView)
+            XCTAssertFalse(stale.handler?() ?? true)
+            let first = try XCTUnwrap(table.cells[.init(row: 0, column: 0)])
+            XCTAssertTrue(first.accessibilityPerformPress())
+            let columns = table.columnCount
+            try await self.perform(view, self.action("Insert column after", first.accessibilityCustomActions()))
+            XCTAssertEqual(table.accessibilityColumns()?.count, columns + 1)
+            XCTAssertTrue(first.accessibilityPerformPress())
+            try await self.perform(view, self.action("Delete column", first.accessibilityCustomActions()))
+            XCTAssertEqual(table.accessibilityColumns()?.count, columns)
+            XCTAssertTrue(first.accessibilityPerformPress())
+            try await self.perform(view, self.action("Insert row after", first.accessibilityCustomActions()))
+            XCTAssertEqual(table.accessibilityRows()?.count, index + 1)
         }
     }
     func testFocusedImageAXRemovalCommitsOnceAndSharedUndoRestoresRelationships() async throws {
         try await fixture { view, _ in
             let image = try self.image(view), id = image.nodeID
             XCTAssertTrue(image.accessibilityPerformPress())
+            do {
+                _ = try await view.commands.captureService(range: view.textView.selectedRange())
+                XCTFail("Atom focus must not capture an unrelated main-text service range")
+            } catch let error as NativeCommandFailure {
+                guard case .disabled(.unfocused) = error else { return XCTFail("Unexpected service rejection: \(error)") }
+            }
             let remove = try self.action("Remove", image.accessibilityCustomActions())
             let result: Result<Void, NativeCommandFailure> = await withCheckedContinuation { c in
                 view.commands.onResult = { result in view.commands.onResult = nil; c.resume(returning: result) }

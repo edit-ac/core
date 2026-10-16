@@ -32,8 +32,10 @@ public final class NativeEditorView: NSView {
     /// Control-Command-arrows traverse structure without inserting text or
     /// requiring full keyboard access to be enabled in System Settings.
     public override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == [.control, .command],
-           event.keyCode == 123 || event.keyCode == 124 {
+        if event.modifierFlags.intersection([.control, .command, .shift, .option]) == [.control, .command],
+           event.keyCode == 123 || event.keyCode == 124,
+           window?.isKeyWindow == true, let responder = window?.firstResponder as? NSView,
+           responder.isDescendant(of: self) {
             return structureAccessibility.focus(direction: event.keyCode == 124 ? 1 : -1)
         }
         return super.performKeyEquivalent(with: event)

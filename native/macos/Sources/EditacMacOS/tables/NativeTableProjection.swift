@@ -106,6 +106,9 @@ public final class NativeTableCellView: NSTextView {
     public override func accessibilityPerformPress() -> Bool {
         editing?.focus(self) ?? false
     }
+    public override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? {
+        editing?.accessibilityActions(for: self) ?? []
+    }
     @objc public func undo(_ sender: Any?) { editing?.history(redo: false) }
     @objc public func redo(_ sender: Any?) { editing?.history(redo: true) }
     private static let unsupportedActions: Set<String> = ["changeFont:", "changeAttributes:", "changeColor:",
