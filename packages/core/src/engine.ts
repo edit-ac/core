@@ -257,15 +257,17 @@ export function restoreHandle(construct: (json: string, bytes: Uint8Array) => Ra
       if (totalBytes > MAX_BYTES) throw new EngineError("ResourceLimit", "restore", "checkpoint and journal exceed byte limit");
       return {identity:u.identity, bytes:copied};
     });
-    if (!entries.length) return ownHandle(construct(encode({expected, identity:c.identity, initialized:c.initialized, writerId:c.writerId, journal:[]}, "restore"), checkpointBytes));
-    const metadata = encode({expected, identity:c.identity, initialized:c.initialized, writerId:c.writerId,
-      journal:[], checkpointBytes:checkpointBytes.byteLength,
-      binaryJournal:entries.map(u => ({identity:u.identity, byteLength:u.bytes.byteLength}))}, "restore");
-    const payload = new Uint8Array(totalBytes);
-    payload.set(checkpointBytes);
-    let offset = checkpointBytes.byteLength;
-    for (const entry of entries) { payload.set(entry.bytes, offset); offset += entry.bytes.byteLength; }
-    return ownHandle(construct(metadata, payload));
+    const metadata: Record<string, unknown> = {expected, identity:c.identity, initialized:c.initialized, writerId:c.writerId, journal:[]};
+    let payload = checkpointBytes;
+    if (entries.length) {
+      metadata.checkpointBytes = checkpointBytes.byteLength;
+      metadata.binaryJournal = entries.map(u => ({identity:u.identity, byteLength:u.bytes.byteLength}));
+      payload = new Uint8Array(totalBytes);
+      payload.set(checkpointBytes);
+      let offset = checkpointBytes.byteLength;
+      for (const entry of entries) { payload.set(entry.bytes, offset); offset += entry.bytes.byteLength; }
+    }
+    return ownHandle(construct(encode(metadata, "restore"), payload));
   });
 }
 function ownHandle(allocation: RawEngine): EngineHandle {
