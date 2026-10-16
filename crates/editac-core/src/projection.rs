@@ -243,6 +243,14 @@ impl ProjectionIndex {
         }
         Ok(())
     }
+    /// Publish the first admitted snapshot without consuming its change/range
+    /// evidence. This index and its observers still belong to the same replica;
+    /// an intervening write invalidates the snapshot through those observers.
+    pub(crate) fn into_admitted_restore(self, snapshot: Snapshot) -> Self {
+        let cache = std::mem::take(&mut *self.cache.lock().unwrap());
+        *self.inspected.lock().unwrap() = Some((cache, snapshot));
+        self
+    }
     /// Restore-only transfer after encoding this admitted replica and applying
     /// those exact bytes to a fresh writer, with no intervening writes. Cache
     /// values are derived, but source text handles and root observers belong to

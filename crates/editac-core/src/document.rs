@@ -334,7 +334,10 @@ impl WriterLease {
             .get_or_init(Default::default)
             .lock()
             .map_err(|_| DocumentError::WriterUnavailable)?;
-        Ok(live.insert(id).then_some(Self(id)))
+        // Construct a lease only after insertion succeeds. Eager then_some
+        // would drop a rejected lease while this mutex is held and deadlock
+        // when Drop tries to release that same writer.
+        Ok(live.insert(id).then(|| Self(id)))
     }
 }
 impl Drop for WriterLease {
@@ -561,22 +564,42 @@ impl Document {
             .map(|(id, _)| id.get() as u32)
             .collect();
         excluded.insert(checkpoint.writer_id);
-        let bytes = txn.encode_state_as_update_v1(&StateVector::default());
+        // Checkpoint-only staging has never written locally. Its random writer
+        // can become the editor lease after admission if it is absent from both
+        // the restored corpus and the live-writer registry. Avoid serializing,
+        // decoding and integrating that same admitted state a second time.
+        let admitted_writer = if journal.is_empty() {
+            lease_admitted_restore(&staging, &excluded)?
+        } else {
+            None
+        };
+        let bytes = admitted_writer
+            .is_none()
+            .then(|| txn.encode_state_as_update_v1(&StateVector::default()));
         drop(txn);
-        let (doc, writer) = fresh_replica(&excluded, expected)?;
-        if expected.has_blocks() {
-            doc.get_or_insert_map(BLOCK_ATTRIBUTES);
-        }
-        doc.transact_mut_with("restore")
-            .apply_update(Update::decode_v1(&bytes).map_err(|_| DocumentError::InvalidUpdate)?)
-            .map_err(|_| DocumentError::InvalidUpdate)?;
-        // This replica contains exactly the admitted staging state. Its only
-        // difference is the fresh local writer lease; no local write occurred.
-        let projection = match qualified_projection {
-            Some((projection, snapshot)) => projection
-                .into_restored_replica(&doc, snapshot)
-                .map_err(|_| DocumentError::UnsupportedSchema)?,
-            None => crate::projection::ProjectionIndex::with_identity(&doc, expected),
+        let (doc, writer, projection) = if let Some(writer) = admitted_writer {
+            let projection = match qualified_projection {
+                Some((projection, snapshot)) => projection.into_admitted_restore(snapshot),
+                None => crate::projection::ProjectionIndex::with_identity(&staging, expected),
+            };
+            (staging, writer, projection)
+        } else {
+            let (doc, writer) = fresh_replica(&excluded, expected)?;
+            if expected.has_blocks() {
+                doc.get_or_insert_map(BLOCK_ATTRIBUTES);
+            }
+            doc.transact_mut_with("restore")
+                .apply_update(
+                    Update::decode_v1(&bytes.unwrap()).map_err(|_| DocumentError::InvalidUpdate)?,
+                )
+                .map_err(|_| DocumentError::InvalidUpdate)?;
+            let projection = match qualified_projection {
+                Some((projection, snapshot)) => projection
+                    .into_restored_replica(&doc, snapshot)
+                    .map_err(|_| DocumentError::UnsupportedSchema)?,
+                None => crate::projection::ProjectionIndex::with_identity(&doc, expected),
+            };
+            (doc, writer, projection)
         };
         CREATED
             .get_or_init(Default::default)
@@ -796,6 +819,48 @@ fn register_roots(doc: &Doc) {
         doc.get_or_insert_map(root);
     }
 }
+fn lease_admitted_restore(
+    doc: &Doc,
+    excluded: &HashSet<u32>,
+) -> Result<Option<WriterLease>, DocumentError> {
+    let id = doc.client_id().get() as u32;
+    if excluded.contains(&id) {
+        return Ok(None);
+    }
+    WriterLease::acquire(id)
+}
+
+#[cfg(test)]
+mod restore_writer_tests {
+    use super::*;
+
+    #[test]
+    fn admitted_restore_rejects_corpus_and_live_writer_collisions() {
+        let doc = crate::new_document();
+        let id = doc.client_id().get() as u32;
+        assert!(
+            lease_admitted_restore(&doc, &HashSet::from([id]))
+                .unwrap()
+                .is_none()
+        );
+        let lease = lease_admitted_restore(&doc, &HashSet::new())
+            .unwrap()
+            .unwrap();
+        assert_eq!(lease.0, id);
+        assert!(
+            lease_admitted_restore(&doc, &HashSet::new())
+                .unwrap()
+                .is_none()
+        );
+        drop(lease);
+        assert!(
+            lease_admitted_restore(&doc, &HashSet::new())
+                .unwrap()
+                .is_some()
+        );
+    }
+}
+
 fn fresh_replica(
     excluded: &HashSet<u32>,
     identity: &DocumentIdentity,

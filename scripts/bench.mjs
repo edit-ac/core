@@ -70,14 +70,12 @@ result.metadata.osRelease = (await import('node:os')).release();
 // Freeze the executable source closure before compilation, including dirty files.
 // Observation indexes are output metadata, never executable/build inputs.
 // Each owning receipt and its artifacts are admitted independently by budgets.
-const observationIndexes = new Set([
-  'baseline', 'gesture', 'service', 'workload', 'lifecycle', 'loading', 'native-input',
-].map(name => `benchmarks/profiles/${name}-evidence.json`));
+const isObservationIndex = file => /^benchmarks\/profiles\/[^/]+-evidence\.json$/.test(file);
 const sourceFiles = spawnSync('git', ['ls-files', 'crates', 'packages', 'scripts', 'benchmarks'], { encoding: 'utf8' });
 if (sourceFiles.status !== 0) throw Error('Cannot inventory benchmark sources');
 result.sourceInputs = {};
 for (const file of [...new Set([...sourceFiles.stdout.trim().split('\n'), ...Object.keys(result.profileInputs)])].filter(file => /\.(rs|toml|ts|mjs|json|css)$/.test(file) && !/\/(dist|generated)\//.test(file)
-  && !observationIndexes.has(file))) {
+  && !isObservationIndex(file))) {
   result.sourceInputs[file] = hash(await readFile(file));
 }
 

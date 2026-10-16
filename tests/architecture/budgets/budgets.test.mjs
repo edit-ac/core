@@ -98,7 +98,7 @@ assert.equal(digest(resultBytes), index.resultsHash, 'Changed measured result');
 const result = JSON.parse(resultBytes);
 test('actual Rust/WASM/IndexedDB baseline retains exact source, profile and executed artifacts', async () => {
   assert.equal(result.profileInputs['benchmarks/profiles/fitness-v1.json'], digest(profileBytes));
-  for (const name of ['baseline', 'gesture', 'service', 'workload', 'lifecycle', 'loading', 'native-input']) {
+  for (const name of ['baseline', 'gesture', 'service', 'workload', 'lifecycle', 'loading', 'loading-command', 'loading-render', 'table-accessibility', 'native-input']) {
     assert(!Object.hasOwn(result.sourceInputs, `benchmarks/profiles/${name}-evidence.json`), 'Generated evidence index cannot be an executable source input');
   }
   evidence.sources.profile = await verifyPins(root, result.profileInputs);

@@ -11,6 +11,49 @@ use editac_core::{
 use std::sync::Arc;
 
 #[test]
+fn checkpoint_restore_retains_first_read_evidence_and_observes_pre_read_mutation() {
+    let identity = DocumentIdentity::v5(
+        "77777777-7777-4777-8777-777777777703",
+        "88888888-8888-4888-8888-888888888803",
+    ).unwrap();
+    let document = Document::create(
+        CreationPermit::authorize_new(identity).unwrap(),
+        &[InitialNode { kind: "block".into(), text: "a😀bc".into() },
+          InitialNode { kind: "block".into(), text: "second".into() }],
+    ).unwrap();
+    let checkpoint = document.checkpoint();
+    let restored = Document::restore(document.identity(), &checkpoint, &[]).unwrap();
+    let mut before_read = Document::restore(document.identity(), &checkpoint, &[]).unwrap();
+    assert_ne!(restored.writer_id(), checkpoint.writer_id);
+    assert_ne!(before_read.writer_id(), checkpoint.writer_id);
+    assert_ne!(restored.writer_id(), before_read.writer_id());
+    assert_eq!(restored.checkpoint().bytes, checkpoint.bytes);
+    assert_eq!(before_read.checkpoint().bytes, checkpoint.bytes);
+    let original = document.snapshot().unwrap();
+    let first = restored.snapshot().unwrap();
+    assert_eq!(first.visible, original.visible);
+    assert_eq!(first.changed_nodes, original.changed_nodes);
+    assert_eq!(first.touched_ranges, original.touched_ranges);
+    assert!(first.source_reads > 0 && first.structure_rebuilt);
+    assert_eq!(restored.snapshot().unwrap().source_reads, 0);
+
+    // Mutation/inspection before the first public snapshot must discard the
+    // admitted snapshot and observe the real change, including UTF-16 offsets.
+    let node = original.visible[0].id.clone();
+    let at = before_read.anchor(&node, Utf16Offset(1), Bias::Right).unwrap();
+    let plan = before_read.prepare_text(&TextCommand::Insert { at, text: "x".into() },
+        &TextOrigin::new("fitness:restore-before-read").unwrap()).unwrap();
+    let update = before_read.commit_text(plan).unwrap().update.unwrap();
+    let changed = before_read.snapshot().unwrap();
+    assert_eq!(changed.visible[0].runs.iter().map(|r| r.text.as_str()).collect::<String>(), "ax😀bc");
+    assert!(changed.changed_nodes.contains(&node) && changed.source_reads > 0);
+    let replayed = Document::restore(document.identity(), &checkpoint, &[update]).unwrap();
+    assert_eq!(replayed.snapshot().unwrap().visible, changed.visible);
+    assert_eq!(replayed.checkpoint().bytes, before_read.checkpoint().bytes);
+    assert_eq!(before_read.snapshot().unwrap().source_reads, 0);
+}
+
+#[test]
 fn unchanged_v5_projection_preserves_nodes_and_retained_state_without_source_reads() {
     let identity = DocumentIdentity::v5(
         "77777777-7777-4777-8777-777777777701",
