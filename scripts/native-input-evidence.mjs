@@ -266,6 +266,9 @@ export function inspectNativeWorkload(profile, receipt, result, fixture, initial
   assert.equal(setup.textUtf16Units,text.reduce((n,t)=>n+t.length,0)); assert.equal(setup.projectedUtf16Units,text.join('\n').length);
   assert.equal(setup.targetOffsetUtf16,text.join('\n').length-text.at(-1).length+target.at);
   assert.equal(p.scenario,'os-keyboard-overwrite-fixed-corpus-v1');
+  assert.equal(typeof p.callbackAttribution,'string','missing native callback scope');
+  assert(p.callbackAttribution.includes('not idle time')&&p.callbackAttribution.includes('no compositor'),'missing native callback scope');
+  assert(Number.isFinite(Date.parse(p.callbackAttributionReviewedAt))&&Date.parse(p.callbackAttributionReviewedAt)<=Date.parse(receipt.startedUtc),'unreviewed native callback attribution');
   assert(Number.isFinite(Date.parse(p.reviewedAt))&&Date.parse(p.reviewedAt)<=Date.parse(receipt.startedUtc));
   assert.equal(receipt.metadata.node,'v24.19.0');
   assert.equal(setup.fullSnapshotRestored,true); assert(setup.checkpointBytes>0);
@@ -277,6 +280,10 @@ export function inspectNativeWorkload(profile, receipt, result, fixture, initial
     assert(times.every(finite)&&times.every((t,k)=>k===0||t>=times[k-1]));
     const spans=['inputAt','anchorDoneAt','focusDoneAt','batchStartAt','engineDoneAt','decodedAt','storageDoneAt','selectionDoneAt','scrollDoneAt','projectionDoneAt'].map(k=>s[k]);
     assert(spans.every(finite)&&spans.every((t,k)=>k===0||t>=spans[k-1]),'native attribution timeline');
+    const callback=['projectionDoneAt','displayRequestedAt','displayResumedAt','delegateExitAt','callbackEnteredAt','layoutStartAt'].map(k=>s[k]);
+    assert(callback.every(finite)&&callback.every((t,k)=>k===0||t>=callback[k-1]),'native callback attribution timeline');
+    assert(finite(s.displayDurationSeconds)&&s.displayDurationSeconds>0&&s.displayDurationSeconds<=1,'missing native display cadence');
+    assert(finite(s.displayTimestamp)&&finite(s.targetTimestamp)&&s.targetTimestamp>s.displayTimestamp,'invalid native display timestamps');
     assert.equal(s.rustTrace?.version,1,'missing native Rust trace version');
     const rustKeys=['prepareMs','commitMs','patchBuildMs','patchJsonMs','resultJsonMs'];
     assert(rustKeys.every(k=>finite(s.rustTrace[k])),'missing native Rust span');
@@ -303,6 +310,17 @@ export function inspectNativeWorkload(profile, receipt, result, fixture, initial
     focusMs:rawSummary(result.samples.map(s=>(s.focusDoneAt-s.anchorDoneAt)*1000),100),
     requestConstructionMs:rawSummary(result.samples.map(s=>(s.batchStartAt-s.focusDoneAt)*1000),100),
     callbackWaitMs:rawSummary(result.samples.map(s=>(s.layoutStartAt-s.projectionDoneAt)*1000),100),
+    callbackAttribution:{
+      scope:'same-process observed boundaries; delegateExitAt is immediately before return; scheduling includes OS/run-loop wait, not an isolated idle duration; display timestamps are cadence diagnostics, not compositor proof',
+      requestPreparationMs:rawSummary(result.samples.map(s=>(s.displayRequestedAt-s.projectionDoneAt)*1000),100),
+      displayResumeMs:rawSummary(result.samples.map(s=>(s.displayResumedAt-s.displayRequestedAt)*1000),100),
+      delegateTailMs:rawSummary(result.samples.map(s=>(s.delegateExitAt-s.displayResumedAt)*1000),100),
+      scheduledCallbackWaitMs:rawSummary(result.samples.map(s=>(s.callbackEnteredAt-s.delegateExitAt)*1000),100),
+      callbackEntryMs:rawSummary(result.samples.map(s=>(s.layoutStartAt-s.callbackEnteredAt)*1000),100),
+      displayDurationMs:rawSummary(result.samples.map(s=>s.displayDurationSeconds*1000),100),
+      displayIntervalMs:rawSummary(result.samples.map(s=>(s.targetTimestamp-s.displayTimestamp)*1000),100),
+      callbackAfterTargetMs:rawSummary(result.samples.map(s=>Math.max(0,(s.callbackEnteredAt-s.targetTimestamp)*1000)),100)
+    },
     rust:Object.fromEntries(['prepareMs','commitMs','patchBuildMs','patchJsonMs','resultJsonMs'].map(k=>[k,rawSummary(result.samples.map(s=>s.rustTrace[k]),100)])),
     ffiExecutorAndInstrumentationResidualMs:rawSummary(result.samples.map(s=>Math.max(0,(s.engineDoneAt-s.batchStartAt)*1000-['prepareMs','commitMs','patchBuildMs','patchJsonMs','resultJsonMs'].reduce((sum,k)=>sum+s.rustTrace[k],0))),100),
     decodeMs:rawSummary(result.samples.map(s=>(s.decodedAt-s.engineDoneAt)*1000),100),

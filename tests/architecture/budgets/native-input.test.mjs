@@ -277,6 +277,15 @@ for (const name of ['Task','Long']) {
     'clock reversal':v=>v[2].samples[0].layoutDoneAt=0,
     'missing focus acknowledgment':v=>delete v[2].focusRequests,
     'unbounded focus retries':v=>v[2].focusRequests=4,
+    ...Object.fromEntries(['displayRequestedAt','displayResumedAt','delegateExitAt','callbackEnteredAt'].map(k=>['missing callback '+k,v=>delete v[2].samples[0][k]])),
+    ...Object.fromEntries(['displayRequestedAt','displayResumedAt','delegateExitAt','callbackEnteredAt'].map(k=>['reversed callback '+k,v=>v[2].samples[0][k]=v[2].samples[0].projectionDoneAt-1])),
+    'unreviewed callback attribution':v=>v[0].workloads.callbackAttributionReviewedAt='2999-01-01T00:00:00Z',
+    'missing callback scope':v=>delete v[0].workloads.callbackAttribution,
+    'missing display cadence':v=>delete v[2].samples[0].displayDurationSeconds,
+    'zero display cadence':v=>v[2].samples[0].displayDurationSeconds=0,
+    'nonfinite display cadence':v=>v[2].samples[0].displayDurationSeconds=Infinity,
+    'invalid display timestamp':v=>v[2].samples[0].displayTimestamp=NaN,
+    'reversed display target':v=>v[2].samples[0].targetTimestamp=v[2].samples[0].displayTimestamp,
     'missing native attribution':v=>delete v[2].samples[0].rustTrace,
     'missing anchor attribution':v=>delete v[2].samples[0].anchorDoneAt,
     'missing storage attribution':v=>delete v[2].samples[0].storageDoneAt,
@@ -298,6 +307,8 @@ for (const name of ['Task','Long']) {
     const reasons={
       'missing focus acknowledgment': /missing actual workload focus acknowledgment/,
       'unbounded focus retries': /missing actual workload focus acknowledgment/,
+      'unreviewed callback attribution': /unreviewed native callback attribution/,
+      'missing callback scope': /missing native callback scope/,
       'missing native attribution': /missing native Rust trace version/,
       'missing anchor attribution': /native attribution timeline/,
       'missing storage attribution': /native attribution timeline/,
@@ -311,6 +322,9 @@ for (const name of ['Task','Long']) {
       'negative JSON duration': /missing native Rust span/
     };
     assert.throws(()=>inspectNativeWorkload(...copy), error=>{
+      if(/^(missing|reversed) callback (displayRequestedAt|displayResumedAt|delegateExitAt|callbackEnteredAt)$/.test(label)) assert.match(error.message,/native callback attribution timeline/);
+      if(label.includes('display cadence')) assert.match(error.message,/missing native display cadence/);
+      if(label==='invalid display timestamp'||label==='reversed display target') assert.match(error.message,/invalid native display timestamps/);
       if(reasons[label]) assert.match(error.message,reasons[label]);
       rejectedControls.push({family:name,name:label,reason:error.message.slice(0,512)}); return true;
     });

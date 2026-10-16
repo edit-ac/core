@@ -79,6 +79,8 @@
     "attribution": "monotonic Swift anchor/focus/request/execute/decode/TextStorage/layout timestamps; opt-in Rust prepare/commit/patch-build/patch-JSON/result-JSON durations; FFI residual includes executor, transfer and diagnostic overhead, not zero-copy or compositor; explicit TextStorage mutation, selection and scroll spans",
     "attributionReviewedAt": "2026-10-15T05:58:00Z",
     "layout": "TextKit1 noncontiguous layout enabled; initial full container layout outside input window; measured one-unit changed-character layout with retained full corpus and caret geometry",
-    "layoutReviewedAt": "2026-10-15T07:52:16.931535+00:00"
+    "layoutReviewedAt": "2026-10-15T07:52:16.931535+00:00",
+    "callbackAttribution": "Same-process projection/request/resume/delegate-exit/callback-entry/layout partition; CADisplayLink duration and timestamp/target cadence. Delegate exit is immediately before return; scheduled wait includes OS/run-loop work and is not idle time. Callback-after-target is diagnostic only; no compositor or causal speedup claim.",
+    "callbackAttributionReviewedAt": "2026-10-16T20:19:27.170239+00:00"
   }
 }

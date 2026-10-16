@@ -683,6 +683,9 @@ final class WorkloadController: UIViewController, UITextViewDelegate {
     deinit { for observer in keyboardObservers { NotificationCenter.default.removeObserver(observer) } }
     func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText replacement: String) -> Bool {
         let start = CACurrentMediaTime()
+        // Same-process diagnostic boundary immediately before delegate return.
+        // This is neither an OS event-dispatch nor a compositor timestamp.
+        defer { if pending != nil { pending?["delegateExitAt"] = CACurrentMediaTime() } }
         attempts.append(["rangeUtf16": range.location, "removedUtf16": range.length, "replacement": replacement, "pending": pending != nil])
         do {
             try expect(pending == nil && textView.isFirstResponder && range.length == 1 && range.location == targetOffset && replacement.utf16.count == 1, "single OS overwrite with continuous focus at fixed corpus bound")
@@ -714,12 +717,17 @@ final class WorkloadController: UIViewController, UITextViewDelegate {
                 "scrollDoneAt": scrollDone, "rustTrace": trace,
                 "rangeUtf16": range.location, "replacementUtf16": 1, "removedUtf16": 1, "changedBlocks": changed.count,
                 "thermal": ProcessInfo.processInfo.thermalState.rawValue, "firstResponder": textView.isFirstResponder, "inputMode": textView.textInputMode?.primaryLanguage ?? "unavailable"]
+            pending?["displayRequestedAt"] = CACurrentMediaTime()
             display?.isPaused = false
+            pending?["displayResumedAt"] = CACurrentMediaTime()
         } catch { errors.append(String(describing: error)); status.text = "failed"; partial() }
         return false
     }
     @objc func frame(_ link: CADisplayLink) {
+        let callbackEnteredAt = CACurrentMediaTime()
         guard var sample = pending else { return }
+        sample["callbackEnteredAt"] = callbackEnteredAt
+        sample["displayDurationSeconds"] = link.duration
         sample["layoutStartAt"] = CACurrentMediaTime()
         // The full corpus remains in TextKit. Ordinary input invalidates only
         // its changed range; forcing the entire container hides that boundary.
