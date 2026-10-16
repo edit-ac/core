@@ -72,6 +72,7 @@ final class FitnessController: UIViewController, UITextViewDelegate {
     var display: CADisplayLink?
     var composing = false
     var keyboardToken: NSObjectProtocol?
+    var keyboardHideToken: NSObjectProtocol?
     var inputModeToken: NSObjectProtocol?
     var fixture: [String: Any] = [:]
     let thermalStart = ProcessInfo.processInfo.thermalState.rawValue
@@ -125,6 +126,13 @@ final class FitnessController: UIViewController, UITextViewDelegate {
             self?.keyboardShownAt = at
             self?.completeAppendFocus()
         }
+        keyboardHideToken = NotificationCenter.default.addObserver(forName: UIResponder.keyboardDidHideNotification, object: nil, queue: .main) { [weak self] _ in
+            guard let self = self else { return }
+            self.keyboardShownAt = nil
+            self.focusReadiness = [:]
+            self.status.accessibilityValue = "focus-pending"
+            self.partial()
+        }
         inputModeToken = NotificationCenter.default.addObserver(forName: UITextInputMode.currentInputModeDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
             self?.completeAppendFocus()
         }
@@ -154,8 +162,10 @@ final class FitnessController: UIViewController, UITextViewDelegate {
             }
         }
     }
-    @objc func focusAppend() {
+    @objc func focusAppend(_ sender: UIButton) {
         focusRequests += 1
+        // Acknowledge the actual UIKit action independently of keyboard readiness.
+        sender.accessibilityValue = String(focusRequests)
         focusRequestedAt = CACurrentMediaTime()
         keyboardShownAt = nil; selectionInstalledAt = nil; focusReadiness = [:]
         partial()
@@ -349,10 +359,11 @@ final class FitnessController: UIViewController, UITextViewDelegate {
         check("cjk-disposal") {
             try engine.dispose(); display?.invalidate(); display = nil
             if let token = keyboardToken { NotificationCenter.default.removeObserver(token); keyboardToken = nil }
+            if let token = keyboardHideToken { NotificationCenter.default.removeObserver(token); keyboardHideToken = nil }
             if let token = inputModeToken { NotificationCenter.default.removeObserver(token); inputModeToken = nil }
             do { _ = try engine.read(); throw CheckFailure(message: "disposed read succeeded") }
             catch let e as NativeError { guard case .Disposed = e else { throw e } }
-            return ["displayLinkInvalidated": display == nil, "keyboardObserverRemoved": keyboardToken == nil && inputModeToken == nil]
+            return ["displayLinkInvalidated": display == nil, "keyboardObserverRemoved": keyboardToken == nil && keyboardHideToken == nil && inputModeToken == nil]
         }
         let failed = cases.filter { $0["state"] as? String == "failed" }.count
         let record: [String: Any] = ["version": 1, "qualification": "unqualified", "cases": cases,
@@ -414,8 +425,9 @@ final class FitnessController: UIViewController, UITextViewDelegate {
             catch let e as NativeError { guard case .Disposed = e else { throw e } }
             display?.invalidate(); display = nil
             if let token = keyboardToken { NotificationCenter.default.removeObserver(token); keyboardToken = nil }
+            if let token = keyboardHideToken { NotificationCenter.default.removeObserver(token); keyboardHideToken = nil }
             if let token = inputModeToken { NotificationCenter.default.removeObserver(token); inputModeToken = nil }
-            return ["displayLinkInvalidated": display == nil, "keyboardObserverRemoved": keyboardToken == nil && inputModeToken == nil]
+            return ["displayLinkInvalidated": display == nil, "keyboardObserverRemoved": keyboardToken == nil && keyboardHideToken == nil && inputModeToken == nil]
         }
         let failed = cases.filter { $0["state"] as? String == "failed" }.count
         let record: [String: Any] = ["version": 1, "qualification": "unqualified", "cases": cases,
@@ -598,8 +610,10 @@ final class WorkloadController: UIViewController, UITextViewDelegate {
                 : CGRect(x: 20, y: top + 310, width: 350, height: 40)
         }
     }
-    @objc func focusWorkload() {
+    @objc func focusWorkload(_ sender: UIButton) {
         focusRequests += 1
+        // Acknowledge the actual UIKit action independently of keyboard readiness.
+        sender.accessibilityValue = String(focusRequests)
         selectionInstalledAt = nil; focusReadiness = [:]
         partial()
         // An explicit OS button action requests UIKit focus. A tap in a huge

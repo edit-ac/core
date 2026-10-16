@@ -2,22 +2,31 @@ import XCTest
 
 final class NativeFitnessUITests: XCTestCase {
     func dismissKeyboardTutorial(_ app: XCUIApplication) throws -> Bool {
-        let tutorial = app.buttons["Continue"]
-        guard tutorial.waitForExistence(timeout: 5) else { return false }
-        XCTAssertTrue(tutorial.isHittable)
+        let candidates = app.buttons.matching(NSPredicate(format: "label == %@", "Continue"))
+        guard candidates.firstMatch.waitForExistence(timeout: 5) else { return false }
+        // The OS tutorial exposes a same-labelled outer button proxy and a
+        // nested control. Select the actual hittable descendant, not the proxy.
+        func liveContinue() -> XCUIElement? {
+            candidates.allElementsBoundByIndex.reversed().first { $0.exists && $0.isHittable }
+        }
+        let hittable = NSPredicate { _, _ in liveContinue() != nil }
+        XCTAssertTrue(hittable.evaluate(with: nil) || XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: hittable, object: nil)], timeout: 10) == .completed,
+            "Visible keyboard tutorial must expose a real hittable OS control")
+        let tutorial = try XCTUnwrap(liveContinue())
         let r = tutorial.frame, window = app.windows.firstMatch.frame
         XCTAssertTrue(window.contains(r)); XCTAssertGreaterThan(r.width, 0); XCTAssertGreaterThan(r.height, 0)
-        // Ask XCTest to resolve the actual OS button's hit target; its frame
-        // can extend beyond the keyboard's accessibility rectangle.
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "visible keyboard tutorial before center dispatch"; screenshot.lifetime = .keepAlways; add(screenshot)
         let before = ProcessInfo.processInfo.systemUptime
-        tutorial.tap()
-        let record: [String: Any] = ["action": "single XCTest-resolved keyboard tutorial button tap",
+        tutorial.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        let record: [String: Any] = ["action": "single ordinary OS touch at observed hittable tutorial control center",
+            "matchingControls": candidates.count, "reportedHittableBeforeDispatch": true,
             "frame": ["x": r.minX, "y": r.minY, "width": r.width, "height": r.height],
             "point": ["x": r.midX, "y": r.midY], "before": before, "after": ProcessInfo.processInfo.systemUptime]
         let data = try JSONSerialization.data(withJSONObject: record, options: [.sortedKeys])
         let attachment = XCTAttachment(data: data, uniformTypeIdentifier: "public.json")
         attachment.name = "keyboard tutorial screen dispatch"; attachment.lifetime = .keepAlways; add(attachment)
-        XCTAssertTrue(tutorial.waitForNonExistence(timeout: 10))
+        XCTAssertTrue(candidates.firstMatch.waitForNonExistence(timeout: 10))
         return true
     }
     func focus(_ app: XCUIApplication, button: XCUIElement, status: XCUIElement, value: String) throws {
@@ -25,30 +34,62 @@ final class NativeFitnessUITests: XCTestCase {
         let ready = NSPredicate(format: "value == %@", value)
         let settled = NSPredicate(format: "value == %@ OR value BEGINSWITH %@", value, "input-mode:")
         var focused = false
-        for _ in 0..<3 {
+        var transitions: [[String: Any]] = []
+        var requests: [[String: Any]] = []
+        defer {
+            if let data = try? JSONSerialization.data(withJSONObject: requests, options: [.sortedKeys]) {
+                let attachment = XCTAttachment(data: data, uniformTypeIdentifier: "public.json")
+                attachment.name = "native focus action acknowledgments"; attachment.lifetime = .keepAlways; add(attachment)
+            }
+        }
+        for attempt in 0..<3 {
             app.activate()
-            // Retry only an unacknowledged focus action, never a payload key.
-            button.tap()
+            // Retry focus/presentation only; no payload key has been sent.
+            XCTAssertTrue(button.waitForExistence(timeout: 5) && button.isHittable)
+            let r = button.frame
+            XCTAssertTrue(app.windows.firstMatch.frame.contains(r))
+            XCTAssertGreaterThan(r.width, 0); XCTAssertGreaterThan(r.height, 0)
+            let previousRequest = Int(button.value as? String ?? "0") ?? 0
+            let beforeRequest = ProcessInfo.processInfo.systemUptime
+            button.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            let received = NSPredicate { _, _ in
+                (Int(button.value as? String ?? "0") ?? 0) > previousRequest
+            }
+            let acknowledged = received.evaluate(with: nil) || XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: received, object: nil)], timeout: 5) == .completed
+            requests.append(["attempt": attempt + 1, "before": beforeRequest, "after": ProcessInfo.processInfo.systemUptime,
+                "previousRequest": previousRequest, "observedRequest": button.value as? String ?? "unavailable",
+                "acknowledged": acknowledged, "point": ["x": r.midX, "y": r.midY],
+                "frame": ["x": r.minX, "y": r.minY, "width": r.width, "height": r.height]])
+            guard acknowledged else { continue }
             guard app.keyboards.firstMatch.waitForExistence(timeout: 10) else { continue }
             _ = try dismissKeyboardTutorial(app)
-            if settled.evaluate(with: status) || XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: settled, object: status)], timeout: 5) == .completed { focused = true; break }
-        }
-        XCTAssertTrue(focused, "UIKit did not acknowledge an actual foreground focus action")
-        var transitions: [[String: Any]] = []
-        for _ in 0..<6 {
-            if ready.evaluate(with: status) { break }
-            let previous = status.value as? String ?? "unavailable"
-            let next = app.buttons["Next keyboard"]
-            XCTAssertTrue(next.waitForExistence(timeout: 5)); XCTAssertTrue(next.isHittable)
-            let before = ProcessInfo.processInfo.systemUptime
-            next.tap()
-            let changed = NSPredicate(format: "value != %@", previous)
-            XCTAssertTrue(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: changed, object: status)], timeout: 10) == .completed)
-            transitions.append(["before": before, "after": ProcessInfo.processInfo.systemUptime,
-                "previous": previous, "observed": status.value as? String ?? "unavailable"])
+            guard settled.evaluate(with: status) || XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: settled, object: status)], timeout: 5) == .completed else { continue }
+            for _ in 0..<6 {
+                if transitions.count >= 6 { break }
+                if ready.evaluate(with: status) { break }
+                let previous = status.value as? String ?? "unavailable"
+                let next = app.buttons["Next keyboard"]
+                guard next.waitForExistence(timeout: 5), next.isHittable else { break }
+                let before = ProcessInfo.processInfo.systemUptime
+                next.tap()
+                let changed = NSPredicate(format: "value != %@", previous)
+                let acknowledged = changed.evaluate(with: status) || XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: changed, object: status)], timeout: 10) == .completed
+                transitions.append(["before": before, "after": ProcessInfo.processInfo.systemUptime,
+                    "attempt": attempt + 1, "acknowledged": acknowledged,
+                    "previous": previous, "observed": status.value as? String ?? "unavailable"])
+                // Rebind an unacknowledged input session within the original
+                // focus bound. No key or candidate payload has been dispatched.
+                if !acknowledged { break }
+            }
+            // Input-mode notifications may precede remote keyboard presentation
+            // or its dismissal. Mode status alone cannot acknowledge real keys.
+            guard app.keyboards.firstMatch.waitForExistence(timeout: 10) else { continue }
+            _ = try dismissKeyboardTutorial(app)
+            if ready.evaluate(with: status) && app.keyboards.firstMatch.exists { focused = true; break }
         }
         let attachment = XCTAttachment(data: try JSONSerialization.data(withJSONObject: transitions, options: [.sortedKeys]), uniformTypeIdentifier: "public.json")
         attachment.name = "actual OS keyboard input-mode transitions"; attachment.lifetime = .keepAlways; add(attachment)
+        XCTAssertTrue(focused, "UIKit did not acknowledge the requested mode with a current software keyboard after bounded foreground focus actions")
         XCTAssertTrue(ready.evaluate(with: status), "Actual selected OS input mode did not match the scenario")
     }
 
@@ -124,7 +165,19 @@ final class NativeFitnessUITests: XCTestCase {
         let verify = app.buttons["verify-source"]
         XCTAssertTrue(verify.isHittable)
         XCTAssertFalse(verify.frame.intersects(app.keyboards.firstMatch.frame), "Verification action must remain outside the live OS keyboard")
-        verify.tap()
+        let verifyFrame = verify.frame
+        XCTAssertTrue(app.windows.firstMatch.frame.contains(verifyFrame))
+        XCTAssertGreaterThan(verifyFrame.width, 0); XCTAssertGreaterThan(verifyFrame.height, 0)
+        let verifyBefore = ProcessInfo.processInfo.systemUptime
+        // Use the observed control center, rather than XCTest's resolved hit
+        // point for the truncated title. One dispatch; terminal proof is unchanged.
+        verify.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        let verifyDispatch: [String: Any] = ["action": "single ordinary OS touch at observed verification-button center",
+            "frame": ["x": verifyFrame.minX, "y": verifyFrame.minY, "width": verifyFrame.width, "height": verifyFrame.height],
+            "point": ["x": verifyFrame.midX, "y": verifyFrame.midY],
+            "before": verifyBefore, "after": ProcessInfo.processInfo.systemUptime]
+        let verifyAttachment = XCTAttachment(data: try JSONSerialization.data(withJSONObject: verifyDispatch, options: [.sortedKeys]), uniformTypeIdentifier: "public.json")
+        verifyAttachment.name = "ASCII verification screen dispatch"; verifyAttachment.lifetime = .keepAlways; add(verifyAttachment)
         let verified = NSPredicate(format: "label == %@", "verified")
         expectation(for: verified, evaluatedWith: status)
         waitForExpectations(timeout: 15)
