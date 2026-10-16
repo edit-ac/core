@@ -8,6 +8,7 @@ import type { ClipboardCodec } from './clipboard/fragment.js';
 
 export interface EditorSurfaceOptions {
   markdown?: import('./input/shortcuts.js').MarkdownAdapter;
+  codeHighlight?: import("./modules/code/presenter.js").CodeHighlightFactory;
   content?: import('./modules/content.js').ContentFactory;
   reorder?: import('./modules/reorder.js').ReorderFactory;
   links?: LinkEnrichmentFactory;

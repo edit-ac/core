@@ -4,6 +4,7 @@ import { join } from 'node:path';
 // Explicit named suites: an unknown name must fail instead of matching zero tests.
 const [suite, ...options] = process.argv.slice(2);
 const suites = { keyboard: ['tests/browser/keyboard.spec.ts'], recovery: ['tests/browser/entry.spec.ts', 'tests/browser/recovery.spec.ts'], render: ['tests/browser/render.spec.ts'], selection: ['tests/browser/selection.spec.ts'], 'input-policy': ['tests/browser/input-policy.spec.ts'], input: ['tests/browser/input.spec.ts'], reconcile: ['tests/browser/reconcile.spec.ts'], composition: ['tests/browser/composition.spec.ts'], 'composition-remote': ['tests/browser/composition-remote.spec.ts'] };
+suites['code-highlight'] = ['tests/browser/code-highlight.spec.ts'];
 suites['offline-collaboration'] = ['tests/browser/offline-collaboration.spec.ts'];
 suites['markdown-collaboration'] = ['tests/browser/markdown-collaboration.spec.ts'];
 suites['clipboard-formats'] = ['tests/browser/clipboard-formats.spec.ts'];

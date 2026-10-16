@@ -15,6 +15,7 @@ type LocalSession = Awaited<ReturnType<typeof recoverLocalDocument>>;
 type RecoveryOptions = Parameters<typeof recoverLocalDocument>[0];
 export interface EditorOptions extends RecoveryOptions {
   markdown?: import('./input/shortcuts.js').MarkdownAdapter;
+  codeHighlight?: import("./modules/code/presenter.js").CodeHighlightFactory;
   content?: import('./modules/content.js').ContentFactory;
   reorder?: import('./modules/reorder.js').ReorderFactory;
   links?: import('./modules/links/enrichment.js').LinkEnrichmentFactory;

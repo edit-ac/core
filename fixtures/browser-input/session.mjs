@@ -27,7 +27,7 @@ async function mount(text='alpha',other='independent',texts) {
  }
  session.writer.engine.history({type:'clear'});
  session.writer.engine.subscribe({type:'all'},p=>patches.push({sequence:p.sequence,revision:p.revision,operation:p.operation,origin:p.origin,update:!!p.update,bytes:p.update?.bytes.length??0}));
- renderer=new DOMRenderer(root,session.writer.engine);selection=new DOMSelection(renderer,session.writer.engine);
+ renderer=new DOMRenderer(root,session.writer.engine,{codeHighlight:window.codeHighlightFactory});selection=new DOMSelection(renderer,session.writer.engine);
  protocol=new TextInput(renderer,selection,session.writer.engine,request=>{const result=session.storage.commit(request);commandResults.push(result);return result;});
  if (window.markdownAdapter) protocol.shortcuts=window.markdownAdapter.createShortcuts(session.writer.engine, request=>session.storage.commit(request));
  otherBlock=ids[1]?renderer.getBlock(ids[1]):undefined;otherText=otherBlock?document.createTreeWalker(otherBlock,NodeFilter.SHOW_TEXT).nextNode():undefined;

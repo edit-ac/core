@@ -40,3 +40,6 @@ export type { PrivateReferenceDisplayOptions } from './references/display.js';
 export { HighlightScheduler, HIGHLIGHT_BACKEND } from './code/scheduler.js';
 export type { HighlightInput, HighlightSpan, HighlightResult, HighlightTiming, HighlightSchedulerOptions, HighlightWorkerPort, HighlightClock } from './code/scheduler.js';
 export { createHighlightWorker } from './code/worker.js';
+
+export { codeHighlighting, CodeHighlightPresenter } from './code/presenter.js';
+export type { CodeHighlightOptions, CodeHighlightFactory } from './code/presenter.js';

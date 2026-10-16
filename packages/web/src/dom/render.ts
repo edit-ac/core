@@ -24,13 +24,14 @@ export class DOMRenderer {
   #disposed = false;
   readonly #held = new Set<string>();
   readonly #deferred = new Map<string, Patch["nodes"][number]>();
+  readonly #code: import("../modules/code/presenter.js").CodeHighlightPresenter | undefined;
   patchBoundary: { before(): void; after(): void } | undefined;
   #revision: number;
   readonly #modules: ModuleRegistry | undefined;
   readonly moduleRuntime: ModuleRuntime | undefined;
   readonly #engine: EngineHandle;
-  readonly #options: { readOnly?: boolean; modules?: ModuleRegistry; moduleRuntime?: ModuleRuntimeOptions; content?: ContentFactory; commit?: (request: import('@edit-ac/core').PrepareRequest) => import('@edit-ac/core').CommitResult };
-  constructor(readonly root: HTMLElement, engine: EngineHandle, options: { readOnly?: boolean; modules?: ModuleRegistry; moduleRuntime?: ModuleRuntimeOptions; content?: ContentFactory; commit?: (request: import('@edit-ac/core').PrepareRequest) => import('@edit-ac/core').CommitResult } = {}) {
+  readonly #options: { codeHighlight?: import("../modules/code/presenter.js").CodeHighlightFactory; readOnly?: boolean; modules?: ModuleRegistry; moduleRuntime?: ModuleRuntimeOptions; content?: ContentFactory; commit?: (request: import('@edit-ac/core').PrepareRequest) => import('@edit-ac/core').CommitResult };
+  constructor(readonly root: HTMLElement, engine: EngineHandle, options: { codeHighlight?: import("../modules/code/presenter.js").CodeHighlightFactory; readOnly?: boolean; modules?: ModuleRegistry; moduleRuntime?: ModuleRuntimeOptions; content?: ContentFactory; commit?: (request: import('@edit-ac/core').PrepareRequest) => import('@edit-ac/core').CommitResult } = {}) {
     this.#engine = engine;
     this.#options = options;
     this.#modules = options.modules?.freeze();
@@ -40,12 +41,14 @@ export class DOMRenderer {
     this.#revision = snapshot.revision;
     root.replaceChildren();
     root.contentEditable = options.readOnly ? "false" : "true";
+    this.#code = options.codeHighlight?.(this);
     const nodes = new Map(snapshot.visible.map(node => [node.id, node]));
     for (const node of snapshot.visible) this.#update(node, nodes.get(node.parent));
     // Publish only after every nested owner is assembled off-document.
     root.append(this.#arrange(root.ownerDocument.createDocumentFragment()));
     this.#subscription = engine.subscribe({ type: "all" }, patch => this.#apply(patch));
   }
+  isHeld(id: string): boolean { return this.#held.has(id); }
   getBlock(id: string): HTMLElement | undefined { return this.#entries.get(id)?.content; }
   /** Only adapter-created view decorations own asynchronous DOM mutations.
    * Authored data attributes cannot confer ownership of canonical source. */
@@ -85,13 +88,13 @@ export class DOMRenderer {
   setReadOnly(value: boolean): void { if (!this.#disposed) { this.root.contentEditable = value ? "false" : "true"; for (const entry of this.#entries.values()) entry.contentView?.setReadOnly(value); } }
   dispose(): void {
     if (this.#disposed) return;
-    this.#disposed = true; this.#subscription.dispose(); this.root.contentEditable = "false";
+    this.#disposed = true; this.#code?.dispose(); this.#subscription.dispose(); this.root.contentEditable = "false";
     for (const entry of this.#entries.values()) this.#disposeRuns(entry);
     this.moduleRuntime?.dispose();
     this.#entries.clear(); this.#held.clear(); this.#deferred.clear(); this.patchBoundary = undefined;
   }
   /** Temporary native ownership; resume projects the latest admitted patch only. */
-  hold(id: string): void { this.#held.add(id); }
+  hold(id: string): void { this.#held.add(id); this.#code?.hold(id); }
   resume(id: string, rebuild?: boolean): void {
     this.#held.delete(id);
     let change = this.#deferred.get(id); this.#deferred.delete(id);
@@ -113,7 +116,7 @@ export class DOMRenderer {
         }
         this.#update(change.node, this.#entries.get(change.node.parent)?.node);
       }
-      else { if (entry) { this.#disposeRuns(entry); entry.outer.remove(); } this.#entries.delete(id); }
+      else { if (entry) { this.#disposeRuns(entry); entry.outer.remove(); } this.#entries.delete(id); this.#code?.remove(id); }
       this.#arrange();
     } finally { this.patchBoundary?.after(); }
   }
@@ -139,7 +142,7 @@ export class DOMRenderer {
       if (change.type !== "visible") {
         const id = change.type === "removed" ? change.id : change.node.id;
         const entry = this.#entries.get(id);
-        if (entry) { this.#disposeRuns(entry); entry.outer.remove(); this.#entries.delete(id); structure = true; }
+        if (entry) { this.#disposeRuns(entry); entry.outer.remove(); this.#entries.delete(id); this.#code?.remove(id); structure = true; }
       } else {
         const old = this.#entries.get(change.node.id);
         structure ||= !old || old.node.parent !== change.node.parent || old.node.order !== change.node.order;
@@ -175,6 +178,7 @@ export class DOMRenderer {
       if (old) { this.#disposeRuns(old); old.outer.replaceWith(outer); }
     }
     entry.node = node;
+    if (tag !== "pre") this.#code?.remove(node.id);
     if (this.#options.content) {
       const descriptorKey = JSON.stringify(node.blockAttributes);
       if (entry.contentView && entry.contentDescriptorKey !== descriptorKey && !entry.contentView.update(node)) { entry.contentView.dispose(); delete entry.contentView; entry.content.replaceChildren(); }
@@ -210,6 +214,7 @@ export class DOMRenderer {
     const whiteSpace = tag === "pre" ? "pre" : "break-spaces";
     if (entry.content.style.whiteSpace !== whiteSpace) entry.content.style.whiteSpace = whiteSpace;
     this.#patchRuns(entry, node.runs, tag === "pre");
+    if (tag === "pre") this.#code?.update(node, this.#revision);
   }
   #arrange(root: HTMLElement | DocumentFragment = this.root): HTMLElement | DocumentFragment {
     const groups = new Map<HTMLElement | DocumentFragment, Set<HTMLElement>>();
