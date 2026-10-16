@@ -33,6 +33,7 @@ public enum NativeSessionRequest: Sendable {
     case redo(revision: Data, now: UInt64)
     case permission(writable: Bool, expiresAt: UInt64?)
     case commandPermission(writable: Bool, expiresAt: UInt64?, now: UInt64)
+    case extensionPolicy(enabled: Bool)
     case tablePolicy(enabled: Bool)
     case atomicContentPolicy(images: Bool, references: Bool)
     case captureAttachment(revision: Data, node: String)
@@ -185,14 +186,14 @@ public final class NativeSessionExecutor {
 
     @discardableResult
     public func open(options: NativeSessionOptions, initial: [NativeSessionSeed]? = nil,
-                     now: UInt64, completion: Completion? = nil) throws -> NativeSessionOperation {
+                     now: UInt64, registryJSON: String = "[]", completion: Completion? = nil) throws -> NativeSessionOperation {
         try enqueue(completion: completion) { state in
             guard state.session == nil else { throw NativeSessionFailure.alreadyOpen }
             let session: NativeSession
             if let initial {
-                session = try NativeSession.createLocal(options: options, initial: initial)
+                session = try NativeSession.createLocalWithRegistry(options: options, initial: initial, registryJson: registryJSON)
             } else {
-                session = try NativeSession.open(options: options)
+                session = try NativeSession.openWithRegistry(options: options, registryJson: registryJSON)
             }
             // Retain only after the owned initial read succeeds. A failed open/read
             // leaves no hidden writer reservation and permits a later retry.
@@ -364,6 +365,9 @@ public final class NativeSessionExecutor {
             case let .releaseAttachment(token): try session.releaseAnchor(token: token)
             case let .atomicContentPolicy(images, references):
                 try session.setAtomicContentPolicy(images: images, references: references)
+                return .snapshot(try session.read(now: state.now))
+            case let .extensionPolicy(enabled):
+                try session.setExtensionPolicy(enabled: enabled)
                 return .snapshot(try session.read(now: state.now))
             case let .tablePolicy(enabled):
                 try session.setTablePolicy(enabled: enabled)

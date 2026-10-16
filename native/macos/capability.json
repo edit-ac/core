@@ -2,7 +2,7 @@
   "contractVersion": 1,
   "id": "native.macos.pending.v1",
   "implementation": {
-    "revision": "6e379313cebc3889f20281a2eda2541420416e15",
+    "revision": "0d81f87296a886e035751b083f852652ce9ebffd",
     "package": "EditacMacOS",
     "version": "0.0.0"
   },
@@ -317,7 +317,7 @@
     },
     {
       "path": "native/macos/Package.swift",
-      "sha256": "4be6ef408338ca265c733bdc5abd445a75429281322e5312778c0748ff290608"
+      "sha256": "52d0c734436419b2ce869a798996e42617e6c162e3ad4f7227c275caf39d67c5"
     },
     {
       "path": "native/macos/toolchain.json",
@@ -337,7 +337,7 @@
     },
     {
       "path": "native/macos/Sources/EditacMacOS/session/NativeSessionExecutor.swift",
-      "sha256": "00a84d05dcd1948c132567be37e8a2fb517b2f6f8a066102ae9ecfd6209bdbeb"
+      "sha256": "ccb11a8fe6123ecef99e678d693e173859ddcaae285358b6e8fcb7057093190d"
     },
     {
       "path": "native/macos/Sources/EditacMacOS/transport/NativeDocumentCoordinator.swift",
@@ -346,6 +346,34 @@
     {
       "path": "native/macos/tests/Collaboration/CollaborationTests.swift",
       "sha256": "bbf9a988146cb8970dd61dc225fbc45560a722b0eb7398ad65be1701b3f48882"
+    },
+    {
+      "path": "native/macos/Sources/EditacMacOS/extensions/NativeExtensions.swift",
+      "sha256": "54a5c5d0041af1a8afe361e21552ae1d33fac472a096f2da1a68e7c2cf4ce4b8"
+    },
+    {
+      "path": "native/macos/Sources/EditacMacOS/extensions/README.md",
+      "sha256": "d019abcbddc8599c041523a656f5e1ccc182c1865c2bc1bffd4c5f45157f380d"
+    },
+    {
+      "path": "native/macos/tests/Extensions/ExtensionsTests.swift",
+      "sha256": "04a907bccd66f24df49909389d94bc39b82e33642a81de6a22fcb5cc96db756c"
+    },
+    {
+      "path": "native/macos/tests/ExtensionsFixture/Cargo.lock",
+      "sha256": "3e5393aaa3064729f4e3a93b746430cd6ee1629dc74221fe207368e81a097b94"
+    },
+    {
+      "path": "native/macos/tests/ExtensionsFixture/Cargo.toml",
+      "sha256": "27046c656e631de3c16f448ad74e33ef29bb870e141c318db705b15e566216d7"
+    },
+    {
+      "path": "native/macos/tests/ExtensionsFixture/corpus.json",
+      "sha256": "937e01e10c58b5999d87dd462b4781528e360432a78b7ef9d6e2846691f20b90"
+    },
+    {
+      "path": "native/macos/tests/ExtensionsFixture/src/main.rs",
+      "sha256": "c1ca9480b94dcaff9667916b5f8e4e949cc324b49f40eba7c1d2ccdeb05849ed"
     }
   ],
   "evidence": []
