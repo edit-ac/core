@@ -1,3 +1,4 @@
+import { decodeTableClipboard, encodeTableClipboard } from './tables/clipboard.js';
 import type { EditorCommand, CommitResult, EngineHandle, Json, PrepareRequest, ProjectedNode } from '@edit-ac/core';
 
 export interface ImageMetadata { url: string; alt: string; title: string; source: string }
@@ -71,6 +72,7 @@ class BasicContentView implements ContentView {
   private imageKey = '';
   private cells: { row: number; column: number; rows: number; columns: number; expected: Json } | undefined;
   private firstCell: { row: number; column: number } | undefined;
+  private focusCell: { row: number; column: number } | undefined;
   private readonly cellButtons: HTMLButtonElement[] = [];
   private readonly actions: HTMLButtonElement[] = [];
   constructor(private readonly context: ContentContext, descriptor: ImageMetadata | Table, private readonly imageUrl: ContentOptions['imageUrl'], private readonly protectedCells: ContentOptions['tableProtectedCells']) {
@@ -92,6 +94,7 @@ class BasicContentView implements ContentView {
         const e=event as KeyboardEvent;if(e.target!==this.element||e.isComposing)return;
         if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='z'){e.preventDefault();if(!this.readOnly)this.context.engine.history({type:e.shiftKey?'redo':'undo'});return;}
         if(!this.cells)return;
+        if(this.navigateCells(e))return;
         if(e.key==='Escape'){e.preventDefault();this.leaveCells();return;}
         if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();this.rectangle(null);return;}
         if(e.key==='Enter'||(e.key.length===1&&!e.metaKey&&!e.ctrlKey&&!e.altKey)){
@@ -105,10 +108,9 @@ class BasicContentView implements ContentView {
         const current=parse(this.node);if(!current||!('rows'in current))return;
         const {row,column,rows,columns}=this.cells;
         const matrix=current.rows.slice(row,row+rows).map(r=>r.slice(column,column+columns).map(cellText));
-        if(rows*columns>128||matrix.flat().some(text=>/[\t\r\n]/u.test(text))||new TextEncoder().encode(matrix.flat().join('')).length>1048576){this.status.textContent='Cell clipboard exceeds the literal profile; current data preserved.';return;}
-        const text=matrix.map(r=>r.join('\t')).join('\n');e.clipboardData.setData('text/tab-separated-values',text);e.clipboardData.setData('text/plain',text);
-        const table=doc.createElement('table');for(const row of matrix){const tr=table.insertRow();for(const text of row)tr.insertCell().textContent=text;}
-        e.clipboardData.setData('text/html',table.outerHTML);this.status.textContent='Literal cells copied; formatting is not included.';
+        try{for(const [type,value] of Object.entries(encodeTableClipboard(doc,matrix)))e.clipboardData.setData(type,value);}
+        catch{this.status.textContent='Cell clipboard exceeds the literal profile; current data preserved.';return;}
+        this.status.textContent='Literal cells copied; formatting is not included.';
         if(type==='cut')this.rectangle(null);
       });
       const table=doc.createElement('table'); table.setAttribute('aria-label','Simple table'); const body=doc.createElement('tbody'); table.append(body); this.element.append(table);
@@ -125,6 +127,7 @@ class BasicContentView implements ContentView {
         this.listen(input,'compositionend',()=>{const expected=this.compositions.get(input);this.compositions.delete(input);this.edit(input,expected);});
         this.listen(input,'input',event=>{if(!(event as InputEvent).isComposing&&!this.compositions.has(input))this.edit(input);});
         this.listen(input,'keydown',event=>{const e=event as KeyboardEvent;if(e.isComposing||this.compositions.has(input))return;
+          if(e.altKey&&!e.ctrlKey&&!e.metaKey&&e.key==='Enter'){e.preventDefault();this.selectCells(r,c,false);return;}
           if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='z'){e.preventDefault();if(!this.readOnly){context.engine.history({type:e.shiftKey?'redo':'undo'});} }
         });
       });});
@@ -157,12 +160,34 @@ class BasicContentView implements ContentView {
   private selectedInput(): HTMLTextAreaElement | undefined {return this.controls.find(i=>Number(i.dataset.row)===this.cells?.row&&Number(i.dataset.column)===this.cells?.column);}
   private selectCells(row:number,column:number,extend:boolean):void {
     if(this.disposed||this.compositions.size)return;
-    if(!extend||!this.firstCell)this.firstCell={row,column};
-    const first=this.firstCell;this.cells={row:Math.min(first.row,row),column:Math.min(first.column,column),rows:Math.abs(first.row-row)+1,columns:Math.abs(first.column-column)+1,expected:this.node.blockAttributes};
-    this.paintCells();this.element.focus();this.status.textContent=`${this.cells.rows} rows by ${this.cells.columns} columns selected. Delete clears contents; use Remove rows or columns to change structure.`;
+    const data=parse(this.node);if(!data||!('rows'in data)||!Number.isInteger(row)||!Number.isInteger(column)||row<0||column<0||row>=data.rows.length||column>=data.alignments.length)return;
+    const first=extend&&this.firstCell?this.firstCell:{row,column};
+    const rows=Math.abs(first.row-row)+1,columns=Math.abs(first.column-column)+1;
+    if(rows*columns>128){this.status.textContent='Selection limit is 128 cells; current selection preserved.';return;}
+    this.firstCell=first;this.focusCell={row,column};
+    this.cells={row:Math.min(first.row,row),column:Math.min(first.column,column),rows,columns,expected:this.node.blockAttributes};
+    this.paintCells();this.element.focus();this.status.textContent=`${rows} rows by ${columns} columns selected. Arrows move; Shift extends; Enter edits; Tab uses native focus order. Delete clears contents; use Remove rows or columns to change structure.`;
+  }
+  private navigateCells(event:KeyboardEvent):boolean {
+    const data=parse(this.node),focus=this.focusCell;
+    if(!focus||!data||!('rows'in data)||event.altKey||event.metaKey)return false;
+    let {row,column}=focus;
+    switch(event.key){
+      case 'ArrowLeft':if(event.ctrlKey)return false;column--;break;
+      case 'ArrowRight':if(event.ctrlKey)return false;column++;break;
+      case 'ArrowUp':if(event.ctrlKey)return false;row--;break;
+      case 'ArrowDown':if(event.ctrlKey)return false;row++;break;
+      case 'Home':column=0;if(event.ctrlKey)row=0;break;
+      case 'End':column=data.alignments.length-1;if(event.ctrlKey)row=data.rows.length-1;break;
+      default:return false;
+    }
+    event.preventDefault();
+    row=Math.max(0,Math.min(row,data.rows.length-1));column=Math.max(0,Math.min(column,data.alignments.length-1));
+    if(row===focus.row&&column===focus.column){this.status.textContent='Table edge; no row or column added. Tab uses native focus order.';return true;}
+    this.selectCells(row,column,event.shiftKey);return true;
   }
   private paintCells():void {if(this.kind!=='table')return;const s=this.cells;for(let at=0;at<this.controls.length;at++){const input=this.controls[at]!,r=Number(input.dataset.row),c=Number(input.dataset.column);const selected=!!s&&r>=s.row&&r<s.row+s.rows&&c>=s.column&&c<s.column+s.columns;this.cellButtons[at]!.setAttribute('aria-pressed',String(selected));const td=input.closest('td,th') as HTMLElement;td.toggleAttribute('data-cell-selected',selected);td.style.outline=selected?'2px solid Highlight':'';}for(const button of this.actions)button.disabled=this.readOnly||!s;}
-  private leaveCells():void {this.cells=undefined;this.firstCell=undefined;this.paintCells();}
+  private leaveCells():void {this.cells=undefined;this.firstCell=undefined;this.focusCell=undefined;this.paintCells();}
   private commitTable(command:EditorCommand):boolean {
     if(this.readOnly||this.disposed)return false;
     try{this.context.engine.history({type:'explicit'});const result=this.context.commit({kind:'editor',origin:'module-table-command',commands:[command]});if(result.caret)this.context.engine.releaseAnchor(result.caret);this.status.textContent='Table updated.';return true;}
@@ -184,23 +209,8 @@ class BasicContentView implements ContentView {
     this.commitTable({type:'tableStructure',owner:this.node.id,expected:s.expected,action,index});
   }
   private pasteCells(data:DataTransfer):void {
-    try{
-      let matrix:string[][];
-      const tsv=data.getData('text/tab-separated-values'),plain=data.getData('text/plain'),html=data.getData('text/html');
-      let htmlMatrix:string[][]|undefined;
-      if(html){
-        if(html.length>1048576)throw Error();
-        const template=this.element.ownerDocument.createElement('template');template.innerHTML=html;
-        const table=template.content.querySelector('table');if(!table||template.content.children.length!==1||template.content.firstElementChild!==table)throw Error();
-        if([...table.querySelectorAll('*')].some(e=>!['TBODY','THEAD','TFOOT','TR','TD','TH'].includes(e.tagName)||[...e.attributes].some(a=>!['rowspan','colspan'].includes(a.name)||a.value!=='1')))throw Error();
-        htmlMatrix=[...table.rows].map(row=>[...row.cells].map(cell=>cell.textContent??''));
-      }
-      // An accompanying HTML offer may not hide unsupported merges or nesting
-      // behind a flattened plain/TSV fallback. Explicit TSV otherwise takes priority.
-      if(tsv||!htmlMatrix){const text=tsv||plain;if(text.length>1048576)throw Error();matrix=text.replace(/\r\n/g,'\n').split('\n').map(row=>row.split('\t'));}
-      else matrix=htmlMatrix;
-      this.rectangle(matrix);
-    }catch{this.status.textContent='Unsupported table clipboard; dimensions and simple unmerged literal cells are required.';}
+    try{this.rectangle(decodeTableClipboard(this.element.ownerDocument,data));}
+    catch{this.status.textContent='Unsupported table clipboard; dimensions and simple unmerged literal cells are required.';}
   }
   private edit(input: HTMLTextAreaElement, expected: Json = this.node.blockAttributes): void {
     if(this.disposed)return;

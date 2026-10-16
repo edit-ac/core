@@ -13,7 +13,7 @@ async function mount(value){config=typeof value==='object'?value:{};
  markdown=markdownExtension(await initMarkdown('/markdown/wasm/editac_markdown_wasm_bg.wasm'));
  runtime=await init('/core/wasm/editac_wasm_bg.wasm');const seed=runtime.createEngine({profile:'v5',documentId:identity.documentId,epoch:identity.epoch,nodes:[{text:''}]});
  seed.registerMarkdown(markdown.codec);
- const id=seed.read().visible[0].id,at=seed.anchor(id,0,'right');const content=seed.importMarkdown(config.plainTable?'| one | two |\n| --- | --- |\n| alpha😀 | beta |':source,{images:true,tables:true});
+ const id=seed.read().visible[0].id,at=seed.anchor(id,0,'right');const content=seed.importMarkdown(config.tableSource??(config.plainTable?'| one | two |\n| --- | --- |\n| alpha😀 | beta |':source),{images:true,tables:true});
  seed.commit(seed.prepare({kind:'fragment',origin:'prepared-content',range:{anchor:at,focus:at},blocks:content.blocks}));seed.releaseAnchor(at);seed.history({type:'clear'});
  const checkpoint=seed.checkpoint();seed.dispose();const store=await CheckpointStorage.open(indexedDB,databaseName);try{await store.publish(checkpoint,[]);}finally{store.close();}
  session=await recoverLocalDocument({assetUrl:'/core/wasm/editac_wasm_bg.wasm',databaseName,identity,indexedDB,locks:navigator.locks});session.writer.engine.history({type:'clear'});bind(!!config.disabled);return true;
