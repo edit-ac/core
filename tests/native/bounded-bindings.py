@@ -78,6 +78,14 @@ def main():
     for error in ['NativeHostReceiptResult', 'NativeSessionError', 'NativeStoreFailure', 'NativeRevisionFailure']:
         check('session-error-' + error, error in swift and error in kotlin)
     check('session-optional-owned-revision', 'revision: Data?' in swift and 'revision: ByteArray?' in kotlin)
+    for method in ['validateChangeModel', 'captureReviewRevision', 'readReviewRevision', 'compareReviewRevisions', 'setReviewRetention']:
+        check('review-method-' + method, bool(re.search(r'func\s+' + method + r'\s*\(', swift)) and bool(re.search(r'fun\s+' + method + r'\s*\(', kotlin)))
+    for record in ['NativeChangeModel', 'NativeReviewRevision']:
+        check('review-record-' + record, ('struct ' + record in swift) and ('data class ' + record in kotlin))
+    for enum in ['NativeReviewRead', 'NativeReviewComparison', 'NativeReviewSide', 'NativeReviewUnavailable', 'NativeReviewRepresentation', 'NativeReviewFailure']:
+        check('review-enum-' + enum, enum in swift and enum in kotlin)
+    check('review-owned-model', 'json: Data' in swift and 'json: ByteArray' in kotlin)
+    check('review-owned-hash', 'hash: Data' in swift and 'hash: ByteArray' in kotlin)
     check('no-engine-internals', not any(re.search(r'\b' + term + r'\b', swift + kotlin) for term in ['Yrs', 'PreparedEditorEdit', 'DocumentIdentity', 'Bridge', 'NativePointer']))
     check('no-callback-interface', 'uniffi::export(callback_interface)' not in (CORE / 'crates/editac-ffi/src/lib.rs').read_text() and 'FfiConverterCallbackInterface' not in swift + kotlin)
     check('pinned-generator', 'version = "0.32.2"' in (CORE / 'Cargo.lock').read_text() and 'uniffi = "=0.32.2"' in (CORE / 'crates/editac-ffi/Cargo.toml').read_text())

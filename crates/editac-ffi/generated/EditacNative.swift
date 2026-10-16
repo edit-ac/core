@@ -1116,6 +1116,25 @@ public protocol NativeSessionProtocol: AnyObject, Sendable {
      */
     func takeHostPresenceFrames(token: String, maxFrames: UInt32, now: UInt64) throws  -> [NativeHostFrame]
     
+    /**
+     * Explicit acknowledged-state capture; never called from typing/edit/history hooks.
+     */
+    func captureReviewRevision(revision: Data, name: String, requiredKeyProfile: String?) throws  -> NativeReviewRevision
+    
+    func compareReviewRevisions(before: NativeReviewRevision, after: NativeReviewRevision, beforeKeyProfile: String?, afterKeyProfile: String?, maxBytes: UInt64) throws  -> NativeReviewComparison
+    
+    func readReviewRevision(revision: NativeReviewRevision, availableKeyProfile: String?) throws  -> NativeReviewRead
+    
+    /**
+     * Tightening immediately prunes; widening cannot recreate evicted history.
+     */
+    func setReviewRetention(maxRevisions: UInt32, maxTotalBytes: UInt64) throws 
+    
+    /**
+     * Canonical shared decoder/validator. No native semantic parser or author inference.
+     */
+    func validateChangeModel(bytes: Data, maxBytes: UInt64) throws  -> NativeChangeModel
+    
 }
 /**
  * Foreign aliases share this single serialized owner. No callback API is exported;
@@ -1702,6 +1721,73 @@ open func takeHostPresenceFrames(token: String, maxFrames: UInt32, now: UInt64)t
 })
 }
     
+    /**
+     * Explicit acknowledged-state capture; never called from typing/edit/history hooks.
+     */
+open func captureReviewRevision(revision: Data, name: String, requiredKeyProfile: String?)throws  -> NativeReviewRevision  {
+    return try  FfiConverterTypeNativeReviewRevision_lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_capture_review_revision(
+            self.uniffiCloneHandle(),
+        FfiConverterData.lower(revision),
+        FfiConverterString.lower(name),
+        FfiConverterOptionString.lower(requiredKeyProfile),uniffiCallStatus
+    )
+})
+}
+    
+open func compareReviewRevisions(before: NativeReviewRevision, after: NativeReviewRevision, beforeKeyProfile: String?, afterKeyProfile: String?, maxBytes: UInt64)throws  -> NativeReviewComparison  {
+    return try  FfiConverterTypeNativeReviewComparison_lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_compare_review_revisions(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeNativeReviewRevision_lower(before),
+        FfiConverterTypeNativeReviewRevision_lower(after),
+        FfiConverterOptionString.lower(beforeKeyProfile),
+        FfiConverterOptionString.lower(afterKeyProfile),
+        FfiConverterUInt64.lower(maxBytes),uniffiCallStatus
+    )
+})
+}
+    
+open func readReviewRevision(revision: NativeReviewRevision, availableKeyProfile: String?)throws  -> NativeReviewRead  {
+    return try  FfiConverterTypeNativeReviewRead_lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_read_review_revision(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeNativeReviewRevision_lower(revision),
+        FfiConverterOptionString.lower(availableKeyProfile),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Tightening immediately prunes; widening cannot recreate evicted history.
+     */
+open func setReviewRetention(maxRevisions: UInt32, maxTotalBytes: UInt64)throws   {try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_set_review_retention(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(maxRevisions),
+        FfiConverterUInt64.lower(maxTotalBytes),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Canonical shared decoder/validator. No native semantic parser or author inference.
+     */
+open func validateChangeModel(bytes: Data, maxBytes: UInt64)throws  -> NativeChangeModel  {
+    return try  FfiConverterTypeNativeChangeModel_lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_validate_change_model(
+            self.uniffiCloneHandle(),
+        FfiConverterData.lower(bytes),
+        FfiConverterUInt64.lower(maxBytes),uniffiCallStatus
+    )
+})
+}
+    
 
     
 }
@@ -1935,6 +2021,70 @@ public func FfiConverterTypeBatchResult_lift(_ buf: RustBuffer) throws -> BatchR
 #endif
 public func FfiConverterTypeBatchResult_lower(_ value: BatchResult) -> RustBuffer {
     return FfiConverterTypeBatchResult.lower(value)
+}
+
+
+public struct NativeChangeModel: Equatable, Hashable {
+    /**
+     * Canonical editac-change-model-v1 bytes, not a writable replica.
+     */
+    public var json: Data
+    public var representation: NativeReviewRepresentation
+    public var attribution: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Canonical editac-change-model-v1 bytes, not a writable replica.
+         */json: Data, representation: NativeReviewRepresentation, attribution: String) {
+        self.json = json
+        self.representation = representation
+        self.attribution = attribution
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NativeChangeModel: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeChangeModel: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeChangeModel {
+        return
+            try NativeChangeModel(
+                json: FfiConverterData.read(from: &buf), 
+                representation: FfiConverterTypeNativeReviewRepresentation.read(from: &buf), 
+                attribution: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NativeChangeModel, into buf: inout [UInt8]) {
+        FfiConverterData.write(value.json, into: &buf)
+        FfiConverterTypeNativeReviewRepresentation.write(value.representation, into: &buf)
+        FfiConverterString.write(value.attribution, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeChangeModel_lift(_ buf: RustBuffer) throws -> NativeChangeModel {
+    return try FfiConverterTypeNativeChangeModel.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeChangeModel_lower(_ value: NativeChangeModel) -> RustBuffer {
+    return FfiConverterTypeNativeChangeModel.lower(value)
 }
 
 
@@ -2487,6 +2637,90 @@ public func FfiConverterTypeNativePresenceSelection_lift(_ buf: RustBuffer) thro
 #endif
 public func FfiConverterTypeNativePresenceSelection_lower(_ value: NativePresenceSelection) -> RustBuffer {
     return FfiConverterTypeNativePresenceSelection.lower(value)
+}
+
+
+public struct NativeReviewRevision: Equatable, Hashable {
+    /**
+     * Opaque, process-local HistoryStore key. Never a persisted ordering token.
+     */
+    public var key: String
+    public var documentId: String
+    public var epoch: String
+    public var schema: String
+    public var moduleProfile: String
+    public var observedRevision: Data
+    public var representation: NativeReviewRepresentation
+    public var hash: Data
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Opaque, process-local HistoryStore key. Never a persisted ordering token.
+         */key: String, documentId: String, epoch: String, schema: String, moduleProfile: String, observedRevision: Data, representation: NativeReviewRepresentation, hash: Data) {
+        self.key = key
+        self.documentId = documentId
+        self.epoch = epoch
+        self.schema = schema
+        self.moduleProfile = moduleProfile
+        self.observedRevision = observedRevision
+        self.representation = representation
+        self.hash = hash
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NativeReviewRevision: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeReviewRevision: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeReviewRevision {
+        return
+            try NativeReviewRevision(
+                key: FfiConverterString.read(from: &buf), 
+                documentId: FfiConverterString.read(from: &buf), 
+                epoch: FfiConverterString.read(from: &buf), 
+                schema: FfiConverterString.read(from: &buf), 
+                moduleProfile: FfiConverterString.read(from: &buf), 
+                observedRevision: FfiConverterData.read(from: &buf), 
+                representation: FfiConverterTypeNativeReviewRepresentation.read(from: &buf), 
+                hash: FfiConverterData.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NativeReviewRevision, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.key, into: &buf)
+        FfiConverterString.write(value.documentId, into: &buf)
+        FfiConverterString.write(value.epoch, into: &buf)
+        FfiConverterString.write(value.schema, into: &buf)
+        FfiConverterString.write(value.moduleProfile, into: &buf)
+        FfiConverterData.write(value.observedRevision, into: &buf)
+        FfiConverterTypeNativeReviewRepresentation.write(value.representation, into: &buf)
+        FfiConverterData.write(value.hash, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeReviewRevision_lift(_ buf: RustBuffer) throws -> NativeReviewRevision {
+    return try FfiConverterTypeNativeReviewRevision.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeReviewRevision_lower(_ value: NativeReviewRevision) -> RustBuffer {
+    return FfiConverterTypeNativeReviewRevision.lower(value)
 }
 
 
@@ -3771,6 +4005,455 @@ public func FfiConverterTypeNativeHostReceiptResult_lower(_ value: NativeHostRec
 
 
 
+public enum NativeReviewComparison: Equatable, Hashable {
+    
+    case available(model: NativeChangeModel
+    )
+    case unavailable(side: NativeReviewSide, reason: NativeReviewUnavailable
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension NativeReviewComparison: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeReviewComparison: FfiConverterRustBuffer {
+    typealias SwiftType = NativeReviewComparison
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeReviewComparison {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .available(model: try FfiConverterTypeNativeChangeModel.read(from: &buf)
+        )
+        
+        case 2: return .unavailable(side: try FfiConverterTypeNativeReviewSide.read(from: &buf), reason: try FfiConverterTypeNativeReviewUnavailable.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: NativeReviewComparison, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .available(model):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeNativeChangeModel.write(model, into: &buf)
+            
+        
+        case let .unavailable(side,reason):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeNativeReviewSide.write(side, into: &buf)
+            FfiConverterTypeNativeReviewUnavailable.write(reason, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeReviewComparison_lift(_ buf: RustBuffer) throws -> NativeReviewComparison {
+    return try FfiConverterTypeNativeReviewComparison.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeReviewComparison_lower(_ value: NativeReviewComparison) -> RustBuffer {
+    return FfiConverterTypeNativeReviewComparison.lower(value)
+}
+
+
+
+
+public enum NativeReviewFailure: Equatable, Hashable {
+    
+    case invalid
+    case scopeMismatch
+    case representationMismatch
+    case hashMismatch
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension NativeReviewFailure: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeReviewFailure: FfiConverterRustBuffer {
+    typealias SwiftType = NativeReviewFailure
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeReviewFailure {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .invalid
+        
+        case 2: return .scopeMismatch
+        
+        case 3: return .representationMismatch
+        
+        case 4: return .hashMismatch
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: NativeReviewFailure, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .invalid:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .scopeMismatch:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .representationMismatch:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .hashMismatch:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeReviewFailure_lift(_ buf: RustBuffer) throws -> NativeReviewFailure {
+    return try FfiConverterTypeNativeReviewFailure.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeReviewFailure_lower(_ value: NativeReviewFailure) -> RustBuffer {
+    return FfiConverterTypeNativeReviewFailure.lower(value)
+}
+
+
+
+
+public enum NativeReviewRead: Equatable, Hashable {
+    
+    case available(name: String, bytes: Data
+    )
+    case unavailable(reason: NativeReviewUnavailable
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension NativeReviewRead: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeReviewRead: FfiConverterRustBuffer {
+    typealias SwiftType = NativeReviewRead
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeReviewRead {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .available(name: try FfiConverterString.read(from: &buf), bytes: try FfiConverterData.read(from: &buf)
+        )
+        
+        case 2: return .unavailable(reason: try FfiConverterTypeNativeReviewUnavailable.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: NativeReviewRead, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .available(name,bytes):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(name, into: &buf)
+            FfiConverterData.write(bytes, into: &buf)
+            
+        
+        case let .unavailable(reason):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeNativeReviewUnavailable.write(reason, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeReviewRead_lift(_ buf: RustBuffer) throws -> NativeReviewRead {
+    return try FfiConverterTypeNativeReviewRead.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeReviewRead_lower(_ value: NativeReviewRead) -> RustBuffer {
+    return FfiConverterTypeNativeReviewRead.lower(value)
+}
+
+
+
+
+public enum NativeReviewRepresentation: Equatable, Hashable {
+    
+    case exactSource
+    case projectedMarkdown(serializer: String, dialect: String
+    )
+    case semantic
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension NativeReviewRepresentation: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeReviewRepresentation: FfiConverterRustBuffer {
+    typealias SwiftType = NativeReviewRepresentation
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeReviewRepresentation {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .exactSource
+        
+        case 2: return .projectedMarkdown(serializer: try FfiConverterString.read(from: &buf), dialect: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 3: return .semantic
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: NativeReviewRepresentation, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .exactSource:
+            writeInt(&buf, Int32(1))
+        
+        
+        case let .projectedMarkdown(serializer,dialect):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(serializer, into: &buf)
+            FfiConverterString.write(dialect, into: &buf)
+            
+        
+        case .semantic:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeReviewRepresentation_lift(_ buf: RustBuffer) throws -> NativeReviewRepresentation {
+    return try FfiConverterTypeNativeReviewRepresentation.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeReviewRepresentation_lower(_ value: NativeReviewRepresentation) -> RustBuffer {
+    return FfiConverterTypeNativeReviewRepresentation.lower(value)
+}
+
+
+
+
+public enum NativeReviewSide: Equatable, Hashable {
+    
+    case before
+    case after
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension NativeReviewSide: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeReviewSide: FfiConverterRustBuffer {
+    typealias SwiftType = NativeReviewSide
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeReviewSide {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .before
+        
+        case 2: return .after
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: NativeReviewSide, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .before:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .after:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeReviewSide_lift(_ buf: RustBuffer) throws -> NativeReviewSide {
+    return try FfiConverterTypeNativeReviewSide.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeReviewSide_lower(_ value: NativeReviewSide) -> RustBuffer {
+    return FfiConverterTypeNativeReviewSide.lower(value)
+}
+
+
+
+
+public enum NativeReviewUnavailable: Equatable, Hashable {
+    
+    case missing
+    case pruned
+    case incompatibleSchema
+    case keyUnavailable
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension NativeReviewUnavailable: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeReviewUnavailable: FfiConverterRustBuffer {
+    typealias SwiftType = NativeReviewUnavailable
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeReviewUnavailable {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .missing
+        
+        case 2: return .pruned
+        
+        case 3: return .incompatibleSchema
+        
+        case 4: return .keyUnavailable
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: NativeReviewUnavailable, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .missing:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .pruned:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .incompatibleSchema:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .keyUnavailable:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeReviewUnavailable_lift(_ buf: RustBuffer) throws -> NativeReviewUnavailable {
+    return try FfiConverterTypeNativeReviewUnavailable.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeReviewUnavailable_lower(_ value: NativeReviewUnavailable) -> RustBuffer {
+    return FfiConverterTypeNativeReviewUnavailable.lower(value)
+}
+
+
+
+
 public enum NativeRevisionFailure: Equatable, Hashable {
     
     case invalidToken
@@ -3981,6 +4664,8 @@ enum NativeSessionError: Swift.Error, Equatable, Hashable, Foundation.LocalizedE
     )
     case CommandInput(message: String
     )
+    case ReviewInput(reason: NativeReviewFailure
+    )
 
     
 
@@ -4060,6 +4745,9 @@ public struct FfiConverterTypeNativeSessionError: FfiConverterRustBuffer {
             )
         case 28: return .CommandInput(
             message: try FfiConverterString.read(from: &buf)
+            )
+        case 29: return .ReviewInput(
+            reason: try FfiConverterTypeNativeReviewFailure.read(from: &buf)
             )
 
          default: throw UniffiInternalError.unexpectedEnumCase
@@ -4195,6 +4883,11 @@ public struct FfiConverterTypeNativeSessionError: FfiConverterRustBuffer {
         case let .CommandInput(message):
             writeInt(&buf, Int32(28))
             FfiConverterString.write(message, into: &buf)
+            
+        
+        case let .ReviewInput(reason):
+            writeInt(&buf, Int32(29))
+            FfiConverterTypeNativeReviewFailure.write(reason, into: &buf)
             
         }
     }
@@ -4975,6 +5668,21 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_editac_ffi_checksum_method_nativesession_take_host_presence_frames() != 57315) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_capture_review_revision() != 48179) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_compare_review_revisions() != 39331) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_read_review_revision() != 6152) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_set_review_retention() != 55963) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_validate_change_model() != 36818) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_editac_ffi_checksum_constructor_nativeengine_create() != 33211) {

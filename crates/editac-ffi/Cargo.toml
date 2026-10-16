@@ -23,6 +23,7 @@ required-features = ["bindgen"]
 
 [dependencies]
 editac-core = { path = "../editac-core" }
+editac-diff = { path = "../editac-diff" }
 editac-session = { path = "../editac-session", features = ["native-store"] }
 yrs.workspace = true
 serde = { version = "=1.0.229", features = ["derive"] }

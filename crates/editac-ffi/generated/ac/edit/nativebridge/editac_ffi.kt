@@ -787,6 +787,16 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_take_host_presence_frames(
     ): Int
+    external fun uniffi_editac_ffi_checksum_method_nativesession_capture_review_revision(
+    ): Int
+    external fun uniffi_editac_ffi_checksum_method_nativesession_compare_review_revisions(
+    ): Int
+    external fun uniffi_editac_ffi_checksum_method_nativesession_read_review_revision(
+    ): Int
+    external fun uniffi_editac_ffi_checksum_method_nativesession_set_review_retention(
+    ): Int
+    external fun uniffi_editac_ffi_checksum_method_nativesession_validate_change_model(
+    ): Int
     external fun uniffi_editac_ffi_checksum_constructor_nativeengine_create(
     ): Int
     external fun uniffi_editac_ffi_checksum_constructor_nativeengine_restore(
@@ -940,6 +950,16 @@ internal object UniffiLib {
     external fun uniffi_editac_ffi_fn_method_nativesession_set_host_presence(`ptr`: Long,`token`: RustBuffer.ByValue,`anchor`: RustBuffer.ByValue,`focus`: RustBuffer.ByValue,`present`: Byte,`now`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     external fun uniffi_editac_ffi_fn_method_nativesession_take_host_presence_frames(`ptr`: Long,`token`: RustBuffer.ByValue,`maxFrames`: Int,`now`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_editac_ffi_fn_method_nativesession_capture_review_revision(`ptr`: Long,`revision`: RustBuffer.ByValue,`name`: RustBuffer.ByValue,`requiredKeyProfile`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_editac_ffi_fn_method_nativesession_compare_review_revisions(`ptr`: Long,`before`: RustBuffer.ByValue,`after`: RustBuffer.ByValue,`beforeKeyProfile`: RustBuffer.ByValue,`afterKeyProfile`: RustBuffer.ByValue,`maxBytes`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_editac_ffi_fn_method_nativesession_read_review_revision(`ptr`: Long,`revision`: RustBuffer.ByValue,`availableKeyProfile`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_editac_ffi_fn_method_nativesession_set_review_retention(`ptr`: Long,`maxRevisions`: Int,`maxTotalBytes`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
+    external fun uniffi_editac_ffi_fn_method_nativesession_validate_change_model(`ptr`: Long,`bytes`: RustBuffer.ByValue,`maxBytes`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     external fun uniffi_editac_ffi_fn_func_abi_version(uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
@@ -1228,6 +1248,21 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_editac_ffi_checksum_method_nativesession_take_host_presence_frames() and 0xFFFF) != 57315) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_editac_ffi_checksum_method_nativesession_capture_review_revision() and 0xFFFF) != 48179) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_editac_ffi_checksum_method_nativesession_compare_review_revisions() and 0xFFFF) != 39331) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_editac_ffi_checksum_method_nativesession_read_review_revision() and 0xFFFF) != 6152) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_editac_ffi_checksum_method_nativesession_set_review_retention() and 0xFFFF) != 55963) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_editac_ffi_checksum_method_nativesession_validate_change_model() and 0xFFFF) != 36818) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_editac_ffi_checksum_constructor_nativeengine_create() and 0xFFFF) != 33211) {
@@ -2396,6 +2431,25 @@ public interface NativeSessionInterface {
      */
     fun `takeHostPresenceFrames`(`token`: kotlin.String, `maxFrames`: kotlin.UInt, `now`: kotlin.ULong): List<NativeHostFrame>
     
+    /**
+     * Explicit acknowledged-state capture; never called from typing/edit/history hooks.
+     */
+    fun `captureReviewRevision`(`revision`: kotlin.ByteArray, `name`: kotlin.String, `requiredKeyProfile`: kotlin.String?): NativeReviewRevision
+    
+    fun `compareReviewRevisions`(`before`: NativeReviewRevision, `after`: NativeReviewRevision, `beforeKeyProfile`: kotlin.String?, `afterKeyProfile`: kotlin.String?, `maxBytes`: kotlin.ULong): NativeReviewComparison
+    
+    fun `readReviewRevision`(`revision`: NativeReviewRevision, `availableKeyProfile`: kotlin.String?): NativeReviewRead
+    
+    /**
+     * Tightening immediately prunes; widening cannot recreate evicted history.
+     */
+    fun `setReviewRetention`(`maxRevisions`: kotlin.UInt, `maxTotalBytes`: kotlin.ULong)
+    
+    /**
+     * Canonical shared decoder/validator. No native semantic parser or author inference.
+     */
+    fun `validateChangeModel`(`bytes`: kotlin.ByteArray, `maxBytes`: kotlin.ULong): NativeChangeModel
+    
     companion object
 }
 
@@ -3201,6 +3255,98 @@ open class NativeSession: Disposable, AutoCloseable, NativeSessionInterface
     
 
     
+    /**
+     * Explicit acknowledged-state capture; never called from typing/edit/history hooks.
+     */
+    @Throws(NativeSessionException::class)override fun `captureReviewRevision`(`revision`: kotlin.ByteArray, `name`: kotlin.String, `requiredKeyProfile`: kotlin.String?): NativeReviewRevision {
+            return FfiConverterTypeNativeReviewRevision.lift(
+    callWithHandle {
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_method_nativesession_capture_review_revision(
+        it,
+        
+        FfiConverterByteArray.lower(`revision`),
+        FfiConverterString.lower(`name`),
+        FfiConverterOptionalString.lower(`requiredKeyProfile`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    @Throws(NativeSessionException::class)override fun `compareReviewRevisions`(`before`: NativeReviewRevision, `after`: NativeReviewRevision, `beforeKeyProfile`: kotlin.String?, `afterKeyProfile`: kotlin.String?, `maxBytes`: kotlin.ULong): NativeReviewComparison {
+            return FfiConverterTypeNativeReviewComparison.lift(
+    callWithHandle {
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_method_nativesession_compare_review_revisions(
+        it,
+        
+        FfiConverterTypeNativeReviewRevision.lower(`before`),
+        FfiConverterTypeNativeReviewRevision.lower(`after`),
+        FfiConverterOptionalString.lower(`beforeKeyProfile`),
+        FfiConverterOptionalString.lower(`afterKeyProfile`),
+        FfiConverterULong.lower(`maxBytes`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    @Throws(NativeSessionException::class)override fun `readReviewRevision`(`revision`: NativeReviewRevision, `availableKeyProfile`: kotlin.String?): NativeReviewRead {
+            return FfiConverterTypeNativeReviewRead.lift(
+    callWithHandle {
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_method_nativesession_read_review_revision(
+        it,
+        
+        FfiConverterTypeNativeReviewRevision.lower(`revision`),
+        FfiConverterOptionalString.lower(`availableKeyProfile`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Tightening immediately prunes; widening cannot recreate evicted history.
+     */
+    @Throws(NativeSessionException::class)override fun `setReviewRetention`(`maxRevisions`: kotlin.UInt, `maxTotalBytes`: kotlin.ULong)
+        = 
+    callWithHandle {
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_method_nativesession_set_review_retention(
+        it,
+        
+        FfiConverterUInt.lower(`maxRevisions`),
+        FfiConverterULong.lower(`maxTotalBytes`),_status)
+}
+    }
+    
+    
+
+    
+    /**
+     * Canonical shared decoder/validator. No native semantic parser or author inference.
+     */
+    @Throws(NativeSessionException::class)override fun `validateChangeModel`(`bytes`: kotlin.ByteArray, `maxBytes`: kotlin.ULong): NativeChangeModel {
+            return FfiConverterTypeNativeChangeModel.lift(
+    callWithHandle {
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_method_nativesession_validate_change_model(
+        it,
+        
+        FfiConverterByteArray.lower(`bytes`),
+        FfiConverterULong.lower(`maxBytes`),_status)
+}
+    }
+    )
+    }
+    
+
+    
 
     
 
@@ -3405,6 +3551,52 @@ public object FfiConverterTypeBatchResult: FfiConverterRustBuffer<BatchResult> {
     override fun write(value: BatchResult, buf: ByteBuffer) {
             FfiConverterString.write(value.`resultJson`, buf)
             FfiConverterString.write(value.`patchJson`, buf)
+    }
+}
+
+
+
+data class NativeChangeModel (
+    /**
+     * Canonical editac-change-model-v1 bytes, not a writable replica.
+     */
+    var `json`: kotlin.ByteArray
+    , 
+    var `representation`: NativeReviewRepresentation
+    , 
+    var `attribution`: kotlin.String
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeChangeModel: FfiConverterRustBuffer<NativeChangeModel> {
+    override fun read(buf: ByteBuffer): NativeChangeModel {
+        return NativeChangeModel(
+            FfiConverterByteArray.read(buf),
+            FfiConverterTypeNativeReviewRepresentation.read(buf),
+            FfiConverterString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: NativeChangeModel) = (
+            FfiConverterByteArray.allocationSize(value.`json`) +
+            FfiConverterTypeNativeReviewRepresentation.allocationSize(value.`representation`) +
+            FfiConverterString.allocationSize(value.`attribution`)
+    )
+
+    override fun write(value: NativeChangeModel, buf: ByteBuffer) {
+            FfiConverterByteArray.write(value.`json`, buf)
+            FfiConverterTypeNativeReviewRepresentation.write(value.`representation`, buf)
+            FfiConverterString.write(value.`attribution`, buf)
     }
 }
 
@@ -3816,6 +4008,77 @@ public object FfiConverterTypeNativePresenceSelection: FfiConverterRustBuffer<Na
     override fun write(value: NativePresenceSelection, buf: ByteBuffer) {
             FfiConverterTypeNativeAnchorResolution.write(value.`anchor`, buf)
             FfiConverterTypeNativeAnchorResolution.write(value.`focus`, buf)
+    }
+}
+
+
+
+data class NativeReviewRevision (
+    /**
+     * Opaque, process-local HistoryStore key. Never a persisted ordering token.
+     */
+    var `key`: kotlin.String
+    , 
+    var `documentId`: kotlin.String
+    , 
+    var `epoch`: kotlin.String
+    , 
+    var `schema`: kotlin.String
+    , 
+    var `moduleProfile`: kotlin.String
+    , 
+    var `observedRevision`: kotlin.ByteArray
+    , 
+    var `representation`: NativeReviewRepresentation
+    , 
+    var `hash`: kotlin.ByteArray
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeReviewRevision: FfiConverterRustBuffer<NativeReviewRevision> {
+    override fun read(buf: ByteBuffer): NativeReviewRevision {
+        return NativeReviewRevision(
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterByteArray.read(buf),
+            FfiConverterTypeNativeReviewRepresentation.read(buf),
+            FfiConverterByteArray.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: NativeReviewRevision) = (
+            FfiConverterString.allocationSize(value.`key`) +
+            FfiConverterString.allocationSize(value.`documentId`) +
+            FfiConverterString.allocationSize(value.`epoch`) +
+            FfiConverterString.allocationSize(value.`schema`) +
+            FfiConverterString.allocationSize(value.`moduleProfile`) +
+            FfiConverterByteArray.allocationSize(value.`observedRevision`) +
+            FfiConverterTypeNativeReviewRepresentation.allocationSize(value.`representation`) +
+            FfiConverterByteArray.allocationSize(value.`hash`)
+    )
+
+    override fun write(value: NativeReviewRevision, buf: ByteBuffer) {
+            FfiConverterString.write(value.`key`, buf)
+            FfiConverterString.write(value.`documentId`, buf)
+            FfiConverterString.write(value.`epoch`, buf)
+            FfiConverterString.write(value.`schema`, buf)
+            FfiConverterString.write(value.`moduleProfile`, buf)
+            FfiConverterByteArray.write(value.`observedRevision`, buf)
+            FfiConverterTypeNativeReviewRepresentation.write(value.`representation`, buf)
+            FfiConverterByteArray.write(value.`hash`, buf)
     }
 }
 
@@ -4902,6 +5165,377 @@ public object FfiConverterTypeNativeHostReceiptResult: FfiConverterRustBuffer<Na
 
 
 
+sealed class NativeReviewComparison {
+    
+    data class Available(
+        val `model`: ac.edit.nativebridge.NativeChangeModel) : NativeReviewComparison()
+        
+    {
+        
+
+        companion object
+    }
+    
+    data class Unavailable(
+        val `side`: ac.edit.nativebridge.NativeReviewSide, 
+        val `reason`: ac.edit.nativebridge.NativeReviewUnavailable) : NativeReviewComparison()
+        
+    {
+        
+
+        companion object
+    }
+    
+
+    
+
+    
+    
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeReviewComparison : FfiConverterRustBuffer<NativeReviewComparison>{
+    override fun read(buf: ByteBuffer): NativeReviewComparison {
+        return when(buf.getInt()) {
+            1 -> NativeReviewComparison.Available(
+                FfiConverterTypeNativeChangeModel.read(buf),
+                )
+            2 -> NativeReviewComparison.Unavailable(
+                FfiConverterTypeNativeReviewSide.read(buf),
+                FfiConverterTypeNativeReviewUnavailable.read(buf),
+                )
+            else -> throw RuntimeException("invalid enum value, something is very wrong!!")
+        }
+    }
+
+    override fun allocationSize(value: NativeReviewComparison): ULong = when(value) {
+        is NativeReviewComparison.Available -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterTypeNativeChangeModel.allocationSize(value.`model`)
+            )
+        }
+        is NativeReviewComparison.Unavailable -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterTypeNativeReviewSide.allocationSize(value.`side`)
+                + FfiConverterTypeNativeReviewUnavailable.allocationSize(value.`reason`)
+            )
+        }
+    }
+
+    override fun write(value: NativeReviewComparison, buf: ByteBuffer) {
+        when(value) {
+            is NativeReviewComparison.Available -> {
+                buf.putInt(1)
+                FfiConverterTypeNativeChangeModel.write(value.`model`, buf)
+                Unit
+            }
+            is NativeReviewComparison.Unavailable -> {
+                buf.putInt(2)
+                FfiConverterTypeNativeReviewSide.write(value.`side`, buf)
+                FfiConverterTypeNativeReviewUnavailable.write(value.`reason`, buf)
+                Unit
+            }
+        }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
+    }
+}
+
+
+
+
+
+
+enum class NativeReviewFailure {
+    
+    INVALID,
+    SCOPE_MISMATCH,
+    REPRESENTATION_MISMATCH,
+    HASH_MISMATCH;
+
+    
+
+
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeReviewFailure: FfiConverterRustBuffer<NativeReviewFailure> {
+    override fun read(buf: ByteBuffer) = try {
+        NativeReviewFailure.values()[buf.getInt() - 1]
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: NativeReviewFailure) = 4UL
+
+    override fun write(value: NativeReviewFailure, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+sealed class NativeReviewRead {
+    
+    data class Available(
+        val `name`: kotlin.String, 
+        val `bytes`: kotlin.ByteArray) : NativeReviewRead()
+        
+    {
+        
+
+        companion object
+    }
+    
+    data class Unavailable(
+        val `reason`: ac.edit.nativebridge.NativeReviewUnavailable) : NativeReviewRead()
+        
+    {
+        
+
+        companion object
+    }
+    
+
+    
+
+    
+    
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeReviewRead : FfiConverterRustBuffer<NativeReviewRead>{
+    override fun read(buf: ByteBuffer): NativeReviewRead {
+        return when(buf.getInt()) {
+            1 -> NativeReviewRead.Available(
+                FfiConverterString.read(buf),
+                FfiConverterByteArray.read(buf),
+                )
+            2 -> NativeReviewRead.Unavailable(
+                FfiConverterTypeNativeReviewUnavailable.read(buf),
+                )
+            else -> throw RuntimeException("invalid enum value, something is very wrong!!")
+        }
+    }
+
+    override fun allocationSize(value: NativeReviewRead): ULong = when(value) {
+        is NativeReviewRead.Available -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`name`)
+                + FfiConverterByteArray.allocationSize(value.`bytes`)
+            )
+        }
+        is NativeReviewRead.Unavailable -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterTypeNativeReviewUnavailable.allocationSize(value.`reason`)
+            )
+        }
+    }
+
+    override fun write(value: NativeReviewRead, buf: ByteBuffer) {
+        when(value) {
+            is NativeReviewRead.Available -> {
+                buf.putInt(1)
+                FfiConverterString.write(value.`name`, buf)
+                FfiConverterByteArray.write(value.`bytes`, buf)
+                Unit
+            }
+            is NativeReviewRead.Unavailable -> {
+                buf.putInt(2)
+                FfiConverterTypeNativeReviewUnavailable.write(value.`reason`, buf)
+                Unit
+            }
+        }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
+    }
+}
+
+
+
+
+
+sealed class NativeReviewRepresentation {
+    
+    object ExactSource : NativeReviewRepresentation()
+    
+    
+    data class ProjectedMarkdown(
+        val `serializer`: kotlin.String, 
+        val `dialect`: kotlin.String) : NativeReviewRepresentation()
+        
+    {
+        
+
+        companion object
+    }
+    
+    object Semantic : NativeReviewRepresentation()
+    
+    
+
+    
+
+    
+    
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeReviewRepresentation : FfiConverterRustBuffer<NativeReviewRepresentation>{
+    override fun read(buf: ByteBuffer): NativeReviewRepresentation {
+        return when(buf.getInt()) {
+            1 -> NativeReviewRepresentation.ExactSource
+            2 -> NativeReviewRepresentation.ProjectedMarkdown(
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                )
+            3 -> NativeReviewRepresentation.Semantic
+            else -> throw RuntimeException("invalid enum value, something is very wrong!!")
+        }
+    }
+
+    override fun allocationSize(value: NativeReviewRepresentation): ULong = when(value) {
+        is NativeReviewRepresentation.ExactSource -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+            )
+        }
+        is NativeReviewRepresentation.ProjectedMarkdown -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`serializer`)
+                + FfiConverterString.allocationSize(value.`dialect`)
+            )
+        }
+        is NativeReviewRepresentation.Semantic -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+            )
+        }
+    }
+
+    override fun write(value: NativeReviewRepresentation, buf: ByteBuffer) {
+        when(value) {
+            is NativeReviewRepresentation.ExactSource -> {
+                buf.putInt(1)
+                Unit
+            }
+            is NativeReviewRepresentation.ProjectedMarkdown -> {
+                buf.putInt(2)
+                FfiConverterString.write(value.`serializer`, buf)
+                FfiConverterString.write(value.`dialect`, buf)
+                Unit
+            }
+            is NativeReviewRepresentation.Semantic -> {
+                buf.putInt(3)
+                Unit
+            }
+        }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
+    }
+}
+
+
+
+
+
+
+enum class NativeReviewSide {
+    
+    BEFORE,
+    AFTER;
+
+    
+
+
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeReviewSide: FfiConverterRustBuffer<NativeReviewSide> {
+    override fun read(buf: ByteBuffer) = try {
+        NativeReviewSide.values()[buf.getInt() - 1]
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: NativeReviewSide) = 4UL
+
+    override fun write(value: NativeReviewSide, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+
+enum class NativeReviewUnavailable {
+    
+    MISSING,
+    PRUNED,
+    INCOMPATIBLE_SCHEMA,
+    KEY_UNAVAILABLE;
+
+    
+
+
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeReviewUnavailable: FfiConverterRustBuffer<NativeReviewUnavailable> {
+    override fun read(buf: ByteBuffer) = try {
+        NativeReviewUnavailable.values()[buf.getInt() - 1]
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: NativeReviewUnavailable) = 4UL
+
+    override fun write(value: NativeReviewUnavailable, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
 
 enum class NativeRevisionFailure {
     
@@ -5171,6 +5805,14 @@ sealed class NativeSessionException: kotlin.Exception() {
             get() = "message=${ `message` }"
     }
     
+    class ReviewInput(
+        
+        val `reason`: NativeReviewFailure
+        ) : NativeSessionException() {
+        override val message
+            get() = "reason=${ `reason` }"
+    }
+    
 
     
 
@@ -5240,6 +5882,9 @@ public object FfiConverterTypeNativeSessionError : FfiConverterRustBuffer<Native
                 )
             28 -> NativeSessionException.CommandInput(
                 FfiConverterString.read(buf),
+                )
+            29 -> NativeSessionException.ReviewInput(
+                FfiConverterTypeNativeReviewFailure.read(buf),
                 )
             else -> throw RuntimeException("invalid error enum value, something is very wrong!!")
         }
@@ -5371,6 +6016,11 @@ public object FfiConverterTypeNativeSessionError : FfiConverterRustBuffer<Native
                 4UL
                 + FfiConverterString.allocationSize(value.`message`)
             )
+            is NativeSessionException.ReviewInput -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterTypeNativeReviewFailure.allocationSize(value.`reason`)
+            )
         }
     }
 
@@ -5498,6 +6148,11 @@ public object FfiConverterTypeNativeSessionError : FfiConverterRustBuffer<Native
             is NativeSessionException.CommandInput -> {
                 buf.putInt(28)
                 FfiConverterString.write(value.`message`, buf)
+                Unit
+            }
+            is NativeSessionException.ReviewInput -> {
+                buf.putInt(29)
+                FfiConverterTypeNativeReviewFailure.write(value.`reason`, buf)
                 Unit
             }
         }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
