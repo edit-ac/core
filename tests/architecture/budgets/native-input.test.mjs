@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { digest, verifyPins } from '../../../scripts/architecture-budgets.mjs';
-import { inspectNativeInput, inspectNativeCJK, inspectNativeBuild, inspectNativeWorkload, inspectNativeEditWindows } from '../../../scripts/native-input-evidence.mjs';
+import { inspectNativeInput, inspectNativeCJK, inspectPinyinDispatches, inspectNativeBuild, inspectNativeWorkload, inspectNativeEditWindows } from '../../../scripts/native-input-evidence.mjs';
 // Prepared detector controls qualify ordering sensitivity only, never runtime support.
 const windowSamples=Array.from({length:12},(_,i)=>({inputAt:100+i*10,layoutDoneAt:105+i*10}));
 const windowResources=[{at:10},{at:20},...windowSamples.map(s=>({at:s.layoutDoneAt+1})),{at:230},{at:240}];
@@ -36,6 +36,12 @@ const result = JSON.parse(await read(index.directory+'/native-result.json'));
 const accessibility = JSON.parse(await read(index.directory+'/accessibility.json'));
 const cjk = JSON.parse(await read(index.directory+'/cjk-result.json'));
 const cjkAX = JSON.parse(await read(index.directory+'/cjk-accessibility.json'));
+const pinyinDispatches=[];
+for(const path of Object.keys(receipt.artifacts).filter(p=>p.startsWith('attachments/') && p.endsWith('.json'))) {
+  const dispatch=JSON.parse(await read(index.directory+'/'+path));
+  if(dispatch.transport==='single ordinary OS touch at observed software-key center; no replay or setter') pinyinDispatches.push(dispatch);
+}
+pinyinDispatches.sort((a,b)=>a.before-b.before);
 let observations, cjkObservations;
 const workloadObservations=[];
 const rejectedControls=[];
@@ -140,7 +146,18 @@ for (const [name,mutate] of Object.entries(mutations)) test('native admission re
   });
 });
 test('OS Pinyin candidate composition, commit, cancellation and accessibility geometry admit exact native artifacts',()=>{
-  cjkObservations=inspectNativeCJK(profile,receipt,cjk,cjkAX);
+  cjkObservations=inspectNativeCJK(profile,receipt,cjk,cjkAX,pinyinDispatches);
+});
+for(const [name,mutate] of Object.entries({
+  'missing key':d=>d.pop(),
+  'reordered keys':d=>[d[0],d[1]]=[d[1],d[0]],
+  'unmarked literal transport':d=>d[0].transport='KeyboardEvents.typeText',
+  'key outside keyboard':d=>d[0].frame.y=0,
+  'wrong tap point':d=>d[0].point.x+=1,
+  'reversed dispatch interval':d=>d[0].after=d[0].before-1
+})) test('CJK admission rejects '+name+' software-key dispatch',()=>{
+  assert.doesNotThrow(()=>inspectPinyinDispatches(pinyinDispatches));
+  const changed=structuredClone(pinyinDispatches);mutate(changed);assert.throws(()=>inspectPinyinDispatches(changed));
 });
 const cjkMutations={
   'missing CJK focus request':(r,n)=>n.cases[1].observed.focusRequests=0,
@@ -167,9 +184,9 @@ const cjkMutations={
   'composition AX source corruption':(r,n,a)=>a.keys[0].source+='n'
 };
 for(const [name,mutate] of Object.entries(cjkMutations)) test('CJK admission rejects '+name,()=>{
-  assert.doesNotThrow(()=>inspectNativeCJK(profile,receipt,cjk,cjkAX), 'valid current CJK contrast');
+  assert.doesNotThrow(()=>inspectNativeCJK(profile,receipt,cjk,cjkAX,pinyinDispatches), 'valid current CJK contrast');
   const r=structuredClone(receipt),n=structuredClone(cjk),a=structuredClone(cjkAX); mutate(r,n,a);
-  assert.throws(()=>inspectNativeCJK(profile,r,n,a),error=>{
+  assert.throws(()=>inspectNativeCJK(profile,r,n,a,pinyinDispatches),error=>{
     rejectedControls.push({family:'CJK',name,reason:error.message.slice(0,512)}); return true;
   });
 });

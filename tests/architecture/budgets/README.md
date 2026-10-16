@@ -315,11 +315,17 @@ The same owning command additionally runs the frozen `profile.cjk` scenario on
 that private simulator, configured with English and Simplified Chinese Pinyin.
 An instrumented UITextView observes outermost actual OS marked/unmark/insert
 calls. Provisional text stays in UIKit; selecting `你` commits one append through
-the generated Swift/Rust boundary. XCTest taps the native `n`,`i` keyboard keys,
-queries the candidate's OS accessibility frame and action, selects it, then types
+the generated Swift/Rust boundary. XCTest taps the observed centers of the native `n`,`i` keyboard keys,
+queries the candidate's OS accessibility frame and action, selects it, then taps
 `h`,`a`,`o` and invokes the host's cancellation action. Intermediate accessibility
-queries verify the committed source never contains provisional text. Native
-observations include marked/caret geometry, exact checkpoint recovery, thermal
+queries verify the committed source never contains provisional text. The
+software-key dispatch attachments retain each key, keyboard and window frame,
+the center touch point and an independent before/after interval, including when
+the subsequent callback assertion fails. Admission rejects missing/reordered
+keys, points outside the observed center, invalid geometry or literal keyboard
+event substitution. Sustained key presses with no native callback and unmarked
+`typeText` attempts remain failed evidence; no key is replayed.
+Native observations include marked/caret geometry, exact checkpoint recovery, thermal
 state and one commit/display callback. The candidate screenshot and accessibility
 tree are retained separately from native anchor geometry. This qualifies only the
 named diagnostic; one commit cannot qualify tails, all CJK input, VoiceOver or a
@@ -341,10 +347,17 @@ checkpoints, full snapshots and logs. The app restores the complete native
 engine state, verifies every generated block and projects all block text joined
 by newlines into TextKit1. Mixed-block native rendering remains unqualified.
 
-XCTest dispatches twelve actual English OS keyboard events per size, overwriting the last
-ASCII letter of the final block at a fixed UTF-16 range. It uses the same
-single-dispatch keyboard-events transport as ASCII; software-key touch attempts
-that lost delegate delivery remain retained as failed evidence.
+XCTest dispatches twelve actual English OS KeyboardEvents per size, overwriting
+the last ASCII letter of the final block at a fixed UTF-16 range. Each dispatch
+must receive its corresponding native sample before the next key; no replay or
+setter is permitted. Software keyboard visibility is recorded separately. This
+hardware-key path does not require visible software keys, while native focus,
+all twelve callbacks/resources and checkpoint/reopen remain mandatory. Earlier
+sustained/ordinary Long software-key touches without delegate delivery and the
+KeyboardEvents attempt stopped by an absent software-key lookup remain failures.
+First-run keyboard tutorial handling uses one application-screen touch at the
+observed Continue center, whose AX frame can extend beyond the keyboard frame;
+it records dispatch geometry before requiring actual dismissal.
 Workload readiness requires the actual keyboard-did-show
 notification, installed selection and key-window first-responder ownership;
 their separate native timestamps are retained in `focusReadiness`. This repairs

@@ -106,7 +106,22 @@ export function inspectNativeInput(profile, receipt, result, accessibility) {
     nativeLayoutCallbackMs:rawSummary(result.samples.map(s => (s.frameCallbackAt-result.frames.find(f => f.timestamp === s.displayTimestamp).callbackAt)*1000),100), gaps:result.gaps};
 }
 
-export function inspectNativeCJK(profile, receipt, result, ax) {
+export function inspectPinyinDispatches(dispatches) {
+  assert.deepEqual(dispatches.map(d=>d.key),['n','i','h','a','o'], 'missing or reordered Pinyin software-key dispatch');
+  let previous=0;
+  const contains=(outer,inner)=>inner.x>=outer.x && inner.y>=outer.y &&
+    inner.x+inner.width<=outer.x+outer.width && inner.y+inner.height<=outer.y+outer.height;
+  for(const d of dispatches) {
+    assert.equal(d.transport,'single ordinary OS touch at observed software-key center; no replay or setter');
+    for(const key of ['frame','keyboardFrame','windowFrame']) assert(geometry(d[key]) && d[key].width>0 && d[key].height>0,'invalid Pinyin dispatch geometry');
+    assert(contains(d.keyboardFrame,d.frame) && contains(d.windowFrame,d.frame),'Pinyin key outside keyboard/window');
+    assert.equal(d.point?.x,d.frame.x+d.frame.width/2); assert.equal(d.point?.y,d.frame.y+d.frame.height/2);
+    assert(finite(d.before) && d.before>=previous && finite(d.after) && d.after>=d.before,'invalid Pinyin dispatch ordering');
+    previous=d.after;
+  }
+}
+
+export function inspectNativeCJK(profile, receipt, result, ax, dispatches) {
   assert.equal(profile.cjk.scenario,'os-pinyin-ni-candidate-commit/hao-host-cancel/checkpoint-reopen-v1');
   assert.equal(profile.cjk.keyboard,'zh_Hans-Pinyin'); assert.equal(profile.cjk.inputMode,'zh-Hans');
   assert.deepEqual(profile.cjk.commitKeys,['n','i']); assert.deepEqual(profile.cjk.cancelKeys,['h','a','o']);
@@ -135,7 +150,8 @@ export function inspectNativeCJK(profile, receipt, result, ax) {
   }
   assert.equal(result.cases[0].observed.inputMode,'zh-Hans'); assert.equal(result.cases[0].observed.events,marked.length);
   inspectAppendFocus(result, 'zh-Hans', profile.initialUtf16Units);
-  assert.equal(ax.transport, 'XCTest application KeyboardEvents.typeText; one dispatch per key, no replay or setter');
+  assert.equal(ax.transport, 'single ordinary OS touch at observed software-key center; one dispatch per key, no replay or setter');
+  inspectPinyinDispatches(dispatches);
   const focusRequests = result.cases[1].observed.focusRequests;
   assert(Number.isSafeInteger(focusRequests) && focusRequests >= 1 && focusRequests <= 3, 'missing actual CJK focus acknowledgment');
   assert.deepEqual(result.cases[1].observed,{typed:'你',focusRequests,committed:expected,selectionUtf16:expected.length});

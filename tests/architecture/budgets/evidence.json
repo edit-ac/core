@@ -86,7 +86,7 @@
   "gestureReceipt": "architecture-results/fit-1.8-20261015/source-refresh-1/gestures-1/results.json",
   "gestureReceiptHash": "ed461eb185b454a4973a4ce2305b1db672e93d67ff1460ad995d11485fa175c6",
   "gestureScope": "16/16 actual-public-editor ordinary-pointer diagnostics: exact thin-glyph range endpoints, canceled native text drag, prose/code nested autoscroll across unchanged Task/Long \u00d7 baseline/Task, bounded native controls and cancellation. No full performance/platform qualification or new checked child.",
-  "currentDeliveryReceipt": "architecture-results/fit-1.8-20261016/native-tutorial-1/delivery-receipt.json",
+  "currentDeliveryReceipt": "architecture-results/fit-1.8-20261016/native-touch-1/delivery-receipt.json",
   "serviceReceipt": "architecture-results/fit-1.8-20261015/source-refresh-1/services-1/results.json",
   "serviceReceiptHash": "ac8448b57c0b2287dd5e7ef1c4ad9f73881b94771712eb9d9157843712598b95",
   "serviceScope": "16/16 actual-public-editor/lifecycle/resolver/sync diagnostic observations across unchanged full Task/Long \u00d7 baseline/Task. Prepared noncooperative host responses; constant-size atomic replacements, bounded queue/stale-result invalidation, exact local/remote commit and DOM node scopes, convergence and cleanup. Highlight/asset/conversion runtimes pending; no full PRF-03/performance/platform qualification or new checked child.",
@@ -155,16 +155,16 @@
   },
   "nativeScalingPartial": {
     "delivery": {
-      "path": "architecture-results/fit-1.8-20261016/main-adoption-startup-1/native3-partial.json",
-      "sha256": "2d2e664676162d23b9ea2ebb49c8c029066a2f64f04473d0e9008d894373865f"
+      "path": "architecture-results/fit-1.8-20261016/native-touch-1/delivery-receipt.json",
+      "sha256": "6e9630b07353c0412f42c90773af4f898404a5aa60beaa85f8b4bae1061a425e"
     },
     "state": "PARTIAL",
-    "scope": "Actual full current Task/Long3/3 each with12 OS edits, exact checkpoint/reopen,16 resource observations and ordered windows; complete native command fails ASCII tutorial dismissal. No native index update or current full canonical pass."
+    "scope": "Current Task/Long each3/3,12OS KeyboardEvents/16resources, full checkpoint/reopen; full native2/4fails. No index/current canonical admission."
   },
-  "currentCanonicalState": "No new full canonical run: current native producer3/4 fails Pinyin; prior full receipt516/569 with53fail/0skip retained. Fresh baseline/admission evidence is linked separately; native index remains historical/unqualified for changed inputs.",
+  "currentCanonicalState": "No new canonical run: final current native2/4fails ASCII tutorial dismissal and first Pinyin composing wait. Prior516/569,53fail,0skip remains historical; native/baseline indexes unchanged.",
   "activeChild": "FIT-1.8-I1-B4a",
   "nativeProfileHash": "5e80df8d90c38acd6ca191b2856c5d6c66ea9630ec87e5f943fe0e42a99d4fd9",
-  "lastRelevantChange": "2026-10-16: single-touch tutorial dismissal; safe verification-control geometry; keyboard/selection/input-mode/key-window readiness clocks. ASCII and full Task/Long pass; actual Pinyin marked-key dispatch remains unfinished.",
+  "lastRelevantChange": "2026-10-16: ordinary software-key Pinyin dispatch with geometry admission/negatives; application-screen tutorial action remains unreliable; workload KeyboardEvents await actual native acknowledgments rather than per-key software-key lookup. Final Task/Long pass, ASCII/Pinyin fail; no gate closes.",
   "startupAttributionPartial": {
     "path": "architecture-results/fit-1.8-20261015/startup-phases-1/partial-delivery-receipt.json",
     "sha256": "fa192635d3fa520b1303eb8d9521e7aa3493269a034a43521927460e202806ab",
@@ -187,19 +187,20 @@
     "sourceRevision": "c353c87f04046a451645445cf3b8d7c05fdd2b43d4cc683bf44c1b9cf2e6a11a",
     "state": "Implemented/verified B5h prerequisite only: Rust872, compiled WASM64, packed browser112, full startup24 observations/48 pairs/96 exact restorations and focused admission28; zero failures/skips. Long Task1455/1394.1ms still misses300/200ms, tails inconclusive; no full FIT/native/optional/accessibility/resource claim."
   },
-  "currentDeliveryReceiptHash": "57329594c0989efc312b52ce820c9724d5165dff0230586ae3a44091ef351764",
+  "currentDeliveryReceiptHash": "6e9630b07353c0412f42c90773af4f898404a5aa60beaa85f8b4bae1061a425e",
   "nativeActivationPartial": {
     "delivery": {
-      "path": "architecture-results/fit-1.8-20261016/native-tutorial-1/delivery-receipt.json",
-      "sha256": "57329594c0989efc312b52ce820c9724d5165dff0230586ae3a44091ef351764"
+      "path": "architecture-results/fit-1.8-20261016/native-touch-1/delivery-receipt.json",
+      "sha256": "6e9630b07353c0412f42c90773af4f898404a5aa60beaa85f8b4bae1061a425e"
     },
-    "state": "ASCII/Task/Long pass; Pinyin fails; original parent/child remain open",
-    "preparedDetectorCounts": {
-      "executed": 15,
-      "passed": 15,
+    "state": "Final native2/4,0skips: Task/Long pass, ASCII tutorial and first Pinyin marked key fail; original parent/child open",
+    "scopedPriorEvidence": "Pinyin6/6 in owning-2/3; ASCII5/5 in owning-3; no combination with current Task/Long",
+    "detectorCounts": {
+      "executed": 7,
+      "passed": 7,
       "failed": 0,
       "skipped": 0
     },
-    "nextImplementation": "Replace Pinyin literal KeyboardEvents transport with actual OS software-key activation at observed key geometry, retain dispatch/native callbacks, marked/candidate/commit/cancel observations; no setter, replay, smaller fixture, duration-only or unchanged retry. Full 4-case producer must pass before index/native/canonical admission."
+    "nextImplementation": "Defer unchanged native dispatch attempts; B5 startup repair from retained phases before any startup rerun. Native retry requires a concrete changed OS control/text-service interaction, not center-tap/readiness/duration-only repetition."
   }
 }
