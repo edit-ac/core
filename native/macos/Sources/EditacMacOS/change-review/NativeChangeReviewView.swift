@@ -16,7 +16,7 @@ final class NativeChangeReviewView: NSView {
     }
     let title = NSTextField(labelWithString: "Change review")
     let status = NSTextField(labelWithString: "No revision loaded")
-    let textView: NSTextView = ReviewTextView()
+    let textView: NSTextView
     let previous = NSButton(title: "Previous change", target: nil, action: nil)
     let next = NSButton(title: "Next change", target: nil, action: nil)
     private(set) var ranges: [NSRange] = []
@@ -26,6 +26,13 @@ final class NativeChangeReviewView: NSView {
     private var currentScope: NativeChangeReviewScope?
 
     override init(frame: NSRect) {
+        let storage = NSTextStorage()
+        let manager = NSLayoutManager()
+        let container = NSTextContainer(size: NSSize(width: max(1, frame.width - 16),
+            height: CGFloat.greatestFiniteMagnitude))
+        storage.addLayoutManager(manager); manager.addTextContainer(container)
+        textView = ReviewTextView(frame: NSRect(x: 0, y: 0, width: max(1, frame.width - 16), height: 40),
+            textContainer: container)
         super.init(frame: frame)
         setAccessibilityElement(false)
         title.maximumNumberOfLines = 0; status.maximumNumberOfLines = 0
@@ -40,6 +47,8 @@ final class NativeChangeReviewView: NSView {
         let scroll = NSScrollView()
         scroll.hasVerticalScroller = true; scroll.documentView = textView
         textView.isVerticallyResizable = true; textView.isHorizontallyResizable = false
+        textView.minSize = .zero
+        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         textView.autoresizingMask = [.width]; textView.textContainer?.widthTracksTextView = true
         previous.target = self; previous.action = #selector(goPrevious)
         next.target = self; next.action = #selector(goNext)
@@ -74,6 +83,7 @@ final class NativeChangeReviewView: NSView {
         }
         if value.sections.isEmpty { content += "No changes\n" }
         textView.string = content
+        refreshTextGeometry()
         textView.setSelectedRange(NSRange(location: 0, length: 0))
         updateStatus(); updateButtons()
     }
@@ -86,10 +96,22 @@ final class NativeChangeReviewView: NSView {
     @discardableResult func navigate(to index: Int) -> Bool {
         guard !disposed, ranges.indices.contains(index) else { return false }
         selectedChange = index
+        refreshTextGeometry()
         textView.setSelectedRange(ranges[index]); textView.scrollRangeToVisible(ranges[index])
         window?.makeFirstResponder(textView)
         updateButtons()
         return true
+    }
+    override func layout() {
+        super.layout()
+        refreshTextGeometry()
+    }
+    private func refreshTextGeometry() {
+        guard !disposed, let container = textView.textContainer, let manager = textView.layoutManager else { return }
+        let width = max(1, textView.enclosingScrollView?.contentSize.width ?? bounds.width - 16)
+        if textView.frame.width != width { textView.setFrameSize(NSSize(width: width, height: max(40, textView.frame.height))) }
+        manager.ensureLayout(for: container)
+        textView.sizeToFit()
     }
     @objc private func goNext() { _ = navigate(to: (selectedChange ?? -1) + 1) }
     @objc private func goPrevious() { _ = navigate(to: (selectedChange ?? ranges.count) - 1) }
