@@ -8,7 +8,7 @@ import type { ContentFactory, ContentView } from '../modules/content.js';
 
 export interface DOMPosition { node: Node; start: number; length: number }
 type Run = ProjectedNode["runs"][number];
-interface RenderedRun { element: HTMLElement; key: string | null; contentKey: string; text: string | null; positions: DOMPosition[]; views: { key: string; version: number; kind: 'mark' | 'inline-atom'; view: ModuleView }[] }
+interface RenderedRun { element: HTMLElement | Text; key: string | null; contentKey: string; text: string | null; positions: DOMPosition[]; views: { key: string; version: number; kind: 'mark' | 'inline-atom'; view: ModuleView }[] }
 interface Entry { node: ProjectedNode; outer: HTMLElement; content: HTMLElement; key: string; runs: RenderedRun[]; contentView?: ContentView; contentDescriptorKey?: string }
 const moduleAttributes = (run: Run) => Object.entries(run.attributes).filter(([key]) => key.startsWith('module:')).sort(([a], [b]) => a.localeCompare(b));
 const tuple = (value: Json | undefined): Json[] => Array.isArray(value) ? value : [];
@@ -260,6 +260,15 @@ export class DOMRenderer {
       });
   }
   #createRun(run: Run, code: boolean): RenderedRun {
+    // A plain, single-line run needs no inline box. Keep the Text itself as
+    // the run boundary: its parent block still owns selection/input mapping.
+    // Multi-line prose, marks and modules retain their grouped DOM boundary.
+    if (!moduleAttributes(run).length && (code || (!run.text.includes("\n") && !inlineMarks.some(mark => run.attributes[mark] === true)
+        && !safeLink(run.attributes.link, this.root.ownerDocument.baseURI)))) {
+      const text = this.root.ownerDocument.createTextNode(run.text);
+      return { element: text, text: run.text, key: this.#markKey(run), contentKey: JSON.stringify(this.#moduleKeys(run)),
+        positions: [{ node: text, start: 0, length: run.text.length }], views: [] };
+    }
     const element = this.root.ownerDocument.createElement("span");
     let target: HTMLElement = element;
     const views: RenderedRun['views'] = [];
