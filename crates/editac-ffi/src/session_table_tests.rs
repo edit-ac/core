@@ -2340,3 +2340,106 @@ fn atomic_content_both_families_all_actions_recheck_admission_and_cancellation()
         s.dispose().unwrap();
     }
 }
+
+#[test]
+fn transfer_append_failure_never_qualifies_source_deletion_and_recovers_once() {
+    use super::session_transfer::{NativeTransferInput, NativeTransferRange};
+    let range = |session: &NativeSession, from, to| {
+        let node = session
+            .read(0)
+            .unwrap()
+            .nodes
+            .into_iter()
+            .find(|n| n.kind == "block")
+            .unwrap()
+            .id;
+        let anchors = session
+            .capture_anchors(
+                revision(session),
+                vec![
+                    crate::AnchorInput {
+                        node: node.clone(),
+                        offset_utf16: from,
+                        bias: crate::AnchorBias::Left,
+                    },
+                    crate::AnchorInput {
+                        node,
+                        offset_utf16: to,
+                        bias: crate::AnchorBias::Right,
+                    },
+                ],
+            )
+            .unwrap();
+        NativeTransferRange {
+            anchor: anchors[0].token.clone(),
+            focus: anchors[1].token.clone(),
+        }
+    };
+    for boundary in [FaultBoundary::BeforeCommit, FaultBoundary::AfterCommit] {
+        let source_fixture = Fixture::new();
+        let source = source_fixture.open();
+        let destination_fixture = Fixture::new();
+        let destination = destination_fixture.open();
+        let source_before = visible(&source);
+        let cut = source
+            .prepare_cut(revision(&source), range(&source, 0, 1), 0)
+            .unwrap();
+        let exported = cut.exported.unwrap();
+        let input = NativeTransferInput {
+            fragment_json: Some(exported.fragment_json),
+            markdown: None,
+            html: None,
+            plain_text: None,
+            literal: false,
+        };
+        let paste = destination
+            .prepare_paste(
+                revision(&destination),
+                range(&destination, 6, 6),
+                input,
+                Some(exported.source),
+                0,
+            )
+            .unwrap();
+        let pending = destination.read(0).unwrap().pending_upload;
+        destination_fixture
+            .store
+            .inject_once(InjectedFault {
+                boundary,
+                error: PortError::Quota,
+            })
+            .unwrap();
+        assert!(
+            destination
+                .commit_transfer(paste.token.clone(), false, None, 0)
+                .is_err()
+        );
+        assert!(destination.read(0).unwrap().recovery_required);
+        assert!(
+            destination
+                .recovery_export()
+                .unwrap()
+                .unjournaled_update
+                .is_some()
+        );
+        assert_eq!(visible(&source), source_before);
+        assert!(matches!(
+            destination.commit_transfer(paste.token, false, None, 0),
+            Err(NativeSessionError::InvalidPlan)
+        ));
+        destination.recover().unwrap();
+        assert_eq!(destination.read(0).unwrap().pending_upload, pending + 1);
+        assert_eq!(destination.history_state(0).unwrap().undo_groups, 1);
+        let recovered = visible(&destination);
+        destination.recover().unwrap();
+        assert_eq!(visible(&destination), recovered);
+        assert_eq!(destination.read(0).unwrap().pending_upload, pending + 1);
+        assert_eq!(visible(&source), source_before);
+        source.cancel_transfer(cut.token).unwrap();
+        source.dispose().unwrap();
+        destination.dispose().unwrap();
+        let reopened = destination_fixture.open();
+        assert_eq!(visible(&reopened), recovered);
+        reopened.dispose().unwrap();
+    }
+}

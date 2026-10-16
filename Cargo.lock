@@ -757,6 +757,7 @@ version = "0.0.0"
 dependencies = [
  "editac-core",
  "editac-diff",
+ "editac-markdown",
  "editac-session",
  "serde",
  "serde_json",

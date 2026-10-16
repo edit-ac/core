@@ -16,8 +16,9 @@ use std::{
 
 static NEXT_STORE: AtomicU64 = AtomicU64::new(1);
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "native-store", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "native-store", serde(deny_unknown_fields))]
 pub struct HistoryKey {
     namespace: String,
     instance: u64,

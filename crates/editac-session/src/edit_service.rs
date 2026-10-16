@@ -348,6 +348,95 @@ impl<S: SessionStore> EditService<S> {
             engine_origin: origin.as_str().into(),
         })
     }
+    /// Shared prepared fragment admission. Codec/module policy is retained and
+    /// checked again at apply, just like portable command batches.
+    pub fn prepare_fragment(
+        &self,
+        expected: &ObservedRevision,
+        selection: &editac_core::anchors::Selection,
+        blocks: &[editac_core::commands::editor::FragmentBlock],
+        origin: &TextOrigin,
+        now: u64,
+    ) -> Result<PreparedEdit, ServiceError> {
+        self.prepare_transfer(expected, selection, blocks, None, origin, now)
+    }
+    pub fn prepare_fragment_move(
+        &self,
+        expected: &ObservedRevision,
+        source: &editac_core::anchors::Selection,
+        destination: &editac_core::anchors::Selection,
+        origin: &TextOrigin,
+        now: u64,
+    ) -> Result<PreparedEdit, ServiceError> {
+        let blocks = editac_core::transfer::range_blocks(self.session.document(), source)
+            .map_err(ServiceError::Engine)?;
+        self.prepare_transfer(expected, source, &blocks, Some(destination), origin, now)
+    }
+    fn prepare_transfer(
+        &self,
+        expected: &ObservedRevision,
+        selection: &editac_core::anchors::Selection,
+        blocks: &[editac_core::commands::editor::FragmentBlock],
+        destination: Option<&editac_core::anchors::Selection>,
+        origin: &TextOrigin,
+        now: u64,
+    ) -> Result<PreparedEdit, ServiceError> {
+        self.admit(now)?;
+        self.session.compare_revision(expected)?;
+        editac_core::commands::fragment::validate(blocks)
+            .map_err(|_| ServiceError::Engine(EditorError::InvalidCommand))?;
+        let mut requirements = Requirements {
+            commands: blocks.len().max(1),
+            ..Requirements::default()
+        };
+        // Replacing/cutting existing typed content must not bypass a revoked
+        // family policy merely because the incoming fragment is plain or empty.
+        let selected = editac_core::transfer::range_blocks(self.session.document(), selection)
+            .map_err(ServiceError::Engine)?;
+        for block in blocks.iter().chain(selected.iter()) {
+            requirements.bytes = requirements.bytes.saturating_add(
+                editac_core::interchange::transfer_value(block)
+                    .to_string()
+                    .len(),
+            );
+            if let Some(editac_core::document::BlockAttributes::Unknown(tuple)) = &block.attributes
+            {
+                match Content::from_tuple(tuple)
+                    .map_err(|_| ServiceError::Engine(EditorError::InvalidCommand))?
+                {
+                    Some(Content::Image { .. }) => requirements.images = true,
+                    Some(Content::Table { .. } | Content::RichTable { .. }) => {
+                        requirements.tables = true
+                    }
+                    Some(Content::Callout { .. }) => requirements.callouts = true,
+                    Some(Content::Reference { .. }) => requirements.references = true,
+                    Some(Content::InertExtension { .. }) => {}
+                    None => return Err(ServiceError::UnsupportedModule),
+                }
+            }
+        }
+        self.requirements(requirements)?;
+        let prepare = |document: &Document| match destination {
+            Some(destination) => document.prepare_fragment_move(selection, destination, origin),
+            None => document.prepare_fragment(selection, blocks, origin),
+        };
+        let plan = prepare(self.session.document()).map_err(ServiceError::Engine)?;
+        let mut replica = self.replica()?;
+        let preview_plan = prepare(&replica).map_err(ServiceError::Engine)?;
+        replica
+            .commit_editor(preview_plan)
+            .map_err(ServiceError::Engine)?;
+        let preview = replica
+            .snapshot()
+            .map_err(|e| ServiceError::Engine(EditorError::Text(e.into())))?;
+        Ok(PreparedEdit {
+            expected: expected.clone(),
+            plan: PreparedPlan::Commands(plan),
+            requirements,
+            preview,
+            engine_origin: origin.as_str().into(),
+        })
+    }
     /// Capture exact source-to-owner mapping. URI text or whole-document Markdown is never an identity map.
     pub fn capture_source(
         &self,

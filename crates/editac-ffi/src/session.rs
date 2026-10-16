@@ -407,6 +407,7 @@ impl ProjectionQueue {
 struct State {
     service: EditService<Arc<NativeStore>>,
     plans: BTreeMap<String, PreparedEdit>,
+    transfers: BTreeMap<String, session_transfer::TransferPlan>,
     next_plan: u64,
     anchors: BTreeMap<String, Anchor>,
     anchor_owner: u64,
@@ -433,6 +434,7 @@ impl State {
         Ok(Self {
             service: EditService::new(session, HostPolicy::default()),
             plans: BTreeMap::new(),
+            transfers: BTreeMap::new(),
             next_plan: 0,
             anchors: BTreeMap::new(),
             anchor_owner,
@@ -2039,3 +2041,7 @@ pub use session_collaboration::*;
 #[path = "session_review.rs"]
 mod session_review;
 pub use session_review::*;
+
+#[path = "session_transfer.rs"]
+mod session_transfer;
+pub use session_transfer::*;

@@ -50,3 +50,6 @@ pub struct Utf16Offset(pub u32);
 
 #[doc(hidden)]
 pub mod interchange;
+
+/// Shared owned selection transfer.
+pub mod transfer;
