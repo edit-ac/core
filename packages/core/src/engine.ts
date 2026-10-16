@@ -196,9 +196,9 @@ function encode(value: unknown, operation: string): string {
     if (++count > 100_000 || depth > 32) throw new EngineError("ResourceLimit", operation, "request exceeds structure limit");
     if (v === null || typeof v === "string" || typeof v === "boolean") return;
     if (typeof v === "number" && Number.isSafeInteger(v)) return;
-    if (typeof v !== "object" || seen.has(v)) invalid(operation, "request must contain plain JSON values");
+    if (typeof v !== "object" || seen.has(v)) invalid(operation, "expected plain JSON");
     const proto = Object.getPrototypeOf(v), array = Array.isArray(v);
-    if ((array && proto !== Array.prototype) || (!array && proto !== Object.prototype && proto !== null)) invalid(operation, "request must contain plain objects");
+    if ((array && proto !== Array.prototype) || (!array && proto !== Object.prototype && proto !== null)) invalid(operation, "expected plain JSON");
     seen.add(v);
     if (array) {
       if (v.length > 100_000 || Object.keys(v).length !== v.length) invalid(operation, "sparse or decorated array");
@@ -257,7 +257,7 @@ export function restoreHandle(construct: (json: string, bytes: Uint8Array) => Ra
       const u = envelope(d.value, ["identity", "bytes"], "restore");
       const copied = bytes(u.bytes, "restore");
       totalBytes += copied.byteLength;
-      if (totalBytes > MAX_BYTES) throw new EngineError("ResourceLimit", "restore", "checkpoint and journal exceed byte limit");
+      if (totalBytes > MAX_BYTES) throw new EngineError("ResourceLimit", "restore", "byte limit exceeded");
       buffers.push(copied);
       return {identity:u.identity, byteLength:copied.byteLength};
     });
