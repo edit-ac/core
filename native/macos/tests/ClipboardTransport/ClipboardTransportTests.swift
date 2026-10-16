@@ -46,7 +46,7 @@ final class ClipboardTransportTests: XCTestCase {
     private func dispose(_ view: NativeEditorView) async {
         await withCheckedContinuation { c in view.dispose { c.resume() } }
     }
-    private func fixture(_ body: (NativeEditorView) async throws -> Void) async throws {
+    private func fixture(_ body: @MainActor (NativeEditorView) async throws -> Void) async throws {
         _ = NSApplication.shared
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("editac-clipboard-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
