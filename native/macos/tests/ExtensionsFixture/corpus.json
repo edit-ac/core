@@ -1,0 +1,102 @@
+[
+  {
+    "runs": [
+      {
+        "text": "Before \ud83e\udd80 \u05d0\u05d1",
+        "marks": []
+      }
+    ],
+    "attributes": {
+      "type": "paragraph"
+    }
+  },
+  {
+    "runs": [
+      {
+        "text": "Badge \ud83e\udd80",
+        "marks": []
+      }
+    ],
+    "attributes": {
+      "type": "content",
+      "tuple": [
+        "module:editac.inert-extension",
+        1,
+        {
+          "version": 1,
+          "type": "example.badge",
+          "dataVersion": 1,
+          "source": "Badge \ud83e\udd80",
+          "payload": {
+            "color": "blue",
+            "count": 7
+          }
+        }
+      ]
+    }
+  },
+  {
+    "runs": [
+      {
+        "text": "<script>inert</script>",
+        "marks": []
+      }
+    ],
+    "attributes": {
+      "type": "content",
+      "tuple": [
+        "module:editac.inert-extension",
+        1,
+        {
+          "version": 1,
+          "type": "future.widget",
+          "dataVersion": 42,
+          "source": "<script>inert</script>",
+          "payload": {
+            "nested": [
+              "retain",
+              {
+                "enabled": true
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "runs": [
+      {
+        "text": "\\frac{a}{",
+        "marks": []
+      }
+    ],
+    "attributes": {
+      "type": "content",
+      "tuple": [
+        "module:editac.inert-extension",
+        1,
+        {
+          "version": 1,
+          "type": "editac.math",
+          "dataVersion": 1,
+          "source": "\\frac{a}{",
+          "payload": {
+            "display": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "runs": [
+      {
+        "text": "After",
+        "marks": []
+      }
+    ],
+    "attributes": {
+      "type": "paragraph"
+    }
+  }
+]

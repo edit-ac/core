@@ -18,6 +18,7 @@ public final class NativeEditorView: NSView {
     private var selectionGeneration: UInt64 = 0
     private var selectionWaiters: [UUID: CheckedContinuation<NativeSessionResponse, Error>] = [:]
     public private(set) lazy var commands = NativeCommands(view: self)
+    public private(set) lazy var extensions = NativeExtensions(view: self)
     public private(set) lazy var attachments = NativeAttachments(view: self)
     public private(set) lazy var tables = NativeTableEditing(view: self)
     public private(set) lazy var input = NativeCommittedInput(view: self)
@@ -87,6 +88,7 @@ public final class NativeEditorView: NSView {
                 }
                 self.projectionFailure = nil
                 try self.attachments.reconcile()
+                try self.extensions.reconcile()
                 self.collaboration.projectionDidChange()
                 self.textView.setAccessibilityLabel("Editor (native projection)")
                 if previousText != self.textView.string {
@@ -152,6 +154,7 @@ public final class NativeEditorView: NSView {
         isDisposed = true
         collaboration.dispose()
         storage.dispose()
+        extensions.dispose()
         attachments.dispose()
         commands.dispose()
         composition.dispose()
