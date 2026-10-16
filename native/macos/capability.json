@@ -2,7 +2,7 @@
   "contractVersion": 1,
   "id": "native.macos.pending.v1",
   "implementation": {
-    "revision": "379de4310a53321fc941018ff595ad1d71daab69",
+    "revision": "c8d7bd57423a2e5e7129b9dd6f30b0e86c695d47",
     "package": "EditacMacOS",
     "version": "0.0.0"
   },
@@ -317,7 +317,7 @@
     },
     {
       "path": "native/macos/Package.swift",
-      "sha256": "4e9744a725402dee3953ba7d454fa994f1f2002c466eed4c6857e3593e1315c5"
+      "sha256": "420459cbc1fc4dd8419234fed709bfe9c4f8cff1f7d087b59dbd7cfc7ff81a85"
     },
     {
       "path": "native/macos/toolchain.json",
@@ -349,7 +349,7 @@
     },
     {
       "path": "native/macos/Sources/EditacMacOS/extensions/NativeExtensions.swift",
-      "sha256": "54a5c5d0041af1a8afe361e21552ae1d33fac472a096f2da1a68e7c2cf4ce4b8"
+      "sha256": "afdce8e2df7f884a88aeda23b31cfa8318a6cf923b050559951167bdaedc2b13"
     },
     {
       "path": "native/macos/Sources/EditacMacOS/extensions/README.md",
@@ -377,7 +377,7 @@
     },
     {
       "path": "native/macos/Sources/EditacMacOS/NativeEditorView.swift",
-      "sha256": "5f6174b3713911db07ada1017d264e6aa4565c27fc821ca7bd7a1ce2925d8512"
+      "sha256": "e620c873a459824d10d7a202cf8ebb04da7d4a58b847236744aef4c618b0d4c5"
     },
     {
       "path": "native/macos/Sources/EditacMacOS/clipboard/NativeClipboardTransport.swift",
@@ -398,6 +398,30 @@
     {
       "path": "native/macos/Sources/EditacMacOSTestHost/main.swift",
       "sha256": "1f9c5db205d1a843056c8b98b9c014f10d9a5428e04a1529b6125e49a87faaf2"
+    },
+    {
+      "path": "native/macos/Sources/EditacMacOS/accessibility/NativeStructureAccessibility.swift",
+      "sha256": "84c03c30de1cb84e0cbddfd0752a85d7ba1dd2c3888e74088e129f293404b2ec"
+    },
+    {
+      "path": "native/macos/tests/AccessibilityStructure/AccessibilityStructureTests.swift",
+      "sha256": "47e3ba6e7b2a894f2639ee5d2916c38cd42c055bc68b33ac81494a160171f3b9"
+    },
+    {
+      "path": "native/macos/tests/AccessibilityStructureFixture/Cargo.toml",
+      "sha256": "60463ebffff902a35d12e55f349e862b3b5e5f34450a6a93a42f6b067c26db1e"
+    },
+    {
+      "path": "native/macos/tests/AccessibilityStructureFixture/corpus.json",
+      "sha256": "e5da645a8692e9b032c559ce8b0177e29d089c7cd30f7c478b94a6108d535d21"
+    },
+    {
+      "path": "native/macos/tests/AccessibilityStructureFixture/Cargo.lock",
+      "sha256": "421a06a089db5978de28e450a08e1d9708e94bf15280e80e7c59be2331b04c67"
+    },
+    {
+      "path": "native/macos/tests/AccessibilityStructureFixture/src/main.rs",
+      "sha256": "de17bd78535aa432693d631ccb37226a3ead8caa86eede7297fa2b33b59f8186"
     }
   ],
   "evidence": []
