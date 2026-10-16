@@ -69,6 +69,7 @@ public final class NativeCommands {
     }
     public func refreshControls() {
         view?.tables.refresh()
+        view?.attachments.refresh()
         buttons.removeAll { $0.value == nil }
         for box in buttons {
             guard let button = box.value else { continue }

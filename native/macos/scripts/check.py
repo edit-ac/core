@@ -16,10 +16,11 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 CORE = ROOT.parents[1]
 SUITES = {
+    "collaboration": ("EditacMacOSCollaborationTests.CollaborationTests", 16),
     "collaboration-lifecycle": ("EditacMacOSCollaborationLifecycleTests.CollaborationLifecycleTests", 13),
     "accessibility-text": ("EditacMacOSAccessibilityTextTests.AccessibilityTextTests", 10),
     "durability": ("EditacMacOSDurabilityTests.DurabilityTests", 10),
-    "attachments": ("EditacMacOSAttachmentsTests.AttachmentsTests", 15),
+    "attachments": ("EditacMacOSAttachmentsTests.AttachmentsTests", 23),
     "table-editing": ("EditacMacOSTableEditingTests.TableEditingTests", 17),
     "table-projection": ("EditacMacOSTableProjectionTests.TableProjectionTests", 14),
     "styles": ("EditacMacOSStylesTests.StylesTests", 12),
@@ -99,7 +100,7 @@ def stop_command_tree(process):
 
 def main():
     if len(sys.argv) != 2 or sys.argv[1] not in SUITES:
-        print("Usage: bash native/macos/scripts/check.sh {collaboration-lifecycle|accessibility-text|durability|bootstrap|toolkit|session|projection|edits|composition|commands|styles|table-projection|table-editing|attachments}; unknown/unimplemented suite", file=sys.stderr)
+        print("Usage: bash native/macos/scripts/check.sh {collaboration|collaboration-lifecycle|accessibility-text|durability|bootstrap|toolkit|session|projection|edits|composition|commands|styles|table-projection|table-editing|attachments}; unknown/unimplemented suite", file=sys.stderr)
         return 2
     suite = sys.argv[1]
     signal.signal(signal.SIGTERM, interrupted)
@@ -252,7 +253,7 @@ def main():
             env["EDITAC_MACOS_ATTACHMENT_FIXTURE"] = str(manifest)
             env["EDITAC_MACOS_ATTACHMENT_EVIDENCE"] = str(output)
             fixture = json.loads(manifest.read_text())
-            receipt["attachmentsScope"] = "native-presentation-resolution-prerequisite; shared-mutation-port-pending"
+            receipt["attachmentsScope"] = "actual-native-image-reference-policy-anchored-replacement-removal-history"
             receipt["attachmentFixture"] = {"manifest": str(manifest),
                 "manifestSha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
                 "storeSha256": hashlib.sha256(Path(fixture["path"]).read_bytes()).hexdigest(),
@@ -287,6 +288,21 @@ def main():
         smoke = run("host-smoke", [str(host), "--smoke"], timeout=30)
         if "EDITAC_NATIVE_HOST_SMOKE_PASS" not in smoke:
             raise RuntimeError("Native executable host did not mount its AppKit control")
+        # LaunchServices gives this local fixture app real foreground authority;
+        # it cooperatively yields activation to this invocation's XCTest process.
+        import plistlib
+        app = output / "EditacNativeActivation.app"
+        executable = app / "Contents/MacOS/EditacMacOSTestHost"
+        executable.parent.mkdir(parents=True)
+        shutil.copy2(host, executable)
+        with (app / "Contents/Info.plist").open("wb") as stream:
+            plistlib.dump({"CFBundleIdentifier": "ac.editac.native.activation." + output.name,
+                "CFBundleExecutable": executable.name, "CFBundleName": "Editac Native Test Activation",
+                "CFBundlePackageType": "APPL", "LSUIElement": False}, stream)
+        env["EDITAC_MACOS_ACTIVATION_HELPER"] = str(app)
+        env["EDITAC_MACOS_ACTIVATION_EVIDENCE"] = str(output / "activation-receipts")
+        receipt["activationHelper"] = {"app":str(app), "executableSha256":hashlib.sha256(executable.read_bytes()).hexdigest(),
+            "plistSha256":hashlib.sha256((app / "Contents/Info.plist").read_bytes()).hexdigest()}
         log = run("xctest", ["xcrun", "swift", "test", *arguments, "--skip-build", "--filter", SUITES[suite][0]])
         receipt["counts"] = xctest_counts(log, SUITES[suite][1])
         receipt["artifacts"] = {str(p.relative_to(scratch)): hashlib.sha256(p.read_bytes()).hexdigest()

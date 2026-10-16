@@ -55,6 +55,7 @@ public final class NativeDocumentCoordinator {
                     // before the shared close admission barrier is queued.
                     phase = .closing
                     generation = UUID()
+                    editor.collaboration.disconnect()
                     editor.composition.invalidateHostInput()
                     editor.attachments.cancelAll()
                     editor.storage.close { [self] result in
@@ -87,6 +88,7 @@ public final class NativeDocumentCoordinator {
         guard phase == .ready, !editor.isDisposed else { completion(.failure(.closing)); return }
         phase = .revoking
         generation = UUID()
+        editor.collaboration.disconnect()
         editor.composition.invalidateHostInput()
         editor.attachments.cancelAll()
         editor.textView.isEditable = false
@@ -105,6 +107,7 @@ public final class NativeDocumentCoordinator {
         guard phase == .ready else { completion(.failure(.closing)); return }
         phase = .closing
         generation = UUID()
+        editor.collaboration.disconnect()
         editor.composition.invalidateHostInput()
         editor.attachments.cancelAll()
         editor.storage.close { [self] result in

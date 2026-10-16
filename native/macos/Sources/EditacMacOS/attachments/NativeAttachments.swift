@@ -9,6 +9,16 @@ public struct NativeAttachmentDescriptor: Equatable, Sendable {
     public let title: String
     public let source: String
 
+    public static func image(url: String, alt: String, title: String = "", source: String = "") throws -> Self {
+        try Self(["module:editac.image", 1, ["url": url, "alt": alt, "title": title, "source": source]])!
+    }
+    public static func reference(targetID: String, label: String) throws -> Self {
+        try Self(["module:editac.reference", 1, ["targetId": targetID, "label": label]])!
+    }
+    fileprivate var tuple: [Any] {
+        kind == .image ? ["module:editac.image", 1, ["url": target, "alt": label, "title": title, "source": source]]
+            : ["module:editac.reference", 1, ["targetId": target, "label": label]]
+    }
     init?(_ tuple: [Any]) throws {
         guard let tag = tuple.first as? String,
               ["module:editac.image", "module:editac.reference"].contains(tag) else { return nil }
@@ -33,7 +43,7 @@ public struct NativeAttachmentDescriptor: Equatable, Sendable {
 }
 
 public enum NativeAttachmentState: Equatable { case unresolved, loading, ready, failed(String), cancelled }
-public enum NativeAttachmentFailure: Error { case unavailablePort, staleTarget, disposed }
+public enum NativeAttachmentFailure: Error { case unavailablePort, staleTarget, disposed, invalidReplacement }
 public struct NativeAttachmentRequest: Sendable {
     public let id: UUID
     public let nodeID: String
@@ -74,10 +84,6 @@ public final class NativeAttachmentView: NSView {
         setAccessibilityLabel(value.kind == .image ? "Image: \(value.label)" : "Reference: \(value.label)")
         toolTip = value.kind == .reference ? value.target : value.title
         activateButton.title = value.kind == .image ? "Load image" : "Open reference"
-        // Common native Session does not yet admit image/reference editing.
-        replaceButton.isEnabled = false; removeButton.isEnabled = false
-        replaceButton.toolTip = "Shared image/reference mutation port unavailable"
-        removeButton.toolTip = replaceButton.toolTip
         imageView.isHidden = value.kind != .image
         needsLayout = true
     }
@@ -118,6 +124,20 @@ public final class NativeAttachmentView: NSView {
 /// An explicit action is the only loading/activation trigger.
 @MainActor
 public final class NativeAttachments {
+    /// A single-use, source-owned anchor and immutable expected descriptor.
+    public struct EditTarget {
+        public let id: UUID
+        public let nodeID: String
+        public let descriptor: NativeAttachmentDescriptor
+        fileprivate let revision: Data
+        fileprivate let anchor: String
+    }
+    public typealias ReplacementProvider = @MainActor (EditTarget, @escaping @MainActor (Result<NativeAttachmentDescriptor?, Error>) -> Void) -> Void
+    public var replacementProvider: ReplacementProvider? { didSet { cancelEdits(); refresh() } }
+    private var captures: [String: UUID] = [:]
+    private var edits: [UUID: EditTarget] = [:]
+    public private(set) var lastEditFailure: Error?
+
     public typealias ImageResolver = @MainActor (NativeAttachmentRequest, @escaping @MainActor (Result<NSImage, Error>) -> Void) -> Void
     public typealias ReferenceResolver = @MainActor (NativeAttachmentRequest, @escaping @MainActor (Result<String, Error>) -> Void) -> Void
     private weak var view: NativeEditorView?
@@ -138,6 +158,7 @@ public final class NativeAttachments {
                 descriptors[node.id] = descriptor
             }
         }
+        for target in Array(edits.values) where target.revision != view.projection.revision || target.descriptor != descriptors[target.nodeID] { cancel(target.nodeID) }
         for id in Array(pending.keys) {
             if pending[id]?.revision != view.projection.revision || pending[id]?.descriptor != descriptors[id] { cancel(id) }
         }
@@ -151,6 +172,7 @@ public final class NativeAttachments {
             if child.superview !== view.textView { view.textView.addSubview(child) }
             views[id] = child
         }
+        refresh()
         view.projection.layoutTables()
     }
     public func resolve(_ nodeID: String) {
@@ -200,22 +222,117 @@ public final class NativeAttachments {
     }
     private func finishUnavailable(_ request: NativeAttachmentRequest) { accept(request)?.setState(.failed("Host resolver unavailable")) }
     public func cancel(_ nodeID: String) {
+        captures.removeValue(forKey: nodeID)
+        for target in Array(edits.values) where target.nodeID == nodeID {
+            edits.removeValue(forKey: target.id); release(target)
+            views[nodeID]?.setState(.cancelled)
+            cancelHostRequest?(target.id)
+        }
         guard let request = pending.removeValue(forKey: nodeID) else { return }
         views[nodeID]?.setState(.cancelled)
         cancelHostRequest?(request.id)
     }
-    func cancelAll() { for id in Array(pending.keys) { cancel(id) } }
+    func cancelAll() { for id in Set(pending.keys).union(captures.keys).union(edits.values.map(\.nodeID)) { cancel(id) } }
+    private func cancelEdits() { for id in Set(captures.keys).union(edits.values.map(\.nodeID)) { cancel(id) } }
     public func select(_ nodeID: String) async throws {
         guard let view, !disposed, !view.isDisposed else { throw NativeAttachmentFailure.disposed }
         guard views[nodeID] != nil, let node = view.projection.nodes.first(where: { $0.id == nodeID }) else { throw NativeAttachmentFailure.staleTarget }
         try await view.select(range: node.range, backwards: false, affinity: .downstream)
         view.window?.makeFirstResponder(view.textView)
     }
-    public func replace(_ nodeID: String) throws { throw NativeAttachmentFailure.unavailablePort }
-    public func remove(_ nodeID: String) throws { throw NativeAttachmentFailure.unavailablePort }
+    @discardableResult
+    public func setPolicy(images: Bool, references: Bool, completion: NativeSessionExecutor.Completion? = nil) throws -> NativeSessionOperation {
+        guard let view, !disposed, !view.isDisposed else { throw NativeAttachmentFailure.disposed }
+        cancelAll()
+        return try view.session.submit(.atomicContentPolicy(images: images, references: references), completion: completion)
+    }
+    private func canEdit(_ child: NativeAttachmentView) -> Bool {
+        guard let view, !disposed, !view.isDisposed, view.projectionFailure == nil,
+              view.commands.availability(.serviceReplacement) == .enabled else { return false }
+        let profile = child.descriptor.kind == .image ? "editac.images" : "editac.references"
+        return view.commands.profileAvailability(profile)?.available == true
+            && view.commands.catalog?.routes.first(where: { $0.id == "atomicContent" })?.canPrepare == true
+    }
+    func refresh() {
+        for child in views.values {
+            let enabled = canEdit(child) && captures[child.nodeID] == nil && !edits.values.contains(where: { $0.nodeID == child.nodeID })
+            child.removeButton.isEnabled = enabled
+            child.replaceButton.isEnabled = enabled && replacementProvider != nil
+            child.replaceButton.toolTip = replacementProvider == nil ? "Host replacement service unavailable" : nil
+        }
+    }
+    public func captureEdit(_ nodeID: String) async throws -> EditTarget {
+        guard let view, !disposed, !view.isDisposed else { throw NativeAttachmentFailure.disposed }
+        guard let child = views[nodeID], canEdit(child), let revision = view.projection.revision else { throw NativeAttachmentFailure.unavailablePort }
+        cancel(nodeID)
+        let id = UUID(), descriptor = child.descriptor
+        captures[nodeID] = id; refresh()
+        let response: NativeSessionResponse
+        do {
+            response = try await withCheckedThrowingContinuation { c in
+                do { try view.session.submit(.captureAttachment(revision: revision, node: nodeID)) { c.resume(with: $0.mapError { $0 as Error }) } }
+                catch { c.resume(throwing: error) }
+            }
+        } catch { if captures[nodeID] == id { captures.removeValue(forKey: nodeID) }; refresh(); throw error }
+        defer { if captures[nodeID] == id { captures.removeValue(forKey: nodeID) }; refresh() }
+        guard case let .anchors(anchors) = response, let anchor = anchors.first else { throw NativeAttachmentFailure.staleTarget }
+        let target = EditTarget(id: id, nodeID: nodeID, descriptor: descriptor, revision: revision, anchor: anchor.token)
+        guard !disposed, !view.isDisposed, captures[nodeID] == id, view.projection.revision == revision,
+              currentDescriptor(nodeID) == descriptor, canEdit(child) else { release(target); throw NativeAttachmentFailure.staleTarget }
+        captures.removeValue(forKey: nodeID); edits[id] = target; child.setState(.loading); refresh()
+        return target
+    }
+    private func release(_ target: EditTarget) { try? view?.session.submit(.releaseAttachment(token: target.anchor)) }
+    private func commit(_ target: EditTarget, replacement: NativeAttachmentDescriptor?) throws {
+        guard let view, !disposed, !view.isDisposed else { throw NativeAttachmentFailure.disposed }
+        guard edits[target.id]?.anchor == target.anchor else { throw NativeAttachmentFailure.staleTarget }
+        edits.removeValue(forKey: target.id)
+        defer {
+            release(target)
+            if views[target.nodeID]?.state == .loading { views[target.nodeID]?.setState(.cancelled) }
+            refresh()
+        }
+        guard view.projection.revision == target.revision, currentDescriptor(target.nodeID) == target.descriptor,
+              let child = views[target.nodeID], canEdit(child) else { throw NativeAttachmentFailure.staleTarget }
+        guard replacement == nil || replacement?.kind == target.descriptor.kind else { child.setState(.failed("Invalid replacement")); throw NativeAttachmentFailure.invalidReplacement }
+        let values: [[String: Any]] = [["type": "atomicContent", "owner": target.nodeID, "at": target.anchor,
+            "expected": target.descriptor.tuple, "replacement": replacement.map { $0.tuple as Any } ?? NSNull()]]
+        let json = String(data: try JSONSerialization.data(withJSONObject: values, options: [.sortedKeys]), encoding: .utf8)!
+        child.setState(.unresolved)
+        view.commands.perform(commandsJSON: json, profile: target.descriptor.kind == .image ? "editac.images" : "editac.references", revision: target.revision)
+    }
+    public func replace(target: EditTarget, with descriptor: NativeAttachmentDescriptor) throws { try commit(target, replacement: descriptor) }
+    public func remove(target: EditTarget) throws { try commit(target, replacement: nil) }
+    public func replace(_ nodeID: String) throws {
+        guard let child = views[nodeID], canEdit(child), let provider = replacementProvider else { throw NativeAttachmentFailure.unavailablePort }
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let target = try await captureEdit(nodeID)
+                provider(target) { [weak self] result in
+                    guard let self, self.edits[target.id] != nil else { return }
+                    do {
+                        switch result {
+                        case let .success(descriptor):
+                            if let descriptor { try self.replace(target: target, with: descriptor) }
+                            else { self.cancel(target.nodeID) }
+                        case let .failure(error): self.cancel(target.nodeID); self.views[nodeID]?.setState(.failed(String(describing: error)))
+                        }
+                    } catch { self.lastEditFailure = error }
+                }
+            } catch { lastEditFailure = error }
+        }
+    }
+    public func remove(_ nodeID: String) throws {
+        guard let child = views[nodeID], canEdit(child) else { throw NativeAttachmentFailure.unavailablePort }
+        Task { [weak self] in
+            guard let self else { return }
+            do { try remove(target: await captureEdit(nodeID)) } catch { lastEditFailure = error }
+        }
+    }
     func dispose() {
         disposed = true; cancelAll()
         for child in views.values { child.owner = nil; child.removeFromSuperview() }
-        views = [:]; imageResolver = nil; referenceResolver = nil; onReferenceActivated = nil; cancelHostRequest = nil
+        views = [:]; replacementProvider = nil; imageResolver = nil; referenceResolver = nil; onReferenceActivated = nil; cancelHostRequest = nil
     }
 }
