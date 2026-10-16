@@ -11,6 +11,7 @@ import plistlib
 import shlex
 import shutil
 import subprocess
+import time
 
 CORE = Path(__file__).resolve().parents[2]
 BUNDLE = 'ac.edit.nativefitness'
@@ -33,7 +34,7 @@ def project(directory, library):
         ids = [conf(name+'-'+mode, settings) for mode in ['Debug', 'Release']]
         return obj(name+'-configs', '{isa=XCConfigurationList; buildConfigurations='+refs(ids)+'; defaultConfigurationIsVisible=0; defaultConfigurationName=Release;}')
     common = {'ARCHS':'arm64','ONLY_ACTIVE_ARCH':'YES','SDKROOT':'iphonesimulator','IPHONEOS_DEPLOYMENT_TARGET':'26.5','SWIFT_VERSION':'5.0','TARGETED_DEVICE_FAMILY':'1','CODE_SIGNING_ALLOWED':'NO','GENERATE_INFOPLIST_FILE':'YES','SWIFT_OPTIMIZATION_LEVEL':q('-O'),'CLANG_ENABLE_MODULES':'YES'}
-    appSettings = dict(common, PRODUCT_BUNDLE_IDENTIFIER=q(BUNDLE), PRODUCT_NAME=q('NativeFitness'), INFOPLIST_KEY_UILaunchScreen_Generation='YES',
+    appSettings = dict(common, PRODUCT_BUNDLE_IDENTIFIER=q(BUNDLE), PRODUCT_NAME=q('NativeFitness'), GENERATE_INFOPLIST_FILE='NO', INFOPLIST_FILE=q(CORE/'native/ios/fitness/Info.plist'),
         SWIFT_INCLUDE_PATHS=q(CORE/'crates/editac-ffi/generated'), OTHER_SWIFT_FLAGS=refs([q('-Xcc'),q('-fmodule-map-file='+str(CORE/'crates/editac-ffi/generated/EditacNativeFFI.modulemap'))]),
         OTHER_LDFLAGS=refs([q(library),q('-lc++')]))
     testSettings = dict(common, PRODUCT_BUNDLE_IDENTIFIER=q(BUNDLE+'.uitests'), PRODUCT_NAME=q('NativeFitnessUITests'), TEST_TARGET_NAME=q('NativeFitness'))
@@ -104,7 +105,8 @@ def main():
         sdk = run('sdk',['xcrun','--sdk','iphonesimulator','--show-sdk-path']).strip(); env['SDKROOT'] = sdk; env['IPHONEOS_DEPLOYMENT_TARGET'] = '26.5'
         assert run('sdk-version',['xcrun','--sdk','iphonesimulator','--show-sdk-version']).strip() == '26.5'
         sources = [CORE/'.node-version', CORE/'scripts/prepare-native-workloads.mjs', CORE/'benchmarks/fixtures.mjs', CORE/'crates/editac-ffi/examples/fitness-seed.rs', CORE/'fixtures/schema-v5/mapping.rs', CORE/'fixtures/schema-v5/seed.json', profilePath,Path(__file__),CORE/'native/ios/fitness/NativeFitness.swift',CORE/'native/ios/fitness/NativeFitnessUITests.swift',CORE/'tests/native/fixtures/bounded-abi.json',CORE/'Cargo.toml',CORE/'Cargo.lock']
-        for crate in ['editac-core','editac-ffi','editac-wasm']:
+        sources += [CORE/'native/ios/fitness/Info.plist']
+        for crate in ['editac-core','editac-ffi','editac-wasm','editac-session','editac-markdown','editac-diff']:
             sources += [CORE/f'crates/{crate}/Cargo.toml'] + sorted((CORE/f'crates/{crate}/src').rglob('*.rs'))
         sources += sorted((CORE/'crates/editac-ffi/generated').glob('*'))
         record['sourceInputs'] = {str(p.relative_to(CORE)):digest(p) for p in sources if p.is_file()}
@@ -139,6 +141,20 @@ def main():
         preferences.parent.mkdir(parents=True, exist_ok=True); preferences.write_bytes(plistlib.dumps(values))
         shutil.copy2(preferences, output/'simulator-keyboard-preferences.plist')
         run('simulator-boot' ,['xcrun','simctl','boot',simulator]); run('simulator-ready',['xcrun','simctl','bootstatus',simulator,'-b'],timeout=300)
+        # Observe one real foreground UIKit turn before starting the AX client.
+        # Boot completion alone previously preceded an AX initialization timeout.
+        # No keyboard payload, helper test or result is produced by this preflight.
+        run('runtime-install',['xcrun','simctl','install',simulator,derived/'Build/Products/Release-iphonesimulator/NativeFitness.app'])
+        run('runtime-launch',['xcrun','simctl','launch',simulator,BUNDLE])
+        runtimeContainer = Path(run('runtime-container',['xcrun','simctl','get_app_container',simulator,BUNDLE,'data']).strip())
+        runtimeReady = runtimeContainer/'Documents/runtime-ready.json'
+        deadline = time.monotonic() + 30
+        while not runtimeReady.exists() and time.monotonic() < deadline: time.sleep(0.25)
+        readiness = json.loads(runtimeReady.read_text())
+        assert all(readiness.get(k) is True for k in ['applicationActive','sceneActive','keyWindow']), readiness
+        shutil.copy2(runtimeReady,output/'runtime-ready.json')
+        record['runtimePreflight'] = readiness
+        run('runtime-terminate',['xcrun','simctl','terminate',simulator,BUNDLE])
         # Actual XCUITest injects OS keyboard events and queries/actions OS accessibility.
         run('xctest',['xcodebuild','test-without-building','-project',output/'NativeFitness.xcodeproj','-scheme','NativeFitness','-configuration','Release','-destination','platform=iOS Simulator,id='+simulator,'-derivedDataPath',derived,'-resultBundlePath',output/'NativeFitness.xcresult','-parallel-testing-enabled','NO','CODE_SIGNING_ALLOWED=NO'],timeout=900,allowFailure=True)
         xctest = record['checks'][-1]

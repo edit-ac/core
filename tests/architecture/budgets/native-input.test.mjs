@@ -50,7 +50,14 @@ const nativeBuild = Object.fromEntries(await Promise.all([
 ].map(async([key,path])=>[key,await read(index.directory+'/'+path)])));
 test('fresh native execution binds actual current target features, compiler and rebuilt library/app',async()=>{
   const cargo=spawnSync(resolve(homedir(),'.cargo/bin/cargo'),['+1.97.1','tree','--locked','--offline','--target','aarch64-apple-ios-sim','-p','editac-ffi','--features','fitness-trace','--edges','normal,build,features','--prefix','none','--format','{p}|{f}'],{cwd:root,encoding:'utf8'});
-  assert.equal(cargo.status,0,cargo.stderr); assert.equal(cargo.stdout,nativeBuild.graph.toString());
+  assert.equal(cargo.status,0,cargo.stderr);
+  // A qualified build may move between isolated and owning worktrees. Compare
+  // only that root spelling canonically; exact source/manifest pins below and
+  // every external dependency/version/feature and retained artifact still bind.
+  const originalWorkspace=receipt.checks.find(c=>c.id==='native-build')?.workspace;
+  assert(typeof originalWorkspace==='string' && originalWorkspace.startsWith('/'));
+  const graphAt=(value,workspace)=>value.split(resolve(workspace)+'/').join('<workspace>/');
+  assert.equal(graphAt(cargo.stdout,root),graphAt(nativeBuild.graph.toString(),originalWorkspace));
   const rustc=spawnSync(resolve(homedir(),'.cargo/bin/rustc'),['+1.97.1','-vV'],{cwd:root,encoding:'utf8'});
   assert.equal(rustc.status,0,rustc.stderr); assert.equal(rustc.stdout,nativeBuild.rustc.toString());
   inspectNativeBuild(receipt,{...nativeBuild,
@@ -83,16 +90,23 @@ test('native build admission rejects failed build or altered feature command',()
   }
 });
 for (const path of ['Cargo.toml','Cargo.lock','native/ios/fitness/NativeFitness.swift','native/ios/fitness/NativeFitnessUITests.swift',
-  'tests/native/fixtures/bounded-abi.json']) test('native source admission rejects changed '+path,async()=>{
+  'native/ios/fitness/Info.plist','tests/native/fixtures/bounded-abi.json']) test('native source admission rejects changed '+path,async()=>{
   assert(receipt.sourceInputs[path]); await assert.rejects(verifyPins(root,{[path]:'0'.repeat(64)}));
 });
 test('native OS keyboard, accessibility client, semantic preservation and display callbacks admit exact target runtime artifacts', async () => {
   assert.equal(digest(bytes), index.receiptHash); assert.equal(digest(profileBytes),receipt.profileHash);
+  const preflight = JSON.parse(await read(index.directory+'/runtime-ready.json'));
+  assert.deepEqual(receipt.runtimePreflight,preflight);
+  for (const field of ['applicationActive','sceneActive','keyWindow']) assert.equal(preflight[field],true);
+  assert(Number.isSafeInteger(preflight.pid) && preflight.pid>0);
+  for (const id of ['runtime-install','runtime-launch','runtime-container','runtime-terminate']) {
+    const check=receipt.checks.find(c=>c.id===id); assert(check && check.exit===0 && check.timeout===false);
+  }
   const fitness = JSON.parse(await read('benchmarks/profiles/fitness-v1.json'));
   assert.equal(profile.limits.inputVisiblePhoneMs,fitness.limits.phone['input-visible']);
   const sources=['.node-version','scripts/prepare-native-workloads.mjs','benchmarks/fixtures.mjs','crates/editac-ffi/examples/fitness-seed.rs','fixtures/schema-v5/mapping.rs','fixtures/schema-v5/seed.json','benchmarks/profiles/native-input-v1.json','tests/native/ios-fitness.py','native/ios/fitness/NativeFitness.swift',
-    'native/ios/fitness/NativeFitnessUITests.swift','tests/native/fixtures/bounded-abi.json','Cargo.toml','Cargo.lock'];
-  for (const crate of ['editac-core','editac-ffi','editac-wasm']) {
+    'native/ios/fitness/NativeFitnessUITests.swift','native/ios/fitness/Info.plist','tests/native/fixtures/bounded-abi.json','Cargo.toml','Cargo.lock'];
+  for (const crate of ['editac-core','editac-ffi','editac-wasm','editac-session','editac-markdown','editac-diff']) {
     sources.push(`crates/${crate}/Cargo.toml`);
     for(const path of await readdir(resolve(root,`crates/${crate}/src`),{recursive:true})) if(path.endsWith('.rs')) sources.push(`crates/${crate}/src/${path}`);
   }

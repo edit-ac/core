@@ -7,12 +7,11 @@ final class NativeFitnessUITests: XCTestCase {
         XCTAssertTrue(tutorial.isHittable)
         let r = tutorial.frame, window = app.windows.firstMatch.frame
         XCTAssertTrue(window.contains(r)); XCTAssertGreaterThan(r.width, 0); XCTAssertGreaterThan(r.height, 0)
-        // Continue is outside the keyboard AX frame (y819 versus bottom816
-        // on the retained failure). Anchor the screen point to the application,
-        // avoiding the remote keyboard element's coordinate transformation.
+        // Ask XCTest to resolve the actual OS button's hit target; its frame
+        // can extend beyond the keyboard's accessibility rectangle.
         let before = ProcessInfo.processInfo.systemUptime
-        app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: r.midX, dy: r.midY)).tap()
-        let record: [String: Any] = ["action": "single application-screen touch at observed Continue center",
+        tutorial.tap()
+        let record: [String: Any] = ["action": "single XCTest-resolved keyboard tutorial button tap",
             "frame": ["x": r.minX, "y": r.minY, "width": r.width, "height": r.height],
             "point": ["x": r.midX, "y": r.midY], "before": before, "after": ProcessInfo.processInfo.systemUptime]
         let data = try JSONSerialization.data(withJSONObject: record, options: [.sortedKeys])
@@ -21,15 +20,36 @@ final class NativeFitnessUITests: XCTestCase {
         XCTAssertTrue(tutorial.waitForNonExistence(timeout: 10))
         return true
     }
-    func focus(_ app: XCUIApplication, button: XCUIElement, status: XCUIElement, value: String) {
+    func focus(_ app: XCUIApplication, button: XCUIElement, status: XCUIElement, value: String) throws {
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
         let ready = NSPredicate(format: "value == %@", value)
+        let settled = NSPredicate(format: "value == %@ OR value BEGINSWITH %@", value, "input-mode:")
+        var focused = false
         for _ in 0..<3 {
             app.activate()
-            button.press(forDuration: 0.1)
-            if ready.evaluate(with: status) || XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: ready, object: status)], timeout: 5) == .completed { return }
+            // Retry only an unacknowledged focus action, never a payload key.
+            button.tap()
+            guard app.keyboards.firstMatch.waitForExistence(timeout: 10) else { continue }
+            _ = try dismissKeyboardTutorial(app)
+            if settled.evaluate(with: status) || XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: settled, object: status)], timeout: 5) == .completed { focused = true; break }
         }
-        XCTFail("UIKit did not acknowledge an actual foreground focus action")
+        XCTAssertTrue(focused, "UIKit did not acknowledge an actual foreground focus action")
+        var transitions: [[String: Any]] = []
+        for _ in 0..<6 {
+            if ready.evaluate(with: status) { break }
+            let previous = status.value as? String ?? "unavailable"
+            let next = app.buttons["Next keyboard"]
+            XCTAssertTrue(next.waitForExistence(timeout: 5)); XCTAssertTrue(next.isHittable)
+            let before = ProcessInfo.processInfo.systemUptime
+            next.tap()
+            let changed = NSPredicate(format: "value != %@", previous)
+            XCTAssertTrue(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: changed, object: status)], timeout: 10) == .completed)
+            transitions.append(["before": before, "after": ProcessInfo.processInfo.systemUptime,
+                "previous": previous, "observed": status.value as? String ?? "unavailable"])
+        }
+        let attachment = XCTAttachment(data: try JSONSerialization.data(withJSONObject: transitions, options: [.sortedKeys]), uniformTypeIdentifier: "public.json")
+        attachment.name = "actual OS keyboard input-mode transitions"; attachment.lifetime = .keepAlways; add(attachment)
+        XCTAssertTrue(ready.evaluate(with: status), "Actual selected OS input mode did not match the scenario")
     }
 
     func workload(_ name: String) throws {
@@ -44,10 +64,7 @@ final class NativeFitnessUITests: XCTestCase {
             XCTAssertTrue(p.evaluate(with: status) || XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: p, object: status)], timeout: 30) == .completed)
         }
         XCTAssertEqual(status.label, "ready")
-        focus(app, button: app.buttons["workload-focus"], status: status, value: "keyboard-ready")
-        if try dismissKeyboardTutorial(app) {
-            focus(app, button: app.buttons["workload-focus"], status: status, value: "keyboard-ready")
-        }
+        try focus(app, button: app.buttons["workload-focus"], status: status, value: "keyboard-ready")
         awaitValue("keyboard-ready")
         var dispatches: [[String: Any]] = []
         for (i, letter) in "abcdefghijkl".enumerated() {
@@ -83,10 +100,7 @@ final class NativeFitnessUITests: XCTestCase {
         XCTAssertTrue(editor.waitForExistence(timeout: 30))
         let initial = "A😀éZ"
         XCTAssertEqual(editor.value as? String, initial)
-        focus(app, button: app.buttons["focus-append"], status: app.staticTexts["scenario-status"], value: "ascii-ready")
-        if try dismissKeyboardTutorial(app) {
-            focus(app, button: app.buttons["focus-append"], status: app.staticTexts["scenario-status"], value: "ascii-ready")
-        }
+        try focus(app, button: app.buttons["focus-append"], status: app.staticTexts["scenario-status"], value: "ascii-ready")
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 10))
         let ready = NSPredicate(format: "value == %@", "ascii-ready")
         let status = app.staticTexts["scenario-status"]
@@ -94,8 +108,8 @@ final class NativeFitnessUITests: XCTestCase {
         var driverSamples: [[String: Any]] = []
         var prefix = initial
         for letter in "abcdefghijkl" {
-            let key = app.keys[String(letter)]
-            XCTAssertTrue(key.waitForExistence(timeout: 5)); XCTAssertTrue(key.isHittable)
+            // Hardware-key transport does not require a hittable software key.
+            // Admit delivery only through the exact native value/callback path.
             let before = ProcessInfo.processInfo.systemUptime
             app.typeText(String(letter)); prefix += String(letter)
             let committed = NSPredicate(format: "value == %@", prefix)
@@ -141,10 +155,7 @@ final class NativeFitnessUITests: XCTestCase {
         // XCTest aborts after an assertion failure; teardown still retains the
         // actual keyboard/focus/candidate state needed to diagnose that failure.
         addTeardownBlock { capture("final CJK runtime state") }
-        focus(app, button: app.buttons["focus-append"], status: status, value: "pinyin-ready")
-        if try dismissKeyboardTutorial(app) {
-            focus(app, button: app.buttons["focus-append"], status: status, value: "pinyin-ready")
-        }
+        try focus(app, button: app.buttons["focus-append"], status: status, value: "pinyin-ready")
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 10))
         let ready = NSPredicate(format: "value == %@", "pinyin-ready")
         XCTAssertTrue(ready.evaluate(with: status) || XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: ready, object: status)], timeout: 15) == .completed)

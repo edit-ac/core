@@ -27,10 +27,12 @@ export function inspectNativeBuild(receipt, { graph, rustc, library, app }) {
   assert(!/--(?:all-features|no-default-features)(?:\s|=|$)/.test(build));
   assert.match(graph.toString(), /editac-ffi v0\.0\.0 .*fitness-trace/);
 }
-function inspectAppendFocus(result, mode, initialUnits) {
+export function inspectAppendFocus(result, mode, initialUnits) {
   const r = result.focusReadiness;
   assert(r && finite(r.keyboardDidShowAt) && finite(r.selectionInstalledAt) && finite(r.readyAt), 'missing native append focus clocks');
   assert(r.keyboardDidShowAt <= r.readyAt && r.selectionInstalledAt <= r.readyAt, 'reversed native append focus clocks');
+  assert(finite(r.requestedAt) && r.keyboardDidShowAt >= r.requestedAt && r.selectionInstalledAt >= r.requestedAt, 'stale native input-session readiness');
+  assert.equal(r.applicationActive, true); assert.equal(r.sceneActive, true);
   assert.equal(r.keyWindow, true); assert.equal(r.inputMode, mode);
   assert.deepEqual(r.selectionUtf16, [initialUnits, 0]);
 }

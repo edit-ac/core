@@ -24,10 +24,6 @@ final class FitnessTextView: UITextView {
     var changed: ((String) -> Void)?
     var inputObserved: ((String, Bool) -> Void)?
     var depth = 0
-    override var textInputMode: UITextInputMode? {
-        let language = cjk ? "zh-Hans" : "en-US"
-        return UITextInputMode.activeInputModes.first { $0.primaryLanguage == language } ?? super.textInputMode
-    }
     func mutation(_ kind: String, _ body: () -> Void) {
         if depth == 0 { inputObserved?(kind, true) }
         depth += 1; body(); depth -= 1
@@ -69,12 +65,14 @@ final class FitnessController: UIViewController, UITextViewDelegate {
     var errors: [String] = []
     var attempts: [[String: Any]] = []
     var focusRequests = 0
+    var focusRequestedAt: CFTimeInterval?
     var keyboardShownAt: CFTimeInterval?
     var selectionInstalledAt: CFTimeInterval?
     var focusReadiness: [String: Any] = [:]
     var display: CADisplayLink?
     var composing = false
     var keyboardToken: NSObjectProtocol?
+    var inputModeToken: NSObjectProtocol?
     var fixture: [String: Any] = [:]
     let thermalStart = ProcessInfo.processInfo.thermalState.rawValue
     override func viewDidLoad() {
@@ -127,6 +125,9 @@ final class FitnessController: UIViewController, UITextViewDelegate {
             self?.keyboardShownAt = at
             self?.completeAppendFocus()
         }
+        inputModeToken = NotificationCenter.default.addObserver(forName: UITextInputMode.currentInputModeDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.completeAppendFocus()
+        }
         display = CADisplayLink(target: self, selector: #selector(frame(_:)))
         display?.add(to: .main, forMode: .common)
         display?.isPaused = true
@@ -155,16 +156,22 @@ final class FitnessController: UIViewController, UITextViewDelegate {
     }
     @objc func focusAppend() {
         focusRequests += 1
-        selectionInstalledAt = nil; focusReadiness = [:]
+        focusRequestedAt = CACurrentMediaTime()
+        keyboardShownAt = nil; selectionInstalledAt = nil; focusReadiness = [:]
         partial()
         // Rebind after first-run keyboard UI as well as a language relaunch.
         // The swipe tutorial can leave visible keys and acknowledged focus
         // without a live input session after Continue is dismissed.
         status.accessibilityValue = "focus-pending"
-        editor.resignFirstResponder()
-        editor.becomeFirstResponder()
-        editor.reloadInputViews()
-        editor.selectedRange = NSRange(location: editor.textStorage.length, length: 0)
+        // Do not reload a keyboard while UIKit is establishing its remote input
+        // session. Rebinding an existing responder needs a separate native turn;
+        // readiness must use this request's did-show event, never a stale one.
+        if editor.isFirstResponder {
+            editor.resignFirstResponder()
+            DispatchQueue.main.async { [weak self] in self?.editor.becomeFirstResponder() }
+        } else {
+            editor.becomeFirstResponder()
+        }
         partial()
     }
     func textViewDidBeginEditing(_ textView: UITextView) {
@@ -183,14 +190,19 @@ final class FitnessController: UIViewController, UITextViewDelegate {
     }
     func completeAppendFocus() {
         let mode = cjk ? "zh-Hans" : "en-US"
-        guard let keyboardAt = keyboardShownAt, let selectionAt = selectionInstalledAt,
+        guard let requestedAt = focusRequestedAt,
+              let keyboardAt = keyboardShownAt, let selectionAt = selectionInstalledAt,
+              keyboardAt >= requestedAt, selectionAt >= requestedAt,
+              UIApplication.shared.applicationState == .active,
+              editor.window?.windowScene?.activationState == .foregroundActive,
               editor.isFirstResponder, editor.window?.isKeyWindow == true,
-              editor.selectedRange == NSRange(location: editor.textStorage.length, length: 0),
-              editor.textInputMode?.primaryLanguage == mode else { return }
-        focusReadiness = ["keyboardDidShowAt": keyboardAt, "selectionInstalledAt": selectionAt,
+              editor.selectedRange == NSRange(location: editor.textStorage.length, length: 0) else { return }
+        let actualMode = editor.textInputMode?.primaryLanguage ?? "unavailable"
+        focusReadiness = ["requestedAt": requestedAt, "keyboardDidShowAt": keyboardAt, "selectionInstalledAt": selectionAt,
+            "applicationActive": true, "sceneActive": true,
             "readyAt": CACurrentMediaTime(), "keyWindow": true,
-            "selectionUtf16": [editor.textStorage.length, 0], "inputMode": mode]
-        status.accessibilityValue = cjk ? "pinyin-ready" : "ascii-ready"
+            "selectionUtf16": [editor.textStorage.length, 0], "inputMode": actualMode]
+        status.accessibilityValue = actualMode == mode ? (cjk ? "pinyin-ready" : "ascii-ready") : "input-mode:" + actualMode
         partial()
     }
     func partial() {
@@ -337,9 +349,10 @@ final class FitnessController: UIViewController, UITextViewDelegate {
         check("cjk-disposal") {
             try engine.dispose(); display?.invalidate(); display = nil
             if let token = keyboardToken { NotificationCenter.default.removeObserver(token); keyboardToken = nil }
+            if let token = inputModeToken { NotificationCenter.default.removeObserver(token); inputModeToken = nil }
             do { _ = try engine.read(); throw CheckFailure(message: "disposed read succeeded") }
             catch let e as NativeError { guard case .Disposed = e else { throw e } }
-            return ["displayLinkInvalidated": display == nil, "keyboardObserverRemoved": keyboardToken == nil]
+            return ["displayLinkInvalidated": display == nil, "keyboardObserverRemoved": keyboardToken == nil && inputModeToken == nil]
         }
         let failed = cases.filter { $0["state"] as? String == "failed" }.count
         let record: [String: Any] = ["version": 1, "qualification": "unqualified", "cases": cases,
@@ -401,7 +414,8 @@ final class FitnessController: UIViewController, UITextViewDelegate {
             catch let e as NativeError { guard case .Disposed = e else { throw e } }
             display?.invalidate(); display = nil
             if let token = keyboardToken { NotificationCenter.default.removeObserver(token); keyboardToken = nil }
-            return ["displayLinkInvalidated": display == nil, "keyboardObserverRemoved": keyboardToken == nil]
+            if let token = inputModeToken { NotificationCenter.default.removeObserver(token); inputModeToken = nil }
+            return ["displayLinkInvalidated": display == nil, "keyboardObserverRemoved": keyboardToken == nil && inputModeToken == nil]
         }
         let failed = cases.filter { $0["state"] as? String == "failed" }.count
         let record: [String: Any] = ["version": 1, "qualification": "unqualified", "cases": cases,
@@ -419,10 +433,35 @@ final class FitnessController: UIViewController, UITextViewDelegate {
     }
 }
 @main final class NativeFitnessApp: UIResponder, UIApplicationDelegate {
-    var window: UIWindow?
     func application(_ application: UIApplication, didFinishLaunchingWithOptions options: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
-        let w = UIWindow(frame: UIScreen.main.bounds); w.rootViewController = ProcessInfo.processInfo.arguments.contains("--workload") ? WorkloadController() : FitnessController(); w.makeKeyAndVisible(); window = w
         return true
+    }
+    func application(_ application: UIApplication, configurationForConnecting session: UISceneSession, options: UIScene.ConnectionOptions) -> UISceneConfiguration {
+        let configuration = UISceneConfiguration(name: "NativeFitness", sessionRole: session.role)
+        configuration.delegateClass = NativeFitnessSceneDelegate.self
+        return configuration
+    }
+}
+final class NativeFitnessSceneDelegate: UIResponder, UIWindowSceneDelegate {
+    var window: UIWindow?
+    func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options: UIScene.ConnectionOptions) {
+        guard let scene = scene as? UIWindowScene else { return }
+        let w = UIWindow(windowScene: scene)
+        w.rootViewController = ProcessInfo.processInfo.arguments.contains("--workload") ? WorkloadController() : FitnessController()
+        window = w; w.makeKeyAndVisible()
+    }
+    func sceneDidBecomeActive(_ scene: UIScene) {
+        // Global application activation settles after the scene callback returns.
+        // Observe the following real main-loop turn; do not publish desired state.
+        DispatchQueue.main.async { [weak self, weak scene] in
+            guard let self = self, let scene = scene else { return }
+            let readiness: [String: Any] = ["applicationActive": UIApplication.shared.applicationState == .active,
+                "sceneActive": scene.activationState == .foregroundActive,
+                "keyWindow": self.window?.isKeyWindow == true, "pid": ProcessInfo.processInfo.processIdentifier]
+            let path = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("runtime-ready.json")
+            if let bytes = try? fitnessJSON(readiness) { try? Data(bytes.utf8).write(to: path, options: .atomic) }
+            (self.window?.rootViewController as? FitnessController)?.completeAppendFocus()
+        }
     }
 }
 
@@ -495,6 +534,9 @@ final class WorkloadController: UIViewController, UITextViewDelegate {
             },
             NotificationCenter.default.addObserver(forName: UIResponder.keyboardDidHideNotification, object: nil, queue: .main) { [weak self] _ in
                 self?.keyboardShownAt = nil
+            },
+            NotificationCenter.default.addObserver(forName: UITextInputMode.currentInputModeDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
+                self?.completeFocus()
             }
         ]
         editor.inputObserved = { [weak self] kind, entering in
@@ -580,11 +622,11 @@ final class WorkloadController: UIViewController, UITextViewDelegate {
     func completeFocus() {
         guard let keyboardAt = keyboardShownAt, let selectionAt = selectionInstalledAt,
               editor.isFirstResponder, editor.window?.isKeyWindow == true,
-              editor.selectedRange == NSRange(location: targetOffset, length: 1),
-              editor.textInputMode?.primaryLanguage == "en-US" else { return }
+              editor.selectedRange == NSRange(location: targetOffset, length: 1) else { return }
+        let actualMode = editor.textInputMode?.primaryLanguage ?? "unavailable"
         focusReadiness = ["keyboardDidShowAt": keyboardAt, "selectionInstalledAt": selectionAt,
             "readyAt": CACurrentMediaTime(), "keyWindow": true, "selectionUtf16": [targetOffset, 1]]
-        status.accessibilityValue = "keyboard-ready"
+        status.accessibilityValue = actualMode == "en-US" ? "keyboard-ready" : "input-mode:" + actualMode
         partial()
     }
     deinit { for observer in keyboardObservers { NotificationCenter.default.removeObserver(observer) } }
