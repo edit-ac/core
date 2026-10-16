@@ -23,6 +23,7 @@ required-features = ["bindgen"]
 
 [dependencies]
 editac-core = { path = "../editac-core" }
+editac-markdown = { path = "../editac-markdown" }
 editac-diff = { path = "../editac-diff" }
 editac-session = { path = "../editac-session", features = ["native-store"] }
 yrs.workspace = true
