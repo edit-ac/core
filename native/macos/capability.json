@@ -2,7 +2,7 @@
   "contractVersion": 1,
   "id": "native.macos.pending.v1",
   "implementation": {
-    "revision": "409b52ba97e5d7eec5d8754581a235d64d033bec",
+    "revision": "42fa88069cf768647d76f14fb85e8e6e63832a44",
     "package": "EditacMacOS",
     "version": "0.0.0"
   },
@@ -337,7 +337,7 @@
     },
     {
       "path": "native/macos/Sources/EditacMacOS/session/NativeSessionExecutor.swift",
-      "sha256": "00a84d05dcd1948c132567be37e8a2fb517b2f6f8a066102ae9ecfd6209bdbeb"
+      "sha256": "ccb11a8fe6123ecef99e678d693e173859ddcaae285358b6e8fcb7057093190d"
     },
     {
       "path": "native/macos/Sources/EditacMacOS/transport/NativeDocumentCoordinator.swift",
@@ -349,15 +349,15 @@
     },
     {
       "path": "native/macos/Sources/EditacMacOS/extensions/NativeExtensions.swift",
-      "sha256": "96b76a3e285b0a02742101b52ce21ca84365e412357e7e483331d749bbbcccd5"
+      "sha256": "ddec1cda632d547980daf72d24e150ee92c3bfa9df9871a9b711e46f3b072fa8"
     },
     {
       "path": "native/macos/Sources/EditacMacOS/extensions/README.md",
-      "sha256": "7824480b2de1cb77301b9cbad5fba8e49965949921020142d2417a27a6e1c4cb"
+      "sha256": "d019abcbddc8599c041523a656f5e1ccc182c1865c2bc1bffd4c5f45157f380d"
     },
     {
       "path": "native/macos/tests/Extensions/ExtensionsTests.swift",
-      "sha256": "fe1d5b3656479f73edb1421b4c65c07d9b412d926154b8d3888f2777848de601"
+      "sha256": "a4d86f3451a51169e5ed1ea854efeeab5b4757095364799b139001c927a145bc"
     },
     {
       "path": "native/macos/tests/ExtensionsFixture/Cargo.lock",
