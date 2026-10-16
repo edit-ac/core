@@ -4,7 +4,8 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { digest, verifyPins } from '../../../scripts/architecture-budgets.mjs';
-import { workload } from '../../../benchmarks/workloads.mjs';
+import { workload, canonicalWorkload, projectedWorkload } from '../../../benchmarks/workloads.mjs';
+import { init } from '../../../packages/core/dist/index.js';
 import { inspectWorkloads } from '../../../scripts/workload-evidence.mjs';
 import { inspectTableInputSamples, inspectTableAccessibility } from '../../../scripts/table-workload-accessibility.mjs';
 const root = fileURLToPath(new URL('../../../', import.meta.url));
@@ -40,6 +41,25 @@ for (const item of tables) test(`${item.scale}/${item.preset} trusted table inpu
     assert.throws(() => inspectTableAccessibility(profile, item, rows(item)), /reopen/);
     evidence.gaps.push(`${item.scale}/${item.preset}: persisted reopen unqualified`);
   }
+});
+
+for (const item of tables) test(`${item.scale}/${item.preset} retained acknowledged journal replays from the original persisted checkpoint`, async () => {
+  const frozen = JSON.parse(await read(`${index.directory}/fixtures/${item.scale}-table-selection.checkpoint.json`));
+  const proof = item.tableAccessibility.persistedJournal;
+  assert(proof, 'Actual persisted journal proof missing');
+  assert.equal(proof.checkpointBytes, frozen.checkpoint.bytes.length);
+  const journal = [];
+  for (const entry of proof.entries) {
+    const bytes = await read(`${index.directory}/${entry.file}`);
+    assert.equal(bytes.length, entry.byteLength); assert.equal(digest(bytes), entry.checksum);
+    assert.equal(record.artifacts[entry.file], entry.checksum);
+    journal.push({identity:entry.identity, bytes:new Uint8Array(bytes)});
+  }
+  assert.equal(journal.length, profile.samples * 4);
+  const runtime = await init('data:application/wasm;base64,' + (await read('packages/core/dist/wasm/editac_wasm_bg.wasm')).toString('base64'));
+  const engine = runtime.restoreEngine(frozen.identity, {...frozen.checkpoint, bytes:Uint8Array.from(frozen.checkpoint.bytes)}, journal);
+  try { assert.equal(digest(canonicalWorkload(projectedWorkload(engine.read()))), item.expectedSemanticHash); }
+  finally { engine.dispose(); }
 });
 
 test('full table matrix admission rejects failed or incomplete owning evidence', () => {
@@ -79,6 +99,19 @@ for (const [name, change] of [
 ]) test(`table input admission rejects ${name}`, () => {
   const item = structuredClone(seed); change(item);
   assert.throws(() => inspectTableInputSamples(profile, item, rows(seed)));
+});
+
+for (const [name, change] of [
+  ['missing journal', r => delete r.tableAccessibility.persistedJournal],
+  ['missing acknowledged update', r => r.tableAccessibility.persistedJournal.entries.pop()],
+  ['checkpoint-only substitution', r => r.tableAccessibility.persistedJournal.checkpointSameAsSeed = false],
+  ['duplicate acknowledged identity', r => r.tableAccessibility.persistedJournal.entries[1].updateId = r.tableAccessibility.persistedJournal.entries[0].updateId],
+  ['journal sequence gap', r => r.tableAccessibility.persistedJournal.entries[1].sequence++],
+  ['missing retained payload', r => delete r.tableAccessibility.persistedJournal.entries[0].file],
+  ['missing retained hash', r => r.tableAccessibility.persistedJournal.entries[0].checksum = 'unknown'],
+]) test(`full table admission rejects ${name}`, () => {
+  const item = structuredClone(seed); change(item);
+  assert.throws(() => inspectTableAccessibility(profile, item, rows(seed)));
 });
 
 after(async () => {

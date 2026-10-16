@@ -112,6 +112,21 @@ export async function run(profile, scale, kind, preset, frozen) {
     if (profile.tableInputScope && kind === 'table-selection') {
       const closed = await editor.destroy({ policy: 'flush' });
       check(!closed.unsaved && views === 0, 'Pre-reopen table leaked unsaved state/views');
+      const persisted = await CheckpointStorage.open(indexedDB, databaseName);
+      try {
+        const proof = await persisted.restore(frozen.identity, state => {
+          const same = state.checkpoint.bytes.length === frozen.checkpoint.bytes.length
+            && state.checkpoint.bytes.every((byte, i) => byte === frozen.checkpoint.bytes[i]);
+          check(same && state.tail.length === profile.samples * 4, 'Table proof requires original checkpoint and every acknowledged journal update');
+          return { source: state.source, rejected: state.rejected, checkpointSameAsSeed: same,
+            checkpointBytes: state.checkpoint.bytes.length,
+            entries: state.tail.map(entry => ({ identity: entry.identity, writerId: entry.writerId,
+              sequence: entry.sequence, origin: entry.origin, updateId: entry.updateId,
+              checksum: entry.checksum, byteLength: entry.bytes.length,
+              payload: btoa(Array.from(entry.bytes, byte => String.fromCharCode(byte)).join('')) })) };
+        });
+        raw.tableAccessibility.persistedJournal = proof.value;
+      } finally { persisted.close(); }
       editor = createEditor(root, { databaseName, identity: frozen.identity, indexedDB, locks: navigator.locks, assetUrl: '/fixture/wasm/editac_wasm_bg.wasm', content, ...presetOptions(preset, { taskPreset }) });
       await editor.ready;
       raw.tableAccessibility.reopenSemantics = semantics(editor);

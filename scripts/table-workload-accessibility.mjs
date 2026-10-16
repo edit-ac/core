@@ -13,6 +13,15 @@ export async function tableAX(cdp) {
 
 export function inspectTableAccessibility(profile, item, rows) {
   check(item.tableAccessibility?.reopened === true && item.tableAccessibility.reopenHash === item.expectedSemanticHash, 'Table persisted reopen missing/mutated');
+  const journal = item.tableAccessibility.persistedJournal;
+  check(journal?.checkpointSameAsSeed === true && journal.source === 'latest' && journal.rejected?.length === 0
+    && Number.isSafeInteger(journal.checkpointBytes) && journal.checkpointBytes > 0, 'Table original persisted checkpoint missing/mutated');
+  check(journal.entries?.length === profile.samples * 4 && new Set(journal.entries.map(e => e.updateId)).size === journal.entries.length, 'Table acknowledged journal incomplete');
+  for (const [index, entry] of journal.entries.entries()) {
+    check(Number.isSafeInteger(entry.byteLength) && entry.byteLength > 0 && /^[a-f0-9]{64}$/.test(entry.checksum)
+      && entry.file === `journal/${item.scale}-${item.preset}/${index}.bin`, 'Table persisted journal artifact missing/mutated');
+    if (index) check(entry.writerId === journal.entries[0].writerId && entry.sequence === journal.entries[index - 1].sequence + 1, 'Table journal sequence incomplete');
+  }
   return inspectTableInputSamples(profile, item, rows);
 }
 

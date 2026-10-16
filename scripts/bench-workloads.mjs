@@ -94,6 +94,12 @@ try {
         const raw = await page.evaluate(({ profile, scale, kind, preset, frozen }) => window.workloads.run(profile, scale, kind, preset, frozen), { profile, scale, kind, preset, frozen });
         Object.assign(item, raw); item.semanticHash = digest(raw.initialSemantics ?? 'missing'); item.finalSemanticHash = digest(raw.finalSemantics ?? 'missing');
         if (item.tableAccessibility) {
+          for (const [index, entry] of (item.tableAccessibility.persistedJournal?.entries ?? []).entries()) {
+            const bytes = Buffer.from(entry.payload, 'base64');
+            if (bytes.length !== entry.byteLength || digest(bytes) !== entry.checksum) throw Error('Persisted journal payload identity mismatch');
+            entry.file = `journal/${scale}-${preset}/${index}.bin`;
+            await retain(entry.file, bytes); delete entry.payload;
+          }
           item.tableAccessibility.reopenHash = digest(item.tableAccessibility.reopenSemantics ?? 'missing');
           delete item.tableAccessibility.reopenSemantics;
         }
