@@ -316,6 +316,23 @@ final class ExtensionsTests: XCTestCase {
             try await self.editNeighbor(view, m)
             XCTAssertThrowsError(try view.extensions.replace(target: stale, source: "stale"))
             XCTAssertEqual(child.descriptor, before)
+            // Commit and publish a changed revision ahead of an already captured
+            // UI request. The failed anchor capture must clear pending controls.
+            let gate = DispatchSemaphore(value: 0)
+            view.session.enqueueBarrier { gate.wait() }
+            let revision = try XCTUnwrap(view.projection.revision)
+            let json = String(data: try JSONSerialization.data(withJSONObject: [["type":"replaceAt", "owner":m["text"]!, "from":0, "to":0, "text":"Queued "]]), encoding: .utf8)!
+            try view.session.submit(.commandBatch(revision: revision, json: json, origin: UUID().uuidString, now: 0))
+            try view.session.submit(.read(now: 0))
+            let pending = Task { @MainActor in try await view.extensions.captureEdit(child.nodeID) }
+            for _ in 0..<100 where !view.extensions.isCapturing(child.nodeID) { await Task.yield() }
+            let capturing = view.extensions.isCapturing(child.nodeID)
+            gate.signal()
+            XCTAssertTrue(capturing)
+            do { _ = try await pending.value; XCTFail("accepted stale queued capture") } catch {}
+            XCTAssertFalse(view.extensions.isCapturing(child.nodeID))
+            XCTAssertTrue(child.editButton.isEnabled)
+            XCTAssertFalse(child.cancelButton.isEnabled)
         }
     }
     func testActualSourceReadOnlyPolicyAndDisposalGuards() async throws {

@@ -321,7 +321,11 @@ public final class NativeExtensions {
                 do { try view.session.submit(.captureAttachment(revision: revision, node: nodeID)) { c.resume(with: $0.mapError { $0 as Error }) } }
                 catch { c.resume(throwing: error) }
             }
-        } catch { if captures[nodeID] == id { captures.removeValue(forKey: nodeID) }; throw error }
+        } catch {
+            if captures[nodeID] == id { captures.removeValue(forKey: nodeID) }
+            views[nodeID]?.refreshEditing()
+            throw error
+        }
         guard case let .anchors(anchors) = response, let anchor = anchors.first else { throw NativeExtensionFailure.staleTarget }
         let target = EditTarget(id: id, nodeID: nodeID, descriptor: descriptor, revision: revision, anchor: anchor.token)
         guard captures[nodeID] == id, !disposed, !view.isDisposed, view.projection.revision == revision,
