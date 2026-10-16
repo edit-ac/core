@@ -176,12 +176,11 @@ function invoke<T>(operation: string, action: () => T): T {
   catch (error) {
     if (error instanceof EngineError) throw error;
     if (typeof error === "string") {
-      try {
-        const e: { code?: unknown; operation?: unknown; message?: unknown } | null = JSON.parse(error);
-        if (e && typeof e === "object" && typeof e.code === "string" && typeof e.operation === "string" && typeof e.message === "string") {
-          throw new EngineError(e.code, e.operation, e.message);
-        }
-      } catch (parsed) { if (parsed instanceof EngineError) throw parsed; }
+      let e: { code?: unknown; operation?: unknown; message?: unknown } | null = null;
+      try { e = JSON.parse(error); } catch {}
+      if (e && typeof e === "object" && typeof e.code === "string" && typeof e.operation === "string" && typeof e.message === "string") {
+        throw new EngineError(e.code, e.operation, e.message);
+      }
     }
     throw new EngineError("InvalidInput", operation, error instanceof Error ? error.message : String(error));
   }
@@ -245,8 +244,8 @@ export function createHandle(construct: (json: string) => RawEngine, options: Cr
 }
 export function restoreHandle(construct: (json: string, bytes: Uint8Array) => RawEngine, expected: DocumentIdentity, checkpoint: Checkpoint, journal: readonly ReplayUpdate[] = []): EngineHandle {
   return invoke("restore", () => {
-    const c = envelope(checkpoint, ["identity", "initialized", "writerId", "bytes"], "restore");
-    const checkpointBytes = bytes(c.bytes, "restore");
+    const { bytes: checkpointInput, ...metadata } = envelope(checkpoint, ["identity", "initialized", "writerId", "bytes"], "restore");
+    const checkpointBytes = bytes(checkpointInput, "restore");
     if (!Array.isArray(journal) || Object.getPrototypeOf(journal) !== Array.prototype || Reflect.ownKeys(journal).length !== journal.length + 1 || journal.length > 4096) throw new EngineError("ResourceLimit", "restore", "invalid journal bounds");
     // Inspect descriptors before reading any journal element.
     const descriptors = Object.getOwnPropertyDescriptors(journal);
@@ -262,7 +261,8 @@ export function restoreHandle(construct: (json: string, bytes: Uint8Array) => Ra
       buffers.push(copied);
       return {identity:u.identity, byteLength:copied.byteLength};
     });
-    const metadata: Record<string, unknown> = {expected, identity:c.identity, initialized:c.initialized, writerId:c.writerId, journal:[]};
+    metadata.expected = expected;
+    metadata.journal = [];
     let payload = checkpointBytes;
     if (buffers.length) {
       metadata.checkpointBytes = checkpointBytes.byteLength;

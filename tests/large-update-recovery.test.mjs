@@ -5,9 +5,27 @@ import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { init } from '../packages/core/dist/index.js';
 import { Engine } from '../packages/core/dist/wasm/editac_wasm.js';
-import { createHandle, restoreHandle } from '../packages/core/dist/engine.js';
+import { createHandle, restoreHandle, EngineError } from '../packages/core/dist/engine.js';
 
 let server, runtime;
+test('constructor errors preserve typed engine failures and normalize untyped failures', () => {
+  const original = new EngineError('ResourceLimit', 'restore', 'bounded payload');
+  for (const [thrown, code, operation, message] of [
+    [original, 'ResourceLimit', 'restore', 'bounded payload'],
+    [JSON.stringify({code:'EngineRejected', operation:'create', message:'invalid identity'}), 'EngineRejected', 'create', 'invalid identity'],
+    ['not JSON', 'InvalidInput', 'create', 'not JSON'],
+    ['null', 'InvalidInput', 'create', 'null'],
+    ['{"code":7}', 'InvalidInput', 'create', '{"code":7}'],
+    [new Error('constructor failed'), 'InvalidInput', 'create', 'constructor failed'],
+  ]) {
+    assert.throws(() => createHandle(() => { throw thrown; }, {}), error => {
+      assert.ok(error instanceof EngineError);
+      assert.deepEqual([error.code, error.operation, error.message], [code, operation, message]);
+      if (thrown === original) assert.equal(error, original);
+      return true;
+    });
+  }
+});
 before(async () => {
   const wasm = await readFile(new URL('../packages/core/dist/wasm/editac_wasm_bg.wasm', import.meta.url));
   server = createServer((_, response) => { response.writeHead(200, { 'Content-Type': 'application/wasm' }); response.end(wasm); });
