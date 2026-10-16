@@ -5,3 +5,6 @@ licenses/upstream/* -text -whitespace
 # Preserve byte-exact loading qualification logs and packed artifacts.
 architecture-results/fit-1.6-20261016/source-cache-refresh-1/** -text -whitespace
 architecture-results/fit-1.6-20261016/stage-cache-refresh-1/** -text -whitespace
+
+# Preserve exact startup qualification artifacts and failed evidence.
+architecture-results/fit-1.8-20261016/commit-stamp-1/** -text -whitespace
