@@ -795,6 +795,7 @@ name = "editac-ffi"
 version = "0.0.0"
 dependencies = [
  "editac-core",
+ "editac-diff",
  "editac-session",
  "serde",
  "serde_json",

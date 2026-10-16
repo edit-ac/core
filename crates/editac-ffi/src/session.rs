@@ -125,6 +125,8 @@ pub enum NativeSessionError {
     AnchorTarget { message: String },
     #[error("command input: {message}")]
     CommandInput { message: String },
+    #[error("review input: {reason:?}")]
+    ReviewInput { reason: NativeReviewFailure },
 }
 type Result<T> = std::result::Result<T, NativeSessionError>;
 impl From<PortError> for NativeSessionError {
@@ -413,6 +415,7 @@ struct State {
     _projection_subscription: editac_core::patches::Subscription,
     host_transport: Option<session_collaboration::HostConnection>,
     next_connection: u64,
+    review_history: editac_session::history_store::HistoryStore,
 }
 impl State {
     #[cfg(test)]
@@ -445,6 +448,7 @@ impl State {
             _projection_subscription: subscription,
             host_transport: None,
             next_connection: 0,
+            review_history: new_review_history()?,
         })
     }
     fn receive_peer_update(
@@ -2095,3 +2099,7 @@ mod tests {
 #[path = "session_collaboration.rs"]
 mod session_collaboration;
 pub use session_collaboration::*;
+
+#[path = "session_review.rs"]
+mod session_review;
+pub use session_review::*;
