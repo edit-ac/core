@@ -234,9 +234,9 @@ function bytes(value: unknown, operation: string): Uint8Array {
   return owned;
 }
 function envelope(value: unknown, keys: string[], operation: string): Record<string, unknown> {
-  if (!value || typeof value !== "object" || Object.getPrototypeOf(value) !== Object.prototype) invalid(operation, "expected plain envelope");
+  if (!value || typeof value !== "object" || Object.getPrototypeOf(value) !== Object.prototype) invalid(operation, "invalid envelope");
   const descriptors = Object.getOwnPropertyDescriptors(value);
-  if (Reflect.ownKeys(value).length !== keys.length || keys.some(k => !descriptors[k] || !("value" in descriptors[k]!) || !descriptors[k]!.enumerable)) invalid(operation, "invalid envelope fields");
+  if (Reflect.ownKeys(value).length !== keys.length || keys.some(k => !descriptors[k] || !("value" in descriptors[k]!) || !descriptors[k]!.enumerable)) invalid(operation, "invalid envelope");
   return Object.fromEntries(keys.map(k => [k, descriptors[k]!.value]));
 }
 export function createHandle(construct: (json: string) => RawEngine, options: CreateOptions): EngineHandle {
@@ -249,28 +249,28 @@ export function restoreHandle(construct: (json: string, bytes: Uint8Array) => Ra
     if (!Array.isArray(journal) || Object.getPrototypeOf(journal) !== Array.prototype || Reflect.ownKeys(journal).length !== journal.length + 1 || journal.length > 4096) throw new EngineError("ResourceLimit", "restore", "invalid journal bounds");
     // Inspect descriptors before reading any journal element.
     const descriptors = Object.getOwnPropertyDescriptors(journal);
-    let totalBytes = checkpointBytes.byteLength;
+    let totalBytes = checkpointBytes.length;
     const buffers: Uint8Array[] = [];
     const binaryJournal = Array.from({length:journal.length}, (_, i) => {
       const d = descriptors[String(i)];
       if (!d || !("value" in d)) invalid("restore", "invalid journal entry");
       const u = envelope(d.value, ["identity", "bytes"], "restore");
       const copied = bytes(u.bytes, "restore");
-      totalBytes += copied.byteLength;
+      totalBytes += copied.length;
       if (totalBytes > MAX_BYTES) throw new EngineError("ResourceLimit", "restore", "byte limit exceeded");
       buffers.push(copied);
-      return {identity:u.identity, byteLength:copied.byteLength};
+      return {identity:u.identity, byteLength:copied.length};
     });
     metadata.expected = expected;
     metadata.journal = [];
     let payload = checkpointBytes;
     if (buffers.length) {
-      metadata.checkpointBytes = checkpointBytes.byteLength;
+      metadata.checkpointBytes = checkpointBytes.length;
       metadata.binaryJournal = binaryJournal;
       payload = new Uint8Array(totalBytes);
       payload.set(checkpointBytes);
-      let offset = checkpointBytes.byteLength;
-      for (const buffer of buffers) { payload.set(buffer, offset); offset += buffer.byteLength; }
+      let offset = checkpointBytes.length;
+      for (const buffer of buffers) { payload.set(buffer, offset); offset += buffer.length; }
     }
     return ownHandle(construct(encode(metadata, "restore"), payload));
   });
