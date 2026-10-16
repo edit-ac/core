@@ -48,7 +48,13 @@ public struct NativeClipboardOffer: Sendable, Equatable {
                 throw NativeClipboardFailure.invalidUTF8(flavor)
             }
         }
-        self.values = values
+        // Data can wrap caller-managed storage via bytesNoCopy. Sever that
+        // storage here so a promised clipboard offer cannot change later.
+        self.values = values.mapValues { bytes in
+            bytes.withUnsafeBytes { raw in
+                raw.isEmpty ? Data() : Data(bytes: raw.baseAddress!, count: raw.count)
+            }
+        }
     }
 
     /// Literal mode never calls a rich codec. Rich candidates retain their exact

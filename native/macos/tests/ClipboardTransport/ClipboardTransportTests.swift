@@ -105,6 +105,19 @@ final class ClipboardTransportTests: XCTestCase {
             XCTAssertEqual(try NativeClipboardTransport.read(from: board), payload)
         }
     }
+    func testPromisedOfferSnapshotsCallerManagedMutableStorage() throws {
+        try board { board in
+            let memory = UnsafeMutableRawPointer.allocate(byteCount: 64, alignment: 1)
+            defer { memory.deallocate() }
+            memory.initializeMemory(as: UInt8.self, repeating: 65, count: 64)
+            let external = Data(bytesNoCopy: memory, count: 64, deallocator: .none)
+            let payload = try NativeClipboardOffer([.plain: external])
+            memory.initializeMemory(as: UInt8.self, repeating: 66, count: 64)
+            let publication = try NativeClipboardTransport.publish(payload, to: board, promised: true)
+            XCTAssertTrue(publication.isCurrent(on: board))
+            XCTAssertEqual(try NativeClipboardTransport.read(from: board).values[.plain], Data(repeating: 65, count: 64))
+        }
+    }
     func testOversizeIncomingOSFlavorIsDiagnosed() throws {
         try board { board in
             let item = NSPasteboardItem()

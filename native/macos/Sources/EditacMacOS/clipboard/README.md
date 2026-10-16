@@ -11,7 +11,8 @@ invalidates that acknowledgement. Multiple items and unavailable/failed provider
 data fail explicitly instead of silently discarding content. Tests use isolated
 actual OS pasteboards and release them after each case.
 
-Promised providers own immutable data without retaining an editor or Session.
+Offers copy caller-managed buffers, including `Data(bytesNoCopy:)`, before
+publication. Promised providers own immutable data without retaining an editor or Session.
 Keep the returned publication alive for its promised lifetime. Source disposal
 does not invalidate those bytes. An acknowledgement is not a durable destination
 receipt and cannot authorize source deletion or a cross-document move.
