@@ -2,7 +2,7 @@
   "contractVersion": 1,
   "id": "native.macos.pending.v1",
   "implementation": {
-    "revision": "0f6601b5ef245b6cee9876b316292101509569df",
+    "revision": "75a892d275ad4c2a2b66ca906f1f8d8e45d6c5f1",
     "package": "EditacMacOS",
     "version": "0.0.0"
   },
@@ -393,7 +393,7 @@
     },
     {
       "path": "native/macos/tests/ClipboardTransport/ClipboardTransportTests.swift",
-      "sha256": "6b689ae4c7dc91a6023bf7ea29f3637ab35eff12d407e3179d9301bace56b13f"
+      "sha256": "c7202fd7c29bbb3d7a7cef2533cbd30987b2173c308f4dadfe2fdfa76da17139"
     }
   ],
   "evidence": []
