@@ -108,7 +108,8 @@ public final class NativeExtensionView: NSView {
         }
         guard !released else { return }
         title.stringValue = value.type + " v\(value.version) — " + diagnostic
-        setAccessibilityLabel(value.type + ": " + value.source)
+        setAccessibilityElement(true); setAccessibilityRole(.group)
+        setAccessibilityLabel(value.type + ": " + String(value.source.prefix(256)))
         if let draft { sourceView.string = draft }
         refreshEditing()
         needsLayout = true
@@ -147,6 +148,18 @@ public final class NativeExtensionView: NSView {
     func dispose() {
         guard !released else { return }; released = true; owner = nil
         releaseRenderer(); refreshEditing(); removeFromSuperview()
+    }
+    public override func accessibilityPerformPress() -> Bool {
+        guard !released, window != nil, selectButton.isEnabled else { return false }
+        let focused = window?.makeFirstResponder(selectButton) == true
+        refreshEditing()
+        return focused
+    }
+    public override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? {
+        guard !released else { return [] }
+        refreshEditing()
+        return NativeStructureAccessibility.buttonActions(in: self,
+            buttons: [selectButton, editButton, saveButton, cancelButton])
     }
     func fit(width: CGFloat) -> NSSize { NSSize(width: width, height: 140) }
     public override func layout() {
@@ -291,8 +304,9 @@ public final class NativeExtensions {
         try applyMark(attribute: attribute, valueJSON: valueJSON, target: target)
     }
     var ownsFirstResponder: Bool {
-        guard let responder = view?.window?.firstResponder else { return false }
-        return views.values.contains { edits[$0.nodeID] != nil && responder === $0.sourceView }
+        guard let view, !disposed, !view.isDisposed,
+              let responder = view.window?.firstResponder as? NSView else { return false }
+        return views.values.contains { responder.isDescendant(of: $0) }
     }
     func isCapturing(_ nodeID: String) -> Bool { captures[nodeID] != nil }
     func isEditing(_ nodeID: String) -> Bool { edits[nodeID] != nil }

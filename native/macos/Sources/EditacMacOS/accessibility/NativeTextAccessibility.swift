@@ -53,7 +53,7 @@ public final class NativeTextAccessibility {
         let routes: [(NativeCommand, String)] = [(.selectAll, "Select all"), (.copy, "Copy"),
             (.undo, "Undo"), (.redo, "Redo"), (.bold, "Bold"), (.italic, "Italic"),
             (.underline, "Underline"), (.find, "Find")]
-        return routes.compactMap { command, name in
+        return view.structureAccessibility.actions + routes.compactMap { command, name in
             guard view.commands.availability(command) == .enabled else { return nil }
             return NSAccessibilityCustomAction(name: name) { [weak view] in
                 MainActor.assumeIsolated {

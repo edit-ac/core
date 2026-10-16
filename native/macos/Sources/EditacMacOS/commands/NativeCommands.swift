@@ -81,7 +81,7 @@ public final class NativeCommands {
     public func availability(_ command: NativeCommand) -> NativeCommandAvailability {
         guard let view, !view.isDisposed, view.projectionFailure == nil,
               view.sessionSnapshot?.revision != nil else { return .unavailableSession }
-        let cellRoute = (view.tables.ownsFirstResponder || view.extensions.ownsFirstResponder) && [.undo, .redo, .serviceReplacement].contains(command)
+        let cellRoute = (view.tables.ownsFirstResponder || view.extensions.ownsFirstResponder || view.attachments.ownsFirstResponder) && [.undo, .redo, .serviceReplacement].contains(command)
         guard view.window?.isKeyWindow == true,
               view.window?.firstResponder === view.textView || cellRoute else { return .unfocused }
         if command == .selectAll || command == .copy { return .enabled }
@@ -343,6 +343,11 @@ public final class NativeCommands {
     public func captureService(range: NSRange) async throws -> NativeReplacementTarget {
         let state = availability(.serviceReplacement)
         guard state == .enabled, let view else { throw NativeCommandFailure.disabled(state) }
+        // This range belongs to the main text projection. Child atom/cell
+        // presenters use their own captured targets, never an unrelated caret.
+        guard view.window?.firstResponder === view.textView else {
+            throw NativeCommandFailure.disabled(.unfocused)
+        }
         return try await view.composition.captureReplacement(range: range)
     }
     public func completeService(_ target: NativeReplacementTarget, text: String) {

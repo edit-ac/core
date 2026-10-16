@@ -34,7 +34,10 @@ final class HostDelegate: NSObject, NSApplicationDelegate {
             Timer.scheduledTimer(withTimeInterval: 0.02, repeats: true) { timer in
                 let done = MainActor.assumeIsolated {
                     attempts += 1
-                    NSApp.activate()
+                    // This fixture must first own foreground activation before
+                    // yielding it. A background app's default activation request
+                    // can remain denied even after its window is ordered front.
+                    NSApp.activate(ignoringOtherApps: true)
                     if NSApp.isActive || attempts >= 150 {
                         let active = NSApp.isActive
                         if active { NSApp.yieldActivation(to: target) }

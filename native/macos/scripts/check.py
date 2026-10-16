@@ -16,6 +16,8 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 CORE = ROOT.parents[1]
 SUITES = {
+    "accessibility-structure": ("EditacMacOSAccessibilityStructureTests.AccessibilityStructureTests", 19),
+    "clipboard-transport": ("EditacMacOSClipboardTransportTests.ClipboardTransportTests", 24),
     "extensions": ("EditacMacOSExtensionsTests.ExtensionsTests", 26),
     "collaboration": ("EditacMacOSCollaborationTests.CollaborationTests", 16),
     "collaboration-lifecycle": ("EditacMacOSCollaborationLifecycleTests.CollaborationLifecycleTests", 13),
@@ -101,7 +103,7 @@ def stop_command_tree(process):
 
 def main():
     if len(sys.argv) != 2 or sys.argv[1] not in SUITES:
-        print("Usage: bash native/macos/scripts/check.sh {extensions|collaboration|collaboration-lifecycle|accessibility-text|durability|bootstrap|toolkit|session|projection|edits|composition|commands|styles|table-projection|table-editing|attachments}; unknown/unimplemented suite", file=sys.stderr)
+        print("Usage: bash native/macos/scripts/check.sh {accessibility-structure|extensions|collaboration|collaboration-lifecycle|accessibility-text|durability|bootstrap|toolkit|session|projection|edits|composition|commands|styles|table-projection|table-editing|attachments}; unknown/unimplemented suite", file=sys.stderr)
         return 2
     suite = sys.argv[1]
     signal.signal(signal.SIGTERM, interrupted)
@@ -113,6 +115,9 @@ def main():
                "startedUtc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                "commands": [], "counts": None, "failure": None,
                "qualification": "unqualified", "sourceHashes": {}}
+    if suite == "clipboard-transport":
+        receipt["clipboardScope"] = "native-pasteboard-provider-and-actual-session-delayed-admission-prerequisite-only"
+        receipt["originalGateClosed"] = False
 
     def run(name, command, timeout=180):
         log = output / f"{name}.log"
@@ -242,7 +247,24 @@ def main():
                 "manifestSha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
                 "storeSha256": hashlib.sha256(Path(fixture["path"]).read_bytes()).hexdigest(),
                 "factory": fixture["factory"], "providerCalls": fixture["providerCalls"]}
-        if suite == "extensions":
+        if suite == "accessibility-structure":
+            fixture_root = output / "structure-fixture"
+            env["EDITAC_NATIVE_SESSION_EVIDENCE"] = str(fixture_root)
+            factory = ROOT / "tests/AccessibilityStructureFixture/Cargo.toml"
+            fixture_log = run("structure-fixture", [str(Path.home() / ".cargo/bin/cargo"), "+1.97.1", "run",
+                "--manifest-path", str(factory), "--locked", "--offline",
+                "--target", {"arm64": "aarch64-apple-darwin", "x86_64": "x86_64-apple-darwin"}[actual["cpu"]],
+                "--target-dir", str(CORE / "target/native-macos-ffi")], timeout=300)
+            manifest = Path(fixture_log.strip().splitlines()[-1])
+            env["EDITAC_MACOS_STRUCTURE_FIXTURE"] = str(manifest)
+            env["EDITAC_MACOS_STRUCTURE_EVIDENCE"] = str(output)
+            fixture = json.loads(manifest.read_text())
+            receipt["structureScope"] = "actual-session-sqlite-native-table-attachment-extension-ax-structure-focus"
+            receipt["structureFixture"] = {"manifest": str(manifest),
+                "manifestSha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
+                "storeSha256": hashlib.sha256(Path(fixture["path"]).read_bytes()).hexdigest(),
+                "factory": fixture["factory"], "providerCalls": fixture["providerCalls"]}
+        if suite in ("extensions", "accessibility-structure"):
             fixture_root = output / "extension-fixture"
             env["EDITAC_NATIVE_SESSION_EVIDENCE"] = str(fixture_root)
             factory = ROOT / "tests/ExtensionsFixture/Cargo.toml"
@@ -259,7 +281,7 @@ def main():
                 "manifestSha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
                 "storeSha256": hashlib.sha256(Path(fixture["path"]).read_bytes()).hexdigest(),
                 "factory": fixture["factory"], "providerCalls": fixture["providerCalls"]}
-        if suite == "attachments":
+        if suite in ("attachments", "accessibility-structure"):
             fixture_root = output / "attachment-fixture"
             env["EDITAC_NATIVE_SESSION_EVIDENCE"] = str(fixture_root)
             factory = ROOT / "tests/AttachmentsFixture/Cargo.toml"
@@ -276,7 +298,7 @@ def main():
                 "manifestSha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
                 "storeSha256": hashlib.sha256(Path(fixture["path"]).read_bytes()).hexdigest(),
                 "factory": fixture["factory"], "providerCalls": fixture["providerCalls"]}
-        if suite in ("table-projection", "table-editing"):
+        if suite in ("table-projection", "table-editing", "accessibility-structure"):
             fixture_root = output / "table-fixture"
             env["EDITAC_NATIVE_SESSION_EVIDENCE"] = str(fixture_root)
             factory = ROOT / "tests/TablesFixture/Cargo.toml"

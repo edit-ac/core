@@ -106,6 +106,9 @@ public final class NativeTableCellView: NSTextView {
     public override func accessibilityPerformPress() -> Bool {
         editing?.focus(self) ?? false
     }
+    public override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? {
+        editing?.accessibilityActions(for: self) ?? []
+    }
     @objc public func undo(_ sender: Any?) { editing?.history(redo: false) }
     @objc public func redo(_ sender: Any?) { editing?.history(redo: true) }
     private static let unsupportedActions: Set<String> = ["changeFont:", "changeAttributes:", "changeColor:",
@@ -172,6 +175,7 @@ public final class NativeTableView: NSScrollView {
     public private(set) var sharedTuple: [Any] = []
     public private(set) var rowCount = 0
     public private(set) var columnCount = 0
+    let accessibleStructure = NativeAccessibleTable()
     private let canvas = TableCanvas()
     private var descriptor: NativeTableDescriptor?
     private let styles = NativeStyleRegistry()
@@ -181,6 +185,10 @@ public final class NativeTableView: NSScrollView {
         documentView = canvas; hasHorizontalScroller = true; autohidesScrollers = true
         borderType = .noBorder
         setAccessibilityLabel("Table")
+        setAccessibilityElement(true)
+        setAccessibilityRole(.table)
+        canvas.setAccessibilityElement(false)
+        accessibleStructure.table = self
     }
     @available(*, unavailable)
     public required init?(coder: NSCoder) { fatalError("Use nodeID") }
@@ -245,6 +253,7 @@ public final class NativeTableView: NSScrollView {
         }
         cells = next; self.descriptor = descriptor; sharedTuple = descriptor.tuple
         rowCount = descriptor.rowCount; columnCount = descriptor.alignments.count
+        accessibleStructure.refresh()
     }
 
     func fit(width: CGFloat) -> NSSize {
@@ -269,7 +278,16 @@ public final class NativeTableView: NSScrollView {
         return NSSize(width: width, height: canvas.frame.height + (canvas.frame.width > width ? 16 : 0))
     }
 
+    public override func accessibilityChildren() -> [Any]? { accessibleStructure.rows }
+    public override func accessibilityRows() -> [Any]? { accessibleStructure.rows }
+    public override func accessibilityColumns() -> [Any]? { accessibleStructure.columns }
+    public override func accessibilityColumnHeaderUIElements() -> [Any]? { accessibleStructure.headers }
+    public override func accessibilityCell(forColumn column: Int, row: Int) -> Any? {
+        accessibleStructure.cell(column: column, row: row)
+    }
+
     func dispose() {
+        accessibleStructure.dispose()
         for cell in cells.values {
             cell.editing?.removing(cell)
             cell.isEditable = false; cell.delegate = nil; cell.editing = nil; cell.tableID = nil

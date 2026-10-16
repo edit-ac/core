@@ -197,6 +197,36 @@ public final class NativeTableEditing: NSObject, NSTextViewDelegate {
             lastFailure = nil
         } catch { lastFailure = error as? NativeTableEditingFailure ?? .unavailable }
     }
+    /// Accessible actions use the same captured tuple, catalog and mutation
+    /// gate as native structure buttons. AX queries never call the Session.
+    func accessibilityActions(for cell: NativeTableCellView) -> [NSAccessibilityCustomAction] {
+        guard contains(cell), let view, let id = cell.tableID,
+              let table = view.projection.tableViews[id],
+              view.commands.availability(.serviceReplacement) == .enabled,
+              let route = view.commands.catalog?.routes.first(where: { $0.id == "tableStructure" }),
+              route.available, route.canPrepare,
+              table.cells.values.allSatisfy({ $0.rowSpan == 1 && $0.columnSpan == 1 }),
+              let target = try? captureStructure(tableID: id) else { return [] }
+        // Present only the declared bounded, unmerged table routes. The shared
+        // planner still validates the full payload and permission at commit.
+        let routes: [(String, NativeTableStructureAction, Int, Bool)] = [
+            ("Insert row after", .insertRow, cell.coordinate.row + 1, table.rowCount < 128),
+            ("Delete row", .deleteRow, cell.coordinate.row, table.rowCount > 1),
+            ("Insert column after", .insertColumn, cell.coordinate.column + 1, table.columnCount < 32),
+            ("Delete column", .deleteColumn, cell.coordinate.column, table.columnCount > 1)]
+        return routes.filter { $0.3 }.map { name, action, index, _ in
+            NSAccessibilityCustomAction(name: name) { [weak self, weak cell, weak view] in
+                MainActor.assumeIsolated {
+                    guard let self, let cell, let view, self.contains(cell),
+                          view.commands.availability(.serviceReplacement) == .enabled,
+                          let json = try? self.structureCommand(target: target, action: action, index: index) else { return false }
+                    view.commands.perform(commandsJSON: json, revision: target.revision)
+                    return true
+                }
+            }
+        }
+    }
+
     public func makeStructureButton(tableID: String, action: NativeTableStructureAction, index: Int, title: String) -> NativeTableStructureButton {
         let button = NativeTableStructureButton(editing: self, tableID: tableID, operation: action, index: index, title: title)
         buttons.append(WeakTableStructureButton(button)); refresh()

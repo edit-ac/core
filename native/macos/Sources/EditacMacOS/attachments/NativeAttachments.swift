@@ -80,6 +80,7 @@ public final class NativeAttachmentView: NSView {
     func update(_ value: NativeAttachmentDescriptor) {
         if descriptor != value { imageView.image = nil; setState(.unresolved) }
         descriptor = value; label.stringValue = value.label
+        setAccessibilityElement(true); setAccessibilityRole(.group)
         imageView.setAccessibilityLabel(value.label)
         setAccessibilityLabel(value.kind == .image ? "Image: \(value.label)" : "Reference: \(value.label)")
         toolTip = value.kind == .reference ? value.target : value.title
@@ -98,6 +99,18 @@ public final class NativeAttachmentView: NSView {
         }
         status.setAccessibilityLabel(status.stringValue)
         cancelButton.isEnabled = value == .loading
+        owner?.accessibilityStateChanged()
+    }
+    public override func accessibilityPerformPress() -> Bool {
+        guard owner != nil, window != nil, selectButton.isEnabled else { return false }
+        let focused = window?.makeFirstResponder(selectButton) == true
+        owner?.refresh()
+        return focused
+    }
+    public override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? {
+        owner?.refresh()
+        return NativeStructureAccessibility.buttonActions(in: self,
+            buttons: [activateButton, selectButton, replaceButton, removeButton, cancelButton])
     }
     func fit(width: CGFloat) -> NSSize { NSSize(width: width, height: descriptor.kind == .image ? 190 : 96) }
     public override func layout() {
@@ -175,6 +188,7 @@ public final class NativeAttachments {
         refresh()
         view.projection.layoutTables()
     }
+    func accessibilityStateChanged() { view?.structureAccessibility.refreshAnnouncement() }
     public func resolve(_ nodeID: String) {
         guard let view, !view.isDisposed, !disposed, view.projectionFailure == nil,
               let revision = view.projection.revision, let child = views[nodeID] else { return }
@@ -252,6 +266,11 @@ public final class NativeAttachments {
         let profile = child.descriptor.kind == .image ? "editac.images" : "editac.references"
         return view.commands.profileAvailability(profile)?.available == true
             && view.commands.catalog?.routes.first(where: { $0.id == "atomicContent" })?.canPrepare == true
+    }
+    var ownsFirstResponder: Bool {
+        guard let view, !disposed, !view.isDisposed,
+              let responder = view.window?.firstResponder as? NSView else { return false }
+        return views.values.contains { responder.isDescendant(of: $0) }
     }
     func refresh() {
         for child in views.values {
