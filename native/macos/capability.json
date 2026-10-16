@@ -2,7 +2,7 @@
   "contractVersion": 1,
   "id": "native.macos.pending.v1",
   "implementation": {
-    "revision": "1a72936d12f029b0c9f9a41dedd99005ad30c783",
+    "revision": "0f6601b5ef245b6cee9876b316292101509569df",
     "package": "EditacMacOS",
     "version": "0.0.0"
   },
@@ -385,7 +385,7 @@
     },
     {
       "path": "native/macos/Sources/EditacMacOS/clipboard/NativeClipboardInput.swift",
-      "sha256": "8508c37325fbfeeaea0c80f31bb57740b23a76010e7ee2c3835a130228aef9f3"
+      "sha256": "0c084950f7af82a6c1c06b718509f6a4213c17dddf62eadc6d18fe5419a947e6"
     },
     {
       "path": "native/macos/Sources/EditacMacOS/clipboard/README.md",
