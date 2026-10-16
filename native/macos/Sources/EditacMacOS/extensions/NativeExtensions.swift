@@ -282,6 +282,10 @@ public final class NativeExtensions {
         let target = try view.projection.capture(range: view.textView.selectedRange(), backwards: false, affinity: view.textView.selectionAffinity)
         try applyMark(attribute: attribute, valueJSON: valueJSON, target: target)
     }
+    var ownsFirstResponder: Bool {
+        guard let responder = view?.window?.firstResponder else { return false }
+        return views.values.contains { edits[$0.nodeID] != nil && responder === $0.sourceView }
+    }
     func isCapturing(_ nodeID: String) -> Bool { captures[nodeID] != nil }
     func isEditing(_ nodeID: String) -> Bool { edits[nodeID] != nil }
     func canEdit(_ nodeID: String) -> Bool {
@@ -324,7 +328,10 @@ public final class NativeExtensions {
     public func cancel(_ nodeID: String) {
         captures.removeValue(forKey: nodeID)
         if let target = edits.removeValue(forKey: nodeID) { try? view?.session.submit(.releaseAttachment(token: target.anchor)) }
-        if let child = views[nodeID] { child.sourceView.string = child.descriptor.source; child.refreshEditing() }
+        if let child = views[nodeID] {
+            if view?.window?.firstResponder === child.sourceView, let view { view.window?.makeFirstResponder(view.textView) }
+            child.sourceView.string = child.descriptor.source; child.refreshEditing()
+        }
     }
     public func save(_ nodeID: String, source: String) throws {
         guard let target = edits[nodeID] else { throw NativeExtensionFailure.staleTarget }

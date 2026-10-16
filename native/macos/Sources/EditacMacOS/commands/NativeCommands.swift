@@ -81,7 +81,7 @@ public final class NativeCommands {
     public func availability(_ command: NativeCommand) -> NativeCommandAvailability {
         guard let view, !view.isDisposed, view.projectionFailure == nil,
               view.sessionSnapshot?.revision != nil else { return .unavailableSession }
-        let cellRoute = view.tables.ownsFirstResponder && [.undo, .redo, .serviceReplacement].contains(command)
+        let cellRoute = (view.tables.ownsFirstResponder || view.extensions.ownsFirstResponder) && [.undo, .redo, .serviceReplacement].contains(command)
         guard view.window?.isKeyWindow == true,
               view.window?.firstResponder === view.textView || cellRoute else { return .unfocused }
         if command == .selectAll || command == .copy { return .enabled }

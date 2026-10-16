@@ -18,6 +18,7 @@ private struct FixtureError: Error {}
 
 @MainActor
 final class ExtensionsTests: XCTestCase {
+    private static var launched = false
     private func send(_ view: NativeEditorView, _ request: NativeSessionRequest) async throws -> NativeSessionResponse {
         try await withCheckedThrowingContinuation { c in
             do { try view.session.submit(request) { c.resume(with: $0.mapError { $0 as Error }) } }
@@ -39,6 +40,7 @@ final class ExtensionsTests: XCTestCase {
     private func fixture(setup: @MainActor (NativeEditorView) throws -> Void = { _ in },
                          _ body: @MainActor (NativeEditorView, [String: Any]) async throws -> Void) async throws {
         _ = NSApplication.shared
+        if !Self.launched { NSApp.setActivationPolicy(.regular); NSApp.finishLaunching(); Self.launched = true }
         guard let path = ProcessInfo.processInfo.environment["EDITAC_MACOS_EXTENSION_FIXTURE"] else {
             XCTFail("Missing actual Rust/SQLite extension corpus"); throw FixtureError()
         }
@@ -211,7 +213,50 @@ final class ExtensionsTests: XCTestCase {
         XCTAssertEqual(renderer.disposals, 1)
     }
     private func enable(_ view: NativeEditorView) async throws {
+        view.commands.now = { 0 }
         _ = try await send(view, .extensionPolicy(enabled: true))
+        if let helper = ProcessInfo.processInfo.environment["EDITAC_MACOS_ACTIVATION_HELPER"],
+           let evidence = ProcessInfo.processInfo.environment["EDITAC_MACOS_ACTIVATION_EVIDENCE"] {
+            let directory = URL(fileURLWithPath: evidence)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let receipt = directory.appendingPathComponent(UUID().uuidString + ".json")
+            let process = Process(); process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+            process.arguments = ["-n", "-W", helper, "--args", "--yield-activation",
+                String(ProcessInfo.processInfo.processIdentifier), receipt.path]
+            try process.run(); process.waitUntilExit()
+            let value = try JSONSerialization.jsonObject(with: Data(contentsOf: receipt)) as! [String: Any]
+            XCTAssertEqual(process.terminationStatus, 0)
+            XCTAssertEqual(value["activeBeforeYield"] as? Bool, true)
+            XCTAssertEqual(value["targetPID"] as? Int32, ProcessInfo.processInfo.processIdentifier)
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        guard let window = view.window else { throw FixtureError() }
+        window.makeKeyAndOrderFront(nil)
+        // Wait for actual OS activation instead of assuming it arrives in 50ms.
+        // This is an AppKit event-loop wait, with an asserted bounded deadline.
+        var attempts = 0
+        let textView = view.textView
+        Timer.scheduledTimer(withTimeInterval: 0.02, repeats: true) { timer in
+            let stop = MainActor.assumeIsolated {
+            attempts += 1
+            NSApp.activate(ignoringOtherApps: true)
+            window.makeKeyAndOrderFront(nil); window.makeFirstResponder(textView)
+            if NSApp.isActive && window.isKeyWindow && window.firstResponder === textView || attempts >= 100 {
+                NSApp.stop(nil)
+                NSApp.postEvent(NSEvent.otherEvent(with: .applicationDefined, location: .zero, modifierFlags: [],
+                    timestamp: 0, windowNumber: 0, context: nil, subtype: 0, data1: 0, data2: 0)!, atStart: true)
+                return true
+            }
+            return false
+            }
+            if stop { timer.invalidate() }
+        }
+        NSApp.run()
+        XCTAssertTrue(NSApp.isActive)
+        XCTAssertTrue(window.isKeyWindow)
+        XCTAssertTrue(window.firstResponder === view.textView)
+        print("NATIVE_FOCUS active=\(NSApp.isActive) key=\(window.isKeyWindow) responder=\(window.firstResponder === view.textView) attempts=\(attempts)")
+        view.commands.refreshControls()
     }
     private func completed(_ view: NativeEditorView, _ action: () throws -> Void) async throws {
         let done = expectation(description: "shared native command completion")
