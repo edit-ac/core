@@ -78,3 +78,6 @@ export type { ExtensionReadonlyV1, ExtensionLoadPolicyV1, ExtensionStatusV1, Ext
 export { DocumentSearch, BlockReorder, defaultPreset, documentPreset } from './extensions/configuration.js';
 export type { EditorFacadeOptionsV1, ExtensionPresetOverridesV1 } from './extensions/configuration.js';
 export type { PresenceOptions, PresenceAttachment } from './sync/presence.js';
+
+export { assistiveInput, AssistiveInputPresenter } from './modules/assistive-input.js';
+export type { AssistivePresenterContext, AssistivePresenterOptions, AssistivePresenterFactory } from './modules/assistive-input.js';

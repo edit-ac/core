@@ -25,6 +25,7 @@ export interface EditorOptions extends RecoveryOptions, Partial<EditorFacadeOpti
   commandAllowed?: (command: import('./commands/catalog.js').PortableCommand) => boolean;
   selectionViewport?: import('./selection/pointer.js').PointerSelectionViewport;
   codeCommands?: import('./extensions/code.js').CodeCommandsFactory;
+  assistive?: import('./modules/assistive-input.js').AssistivePresenterFactory;
   search?: import('./modules/search.js').DocumentSearchFactory;
   markdown?: import('./input/shortcuts.js').MarkdownAdapter;
   codeHighlight?: import("./modules/code/presenter.js").CodeHighlightFactory;
@@ -213,6 +214,7 @@ export class BrowserEditor {
       this.#hints = new InputHintController(this.root);
       if (options.inputHints) this.setInputHints(options.inputHints);
       if (options.commandControls) this.#controls = new CommandControls(this);
+      if (this.#input.assistive) this.root.after(this.#input.assistive.element);
       if (collaboration) {
         const pending = this.#connectConfiguredSync();
         if (remoteGate) {
@@ -256,6 +258,7 @@ export class BrowserEditor {
     (this.#hints ??= new InputHintController(this.root)).set(hints);
   }
   get codeCommands(): import('./extensions/code.js').CodeCommandsPresenter | undefined { return this.#input?.codeCommands; }
+  get assistive(): import('./modules/assistive-input.js').AssistiveInputPresenter | undefined { return this.#input?.assistive; }
   get search(): import('./modules/search.js').DocumentSearchPresenter | undefined { return this.#input?.search; }
   get viewport(): import('./platform/viewport.js').EditorViewport | undefined { return this.#surface?.viewport; }
   get reorder(): import('./modules/reorder.js').ReorderPresenter | undefined { return this.#input?.reorder; }
