@@ -46,3 +46,6 @@ export type { ImageLimits } from './modules/images/policy.js';
 
 export { attachmentPresenters, attachmentClipboard, ATTACHMENT_CLIPBOARD_MIME } from './modules/attachments/presenter.js';
 export type { AttachmentDescriptor, AttachmentState, AttachmentAction, AttachmentRequest, AttachmentAuthorization, AttachmentResult, AttachmentPort, AttachmentOptions, AttachmentClipboard } from './modules/attachments/presenter.js';
+
+export { embedPresenters } from './modules/embeds/presenter.js';
+export type { EmbedDescriptor, EmbedTemplate, EmbedOptions } from './modules/embeds/presenter.js';
