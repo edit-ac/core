@@ -259,7 +259,7 @@ impl Content {
                     return Err(ContentError::ResourceLimit);
                 }
                 for run in runs {
-                    if run.marks.len() > 6 || run.text.contains(['\n', '\r']) {
+                    if run.marks.len() > 6 || run.text.contains('\r') {
                         return Err(ContentError::InvalidShape);
                     }
                     for (mark, href) in &run.marks {

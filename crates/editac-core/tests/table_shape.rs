@@ -324,7 +324,7 @@ fn invalid_rectangles_protected_cells_dimensions_and_resource_limits_fail_before
     for cells in [
         vec![vec!["x".into()]],
         vec![vec!["x".into(), "y".into()], vec!["z".into()]],
-        vec![vec!["x\ny".into(), "".into()], vec!["".into(), "".into()]],
+        vec![vec!["x\ry".into(), "".into()], vec!["".into(), "".into()]],
     ] {
         assert_eq!(
             rectangle_commands(
@@ -683,7 +683,7 @@ fn decoded_fragment_cells_admit_plain_text_and_reject_lossy_marks_or_line_bounda
         Some(EditorError::UnsupportedTarget)
     );
     cells[0][0] = cell.clone();
-    cells[0][0].runs[1].text = "\nB".into();
+    cells[0][0].runs[1].text = "\rB".into();
     assert_eq!(
         rectangle_commands(
             OWNER,

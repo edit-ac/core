@@ -272,14 +272,7 @@ pub fn import(source: &str) -> Result<PreparedContent, ImportError> {
                 b.diagnose("table-codec-disabled", span);
                 skip = Some((TagEnd::Table, 1));
             }
-            Event::Html(html) | Event::InlineHtml(html)
-                if matches!(
-                    html.trim_end_matches(['\r', '\n'])
-                        .to_ascii_lowercase()
-                        .as_str(),
-                    "<br>" | "<br/>" | "<br />"
-                ) =>
-            {
+            Event::Html(html) | Event::InlineHtml(html) if is_hard_break_html(&html) => {
                 // A finite inert semantic vocabulary, never DOM/HTML execution.
                 // CommonMark has no backslash spelling for a terminal break.
                 b.text("\n", &span, false);
@@ -311,4 +304,14 @@ pub fn import(source: &str) -> Result<PreparedContent, ImportError> {
         return Err(ImportError::ResourceLimit);
     }
     Ok(b.result)
+}
+
+// Shared finite allowlist for ordinary text and table-cell codecs.
+pub(crate) fn is_hard_break_html(html: &str) -> bool {
+    matches!(
+        html.trim_end_matches(['\r', '\n'])
+            .to_ascii_lowercase()
+            .as_str(),
+        "<br>" | "<br/>" | "<br />"
+    )
 }

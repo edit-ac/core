@@ -191,7 +191,7 @@ pub fn rectangle_commands(
             if bytes > 1_048_576 {
                 return Err(EditorError::ResourceLimit);
             }
-            if text.contains(['\n', '\r']) {
+            if text.contains('\r') {
                 return Err(EditorError::InvalidCommand);
             }
         }
@@ -427,7 +427,7 @@ pub(super) fn plan(expected: &Any, command: &EditorCommand) -> Result<(Any, Stri
                             if run_count > 1024 || text_bytes > 1_048_576 {
                                 return Err(EditorError::ResourceLimit);
                             }
-                            if text.contains(['\r', '\n']) {
+                            if text.contains('\r') {
                                 return Err(EditorError::InvalidCommand);
                             }
                             let marks = array(&run[1])?;
@@ -615,7 +615,7 @@ pub(super) fn plan(expected: &Any, command: &EditorCommand) -> Result<(Any, Stri
             if text.len() > 1_048_576 {
                 return Err(EditorError::ResourceLimit);
             }
-            if text.contains(['\n', '\r']) {
+            if text.contains('\r') {
                 return Err(EditorError::InvalidCommand);
             }
             let cell = rows

@@ -42,7 +42,7 @@ function parse(node: ProjectedNode): ImageMetadata | Table | undefined {
     for (const cell of row) {
       if (!Array.isArray(cell)) return;
       for (const r of cell) {
-        if (++runs > 1024 || !Array.isArray(r) || r.length !== 2 || typeof r[0] !== 'string' || /[\r\n]/u.test(r[0]) || !Array.isArray(r[1]) || r[1].length > 6) return;
+        if (++runs > 1024 || !Array.isArray(r) || r.length !== 2 || typeof r[0] !== 'string' || (/\r/u.test(r[0]) || /\p{Surrogate}/u.test(r[0])) || !Array.isArray(r[1]) || r[1].length > 6) return;
         bytes += new TextEncoder().encode(r[0]).length;
         if (bytes > 2097152) return;
         for (const mark of r[1]) if (!Array.isArray(mark) || !['bold','italic','strike','underline','code','link'].includes(String(mark[0])) ||
@@ -344,6 +344,7 @@ class BasicContentView implements ContentView {
     const node=this.context.engine.read().visible.find(n=>n.id===this.node.id),data=node&&parse(node);
     if(data&&'rows' in data&&JSON.stringify(expected)===JSON.stringify(node!.blockAttributes)&&cellText(data.rows[Number(input.dataset.row)]![Number(input.dataset.column)]!)===input.value)return;
     try{
+      if(/\p{Surrogate}/u.test(input.value))throw Error('Invalid UTF-16 cell');
       if(this.policy().some(([r,c])=>r===Number(input.dataset.row)&&c===Number(input.dataset.column)))throw Error('Protected cell');
       this.context.engine.history({type:'explicit'});
       const result=this.context.commit({kind:'editor',origin:'module-table-cell',commands:[{type:'tableCell',owner:this.node.id,expected,row:Number(input.dataset.row),column:Number(input.dataset.column),text:input.value}]});
