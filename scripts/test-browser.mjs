@@ -27,6 +27,7 @@ suites['reorder'] = ['tests/browser/reorder.spec.ts'];
 suites['link-enrichment'] = ['tests/browser/link-enrichment.spec.ts'];
 suites['private-link-display'] = ['tests/browser/private-link-display.spec.ts'];
 suites['references'] = ['tests/browser/references.spec.ts'];
+suites['interaction-text-transfer'] = ['tests/browser/interactions/text-transfer.spec.ts'];
 suites['interaction-text-drag'] = ['tests/browser/interactions/text-drag.spec.ts'];
 suites['interaction-pointer-selection'] = ['tests/browser/interactions/pointer-selection.spec.ts'];
 suites['interaction-accessibility'] = ['tests/browser/interactions/accessibility.spec.ts'];

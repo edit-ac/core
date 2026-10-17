@@ -203,7 +203,9 @@ export class BrowserEditor {
     return !this.#readOnly && session.storage.state.phase !== 'error' && session.writer.engine.can(request);
   }
   chain(origin = 'local:sdk'): CommandChain { this.#requireReady(); return new CommandChain(this, origin); }
-  /** Capture before moving focus into a formatting control. Release on dismissal. */
+  /** External and cross-document moves have no qualified receipt contract. */
+  get textTransferCapabilities() { this.#requireReady();return this.#input!.textDrag.capabilities; }
+  /** Capture before moving focus into a host control. Release on dismissal. */
   captureTextTransfer(): import('./input/drag.js').TextTransferTarget | undefined {
     this.#requireReady(); return this.#input?.textDrag.capture();
   }
@@ -255,6 +257,10 @@ export class BrowserEditor {
   }
   paste(data: Pick<ClipboardData, 'getData'>, options: { literal?: boolean } = {}): ClipboardOutcome {
     this.#requireReady(); return this.#input!.clipboard.paste(data, options);
+  }
+  /** Copy-only external provider fallback at a hit-tested client position. */
+  dropPlainText(read: () => Promise<string>, position: {clientX: number; clientY: number}): Promise<ClipboardOutcome> {
+    this.#requireReady();return this.#input!.clipboard.dropPlainText(read,position);
   }
   pasteDeferred(data: Pick<ClipboardData, 'getData'>, options: {literal?:boolean; schedule?:()=>Promise<void>} = {}): import('./clipboard/pending.js').PendingPaste {
     this.#requireReady(); return this.#input!.clipboard.pasteDeferred(data,options);
