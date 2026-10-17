@@ -646,3 +646,98 @@ fn independent_store_two_peer_envelopes_use_actual_session_receive_and_history()
         }
     }
 }
+
+#[test]
+fn scoped_inline_commands_recheck_table_capability_and_persist_exact_marks() {
+    use editac_core::commands::{
+        format::{FormatAction, Mark},
+        table::CellRectangle,
+    };
+    for rich in [false, true] {
+        let f = Fixture::new(false);
+        let (store, mut service) = f.service(if rich { "rich-cells" } else { "cell-format" });
+        let original = tuple(&service, &f.table);
+        let expected = service
+            .session()
+            .document()
+            .fragment_for_node(&f.table)
+            .unwrap()
+            .attributes
+            .unwrap()
+            .tuple();
+        let rectangle = CellRectangle {
+            row: 1,
+            column: 0,
+            rows: 1,
+            columns: 1,
+        };
+        let command = if rich {
+            let command: editac_core::interchange::Command = serde_json::from_value(json!({
+                "type":"tableRichRectangle","owner":f.table,"expected":original,
+                "row":1,"column":0,"rows":1,"columns":1,"protected":[],
+                "cells":[[[["rich😀",[["italic"],["link","https://example.test/"]]]]]]
+            }))
+            .unwrap();
+            command.translate(|_| unreachable!()).unwrap()
+        } else {
+            EditorCommand::TableFormat {
+                target: f.table.clone(),
+                expected,
+                rectangle,
+                mark: Mark::Underline,
+                action: FormatAction::Apply,
+                href: None,
+                protected: vec![],
+            }
+        };
+        let commands = [command];
+        let revision = service.read(0).unwrap().revision;
+        service.set_policy(HostPolicy::default());
+        assert!(matches!(
+            service.prepare_commands(&revision, &commands, &origin(), 0),
+            Err(ServiceError::UnsupportedModule)
+        ));
+        service.set_policy(policy());
+        let prepared = service
+            .prepare_commands(&revision, &commands, &origin(), 0)
+            .unwrap();
+        service.set_policy(HostPolicy::default());
+        assert!(matches!(
+            service.apply(prepared, 0),
+            Err(ServiceError::UnsupportedModule)
+        ));
+        assert_eq!(tuple(&service, &f.table), original);
+        assert!(store.pending(&f.id).unwrap().is_empty());
+        service.set_policy(policy());
+        let prepared = service
+            .prepare_commands(&revision, &commands, &origin(), 0)
+            .unwrap();
+        service.apply(prepared, 0).unwrap().unwrap();
+        assert_eq!(store.pending(&f.id).unwrap().len(), 1);
+        assert_eq!(service.session().document().history_state().undo_groups, 1);
+        let edited = tuple(&service, &f.table);
+        if rich {
+            assert_eq!(
+                edited[2]["rows"][1][0],
+                json!([["rich😀", [["italic"], ["link", "https://example.test/"]]]])
+            );
+        } else {
+            assert_eq!(
+                edited[2]["rows"][1][0],
+                json!([["ab😀", [["bold"], ["underline"]]]])
+            );
+        }
+        assert_eq!(edited[2]["rows"][0], original[2]["rows"][0]);
+        let rev = service.read(0).unwrap().revision;
+        service.undo(&rev, 0).unwrap().unwrap();
+        assert_eq!(tuple(&service, &f.table), original);
+        let rev = service.read(0).unwrap().revision;
+        service.redo(&rev, 0).unwrap().unwrap();
+        assert_eq!(tuple(&service, &f.table), edited);
+        let reopened = EditService::new(
+            Session::open(store.clone(), &f.id, CachedPermission::LOCAL).unwrap(),
+            policy(),
+        );
+        assert_eq!(tuple(&reopened, &f.table), edited);
+    }
+}

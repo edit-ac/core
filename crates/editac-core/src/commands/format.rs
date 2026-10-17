@@ -40,7 +40,7 @@ pub enum Mark {
     Link,
 }
 impl Mark {
-    fn key(self) -> &'static str {
+    pub(super) fn key(self) -> &'static str {
         match self {
             Self::Bold => "bold",
             Self::Italic => "italic",

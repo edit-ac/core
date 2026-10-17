@@ -300,6 +300,172 @@ pub(super) fn plan(expected: &Any, command: &EditorCommand) -> Result<(Any, Stri
         .collect::<Result<_, _>>()?;
     let mut alignments = array(&data["alignments"])?.to_vec();
     match command {
+        EditorCommand::TableFormat {
+            rectangle,
+            protected,
+            ..
+        }
+        | EditorCommand::TableRichRectangle {
+            rectangle,
+            protected,
+            ..
+        } => {
+            if v2 {
+                return Err(EditorError::UnsupportedTarget);
+            }
+            let CellRectangle {
+                row,
+                column,
+                rows: height,
+                columns: width,
+            } = *rectangle;
+            let end_row = row.checked_add(height).ok_or(EditorError::ResourceLimit)?;
+            let end_column = column
+                .checked_add(width)
+                .ok_or(EditorError::ResourceLimit)?;
+            if height == 0
+                || width == 0
+                || height
+                    .checked_mul(width)
+                    .ok_or(EditorError::ResourceLimit)?
+                    > 128
+                || protected.len() > 4096
+            {
+                return Err(EditorError::ResourceLimit);
+            }
+            if end_row > rows.len() || end_column > alignments.len() {
+                return Err(EditorError::InvalidCommand);
+            }
+            if protected
+                .iter()
+                .any(|&(r, c)| (row..end_row).contains(&r) && (column..end_column).contains(&c))
+            {
+                return Err(EditorError::UnsupportedTarget);
+            }
+            if let EditorCommand::TableRichRectangle { cells, .. } = command {
+                let incoming = array(cells)?;
+                if incoming.len() != height
+                    || incoming
+                        .iter()
+                        .any(|r| array(r).map_or(true, |r| r.len() != width))
+                {
+                    return Err(EditorError::InvalidCommand);
+                }
+                let mut run_count = 0usize;
+                let mut text_bytes = 0usize;
+                for (r, incoming_row) in incoming.iter().enumerate() {
+                    for (c, cell) in array(incoming_row)?.iter().enumerate() {
+                        for run in array(cell)? {
+                            let run = array(run)?;
+                            if run.len() != 2 {
+                                return Err(EditorError::InvalidCommand);
+                            }
+                            run_count += 1;
+                            let Any::String(text) = &run[0] else {
+                                return Err(EditorError::InvalidCommand);
+                            };
+                            text_bytes = text_bytes
+                                .checked_add(text.len())
+                                .ok_or(EditorError::ResourceLimit)?;
+                            if run_count > 1024 || text_bytes > 1_048_576 {
+                                return Err(EditorError::ResourceLimit);
+                            }
+                            if text.contains(['\r', '\n']) {
+                                return Err(EditorError::InvalidCommand);
+                            }
+                            let marks = array(&run[1])?;
+                            if marks.len() > 6 {
+                                return Err(EditorError::ResourceLimit);
+                            }
+                            let mut seen = std::collections::HashSet::new();
+                            for mark in marks {
+                                let mark = array(mark)?;
+                                let Some(Any::String(key)) = mark.first() else {
+                                    return Err(EditorError::InvalidCommand);
+                                };
+                                if !seen.insert(key.to_string()) {
+                                    return Err(EditorError::InvalidCommand);
+                                }
+                            }
+                            if marks.len() > 1 && seen.contains("code") {
+                                return Err(EditorError::UnsupportedTarget);
+                            }
+                        }
+                        rows[row + r][column + c] = cell.clone();
+                    }
+                }
+            } else if let EditorCommand::TableFormat {
+                mark, action, href, ..
+            } = command
+            {
+                use super::format::{FormatAction, Mark, normalize_link_url};
+                let key = mark.key();
+                let value = match (mark, href) {
+                    (Mark::Link, Some(href)) => values(vec![
+                        Any::from(key),
+                        Any::from(
+                            normalize_link_url(href).map_err(|_| EditorError::InvalidCommand)?,
+                        ),
+                    ]),
+                    (Mark::Link, None) if *action == FormatAction::Remove => {
+                        values(vec![Any::from(key)])
+                    }
+                    (Mark::Link, None) | (_, Some(_)) => return Err(EditorError::InvalidCommand),
+                    _ => values(vec![Any::from(key)]),
+                };
+                let mut all = true;
+                for line in &rows[row..end_row] {
+                    for cell in &line[column..end_column] {
+                        for run in array(cell)? {
+                            let run = array(run)?;
+                            if !array(&run[1])?.iter().any(|m| {
+                                if *action == FormatAction::Remove {
+                                    array(m).is_ok_and(|m| m[0] == Any::from(key))
+                                } else {
+                                    *m == value
+                                }
+                            }) {
+                                all = false;
+                            }
+                        }
+                    }
+                }
+                let remove =
+                    *action == FormatAction::Remove || (*action == FormatAction::Toggle && all);
+                for line in &mut rows[row..end_row] {
+                    for cell in &mut line[column..end_column] {
+                        let mut runs = Vec::new();
+                        for run in array(cell)? {
+                            let mut run = array(run)?.to_vec();
+                            let marks = array(&run[1])?;
+                            if !remove
+                                && *mark != Mark::Code
+                                && marks
+                                    .iter()
+                                    .any(|m| array(m).is_ok_and(|m| m[0] == Any::from("code")))
+                            {
+                                return Err(EditorError::UnsupportedTarget);
+                            }
+                            let mut next = if !remove && *mark == Mark::Code {
+                                Vec::new()
+                            } else {
+                                marks
+                                    .iter()
+                                    .filter(|m| !array(m).is_ok_and(|m| m[0] == Any::from(key)))
+                                    .cloned()
+                                    .collect::<Vec<_>>()
+                            };
+                            if !remove {
+                                next.push(value.clone());
+                            }
+                            run[1] = values(next);
+                            runs.push(values(run));
+                        }
+                        *cell = values(runs);
+                    }
+                }
+            }
+        }
         EditorCommand::TableAttributes {
             rectangle,
             alignment,

@@ -73,3 +73,45 @@ export function decodeTableClipboard(doc: Document, data: DataTransfer): string[
   if (!data.types.includes('text/plain')) throw Error('Literal clipboard required');
   return decodeTsv(data.getData('text/plain'));
 }
+
+/** Versioned, inert run matrix. Engine admission remains authoritative. */
+export const TABLE_RICH_MIME = 'application/x-edit-ac-table-cells+json';
+export type TableRun = [string, [string, ...string[]][]];
+export type RichCellMatrix = TableRun[][][];
+function richMatrix(value: unknown): RichCellMatrix {
+  if (!Array.isArray(value) || !value.length || value.length > MAX_CELLS) throw Error('Invalid rich rectangle');
+  const width = Array.isArray(value[0]) ? value[0].length : 0;
+  if (!width || width > 32 || width * value.length > MAX_CELLS) throw Error('Rich rectangle limit');
+  let count = 0;
+  for (const row of value) {
+    if (!Array.isArray(row) || row.length !== width) throw Error('Invalid rich row');
+    for (const cell of row) {
+      if (!Array.isArray(cell)) throw Error('Invalid rich cell');
+      for (const run of cell) {
+        if (++count > 1024 || !Array.isArray(run) || run.length !== 2 || typeof run[0] !== 'string' || /[\r\n]/u.test(run[0]) || !Array.isArray(run[1]) || run[1].length > 6) throw Error('Invalid rich run');
+        const seen = new Set();
+        for (const mark of run[1]) {
+          if (!Array.isArray(mark) || !['bold','italic','underline','strike','code','link'].includes(mark[0]) || seen.has(mark[0])) throw Error('Invalid rich mark');
+          seen.add(mark[0]);
+          if (mark[0] === 'link') { if (mark.length !== 2 || typeof mark[1] !== 'string') throw Error('Invalid rich link'); }
+          else if (mark.length !== 1) throw Error('Invalid rich mark value');
+        }
+        if (seen.has('code') && seen.size > 1) throw Error('Code excludes rich marks');
+      }
+    }
+  }
+  bounded(JSON.stringify(value));
+  return value as RichCellMatrix;
+}
+export function encodeRichTableClipboard(doc: Document, cells: RichCellMatrix): Record<string, string> {
+  richMatrix(cells);
+  const rich = JSON.stringify({ version: 1, cells }); bounded(rich);
+  return { ...encodeTableClipboard(doc, cells.map(row => row.map(cell => cell.map(run => run[0]).join('')))), [TABLE_RICH_MIME]: rich };
+}
+export function decodeRichTableClipboard(data: DataTransfer): RichCellMatrix | undefined {
+  if (!data.types.includes(TABLE_RICH_MIME)) return;
+  const raw = data.getData(TABLE_RICH_MIME); bounded(raw);
+  const value = JSON.parse(raw);
+  if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).sort().join(',') !== 'cells,version' || value.version !== 1) throw Error('Unsupported rich cells');
+  return richMatrix(value.cells);
+}

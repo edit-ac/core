@@ -9,6 +9,7 @@ suites['reference-presenters'] = ['tests/browser/reference-presenters.spec.ts'];
 suites['controlled-embeds'] = ['tests/browser/controlled-embeds.spec.ts'];
 suites['attachment-actions'] = ['tests/browser/attachment-actions.spec.ts'];
 suites['image-lifecycle'] = ['tests/browser/image-lifecycle.spec.ts'];
+suites['extension-formatting'] = ['tests/browser/extension-formatting.spec.ts'];
 suites['table-selection'] = ['tests/browser/table-selection.spec.ts'];
 suites['table-command'] = ['tests/browser/table-command.spec.ts'];
 suites['code-highlight'] = ['tests/browser/code-highlight.spec.ts'];

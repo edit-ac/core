@@ -1,7 +1,7 @@
 import { embedPresenters, type EmbedOptions } from './embeds/presenter.js';
 import { attachmentPresenters, type AttachmentOptions } from './attachments/presenter.js';
 import { imagePresenters, type ImageOptions } from './images/presenter.js';
-import { decodeTableClipboard, encodeTableClipboard } from './tables/clipboard.js';
+import { decodeTableClipboard, encodeRichTableClipboard, decodeRichTableClipboard } from './tables/clipboard.js';
 import type { EditorCommand, CommitResult, EngineHandle, Json, PrepareRequest, ProjectedNode } from '@edit-ac/core';
 
 export interface ImageMetadata { url: string; alt: string; title: string; source: string }
@@ -81,6 +81,7 @@ class BasicContentView implements ContentView {
   private cells: { row: number; column: number; rows: number; columns: number; expected: Json } | undefined;
   private firstCell: { row: number; column: number } | undefined;
   private focusCell: { row: number; column: number } | undefined;
+  private literalPaste = false;
   private readonly cellButtons: HTMLButtonElement[] = [];
   private readonly actions: HTMLButtonElement[] = [];
   constructor(private readonly context: ContentContext, descriptor: ImageMetadata | Table, private readonly imageUrl: ContentOptions['imageUrl'], private readonly protectedCells: ContentOptions['tableProtectedCells']) {
@@ -115,12 +116,20 @@ class BasicContentView implements ContentView {
         e.preventDefault();if(type==='paste'){this.pasteCells(e.clipboardData);return;}
         const current=parse(this.node);if(!current||!('rows'in current))return;
         const {row,column,rows,columns}=this.cells;
-        const matrix=current.rows.slice(row,row+rows).map(r=>r.slice(column,column+columns).map(cellText));
-        try{for(const [type,value] of Object.entries(encodeTableClipboard(doc,matrix)))e.clipboardData.setData(type,value);}
+        const matrix=current.rows.slice(row,row+rows).map(r=>r.slice(column,column+columns));
+        try{for(const [type,value] of Object.entries(encodeRichTableClipboard(doc,matrix)))e.clipboardData.setData(type,value);}
         catch{this.status.textContent='Cell clipboard exceeds the literal profile; current data preserved.';return;}
-        this.status.textContent='Literal cells copied; formatting is not included.';
+        this.status.textContent='Formatted cells copied; HTML and plain text fallbacks are literal.';
         if(type==='cut')this.rectangle(null);
       });
+      const formatting=doc.createElement('div');formatting.setAttribute('role','group');formatting.setAttribute('aria-label','Format selected cells');this.element.append(formatting);
+      const link=doc.createElement('input');link.type='url';link.setAttribute('aria-label','Table cell link');formatting.append(link);
+      for(const [label,mark] of [['Bold cells','bold'],['Italic cells','italic'],['Underline cells','underline'],['Strike cells','strike'],['Code cells','code'],['Link cells','link'],['Remove cell link','link']] as const){
+        const button=doc.createElement('button');button.type='button';button.textContent=label;formatting.append(button);this.actions.push(button);
+        this.listen(button,'click',()=>{const s=this.cells;if(!s)return;try{this.commitTable({type:'tableFormat',owner:this.node.id,...s,mark,action:label==='Remove cell link'?'remove':'toggle',href:mark==='link'&&label!=='Remove cell link'?link.value:null,protected:this.policy()});}catch{this.status.textContent='Table policy rejected; current data preserved.';}});
+      }
+      const literal=doc.createElement('input');literal.type='checkbox';literal.setAttribute('aria-label','Paste cells as literal text');this.listen(literal,'change',()=>{this.literalPaste=literal.checked;});formatting.append(literal);
+      const literalLabel=doc.createElement('span');literalLabel.textContent='Paste cells as literal text';formatting.append(literalLabel);
       const table=doc.createElement('table'); table.setAttribute('aria-label','Simple table'); const body=doc.createElement('tbody'); table.append(body); this.element.append(table);
       const selectionControls=doc.createElement('div');selectionControls.setAttribute('role','group');selectionControls.setAttribute('aria-label','Select table cells');this.element.append(selectionControls);
       const data=descriptor as Table;
@@ -197,7 +206,10 @@ class BasicContentView implements ContentView {
   private leaveCells():void {this.cells=undefined;this.firstCell=undefined;this.focusCell=undefined;this.paintCells();}
   private commitTable(command:EditorCommand):boolean {
     if(this.readOnly||this.disposed)return false;
-    try{this.context.engine.history({type:'explicit'});const result=this.context.commit({kind:'editor',origin:'module-table-command',commands:[command]});if(result.caret)this.context.engine.releaseAnchor(result.caret);this.status.textContent='Table updated.';return true;}
+    const selection=this.cells,first=this.firstCell,focus=this.focusCell;
+    try{this.context.engine.history({type:'explicit'});const result=this.context.commit({kind:'editor',origin:'module-table-command',commands:[command]});if(result.caret)this.context.engine.releaseAnchor(result.caret);
+      if(selection&&command.type!=='tableStructure'&&!this.disposed){const node=this.context.engine.read().visible.find(n=>n.id===this.node.id);if(node){this.cells={...selection,expected:node.blockAttributes};this.firstCell=first;this.focusCell=focus;this.paintCells();}}
+      this.element.focus();this.status.textContent='Table updated.';return true;}
     catch{this.status.textContent='Table action rejected; current data preserved.';return false;}
   }
   private rectangle(cells:readonly (readonly string[])[]|null):void {
@@ -216,7 +228,9 @@ class BasicContentView implements ContentView {
     this.commitTable({type:'tableStructure',owner:this.node.id,expected:s.expected,action,index});
   }
   private pasteCells(data:DataTransfer):void {
-    try{this.rectangle(decodeTableClipboard(this.element.ownerDocument,data));}
+    try{const rich=this.literalPaste?undefined:decodeRichTableClipboard(data);
+      if(rich){const s=this.cells;if(s)this.commitTable({type:'tableRichRectangle',owner:this.node.id,...s,cells:rich,protected:this.policy()});}
+      else this.rectangle(decodeTableClipboard(this.element.ownerDocument,data));}
     catch{this.status.textContent='Unsupported table clipboard; dimensions and simple unmerged literal cells are required.';}
   }
   private edit(input: HTMLTextAreaElement, expected: Json = this.node.blockAttributes): void {

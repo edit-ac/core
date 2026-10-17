@@ -87,3 +87,21 @@ WASM and packages are built. The corpus is
 packed public imports, production WASM, the owning clipboard/presenter/storage
 middleware and deterministic journal transports. Actual OS/device clipboard
 qualification stays with the downstream platform owners.
+
+## Browser simple-cell formatting and rectangular clipboard
+
+`contentModules()` exposes six inline mark actions scoped to selected v1 table
+cells. Select cells with the visible buttons or Shift plus arrow keys; format the
+whole rectangle with Bold, Italic, Underline, Strike, Code or Link. Link needs an
+explicit safe URL. Code clears other marks; applying another mark over code
+rejects until code is removed. Each accepted action uses the existing prepared
+engine command and one undo group. Readonly/protected/stale targets reject.
+
+Copy/cut includes the versioned `TABLE_RICH_MIME` run matrix, exported from
+`@edit-ac/web/modules`, plus literal HTML/TSV/plain fallbacks. A recognized rich
+flavor takes precedence; malformed, unsupported or over-limit data rejects
+atomically. The visible **Paste cells as literal text** control defaults off and
+bypasses rich decoding when enabled. Formulas and source remain inert. The v1
+commands `tableFormat` and `tableRichRectangle` do not support v2 block styles or
+nested/list cells. Existing whole-atom v2 recovery is unchanged. Full cross-
+extension formatting and native clipboard qualification remain separate work.

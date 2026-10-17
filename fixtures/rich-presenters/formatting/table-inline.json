@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "profile": "editac.table.inline-rectangle.v1",
+  "tuple": [
+    "module:editac.table",
+    1,
+    {
+      "alignments": [
+        "left",
+        "right"
+      ],
+      "rows": [
+        [
+          [
+            [
+              "Header",
+              [
+                [
+                  "bold"
+                ]
+              ]
+            ]
+          ],
+          [
+            [
+              "é😀",
+              [
+                [
+                  "italic"
+                ],
+                [
+                  "underline"
+                ]
+              ]
+            ]
+          ]
+        ],
+        [
+          [
+            [
+              "=SUM(A1)",
+              [
+                [
+                  "code"
+                ]
+              ]
+            ]
+          ],
+          [
+            [
+              "linked",
+              [
+                [
+                  "link",
+                  "https://example.invalid/é"
+                ],
+                [
+                  "strike"
+                ]
+              ]
+            ]
+          ]
+        ]
+      ],
+      "source": "| Header | é😀 |\n| :--- | ---: |\n| `=SUM(A1)` | linked |"
+    }
+  ],
+  "unsupported": [
+    "heading",
+    "list",
+    "nested-table",
+    "v2-cell-formatting"
+  ],
+  "futureParentCriteria": [
+    "v2 paragraph/heading/code presenter",
+    "marked captions",
+    "references",
+    "math and registered extensions"
+  ]
+}

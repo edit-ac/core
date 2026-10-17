@@ -13,6 +13,7 @@ export { referenceSuggestions, referenceBlock, ReferencePresenter, ReferenceLook
 export type { ReferenceSuggestionOptions, ReferenceTarget, ReferenceQuery, ReferenceResolver, ReferenceFactory, ReferencePermissionV1, ReferenceCatalogResultV1, ReferenceHostV1, ReferenceLookupOptions } from './references.js';
 export { reorderControls, ReorderPresenter } from './reorder.js';
 export type { ReorderContext, ReorderFactory } from './reorder.js';
+export { TABLE_RICH_MIME } from './tables/clipboard.js';
 export { contentModules } from './content.js';
 export type { ContentFactory, ContentView, ContentContext, ImageMetadata, ContentOptions } from './content.js';
 // Heavy math renderer remains separately opt-in through @edit-ac/web/math.
