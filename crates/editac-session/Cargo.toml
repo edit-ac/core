@@ -40,3 +40,10 @@ bench = false
 name = "host-markdown-owner"
 path = "../../examples/host-mcp/session-owner.rs"
 required-features = ["native-store"]
+
+[[bin]]
+name = "editac-asset-crash-probe"
+path = "tests/support/asset_crash_probe.rs"
+required-features = ["native-store"]
+test = false
+bench = false

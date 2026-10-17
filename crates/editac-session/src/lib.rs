@@ -28,3 +28,6 @@ pub mod diagnostics;
 
 /// Host-owned public/private link contracts; no IO or semantic transactions.
 pub mod links;
+
+/// Resumable host asset intents, independent of document update receipts.
+pub mod assets;
