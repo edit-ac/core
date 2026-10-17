@@ -43,3 +43,7 @@ export { createHighlightWorker } from './code/worker.js';
 
 export { codeHighlighting, CodeHighlightPresenter } from './code/presenter.js';
 export type { CodeHighlightOptions, CodeHighlightFactory } from './code/presenter.js';
+
+export type { ImageOptions, ImageAssetPort, ImageAssetRequest, ImageAssetResolution, ImageAssetIdentity, ImageAssetDescriptor, ImageAvailability } from './images/presenter.js';
+export { DEFAULT_IMAGE_LIMITS } from './images/policy.js';
+export type { ImageLimits } from './images/policy.js';
