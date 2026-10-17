@@ -57,6 +57,17 @@ function clipRuns(node: ProjectedNode, start: number, end: number): FragmentRun[
   return result;
 }
 
+/** Content controls copy the admitted whole atom, including opaque run data.
+ * Use the same projection encoding and owning validation as editor copy. */
+export function encodeContentFragment(engine: EngineHandle, node: ProjectedNode): string {
+  const attributes = blockStyle(node);
+  if (attributes?.type !== 'content') throw Error('unsupported-content-fragment');
+  const raw = JSON.stringify({ version: 1, schema: engine.read().identity.schema,
+    blocks: [{ attributes, runs: clipRuns(node, 0, node.runs.reduce((n, r) => n + r.text.length, 0)) }] });
+  decodeFragment(raw, engine);
+  return raw;
+}
+
 /** Owns clipboard intents independently of keyboard events. Native menu paste,
  * beforeinput-only paste and noncancelable replacement share one mutation gate. */
 export class ClipboardInput {

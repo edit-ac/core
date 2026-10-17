@@ -65,7 +65,7 @@ test('readonly, protection and stale targets preserve semantic/history/storage e
 },{plainTable:true}));
 test('invalid, unsupported and over-limit rich offers never fall back or mutate',()=>probe('invalid-offers',async(p,f)=>{
  const before=await state(p,f);await choose(p,1,1);const cells=text=>[[[[text,[]]]]];
- const invalid=[{version:1,cells:[]},{version:1,cells:cells('x'),extra:true},{version:1,cells:cells('a\nb')},
+ const invalid=[{version:1,cells:[]},{version:1,cells:cells('x'),extra:true},{version:1,cells:cells('a\rb')},
  {version:1,cells:[[[['x',[['link','javascript:alert(1)']]]]]]}, {version:1,cells:[[[['x',[['bold'],['bold']]]]]]}, {version:1,cells:[[[['x',[['code'],['italic']]]]]]}, {version:1,cells:[[[['x',[['heading']]]]]]},
  {version:1,cells:[[[{paragraphs:[],rowSpan:1,columnSpan:1,header:true}]]]}, {version:1,cells:cells('😀'.repeat(530000))}, {version:1,cells:[[[['one',[]]],[['two',[]]]]]}];
  for(const offer of invalid){await clip(p,'paste',{[mime]:JSON.stringify(offer),'text/plain':'must not fallback'});unchanged(before,await state(p,f));}await clip(p,'paste',{[mime]:'{broken','text/plain':'must not fallback'});unchanged(before,await state(p,f));
@@ -127,3 +127,13 @@ test('v2 native text control edits code literally with exact style history and r
 test('v2 destination accepts v1 rich clipboard as paragraph while preserving headers alignment and protected cells',()=>probe('v2-v1-clipboard',async(p,f)=>{
  const before=await state(p,f);await choose(p,1,1);const offer={[mime]:JSON.stringify({version:1,cells:[[[['incoming😀',[['bold'],['link','https://example.org/']]]]]]}),'text/plain':'must not flatten'};await p.evaluate(()=>window.inputFixture.config.protected=[[0,0]]);await clip(p,'paste',offer);unchanged(before,await state(p,f));await p.evaluate(()=>window.inputFixture.config.protected=[]);await clip(p,'paste',offer);const after=await state(p,f);one(before,after);const expected=structuredClone(v2);expected[2].rows[0][0].paragraphs=[{style:['paragraph'],runs:[['incoming😀',[['bold'],['link','https://example.org/']]]]}];assert.deepEqual(tuple(after),expected);assert.equal(await p.locator('[data-cell-selected]').count(),1);await history(p,'undo');assert.deepEqual((await state(p,f)).nodes,before.nodes);await history(p,'redo');await p.evaluate(()=>window.inputFixture.reopen());assert.deepEqual((await state(p,f)).nodes,after.nodes);
 },{tableTuple:v2}));
+
+// SFR-1.1 admits LF in existing cell runs; CR remains an invalid rich offer.
+for(const version of [1,2])test(`v${version} rich LF cell retains marks metadata quoted clipboard history and reopen`,()=>probe(`v${version}-rich-lf`,async(p,f)=>{
+ const before=await state(p,f);await choose(p,1,1);const runs=[['é😀\nאב',[['bold'],['link','https://example.test/']]]];
+ const cell=version===1?runs:{paragraphs:[{style:['heading',3],runs}],rowSpan:1,columnSpan:1,header:false};
+ await clip(p,'paste',{[mime]:JSON.stringify({version,cells:[[cell]]}),'text/plain':'must not flatten'});const after=await state(p,f);one(before,after);
+ const expected=structuredClone(tuple(before));expected[2].rows[0][0]=cell;assert.deepEqual(tuple(after),expected);
+ const copied=await clip(p,'copy');assert.deepEqual(JSON.parse(copied.data[mime]),{version,cells:[[cell]]});assert.equal(copied.data['text/plain'],'"é😀\nאב"');
+ await history(p,'undo');assert.deepEqual((await state(p,f)).nodes,before.nodes);await history(p,'redo');await p.evaluate(()=>window.inputFixture.reopen());assert.deepEqual((await state(p,f)).nodes,after.nodes);
+},{tableTuple:version===1?fixture.tuple:v2}));

@@ -2,6 +2,24 @@ import type { EngineHandle } from '@edit-ac/core';
 import { EXTENSION_TRANSFER_MIME, importExtensionTransfer, type ExtensionTransferRegistry } from '@edit-ac/core/extensions';
 import type { ClipboardCodec } from '../clipboard/fragment.js';
 import type { ContentFactory, ContentContext } from './content.js';
+import { inlineTags } from '../dom/marks.js';
+import { safeLink } from '../dom/links.js';
+
+/** Present already admitted atom fallback runs without interpreting their data.
+ * Descriptor metadata and unknown module attributes stay inert. */
+export function renderContentRuns(element: HTMLElement, node: ContentContext['node']): void {
+  const doc = element.ownerDocument;
+  element.replaceChildren();
+  for (const run of node.runs) {
+    const span = doc.createElement('span'); let target: HTMLElement = span;
+    for (const [mark, tag] of Object.entries(inlineTags)) if (run.attributes[mark] === true) {
+      const wrapper = doc.createElement(tag); target.append(wrapper); target = wrapper;
+    }
+    const href = safeLink(run.attributes.link, doc.baseURI);
+    if (href) { const link = doc.createElement('a'); link.href = href; link.rel = 'noopener noreferrer'; target.append(link); target = link; }
+    target.textContent = run.text; element.append(span);
+  }
+}
 
 /** Trusted codecs prepare data only. ClipboardInput retains selection, authority,
  * atomic commit and persistence ownership, including after deferred preparation. */

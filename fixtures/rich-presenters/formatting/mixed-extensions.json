@@ -111,6 +111,57 @@
       ],
       "tableMetadata": [],
       "fallback": "inert-source-with-recovery"
+    },
+    {
+      "type": "editac.math",
+      "versions": [
+        1
+      ],
+      "inline": [
+        "bold",
+        "italic",
+        "underline",
+        "strike",
+        "code",
+        "link"
+      ],
+      "blocks": [
+        "paragraph",
+        "heading",
+        "code",
+        "content"
+      ],
+      "tableMetadata": [
+        "rows",
+        "columns",
+        "alignment",
+        "header",
+        "spans",
+        "cell-paragraph-style"
+      ],
+      "fallback": "inert-source-with-recovery"
+    },
+    {
+      "type": "editac.inert",
+      "versions": [
+        1
+      ],
+      "inline": [
+        "bold",
+        "italic",
+        "underline",
+        "strike",
+        "code",
+        "link"
+      ],
+      "blocks": [
+        "paragraph",
+        "heading",
+        "code",
+        "content"
+      ],
+      "tableMetadata": [],
+      "fallback": "inert-source-with-recovery"
     }
   ],
   "cases": [
@@ -122,7 +173,7 @@
         "version": 1,
         "type": "editac.image",
         "dataVersion": 1,
-        "source": "image with caption é😀 אב <script> =SUM(A1)",
+        "source": "image with caption \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
         "payload": [
           {
             "attributes": {
@@ -151,7 +202,7 @@
             },
             "runs": [
               {
-                "text": "caption é😀 אב <script> =SUM(A1)",
+                "text": "caption \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
                 "marks": [
                   {
                     "mark": "bold"
@@ -171,7 +222,7 @@
         "version": 1,
         "type": "editac.image",
         "dataVersion": 1,
-        "source": "image with caption é😀 אב <script> =SUM(A1)",
+        "source": "image with caption \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
         "payload": [
           {
             "attributes": {
@@ -200,7 +251,7 @@
             },
             "runs": [
               {
-                "text": "caption é😀 אב <script> =SUM(A1)",
+                "text": "caption \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
                 "marks": [
                   {
                     "mark": "italic"
@@ -220,7 +271,7 @@
         "version": 1,
         "type": "editac.image",
         "dataVersion": 1,
-        "source": "image with caption é😀 אב <script> =SUM(A1)",
+        "source": "image with caption \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
         "payload": [
           {
             "attributes": {
@@ -249,7 +300,7 @@
             },
             "runs": [
               {
-                "text": "caption é😀 אב <script> =SUM(A1)",
+                "text": "caption \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
                 "marks": [
                   {
                     "mark": "underline"
@@ -269,7 +320,7 @@
         "version": 1,
         "type": "editac.image",
         "dataVersion": 1,
-        "source": "image with caption é😀 אב <script> =SUM(A1)",
+        "source": "image with caption \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
         "payload": [
           {
             "attributes": {
@@ -298,7 +349,7 @@
             },
             "runs": [
               {
-                "text": "caption é😀 אב <script> =SUM(A1)",
+                "text": "caption \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
                 "marks": [
                   {
                     "mark": "strike"
@@ -318,7 +369,7 @@
         "version": 1,
         "type": "editac.image",
         "dataVersion": 1,
-        "source": "image with caption é😀 אב <script> =SUM(A1)",
+        "source": "image with caption \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
         "payload": [
           {
             "attributes": {
@@ -347,7 +398,7 @@
             },
             "runs": [
               {
-                "text": "caption é😀 אב <script> =SUM(A1)",
+                "text": "caption \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
                 "marks": [
                   {
                     "mark": "code"
@@ -367,7 +418,7 @@
         "version": 1,
         "type": "editac.image",
         "dataVersion": 1,
-        "source": "image with caption é😀 אב <script> =SUM(A1)",
+        "source": "image with caption \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
         "payload": [
           {
             "attributes": {
@@ -396,7 +447,7 @@
             },
             "runs": [
               {
-                "text": "caption é😀 אב <script> =SUM(A1)",
+                "text": "caption \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
                 "marks": [
                   {
                     "mark": "link",
@@ -417,7 +468,7 @@
         "version": 1,
         "type": "editac.file",
         "dataVersion": 1,
-        "source": "file with caption é😀 אב <script> =SUM(A1)",
+        "source": "file with caption \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
         "payload": [
           {
             "attributes": {
@@ -439,17 +490,17 @@
                     "width": null,
                     "height": null,
                     "durationMs": null,
-                    "alt": "Alt 😀 אב",
+                    "alt": "Alt \ud83d\ude00 \u05d0\u05d1",
                     "caption": "caption"
                   },
-                  "fallback": "file fallback 😀",
-                  "source": "opaque asset source\\n😀"
+                  "fallback": "file fallback \ud83d\ude00",
+                  "source": "opaque asset source\\n\ud83d\ude00"
                 }
               ]
             },
             "runs": [
               {
-                "text": "file fallback 😀",
+                "text": "file fallback \ud83d\ude00",
                 "marks": []
               }
             ]
@@ -460,7 +511,7 @@
             },
             "runs": [
               {
-                "text": "caption é😀 אב <script> =SUM(A1)",
+                "text": "caption \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
                 "marks": [
                   {
                     "mark": "bold"
@@ -480,7 +531,7 @@
         "version": 1,
         "type": "editac.file",
         "dataVersion": 1,
-        "source": "file with caption é😀 אב <script> =SUM(A1)",
+        "source": "file with caption \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
         "payload": [
           {
             "attributes": {
@@ -502,17 +553,17 @@
                     "width": null,
                     "height": null,
                     "durationMs": null,
-                    "alt": "Alt 😀 אב",
+                    "alt": "Alt \ud83d\ude00 \u05d0\u05d1",
                     "caption": "caption"
                   },
-                  "fallback": "file fallback 😀",
-                  "source": "opaque asset source\\n😀"
+                  "fallback": "file fallback \ud83d\ude00",
+                  "source": "opaque asset source\\n\ud83d\ude00"
                 }
               ]
             },
             "runs": [
               {
-                "text": "file fallback 😀",
+                "text": "file fallback \ud83d\ude00",
                 "marks": []
               }
             ]
@@ -523,7 +574,7 @@
             },
             "runs": [
               {
-                "text": "caption é😀 אב <script> =SUM(A1)",
+                "text": "caption \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
                 "marks": [
                   {
                     "mark": "italic"
@@ -543,7 +594,7 @@
         "version": 1,
         "type": "editac.file",
         "dataVersion": 1,
-        "source": "file with caption é😀 אב <script> =SUM(A1)",
+        "source": "file with caption \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
         "payload": [
           {
             "attributes": {
@@ -565,17 +616,17 @@
                     "width": null,
                     "height": null,
                     "durationMs": null,
-                    "alt": "Alt 😀 אב",
+                    "alt": "Alt \ud83d\ude00 \u05d0\u05d1",
                     "caption": "caption"
                   },
-                  "fallback": "file fallback 😀",
-                  "source": "opaque asset source\\n😀"
+                  "fallback": "file fallback \ud83d\ude00",
+                  "source": "opaque asset source\\n\ud83d\ude00"
                 }
               ]
             },
             "runs": [
               {
-                "text": "file fallback 😀",
+                "text": "file fallback \ud83d\ude00",
                 "marks": []
               }
             ]
@@ -586,7 +637,7 @@
             },
             "runs": [
               {
-                "text": "caption é😀 אב <script> =SUM(A1)",
+                "text": "caption \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
                 "marks": [
                   {
                     "mark": "underline"
@@ -606,7 +657,7 @@
         "version": 1,
         "type": "editac.file",
         "dataVersion": 1,
-        "source": "file with caption é😀 אב <script> =SUM(A1)",
+        "source": "file with caption \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
         "payload": [
           {
             "attributes": {
@@ -628,17 +679,17 @@
                     "width": null,
                     "height": null,
                     "durationMs": null,
-                    "alt": "Alt 😀 אב",
+                    "alt": "Alt \ud83d\ude00 \u05d0\u05d1",
                     "caption": "caption"
                   },
-                  "fallback": "file fallback 😀",
-                  "source": "opaque asset source\\n😀"
+                  "fallback": "file fallback \ud83d\ude00",
+                  "source": "opaque asset source\\n\ud83d\ude00"
                 }
               ]
             },
             "runs": [
               {
-                "text": "file fallback 😀",
+                "text": "file fallback \ud83d\ude00",
                 "marks": []
               }
             ]
@@ -649,7 +700,7 @@
             },
             "runs": [
               {
-                "text": "caption é😀 אב <script> =SUM(A1)",
+                "text": "caption \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
                 "marks": [
                   {
                     "mark": "strike"
@@ -669,7 +720,7 @@
         "version": 1,
         "type": "editac.file",
         "dataVersion": 1,
-        "source": "file with caption é😀 אב <script> =SUM(A1)",
+        "source": "file with caption \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
         "payload": [
           {
             "attributes": {
@@ -691,17 +742,17 @@
                     "width": null,
                     "height": null,
                     "durationMs": null,
-                    "alt": "Alt 😀 אב",
+                    "alt": "Alt \ud83d\ude00 \u05d0\u05d1",
                     "caption": "caption"
                   },
-                  "fallback": "file fallback 😀",
-                  "source": "opaque asset source\\n😀"
+                  "fallback": "file fallback \ud83d\ude00",
+                  "source": "opaque asset source\\n\ud83d\ude00"
                 }
               ]
             },
             "runs": [
               {
-                "text": "file fallback 😀",
+                "text": "file fallback \ud83d\ude00",
                 "marks": []
               }
             ]
@@ -712,7 +763,7 @@
             },
             "runs": [
               {
-                "text": "caption é😀 אב <script> =SUM(A1)",
+                "text": "caption \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
                 "marks": [
                   {
                     "mark": "code"
@@ -732,7 +783,7 @@
         "version": 1,
         "type": "editac.file",
         "dataVersion": 1,
-        "source": "file with caption é😀 אב <script> =SUM(A1)",
+        "source": "file with caption \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
         "payload": [
           {
             "attributes": {
@@ -754,17 +805,17 @@
                     "width": null,
                     "height": null,
                     "durationMs": null,
-                    "alt": "Alt 😀 אב",
+                    "alt": "Alt \ud83d\ude00 \u05d0\u05d1",
                     "caption": "caption"
                   },
-                  "fallback": "file fallback 😀",
-                  "source": "opaque asset source\\n😀"
+                  "fallback": "file fallback \ud83d\ude00",
+                  "source": "opaque asset source\\n\ud83d\ude00"
                 }
               ]
             },
             "runs": [
               {
-                "text": "file fallback 😀",
+                "text": "file fallback \ud83d\ude00",
                 "marks": []
               }
             ]
@@ -775,7 +826,7 @@
             },
             "runs": [
               {
-                "text": "caption é😀 אב <script> =SUM(A1)",
+                "text": "caption \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
                 "marks": [
                   {
                     "mark": "link",
@@ -804,7 +855,7 @@
             },
             "runs": [
               {
-                "text": "formatted é😀 אב <script> =SUM(A1)",
+                "text": "formatted \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
                 "marks": [
                   {
                     "mark": "bold"
@@ -846,7 +897,7 @@
             },
             "runs": [
               {
-                "text": "formatted é😀 אב <script> =SUM(A1)",
+                "text": "formatted \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
                 "marks": [
                   {
                     "mark": "bold"
@@ -888,7 +939,7 @@
             },
             "runs": [
               {
-                "text": "formatted é😀 אב <script> =SUM(A1)",
+                "text": "formatted \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
                 "marks": [
                   {
                     "mark": "bold"
@@ -930,7 +981,7 @@
             },
             "runs": [
               {
-                "text": "formatted é😀 אב <script> =SUM(A1)",
+                "text": "formatted \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
                 "marks": [
                   {
                     "mark": "bold"
@@ -972,7 +1023,7 @@
             },
             "runs": [
               {
-                "text": "formatted é😀 אב <script> =SUM(A1)",
+                "text": "formatted \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
                 "marks": [
                   {
                     "mark": "bold"
@@ -1014,7 +1065,7 @@
             },
             "runs": [
               {
-                "text": "formatted é😀 אב <script> =SUM(A1)",
+                "text": "formatted \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
                 "marks": [
                   {
                     "mark": "bold"
@@ -1056,7 +1107,7 @@
             },
             "runs": [
               {
-                "text": "formatted é😀 אב <script> =SUM(A1)",
+                "text": "formatted \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
                 "marks": [
                   {
                     "mark": "bold"
@@ -1098,7 +1149,7 @@
             },
             "runs": [
               {
-                "text": "formatted é😀 אב <script> =SUM(A1)",
+                "text": "formatted \u00e9\ud83d\ude00 \u05d0\u05d1 <script> =SUM(A1)",
                 "marks": []
               }
             ]
@@ -1122,7 +1173,7 @@
                 "module:editac.reference",
                 1,
                 {
-                  "targetId": "host:opaque/😀",
+                  "targetId": "host:opaque/\ud83d\ude00",
                   "label": "label"
                 }
               ]
@@ -1152,7 +1203,7 @@
             },
             "runs": [
               {
-                "text": "nested 😀",
+                "text": "nested \ud83d\ude00",
                 "marks": [
                   {
                     "mark": "bold"
@@ -1187,7 +1238,7 @@
             },
             "runs": [
               {
-                "text": "nested 😀",
+                "text": "nested \ud83d\ude00",
                 "marks": [
                   {
                     "mark": "bold"
@@ -1224,7 +1275,7 @@
       "version": 1,
       "type": "vendor.atom",
       "dataVersion": 1,
-      "source": "future é😀",
+      "source": "future \u00e9\ud83d\ude00",
       "payload": {
         "identity": "stable:atom",
         "attributes": {
@@ -1239,7 +1290,7 @@
       "version": 1,
       "type": "editac.unavailable",
       "dataVersion": 1,
-      "source": "![alt](https://example.invalid/image.png \"title\")\n\n**caption é😀**",
+      "source": "![alt](https://example.invalid/image.png \"title\")\n\n**caption \u00e9\ud83d\ude00**",
       "payload": {
         "caption": "caption",
         "url": "https://example.invalid/image.png"
@@ -1252,7 +1303,7 @@
       "source": "future version source",
       "payload": {
         "exact": [
-          "😀",
+          "\ud83d\ude00",
           true
         ]
       }
@@ -1261,7 +1312,2107 @@
   "unavailable": [
     "editac.unavailable"
   ],
-  "pending": [
-    "registered inline module fragment transport; marked atomic labels are not admitted by current shared fragment schema"
+  "pending": [],
+  "returnedCases": [
+    {
+      "id": "file-bold",
+      "kind": "file",
+      "tag": "strong",
+      "envelope": {
+        "version": 1,
+        "type": "editac.file",
+        "dataVersion": 1,
+        "source": "file fallback \ud83d\ude00",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.asset",
+                1,
+                {
+                  "identity": {
+                    "host": "fixture-host",
+                    "key": "file-v1"
+                  },
+                  "kind": "file",
+                  "metadata": {
+                    "filename": "report.pdf",
+                    "mediaType": "application/pdf",
+                    "byteLength": 1024,
+                    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "width": null,
+                    "height": null,
+                    "durationMs": null,
+                    "alt": "Alt \ud83d\ude00 \u05d0\u05d1",
+                    "caption": "caption"
+                  },
+                  "fallback": "file fallback \ud83d\ude00",
+                  "source": "opaque asset source\\n\ud83d\ude00"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "file fallback \ud83d\ude00",
+                "marks": [
+                  {
+                    "mark": "bold"
+                  }
+                ],
+                "opaqueMarks": [
+                  {
+                    "key": "vendor-note",
+                    "value": {
+                      "exact": [
+                        true,
+                        42,
+                        "\u00e9\ud83d\ude00"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "file-italic",
+      "kind": "file",
+      "tag": "em",
+      "envelope": {
+        "version": 1,
+        "type": "editac.file",
+        "dataVersion": 1,
+        "source": "file fallback \ud83d\ude00",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.asset",
+                1,
+                {
+                  "identity": {
+                    "host": "fixture-host",
+                    "key": "file-v1"
+                  },
+                  "kind": "file",
+                  "metadata": {
+                    "filename": "report.pdf",
+                    "mediaType": "application/pdf",
+                    "byteLength": 1024,
+                    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "width": null,
+                    "height": null,
+                    "durationMs": null,
+                    "alt": "Alt \ud83d\ude00 \u05d0\u05d1",
+                    "caption": "caption"
+                  },
+                  "fallback": "file fallback \ud83d\ude00",
+                  "source": "opaque asset source\\n\ud83d\ude00"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "file fallback \ud83d\ude00",
+                "marks": [
+                  {
+                    "mark": "italic"
+                  }
+                ],
+                "opaqueMarks": [
+                  {
+                    "key": "vendor-note",
+                    "value": {
+                      "exact": [
+                        true,
+                        42,
+                        "\u00e9\ud83d\ude00"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "file-underline",
+      "kind": "file",
+      "tag": "u",
+      "envelope": {
+        "version": 1,
+        "type": "editac.file",
+        "dataVersion": 1,
+        "source": "file fallback \ud83d\ude00",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.asset",
+                1,
+                {
+                  "identity": {
+                    "host": "fixture-host",
+                    "key": "file-v1"
+                  },
+                  "kind": "file",
+                  "metadata": {
+                    "filename": "report.pdf",
+                    "mediaType": "application/pdf",
+                    "byteLength": 1024,
+                    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "width": null,
+                    "height": null,
+                    "durationMs": null,
+                    "alt": "Alt \ud83d\ude00 \u05d0\u05d1",
+                    "caption": "caption"
+                  },
+                  "fallback": "file fallback \ud83d\ude00",
+                  "source": "opaque asset source\\n\ud83d\ude00"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "file fallback \ud83d\ude00",
+                "marks": [
+                  {
+                    "mark": "underline"
+                  }
+                ],
+                "opaqueMarks": [
+                  {
+                    "key": "vendor-note",
+                    "value": {
+                      "exact": [
+                        true,
+                        42,
+                        "\u00e9\ud83d\ude00"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "file-strike",
+      "kind": "file",
+      "tag": "s",
+      "envelope": {
+        "version": 1,
+        "type": "editac.file",
+        "dataVersion": 1,
+        "source": "file fallback \ud83d\ude00",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.asset",
+                1,
+                {
+                  "identity": {
+                    "host": "fixture-host",
+                    "key": "file-v1"
+                  },
+                  "kind": "file",
+                  "metadata": {
+                    "filename": "report.pdf",
+                    "mediaType": "application/pdf",
+                    "byteLength": 1024,
+                    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "width": null,
+                    "height": null,
+                    "durationMs": null,
+                    "alt": "Alt \ud83d\ude00 \u05d0\u05d1",
+                    "caption": "caption"
+                  },
+                  "fallback": "file fallback \ud83d\ude00",
+                  "source": "opaque asset source\\n\ud83d\ude00"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "file fallback \ud83d\ude00",
+                "marks": [
+                  {
+                    "mark": "strike"
+                  }
+                ],
+                "opaqueMarks": [
+                  {
+                    "key": "vendor-note",
+                    "value": {
+                      "exact": [
+                        true,
+                        42,
+                        "\u00e9\ud83d\ude00"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "file-code",
+      "kind": "file",
+      "tag": "code",
+      "envelope": {
+        "version": 1,
+        "type": "editac.file",
+        "dataVersion": 1,
+        "source": "file fallback \ud83d\ude00",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.asset",
+                1,
+                {
+                  "identity": {
+                    "host": "fixture-host",
+                    "key": "file-v1"
+                  },
+                  "kind": "file",
+                  "metadata": {
+                    "filename": "report.pdf",
+                    "mediaType": "application/pdf",
+                    "byteLength": 1024,
+                    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "width": null,
+                    "height": null,
+                    "durationMs": null,
+                    "alt": "Alt \ud83d\ude00 \u05d0\u05d1",
+                    "caption": "caption"
+                  },
+                  "fallback": "file fallback \ud83d\ude00",
+                  "source": "opaque asset source\\n\ud83d\ude00"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "file fallback \ud83d\ude00",
+                "marks": [
+                  {
+                    "mark": "code"
+                  }
+                ],
+                "opaqueMarks": [
+                  {
+                    "key": "vendor-note",
+                    "value": {
+                      "exact": [
+                        true,
+                        42,
+                        "\u00e9\ud83d\ude00"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "file-link",
+      "kind": "file",
+      "tag": "a",
+      "envelope": {
+        "version": 1,
+        "type": "editac.file",
+        "dataVersion": 1,
+        "source": "file fallback \ud83d\ude00",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.asset",
+                1,
+                {
+                  "identity": {
+                    "host": "fixture-host",
+                    "key": "file-v1"
+                  },
+                  "kind": "file",
+                  "metadata": {
+                    "filename": "report.pdf",
+                    "mediaType": "application/pdf",
+                    "byteLength": 1024,
+                    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "width": null,
+                    "height": null,
+                    "durationMs": null,
+                    "alt": "Alt \ud83d\ude00 \u05d0\u05d1",
+                    "caption": "caption"
+                  },
+                  "fallback": "file fallback \ud83d\ude00",
+                  "source": "opaque asset source\\n\ud83d\ude00"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "file fallback \ud83d\ude00",
+                "marks": [
+                  {
+                    "mark": "link",
+                    "href": "https://example.test/"
+                  }
+                ],
+                "opaqueMarks": [
+                  {
+                    "key": "vendor-note",
+                    "value": {
+                      "exact": [
+                        true,
+                        42,
+                        "\u00e9\ud83d\ude00"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "image-asset-bold",
+      "kind": "image-asset",
+      "tag": "strong",
+      "envelope": {
+        "version": 1,
+        "type": "editac.image",
+        "dataVersion": 1,
+        "source": "image fallback \ud83d\ude00",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.asset",
+                1,
+                {
+                  "identity": {
+                    "host": "fixture-host",
+                    "key": "image-v1"
+                  },
+                  "kind": "image",
+                  "metadata": {
+                    "filename": "image.png",
+                    "mediaType": "image/png",
+                    "byteLength": 1024,
+                    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "width": 2,
+                    "height": 2,
+                    "durationMs": null,
+                    "alt": "Alt \ud83d\ude00 \u05d0\u05d1",
+                    "caption": "caption"
+                  },
+                  "fallback": "image fallback \ud83d\ude00",
+                  "source": "opaque asset source\\n\ud83d\ude00"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "image fallback \ud83d\ude00",
+                "marks": [
+                  {
+                    "mark": "bold"
+                  }
+                ],
+                "opaqueMarks": [
+                  {
+                    "key": "vendor-note",
+                    "value": {
+                      "exact": [
+                        true,
+                        42,
+                        "\u00e9\ud83d\ude00"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "image-asset-italic",
+      "kind": "image-asset",
+      "tag": "em",
+      "envelope": {
+        "version": 1,
+        "type": "editac.image",
+        "dataVersion": 1,
+        "source": "image fallback \ud83d\ude00",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.asset",
+                1,
+                {
+                  "identity": {
+                    "host": "fixture-host",
+                    "key": "image-v1"
+                  },
+                  "kind": "image",
+                  "metadata": {
+                    "filename": "image.png",
+                    "mediaType": "image/png",
+                    "byteLength": 1024,
+                    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "width": 2,
+                    "height": 2,
+                    "durationMs": null,
+                    "alt": "Alt \ud83d\ude00 \u05d0\u05d1",
+                    "caption": "caption"
+                  },
+                  "fallback": "image fallback \ud83d\ude00",
+                  "source": "opaque asset source\\n\ud83d\ude00"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "image fallback \ud83d\ude00",
+                "marks": [
+                  {
+                    "mark": "italic"
+                  }
+                ],
+                "opaqueMarks": [
+                  {
+                    "key": "vendor-note",
+                    "value": {
+                      "exact": [
+                        true,
+                        42,
+                        "\u00e9\ud83d\ude00"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "image-asset-underline",
+      "kind": "image-asset",
+      "tag": "u",
+      "envelope": {
+        "version": 1,
+        "type": "editac.image",
+        "dataVersion": 1,
+        "source": "image fallback \ud83d\ude00",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.asset",
+                1,
+                {
+                  "identity": {
+                    "host": "fixture-host",
+                    "key": "image-v1"
+                  },
+                  "kind": "image",
+                  "metadata": {
+                    "filename": "image.png",
+                    "mediaType": "image/png",
+                    "byteLength": 1024,
+                    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "width": 2,
+                    "height": 2,
+                    "durationMs": null,
+                    "alt": "Alt \ud83d\ude00 \u05d0\u05d1",
+                    "caption": "caption"
+                  },
+                  "fallback": "image fallback \ud83d\ude00",
+                  "source": "opaque asset source\\n\ud83d\ude00"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "image fallback \ud83d\ude00",
+                "marks": [
+                  {
+                    "mark": "underline"
+                  }
+                ],
+                "opaqueMarks": [
+                  {
+                    "key": "vendor-note",
+                    "value": {
+                      "exact": [
+                        true,
+                        42,
+                        "\u00e9\ud83d\ude00"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "image-asset-strike",
+      "kind": "image-asset",
+      "tag": "s",
+      "envelope": {
+        "version": 1,
+        "type": "editac.image",
+        "dataVersion": 1,
+        "source": "image fallback \ud83d\ude00",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.asset",
+                1,
+                {
+                  "identity": {
+                    "host": "fixture-host",
+                    "key": "image-v1"
+                  },
+                  "kind": "image",
+                  "metadata": {
+                    "filename": "image.png",
+                    "mediaType": "image/png",
+                    "byteLength": 1024,
+                    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "width": 2,
+                    "height": 2,
+                    "durationMs": null,
+                    "alt": "Alt \ud83d\ude00 \u05d0\u05d1",
+                    "caption": "caption"
+                  },
+                  "fallback": "image fallback \ud83d\ude00",
+                  "source": "opaque asset source\\n\ud83d\ude00"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "image fallback \ud83d\ude00",
+                "marks": [
+                  {
+                    "mark": "strike"
+                  }
+                ],
+                "opaqueMarks": [
+                  {
+                    "key": "vendor-note",
+                    "value": {
+                      "exact": [
+                        true,
+                        42,
+                        "\u00e9\ud83d\ude00"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "image-asset-code",
+      "kind": "image-asset",
+      "tag": "code",
+      "envelope": {
+        "version": 1,
+        "type": "editac.image",
+        "dataVersion": 1,
+        "source": "image fallback \ud83d\ude00",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.asset",
+                1,
+                {
+                  "identity": {
+                    "host": "fixture-host",
+                    "key": "image-v1"
+                  },
+                  "kind": "image",
+                  "metadata": {
+                    "filename": "image.png",
+                    "mediaType": "image/png",
+                    "byteLength": 1024,
+                    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "width": 2,
+                    "height": 2,
+                    "durationMs": null,
+                    "alt": "Alt \ud83d\ude00 \u05d0\u05d1",
+                    "caption": "caption"
+                  },
+                  "fallback": "image fallback \ud83d\ude00",
+                  "source": "opaque asset source\\n\ud83d\ude00"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "image fallback \ud83d\ude00",
+                "marks": [
+                  {
+                    "mark": "code"
+                  }
+                ],
+                "opaqueMarks": [
+                  {
+                    "key": "vendor-note",
+                    "value": {
+                      "exact": [
+                        true,
+                        42,
+                        "\u00e9\ud83d\ude00"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "image-asset-link",
+      "kind": "image-asset",
+      "tag": "a",
+      "envelope": {
+        "version": 1,
+        "type": "editac.image",
+        "dataVersion": 1,
+        "source": "image fallback \ud83d\ude00",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.asset",
+                1,
+                {
+                  "identity": {
+                    "host": "fixture-host",
+                    "key": "image-v1"
+                  },
+                  "kind": "image",
+                  "metadata": {
+                    "filename": "image.png",
+                    "mediaType": "image/png",
+                    "byteLength": 1024,
+                    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "width": 2,
+                    "height": 2,
+                    "durationMs": null,
+                    "alt": "Alt \ud83d\ude00 \u05d0\u05d1",
+                    "caption": "caption"
+                  },
+                  "fallback": "image fallback \ud83d\ude00",
+                  "source": "opaque asset source\\n\ud83d\ude00"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "image fallback \ud83d\ude00",
+                "marks": [
+                  {
+                    "mark": "link",
+                    "href": "https://example.test/"
+                  }
+                ],
+                "opaqueMarks": [
+                  {
+                    "key": "vendor-note",
+                    "value": {
+                      "exact": [
+                        true,
+                        42,
+                        "\u00e9\ud83d\ude00"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "reference-bold",
+      "kind": "reference",
+      "tag": "strong",
+      "envelope": {
+        "version": 1,
+        "type": "editac.reference",
+        "dataVersion": 1,
+        "source": "label",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.reference",
+                1,
+                {
+                  "targetId": "host:opaque/\ud83d\ude00",
+                  "label": "label"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "label",
+                "marks": [
+                  {
+                    "mark": "bold"
+                  }
+                ],
+                "opaqueMarks": [
+                  {
+                    "key": "vendor-note",
+                    "value": {
+                      "exact": [
+                        true,
+                        42,
+                        "\u00e9\ud83d\ude00"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "reference-italic",
+      "kind": "reference",
+      "tag": "em",
+      "envelope": {
+        "version": 1,
+        "type": "editac.reference",
+        "dataVersion": 1,
+        "source": "label",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.reference",
+                1,
+                {
+                  "targetId": "host:opaque/\ud83d\ude00",
+                  "label": "label"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "label",
+                "marks": [
+                  {
+                    "mark": "italic"
+                  }
+                ],
+                "opaqueMarks": [
+                  {
+                    "key": "vendor-note",
+                    "value": {
+                      "exact": [
+                        true,
+                        42,
+                        "\u00e9\ud83d\ude00"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "reference-underline",
+      "kind": "reference",
+      "tag": "u",
+      "envelope": {
+        "version": 1,
+        "type": "editac.reference",
+        "dataVersion": 1,
+        "source": "label",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.reference",
+                1,
+                {
+                  "targetId": "host:opaque/\ud83d\ude00",
+                  "label": "label"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "label",
+                "marks": [
+                  {
+                    "mark": "underline"
+                  }
+                ],
+                "opaqueMarks": [
+                  {
+                    "key": "vendor-note",
+                    "value": {
+                      "exact": [
+                        true,
+                        42,
+                        "\u00e9\ud83d\ude00"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "reference-strike",
+      "kind": "reference",
+      "tag": "s",
+      "envelope": {
+        "version": 1,
+        "type": "editac.reference",
+        "dataVersion": 1,
+        "source": "label",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.reference",
+                1,
+                {
+                  "targetId": "host:opaque/\ud83d\ude00",
+                  "label": "label"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "label",
+                "marks": [
+                  {
+                    "mark": "strike"
+                  }
+                ],
+                "opaqueMarks": [
+                  {
+                    "key": "vendor-note",
+                    "value": {
+                      "exact": [
+                        true,
+                        42,
+                        "\u00e9\ud83d\ude00"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "reference-code",
+      "kind": "reference",
+      "tag": "code",
+      "envelope": {
+        "version": 1,
+        "type": "editac.reference",
+        "dataVersion": 1,
+        "source": "label",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.reference",
+                1,
+                {
+                  "targetId": "host:opaque/\ud83d\ude00",
+                  "label": "label"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "label",
+                "marks": [
+                  {
+                    "mark": "code"
+                  }
+                ],
+                "opaqueMarks": [
+                  {
+                    "key": "vendor-note",
+                    "value": {
+                      "exact": [
+                        true,
+                        42,
+                        "\u00e9\ud83d\ude00"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "reference-link",
+      "kind": "reference",
+      "tag": "a",
+      "envelope": {
+        "version": 1,
+        "type": "editac.reference",
+        "dataVersion": 1,
+        "source": "label",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.reference",
+                1,
+                {
+                  "targetId": "host:opaque/\ud83d\ude00",
+                  "label": "label"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "label",
+                "marks": [
+                  {
+                    "mark": "link",
+                    "href": "https://example.test/"
+                  }
+                ],
+                "opaqueMarks": [
+                  {
+                    "key": "vendor-note",
+                    "value": {
+                      "exact": [
+                        true,
+                        42,
+                        "\u00e9\ud83d\ude00"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "math-bold",
+      "kind": "math",
+      "tag": "strong",
+      "envelope": {
+        "version": 1,
+        "type": "editac.math",
+        "dataVersion": 1,
+        "source": "LaTeX source: x^2",
+        "payload": [
+          {
+            "attributes": {
+              "type": "paragraph"
+            },
+            "runs": [
+              {
+                "text": "LaTeX source: x^2",
+                "marks": [
+                  {
+                    "mark": "bold"
+                  }
+                ],
+                "attributes": {
+                  "module:editac.math": [
+                    1,
+                    {
+                      "latex": "x^2",
+                      "display": false
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "math-italic",
+      "kind": "math",
+      "tag": "em",
+      "envelope": {
+        "version": 1,
+        "type": "editac.math",
+        "dataVersion": 1,
+        "source": "LaTeX source: x^2",
+        "payload": [
+          {
+            "attributes": {
+              "type": "paragraph"
+            },
+            "runs": [
+              {
+                "text": "LaTeX source: x^2",
+                "marks": [
+                  {
+                    "mark": "italic"
+                  }
+                ],
+                "attributes": {
+                  "module:editac.math": [
+                    1,
+                    {
+                      "latex": "x^2",
+                      "display": false
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "math-underline",
+      "kind": "math",
+      "tag": "u",
+      "envelope": {
+        "version": 1,
+        "type": "editac.math",
+        "dataVersion": 1,
+        "source": "LaTeX source: x^2",
+        "payload": [
+          {
+            "attributes": {
+              "type": "paragraph"
+            },
+            "runs": [
+              {
+                "text": "LaTeX source: x^2",
+                "marks": [
+                  {
+                    "mark": "underline"
+                  }
+                ],
+                "attributes": {
+                  "module:editac.math": [
+                    1,
+                    {
+                      "latex": "x^2",
+                      "display": false
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "math-strike",
+      "kind": "math",
+      "tag": "s",
+      "envelope": {
+        "version": 1,
+        "type": "editac.math",
+        "dataVersion": 1,
+        "source": "LaTeX source: x^2",
+        "payload": [
+          {
+            "attributes": {
+              "type": "paragraph"
+            },
+            "runs": [
+              {
+                "text": "LaTeX source: x^2",
+                "marks": [
+                  {
+                    "mark": "strike"
+                  }
+                ],
+                "attributes": {
+                  "module:editac.math": [
+                    1,
+                    {
+                      "latex": "x^2",
+                      "display": false
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "math-code",
+      "kind": "math",
+      "tag": "code",
+      "envelope": {
+        "version": 1,
+        "type": "editac.math",
+        "dataVersion": 1,
+        "source": "LaTeX source: x^2",
+        "payload": [
+          {
+            "attributes": {
+              "type": "paragraph"
+            },
+            "runs": [
+              {
+                "text": "LaTeX source: x^2",
+                "marks": [
+                  {
+                    "mark": "code"
+                  }
+                ],
+                "attributes": {
+                  "module:editac.math": [
+                    1,
+                    {
+                      "latex": "x^2",
+                      "display": false
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "math-link",
+      "kind": "math",
+      "tag": "a",
+      "envelope": {
+        "version": 1,
+        "type": "editac.math",
+        "dataVersion": 1,
+        "source": "LaTeX source: x^2",
+        "payload": [
+          {
+            "attributes": {
+              "type": "paragraph"
+            },
+            "runs": [
+              {
+                "text": "LaTeX source: x^2",
+                "marks": [
+                  {
+                    "mark": "link",
+                    "href": "https://example.test/"
+                  }
+                ],
+                "attributes": {
+                  "module:editac.math": [
+                    1,
+                    {
+                      "latex": "x^2",
+                      "display": false
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "inert-bold",
+      "kind": "inert",
+      "tag": "strong",
+      "envelope": {
+        "version": 1,
+        "type": "editac.inert",
+        "dataVersion": 1,
+        "source": "opaque \ud83d\ude00 source <script> =SUM(A1)",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.inert-extension",
+                1,
+                {
+                  "version": 1,
+                  "type": "vendor.atom",
+                  "dataVersion": 7,
+                  "source": "opaque \ud83d\ude00 source <script> =SUM(A1)",
+                  "payload": {
+                    "identity": "stable:atom",
+                    "data": [
+                      true,
+                      42
+                    ]
+                  }
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "opaque \ud83d\ude00 source <script> =SUM(A1)",
+                "marks": [
+                  {
+                    "mark": "bold"
+                  }
+                ],
+                "opaqueMarks": [
+                  {
+                    "key": "vendor-note",
+                    "value": {
+                      "exact": [
+                        true,
+                        42,
+                        "\u00e9\ud83d\ude00"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "inert-italic",
+      "kind": "inert",
+      "tag": "em",
+      "envelope": {
+        "version": 1,
+        "type": "editac.inert",
+        "dataVersion": 1,
+        "source": "opaque \ud83d\ude00 source <script> =SUM(A1)",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.inert-extension",
+                1,
+                {
+                  "version": 1,
+                  "type": "vendor.atom",
+                  "dataVersion": 7,
+                  "source": "opaque \ud83d\ude00 source <script> =SUM(A1)",
+                  "payload": {
+                    "identity": "stable:atom",
+                    "data": [
+                      true,
+                      42
+                    ]
+                  }
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "opaque \ud83d\ude00 source <script> =SUM(A1)",
+                "marks": [
+                  {
+                    "mark": "italic"
+                  }
+                ],
+                "opaqueMarks": [
+                  {
+                    "key": "vendor-note",
+                    "value": {
+                      "exact": [
+                        true,
+                        42,
+                        "\u00e9\ud83d\ude00"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "inert-underline",
+      "kind": "inert",
+      "tag": "u",
+      "envelope": {
+        "version": 1,
+        "type": "editac.inert",
+        "dataVersion": 1,
+        "source": "opaque \ud83d\ude00 source <script> =SUM(A1)",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.inert-extension",
+                1,
+                {
+                  "version": 1,
+                  "type": "vendor.atom",
+                  "dataVersion": 7,
+                  "source": "opaque \ud83d\ude00 source <script> =SUM(A1)",
+                  "payload": {
+                    "identity": "stable:atom",
+                    "data": [
+                      true,
+                      42
+                    ]
+                  }
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "opaque \ud83d\ude00 source <script> =SUM(A1)",
+                "marks": [
+                  {
+                    "mark": "underline"
+                  }
+                ],
+                "opaqueMarks": [
+                  {
+                    "key": "vendor-note",
+                    "value": {
+                      "exact": [
+                        true,
+                        42,
+                        "\u00e9\ud83d\ude00"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "inert-strike",
+      "kind": "inert",
+      "tag": "s",
+      "envelope": {
+        "version": 1,
+        "type": "editac.inert",
+        "dataVersion": 1,
+        "source": "opaque \ud83d\ude00 source <script> =SUM(A1)",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.inert-extension",
+                1,
+                {
+                  "version": 1,
+                  "type": "vendor.atom",
+                  "dataVersion": 7,
+                  "source": "opaque \ud83d\ude00 source <script> =SUM(A1)",
+                  "payload": {
+                    "identity": "stable:atom",
+                    "data": [
+                      true,
+                      42
+                    ]
+                  }
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "opaque \ud83d\ude00 source <script> =SUM(A1)",
+                "marks": [
+                  {
+                    "mark": "strike"
+                  }
+                ],
+                "opaqueMarks": [
+                  {
+                    "key": "vendor-note",
+                    "value": {
+                      "exact": [
+                        true,
+                        42,
+                        "\u00e9\ud83d\ude00"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "inert-code",
+      "kind": "inert",
+      "tag": "code",
+      "envelope": {
+        "version": 1,
+        "type": "editac.inert",
+        "dataVersion": 1,
+        "source": "opaque \ud83d\ude00 source <script> =SUM(A1)",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.inert-extension",
+                1,
+                {
+                  "version": 1,
+                  "type": "vendor.atom",
+                  "dataVersion": 7,
+                  "source": "opaque \ud83d\ude00 source <script> =SUM(A1)",
+                  "payload": {
+                    "identity": "stable:atom",
+                    "data": [
+                      true,
+                      42
+                    ]
+                  }
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "opaque \ud83d\ude00 source <script> =SUM(A1)",
+                "marks": [
+                  {
+                    "mark": "code"
+                  }
+                ],
+                "opaqueMarks": [
+                  {
+                    "key": "vendor-note",
+                    "value": {
+                      "exact": [
+                        true,
+                        42,
+                        "\u00e9\ud83d\ude00"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "inert-link",
+      "kind": "inert",
+      "tag": "a",
+      "envelope": {
+        "version": 1,
+        "type": "editac.inert",
+        "dataVersion": 1,
+        "source": "opaque \ud83d\ude00 source <script> =SUM(A1)",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.inert-extension",
+                1,
+                {
+                  "version": 1,
+                  "type": "vendor.atom",
+                  "dataVersion": 7,
+                  "source": "opaque \ud83d\ude00 source <script> =SUM(A1)",
+                  "payload": {
+                    "identity": "stable:atom",
+                    "data": [
+                      true,
+                      42
+                    ]
+                  }
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "opaque \ud83d\ude00 source <script> =SUM(A1)",
+                "marks": [
+                  {
+                    "mark": "link",
+                    "href": "https://example.test/"
+                  }
+                ],
+                "opaqueMarks": [
+                  {
+                    "key": "vendor-note",
+                    "value": {
+                      "exact": [
+                        true,
+                        42,
+                        "\u00e9\ud83d\ude00"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "math-mixed-spans",
+      "kind": "math",
+      "tag": null,
+      "envelope": {
+        "version": 1,
+        "type": "editac.math",
+        "dataVersion": 1,
+        "source": "mixed math spans",
+        "payload": [
+          {
+            "attributes": {
+              "type": "paragraph"
+            },
+            "runs": [
+              {
+                "text": "before \ud83d\ude00 ",
+                "marks": [
+                  {
+                    "mark": "bold"
+                  },
+                  {
+                    "mark": "link",
+                    "href": "https://example.test/"
+                  }
+                ]
+              },
+              {
+                "text": "LaTeX source: x^2",
+                "marks": [],
+                "attributes": {
+                  "module:editac.math": [
+                    1,
+                    {
+                      "latex": "x^2",
+                      "display": false
+                    }
+                  ]
+                }
+              },
+              {
+                "text": " after \u05d0\u05d1",
+                "marks": [
+                  {
+                    "mark": "italic"
+                  },
+                  {
+                    "mark": "underline"
+                  },
+                  {
+                    "mark": "strike"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "mixed-document",
+      "kind": "document",
+      "tag": null,
+      "envelope": {
+        "version": 1,
+        "type": "editac.math",
+        "dataVersion": 1,
+        "source": "mixed table, math, captions and atoms",
+        "payload": [
+          {
+            "attributes": {
+              "type": "paragraph"
+            },
+            "runs": [
+              {
+                "text": "mixed start",
+                "marks": [
+                  {
+                    "mark": "bold"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.table",
+                2,
+                {
+                  "alignments": [
+                    "left",
+                    "right"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "paragraphs": [
+                          {
+                            "style": [
+                              "heading",
+                              2
+                            ],
+                            "runs": [
+                              [
+                                "Heading \u00e9\ud83d\ude00",
+                                [
+                                  [
+                                    "bold"
+                                  ]
+                                ]
+                              ]
+                            ]
+                          }
+                        ],
+                        "rowSpan": 1,
+                        "columnSpan": 1,
+                        "header": true
+                      },
+                      {
+                        "paragraphs": [
+                          {
+                            "style": [
+                              "code",
+                              "rust"
+                            ],
+                            "runs": [
+                              [
+                                "=SUM(A1); <script>",
+                                []
+                              ]
+                            ]
+                          }
+                        ],
+                        "rowSpan": 1,
+                        "columnSpan": 1,
+                        "header": false
+                      }
+                    ],
+                    [
+                      {
+                        "paragraphs": [
+                          {
+                            "style": [
+                              "paragraph"
+                            ],
+                            "runs": [
+                              [
+                                "\u05d0\u05d1 marked",
+                                [
+                                  [
+                                    "italic"
+                                  ],
+                                  [
+                                    "underline"
+                                  ]
+                                ]
+                              ]
+                            ]
+                          }
+                        ],
+                        "rowSpan": 1,
+                        "columnSpan": 1,
+                        "header": false
+                      },
+                      {
+                        "paragraphs": [
+                          {
+                            "style": [
+                              "paragraph"
+                            ],
+                            "runs": [
+                              [
+                                "linked",
+                                [
+                                  [
+                                    "link",
+                                    "https://example.test/"
+                                  ],
+                                  [
+                                    "strike"
+                                  ]
+                                ]
+                              ]
+                            ]
+                          }
+                        ],
+                        "rowSpan": 1,
+                        "columnSpan": 1,
+                        "header": true
+                      }
+                    ]
+                  ],
+                  "source": "retained | source\n<script>inert</script>"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "Heading \u00e9\ud83d\ude00\t=SUM(A1); <script>\n\u05d0\u05d1 marked\tlinked",
+                "marks": []
+              }
+            ]
+          },
+          {
+            "attributes": {
+              "type": "paragraph"
+            },
+            "runs": [
+              {
+                "text": "before \ud83d\ude00 ",
+                "marks": [
+                  {
+                    "mark": "bold"
+                  },
+                  {
+                    "mark": "link",
+                    "href": "https://example.test/"
+                  }
+                ]
+              },
+              {
+                "text": "LaTeX source: x^2",
+                "marks": [],
+                "attributes": {
+                  "module:editac.math": [
+                    1,
+                    {
+                      "latex": "x^2",
+                      "display": false
+                    }
+                  ]
+                }
+              },
+              {
+                "text": " after \u05d0\u05d1",
+                "marks": [
+                  {
+                    "mark": "italic"
+                  },
+                  {
+                    "mark": "underline"
+                  },
+                  {
+                    "mark": "strike"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.reference",
+                1,
+                {
+                  "targetId": "host:opaque/\ud83d\ude00",
+                  "label": "label"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "label",
+                "marks": [
+                  {
+                    "mark": "underline"
+                  }
+                ],
+                "opaqueMarks": [
+                  {
+                    "key": "vendor-note",
+                    "value": {
+                      "exact": [
+                        true,
+                        42,
+                        "\u00e9\ud83d\ude00"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.asset",
+                1,
+                {
+                  "identity": {
+                    "host": "fixture-host",
+                    "key": "file-v1"
+                  },
+                  "kind": "file",
+                  "metadata": {
+                    "filename": "report.pdf",
+                    "mediaType": "application/pdf",
+                    "byteLength": 1024,
+                    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "width": null,
+                    "height": null,
+                    "durationMs": null,
+                    "alt": "Alt \ud83d\ude00 \u05d0\u05d1",
+                    "caption": "caption"
+                  },
+                  "fallback": "file fallback \ud83d\ude00",
+                  "source": "opaque asset source\\n\ud83d\ude00"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "file fallback \ud83d\ude00",
+                "marks": [
+                  {
+                    "mark": "link",
+                    "href": "https://example.test/"
+                  }
+                ],
+                "opaqueMarks": [
+                  {
+                    "key": "vendor-note",
+                    "value": {
+                      "exact": [
+                        true,
+                        42,
+                        "\u00e9\ud83d\ude00"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.asset",
+                1,
+                {
+                  "identity": {
+                    "host": "fixture-host",
+                    "key": "image-v1"
+                  },
+                  "kind": "image",
+                  "metadata": {
+                    "filename": "image.png",
+                    "mediaType": "image/png",
+                    "byteLength": 1024,
+                    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "width": 2,
+                    "height": 2,
+                    "durationMs": null,
+                    "alt": "Alt \ud83d\ude00 \u05d0\u05d1",
+                    "caption": "caption"
+                  },
+                  "fallback": "image fallback \ud83d\ude00",
+                  "source": "opaque asset source\\n\ud83d\ude00"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "image fallback \ud83d\ude00",
+                "marks": [
+                  {
+                    "mark": "strike"
+                  }
+                ],
+                "opaqueMarks": [
+                  {
+                    "key": "vendor-note",
+                    "value": {
+                      "exact": [
+                        true,
+                        42,
+                        "\u00e9\ud83d\ude00"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.inert-extension",
+                1,
+                {
+                  "version": 1,
+                  "type": "vendor.atom",
+                  "dataVersion": 7,
+                  "source": "opaque \ud83d\ude00 source <script> =SUM(A1)",
+                  "payload": {
+                    "identity": "stable:atom",
+                    "data": [
+                      true,
+                      42
+                    ]
+                  }
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "opaque \ud83d\ude00 source <script> =SUM(A1)",
+                "marks": [
+                  {
+                    "mark": "code"
+                  }
+                ],
+                "opaqueMarks": [
+                  {
+                    "key": "vendor-note",
+                    "value": {
+                      "exact": [
+                        true,
+                        42,
+                        "\u00e9\ud83d\ude00"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "attributes": {
+              "type": "paragraph"
+            },
+            "runs": [
+              {
+                "text": "nested \ud83d\ude00",
+                "marks": [
+                  {
+                    "mark": "bold"
+                  }
+                ]
+              }
+            ],
+            "containers": [
+              {
+                "key": "l",
+                "style": {
+                  "type": "checklist"
+                }
+              }
+            ],
+            "checked": false
+          },
+          {
+            "attributes": {
+              "type": "paragraph"
+            },
+            "runs": [
+              {
+                "text": "mixed end",
+                "marks": [
+                  {
+                    "mark": "bold"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
   ]
 }
