@@ -112,7 +112,11 @@ export class DocumentSearchPresenter {
     this.options.reveal?.(next.match);
     const current = this.session.current;
     if (!current || this.session.result.status !== 'ready') return;
+    // Result navigation may reveal a document range, but an Enter in a Find
+    // field must not hand the next undo/cut/Select All to the outer editor.
+    const active = this.context.root.ownerDocument.activeElement;
     this.context.selection.place({ node: current.owner, offset: current.from, bias: 'right' }, { node: current.owner, offset: current.to, bias: 'left' });
+    if (active instanceof HTMLElement && this.element.contains(active)) active.focus({ preventScroll: true });
     if (next.wrapped) this.status.textContent += '; wrapped';
   }
   replace(all: boolean): void {

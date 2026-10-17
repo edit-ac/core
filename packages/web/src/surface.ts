@@ -8,6 +8,8 @@ import type { ModuleRuntime, ModuleRuntimeOptions } from './modules/runtime.js';
 import type { ClipboardCodec } from './clipboard/fragment.js';
 
 export interface EditorSurfaceOptions {
+  shortcutProfile?: import('./commands/catalog.js').ShortcutProfile;
+  commandAllowed?: (command: import('./commands/catalog.js').PortableCommand) => boolean;
   selectionViewport?: import('./selection/pointer.js').PointerSelectionViewport;
   codeCommands?: import('./extensions/code.js').CodeCommandsFactory;
   search?: import('./modules/search.js').DocumentSearchFactory;
@@ -41,6 +43,8 @@ export interface EditorSurface {
   readonly recovery: readonly { text: string; reason: string }[];
   captureTextTransfer(): import('./input/drag.js').TextTransferTarget | undefined;
   captureToolbar(): import('./commands/formatting.js').ToolbarTarget | undefined;
+  readonly commands: typeof import('./commands/catalog.js').commandCatalog;
+  captureCommand(name: string, supplied?: import('@edit-ac/core').StableRange): import('./commands/catalog.js').CapturedCommand | undefined;
   captureHistory(): import('./input/keyboard.js').HistoryTarget | undefined;
   settle(): Promise<void>;
   setReadOnly(value: boolean): void;
@@ -78,6 +82,7 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
     links = options.links?.(root, engine, commit);
     input = new TextInput(renderer, selection, engine,
       links?.commit ?? commit, options.clipboardCodecs ?? []);
+    input.keyboard.configureCommands(options.shortcutProfile, options.commandAllowed);
     if (options.codeCommands) input.attachCodeCommands(options.codeCommands);
     if (options.search) input.attachSearch(options.search);
     if (options.reorder) input.attachReorder(options.reorder);
@@ -121,6 +126,8 @@ export function mountEditorSurface(root: HTMLElement, engine: EngineHandle, opti
       get recovery() { return binding.input.recovery.map(({ text, reason }) => ({ text, reason })); },
       captureTextTransfer() { requireLive(); return binding.input.textDrag.capture(); },
       captureToolbar() { requireLive(); return binding.input.keyboard.captureToolbar(); },
+      get commands() { return binding.input.keyboard.commands; },
+      captureCommand(name, supplied) { requireLive(); return binding.input.keyboard.captureCommand(name, supplied); },
       captureHistory() { requireLive(); return binding.input.keyboard.captureHistory(); },
       settle() { requireLive(); return binding.input.settle(); },
       setReadOnly(value) { requireLive(); binding.input.setReadOnly(value); root.setAttribute('aria-readonly', String(value)); },

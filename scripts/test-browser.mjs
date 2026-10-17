@@ -58,6 +58,7 @@ suites['history-review'] = ['tests/browser/history-review.spec.ts'];
 suites['editing-presenters'] = ['tests/browser/editing-presenters.spec.ts'];
 suites['editing-lifetime'] = ['tests/browser/editing-lifetime.spec.ts'];
 suites['interaction-whitespace'] = ['tests/browser/interactions/whitespace.spec.ts'];
+suites['interaction-command-surfaces'] = ['tests/browser/interactions/command-surfaces.spec.ts'];
 suites['interaction-replacement'] = ['tests/browser/interactions/replacement.spec.ts'];
 suites['interaction-keyboard'] = ['tests/browser/interactions/keyboard.spec.ts'];
 suites['interaction-keyboard-tables'] = ['tests/browser/interactions/keyboard-tables.spec.ts'];

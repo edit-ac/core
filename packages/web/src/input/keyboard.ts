@@ -1,3 +1,4 @@
+import { commandCatalog, resolveCommand, shortcutCommand, type ShortcutProfile, type CapturedCommand, type PortableCommand } from '../commands/catalog.js';
 import { FormattingInput, type ToolbarTarget } from '../commands/formatting.js';
 export type { ToolbarTarget } from '../commands/formatting.js';
 export interface HistoryTarget {
@@ -22,6 +23,9 @@ const length = (node: ProjectedNode) => node.runs.reduce((n, run) => n + run.tex
  */
 export class KeyboardInput {
   #disposed = false;
+  #profile: ShortcutProfile = {};
+  #allowed: (command: PortableCommand) => boolean = () => true;
+  readonly #commandTargets = new Set<CapturedCommand>();
   #escape = false;
   #sequence = 0;
   readonly #help: HTMLElement;
@@ -43,7 +47,7 @@ export class KeyboardInput {
     this.#engine = engine;
     this.#commit = commit;
     this.#blocked = blocked;
-    this.formatting = new FormattingInput(renderer, selection, engine, commit, blocked);
+    this.formatting = new FormattingInput(renderer, selection, engine, commit, blocked, mark => mark === 'code' || this.#allowed(mark), node => this.#link?.element.contains(node) ?? false);
     const root = renderer.root, doc = root.ownerDocument;
     this.#help = doc.createElement('p');
     this.#help.dataset.editacUi = '';
@@ -61,7 +65,8 @@ export class KeyboardInput {
     }
     if (event.type === 'beforeinput') {
       this.resetFocusEscape();
-      return ({ deleteContentBackward: 'backward', deleteContentForward: 'forward', insertParagraph: 'enter', insertLineBreak: 'break', historyUndo: 'undo', historyRedo: 'redo' } as const)[(event as InputEvent).inputType as 'insertParagraph'];
+      const command = resolveCommand((event as InputEvent).inputType);
+      return command === 'replace' ? undefined : command;
     }
     if (event.type !== 'keydown') return undefined;
     const key = event as KeyboardEvent;
@@ -75,30 +80,30 @@ export class KeyboardInput {
     if (key.isComposing || key.key === 'Dead' || key.key === 'Process' || key.getModifierState('AltGraph') || key.altKey) return undefined;
     const mac = /Mac|iPhone|iPad/.test(this.#renderer.root.ownerDocument.defaultView?.navigator.platform ?? '');
     const primary = mac ? key.metaKey && !key.ctrlKey : key.ctrlKey && !key.metaKey;
-    if (primary && !key.shiftKey) {
-      const mark = ({ b: 'bold', i: 'italic', u: 'underline', k: 'link' } as const)[key.key.toLowerCase() as 'b' | 'i' | 'u' | 'k'];
-      if (mark) {
+    const chord = `${primary ? 'Primary+' : ''}${key.shiftKey ? 'Shift+' : ''}${key.key.length === 1 ? key.key.toLowerCase() : key.key}`;
+    if (primary) {
+      const command = shortcutCommand(chord, this.#profile, !mac);
+      if (command && !this.#allowed(command)) return command;
+      if (command === 'bold' || command === 'italic' || command === 'underline' || command === 'link') {
         const target = this.formatting.capture();
-        try { return target && target.state(mark) !== 'disabled' ? mark : undefined; }
+        try { return target && target.state(command) !== 'disabled' ? command : undefined; }
         finally { target?.dispose(); }
       }
+      return command;
     }
-    if (primary && key.shiftKey && key.key.toLowerCase() === 'x') return 'strike';
-    if (primary && key.key.toLowerCase() === 'z') return key.shiftKey ? 'redo' : 'undo';
-    if (!mac && primary && !key.shiftKey && key.key.toLowerCase() === 'y') return 'redo';
+    // Reserved/remapped unmodified editing keys also remain with their owner.
+    if (this.#profile.reserved?.includes(chord)) return undefined;
+    if (Object.hasOwn(this.#profile.remap ?? {}, chord)) return shortcutCommand(chord, this.#profile);
     if (key.ctrlKey || key.metaKey) return undefined;
     if (key.key === 'Escape') { if (this.#link) { this.#closeLink(true); key.preventDefault(); } this.#escape = true; return undefined; }
     if (key.key === 'Tab' && escape) { if (leaveEditor(this.#renderer.root, key.shiftKey)) key.preventDefault(); return undefined; }
-    if (key.key === 'Enter') return key.shiftKey ? 'break' : 'enter';
     if (key.key === 'Tab') {
       // Read-only content still participates in keyboard focus traversal.
       // It cannot dispatch indentation and then swallow Tab as a rejected edit.
       if (this.#blocked()) { if (leaveEditor(this.#renderer.root, key.shiftKey)) key.preventDefault(); return undefined; }
-      return key.shiftKey ? 'outdent' : 'indent';
+      return shortcutCommand(chord, this.#profile);
     }
-    if (key.key === 'Backspace') return 'backward';
-    if (key.key === 'Delete') return 'forward';
-    return undefined;
+    return shortcutCommand(chord, this.#profile);
   }
 
   /** Only scoped Select All needs adapter ownership; visual movement stays native. */
@@ -107,20 +112,87 @@ export class KeyboardInput {
     const primary = mac ? key.metaKey && !key.ctrlKey : key.ctrlKey && !key.metaKey;
     if (this.#disposed || key.defaultPrevented || key.isComposing || key.altKey || key.shiftKey || key.getModifierState('AltGraph') || !primary || key.key.toLowerCase() !== 'a') return false;
     this.resetFocusEscape();
+    if (this.#profile.reserved?.includes('Primary+a') || Object.hasOwn(this.#profile.remap ?? {}, 'Primary+a')) return false;
     return this.#selection.selectAll();
+  }
+
+  configureCommands(profile: ShortcutProfile = {}, allowed: (command: PortableCommand) => boolean = () => true): void {
+    this.#profile = { reserved: [...(profile.reserved ?? [])], remap: { ...(profile.remap ?? {}) } };
+    this.#allowed = allowed;
+  }
+  get commands() { return commandCatalog; }
+
+  /** Capture while the editor owns focus. Supplied anchors are copied and owned
+   * here; invalid targets never fall back to the current native caret. */
+  captureCommand(name: string, supplied?: StableRange): CapturedCommand | undefined {
+    const action = resolveCommand(name), root = this.#renderer.root, doc = root.ownerDocument;
+    if (!action || this.#disposed || this.#blocked() || !this.#allowed(action) || doc.activeElement !== root) return undefined;
+    let range: StableRange;
+    const tokens: AnchorToken[] = [];
+    try {
+      if (!supplied) this.#selection.capture();
+      const current = supplied ?? this.#selection.current?.range;
+      if (!current) return undefined;
+      const a = this.#engine.resolve(current.anchor), b = this.#engine.resolve(current.focus);
+      if (a.type !== 'position' || b.type !== 'position' || !this.#selection.toDOM(a) || !this.#selection.toDOM(b)) return undefined;
+      tokens.push(this.#engine.anchor(a.node, a.offset, a.bias));
+      tokens.push(this.#engine.anchor(b.node, b.offset, b.bias));
+      range = { anchor: tokens[0]!, focus: tokens[1]! };
+    } catch { for (const token of tokens) this.#engine.releaseAnchor(token); return undefined; }
+    const revision = this.#engine.read().revision;
+    let disposed = false, redirected = false, consumed = false;
+    const focus = (event: FocusEvent) => {
+      const node = event.target;
+      if (node instanceof Element && node !== root && node.closest('input, textarea, select, [contenteditable="true"], [role="textbox"]')) redirected = true;
+    };
+    doc.addEventListener('focusin', focus);
+    const valid = () => !disposed && !consumed && !redirected && !this.#disposed && !this.#blocked() && this.#allowed(action) && this.#engine.read().revision === revision;
+    const target: CapturedCommand = {
+      get active() { return valid(); },
+      execute: text => {
+        if (!valid()) return rejected('stale-or-unavailable-command-target');
+        consumed = true;
+        if (action !== 'replace') { root.focus(); this.#selection.restoreRange(range); return this.execute(action) ?? rejected('native-command-owner'); }
+        if (typeof text !== 'string') return rejected('replacement-text-required');
+        const request = this.formatting.replacement(range, text, `command:replace:${++this.#sequence}`);
+        try {
+          if (!this.#engine.can(request)) return rejected('inapplicable-command');
+          const before = this.#engine.read().revision;
+          this.#engine.history({ type: 'explicit' });
+          const result = this.#commit(request); root.focus();
+          try {
+            if (result.selection) this.#selection.restoreRange(result.selection);
+            else if (result.caret) this.#selection.move(result.caret);
+            else this.#selection.restore();
+          } finally {
+            if (result.selection) { this.#engine.releaseAnchor(result.selection.anchor); this.#engine.releaseAnchor(result.selection.focus); }
+            if (result.caret) this.#engine.releaseAnchor(result.caret);
+          }
+          this.formatting.reset();
+          return { disposition: before === this.#engine.read().revision ? 'handled' : 'committed' };
+        } catch (error) { return rejected(errorMessage(error)); }
+        finally { this.#engine.history({ type: 'boundary' }); }
+      },
+      dispose: () => {
+        if (disposed) return; disposed = true; doc.removeEventListener('focusin', focus);
+        for (const token of tokens) this.#engine.releaseAnchor(token);
+        this.#commandTargets.delete(target);
+      },
+    };
+    this.#commandTargets.add(target); return target;
   }
 
   resetFocusEscape(): void { this.#escape = false; }
 
   /** Capture before a host menu takes focus; never redirect a delayed intent. */
   captureHistory(): HistoryTarget | undefined {
-    if (this.#disposed || this.#blocked()) return undefined;
+    if (this.#disposed || this.#blocked() || this.#renderer.root.ownerDocument.activeElement !== this.#renderer.root) return undefined;
     const selection = this.#selection.retain(); if (!selection) return undefined;
     const root = this.#renderer.root, doc = root.ownerDocument;
     let revision = this.#engine.read().revision, disposed = false, redirected = false;
     const focus = (event: FocusEvent): void => {
       const node = event.target;
-      if (node instanceof Element && !root.contains(node) && node.closest('[contenteditable="true"], [role="textbox"], input, textarea')) redirected = true;
+      if (node instanceof Element && node !== root && node.closest('[contenteditable="true"], [role="textbox"], input, textarea, select')) redirected = true;
     };
     doc.addEventListener('focusin', focus);
     const valid = () => !disposed && !redirected && !this.#disposed && !this.#blocked() && selection.active && this.#engine.read().revision === revision;
@@ -129,6 +201,7 @@ export class KeyboardInput {
       execute: action => {
         if (!valid()) return rejected('stale-or-unavailable-history-target');
         if (action !== 'undo' && action !== 'redo') return rejected('invalid-history-action');
+        if (!this.#allowed(action)) return rejected('command-permission-denied');
         root.focus(); this.#selection.restoreRetained(selection);
         const result = this.execute(action)!; revision = this.#engine.read().revision;
         return result;
@@ -145,6 +218,7 @@ export class KeyboardInput {
   execute(action: KeyboardAction, origin = `keyboard:${++this.#sequence}`): CommandResult | undefined {
     this.resetFocusEscape();
     if (this.#disposed || this.#blocked()) return rejected(this.#disposed ? 'disposed' : 'read-only-or-composing');
+    if (!this.#allowed(action)) return rejected('command-permission-denied');
     if (action === 'link') return this.openLink();
     const selectedNode = (action === 'backward' || action === 'forward') && this.#selection.selectedNode();
     if (selectedNode) {
@@ -375,7 +449,7 @@ export class KeyboardInput {
   dispose(): void {
     for (const target of this.#historyTargets) target.dispose();
     if (this.#disposed) return;
-    this.#disposed = true; this.#closeLink(); this.#help.remove();
+    this.#disposed = true; for (const target of this.#commandTargets) target.dispose(); this.#closeLink(); this.#help.remove();
     const root = this.#renderer.root, current = root.getAttribute('aria-describedby');
     const installed = [this.#description, this.#help.id].filter(Boolean).join(' ');
     const description = current === installed ? this.#description : current?.split(/\s+/u).filter(id => id !== this.#help.id).join(' ');

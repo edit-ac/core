@@ -300,3 +300,34 @@ See [the completion lifecycle guide](../../docs/extensions/ai-completion.md) and
 `npm run test:web -- ai-completion` covers fixed-clock browser behavior and the
 real SDK with prepared models; install the recipe's locked dependencies first.
 This local integration evidence does not qualify OS screen readers or providers.
+
+
+### Portable command surfaces
+
+`BrowserEditor` and `mountEditorSurface` expose one `commands` catalog with labels,
+canonical names and aliases. Capture while the editor owns focus, before moving
+focus to a menu or toolbar:
+
+```ts
+const target = editor.captureCommand('toggleBold');
+try {
+  const result = target?.execute(); // committed, handled (no-op), or rejected
+} finally {
+  target?.dispose();
+}
+```
+
+Keep the target only until activation or cancellation. It executes once and
+rejects changed revisions, foreign editable focus, read-only/composition changes
+and a denied `commandAllowed(command)` option. For a supplied replacement range,
+use `captureCommand('replace', range)` and `target.execute(text)`; anchors are copied
+at capture, and invalid ranges never fall back to the caret. Prepared supplied
+ranges do not qualify native spelling or reconversion.
+
+`shortcutProfile: { reserved: ['Primary+b'], remap: { 'Primary+j': 'bold' } }`
+leaves the reserved chord to its host/OS owner and maps the alternative chord to
+the same command. Hosts use the catalog labels for visible alternatives. `repeat`
+is explicitly unavailable; it is never treated as redo. CLI/agent consumers may
+call the same captured semantic API; a queued UI event is not observed execution.
+Native UI transports, OS keyboard layouts and screen-reader remaps need separate
+qualification.

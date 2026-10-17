@@ -14,6 +14,8 @@ import type { RetainedSelection } from './dom/selection.js';
 type LocalSession = Awaited<ReturnType<typeof recoverLocalDocument>>;
 type RecoveryOptions = Parameters<typeof recoverLocalDocument>[0];
 export interface EditorOptions extends RecoveryOptions {
+  shortcutProfile?: import('./commands/catalog.js').ShortcutProfile;
+  commandAllowed?: (command: import('./commands/catalog.js').PortableCommand) => boolean;
   selectionViewport?: import('./selection/pointer.js').PointerSelectionViewport;
   codeCommands?: import('./extensions/code.js').CodeCommandsFactory;
   search?: import('./modules/search.js').DocumentSearchFactory;
@@ -209,6 +211,12 @@ export class BrowserEditor {
   captureTextTransfer(): import('./input/drag.js').TextTransferTarget | undefined {
     this.#requireReady(); return this.#input?.textDrag.capture();
   }
+  get commands() { this.#requireReady(); return this.#input!.keyboard.commands; }
+  captureCommand(name: string, supplied?: import('@edit-ac/core').StableRange): import('./commands/catalog.js').CapturedCommand | undefined {
+    this.#requireReady(); return this.#input?.keyboard.captureCommand(name, supplied);
+  }
+  settle(): Promise<void> { this.#requireReady(); return this.#input!.settle(); }
+  captureHistory(): import('./input/keyboard.js').HistoryTarget | undefined { this.#requireReady(); return this.#input?.keyboard.captureHistory(); }
   captureToolbar(): import('./commands/formatting.js').ToolbarTarget | undefined {
     this.#requireReady(); return this.#input?.keyboard.captureToolbar();
   }

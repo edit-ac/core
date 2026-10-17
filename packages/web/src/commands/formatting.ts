@@ -30,7 +30,7 @@ export class FormattingInput {
   #disposed = false;
   #sequence = 0;
   readonly #selectionChanged = (): void => {
-    if (!this.#pending) return;
+    if (!this.#pending || this.selection.suspended) return;
     const native = this.renderer.root.ownerDocument.getSelection();
     if (!native?.anchorNode || !native.focusNode) return;
     const a = this.selection.toModel(native.anchorNode, native.anchorOffset), b = this.selection.toModel(native.focusNode, native.focusOffset);
@@ -40,7 +40,7 @@ export class FormattingInput {
   readonly #focusCleanup = new Map<RetainedSelection, () => void>();
   constructor(readonly renderer: DOMRenderer, readonly selection: DOMSelection,
     readonly engine: EngineHandle, readonly commit: (request: PrepareRequest) => CommitResult,
-    readonly blocked: () => boolean) {
+    readonly blocked: () => boolean, readonly allowed: (mark: Mark) => boolean = () => true, readonly ownsFocus: (node: Element) => boolean = () => false) {
     renderer.root.ownerDocument.addEventListener('selectionchange', this.#selectionChanged);
   }
 
@@ -107,7 +107,7 @@ export class FormattingInput {
     return { kind: 'editor', origin, commands };
   }
   capture(): ToolbarTarget | undefined {
-    if (this.#disposed || this.blocked()) return undefined;
+    if (this.#disposed || this.blocked() || this.renderer.root.ownerDocument.activeElement !== this.renderer.root) return undefined;
     const target = this.selection.retain(); if (!target) return undefined;
     this.#targets.add(target);
     let redirected = false;
@@ -119,9 +119,17 @@ export class FormattingInput {
     doc.addEventListener('focusin', focus);
     this.#focusCleanup.set(target, () => doc.removeEventListener('focusin', focus));
     let revision = this.engine.read().revision;
-    const valid = () => !redirected && !this.#disposed && !this.blocked() && target.active && this.engine.read().revision === revision && !!this.#points(target.range);
+    // Legacy formatting targets survive a canceled host dialog. They cannot
+    // activate while another editable control owns focus; captured commands
+    // separately dispose/invalidate their single-use intent on cancellation.
+    const foreignControl = () => {
+      const active = doc.activeElement;
+      return active instanceof Element && active !== root && !this.ownsFocus(active) &&
+        !!active.closest('input, textarea, select, [contenteditable="true"], [role="textbox"]');
+    };
+    const valid = () => !redirected && !foreignControl() && !this.#disposed && !this.blocked() && target.active && this.engine.read().revision === revision && !!this.#points(target.range);
     const state = (mark: Mark): MarkState => {
-      if (!valid()) return 'disabled';
+      if (!valid() || !this.allowed(mark)) return 'disabled';
       const p = this.#points(target.range)!;
       if (!this.engine.can({ kind: 'format', origin: 'format-state', marks: [{ range: target.range, mark, action: 'remove' }], blocks: [] })) return 'disabled';
       if (p.collapsed) {
@@ -146,6 +154,7 @@ export class FormattingInput {
       const p = this.#points(target.range)!;
       const fields = Object.entries(changes) as [Mark, boolean | string | null][];
       if (fields.some(([mark, value]) => !marks.includes(mark) || mark === 'link' && value !== null && value !== false && typeof value !== 'string' || mark !== 'link' && value !== null && typeof value !== 'boolean')) return rejected('invalid-formatting-field');
+      if (fields.some(([mark]) => !this.allowed(mark))) return rejected('command-permission-denied');
       if (p.collapsed) {
         const values = this.typing(target.range);
         for (const [mark, value] of fields) {

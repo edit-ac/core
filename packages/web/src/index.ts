@@ -62,3 +62,6 @@ export type { HistoryTarget } from './input/keyboard.js';
 export type { PointerSelection, PointerSelectionViewport } from './selection/pointer.js';
 
 export type { TextTransferTarget } from './input/drag.js';
+
+export { commandCatalog, resolveCommand } from './commands/catalog.js';
+export type { PortableCommand, ShortcutProfile, CapturedCommand } from './commands/catalog.js';
