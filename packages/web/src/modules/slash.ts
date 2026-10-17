@@ -74,7 +74,7 @@ export class SlashPresenter {
     this.listen(this.menu, 'focusin', event => {
       const id = (event.target as HTMLElement).dataset.command;
       const index = this.results.findIndex(command => command.id === id);
-      if (index >= 0) { this.active = index; this.announce(); }
+      if (index >= 0) { this.active = this.results[index]!.disabled ? -1 : index; this.updateActive(); }
     });
     this.listen(this.menu, 'keydown', event => {
       if (!this.handle(event)) {
@@ -150,7 +150,7 @@ export class SlashPresenter {
     const { engine, selection } = this.context, a = engine.resolve(session.range.anchor), b = engine.resolve(session.range.focus);
     if (a.type !== 'position' || b.type !== 'position' || a.node !== session.node || b.node !== a.node || b.offset < a.offset || b.offset - a.offset > 65) return;
     const node = this.nodes.get(a.node), source = node?.runs.map(r => r.text).join('') ?? '', query = source.slice(a.offset, b.offset);
-    if (!node || !this.eligible(node, a.offset) || !/^\/[^\s/]{0,64}$/u.test(query)) return;
+    if (!node || !this.eligible(node, a.offset) || (a.offset > 0 && !/\s/u.test(source[a.offset - 1]!)) || !/^\/[^\s/]{0,64}$/u.test(query)) return;
     if (checkCaret && !this.menu.contains(this.context.root.ownerDocument.activeElement) && this.context.root.ownerDocument.activeElement !== this.control) {
       const target = selection.retain();
       try {
@@ -182,12 +182,16 @@ export class SlashPresenter {
       return item;
     }));
     this.menu.hidden = false; this.context.root.setAttribute('aria-expanded', 'true'); this.control.setAttribute('aria-expanded', 'true');
-    this.announce();
+    this.updateActive();
   }
   private announce(): void { this.status.textContent = `${this.results.length} slash commands. ${this.active >= 0 ? this.results[this.active]!.label : 'No enabled command'}.`; }
-  private focusActive(): void {
+  private updateActive(): void {
     [...this.menu.children].forEach((item, index) => { (item as HTMLElement).tabIndex = index === this.active ? 0 : -1; item.setAttribute('data-active', String(index === this.active)); });
-    (this.menu.children[this.active] as HTMLElement | undefined)?.focus(); this.announce();
+    this.announce();
+  }
+  private focusActive(): void {
+    this.updateActive();
+    (this.menu.children[this.active] as HTMLElement | undefined)?.focus();
   }
   handle(event: Event): boolean {
     if (event.defaultPrevented) return false;
@@ -207,7 +211,7 @@ export class SlashPresenter {
       event.preventDefault(); const enabled = this.results.map((command, index) => command.disabled ? -1 : index).filter(index => index >= 0);
       if (enabled.length) {
         const index = enabled.indexOf(this.active);
-        this.active = key.key === 'Home' ? enabled[0]! : key.key === 'End' ? enabled.at(-1)! : enabled[(index + (key.key === 'ArrowUp' ? -1 : 1) + enabled.length) % enabled.length]!;
+        this.active = key.key === 'Home' ? enabled[0]! : key.key === 'End' ? enabled.at(-1)! : index < 0 ? (key.key === 'ArrowUp' ? enabled.at(-1)! : enabled[0]!) : enabled[(index + (key.key === 'ArrowUp' ? -1 : 1) + enabled.length) % enabled.length]!;
         this.focusActive();
       }
       return true;
@@ -227,13 +231,21 @@ export class SlashPresenter {
         { kind: 'editor', origin: `slash:${command.id}`, commands: [{ type: 'delete', range: session.range }, ...action.commands] };
       if (!this.context.engine.can(request)) { this.status.textContent = 'Slash command unavailable. Query retained.'; return; }
       this.context.engine.history({ type: 'boundary' }); this.context.engine.history({ type: 'explicit' });
-      const result = this.context.commit(request); this.context.engine.history({ type: 'boundary' });
+      let result: CommitResult;
+      try { result = this.context.commit(request); }
+      finally { this.context.engine.history({ type: 'boundary' }); }
       const fallback = this.context.engine.resolve(session.range.focus);
       this.dismiss(); this.context.root.focus();
-      if (!result.caret && fallback.type === 'position') this.placeCaret(fallback);
-      if (result.caret) {
-        try { const point = this.context.engine.resolve(result.caret); if (point.type === 'position') { const dom = this.context.selection.toDOM(point); if (dom) this.context.root.ownerDocument.getSelection()?.setBaseAndExtent(dom.node, dom.offset, dom.node, dom.offset); } }
-        finally { this.context.engine.releaseAnchor(result.caret); }
+      try {
+        if (result.selection) this.context.selection.restoreRange(result.selection);
+        else if (result.caret) this.context.selection.move(result.caret);
+        else if (fallback.type === 'position') this.placeCaret(fallback);
+      } finally {
+        if (result.caret) this.context.engine.releaseAnchor(result.caret);
+        if (result.selection) {
+          this.context.engine.releaseAnchor(result.selection.anchor);
+          this.context.engine.releaseAnchor(result.selection.focus);
+        }
       }
       this.context.selection.capture();
     } catch { if (!controller.signal.aborted && this.session === session) this.status.textContent = 'Slash command failed. Query retained.'; }
