@@ -1,6 +1,7 @@
 import type { LinkEnrichment, LinkEnrichmentFactory } from './modules/links/enrichment.js';
 import type { CommitResult, EngineHandle, PrepareRequest } from '@edit-ac/core';
 import { DOMRenderer } from './dom/render.js';
+import { accessiblePresentation } from './dom/presentation.js';
 import { DOMSelection } from './dom/selection.js';
 import { TextInput } from './input/text.js';
 import type { ModuleRuntime, ModuleRuntimeOptions } from './modules/runtime.js';
@@ -59,6 +60,7 @@ export function reserveEditorSurface(root: HTMLElement): () => void {
 export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, options: EditorSurfaceOptions = {}) {
   const commit = options.commit ?? ((request: PrepareRequest) => engine.commit(engine.prepare(request)));
   const renderer = new DOMRenderer(root, engine, { ...options, readOnly: true });
+  const disposePresentation = accessiblePresentation(root);
   let selection: DOMSelection | undefined, input: TextInput | undefined;
   let links: LinkEnrichment | undefined;
   let markdown: import('@edit-ac/core').PatchSubscription | undefined;
@@ -92,10 +94,10 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
       dispose(): void {
         if (disposed) return; disposed = true;
         root.contentEditable = 'false'; root.setAttribute('aria-readonly', 'true');
-        disposeAdapters();
+        try { disposeAdapters(); } finally { disposePresentation(); }
       } };
   } catch (error) {
-    disposeAdapters();
+    try { disposeAdapters(); } finally { disposePresentation(); }
     root.contentEditable = 'false'; throw error;
   }
 }

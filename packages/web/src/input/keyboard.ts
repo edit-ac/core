@@ -46,6 +46,7 @@ export class KeyboardInput {
     this.formatting = new FormattingInput(renderer, selection, engine, commit, blocked);
     const root = renderer.root, doc = root.ownerDocument;
     this.#help = doc.createElement('p');
+    this.#help.dataset.editacUi = '';
     this.#help.id = `editac-keyboard-help-${++KeyboardInput.#helpId}`;
     this.#help.textContent = 'Keyboard help: Tab moves focus in prose, indents lists/code and moves table cells. Shift+Tab reverses; Escape then Tab leaves the editor. Primary+B/I/U formats; Primary+K edits a link; Primary+Z/Shift+Z undoes/redoes. Browser and system shortcuts remain available.';
     this.#description = root.getAttribute('aria-describedby');
@@ -89,7 +90,12 @@ export class KeyboardInput {
     if (key.key === 'Escape') { if (this.#link) { this.#closeLink(true); key.preventDefault(); } this.#escape = true; return undefined; }
     if (key.key === 'Tab' && escape) { if (leaveEditor(this.#renderer.root, key.shiftKey)) key.preventDefault(); return undefined; }
     if (key.key === 'Enter') return key.shiftKey ? 'break' : 'enter';
-    if (key.key === 'Tab') return key.shiftKey ? 'outdent' : 'indent';
+    if (key.key === 'Tab') {
+      // Read-only content still participates in keyboard focus traversal.
+      // It cannot dispatch indentation and then swallow Tab as a rejected edit.
+      if (this.#blocked()) { if (leaveEditor(this.#renderer.root, key.shiftKey)) key.preventDefault(); return undefined; }
+      return key.shiftKey ? 'outdent' : 'indent';
+    }
     if (key.key === 'Backspace') return 'backward';
     if (key.key === 'Delete') return 'forward';
     return undefined;
@@ -340,11 +346,12 @@ export class KeyboardInput {
     if (!retained) { target.dispose(); return rejected('unmapped-selection'); }
     const doc = this.#renderer.root.ownerDocument, form = doc.createElement('form');
     form.setAttribute('role', 'dialog'); form.setAttribute('aria-label', 'Edit link');
+    form.dataset.editacUi = '';
     const label = doc.createElement('label'); label.textContent = 'Link URL';
     const input = doc.createElement('input'); input.type = 'url'; input.value = String(this.formatting.typing(retained.range).link ?? ''); const initial = input.value; label.append(input);
     const apply = doc.createElement('button'); apply.type = 'submit'; apply.textContent = 'Apply link';
     const cancel = doc.createElement('button'); cancel.type = 'button'; cancel.textContent = 'Cancel link';
-    const status = doc.createElement('span'); status.setAttribute('role', 'status');
+    const status = doc.createElement('span'); status.setAttribute('role', 'status'); status.setAttribute('aria-atomic', 'true');
     form.append(label, apply, cancel, status); this.#help.after(form); this.#link = { element: form, target, selection: retained };
     cancel.addEventListener('click', () => this.#closeLink(true));
     form.addEventListener('keydown', event => { if (event.key === 'Escape' && !event.isComposing) { event.preventDefault(); this.#closeLink(true); this.#escape = true; } });
@@ -352,7 +359,7 @@ export class KeyboardInput {
       event.preventDefault();
       if (input.value === initial) { this.#closeLink(true); return; }
       const result = target.apply({ link: input.value || null });
-      if (result.disposition === 'rejected') { status.textContent = result.reason ?? 'Link unavailable'; return; }
+      if (result.disposition === 'rejected') { status.textContent = Array.from(result.reason ?? 'Link unavailable').slice(0, 240).join(''); return; }
       this.#closeLink(); this.#renderer.root.focus();
     });
     input.focus(); return { disposition: 'handled' };
