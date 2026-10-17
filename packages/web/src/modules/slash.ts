@@ -65,6 +65,8 @@ export class SlashPresenter {
     this.status = doc.createElement('div'); this.status.setAttribute('role', 'status'); this.status.setAttribute('aria-live', 'polite');
     this.control = doc.createElement('button'); this.control.type = 'button'; this.control.tabIndex = 0; this.control.textContent = 'Slash commands';
     this.control.setAttribute('aria-haspopup', 'menu'); this.control.setAttribute('aria-controls', this.menu.id); this.control.setAttribute('aria-expanded', 'false');
+    for (const element of [this.menu, this.control, this.status]) element.dataset.editacUi = '';
+    this.status.setAttribute('aria-atomic', 'true');
     root.after(this.control, this.menu, this.status);
     this.previous = Object.fromEntries(['aria-haspopup', 'aria-controls', 'aria-expanded'].map(key => [key, root.getAttribute(key)]));
     root.setAttribute('aria-haspopup', 'menu'); root.setAttribute('aria-controls', this.menu.id); root.setAttribute('aria-expanded', 'false');
@@ -113,7 +115,16 @@ export class SlashPresenter {
     else event.preventDefault();
   }
   private listen(target: EventTarget, type: string, listener: EventListener): void { target.addEventListener(type, listener); this.listeners.push([target, type, listener]); }
-  private inside(target: Element | null): boolean { return !!target && (this.context.root.contains(target) || this.menu.contains(target) || target === this.control); }
+  private inside(target: Element | null): boolean {
+    if (!target) return false;
+    const root = this.context.root;
+    if (root.contains(target) || this.menu.contains(target) || target === this.control) return true;
+    // A named host toolbar can share the captured command target. Native text
+    // controls still own their input and cannot keep an editor popup alive.
+    if (target.closest('input,textarea,select,[contenteditable="true"],[role="textbox"]')) return false;
+    const toolbar = target.closest('[role="toolbar"]');
+    return !!root.id && !!toolbar?.getAttribute('aria-controls')?.split(/\s+/u).includes(root.id);
+  }
   get open(): boolean { return !!this.session; }
   get query(): string | undefined { return this.session?.query; }
   private eligible(node: ProjectedNode, offset: number): boolean {
@@ -199,7 +210,10 @@ export class SlashPresenter {
     this.menu.hidden = false; this.context.root.setAttribute('aria-expanded', 'true'); this.control.setAttribute('aria-expanded', 'true');
     this.updateActive();
   }
-  private announce(): void { this.status.textContent = `${this.results.length} slash commands. ${this.active >= 0 ? this.results[this.active]!.label : 'No enabled command'}.`; }
+  private announce(): void {
+    const text = Array.from(`${this.results.length} slash commands. ${this.active >= 0 ? this.results[this.active]!.label : 'No enabled command'}.`).slice(0, 240).join('');
+    if (this.status.textContent !== text) this.status.textContent = text;
+  }
   private updateActive(): void {
     [...this.menu.children].forEach((item, index) => { (item as HTMLElement).tabIndex = index === this.active ? 0 : -1; item.setAttribute('data-active', String(index === this.active)); });
     this.announce();

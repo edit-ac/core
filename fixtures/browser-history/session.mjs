@@ -7,7 +7,7 @@ import {CheckpointStorage} from '/web/storage/checkpoint.js';
 import {UpdateJournal} from '/web/storage/journal.js';
 const identity={documentId:'45678901-4567-4567-8567-45678901abcd',epoch:'56789012-5678-4678-8678-56789012abcd',schema:'editac.registry.editor.v5',offsets:'utf16',profile:'editac.yrs-yjs.editor.v5',protocolVersion:1,updateEncoding:1};
 const root=document.querySelector('#projection'), databaseName='browser-history';
-let runtime,session,surface,ids,markdown,commands=[],patches=[],pending=[],others=[],disposed=false,subscription;
+let runtime,session,surface,ids,markdown,commands=[],patches=[],pending=[],others=[],disposed=false,subscription,disposeHost;
 async function mount(value='') {
  const config=typeof value==='string'?{text:value}:value,text=config.text??'';
  markdown=markdownExtension(await initMarkdown('/markdown/wasm/editac_markdown_wasm_bg.wasm')); 
@@ -17,9 +17,11 @@ async function mount(value='') {
  session=await recoverLocalDocument({assetUrl:'/core/wasm/editac_wasm_bg.wasm',databaseName,identity,indexedDB,locks:navigator.locks});
  session.writer.engine.history({type:'clear'});ids=session.writer.engine.read().visible.map(n=>n.id);
  subscription=session.writer.engine.subscribe({type:'all'},patch=>patches.push({operation:patch.operation,origin:patch.origin,update:!!patch.update}));
- surface=mountEditorSurface(root,session.writer.engine,{markdown,typingShortcuts:config.typingShortcuts,plainTextPolicy:config.pastePolicy??'literal',readOnly:config.readOnly,slash:slashCommands([{id:'alpha',label:'Alpha',prepare:()=>fragment('chosen')},{id:'slow',label:'Slow',prepare:({signal})=>new Promise(resolve=>pending.push({resolve,signal}))}]),commit:request=>{commands.push(request);return session.storage.commit(request);}});
+ surface=mountEditorSurface(root,session.writer.engine,{markdown,typingShortcuts:config.typingShortcuts,plainTextPolicy:config.pastePolicy??'literal',readOnly:config.readOnly,slash:slashCommands([{id:'alpha',label:config.slashLabel??'Alpha',prepare:()=>fragment('chosen')},{id:'slow',label:'Slow',prepare:({signal})=>new Promise(resolve=>pending.push({resolve,signal}))}]),commit:request=>{commands.push(request);return session.storage.commit(request);}});
  if(config.code){session.storage.commit({kind:'editor',origin:'fixture-code',commands:[{type:'setCode',owner:ids[0],language:'js'}]});await session.storage.flush({target:'local'});session.writer.engine.history({type:'clear'});commands=[];patches=[];}
- select(ids[0],text.length);return {ids};
+ select(ids[0],text.length);
+ if(config.accessibility) disposeHost=(await import('/fixture/accessibility.mjs')).accessibilityHost(root,surface,session.writer.engine);
+ return {ids};
 }
 function select(id,offset,end=offset){root.focus();const block=root.querySelector(`[data-node-id="${id}"]`);const point=at=>{const walker=document.createTreeWalker(block,NodeFilter.SHOW_TEXT);let n;while(n=walker.nextNode()){if(at<=n.length)return[n,at];at-=n.length;}return[block,0];};const a=point(offset),b=point(end);document.getSelection().setBaseAndExtent(...a,...b);}
 async function settle(){if(!disposed)await surface.settle();await session.storage.flush({target:'local'});if(!disposed)await surface.settle();await Promise.resolve();}
@@ -29,7 +31,7 @@ async function remoteDelete(from,to){const local=session.writer.engine,peer=runt
 function nativeSelection(){const s=document.getSelection();const point=(node,offset)=>{const el=node?.nodeType===1?node:node?.parentElement;const block=el?.closest('[data-node-id]');if(!block)return null;const r=document.createRange();r.selectNodeContents(block);r.setEnd(node,offset);return {node:block.dataset.nodeId,offset:r.toString().length};};return {anchor:point(s?.anchorNode,s?.anchorOffset),focus:point(s?.focusNode,s?.focusOffset)};}
 function event(type,options={}){const e=type.startsWith('composition')?new CompositionEvent(type,{bubbles:true,...options}):type.startsWith('key')?new KeyboardEvent(type,{bubbles:true,cancelable:true,...options}):new InputEvent(type,{bubbles:true,...options});root.dispatchEvent(e);return e.defaultPrevented;}
 async function reopen(){await destroy();const restored=await recoverLocalDocument({assetUrl:'/core/wasm/editac_wasm_bg.wasm',databaseName,identity,indexedDB,locks:navigator.locks});try{return restored.writer.engine.read().visible;}finally{await restored.storage.destroy({policy:'flush'});}}
-async function destroy(){surface.dispose();disposed=true;subscription.dispose();for(const other of others){other.surface.dispose();await other.session.storage.destroy({policy:'flush'});}await session.storage.destroy({policy:'flush'});window.fixtureDisposed=true;}
+async function destroy(){disposeHost?.();surface.dispose();disposed=true;subscription.dispose();for(const other of others){other.surface.dispose();await other.session.storage.destroy({policy:'flush'});}await session.storage.destroy({policy:'flush'});window.fixtureDisposed=true;}
 function paste(text){const data=new DataTransfer();data.setData('text/plain',text);root.dispatchEvent(window.preparedClipboardEvent('paste',data));}
 const fragment=text=>({type:'fragment',blocks:[{attributes:{type:'paragraph'},runs:[{text,marks:[]}]}]});
 async function second(){
