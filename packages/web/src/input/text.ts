@@ -58,6 +58,13 @@ export class TextInput {
   #key: TextIntent | undefined;
   #pending: TextIntent | undefined;
   #jobs: NativeEdit[] = [];
+  readonly #pagehide = () => {
+    // Use the existing blur finalization policy while this owner is still live.
+    // A later compositionend cannot replay the buffered text after suspension.
+    this.#flushNative(); this.#composition.finish('blur');
+    this.#key = undefined; this.#pending = undefined;
+    this.#eligibleKey = false; this.#directKey = undefined;
+  };
 
   readonly #renderer: DOMRenderer;
   readonly #selection: DOMSelection;
@@ -88,8 +95,9 @@ export class TextInput {
         intent.origin = 'composition'; this.#pending = intent; return intent;
       },
       content: node => this.#content.get(node),
-      apply: (intent, range, text) => this.#apply(intent, range, text),
+      apply: (intent, range, text, moveCaret) => this.#apply(intent, range, text, undefined, moveCaret),
       recovery: (intent, value) => this.#recover(intent, value),
+      preserve: (intent, value) => this.#preserve(intent, value),
       drain: () => this.#mutations(this.#observer.takeRecords())
     });
     this.shortcuts = literalShortcuts();
@@ -106,6 +114,7 @@ export class TextInput {
         this.#rendering = false;
       }
     };
+    renderer.root.ownerDocument.defaultView?.addEventListener('pagehide', this.#pagehide);
     for (const type of ['keydown', 'keyup', 'beforeinput', 'input', 'compositionstart', 'compositionupdate', 'compositionend', 'blur', 'copy', 'cut', 'paste', 'drop']) {
       const listener: EventListener = event => this.#handle(event);
       this.#listeners.push([type, listener]); renderer.root.addEventListener(type, listener);
@@ -130,6 +139,9 @@ export class TextInput {
   #reject(intent: TextIntent, reason: string): void { intent.disposition = 'rejected'; intent.reason = reason; }
   #recover(intent: TextIntent, recovery: NativeRecovery): void {
     this.#reject(intent, recovery.reason); intent.text = recovery.text;
+    this.#preserve(intent, recovery);
+  }
+  #preserve(intent: TextIntent, recovery: NativeRecovery): void {
     this.recovery.push({ ...recovery, intent: intent.id, generation: intent.generation });
     if (this.recovery.length > 32) this.recovery.shift();
   }
@@ -226,7 +238,12 @@ export class TextInput {
       this.#events.set(event, intent); trace.intent = intent.id; this.#key = intent; this.#pending = intent; return;
     }
     if (event.type === 'keydown' && this.keyboard.navigate(key)) { event.preventDefault(); return; }
-    const action = this.keyboard.action(event);
+    // A soft keyboard's reported deletion range is authoritative, including
+    // when it differs from the current native selection. Physical key commands
+    // and structural/native fallbacks retain their existing owners.
+    const reportedDeletion = event.type === 'beforeinput' && ordinary.has(input.inputType) &&
+      input.inputType.startsWith('delete') && input.getTargetRanges().length > 0;
+    const action = reportedDeletion ? undefined : this.keyboard.action(event);
     // Native Tab belongs to the baseline literal-code/list/table profile.
     // Optional code convenience commands keep their explicit controls/bindings.
     if (action && (event.type === 'keydown' || event.type === 'beforeinput' && event.cancelable)) {
@@ -275,7 +292,7 @@ export class TextInput {
       // Chromium/WebKit may report a cut before an authored trailing BR. A
       // positively correlated typing key owns the captured visible target;
       // nonlocal/unclassified replacements still use their supplied range.
-      if (insertion && reported.length && !(directTyping && collapsedReport)) {
+      if (reported.length && !(directTyping && collapsedReport)) {
         const native = reported.length === 1 ? reported[0] : undefined;
         const start = native && this.#selection.toModel(native.startContainer, native.startOffset, 'right');
         const collapsed = native && native.startContainer === native.endContainer && native.startOffset === native.endOffset;
@@ -304,19 +321,11 @@ export class TextInput {
         this.#eligibleKey=false;
         return;
       }
-      if (!insertion && a.offset === b.offset) {
-        // Use the browser's actual deletion unit (grapheme/word policy), never a
-        // guessed UTF-16 code unit. Engines without target ranges mutate natively.
-        const ranges = input.getTargetRanges();
-        const native = ranges.length === 1 ? ranges[0] : undefined;
-        const start = native && this.#selection.toModel(native.startContainer, native.startOffset, 'right');
-        const end = native && this.#selection.toModel(native.endContainer, native.endOffset, 'left');
-        if (!start || !end || start.node !== a.node || end.node !== a.node || start.offset === end.offset) return;
-        const anchor = this.#engine.anchor(start.node, start.offset, 'right');
-        try { ownedRange = { anchor, focus: this.#engine.anchor(end.node, end.offset, 'left') }; }
-        catch (error) { this.#engine.releaseAnchor(anchor); throw error; }
-        range = ownedRange;
-      }
+      // The browser owns the deletion unit even for an expanded native
+      // selection (prediction, word/line deletion and mixed keyboard input).
+      // Without a nonempty reported/selected range, reconcile its actual DOM
+      // mutation instead of guessing a UTF-16 code unit.
+      if (!insertion && a.offset === b.offset) return;
       event.preventDefault();
       this.#apply(intent, range, insertion ? input.data! : '', undefined, true, input.inputType==='insertText'&&event.isTrusted&&this.#eligibleKey&&input.data===this.#directKey&&!input.isComposing);
       this.#eligibleKey=false;
@@ -558,6 +567,7 @@ export class TextInput {
     this.#composition.finish('dispose'); this.#composition.dispose(); this.keyboard.dispose(); this.clipboard.dispose(); this.textDrag.dispose();
     this.#disposed = true; this.#generation++; this.#observer.disconnect(); this.#subscription.dispose();
     this.#renderer.patchBoundary = undefined; this.#renderer.setReadOnly(true);
+    this.#renderer.root.ownerDocument.defaultView?.removeEventListener('pagehide', this.#pagehide);
     for (const [type, listener] of this.#listeners) this.#renderer.root.removeEventListener(type, listener);
     for (const job of this.#jobs.splice(0)) { job.intent.disposition = 'disposed'; this.#release(job.range); }
     for (const intent of this.intents) if (intent.disposition === 'native-pending') intent.disposition = 'disposed';

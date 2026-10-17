@@ -46,7 +46,8 @@ function effects(state,count,keyboard=0){
  const local=p=>p.origin.startsWith('editac:local:text-input:')||p.origin.startsWith('editac:local:keyboard:');
  const commits=state.patches.filter(p=>local(p)&&p.update),journal=state.journal.filter(local);
  assert.equal(commits.length,count);assert.equal(journal.length,count);
- // Character and selected deletions belong to the prepared keyboard bridge. Keep
+ // Physical character/selected deletions use the prepared keyboard bridge;
+ // supplied native ranges use ordinary reconciliation. Keep
  // exact owner counts, rather than dropping their update/journal assertions.
  for(const family of ['text-input','keyboard']){
   const expected=family==='keyboard'?keyboard:count-keyboard,prefix=`editac:local:${family}:`;
@@ -105,7 +106,7 @@ for(const order of ['input-first','observer-first'])test(`prepared ordinary nati
  await page.evaluate(()=>{const f=window.inputFixture;f.event('beforeinput',{inputType:'insertText',data:'X',cancelable:false});f.mutate('alphaXX');f.event('input',{inputType:'insertText',data:'X'});});state=await observe(page,fact);content(state,'alphaXX');effects(state,2);
 }));
 test('prepared cancelable target deletion uses the supplied mapped range',()=>probe('target-range',async(page,fact)=>{
- await page.evaluate(()=>{const f=window.inputFixture;f.select(f.ids[0],3);const start=f.selection.toDOM({node:f.ids[0],offset:2,bias:'right'}),end=f.selection.toDOM({node:f.ids[0],offset:3,bias:'left'});const e=new InputEvent('beforeinput',{bubbles:true,cancelable:true,inputType:'deleteContentBackward'});Object.defineProperty(e,'getTargetRanges',{value:()=>[new StaticRange({startContainer:start.node,startOffset:start.offset,endContainer:end.node,endOffset:end.offset})]});f.root.dispatchEvent(e);if(!e.defaultPrevented)throw Error('Deletion not owned');});const state=await observe(page,fact);content(state,'alha',2);effects(state,1,1);
+ await page.evaluate(()=>{const f=window.inputFixture;f.select(f.ids[0],3);const start=f.selection.toDOM({node:f.ids[0],offset:2,bias:'right'}),end=f.selection.toDOM({node:f.ids[0],offset:3,bias:'left'});const e=new InputEvent('beforeinput',{bubbles:true,cancelable:true,inputType:'deleteContentBackward'});Object.defineProperty(e,'getTargetRanges',{value:()=>[new StaticRange({startContainer:start.node,startOffset:start.offset,endContainer:end.node,endOffset:end.offset})]});f.root.dispatchEvent(e);if(!e.defaultPrevented)throw Error('Deletion not owned');});const state=await observe(page,fact);content(state,'alha',2);effects(state,1);
 }));
 test('prepared renderer echo leaves an independent native edit in the same turn',()=>probe('renderer-echo',async(page,fact)=>{
  await page.evaluate(async()=>{const f=window.inputFixture;f.event('beforeinput',{inputType:'insertText',data:'X',cancelable:false});f.mutate('alphaX');await f.remote(0,'!',f.ids[1]);f.event('input',{inputType:'insertText',data:'X'});});const state=await observe(page,fact);content(state,'alphaX');effects(state,1);assert.equal(state.text[1],'!independent');assert.ok(state.trace.some(t=>t.type==='renderer-echo'));

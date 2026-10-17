@@ -138,6 +138,8 @@ export class BrowserEditor {
   }
   get state() { return this.lifecycle.state; }
   get clipboardRecovery() { return this.#input?.clipboard.recovery.map(record => ({ ...record })) ?? []; }
+  /** Bounded rejected/interrupted input text for host recovery, never document state. */
+  get inputRecovery() { return this.#input?.recovery.map(({ text, reason }) => ({ text, reason })) ?? []; }
   subscribe(listener: Parameters<BrowserLifecycle['subscribe']>[0]): () => void;
   subscribe(scope: PatchScope, listener: (patch: Patch) => void): () => void;
   subscribe(scope: PatchScope | Parameters<BrowserLifecycle['subscribe']>[0], listener?: (patch: Patch) => void): () => void {

@@ -7,8 +7,9 @@ import { captureComposingBlock, type NativeRecovery } from './reconcile.js';
 interface Hooks {
   begin(): TextIntent;
   content(node: string): string | undefined;
-  apply(intent: TextIntent, range: StableRange, text: string): void;
+  apply(intent: TextIntent, range: StableRange, text: string, moveCaret?: boolean): void;
   recovery(intent: TextIntent, value: NativeRecovery): void;
+  preserve(intent: TextIntent, value: NativeRecovery): void;
   drain(): void;
 }
 interface Session {
@@ -115,6 +116,9 @@ export class CompositionInput {
       const valid = captured.text.startsWith(prefix) && captured.text.endsWith(suffix) && captured.text.length >= prefix.length + suffix.length;
       const text = valid ? captured.text.slice(prefix.length, captured.text.length - suffix.length) : captured.text;
       intent.text = text;
+      if ((mode === 'dispose' || mode === 'readonly') && text !== session.selected && text) {
+        this.#hooks.preserve(intent, { node, text, truncated: captured.truncated, reason: `composition-${mode}` });
+      }
       if (mode === 'dispose') { intent.disposition = 'disposed'; return; }
       if (mode === 'cancel' || mode === 'readonly') { intent.disposition = 'canceled'; return; }
       if (captured.reason || !valid) {
@@ -143,9 +147,13 @@ export class CompositionInput {
         if (anchor && focus) destination = { anchor, focus };
       }
       this.#renderer.resume(node, true); projected = true; this.#selection.suspended = false;
-      this.#hooks.apply(intent, target.range, text);
+      // Native selection placement can itself focus contenteditable. During a
+      // real blur the document is between focus targets; don't interrupt that
+      // transition while committing the captured text.
+      const moveCaret = mode !== 'blur' || this.#renderer.root.ownerDocument.activeElement === this.#renderer.root;
+      this.#hooks.apply(intent, target.range, text, moveCaret);
       if (intent.disposition === 'rejected') this.#hooks.recovery(intent, { reason: intent.reason ?? 'composition-commit-failed', node, text, truncated: false });
-      else if (intent.disposition === 'committed' && destination && this.#selection.place(destination.anchor, destination.focus)) {
+      else if (intent.disposition === 'committed' && moveCaret && destination && this.#selection.place(destination.anchor, destination.focus)) {
         this.#selection.capture({ anchor: destination.anchor.bias, focus: destination.focus.bias });
       }
     } finally {

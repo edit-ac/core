@@ -30,3 +30,15 @@ moves, cancellation, bounded autoscroll, mixed input, tap/keyboard access and
 resource disposal. Root defaults and native selection remain available. This is
 portable mechanics evidence; native handles, menus, pinch behavior and target
 platform/AT observations remain original MWB qualification work.
+
+The `--group input` profile implements MWF-1.3 portable MBI-01–08 mechanics.
+It reuses the same packed production editor, recovered Session, Rust/WASM and
+IndexedDB for marked UTF-16 replacements, reported native deletion ranges,
+composition ownership/interruption/conflicts and mixed keyboard input. Platform
+composition/dictation/swipe/handwriting traces are prepared DOM/event delivery;
+trusted desktop typing is a separate control. Automatic Markdown/slash routes
+require qualified direct typing, with explicit commands available for literal
+replacement input. Scoped pagehide uses the existing blur finalization policy;
+this does not qualify actual BFCache, eviction, mobile IME or device support.
+`BrowserEditor.inputRecovery` exposes bounded rejected/interrupted native/composition text
+for host recovery separately from committed document content.
