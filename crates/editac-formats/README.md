@@ -179,3 +179,27 @@ Run `node tests/formats/run.mjs docx-import-text` with the locked toolchains.
 The canonical receipt includes actual Rust tests, regressions, optional WASM
 builds, graph checks, original generated input packages, semantic observations
 and exact source pins. Compile tests are not WASM runtime or platform proof.
+
+The optional `docx::export::PROFILE` implements the bounded
+`docx-export-semantic-v1` direction. Start an export `PreparedJob` to capture
+shared fragments and revision once, then call `docx::export::export` with a
+restricted `OriginalAssetHost`. Preserve `Provenance::from_import` alongside the
+original bytes after import; supplying different original bytes rejects. A newly
+authored document uses empty original bytes and no provenance. Nonempty original
+input without provenance requires explicit loss approval.
+
+The report is reviewed before asset reads or output work. Registered marks whose
+shared fragment API is unavailable refuse export. Unknown content, code semantics,
+checklists/quotes, atomic list placement, inconsistent per-level numbering, image
+alt/caption and retained import losses have explicit diagnostics. The supported
+subset is pinned in `fixtures/formats/docx/export/profile.json`. Authorized PNG
+reads use AssetWork, verified length/hash and the guarded decoder; cancellation
+and errors retire only job-owned references. No URLs are fetched.
+
+The writer's generated directory entries, empty properties, drawing IDs and
+numbering defaults are normalized into the declared package vocabulary. Output
+has fixed creation/modification metadata, A4 page size and explicit fonts/styles;
+there is no Word layout, original package, macro or signature preservation claim.
+Run `node tests/formats/run.mjs docx-export` for the real Session, independent
+package/semantic inspection and declared macOS textutil reader fixtures. WASM
+proof is compilation only; aggregate registry/platform/release gates stay closed.

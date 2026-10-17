@@ -20,6 +20,14 @@ docx-codecs = ["dep:docx-rs", "dep:zip", "dep:quick-xml", "dep:flate2"]
 jobs = ["dep:editac-core", "dep:editac-session", "dep:sha2"]
 
 [[test]]
+name = "docx_export"
+required-features = ["docx-codecs", "jobs"]
+
+[[example]]
+name = "docx_export"
+required-features = ["docx-codecs", "jobs"]
+
+[[test]]
 name = "docx_import_structure"
 required-features = ["docx-codecs", "jobs"]
 

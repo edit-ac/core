@@ -476,6 +476,11 @@ fn unknown(report: &mut Report, n: &Node) {
         &format!("UNSUPPORTED_ELEMENT:{{{}}}{}", n.ns, n.name),
         &n.location,
     );
+    // Unknown wrappers can hide fields/active constructs. Diagnose the complete
+    // bounded subtree without choosing or importing any branch.
+    for child in &n.children {
+        unknown(report, child);
+    }
 }
 fn attrs(report: &mut Report, n: &Node, allowed: &[(&str, &str)]) {
     for (ns, key) in n.attrs.keys() {

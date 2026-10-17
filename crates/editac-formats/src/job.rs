@@ -163,8 +163,12 @@ pub struct JobSource {
     original: Vec<u8>,
     snapshot: Snapshot,
     target: Option<Selection>,
+    export_blocks: Vec<(String, Result<FragmentBlock, String>)>,
 }
 impl JobSource {
+    pub fn export_blocks(&self) -> &[(String, Result<FragmentBlock, String>)] {
+        &self.export_blocks
+    }
     pub fn original(&self) -> &[u8] {
         &self.original
     }
@@ -305,10 +309,34 @@ impl<S: SessionStore + AssetStore> PreparedJob<S> {
             deadline: now.checked_add(spec.timeout).ok_or(JobError::InvalidJob)?,
             memory_bytes: spec.memory_bytes,
         };
+        let export_blocks = if spec.direction == Direction::Export {
+            if read.snapshot.visible.len() > l.nodes {
+                return Err(JobError::ResourceLimit);
+            }
+            read.snapshot
+                .visible
+                .iter()
+                .filter(|n| n.kind == "block")
+                .map(|n| {
+                    (
+                        n.id.clone(),
+                        owner
+                            .service
+                            .session()
+                            .document()
+                            .fragment_for_node(&n.id)
+                            .map_err(|e| format!("{e:?}")),
+                    )
+                })
+                .collect()
+        } else {
+            vec![]
+        };
         let source = JobSource {
             original: spec.original.to_vec(),
             snapshot: read.snapshot,
             target: spec.target,
+            export_blocks,
         };
         let cancellation = Cancellation(Arc::new(AtomicBool::new(false)));
         if let Err(e) = port.start(&contract, &source, &cancellation) {

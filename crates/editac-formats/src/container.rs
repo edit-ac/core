@@ -938,7 +938,7 @@ fn crc32(bytes: &[u8]) -> u32 {
 /// Bounded original-PNG validation, not a preview or general image decoder.
 /// This profile admits 8-bit noninterlaced grayscale/RGB/gray-alpha/RGBA.
 /// Scanline zlib bytes are validated in a fixed scratch buffer; no raster is allocated.
-fn validate_png(
+pub(crate) fn validate_png(
     bytes: &[u8],
     name: &str,
     work: &mut Work,

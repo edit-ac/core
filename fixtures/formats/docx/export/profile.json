@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "gate": "CNV-1.7",
+  "profile": "docx-export-semantic-v1",
+  "supported": [
+    "Unicode paragraphs/tabs/breaks",
+    "headings 1-6",
+    "bold/italic/strike/underline",
+    "safe external hyperlinks (no fetch)",
+    "ordered start and nested bullet lists",
+    "simple rectangular table text/marks/links",
+    "authorized original PNG"
+  ],
+  "requiresLossApproval": [
+    "code semantics/language",
+    "quote/checklist",
+    "separator",
+    "unknown module fallback",
+    "image alt/caption (writer limitation)",
+    "import source wrapper/field/style/package diagnostics"
+  ],
+  "defaults": {
+    "page": "A4",
+    "font": "Arial 11pt; host substitution; no embedding",
+    "metadata": "new package; fixed created/modified date",
+    "identity": "semantic determinism; ZIP/incidental IDs not preserved"
+  },
+  "viewer": "macOS textutil AppKit DOCX to HTML semantic reader; no Word pagination claim",
+  "wcf": [
+    "WCF-10 plain/rich-wrapper/toc-wrapper",
+    "WCF-11 localized/empty/omitted defaults, list starts, inert unknown part"
+  ]
+}
