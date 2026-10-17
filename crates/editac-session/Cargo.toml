@@ -40,3 +40,8 @@ bench = false
 name = "host-markdown-owner"
 path = "../../examples/host-mcp/session-owner.rs"
 required-features = ["native-store"]
+
+[[example]]
+name = "host-realtime-owner"
+path = "../../examples/host-mcp/realtime-owner.rs"
+required-features = ["native-store"]

@@ -151,3 +151,37 @@ identities. `human` and `policy` are explicit test controls and are never MCP
 tools. Run `node --test tests/agent-prepare.test.mjs` after the build command
 above and `npm run build`. Durable apply/retry receipts remain a separate owner
 boundary; this helper installs read/prepare services only.
+
+## Durable apply and live browser propagation
+
+`createHostApply(owner)` maps apply and receipt lookup to the embedding app's
+serialized shared `EditService` owner. It rechecks availability before execution
+and withholds a result if access is revoked during execution. Such an exception
+is an unknown outcome: resolve the same request identity after authorization is
+restored. Never retry with a new ID to guess whether an insertion committed.
+The host must independently authorize at serialized admission; cached capability
+lists and this adapter's checks do not grant write authority.
+
+`realtime-owner.rs` is a deterministic, SQLite-backed embedding-host example.
+Its stdin control channel uses a fixed fake authenticated actor and bounded
+retained semantic proposals; it is not a public server. It binds actual shared
+plans and request receipts, uses the Session persistence/recovery barrier, and
+reserves admitted human peer writers before journaling their updates. It shares
+no production credentials or documents. The sample clock/authorization controls
+are fixture inputs, never MCP tool arguments.
+
+Tools carry outcomes only. Committed updates leave through `Session::sync_update`
+on a separate collaboration channel and enter the existing browser WASM patch,
+DOM, IndexedDB journal/outbox and `SyncSession` paths. Agent requests have distinct
+history groups and authenticated origins; human undo does not undo remote agent
+work. The sample deliberately has no negotiated remote durability receipt:
+SQLite success is local durable, an outbox/send or browser render remains remote
+pending, and failed persistence remains pending/unknown until ordered recovery.
+A transport notification or successful send must never promote remote durability.
+
+Run `cargo build -p editac-session --example host-realtime-owner --features
+native-store --locked --offline`, then `npm run test:browser -- agent-realtime`.
+The canonical browser suite drives real Session/SQLite, two mounted human WASM
+views, storage/outboxes, prepared collaboration transport, revocation, concurrent
+edits, retry/recovery, history and actual keyboard input. Observation negotiation
+and complete adversarial app-MCP qualification remain AGT-1.6 and AGT-1.7.
