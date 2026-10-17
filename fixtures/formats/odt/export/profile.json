@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "edit-ac-odt-v1",
+  "direction": "export",
+  "fidelity": "odf13-export-semantic-v1",
+  "owner": "CNV-1.11",
+  "dependencies": {
+    "zip": "8.6.0",
+    "quick-xml": "0.41.0",
+    "flate2": "1.1.10"
+  },
+  "supported": [
+    "ODF1.3 first/stored mimetype, complete manifest, content.xml automatic styles",
+    "Unicode paragraphs/headings1-6 with exact whitespace/tab/LF/CR",
+    "bold italic underline strike code text and safe absolute links",
+    "bounded ordered/bullet nested lists <=9, per-container start",
+    "rectangular v1 rich text tables and alignments",
+    "authorized original PNGs with original digest/bytes, alt/caption and explicit 96dpi sizing"
+  ],
+  "unsupported": [
+    "arbitrary layout/styles/pagination/source package bytes",
+    "unknown containers/blocks/atoms/marks require explicit lossy approval and retained report",
+    "unavailable shared fragments reject even with lossy approval"
+  ],
+  "metadata": "new deterministic ZIP timestamps, omit original author/timestamps/private metadata/signatures/active content; no source bytes embedded",
+  "targets": {
+    "aarch64-apple-darwin": "real Session captured export with prepared execution/asset transports",
+    "wasm32-unknown-unknown": "actual writer compile only"
+  },
+  "reader": "odfpy1.4.1 + lxml6.0.2/OASIS ODF1.3 schemas; validation only; explicitly provisioned offline environment; no auto install/download"
+}

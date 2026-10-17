@@ -315,5 +315,5 @@ impl<'a> Output<'a> {
     }
 }
 
-#[cfg(feature = "odt-import")]
+#[cfg(any(feature = "odt-import", feature = "odt-export"))]
 pub mod odt;
