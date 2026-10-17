@@ -47,6 +47,11 @@
       "types": "./dist/modules/links/index.d.ts",
       "import": "./dist/modules/links/index.js",
       "default": "./dist/modules/links/index.js"
+    },
+    "./ai": {
+      "types": "./dist/extensions/ai/actions.d.ts",
+      "import": "./dist/extensions/ai/actions.js",
+      "default": "./dist/extensions/ai/actions.js"
     }
   },
   "scripts": {
