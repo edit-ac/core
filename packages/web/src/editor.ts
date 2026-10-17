@@ -14,6 +14,7 @@ import type { RetainedSelection } from './dom/selection.js';
 type LocalSession = Awaited<ReturnType<typeof recoverLocalDocument>>;
 type RecoveryOptions = Parameters<typeof recoverLocalDocument>[0];
 export interface EditorOptions extends RecoveryOptions {
+  viewport?: import('./platform/viewport.js').ViewportOptions;
   shortcutProfile?: import('./commands/catalog.js').ShortcutProfile;
   commandAllowed?: (command: import('./commands/catalog.js').PortableCommand) => boolean;
   selectionViewport?: import('./selection/pointer.js').PointerSelectionViewport;
@@ -195,6 +196,7 @@ export class BrowserEditor {
   }
   get codeCommands(): import('./extensions/code.js').CodeCommandsPresenter | undefined { return this.#input?.codeCommands; }
   get search(): import('./modules/search.js').DocumentSearchPresenter | undefined { return this.#input?.search; }
+  get viewport(): import('./platform/viewport.js').EditorViewport | undefined { return this.#surface?.viewport; }
   get reorder(): import('./modules/reorder.js').ReorderPresenter | undefined { return this.#input?.reorder; }
   get references(): import('./modules/references.js').ReferencePresenter | undefined { return this.#input?.references; }
   get slash(): import('./modules/slash.js').SlashPresenter | undefined { return this.#input?.slash; }

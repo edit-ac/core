@@ -65,3 +65,6 @@ export type { TextTransferTarget } from './input/drag.js';
 
 export { commandCatalog, resolveCommand } from './commands/catalog.js';
 export type { PortableCommand, ShortcutProfile, CapturedCommand } from './commands/catalog.js';
+
+export { EditorViewport } from './platform/viewport.js';
+export type { ViewportOptions, ViewportGeometry, ViewportRect } from './platform/viewport.js';

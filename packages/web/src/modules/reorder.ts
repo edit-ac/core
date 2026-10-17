@@ -316,6 +316,14 @@ export class ReorderPresenter {
       }
     }
   }
+  /** Existing gesture owner keeps capture on a valid refresh; stale targets are
+   * re-hit-tested. Lost coordinate space cancels without a semantic command. */
+  refreshGeometry(recoverable: boolean): void {
+    if (!this.pointer) return;
+    if (!recoverable) { this.cancel(); return; }
+    this.pointer.destination=undefined;this.pointer.sampled=false;
+    if(this.pointer.active)this.schedulePointer();
+  }
   cancel(): void {
     const pointer = this.pointer; this.pointer = undefined;
     if (this.frame !== undefined) this.context.root.ownerDocument.defaultView!.cancelAnimationFrame(this.frame);

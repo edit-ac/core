@@ -6,6 +6,7 @@ import { UpdateJournal } from '/web/storage/journal.js';
 const identity={documentId:'45678901-4567-4567-8567-45678901abcd',epoch:'56789012-5678-4678-8678-56789012abcd',schema:'editac.registry.editor.v5',offsets:'utf16',profile:'editac.yrs-yjs.editor.v5',protocolVersion:1,updateEncoding:1};
 const root=document.querySelector('#projection'),databaseName='mobile-harness';
 let runtime,session,editor,subscription,ids,selection,patches=[],disposed=false;
+const viewportGeometry=()=>{if(window.mobileGeometryError)throw Error("prepared unavailable");return window.mobileGeometry;};
 async function mount(value){
  const options=typeof value==='string'?{text:value}:value;
  runtime=await init('/core/wasm/editac_wasm_bg.wasm');
@@ -21,7 +22,7 @@ async function mount(value){
  subscription=session.writer.engine.subscribe({type:'all'},p=>patches.push({origin:p.origin,update:!!p.update,revision:p.revision}));
  let markdown,slash;
  if(options.triggers){const {initMarkdown}=await import('/markdown/index.js'),{markdownExtension}=await import('/markdown/web.js'),{slashCommands}=await import('/web/modules/slash.js');markdown=markdownExtension(await initMarkdown('/markdown/wasm/editac_markdown_wasm_bg.wasm'));slash=slashCommands([{id:'paragraph',label:'Insert mobile paragraph',prepare:()=>({type:'fragment',blocks:[{attributes:{type:'paragraph'},runs:[{text:'mobile command',marks:[]}]}]})}]);}
- editor=new BrowserEditor(root,{assetUrl:'/core/wasm/editac_wasm_bg.wasm',databaseName,identity,indexedDB,locks:navigator.locks,plainPasteControl:false,modules,markdown,slash,...(options.reorder?{reorder:context=>{selection=context.selection;return reorderControls()(context);}}:{}),recover:async()=>session});
+ editor=new BrowserEditor(root,{assetUrl:'/core/wasm/editac_wasm_bg.wasm',databaseName,identity,indexedDB,locks:navigator.locks,plainPasteControl:false,modules,markdown,slash,viewport:options.viewport?{requestedMode:options.requestedMode,geometry:viewportGeometry}:undefined,...(options.reorder?{reorder:context=>{selection=context.selection;return reorderControls()(context);}}:{}),recover:async()=>session});
  await editor.ready;window.editor=editor;select(ids[0],0);return ids;
 }
 function select(id,a,b=a,focusId=id){root.focus();const point=(id,offset)=>{const block=root.querySelector(`[data-node-id="${id}"]`),walker=document.createTreeWalker(block,NodeFilter.SHOW_TEXT);let node;while(node=walker.nextNode()){if(offset<=node.length)return {node,offset};offset-=node.length;}return {node:block,offset:0};};const anchor=point(id,a),focus=point(focusId,b);getSelection().setBaseAndExtent(anchor.node,anchor.offset,focus.node,focus.offset);selection?.capture();}
@@ -41,4 +42,11 @@ function capability(platform,key){try{const value=platform[key];return {availabl
 function domPoint(index,offset){const block=root.querySelector(`[data-node-id="${ids[index]}"]`),walker=document.createTreeWalker(block,NodeFilter.SHOW_TEXT);let node;while(node=walker.nextNode()){if(offset<=node.length)return {node,offset};offset-=node.length;}return {node:block,offset:0};}
 function deliver(type,options={},range){let event;if(type.startsWith('composition'))event=new CompositionEvent(type,{bubbles:true,...options});else if(type.startsWith('key'))event=new KeyboardEvent(type,{bubbles:true,cancelable:true,...options});else if(type==='blur')event=new FocusEvent(type);else event=new InputEvent(type,{bubbles:true,...options});if(range){const a=domPoint(range.node??0,range.from),b=domPoint(range.node??0,range.to);const target=new StaticRange({startContainer:a.node,startOffset:a.offset,endContainer:b.node,endOffset:b.offset});Object.defineProperty(event,'getTargetRanges',{value:()=>[target]});}root.dispatchEvent(event);return {type,prepared:true,prevented:event.defaultPrevented,inputType:event.inputType,data:event.data};}
 function mutate(text,index=0,anchor=text.length,focus=anchor){const block=root.querySelector(`[data-node-id="${ids[index]}"]`);block.textContent=text;const a=domPoint(index,anchor),b=domPoint(index,focus);getSelection().setBaseAndExtent(a.node,a.offset,b.node,b.offset);}
-window.inputFixture={deliver,mutate,mount,select,settle,state,destroy,host,capability,requestCapability,get engine(){return session?.writer.engine},get root(){return root},get ids(){return ids},remote,get selection(){return selection},get pointer(){return editor.reorder?.pointerState},get surface(){return editor}};
+async function sibling(){
+ const databaseName='mobile-harness-sibling',store=await CheckpointStorage.open(indexedDB,databaseName);
+ try{await store.publish(session.writer.engine.checkpoint(),[]);}finally{store.close();}
+ const secondRoot=document.createElement('div');secondRoot.setAttribute('aria-label','Second mobile document');root.parentElement.append(secondRoot);
+ const second=new BrowserEditor(secondRoot,{assetUrl:'/core/wasm/editac_wasm_bg.wasm',databaseName,identity,indexedDB,locks:navigator.locks,plainPasteControl:false,viewport:{geometry:viewportGeometry}});await second.ready;
+ return {editor:second,root:secondRoot,async dispose(){await second.destroy({policy:'flush'});secondRoot.remove();}};
+}
+window.inputFixture={sibling,deliver,mutate,mount,select,settle,state,destroy,host,capability,requestCapability,get engine(){return session?.writer.engine},get root(){return root},get ids(){return ids},remote,get selection(){return selection},get pointer(){return editor.reorder?.pointerState},get surface(){return editor}};

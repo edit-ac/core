@@ -1,3 +1,4 @@
+import { EditorViewport, type ViewportOptions } from './platform/viewport.js';
 import type { LinkEnrichment, LinkEnrichmentFactory } from './modules/links/enrichment.js';
 import type { CommitResult, EngineHandle, PrepareRequest } from '@edit-ac/core';
 import { DOMRenderer } from './dom/render.js';
@@ -8,6 +9,7 @@ import type { ModuleRuntime, ModuleRuntimeOptions } from './modules/runtime.js';
 import type { ClipboardCodec } from './clipboard/fragment.js';
 
 export interface EditorSurfaceOptions {
+  viewport?: ViewportOptions;
   shortcutProfile?: import('./commands/catalog.js').ShortcutProfile;
   commandAllowed?: (command: import('./commands/catalog.js').PortableCommand) => boolean;
   selectionViewport?: import('./selection/pointer.js').PointerSelectionViewport;
@@ -33,6 +35,7 @@ export interface EditorSurfaceOptions {
   commit?: (request: PrepareRequest) => CommitResult;
 }
 export interface EditorSurface {
+  readonly viewport: EditorViewport;
   readonly pointerSelection: import('./selection/pointer.js').PointerSelection;
   readonly codeCommands: import('./extensions/code.js').CodeCommandsPresenter | undefined;
   readonly search: import('./modules/search.js').DocumentSearchPresenter | undefined;
@@ -63,13 +66,16 @@ export function reserveEditorSurface(root: HTMLElement): () => void {
 
 /** Shared adapter assembly for recovered documents and host-owned replicas. */
 export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, options: EditorSurfaceOptions = {}) {
-  const commit = options.commit ?? ((request: PrepareRequest) => engine.commit(engine.prepare(request)));
+  let viewport: EditorViewport | undefined;
+  const baseCommit = options.commit ?? ((request: PrepareRequest) => engine.commit(engine.prepare(request)));
+  const commit = (request: PrepareRequest): CommitResult => { const result=baseCommit(request);viewport?.requestCaret();return result; };
   const renderer = new DOMRenderer(root, engine, { ...options, readOnly: true });
   const disposePresentation = accessiblePresentation(root);
   let selection: DOMSelection | undefined, input: TextInput | undefined;
   let links: LinkEnrichment | undefined;
   let markdown: import('@edit-ac/core').PatchSubscription | undefined;
   const disposeAdapters = (): void => {
+    viewport?.dispose();
     try { links?.dispose(); } finally { try { input?.dispose(); } finally { try { selection?.dispose(); } finally { try { renderer.dispose(); } finally { markdown?.dispose(); } } } }
   };
   try {
@@ -95,8 +101,14 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
     input.setReadOnly(options.readOnly ?? false);
     root.setAttribute('aria-readonly', String(options.readOnly ?? false));
     const boundInput = input, boundSelection = selection;
+    viewport = new EditorViewport(root, options.viewport, recoverable => {
+      if (!recoverable) boundSelection.pointer.cancel();
+      boundInput.reorder?.refreshGeometry(recoverable);
+    });
+    if(input.reorder) viewport.addControls(input.reorder.controls);
+    const boundViewport = viewport;
     let disposed = false;
-    return { renderer, selection: boundSelection, input: boundInput, pointerSelection: boundSelection.pointer,
+    return { viewport: boundViewport, renderer, selection: boundSelection, input: boundInput, pointerSelection: boundSelection.pointer,
       dispose(): void {
         if (disposed) return; disposed = true;
         root.contentEditable = 'false'; root.setAttribute('aria-readonly', 'true');
@@ -116,6 +128,7 @@ export function mountEditorSurface(root: HTMLElement, engine: EngineHandle, opti
     let disposed = false;
     const requireLive = () => { if (disposed) throw Error('Editor surface is disposed'); };
     return {
+      get viewport() { return binding.viewport; },
       get pointerSelection() { return binding.pointerSelection; },
       get codeCommands() { return binding.input.codeCommands; },
       get search() { return binding.input.search; },
