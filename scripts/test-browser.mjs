@@ -30,6 +30,7 @@ suites['references'] = ['tests/browser/references.spec.ts'];
 suites['interaction-pointer-selection'] = ['tests/browser/interactions/pointer-selection.spec.ts'];
 suites['interaction-paste'] = ['tests/browser/interactions/paste.spec.ts', 'tests/browser/interactions/paste-tables.spec.ts'];
 suites['interaction-slash'] = ['tests/browser/interactions/slash.spec.ts'];
+suites['slash-context'] = ['tests/browser/slash-context.spec.ts'];
 suites['slash'] = ['tests/browser/slash.spec.ts'];
 suites['module-runtime'] = ['tests/browser/module-runtime.spec.ts'];
 suites['module-contract'] = ['tests/browser/module-contract.spec.ts'];
@@ -73,10 +74,11 @@ const engines = !['recovery', 'offline-collaboration'].includes(suite) ? ['chrom
 for (const engine of engines) {
   const env = { ...process.env };
   if (engine) {
-    for (const group of suite === 'baseline' ? ['render', 'keyboard', 'example'] : suite === 'interaction-paste' ? [suite,'interaction-paste-tables'] : suite === 'extension-formatting' ? [suite,'extension-formatting-mixed'] : [suite]) {
+    for (const group of suite === 'baseline' ? ['render', 'keyboard', 'example'] : suite === 'interaction-paste' ? [suite,'interaction-paste-tables'] : suite === 'extension-formatting' ? [suite,'extension-formatting-mixed'] : suite === 'slash-context' ? [suite,'interaction-slash'] : [suite]) {
       const key = `EDITAC_${group.toUpperCase().replaceAll("-", "_")}`;
       env[`${key}_BROWSER`] = engine;
       if (suite === 'baseline' && env.EDITAC_BASELINE_OUTPUT) env[`${key}_OUTPUT`] = join(env.EDITAC_BASELINE_OUTPUT, engine, group);
+      else if (group === 'interaction-slash' && suite === 'slash-context' && env.EDITAC_SLASH_CONTEXT_OUTPUT) env[`${key}_OUTPUT`] = join(process.env.EDITAC_SLASH_CONTEXT_OUTPUT, engine, 'baseline');
       else if (group === 'extension-formatting-mixed' && env.EDITAC_EXTENSION_FORMATTING_OUTPUT) env[`${key}_OUTPUT`] = join(process.env.EDITAC_EXTENSION_FORMATTING_OUTPUT, engine, 'mixed');
       else if (env[`${key}_OUTPUT`]) env[`${key}_OUTPUT`] = join(env[`${key}_OUTPUT`], engine);
     }
