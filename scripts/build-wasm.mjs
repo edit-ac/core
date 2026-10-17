@@ -6,6 +6,7 @@ import path from 'node:path';
 import { shareEngineStringAdapters } from './share-wasm-glue.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
+const target = process.env.CARGO_TARGET_DIR ? path.resolve(root, process.env.CARGO_TARGET_DIR) : path.join(root, 'target');
 const fixture = process.argv.includes('--fixture');
 const markdown = process.argv.includes('--markdown');
 const fitness = process.argv.includes('--fitness');
@@ -34,12 +35,12 @@ run(cargo, ['build', '-p', crate, '--profile', 'browser', ...(fixture ? ['--feat
 // Cargo reuses the crate's output path across feature configurations. Retain
 // each exact bindgen input so fixture builds cannot replace production parity
 // inputs. These reproducible build intermediates are never packed or loaded.
-const inputDir = path.join(root, 'target/browser-inputs', markdown ? 'markdown' : fixture ? 'fixture' : fitness ? 'fitness' : 'production');
+const inputDir = path.join(target, 'browser-inputs', markdown ? 'markdown' : fixture ? 'fixture' : fitness ? 'fitness' : 'production');
 await mkdir(inputDir, { recursive: true });
 const input = path.join(inputDir, `${stem}.wasm`);
-await copyFile(path.join(root, 'target/wasm32-unknown-unknown/browser', `${stem}.wasm`), input);
+await copyFile(path.join(target, 'wasm32-unknown-unknown/browser', `${stem}.wasm`), input);
 const artifactDir = fixture ? 'wasm-fixture' : fitness ? 'fitness-runtime' : 'wasm';
-const dist = fitness ? path.join(root, 'target') : path.join(root, markdown ? 'packages/markdown/dist' : 'packages/core/dist');
+const dist = fitness ? target : path.join(root, markdown ? 'packages/markdown/dist' : 'packages/core/dist');
 const staging = path.join(dist, `.wasm-${process.pid}`);
 await mkdir(staging, { recursive: true });
 try {

@@ -250,6 +250,7 @@ version = "0.0.0"
 dependencies = [
  "docx-rs",
  "editac-core",
+ "editac-html",
  "editac-session",
  "flate2",
  "krilla",
@@ -258,6 +259,14 @@ dependencies = [
  "serde_json",
  "sha2",
  "zip",
+]
+
+[[package]]
+name = "editac-html"
+version = "0.0.0"
+dependencies = [
+ "editac-core",
+ "serde_json",
 ]
 
 [[package]]

@@ -318,5 +318,8 @@ impl<'a> Output<'a> {
 #[cfg(any(feature = "odt-import", feature = "odt-export"))]
 pub mod odt;
 
-#[cfg(feature = "rtf-import")]
+#[cfg(any(feature = "rtf-import", feature = "rtf-export"))]
 pub mod rtf;
+
+#[cfg(any(feature = "epub-import", feature = "epub-export"))]
+pub mod epub;

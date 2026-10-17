@@ -19,13 +19,14 @@ export interface SlashContext {
   focusEscape(event: KeyboardEvent): void;
 }
 export type SlashFactory = (context: SlashContext) => SlashPresenter;
+interface RegisteredSlashCommand extends SlashCommand { readonly searchTerms: readonly string[] }
 interface Session { node: string; range: StableRange; query: string; generation: number }
 let sequence = 0;
 
 /** Host registrations are frozen before mount; callbacks never enter documents.
  * Import this factory only in configurations that enable the slash presenter. */
 export function slashCommands(commands: readonly SlashCommand[], options: { literal?: boolean } = {}): SlashFactory {
-  if (commands.length > 128) throw Error('Too many slash commands');
+  if (commands.length > 500) throw Error('Too many slash commands');
   const ids = new Set<string>();
   const registered = commands.map(command => {
     if (!/^[a-zA-Z][\w.-]{0,63}$/.test(command.id) || ids.has(command.id) || !command.label || command.label.length > 128 || typeof command.prepare !== 'function' ||
@@ -53,7 +54,11 @@ export class SlashPresenter {
   private readonly listeners: [EventTarget, string, EventListener][] = [];
   private readonly nodes = new Map<string, ProjectedNode>();
   private readonly previous: Record<string, string | null>;
-  constructor(private readonly context: SlashContext, private readonly commands: readonly SlashCommand[], private readonly literal: boolean) {
+  private readonly commands: readonly RegisteredSlashCommand[];
+  constructor(private readonly context: SlashContext, commands: readonly SlashCommand[], private readonly literal: boolean) {
+    if (commands.length > 500) throw Error('Too many slash commands');
+    this.commands = commands.map(command => Object.freeze({ ...command, keywords: Object.freeze([...(command.keywords ?? [])]),
+      searchTerms: Object.freeze([command.label, ...(command.keywords ?? [])].map(word => word.toLocaleLowerCase())) }));
     const { root, engine } = context, doc = root.ownerDocument;
     this.menu = doc.createElement('div'); this.menu.id = `editac-slash-${++sequence}`;
     this.menu.setAttribute('role', 'menu'); this.menu.setAttribute('aria-label', 'Slash commands'); this.menu.hidden = true;
@@ -66,7 +71,11 @@ export class SlashPresenter {
     this.listen(doc, 'focusin', () => { if (!this.inside(doc.activeElement)) { this.clearTarget(); this.dismiss(); } });
     this.listen(root, 'focusout', () => queueMicrotask(() => { if (this.session && !this.inside(doc.activeElement)) this.dismiss(); }));
     this.listen(doc, 'selectionchange', () => { if (this.session && !this.menu.contains(doc.activeElement)) this.refresh(); });
-    this.listen(this.menu, 'pointerdown', event => { if ((event.target as Element).closest('[role="menuitem"]')) event.preventDefault(); });
+    this.listen(this.menu, 'pointerdown', event => {
+      const item = (event.target as Element).closest<HTMLElement>('[role="menuitem"]');
+      if (!item) return;
+      this.focusPointer(event, item);
+    });
     this.listen(this.menu, 'click', event => {
       const item = (event.target as Element).closest<HTMLElement>('[data-command]');
       if (item) void this.activate(item.dataset.command!);
@@ -84,7 +93,7 @@ export class SlashPresenter {
       }
     });
     // Explicit command access remains available when typing provenance is absent.
-    this.listen(this.control, 'pointerdown', event => { this.captureTarget(); event.preventDefault(); });
+    this.listen(this.control, 'pointerdown', event => { this.captureTarget(); this.focusPointer(event, this.control); });
     this.listen(this.control, 'click', () => { this.openExplicit(); if (this.session) this.focusActive(); });
     for (const node of engine.read().visible) this.nodes.set(node.id, node);
     this.subscription = engine.subscribe({ type: 'all' }, patch => {
@@ -96,6 +105,12 @@ export class SlashPresenter {
       if (patch.operation === 'Remote') this.dismiss();
       else queueMicrotask(() => this.refresh());
     });
+  }
+  private focusPointer(event: Event, target: HTMLElement): void {
+    // WebKit touch needs its native compatibility click. Keep focus inside
+    // the composite explicitly, including hosts where tapping does not focus buttons.
+    if ((event as PointerEvent).pointerType === 'touch') target.focus({ preventScroll: true });
+    else event.preventDefault();
   }
   private listen(target: EventTarget, type: string, listener: EventListener): void { target.addEventListener(type, listener); this.listeners.push([target, type, listener]); }
   private inside(target: Element | null): boolean { return !!target && (this.context.root.contains(target) || this.menu.contains(target) || target === this.control); }
@@ -172,7 +187,7 @@ export class SlashPresenter {
   }
   private render(): void {
     const query = this.session!.query.toLocaleLowerCase();
-    this.results = this.commands.filter(command => [command.label, ...(command.keywords ?? [])].some(word => word.toLocaleLowerCase().includes(query)));
+    this.results = this.commands.filter(command => command.searchTerms.some(word => word.includes(query)));
     this.active = this.results.findIndex(command => !command.disabled);
     const doc = this.menu.ownerDocument;
     this.menu.replaceChildren(...this.results.map((command, index) => {

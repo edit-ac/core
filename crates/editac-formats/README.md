@@ -257,3 +257,44 @@ network or attachment capability is added; the disabled crate graph stays empty.
 Run `node tests/formats/run.mjs rtf-import` for the canonical qualification.
 Native execution ports are prepared and WASM is compile-only; export and platform
 wiring qualify separately.
+
+## Bounded captured RTF export
+
+Enable `rtf-export` independently of `rtf-import`; call `rtf::export::export`
+with a `PreparedJob` using that direction's `PROFILE`. The job captures shared
+Session fragments once and returns an artifact labelled with that revision.
+`approve_loss=false` rejects any lossy report; review all location-bearing
+reports before explicitly allowing inert text fallbacks. When exporting retained
+RTF input, pass `Provenance::from_import` and the identical original bytes in the
+job to carry hash-correlated omission reports; missing provenance requires loss
+approval. The caller retains original input. No live semantic state is changed.
+
+The writer supports Unicode, four direct marks, paragraphs and rectangular v1
+text tables, with explicit default font/color/code-page controls and escaped
+literal control syntax. It neither fetches resources nor embeds fonts/objects.
+See `fixtures/formats/rtf/export/profile.md` for budgets, unsupported constructs
+and exact fidelity. Run `node tests/formats/run.mjs rtf-export` using locked
+Node/Rust: real Session tests, independent macOS textutil output inspection and
+negative mutations, WASM compilation, optional/default graph and native process
+resource measurements. The OS reader is qualification tooling only. Platform
+sandbox/wiring and release remain with roadmaps31–36/37.
+
+`epub-import` exposes `epub::import::prepare` and its token-bound prepared commit
+for the declared `fixtures/formats/epub/profile.md` reflowable EPUB3.3 subset.
+It reuses guarded ZIP/XML, the shared inert HTML tree codec (parser disabled),
+original PNG AssetWork staging and one Session insertion. Chapter/navigation and
+source hashes are available in the report. Unsupported content requires explicit
+loss approval and retains original input. No DOM, network, DRM/fixed-layout,
+EPUB export, platform sandbox or release support is implied. Default dependencies
+remain empty. Run `node tests/formats/run.mjs epub-import` with isolated evidence.
+
+`epub-export` independently exposes `epub::export::export` and its `PROFILE` for
+captured revisions. It produces the safe reflowable chapters/spine/navigation,
+generated metadata, semantic XHTML and authorized original PNG profile documented
+in `fixtures/formats/epub/export/profile.md`. Review complete loss diagnostics,
+retain original input, and pass matching import `Provenance` when available.
+`node tests/formats/run.mjs epub-export` runs actual Session tests and the
+independent EbookLib/lxml output reader; explicitly set
+`EDITAC_EPUB_READER_PYTHON` to the pre-provisioned pinned validation environment.
+The default graph remains empty. WASM compilation and prepared native execution
+are not platform sandbox, reader UI, pagination or release qualification.
