@@ -220,6 +220,8 @@ pub struct PreparedJob<S: SessionStore + AssetStore> {
     reference_prefix: String,
     asset_bytes: u64,
     staged: Vec<StagedAsset>,
+    #[cfg(feature = "docx-codecs")]
+    container_prepared: bool,
 }
 impl<S: SessionStore + AssetStore> PreparedJob<S> {
     pub fn begin(
@@ -328,7 +330,110 @@ impl<S: SessionStore + AssetStore> PreparedJob<S> {
             reference_prefix,
             asset_bytes: 0,
             staged: vec![],
+            #[cfg(feature = "docx-codecs")]
+            container_prepared: false,
         })
+    }
+    /// Inspect immutable input under this job's deadline/cancellation contract.
+    /// Any rejected package retires only this job's staged references.
+    #[cfg(feature = "docx-codecs")]
+    pub fn prepare_container(
+        &mut self,
+        budgets: crate::container::Budgets,
+        mut now: impl FnMut() -> u64,
+    ) -> Result<crate::container::Package, crate::container::Failure> {
+        use crate::container::{Code, Failure};
+        if self.container_prepared {
+            self.poisoned = true;
+            self.abort()
+                .map_err(|_| Failure::new(Code::Cleanup, "job"))?;
+            return Err(Failure::new(Code::Budget, "repeated-container-preparation"));
+        }
+        self.container_prepared = true;
+        // Account held input, all retained inflated parts, metadata/name
+        // headroom, the job output ceiling and bounded decoder scratch.
+        let required = budgets
+            .entries
+            .checked_mul(4096)
+            .and_then(|n| {
+                budgets
+                    .inflated
+                    .checked_mul(2)
+                    .and_then(|v| n.checked_add(v))
+            })
+            .and_then(|n| {
+                budgets
+                    .nodes
+                    .checked_mul(2048)
+                    .and_then(|v| n.checked_add(v))
+            })
+            .and_then(|n| n.checked_add(self.source.original.len()))
+            .and_then(|n| n.checked_add(self.contract.limits.output_bytes))
+            .and_then(|n| n.checked_add(8192));
+        if required.is_none_or(|n| n > self.contract.memory_bytes) {
+            self.poisoned = true;
+            self.abort()
+                .map_err(|_| Failure::new(Code::Cleanup, "job"))?;
+            return Err(Failure::new(Code::Budget, "job-memory"));
+        }
+        let mut result = crate::container::inspect(&self.source.original, budgets, || {
+            self.check(now()).map_err(|error| {
+                Failure::new(
+                    match error {
+                        JobError::Cancelled => Code::Cancelled,
+                        JobError::Timeout => Code::Timeout,
+                        _ => Code::Budget,
+                    },
+                    "job",
+                )
+            })
+        });
+        if let Ok(package) = &mut result {
+            package.job_token = Some(self.token.clone());
+        }
+        if result.is_err() {
+            self.poisoned = true;
+            self.abort()
+                .map_err(|_| Failure::new(Code::Cleanup, "job"))?;
+        }
+        result
+    }
+    /// Charge original-media validation to this exact prepared input/job. A
+    /// failed/cancelled decode retires staging before a semantic batch can commit.
+    #[cfg(feature = "docx-codecs")]
+    pub fn validate_container_media(
+        &mut self,
+        package: &mut crate::container::Package,
+        name: &str,
+        mut now: impl FnMut() -> u64,
+    ) -> Result<(u32, u32), crate::container::Failure> {
+        use crate::container::{Code, Failure};
+        let result = if package
+            .job_token
+            .as_ref()
+            .is_none_or(|token| !Arc::ptr_eq(token, &self.token))
+        {
+            Err(Failure::new(Code::Relationship, "foreign-container-job"))
+        } else {
+            package.media(name, &mut || {
+                self.check(now()).map_err(|error| {
+                    Failure::new(
+                        match error {
+                            JobError::Cancelled => Code::Cancelled,
+                            JobError::Timeout => Code::Timeout,
+                            _ => Code::Budget,
+                        },
+                        "job",
+                    )
+                })
+            })
+        };
+        if result.is_err() {
+            self.poisoned = true;
+            self.abort()
+                .map_err(|_| Failure::new(Code::Cleanup, "job"))?;
+        }
+        result
     }
     pub fn contract(&self) -> &JobContract {
         &self.contract

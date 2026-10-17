@@ -186,6 +186,7 @@ dependencies = [
  "docx-rs",
  "editac-core",
  "editac-session",
+ "flate2",
  "quick-xml",
  "serde_json",
  "sha2",

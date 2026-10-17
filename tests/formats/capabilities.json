@@ -106,6 +106,71 @@
         "tests/formats/docx-targets.test.mjs",
         "tests/formats/inspect-docx.py"
       ]
+    },
+    "container-limits": {
+      "gate": "CNV-1.4",
+      "commands": [
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats/Cargo.toml",
+            "--features",
+            "docx-codecs,jobs",
+            "--locked",
+            "--offline",
+            "--test",
+            "container_limits",
+            "--",
+            "--nocapture"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats/Cargo.toml",
+            "--features",
+            "docx-codecs,jobs",
+            "--locked",
+            "--offline",
+            "--test",
+            "jobs",
+            "--test",
+            "profiles",
+            "--test",
+            "docx_probe",
+            "--",
+            "--nocapture"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/dispatcher.test.mjs",
+            "tests/formats/docx-targets.test.mjs",
+            "tests/formats/container-targets.test.mjs"
+          ],
+          "kind": "node-test"
+        }
+      ],
+      "inputs": [
+        "crates/editac-formats/src/container.rs",
+        "crates/editac-formats/tests/container_limits.rs",
+        "crates/editac-formats/tests/support/container_job.rs",
+        "crates/editac-formats/tests/support/jobs_harness.rs",
+        "fixtures/formats/hostile/cases.json",
+        "fixtures/formats/docx/probe/pixel.png",
+        "crates/editac-formats/examples/container_probe.rs",
+        "tests/formats/container-targets.test.mjs",
+        "fixtures/formats/docx/probe/tiny.docx"
+      ]
     }
   }
 }

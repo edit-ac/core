@@ -92,3 +92,33 @@ platform owners. Roadmaps31–36 must implement and test real worker/process har
 limits, cancellation termination, approved asset transfer, atomic destination
 writes and actual host transitions; compiling this portable boundary does not
 qualify any of that platform wiring.
+
+CNV-1.4 adds optional guarded OPC ingress through `container` (`docx-codecs`) and
+`PreparedJob::prepare_container` (`docx-codecs,jobs`). It never calls the raw
+DOCX reader on untrusted input. The qualified profile uses classic single-disk
+ZIP, ASCII canonical part paths, UTF-8 XML and original 8-bit noninterlaced PNG
+(color types 0/2/4/6). ZIP64, directory entries, alias/traversal names and other
+unqualified constructs fail explicitly; input remains in the job for recovery.
+Unsupported optional binary parts and active/remote content have inert structured
+reports. No filesystem extraction, external fetch, preview or semantic mapping is
+introduced, and production direction availability is unchanged.
+
+`Budgets::default()` is the qualified ceiling; callers can tighten every allowance.
+The guard bounds metadata before codec allocation, then checks actual inflation,
+ratio, nested XML scans, attributes/text and nodes. A bounded one-byte sentinel
+can establish exhaustion; failed receipts include that observed work. PNG checks
+reserve pixels/RGBA allowance before fixed-scratch zlib scanline validation and
+require exact scanline size, valid filters, chunks/CRCs and termination. No raster
+is allocated. Original image bytes become accessible only after validation.
+Repeated references consume aggregate work; rejected resources are cached only
+inside the immutable package/profile. `work()` returns an immutable counter copy.
+
+For jobs, prepare only once and call `validate_container_media` with the returned
+package and the host clock. Foreign packages, failure, cancellation and timeout
+abort scoped staging before a live commit. Memory admission reserves input,
+inflated parts, metadata/diagnostic headroom, output and scratch; the real Session
+fixtures request a prepared 32 MiB execution ceiling. Actual worker/process
+sandbox enforcement remains with platform owners 31–36. Run the manifest-driven
+`node tests/formats/run.mjs container-limits` for native hostile-container and real
+Session/AssetWork tests, affected regressions and WASM compilation. WASM compilation
+does not qualify browser execution, a sandbox, packed size or production conversion.

@@ -74,7 +74,7 @@ export function main() {
   const hashes = {};
   for (const path of ['tests/formats/capabilities.json', 'fixtures/formats/profiles.json', 'fixtures/formats/wcf05.json', 'fixtures/formats/jobs/wcf03.json', 'crates/editac-formats/Cargo.lock', 'crates/editac-formats/Cargo.toml', 'crates/editac-formats/src/job.rs', 'crates/editac-formats/tests/jobs.rs', ...(suite.inputs ?? [])])
     hashes[path] = createHash('sha256').update(readFileSync(resolve(root, path))).digest('hex');
-  const receipt = { schemaVersion: 1, scenario, gate: suite.gate, boundary: scenario === 'docx-dependencies' ? 'trusted-docx-candidate-native-and-wasm-compile' : scenario === 'jobs' ? 'real-session-asset-work-prepared-host-ports' : 'rust-local-boundary',
+  const receipt = { schemaVersion: 1, scenario, gate: suite.gate, boundary: scenario === 'container-limits' ? 'guarded-opc-xml-png-real-session-staging-native-and-wasm-compile' : scenario === 'docx-dependencies' ? 'trusted-docx-candidate-native-and-wasm-compile' : scenario === 'jobs' ? 'real-session-asset-work-prepared-host-ports' : 'rust-local-boundary',
     state: error ? 'failed' : 'passed', checks, hashes, error: error?.message ?? null,
     claims: 'Local contract/candidate probes only; no production conversion, platform wiring, provider or release qualification.' };
   writeFileSync(resolve(output, 'receipt.json'), JSON.stringify(receipt, null, 2) + '\n');

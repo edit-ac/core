@@ -10,6 +10,7 @@ test('unknown and absent suites fail instead of falling through', () => {
   assert.equal(select(manifest, 'profiles').gate, 'CNV-1.1');
   assert.equal(select(manifest, 'jobs').gate, 'CNV-1.2');
   assert.equal(select(manifest, 'docx-dependencies').gate, 'CNV-1.3');
+  assert.equal(select(manifest, 'container-limits').gate, 'CNV-1.4');
   for (const suite of ['no-such-suite', 'consumers', '__proto__']) assert.throws(() => select(manifest, suite), /unknown or absent/);
   assert.throws(() => select({ schemaVersion: 1, scenarios: { empty: { commands: [] } } }, 'empty'));
 });

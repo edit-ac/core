@@ -16,18 +16,28 @@ unsafe_code = "forbid"
 
 [features]
 default = []
-docx-codecs = ["dep:docx-rs", "dep:zip", "dep:quick-xml"]
+docx-codecs = ["dep:docx-rs", "dep:zip", "dep:quick-xml", "dep:flate2"]
 jobs = ["dep:editac-core", "dep:editac-session", "dep:sha2"]
 
 [[test]]
 name = "docx_probe"
 required-features = ["docx-codecs"]
 
+[[test]]
+name = "container_limits"
+required-features = ["docx-codecs", "jobs"]
+
 [[example]]
 name = "docx_probe"
 required-features = ["docx-codecs"]
 
+[[example]]
+name = "container_probe"
+required-features = ["docx-codecs", "jobs"]
+
 [dependencies]
+# Reuse the already-qualified ZIP transitive codec with the same pure-Rust backend.
+flate2 = { version = "=1.1.10", default-features = false, features = ["zlib-rs"], optional = true }
 docx-rs = { version = "=0.4.22", default-features = false, optional = true }
 zip = { version = "=8.6.0", default-features = false, features = ["deflate"], optional = true }
 quick-xml = { version = "=0.41.0", default-features = false, features = ["encoding"], optional = true }
