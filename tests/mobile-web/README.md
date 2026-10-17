@@ -82,3 +82,45 @@ and ordinary input. Native menu overlap/keyboard geometry/touch cancellation are
 prepared traces; accessible names, focus, semantic history, real IndexedDB,
 imports and resource disposal execute in browser engines. Actual mobile scroll,
 selection menus, keyboard/IME and VoiceOver/TalkBack remain original MWB gates.
+
+`--group portable` is the explicit MWF-1.9 selection. It executes harness,
+touch, input, viewport, focus, lifecycle, capabilities, modules and checkpoint
+serially in isolated evidence directories. `portable-receipt.json` includes
+unique canonical totals, overlapping per-ID/browser case counts, every required
+portable case name, immutable child receipt hashes and all 64 native/device
+and original performance deferrals. A missing mapped execution, failure, skip,
+empty group or stale registration fails the command. `--group all` still rejects:
+this portable projection cannot claim original full mobile qualification.
+
+For joint local testing, use the pinned Node and rebuilt production packages:
+
+```sh
+npm run build:wasm
+npm run build
+EDITAC_MOBILE_HARNESS_BROWSER=chromium npm run test:mobile-web -- --group portable
+EDITAC_MOBILE_HARNESS_BROWSER=webkit npm run test:mobile-web -- --group portable
+npm run preview:mobile-web
+```
+
+Open the loopback URL printed by the last command. The preview packs the current
+core/web workspaces into a private temporary directory and mounts the same
+production recovered Session/WASM/IndexedDB fixture with visible commands,
+module search and block actions. Try backward text selection and formatting,
+undo/redo, command search and host-control focus. Browser tools can resize the
+viewport; prepared occlusion/rotation proofs remain in the automated checkpoint.
+Each preview page uses the fixture document/database; do not use it for valuable
+content. Stop with Ctrl-C; SIGINT/SIGTERM closes the listener and removes only
+its temporary packed directory. `npm run preview:mobile-web -- --check` performs
+one actual packed-browser formatting/persistence check and tears everything down.
+No server is started by documentation or left running by qualification.
+
+The integrated checkpoint combines literal composition with toolbar commands,
+keyboard occlusion with rotation and host focus, remote edits with marked backward
+selection, pointer cancellation with pagehide/resume, delayed paste with pagehide,
+read-only, disposal/recovery or another editor, and teardown of one of two editors.
+The existing Rust engine/history/anchors and IndexedDB remain the only committed
+owners. These are prepared traces in desktop Chromium/WebKit, not mobile IME,
+native clipboard/menu, BFCache eviction, OS/device/AT, performance, support or
+release evidence. Original MWB-1.1, MWB-1.9, MWB-1.10 and MWB-1.11 predicates
+remain open, along with all per-ID device observations. No publication, provider
+calls or permanent preview is part of this checkpoint.

@@ -1,0 +1,374 @@
+{
+  "MBT-01": [
+    "MBT-01-native",
+    "MBT-01-boundaries"
+  ],
+  "MBT-02": [
+    "MBT-02-remote"
+  ],
+  "MBT-03": [
+    "MBT-01-native"
+  ],
+  "MBT-04": [
+    "MBT-04-pointercancel",
+    "MBT-04-lostpointercapture",
+    "MBT-04-blur",
+    "MBT-04-Escape",
+    "MBT-04-read-only",
+    "MBT-04-dispose",
+    "MBT-04-bounded"
+  ],
+  "MBT-05": [
+    "MBT-05-touch",
+    "MBT-05-mouse",
+    "MBT-05-pen",
+    "MBT-05-multitouch"
+  ],
+  "MBT-06": [
+    "MBT-06-mixed",
+    "MBT-01-native"
+  ],
+  "MBT-07": [
+    "MBT-07-tap",
+    "MBT-07-keyboard"
+  ],
+  "SEL-06": [
+    "SEL-06-false",
+    "SEL-06-true"
+  ],
+  "SEL-07": [
+    "SEL-07-pointercancel",
+    "SEL-07-blur",
+    "SEL-07-dispose"
+  ],
+  "XFR-07": [
+    "XFR-07-autoscroll-drop",
+    "MBT-07-tap",
+    "MBT-07-keyboard"
+  ],
+  "MBI-01": [
+    "MBI-01-null",
+    "MBI-01-Unidentified",
+    "MBI-01-noncancelable",
+    "MBI-01-missing-beforeinput",
+    "MBI-01-observer-first"
+  ],
+  "MBI-02": [
+    "MBI-02-04-prediction",
+    "MBI-02-04-punctuation",
+    "MBI-02-04-dictation",
+    "MBI-02-04-swipe",
+    "MBI-02-04-emoji",
+    "MBI-02-04-indic",
+    "MBI-02-04-rtl",
+    "MBI-02-04-combining",
+    "MBI-02-native-target"
+  ],
+  "MBI-03": [
+    "MBI-03-keydown-first",
+    "MBI-03-end-first",
+    "MBI-03-missing-keyup",
+    "MBI-03-indic"
+  ],
+  "MBI-04": [
+    "MBI-02-04-prediction",
+    "MBI-02-04-punctuation",
+    "MBI-02-04-dictation",
+    "MBI-02-04-swipe",
+    "MBI-02-04-emoji",
+    "MBI-02-04-indic",
+    "MBI-02-04-rtl",
+    "MBI-02-04-combining"
+  ],
+  "MBI-05": [
+    "MBI-05-deleteContentBackward",
+    "MBI-05-deleteContentForward",
+    "MBI-05-deleteWordBackward",
+    "MBI-05-deleteSoftLineBackward",
+    "MBI-05-repeat",
+    "MBI-05-block-boundaries"
+  ],
+  "MBI-06": [
+    "MBI-06-blur",
+    "MBI-06-pagehide",
+    "MBI-06-readonly",
+    "MBI-06-cancel",
+    "MBI-06-remote-false",
+    "MBI-06-remote-true",
+    "MBI-06-toolbar-dispose",
+    "MBI-06-deleted-owner"
+  ],
+  "MBI-07": [
+    "MBI-07-mixed"
+  ],
+  "MBI-08": [
+    "MBI-08-markdown-typing",
+    "MBI-08-markdown-replacement",
+    "MBI-08-slash-typing",
+    "MBI-08-slash-replacement"
+  ],
+  "MBV-01": [
+    "MBV-01-resizes-content",
+    "MBV-01-resizes-visual",
+    "MBV-01-overlays-content",
+    "MBV-local-edit"
+  ],
+  "MBV-02": [
+    "MBV-01-overlays-content",
+    "MBV-02-two-editors",
+    "MBV-02-conflict"
+  ],
+  "MBV-03": [
+    "MBV-03-05-coordinates",
+    "MBV-gesture-valid",
+    "MBV-gesture-scale",
+    "MBV-gesture-throwing"
+  ],
+  "MBV-04": [
+    "MBV-04-floating"
+  ],
+  "MBV-05": [
+    "MBV-03-05-coordinates",
+    "MBV-05-hit"
+  ],
+  "MBV-06": [
+    "MBV-06-safe-area"
+  ],
+  "MBV-07": [
+    "MBV-07-owners",
+    "MBV-07-cross-origin"
+  ],
+  "MBV-08": [
+    "MBV-08-burst-remote",
+    "MBV-gesture-valid",
+    "MBV-08-09-resource-bound"
+  ],
+  "MBV-09": [
+    "MBV-09-throwing",
+    "MBV-09-invalid",
+    "MBV-09-tiny",
+    "MBV-09-native",
+    "MBV-08-09-resource-bound"
+  ],
+  "MBF-01": [
+    "MBF-01-bold",
+    "MBF-01-italic",
+    "MBF-01-underline",
+    "MBF-01-link",
+    "MBF-resource-bound"
+  ],
+  "MBF-02": [
+    "MBF-02-search",
+    "MBF-02-late-button",
+    "MBF-02-late-editor",
+    "MBF-two-editors",
+    "MBF-search-form"
+  ],
+  "MBF-03": [
+    "MBF-03-declined"
+  ],
+  "MBF-04": [
+    "MBF-04-break-history",
+    "MBF-04-indent",
+    "MBF-04-literal",
+    "MBF-04-paste-denied",
+    "MBF-04-paste-readOnly",
+    "MBF-04-paste-remote",
+    "MBF-04-paste-dispose",
+    "MBF-04-tab",
+    "MBF-no-eager-access",
+    "MBF-resource-bound",
+    "MBF-controls-disabled"
+  ],
+  "MBF-05": [
+    "MBF-05-hints",
+    "MBF-compose-toolbar"
+  ],
+  "MBF-06": [
+    "MBF-06-done",
+    "MBF-06-go",
+    "MBF-06-send",
+    "MBF-search-form"
+  ],
+  "MBC-01": [
+    "MBC-01-discard",
+    "MBC-01-success",
+    "MBC-01-throw"
+  ],
+  "MBC-02": [
+    "MBC-02-absent",
+    "MBC-02-bounds",
+    "MBC-02-denied",
+    "MBC-02-expired"
+  ],
+  "MBC-03": [
+    "MBC-03-stable-deferred",
+    "MBC-03-stable-plain",
+    "MBC-11-captured-control",
+    "MBC-11-deferred-cancel",
+    "MBC-11-deferred-hidden",
+    "MBC-11-deferred-pagehide",
+    "MBC-11-deferred-readonly",
+    "MBC-11-deferred-target-delete",
+    "MBC-11-plain-cancel",
+    "MBC-11-plain-hidden",
+    "MBC-11-plain-pagehide",
+    "MBC-11-plain-readonly",
+    "MBC-11-plain-target-delete"
+  ],
+  "MBC-04": [
+    "MBC-04-composition",
+    "MBC-04-hidden",
+    "MBC-04-pointer",
+    "MBC-04-viewport-leases"
+  ],
+  "MBC-05": [
+    "MBC-05-recovery"
+  ],
+  "MBC-06": [
+    "MBC-06-picker-return"
+  ],
+  "MBC-07": [
+    "MBC-04-viewport-leases",
+    "MBC-07-deferred",
+    "MBC-07-plain"
+  ],
+  "MBC-08": [
+    "MBC-08-beforeinput",
+    "MBC-08-echo",
+    "MBC-08-noncancelable"
+  ],
+  "MBC-09": [
+    "MBC-09-beforeinput",
+    "MBC-09-event",
+    "MBC-09-noncancelable"
+  ],
+  "MBC-10": [
+    "MBC-02-absent",
+    "MBC-02-denied",
+    "MBC-02-expired",
+    "MBC-10-html",
+    "MBC-10-internal",
+    "MBC-10-literal",
+    "MBC-10-markdown",
+    "MBC-10-shortcut-Control",
+    "MBC-10-shortcut-Meta"
+  ],
+  "MBC-11": [
+    "MBC-03-stable-deferred",
+    "MBC-03-stable-plain",
+    "MBC-07-deferred",
+    "MBC-07-plain",
+    "MBC-11-captured-control",
+    "MBC-11-deferred-cancel",
+    "MBC-11-deferred-hidden",
+    "MBC-11-deferred-pagehide",
+    "MBC-11-deferred-readonly",
+    "MBC-11-deferred-target-delete",
+    "MBC-11-plain-cancel",
+    "MBC-11-plain-hidden",
+    "MBC-11-plain-pagehide",
+    "MBC-11-plain-readonly",
+    "MBC-11-plain-target-delete"
+  ],
+  "MBC-12": [
+    "MBC-12-caption",
+    "MBC-12-inert",
+    "MBC-12-palette"
+  ],
+  "MBA-01": [
+    "MBA-default-lazy",
+    "MBA-matrix-absent",
+    "MBA-matrix-throw",
+    "MBA-matrix-reject",
+    "MBA-matrix-insecure",
+    "MBA-matrix-inactive",
+    "MBA-matrix-available",
+    "MBA-late-enable"
+  ],
+  "MBA-02": [
+    "MBA-matrix-available",
+    "MBA-overlay-geometry",
+    "MBA-overlay-owners",
+    "MBA-throwing-geometry",
+    "MBA-production-viewport",
+    "MBA-resource-bounds"
+  ],
+  "MBA-03": [
+    "MBA-layout-generation",
+    "MBA-resource-bounds",
+    "MBA-layout-input-parity"
+  ],
+  "MBA-04": [
+    "MBA-lock-escape",
+    "MBA-lock-blur",
+    "MBA-lock-pagehide",
+    "MBA-lock-fullscreen",
+    "MBA-lock-dispose",
+    "MBA-lock-admission",
+    "MBA-lock-late-two-editors",
+    "MBA-kiosk-escape-admission",
+    "MBA-resource-bounds",
+    "MBA-default-lazy"
+  ],
+  "MBA-05": [
+    "MBA-editcontext-probe",
+    "MBA-editcontext-excluded"
+  ],
+  "MBA-06": [
+    "MBA-overlay-geometry",
+    "MBA-overlay-owners",
+    "MBA-production-viewport"
+  ],
+  "MBA-07": [
+    "MBA-host-fallback-absent",
+    "MBA-host-fallback-denied",
+    "MBA-host-fallback-unsupported",
+    "MBA-host-available",
+    "MBA-fullscreen-owner-false",
+    "MBA-fullscreen-owner-true"
+  ],
+  "MBX-01": [
+    "MBX-01-visible",
+    "MBX-01-literal",
+    "MBX-01-keyboard",
+    "MBX-01-resizes-visual",
+    "MBX-01-overlays-content",
+    "MBX-01-composing",
+    "MBX-cancel-host-focus",
+    "MBX-cancel-readonly",
+    "MBX-cancel-composition",
+    "MBX-cancel-remote",
+    "MBX-cancel-pagehide",
+    "MBX-cancel-dispose",
+    "MBX-reference-command"
+  ],
+  "MBX-02": [
+    "MBX-02-native-menu-fallback"
+  ],
+  "MBX-03": [
+    "MBX-03-code-scroll",
+    "MBX-03-code-command",
+    "MBX-03-table-scroll"
+  ],
+  "MBX-04": [
+    "MBX-04-disabled",
+    "MBX-04-native-input",
+    "MBX-04-two-editors",
+    "MBX-04-table-disabled"
+  ],
+  "MBX-05": [
+    "MBX-05-accessibility-mechanics",
+    "MBX-reference-cancel",
+    "MBX-reference-composing",
+    "MBX-01-composing",
+    "MBX-01-resizes-visual",
+    "MBX-01-overlays-content",
+    "MBX-cancel-host-focus",
+    "MBX-cancel-readonly",
+    "MBX-cancel-composition",
+    "MBX-cancel-remote",
+    "MBX-cancel-pagehide",
+    "MBX-cancel-dispose"
+  ]
+}

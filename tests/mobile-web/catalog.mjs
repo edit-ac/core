@@ -24,10 +24,12 @@ export function assertIndex(index, rows = catalogRows()) {
   assert.deepEqual(index.cases, rows, 'missing, unexpected, stale or misowned mobile case');
   return index;
 }
-export const implementedGroups = Object.freeze({ harness: ['tests/mobile-web/catalog.test.mjs', 'tests/mobile-web/harness.spec.ts'], touch: ['tests/mobile-web/touch.spec.ts'], input: ['tests/mobile-web/input.spec.ts'], viewport: ['tests/mobile-web/viewport.spec.ts'], focus: ['tests/mobile-web/focus.spec.ts'], lifecycle: ['tests/mobile-web/lifecycle.spec.ts'], capabilities: ['tests/mobile-web/capabilities.spec.ts'], modules: ['tests/mobile-web/modules.spec.ts'] });
+export const implementedGroups = Object.freeze({ harness: ['tests/mobile-web/catalog.test.mjs', 'tests/mobile-web/harness.spec.ts'], touch: ['tests/mobile-web/touch.spec.ts'], input: ['tests/mobile-web/input.spec.ts'], viewport: ['tests/mobile-web/viewport.spec.ts'], focus: ['tests/mobile-web/focus.spec.ts'], lifecycle: ['tests/mobile-web/lifecycle.spec.ts'], capabilities: ['tests/mobile-web/capabilities.spec.ts'], modules: ['tests/mobile-web/modules.spec.ts'], checkpoint: ['tests/mobile-web/checkpoint.spec.ts'] });
+export const portableGroups = Object.freeze(['harness', 'touch', 'input', 'viewport', 'focus', 'lifecycle', 'capabilities', 'modules', 'checkpoint']);
 export function selectGroup(args, groups = implementedGroups) {
+  if (args.length === 2 && args[0] === '--group' && args[1] === 'portable' && groups === implementedGroups) return portableGroups.flatMap(group => selectGroup(['--group', group]));
   assert.ok(args.length === 2 && args[0] === '--group' && Object.hasOwn(groups, args[1]),
-    'Unknown or unimplemented mobile group; expected --group harness, touch, input, viewport, focus, lifecycle, capabilities or modules');
+    'Unknown or unimplemented mobile group; expected --group harness, touch, input, viewport, focus, lifecycle, capabilities, modules, checkpoint or portable');
   const files = groups[args[1]];
   assert.ok(Array.isArray(files) && files.length > 0, 'Empty mobile group');
   return files;
@@ -36,4 +38,22 @@ export function assertCounts(counts) {
   assert.ok(counts.executed > 0, 'Zero mobile execution');
   assert.equal(counts.passed, counts.executed, 'Every required mobile check must pass');
   for (const key of ['failed', 'skipped', 'cancelled']) assert.equal(counts[key] ?? 0, 0, `Required mobile ${key}`);
+}
+
+/** Every independently mapped portable case must actually execute once. */
+export function portableCases(rows, mapping, observed) {
+  return rows.map(row => {
+    const names = mapping[row.id];
+    assert.ok(Array.isArray(names) && names.length > 0, `Missing portable case mapping ${row.id}`);
+    assert.equal(new Set(names).size, names.length, `Duplicate portable mapping ${row.id}`);
+    const cases = names.map(name => {
+      const matches = observed.filter(c => c.name === name);
+      assert.equal(matches.length, 1, `Missing/duplicate portable execution ${row.id}: ${name}`);
+      return matches[0];
+    });
+    const counts = { executed: cases.length, passed: cases.filter(c => c.passed).length, failed: cases.filter(c => !c.passed).length, skipped: cases.filter(c => c.skipped).length };
+    assertCounts(counts);
+    return { id: row.id, originalParent: row.originalParent, projectedParent: row.projectedParent, ...counts, cases: names,
+      provenance: 'prepared portable mechanics in desktop browser; no native/device/IME/AT qualification', device: 'deferred-original-MWB-1.11' };
+  });
 }
