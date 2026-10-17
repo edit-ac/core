@@ -1,3 +1,4 @@
+import { dropPoint } from '../dom/drop-point.js';
 import { inputTextDiagnostic, literalLineEndings } from '../input/characters.js';
 import { errorMessage, rejected } from '../errors.js';
 import type { CommitResult, EngineHandle, FragmentBlock, FragmentRun, PrepareRequest, ProjectedNode, Snapshot } from '@edit-ac/core';
@@ -146,14 +147,18 @@ export class ClipboardInput {
     try { this.#selection.move(result.caret);
     } finally { this.#engine.releaseAnchor(result.caret); }
   }
-  #apply(target: RetainedSelection, blocks: readonly FragmentBlock[]): ClipboardOutcome {
+  #apply(target: RetainedSelection, blocks: readonly FragmentBlock[], moveSelection = true): ClipboardOutcome {
     if (this.#disposed || this.#blocked() || !target.active) return rejected('clipboard-unavailable');
     const request: PrepareRequest = { kind: 'fragment', origin: `clipboard:${++this.#sequence}`, range: target.range, blocks };
     try {
       // Preparation/capability failure has no history or journal effects.
       if (!this.#engine.can(request)) return rejected('clipboard-target');
       this.#engine.history({ type: 'explicit' });
-      try { this.#move(this.#commit(request)); } finally { this.#engine.history({ type: 'boundary' }); }
+      try {
+        const result=this.#commit(request);
+        if(moveSelection)this.#move(result);
+        else for(const anchor of new Set([result.caret,result.selection?.anchor,result.selection?.focus]))if(anchor)this.#engine.releaseAnchor(anchor);
+      } finally { this.#engine.history({ type: 'boundary' }); }
       return { disposition: 'committed' };
     } catch (error) { return rejected(errorMessage(error)); }
   }
@@ -167,6 +172,15 @@ export class ClipboardInput {
     }
     catch(error) { return this.last=rejected(errorMessage(error)); }
     finally {target.dispose();}
+  }
+  /** Host data-provider fallback. Capture the hit-tested target before async
+   * work; the existing plain-paste lifecycle owns permission and session checks. */
+  dropPlainText(read: () => Promise<string>, position: Pick<DragEvent, 'clientX' | 'clientY'>): Promise<ClipboardOutcome> {
+    const point=dropPoint(this.#renderer,this.#selection,position);
+    if(!point||this.#disposed||this.#blocked())return Promise.resolve(this.last=rejected('drop-target'));
+    const target=this.#selection.retainPoint(point);
+    if(!target)return Promise.resolve(this.last=rejected('drop-target'));
+    return this.pastePlainText(read,target);
   }
   #captureData(data: Pick<ClipboardData,'getData'>, bounded = false): Record<string,string> {
     const source: Record<string,string>={};
@@ -331,7 +345,7 @@ export class ClipboardInput {
       if (!text) return this.last = rejected('clipboard-empty');
       // Preserve a user's later selection for an asynchronous result.
       const current = this.#selection.retain();
-      try { return this.last = this.#apply(target, [{ runs: [{ text, marks: [] }], attributes: null }]); }
+      try { return this.last = this.#apply(target, [{ runs: [{ text, marks: [] }], attributes: null }],!!current); }
       finally { if (current) { this.#restore(current); current.dispose(); } }
     } catch (error) {
       const reason = errorMessage(error);
@@ -391,7 +405,22 @@ export class ClipboardInput {
       const data = drop ? (event as DragEvent).dataTransfer : (event as ClipboardEvent).clipboardData;
       if (event.cancelable) event.preventDefault();
       if (!data) { this.last = rejected('clipboard-data-unavailable'); return true; }
-      this.last = drop || event.type === 'paste' ? this.paste(data, { literal: !drop && this.#literalNext }) : this.copy(data, event.type === 'cut');
+      if(drop){
+        const point=dropPoint(this.#renderer,this.#selection,event as DragEvent);
+        const files=(event as DragEvent).dataTransfer?.files;
+        const previous=this.#selection.retain();
+        try {
+          if(!point) this.last=rejected('drop-target');
+          else if(files?.length)this.last=rejected('drop-files-unsupported');
+          else if(this.#blocked())this.last=rejected('clipboard-unavailable');
+          else {
+            this.#selection.place(point);this.#selection.capture();
+            this.last=this.paste(data);
+            if((event as DragEvent).dataTransfer)(event as DragEvent).dataTransfer!.dropEffect=this.last.disposition==='committed'?'copy':'none';
+          }
+          if(this.last.disposition!=='committed'&&previous)this.#restore(previous);
+        } finally {previous?.dispose();delete this.#renderer.root.dataset.textDropEffect;}
+      }else this.last = event.type === 'paste' ? this.paste(data, { literal: this.#literalNext }) : this.copy(data, event.type === 'cut');
       if (!drop) this.#literalNext = false;
       if (event.type !== 'copy') this.#pending = { type: drop ? 'drop' : event.type === 'cut' ? 'cut' : 'paste', phase: 'event', nodes: this.#renderer.textBlockIds() };
       return true;

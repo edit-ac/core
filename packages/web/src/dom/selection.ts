@@ -197,13 +197,21 @@ export class DOMSelection {
     if (result.type !== "captured") return undefined;
     const anchor = this.#engine.resolve(result.selection.range.anchor), focus = this.#engine.resolve(result.selection.range.focus);
     if (anchor.type !== "position" || focus.type !== "position") return undefined;
-    const a = this.#engine.anchor(anchor.node, anchor.offset, result.selection.anchorBias);
+    return this.#retainPoints({...anchor,bias:result.selection.anchorBias},{...focus,bias:result.selection.focusBias});
+  }
+  /** Retain a hit-tested destination without changing native selection/focus. */
+  retainPoint(point: ModelPoint): RetainedSelection | undefined {
+    if(this.#disposed || !this.toDOM(point))return undefined;
+    return this.#retainPoints(point,point);
+  }
+  #retainPoints(anchor: ModelPoint, focus: ModelPoint): RetainedSelection {
+    const a = this.#engine.anchor(anchor.node, anchor.offset, anchor.bias);
     let f: StableRange["focus"];
-    try { f = this.#engine.anchor(focus.node, focus.offset, result.selection.focusBias); }
+    try { f = this.#engine.anchor(focus.node, focus.offset, focus.bias); }
     catch (error) { this.#engine.releaseAnchor(a); throw error; }
     let active = true;
     const selection: RetainedSelection = {
-      range: { anchor: a, focus: f }, anchorBias: result.selection.anchorBias, focusBias: result.selection.focusBias,
+      range: { anchor: a, focus: f }, anchorBias: anchor.bias, focusBias: focus.bias,
       get active() { return active; },
       dispose: () => {
         if (!active) return;

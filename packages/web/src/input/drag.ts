@@ -1,3 +1,4 @@
+import { dropPoint } from '../dom/drop-point.js';
 import type { EngineHandle, PrepareRequest, CommitResult, StableRange, PatchSubscription } from '@edit-ac/core';
 import type { DOMRenderer } from '../dom/render.js';
 import type { DOMSelection, RetainedSelection, ModelPoint } from '../dom/selection.js';
@@ -46,6 +47,7 @@ export class TextDrag {
       renderer.root.addEventListener(type,listener); this.#listeners.push([type,listener]);
     }
   }
+  get capabilities() { return {sameSessionMove:true, crossDocumentMove:false, externalMove:false, externalCopy:true} as const; }
   get ownsMutations(): boolean { return this.#guarded.length > 0; }
   get state() { return {active:!!this.#source, guarded:this.#guarded.length, listeners:this.#listeners.length, indicator:this.renderer.root.dataset.textDropEffect}; }
   #finishEcho(): void { for (const id of this.#guarded.splice(0)) this.renderer.resume(id); }
@@ -115,11 +117,7 @@ export class TextDrag {
     finally { if(source.owner.#source===source)source.owner.cancel();this.#clearIndicator(); }
   }
   #point(e:DragEvent):ModelPoint|undefined {
-    const doc=this.renderer.root.ownerDocument as Document & {caretPositionFromPoint?:(x:number,y:number)=>{offsetNode:Node;offset:number}|null;caretRangeFromPoint?:(x:number,y:number)=>Range|null};
-    const target=doc.elementFromPoint(e.clientX,e.clientY);
-    if(!target||!this.renderer.root.contains(target)||target.closest('input,textarea,select,button,[data-content-module]'))return;
-    const p=doc.caretPositionFromPoint?.(e.clientX,e.clientY),r=!p?doc.caretRangeFromPoint?.(e.clientX,e.clientY):undefined;
-    return p?this.selection.toModel(p.offsetNode,p.offset):r?this.selection.toModel(r.startContainer,r.startOffset):undefined;
+    return dropPoint(this.renderer,this.selection,e);
   }
   /** Independent input may arrive without beforeinput. Release correlation
    * before TextInput drains its observer, retaining the newly authored DOM.
@@ -141,7 +139,7 @@ export class TextDrag {
     if(event.type==='dragleave'){this.#clearIndicator();return false;}
     if(event.type==='dragstart'){
       if(event.defaultPrevented||!e.dataTransfer||!this.capture()){event.preventDefault();return true;}
-      try{const source=this.#source!;source.native=event.isTrusted;const fragment=JSON.parse(source.raw);e.dataTransfer.setData('application/x-edit-ac-drag-session',source.nonce);e.dataTransfer.setData(FRAGMENT_MIME,source.raw);e.dataTransfer.setData('text/plain',source.plain);e.dataTransfer.setData('text/html',exportHTML(fragment.blocks));e.dataTransfer.effectAllowed='copyMove';}
+      try{const source=this.#source!;source.native=event.isTrusted;const fragment=JSON.parse(source.raw);e.dataTransfer.setData('application/x-edit-ac-drag-session',source.nonce);e.dataTransfer.setData(FRAGMENT_MIME,source.raw);e.dataTransfer.setData('text/plain',source.plain);e.dataTransfer.setData('text/html',exportHTML(fragment.blocks));e.dataTransfer.effectAllowed='copy';}
       catch(error){event.preventDefault();this.cancel();this.last={disposition:'rejected',reason:errorMessage(error)};}
       return true;
     }
@@ -159,8 +157,20 @@ export class TextDrag {
           this.#hover={key,allowed};
         }
       }
-      if(allowed){event.preventDefault();if(e.dataTransfer)e.dataTransfer.dropEffect=copy?'copy':'move';this.renderer.root.dataset.textDropEffect=copy?'copy':'move';}
+      // Native transfer is copy-only even for a local semantic move: only the
+      // shared prepared command can remove source content. OS effects never do.
+      if(allowed){event.preventDefault();if(e.dataTransfer)e.dataTransfer.dropEffect='copy';this.renderer.root.dataset.textDropEffect=copy?'copy':'move';}
       else{if(e.dataTransfer)e.dataTransfer.dropEffect='none';this.#clearIndicator();}return true;
+    }
+    // A foreign document has no deletion authority. Negotiate only copy and
+    // leave import/validation to the existing clipboard boundary.
+    if(event.type==='dragover'&&!source){
+      const point=this.#point(e);
+      const available=!this.blocked()&&!!point&&!!e.dataTransfer&&
+        e.dataTransfer.files.length===0&&Array.from(e.dataTransfer.types).some(t=>['text/plain','text/html',FRAGMENT_MIME].includes(t));
+      if(available){event.preventDefault();e.dataTransfer!.dropEffect='copy';this.renderer.root.dataset.textDropEffect='copy';}
+      else{if(e.dataTransfer)e.dataTransfer.dropEffect='none';this.#clearIndicator();}
+      return true;
     }
     if(event.type==='drop'&&source){
       event.preventDefault();this.#guard();
