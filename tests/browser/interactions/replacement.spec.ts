@@ -170,3 +170,14 @@ test('EVT-06 no-keydown phrase insertion punctuation and supplied phrase correct
   s=await state(page,fact);content(s,'alpha bonjour world!',13);effects(s,2);assert.equal(s.nodes[0].runs.every(r=>r.attributes.bold===true),true);
   await page.keyboard.press(`${primary}+z`);s=await state(page,fact);content(s,'alpha hello, world!',6);assert.equal(s.endpoints.focus.offset,12);
 }));
+test('EVT-10 actual pointer destination before confirmation remains plain typing target',()=>probe('EVT-10-pointer-before-confirmation',async(page,fact)=>{
+  await page.evaluate(async()=>{const f=window.inputFixture;await f.destroy();await f.mount('alpha','plain');f.renderer.getBlock(f.ids[1]).id='plain-target';});await bold(page);await start(page,2,2);await interim(page,'al字pha','字');
+  await page.locator('#plain-target').click({position:{x:12,y:8}});
+  const destination=await page.evaluate(()=>{const f=window.inputFixture,n=document.getSelection();return f.selection.toModel(n.anchorNode,n.anchorOffset);});assert.ok(destination);fact.pointerDestination=destination;
+  await end(page,'字');let s=await state(page,fact);assert.equal(s.caret.node,s.ids[1]);assert.equal(s.caret.offset,destination.offset);effects(s,1);assert.equal(s.text[0],'al字pha');
+  await page.keyboard.type('!');s=await state(page,fact);assert.deepEqual(s.text,['al字pha','plain'.slice(0,destination.offset)+'!'+'plain'.slice(destination.offset)]);assert.equal(s.nodes[1].runs.some(r=>r.attributes.bold===true),false);effects(s,2);
+}));
+test('EVT-02 equivalent reported range preserves backward history direction and affinity',()=>probe('EVT-02-equivalent-backward-range',async(page,fact)=>{
+  await page.evaluate(()=>{const f=window.inputFixture;f.select(f.ids[0],4,1);f.selection.capture({anchor:'right',focus:'left'});const a=f.selection.toDOM({node:f.ids[0],offset:1,bias:'right'}),b=f.selection.toDOM({node:f.ids[0],offset:4,bias:'left'});const e=new InputEvent('beforeinput',{bubbles:true,cancelable:true,inputType:'insertText',data:'X'});Object.defineProperty(e,'getTargetRanges',{value:()=>[new StaticRange({startContainer:a.node,startOffset:a.offset,endContainer:b.node,endOffset:b.offset})]});f.root.dispatchEvent(e);});
+  let s=await state(page,fact);content(s,'aXa',2);effects(s,1);await page.keyboard.press(`${primary}+z`);s=await state(page,fact);content(s,'alpha',4);assert.equal(s.endpoints.focus.offset,1);assert.equal(await page.evaluate(()=>{const f=window.inputFixture;return f.engine.resolve(f.selection.current.range.focus).bias;}),'left');
+}));

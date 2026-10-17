@@ -267,10 +267,16 @@ export class TextInput {
         // different structural owners. A collapsed reported target stays one cut.
         const end = collapsed ? start : native && this.#selection.toModel(native.endContainer, native.endOffset, 'left');
         if (!start || !end) { event.preventDefault(); this.#reject(intent, 'unmapped-replacement-target'); return; }
-        const anchor = this.#engine.anchor(start.node, start.offset, 'right');
-        try { ownedRange = { anchor, focus: this.#engine.anchor(end.node, end.offset, collapsed ? 'right' : 'left') }; }
-        catch (error) { this.#engine.releaseAnchor(anchor); throw error; }
-        range = ownedRange;
+        const currentA = this.#engine.resolve(range.anchor), currentB = this.#engine.resolve(range.focus);
+        const same = (point: typeof currentA, at: typeof start) => point.type === 'position' && point.node === at.node && point.offset === at.offset;
+        // StaticRange is forward-only. When it reports the same semantic extent,
+        // retain the user's directional range and its history affinities.
+        if (!(same(currentA, start) && same(currentB, end) || same(currentA, end) && same(currentB, start))) {
+          const anchor = this.#engine.anchor(start.node, start.offset, 'right');
+          try { ownedRange = { anchor, focus: this.#engine.anchor(end.node, end.offset, collapsed ? 'right' : 'left') }; }
+          catch (error) { this.#engine.releaseAnchor(anchor); throw error; }
+          range = ownedRange;
+        }
       }
       const a = this.#engine.resolve(range.anchor), b = this.#engine.resolve(range.focus);
       if (a.type !== 'position' || b.type !== 'position') {
