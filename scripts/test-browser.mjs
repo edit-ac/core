@@ -61,6 +61,7 @@ suites['interaction-deletion'] = ['tests/browser/interactions/deletion.spec.ts']
 suites['interaction-formatting'] = ['tests/browser/interactions/formatting.spec.ts'];
 suites['interaction-breaks'] = ['tests/browser/interactions/breaks.spec.ts'];
 suites['interaction-break-tables'] = ['tests/browser/interactions/break-tables.spec.ts'];
+suites['interaction-cell-multiline'] = ['tests/browser/interactions/cell-multiline.spec.ts'];
 suites['interaction-harness'] = ['tests/browser/interactions/harness.spec.ts'];
 suites['editing-input'] = ['tests/browser/editing-input.spec.ts'];
 suites['history-selection'] = ['tests/browser/history-selection.spec.ts'];

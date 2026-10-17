@@ -834,3 +834,131 @@ fn v2_scoped_format_and_block_rectangle_use_native_store_authority_and_exact_rec
         assert_eq!(tuple(&reopened, &f.table), edited);
     }
 }
+
+#[test]
+fn multiline_cell_and_literal_rectangle_are_atomic_durable_and_recover_exact_source() {
+    use editac_core::commands::table::{CellRectangle, RectangleEdit, rectangle_commands};
+    for v2 in [false, true] {
+        let f = Fixture::new(v2);
+        let (store, mut s) = f.service("multiline");
+        let original = tuple(&s, &f.table);
+        let bytes = s.session().document().checkpoint().bytes;
+        let revision = s.read(0).unwrap().revision;
+        // Dropping a prepared cell edit is cancellation, with no durable effect.
+        let c = cell(&s, &f.table, "ab\n😀\n\n");
+        drop(
+            s.prepare_commands(&revision, &[c.clone()], &origin(), 0)
+                .unwrap(),
+        );
+        assert_eq!(s.session().document().checkpoint().bytes, bytes);
+        assert_eq!(store.pending(&f.id).unwrap().len(), 0);
+        assert_eq!(s.session().document().history_state().undo_groups, 0);
+        for text in ["ab\r\n😀", "ab\r😀", &"x".repeat(1_048_577)] {
+            let bad = cell(&s, &f.table, text);
+            assert!(s.prepare_commands(&revision, &[bad], &origin(), 0).is_err());
+            assert_eq!(s.session().document().checkpoint().bytes, bytes);
+        }
+        let stale = s
+            .prepare_commands(&revision, &[c.clone()], &origin(), 0)
+            .unwrap();
+        apply(&mut s, c);
+        let edited = tuple(&s, &f.table);
+        let committed = s.session().document().checkpoint().bytes;
+        assert!(s.apply(stale, 0).is_err());
+        assert_eq!(s.session().document().checkpoint().bytes, committed);
+        assert_eq!(store.pending(&f.id).unwrap().len(), 1);
+        assert_eq!(s.session().document().history_state().undo_groups, 1);
+        let runs = if v2 {
+            &edited[2]["rows"][0][0]["paragraphs"][0]["runs"]
+        } else {
+            &edited[2]["rows"][0][0]
+        };
+        assert_eq!(runs, &json!([["ab\n😀\n\n", [["bold"]]]]));
+        assert_eq!(edited[2]["rows"][0][1], original[2]["rows"][0][1]);
+        assert_eq!(edited[2]["source"], original[2]["source"]);
+        assert_eq!(edited[1], original[1]);
+        let r = s.read(0).unwrap().revision;
+        s.undo(&r, 0).unwrap().unwrap();
+        assert_eq!(tuple(&s, &f.table), original);
+        let r = s.read(0).unwrap().revision;
+        s.redo(&r, 0).unwrap().unwrap();
+        assert_eq!(tuple(&s, &f.table), edited);
+        let reopened = EditService::new(
+            Session::open(store.clone(), &f.id, CachedPermission::LOCAL).unwrap(),
+            policy(),
+        );
+        assert_eq!(tuple(&reopened, &f.table), edited);
+        let fragment = s.session().document().fragment_for_node(&f.table).unwrap();
+        let exported = editac_markdown::export::export(&[fragment.clone()]);
+        if v2 {
+            assert!(
+                exported
+                    .diagnostics
+                    .iter()
+                    .any(|d| d.code == "rich-table-source-fallback")
+            );
+            assert_eq!(exported.recovery.len(), 1);
+            assert_eq!(
+                exported.recovery[0].attributes.as_ref().unwrap().tuple(),
+                fragment.attributes.as_ref().unwrap().tuple()
+            );
+            assert_eq!(exported.recovery[0].runs[0].text, fragment.runs[0].text);
+            assert_eq!(exported.recovery[0].runs[0].marks, fragment.runs[0].marks);
+        } else {
+            assert!(
+                exported.diagnostics.is_empty(),
+                "{:?}",
+                exported.diagnostics
+            );
+            assert!(exported.markdown.contains("ab<br />😀<br /><br />"));
+            let imported =
+                editac_markdown::optional::import_with_codecs(&exported.markdown, policy().codecs)
+                    .unwrap();
+            let content = editac_core::modules::content::Content::from_tuple(
+                &imported.blocks[0].attributes.as_ref().unwrap().tuple(),
+            )
+            .unwrap()
+            .unwrap();
+            let editac_core::modules::content::Content::Table { rows, .. } = content else {
+                panic!()
+            };
+            assert_eq!(rows[0][0][0].text, "ab\n😀\n\n");
+        }
+        // Explicit literal rectangle uses the same planner and history boundary.
+        let expected = s
+            .session()
+            .document()
+            .fragment_for_node(&f.table)
+            .unwrap()
+            .attributes
+            .unwrap()
+            .tuple();
+        let cells = vec![vec!["\nline\t😀\n".into()]];
+        let commands = rectangle_commands(
+            &f.table,
+            &expected,
+            CellRectangle {
+                row: 0,
+                column: 0,
+                rows: 1,
+                columns: 1,
+            },
+            RectangleEdit::Paste(&cells),
+            &[],
+        )
+        .unwrap();
+        let r = s.read(0).unwrap().revision;
+        let p = s.prepare_commands(&r, &commands, &origin(), 0).unwrap();
+        s.apply(p, 0).unwrap().unwrap();
+        assert_eq!(s.session().document().history_state().undo_groups, 2);
+        let pasted = tuple(&s, &f.table);
+        let reopened = EditService::new(
+            Session::open(store.clone(), &f.id, CachedPermission::LOCAL).unwrap(),
+            policy(),
+        );
+        assert_eq!(tuple(&reopened, &f.table), pasted);
+        let r = s.read(0).unwrap().revision;
+        s.undo(&r, 0).unwrap().unwrap();
+        assert_eq!(tuple(&s, &f.table), edited);
+    }
+}

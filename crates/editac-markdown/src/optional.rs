@@ -77,6 +77,16 @@ fn table(
             ) => {
                 marks.pop().ok_or("table-inline-shape")?;
             }
+            Event::InlineHtml(s) if crate::import::is_hard_break_html(s) => {
+                if let Some(last) = cell.last_mut().filter(|r| r.marks == marks) {
+                    last.text.push('\n');
+                } else {
+                    cell.push(FragmentRun {
+                        text: "\n".into(),
+                        marks: marks.clone(),
+                    });
+                }
+            }
             Event::Text(s) | Event::Code(s) => {
                 let mut active = marks.clone();
                 if matches!(event, Event::Code(_)) {

@@ -66,6 +66,13 @@ fn close(mark: &(Mark, Option<String>)) -> String {
     }
 }
 fn inline(block: &FragmentBlock, diagnostics: &mut Vec<Diagnostic>) -> String {
+    inline_with_breaks(block, diagnostics, false)
+}
+fn inline_with_breaks(
+    block: &FragmentBlock,
+    diagnostics: &mut Vec<Diagnostic>,
+    cell: bool,
+) -> String {
     let mut s = String::new();
     let mut active = Vec::new();
     let last = block.runs.iter().rposition(|run| !run.text.is_empty());
@@ -102,14 +109,20 @@ fn inline(block: &FragmentBlock, diagnostics: &mut Vec<Diagnostic>) -> String {
                     range: 0..0,
                 });
             }
-            s.push_str(&inline_code(&run.text));
+            if cell && run.text.contains('\n') {
+                // CommonMark code spans normalize line endings. Export a readable
+                // fallback; the diagnostic and typed recovery retain exact marks.
+                s.push_str(&escape(&run.text).replace('\n', "<br />"));
+            } else {
+                s.push_str(&inline_code(&run.text));
+            }
         } else {
             let body = if Some(index) == last {
                 run.text.trim_end_matches('\n')
             } else {
                 &run.text
             };
-            s.push_str(&escape(body).replace('\n', "\\\n"));
+            s.push_str(&escape(body).replace('\n', if cell { "<br />" } else { "\\\n" }));
             // Backslash/newline at paragraph end is not a CommonMark hard
             // break. The allowlisted inert br spelling retains authored LFs.
             for _ in body.len()..run.text.len() {
@@ -263,14 +276,15 @@ pub fn export(blocks: &[FragmentBlock]) -> ExportResult {
                             "| {} |",
                             cells
                                 .iter()
-                                .map(|runs| inline(
+                                .map(|runs| inline_with_breaks(
                                     &FragmentBlock {
                                         runs: runs.clone(),
                                         attributes: Some(BlockAttributes::Paragraph),
                                         containers: vec![],
                                         checked: None
                                     },
-                                    diagnostics
+                                    diagnostics,
+                                    true
                                 )
                                 .replace("\\|", "|")
                                 .replace('|', "\\|"))

@@ -1,5 +1,5 @@
 // Literal simple-cell transfer. Quoting keeps tabs/quotes inside their cells;
-// CR/LF inside cells remain outside the owning engine's simple-cell profile.
+// LF stays inside quoted cells; CR is normalized only by explicit literal paste.
 const MAX_BYTES = 1048576;
 const MAX_CELLS = 128;
 function bounded(text: string): void {
@@ -8,13 +8,13 @@ function bounded(text: string): void {
 function validate(matrix: string[][]): string[][] {
   const columns = matrix[0]?.length ?? 0;
   if (!columns || columns > 32 || matrix.length * columns > MAX_CELLS ||
-      matrix.some(row => row.length !== columns || row.some(cell => /[\r\n]/u.test(cell)))) throw Error('Simple rectangle required');
+      matrix.some(row => row.length !== columns || row.some(cell => (/\r/u.test(cell) || /\p{Surrogate}/u.test(cell))))) throw Error('Simple rectangle required');
   bounded(matrix.flat().join(''));
   return matrix;
 }
 export function encodeTableClipboard(doc: Document, cells: string[][]): Record<string, string> {
   validate(cells);
-  const text = cells.map(row => row.map(cell => /[\t"]/u.test(cell) ? `"${cell.replaceAll('"', '""')}"` : cell).join('\t')).join('\n');
+  const text = cells.map(row => row.map(cell => /[\t\n"]/u.test(cell) ? `"${cell.replaceAll('"', '""')}"` : cell).join('\t')).join('\n');
   const table = doc.createElement('table');
   for (const row of cells) { const tr = table.insertRow(); for (const cell of row) tr.insertCell().textContent = cell; }
   const html = table.outerHTML;
@@ -65,8 +65,8 @@ function decodeHtml(doc: Document, html: string): string[][] {
 }
 export function decodeTableClipboard(doc: Document, data: DataTransfer, literal = false): string[][] {
   // The explicit literal action ignores richer offers and cannot turn tabs
-  // into a rectangle. Embedded breaks remain outside the admitted cell profile.
-  if (literal) return validate([[data.getData('text/plain')]]);
+  // into a rectangle. Normalize external line endings once; the engine admits LF.
+  if (literal) return validate([[data.getData('text/plain').replace(/\r\n?/gu, '\n')]]);
   const html = data.getData('text/html');
   // Validate all offered HTML even when TSV is preferred: no fallback may hide
   // unsupported merges, nesting or rich markup by flattening them.
@@ -105,7 +105,7 @@ function richMatrix(value: unknown, version = 1, maxCells = MAX_CELLS): RichCell
         lists = [cell];
       }
       for (const list of lists) for (const run of list as any[]) {
-        if (++count > 1024 || !Array.isArray(run) || run.length !== 2 || typeof run[0] !== 'string' || /[\r\n]/u.test(run[0]) || !Array.isArray(run[1]) || run[1].length > 6) throw Error('Invalid rich run');
+        if (++count > 1024 || !Array.isArray(run) || run.length !== 2 || typeof run[0] !== 'string' || (/\r/u.test(run[0]) || /\p{Surrogate}/u.test(run[0])) || !Array.isArray(run[1]) || run[1].length > 6) throw Error('Invalid rich run');
         const seen = new Set();
         for (const mark of run[1]) {
           if (!Array.isArray(mark) || !['bold','italic','underline','strike','code','link'].includes(mark[0]) || seen.has(mark[0])) throw Error('Invalid rich mark');
@@ -126,9 +126,10 @@ export function encodeRichTableClipboard(doc: Document, cells: RichCellMatrix): 
   richMatrix(cells, version);
   const rich = JSON.stringify({ version, cells }); bounded(rich);
   const literal = cells.map(row => row.map(cell => Array.isArray(cell) ? cell.map(run => run[0]).join('') : cell.paragraphs.map(block => block.runs.map(run => run[0]).join('')).join('\n')));
-  // Literal table profile has no embedded newlines. Keep the structured flavor
-  // alone for multi-block cells rather than flattening their block boundaries.
-  return { ...(literal.some(row => row.some(text => /[\r\n]/u.test(text))) ? {} : encodeTableClipboard(doc, literal)), [TABLE_RICH_MIME]: rich };
+  // LF inside one block is literal cell text. Multiple blocks still require
+  // the structured flavor so their distinct block boundaries cannot be lost.
+  const multiBlock = cells.some(row => row.some(cell => !Array.isArray(cell) && cell.paragraphs.length !== 1));
+  return { ...(multiBlock ? {} : encodeTableClipboard(doc, literal)), [TABLE_RICH_MIME]: rich };
 }
 export function decodeRichTableClipboard(data: DataTransfer): RichCellMatrix | undefined {
   if (!data.types.includes(TABLE_RICH_MIME)) return;

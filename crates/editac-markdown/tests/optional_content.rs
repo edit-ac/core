@@ -344,3 +344,99 @@ fn reference_export_keeps_literal_label_and_reports_identity_loss() {
             .any(|d| d.code == "reference-identity-not-exported")
     );
 }
+
+#[test]
+fn table_cell_breaks_roundtrip_marks_empty_repeated_trailing_and_literal_html() {
+    for cell in [
+        "<br />",
+        "<br><br/>tail<br />",
+        "**a<br />😀<br /><br />**",
+        "[a<br />b](https://example.com/)",
+        "a\\|b<br />c",
+        "&lt;br /&gt;<br />tail",
+    ] {
+        let source = format!("| {cell} | other |\r\n| --- | --- |\r\n| x | y |\r\n");
+        let p = import_with_codecs(&source, enabled()).unwrap();
+        assert!(p.diagnostics.is_empty(), "{cell}: {:?}", p.diagnostics);
+        let Content::Table {
+            rows,
+            source: retained,
+            ..
+        } = content(&p.blocks[0])
+        else {
+            panic!()
+        };
+        assert!(rows[0][0].iter().any(|r| r.text.contains('\n')));
+        assert_eq!(retained, source);
+        let out = export(&p.blocks);
+        assert!(
+            out.diagnostics.is_empty(),
+            "{cell}: {:?}: {}",
+            out.diagnostics,
+            out.markdown
+        );
+        assert_eq!(out.markdown.lines().count(), 3);
+        let q = import_with_codecs(&out.markdown, enabled()).unwrap();
+        let Content::Table { rows: again, .. } = content(&q.blocks[0]) else {
+            panic!()
+        };
+        let scalars = |rows: &[Vec<Vec<editac_core::commands::editor::FragmentRun>>]| {
+            rows.iter()
+                .map(|row| {
+                    row.iter()
+                        .map(|cell| {
+                            cell.iter()
+                                .map(|r| (r.text.clone(), r.marks.clone()))
+                                .collect::<Vec<_>>()
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(scalars(&rows), scalars(&again));
+    }
+    for cell in [
+        "a<br onclick='x'>b",
+        "a<br data-x='1' />b",
+        "<script>x</script>",
+    ] {
+        let source = format!("| {cell} |\n| --- |\n| x |\n");
+        let p = import_with_codecs(&source, enabled()).unwrap();
+        assert!(!p.diagnostics.is_empty(), "{cell}");
+        assert_eq!(p.source, source);
+    }
+}
+
+#[test]
+fn multiline_table_code_and_unrepresentable_marks_keep_exact_typed_recovery() {
+    use editac_core::commands::{editor::FragmentRun, format::Mark};
+    for mark in [Mark::Code, Mark::Underline] {
+        let descriptor = Content::Table {
+            alignments: vec![Alignment::None],
+            rows: vec![vec![vec![FragmentRun {
+                text: "a\n😀\n".into(),
+                marks: vec![(mark, None)],
+            }]]],
+            source: "original\r\nsource".into(),
+        };
+        let block = FragmentBlock {
+            attributes: Some(BlockAttributes::Unknown(descriptor.tuple().unwrap())),
+            runs: vec![FragmentRun {
+                text: "a\n😀\n".into(),
+                marks: vec![],
+            }],
+            containers: vec![],
+            checked: None,
+        };
+        let out = export(&[block.clone()]);
+        assert!(!out.diagnostics.is_empty());
+        assert_eq!(out.recovery.len(), 1);
+        assert_eq!(
+            out.recovery[0].attributes.as_ref().unwrap().tuple(),
+            block.attributes.as_ref().unwrap().tuple()
+        );
+        assert_eq!(out.recovery[0].runs[0].text, block.runs[0].text);
+        assert_eq!(out.recovery[0].runs[0].marks, block.runs[0].marks);
+        assert_eq!(out.markdown.lines().count(), 2);
+    }
+}

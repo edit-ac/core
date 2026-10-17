@@ -128,18 +128,47 @@ fn cell_edit_is_prepared_atomic_and_preserves_owner_and_marks() {
     assert_eq!(bytes, d.checkpoint().bytes);
 }
 #[test]
-fn malformed_out_of_range_multiline_and_oversized_cells_do_not_mutate() {
+fn malformed_out_of_range_cr_and_oversized_cells_do_not_mutate() {
     let mut d = engine();
     let expected = attrs(&mut d);
     let bytes = d.checkpoint().bytes;
     for c in [
         edit(expected.clone(), 1, 0, "x"),
         edit(expected.clone(), 0, 2, "x"),
-        edit(expected.clone(), 0, 0, "new\nrow"),
+        edit(expected.clone(), 0, 0, "new\rrow"),
         edit(expected.clone(), 0, 0, &"x".repeat(1048577)),
         edit(Any::Null, 0, 0, "x"),
     ] {
         assert!(d.prepare_editor(&[c], &origin()).is_err());
         assert_eq!(bytes, d.checkpoint().bytes);
     }
+}
+
+#[test]
+fn multiline_cell_preserves_marks_scalars_and_source_through_prepared_reopen() {
+    let mut d = engine();
+    let expected = attrs(&mut d);
+    let before = d.checkpoint().bytes;
+    let p = d
+        .prepare_editor(&[edit(expected, 0, 0, "ab\n😀cd\n\n")], &origin())
+        .unwrap();
+    assert_eq!(d.checkpoint().bytes, before);
+    d.commit_editor(p).unwrap();
+    let Content::Table { rows, source, .. } = Content::from_tuple(&attrs(&mut d)).unwrap().unwrap()
+    else {
+        panic!()
+    };
+    assert_eq!(
+        rows[0][0]
+            .iter()
+            .map(|r| r.text.as_str())
+            .collect::<String>(),
+        "ab\n😀cd\n\n"
+    );
+    assert_eq!(rows[0][0][0].marks, vec![(Mark::Bold, None)]);
+    assert_eq!(rows[0][1][0].text, "other");
+    assert_eq!(source, "original source");
+    let checkpoint = d.checkpoint();
+    let mut reopened = Document::restore(d.identity(), &checkpoint, &[]).unwrap();
+    assert_eq!(attrs(&mut reopened), attrs(&mut d));
 }

@@ -22,11 +22,20 @@ for(const text of ['**literal**','  one\ttwo  ','שלום é😀'])test(`PST-0
   assert.equal(after.history.undoGroups,1);assert.equal(after.journal.length,1);
   await page.keyboard.press(process.platform==='darwin'?'Meta+z':'Control+z');assert.deepEqual((await state(page,fact)).nodes,before.nodes);
 },{plainTable:true}));
-test('PST-02 multiline literal cell retains breaks within original target',()=>probe('PST-02-cell-multiline',async(page,fact)=>{
+for(const [caseName,offered] of [['multiline','line one\nline two'],['line-endings','\r\nline\r😀\n\n']])test(`PST-02 ${caseName} literal cell retains breaks within original target`,()=>probe(`PST-02-cell-${caseName}`,async(page,fact)=>{
   fact.caseIds=['PST-02'];await enter(page);await page.getByRole('checkbox',{name:'Paste cells as literal text'}).check();const before=await state(page,fact);
-  await paste(page,{'text/plain':'line one\nline two'});const after=await state(page,fact);
-  assert.equal(table(after)[2].rows.length,table(before)[2].rows.length);assert.deepEqual(table(after)[2].rows[0][0],[['line one\nline two',[]]],'Original PST-02 requires an admitted cell-internal break primitive');
+  await paste(page,{'text/plain':offered});const after=await state(page,fact);
+  assert.equal(table(after)[2].rows.length,table(before)[2].rows.length);assert.deepEqual(table(after)[2].rows[0][0],[[offered.replace(/\r\n?/gu,'\n'),[]]],'Original PST-02 requires an admitted cell-internal break primitive');
+  assert.equal(after.history.undoGroups,before.history.undoGroups+1);assert.equal(after.journal.length,before.journal.length+1);assert.equal(after.markdown.diagnostics.length,0);
+  await page.keyboard.press(process.platform==='darwin'?'Meta+z':'Control+z');assert.deepEqual((await state(page,fact)).nodes,before.nodes);
+  await page.keyboard.press(process.platform==='darwin'?'Meta+Shift+z':'Control+Shift+z');assert.deepEqual((await state(page,fact)).nodes,after.nodes);
+  await page.evaluate(()=>window.inputFixture.reopen());assert.deepEqual((await state(page,fact)).nodes,after.nodes);
 },{plainTable:true}));
 for(const flavors of [{'text/html':'<table><tr><td onclick="alert(1)">x</td></tr></table>','text/plain':'x'},{'text/plain':'a\tb\nc\td'}])test(`PST-04 unsupported cell rectangle preserves source ${Object.keys(flavors)[0]}`,()=>probe(`PST-04-cell-reject-${Object.keys(flavors)[0].replace('/','-')}`,async(page,fact)=>{
   fact.caseIds=['PST-04'];await enter(page);const before=await state(page,fact);await paste(page,flavors);unchanged(before,await state(page,fact));
 },{plainTable:true,protected:[[0,0]]}));
+
+test('PST-02 ill-formed UTF-16 literal cell is rejected before engine mutation',()=>probe('PST-02-cell-invalid-utf16',async(page,fact)=>{
+  await enter(page);await page.getByRole('checkbox',{name:'Paste cells as literal text'}).check();const before=await state(page,fact);
+  await paste(page,{'text/plain':'bad\ud800tail'});unchanged(before,await state(page,fact));
+},{plainTable:true}));

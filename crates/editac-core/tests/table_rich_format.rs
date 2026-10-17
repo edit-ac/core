@@ -239,7 +239,7 @@ fn malformed_v2_rectangles_styles_duplicates_precedence_and_bounds_reject_purely
         |c| c[0]["paragraphs"][0]["runs"] = json!([["x", [["code"], ["italic"]]]]),
         |c| c[0]["paragraphs"][0]["runs"] = json!([["x", [["link", "javascript:alert(1)"]]]]),
         |c| c[0]["extra"] = json!(true),
-        |c| c[0]["paragraphs"][0]["runs"] = json!([["x\ny", []]]),
+        |c| c[0]["paragraphs"][0]["runs"] = json!([["x\ry", []]]),
     ];
     for mutation in mutations {
         let mut cells = good.clone();
@@ -300,4 +300,25 @@ fn multiblock_inline_formatting_preserves_order_and_individual_styles() {
     );
     d.undo().unwrap().unwrap();
     assert_eq!(attrs(&d), t);
+}
+
+#[test]
+fn rich_rectangle_retains_multiline_marked_runs_and_one_history_unit() {
+    let t = fixture();
+    let mut cells = t[2]["rows"][1].clone();
+    cells[0]["paragraphs"][0]["runs"] = runs("a\n😀\n\n");
+    let mut d = engine(&t);
+    let bytes = d.checkpoint().bytes;
+    let p = d
+        .prepare_editor(&[rich(&t, json!([cells]))], &origin())
+        .unwrap();
+    assert_eq!(d.checkpoint().bytes, bytes);
+    d.commit_editor(p).unwrap();
+    let edited = attrs(&d);
+    assert_eq!(edited[2]["rows"][1], cells);
+    assert_eq!(d.history_state().undo_groups, 1);
+    d.undo().unwrap().unwrap();
+    assert_eq!(attrs(&d), t);
+    d.redo().unwrap().unwrap();
+    assert_eq!(attrs(&d), edited);
 }
