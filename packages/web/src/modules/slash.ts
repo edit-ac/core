@@ -32,8 +32,7 @@ export function slashCommands(commands: readonly SlashCommand[], options: { lite
     if (!/^[a-zA-Z][\w.-]{0,63}$/.test(command.id) || ids.has(command.id) || !command.label || command.label.length > 128 || typeof command.prepare !== 'function' ||
         (command.disabled !== undefined && (!command.disabled || command.disabled.length > 256)) || (command.keywords?.length ?? 0) > 16 || command.keywords?.some(k => k.length > 64)) throw Error('Invalid slash command');
     ids.add(command.id);
-    return Object.freeze({ ...command, keywords: Object.freeze([...(command.keywords ?? [])]),
-      searchTerms: Object.freeze([command.label, ...(command.keywords ?? [])].map(word => word.toLocaleLowerCase())) });
+    return Object.freeze({ ...command, keywords: Object.freeze([...(command.keywords ?? [])]) });
   });
   return context => new SlashPresenter(context, registered, options.literal ?? false);
 }
@@ -55,7 +54,11 @@ export class SlashPresenter {
   private readonly listeners: [EventTarget, string, EventListener][] = [];
   private readonly nodes = new Map<string, ProjectedNode>();
   private readonly previous: Record<string, string | null>;
-  constructor(private readonly context: SlashContext, private readonly commands: readonly RegisteredSlashCommand[], private readonly literal: boolean) {
+  private readonly commands: readonly RegisteredSlashCommand[];
+  constructor(private readonly context: SlashContext, commands: readonly SlashCommand[], private readonly literal: boolean) {
+    if (commands.length > 500) throw Error('Too many slash commands');
+    this.commands = commands.map(command => Object.freeze({ ...command, keywords: Object.freeze([...(command.keywords ?? [])]),
+      searchTerms: Object.freeze([command.label, ...(command.keywords ?? [])].map(word => word.toLocaleLowerCase())) }));
     const { root, engine } = context, doc = root.ownerDocument;
     this.menu = doc.createElement('div'); this.menu.id = `editac-slash-${++sequence}`;
     this.menu.setAttribute('role', 'menu'); this.menu.setAttribute('aria-label', 'Slash commands'); this.menu.hidden = true;
