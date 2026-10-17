@@ -498,7 +498,12 @@ impl Document {
             g.manager.undo_stack()
         };
         let displacement = bookmark.as_ref().map(|s| {
-            let deleted = stack.last().expect("history stack").deletions();
+            // Structural-only groups are undone through retained-operation
+            // controls and may have no Yrs text stack or deleted text items.
+            let Some(item) = stack.last() else {
+                return (0, 0);
+            };
+            let deleted = item.deletions();
             let bytes = self.checkpoint().bytes;
             (
                 restored_displacement(&bytes, &s.anchor, deleted),

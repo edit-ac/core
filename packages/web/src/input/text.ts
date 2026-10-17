@@ -212,8 +212,14 @@ export class TextInput {
     let range = target.range, ownedRange: StableRange | undefined;
     try {
       const a = this.#engine.resolve(range.anchor), b = this.#engine.resolve(range.focus);
-      if (a.type !== 'position' || b.type !== 'position' || a.node !== b.node) {
+      if (a.type !== 'position' || b.type !== 'position') {
         event.preventDefault(); this.#reject(intent, 'unsupported-ordinary-range'); return;
+      }
+      if (a.node !== b.node) {
+        event.preventDefault();
+        this.#apply(intent, range, input.inputType === 'insertText' ? input.data! : '');
+        this.#eligibleKey=false;
+        return;
       }
       if (input.inputType !== 'insertText' && a.offset === b.offset) {
         // Use the browser's actual deletion unit (grapheme/word policy), never a
@@ -310,7 +316,24 @@ export class TextInput {
     if (this.#disposed || intent.generation !== this.#generation) { intent.disposition = 'disposed'; return; }
     if (this.#readOnly) { this.#reject(intent, 'read-only'); return; }
     const a = this.#engine.resolve(range.anchor), b = this.#engine.resolve(range.focus);
-    if (a.type !== 'position' || b.type !== 'position' || a.node !== b.node) { this.#reject(intent, 'stale-target'); return; }
+    if (a.type !== 'position' || b.type !== 'position') { this.#reject(intent, 'stale-target'); return; }
+    if (a.node !== b.node) {
+      // The shared fragment preparer owns structural replacement, including
+      // whole-document ranges ending in an empty block and atomic rejection.
+      const request: PrepareRequest = { kind: 'fragment', origin: `text-input:${intent.id}`, range,
+        blocks: [{ attributes: null, runs: text ? [{ text, marks: [] }] : [] }] };
+      try {
+        if (!this.#engine.can(request)) { this.#reject(intent, 'unsupported-ordinary-range'); return; }
+        this.keyboard.resetFocusEscape(); this.#engine.history({type:'explicit'});
+        const result = this.#commit(request);
+        intent.disposition='committed'; intent.text=text;
+        if (result.caret) {
+          try { this.#selection.move(result.caret); } finally { this.#engine.releaseAnchor(result.caret); }
+        } else this.#selection.restore();
+      } catch(error) { this.#reject(intent,errorMessage(error)); }
+      finally { this.#engine.history({type:'boundary'}); }
+      return;
+    }
     if (a.offset === b.offset && !text) { intent.disposition = 'handled'; return; }
     if(shortcutEligible){const result=this.shortcuts.convert(range,text,`typing-shortcut:${intent.id}`);if(result){intent.disposition='committed';intent.text=text;this.#moveShortcut(result);return;}}
     // The upper endpoint survives replacement; a start anchor attached to the

@@ -68,7 +68,8 @@ fn close(mark: &(Mark, Option<String>)) -> String {
 fn inline(block: &FragmentBlock, diagnostics: &mut Vec<Diagnostic>) -> String {
     let mut s = String::new();
     let mut active = Vec::new();
-    for run in &block.runs {
+    let last = block.runs.iter().rposition(|run| !run.text.is_empty());
+    for (index, run) in block.runs.iter().enumerate() {
         let mut marks = run.marks.clone();
         marks.sort_by_key(|(m, _)| order(*m));
         marks.dedup();
@@ -103,7 +104,17 @@ fn inline(block: &FragmentBlock, diagnostics: &mut Vec<Diagnostic>) -> String {
             }
             s.push_str(&inline_code(&run.text));
         } else {
-            s.push_str(&escape(&run.text).replace('\n', "\\\n"));
+            let body = if Some(index) == last {
+                run.text.trim_end_matches('\n')
+            } else {
+                &run.text
+            };
+            s.push_str(&escape(body).replace('\n', "\\\n"));
+            // Backslash/newline at paragraph end is not a CommonMark hard
+            // break. The allowlisted inert br spelling retains authored LFs.
+            for _ in body.len()..run.text.len() {
+                s.push_str("<br />");
+            }
         }
     }
     for mark in active.iter().rev() {

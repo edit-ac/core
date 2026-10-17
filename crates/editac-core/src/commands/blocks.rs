@@ -225,10 +225,30 @@ pub(crate) fn expand(
         )],
         BlockCommand::SetParagraph { owner } => vec![presentation(owner, tuple("paragraph"))],
         BlockCommand::Text(c) => vec![EditorCommand::Text(c.clone())],
-        BlockCommand::HardBreak { at } => vec![EditorCommand::Text(TextCommand::Insert {
-            at: at.clone(),
-            text: "\n".into(),
-        })],
+        BlockCommand::HardBreak { at } => {
+            let crate::anchors::Resolution::Position(point) =
+                crate::anchors::resolve(&d.transact(), identity, &s, at)
+            else {
+                return Err(EditorError::UnsupportedTarget);
+            };
+            vec![
+                EditorCommand::Text(TextCommand::Insert {
+                    at: at.clone(),
+                    text: "\n".into(),
+                }),
+                EditorCommand::ResultCaretAt(super::editor::EditorPosition {
+                    owner: point.node,
+                    offset: crate::Utf16Offset(
+                        point
+                            .offset
+                            .0
+                            .checked_add(1)
+                            .ok_or(EditorError::ResourceLimit)?,
+                    ),
+                    bias: crate::anchors::Bias::Right,
+                }),
+            ]
+        }
         BlockCommand::Split { owner, at } => vec![EditorCommand::Split {
             owner: owner.clone(),
             at: at.clone(),

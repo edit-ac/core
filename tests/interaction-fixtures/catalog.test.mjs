@@ -25,7 +25,7 @@ test('INT-1.1: duplicate, missing, unexpected and stale case bindings fail close
   }
 });
 test('INT-1.1: unknown/unimplemented groups never report zero-test success', () => {
-  for (const group of ['absent', 'breaks', 'all']) {
+  for (const group of ['absent', 'formatting', 'all']) {
     const result = spawnSync(process.execPath, ['scripts/test-interactions.mjs', '--group', group], { encoding: 'utf8' });
     assert.equal(result.status, 1); assert.match(result.stderr, /Unknown or unimplemented/);
   }

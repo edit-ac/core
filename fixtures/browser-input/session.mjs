@@ -19,6 +19,10 @@ async function mount(text='alpha',other='independent',texts) {
  ids=engine.read().visible.map(n=>n.id);const checkpoint=engine.checkpoint();engine.dispose();
  const store=await CheckpointStorage.open(indexedDB,databaseName);try{await store.publish(checkpoint,[]);}finally{store.close();}
  session=await recoverLocalDocument({assetUrl:'/core/wasm/editac_wasm_bg.wasm',databaseName,identity,indexedDB,locks:navigator.locks});
+ await bind();
+ document.querySelector('#status').textContent='Real engine/storage/DOM protocol attached';select(ids[0],text.length);return {ids};
+}
+async function bind(){
  if (window.markdownEnabled) {
    const {initMarkdown}=await import('/markdown/index.js');
    const {markdownExtension}=await import('/markdown/web.js');
@@ -31,7 +35,11 @@ async function mount(text='alpha',other='independent',texts) {
  protocol=new TextInput(renderer,selection,session.writer.engine,request=>{const result=session.storage.commit(request);commandResults.push(result);return result;});
  if (window.markdownAdapter) protocol.shortcuts=window.markdownAdapter.createShortcuts(session.writer.engine, request=>session.storage.commit(request));
  otherBlock=ids[1]?renderer.getBlock(ids[1]):undefined;otherText=otherBlock?document.createTreeWalker(otherBlock,NodeFilter.SHOW_TEXT).nextNode():undefined;
- document.querySelector('#status').textContent='Real engine/storage/DOM protocol attached';select(ids[0],text.length);return {ids};
+}
+async function reopen(){
+ await destroy();
+ session=await recoverLocalDocument({assetUrl:'/core/wasm/editac_wasm_bg.wasm',databaseName,identity,indexedDB,locks:navigator.locks});
+ await bind();await settle();
 }
 function select(id,offset,end=offset){root.focus();const a=selection.toDOM({node:id,offset,bias:'right'}),b=selection.toDOM({node:id,offset:end,bias:'left'});if(!a||!b)throw Error('Unmapped selection');document.getSelection().setBaseAndExtent(a.node,a.offset,b.node,b.offset);selection.capture();}
 function event(type,options={}) {
@@ -64,4 +72,4 @@ async function destroy(){
  const active=session;session=undefined;
  if(active)await active.storage.destroy({policy:'flush'});
 }
-window.inputFixture={disableMarkdown(){markdownRegistration?.dispose();protocol.shortcuts.enabled=false;},mount,select,event,mutate,settle,state,remote,remoteReplace,apply,destroy,get commandResults(){return commandResults},get ids(){return ids},get root(){return root},get protocol(){return protocol},get engine(){return session.writer.engine},get renderer(){return renderer},get selection(){return selection}};
+window.inputFixture={disableMarkdown(){markdownRegistration?.dispose();protocol.shortcuts.enabled=false;},mount,reopen,select,event,mutate,settle,state,remote,remoteReplace,apply,destroy,get commandResults(){return commandResults},get ids(){return ids},get root(){return root},get protocol(){return protocol},get engine(){return session.writer.engine},get renderer(){return renderer},get selection(){return selection}};

@@ -40,6 +40,63 @@ fn unicode_breaks_empty_documents_and_separators() {
     roundtrip("😀 é אבג\nline\\\nnext\n\n---\n");
     roundtrip("");
 }
+
+#[test]
+fn authored_terminal_hard_breaks_round_trip_without_filler_or_recovery() {
+    for text in ["\n", "\n\n", "abc\n", "abc\n\n", "ab\ncd\n", "😀 é\n\n"] {
+        for marks in [vec![], vec![(Mark::Bold, None)], vec![(Mark::Italic, None)]] {
+            let blocks = vec![FragmentBlock {
+                attributes: Some(BlockAttributes::Paragraph),
+                runs: vec![FragmentRun {
+                    text: text.into(),
+                    marks,
+                }],
+                containers: vec![],
+                checked: None,
+            }];
+            let exported = export(&blocks);
+            assert!(
+                exported.diagnostics.is_empty(),
+                "{text:?}: {:?}",
+                exported.diagnostics
+            );
+            assert!(exported.recovery.is_empty());
+            let imported = import(&exported.markdown).unwrap();
+            assert!(imported.diagnostics.is_empty());
+            assert_eq!(
+                semantic(&imported.blocks),
+                semantic(&blocks),
+                "{:?}",
+                exported.markdown
+            );
+            assert_eq!(export(&imported.blocks).markdown, exported.markdown);
+        }
+    }
+    for source in ["<br>\n", "<BR/>\n", "<br />\n", "a<br /><br />\n"] {
+        roundtrip(source);
+    }
+    for source in [
+        "a<br onclick=\"alert(1)\">b",
+        "a<br data-x=\"x\">b",
+        "a<script>unsafe()</script>b",
+    ] {
+        let imported = import(source).unwrap();
+        assert!(
+            imported
+                .diagnostics
+                .iter()
+                .any(|d| d.code == "raw-html-inert")
+        );
+        assert_eq!(
+            imported.blocks[0]
+                .runs
+                .iter()
+                .map(|r| r.text.as_str())
+                .collect::<String>(),
+            source
+        );
+    }
+}
 #[test]
 fn source_spelling_is_normalized_only_on_export() {
     let p = import("__bold__\r\n").unwrap();
