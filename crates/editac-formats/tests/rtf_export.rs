@@ -27,6 +27,7 @@ fn begin(o: &Owner, id: &str) -> PreparedJob<MemoryStore> {
 }
 fn run(text: &str, marks: Vec<(Mark, Option<String>)>) -> FragmentRun {
     FragmentRun {
+        opaque_marks: vec![],
         text: text.into(),
         marks,
     }
