@@ -151,12 +151,14 @@ export class TextInput {
     this.#flushNative();
     if (['paste','cut','drop','compositionstart','compositionend','blur','keyup'].includes(event.type)) this.codeCommands?.handle(event);
     if (['compositionstart', 'paste', 'cut', 'beforeinput'].includes(event.type)) { this.slash?.handle(event); this.references?.handle(event); }
+    const historyAction = this.#composition.active &&
+      (event.type === 'beforeinput' && ['historyUndo', 'historyRedo'].includes((event as InputEvent).inputType) ||
+        event.type === 'keydown' && ['z', 'y'].includes((event as KeyboardEvent).key.toLowerCase()))
+      ? this.keyboard.action(event) : undefined;
     if (this.#composition.active && (['paste', 'cut', 'drop'].includes(event.type) ||
-      event.type === 'keydown' && !((event as KeyboardEvent).isComposing) &&
-      ((event as KeyboardEvent).metaKey || (event as KeyboardEvent).ctrlKey) &&
-      ['z', 'y'].includes((event as KeyboardEvent).key.toLowerCase()))) {
+      historyAction === 'undo' || historyAction === 'redo')) {
       const owner = this.#composition.owner;
-      this.#composition.finish(event.type === 'keydown' ? 'cancel' : 'blur');
+      this.#composition.finish(historyAction ? 'cancel' : 'blur');
       if (this.#key === owner) this.#key = undefined;
       if (this.#pending === owner) this.#pending = undefined;
     }
@@ -260,10 +262,13 @@ export class TextInput {
       if (insertion && reported.length) {
         const native = reported.length === 1 ? reported[0] : undefined;
         const start = native && this.#selection.toModel(native.startContainer, native.startOffset, 'right');
-        const end = native && this.#selection.toModel(native.endContainer, native.endOffset, 'left');
+        const collapsed = native && native.startContainer === native.endContainer && native.startOffset === native.endOffset;
+        // At a freshly split empty block, left/right affinities may refer to
+        // different structural owners. A collapsed reported target stays one cut.
+        const end = collapsed ? start : native && this.#selection.toModel(native.endContainer, native.endOffset, 'left');
         if (!start || !end) { event.preventDefault(); this.#reject(intent, 'unmapped-replacement-target'); return; }
         const anchor = this.#engine.anchor(start.node, start.offset, 'right');
-        try { ownedRange = { anchor, focus: this.#engine.anchor(end.node, end.offset, 'left') }; }
+        try { ownedRange = { anchor, focus: this.#engine.anchor(end.node, end.offset, collapsed ? 'right' : 'left') }; }
         catch (error) { this.#engine.releaseAnchor(anchor); throw error; }
         range = ownedRange;
       }
@@ -453,6 +458,7 @@ export class TextInput {
         ] };
       }
       const result = this.#commit(request);
+      if (result.caret) this.#engine.releaseAnchor(result.caret);
       if (result.selection) { this.#engine.releaseAnchor(result.selection.anchor); this.#engine.releaseAnchor(result.selection.focus); }
       intent.disposition = 'committed'; intent.text = text;
       const caret = this.#engine.resolve(caretAnchor);

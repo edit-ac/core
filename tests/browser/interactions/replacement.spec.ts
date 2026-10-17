@@ -147,3 +147,26 @@ test('EVT-07 marked phrase correction preserves untouched boundaries and exact u
   await page.keyboard.press(`${primary}+z`);s=await state(page,fact);content(s,'alpha',1);assert.deepEqual(s.nodes[0].runs.map(r=>[r.text,r.attributes.bold??false]),[['a',false],['lph',true],['a',false]]);
   await page.keyboard.press(`${primary}+Shift+z`);s=await state(page,fact);content(s,'a文a',2);assert.equal(s.history.undoGroups,1);
 }));
+
+for(const mode of ['beforeinput-history','altgraph','host-handled'])test(`EVT-08 composition history applicability ${mode}`,()=>probe(`EVT-08-applicability-${mode}`,async(page,fact)=>{
+  await page.keyboard.type('!');await start(page);await interim(page,'a文a!','文');
+  await page.evaluate(mode=>{const f=window.inputFixture;
+    if(mode==='beforeinput-history')f.event('beforeinput',{inputType:'historyUndo',cancelable:true});
+    else {const e=new KeyboardEvent('keydown',{key:'z',metaKey:true,ctrlKey:mode==='altgraph',altKey:mode==='altgraph',modifierAltGraph:mode==='altgraph',bubbles:true,cancelable:true});if(mode==='host-handled')e.preventDefault();f.root.dispatchEvent(e);}
+  },mode);
+  let s=await state(page,fact);
+  if(mode==='beforeinput-history'){content(s,'alpha',5);assert.equal(s.selectionSuspended,false);assert.equal(s.intents.find(i=>i.origin==='composition').disposition,'canceled');assert.equal(s.intents.find(i=>i.origin==='composition').text,'文');assert.equal(s.history.redoGroups,1);}
+  else {assert.equal(s.selectionSuspended,true);assert.equal(s.text[0],'alpha!');assert.equal(s.dom[0],'a文a!');await end(page,'文');s=await state(page,fact);content(s,'a文a!',2);effects(s,2);}
+}));
+
+test('EVT-01 collapsed native target at a newly split empty block preserves that owner',()=>probe('EVT-01-empty-owner',async(page,fact)=>{
+  await bold(page);await page.evaluate(()=>{const f=window.inputFixture;f.select(f.ids[0],5);});await page.keyboard.press('Enter');let s=await state(page,fact);assert.deepEqual(s.text,['alpha','']);const id=s.nodes[1].id;
+  await page.keyboard.type('X');s=await state(page,fact);assert.deepEqual(s.text,['alpha','X']);assert.equal(s.nodes[1].id,id);assert.equal(s.nodes[1].runs[0].attributes.bold,true);assert.equal(s.caret.node,id);assert.equal(s.caret.offset,1);assert.equal(s.history.undoGroups,2);assert.equal(s.journal.length,3);
+}));
+test('EVT-06 no-keydown phrase insertion punctuation and supplied phrase correction stay literal',()=>probe('EVT-06-phrase-punctuation',async(page,fact)=>{
+  await bold(page);await page.evaluate(()=>{const f=window.inputFixture;f.select(f.ids[0],5);f.event('beforeinput',{inputType:'insertText',data:' hello, world!',cancelable:true});});
+  let s=await state(page,fact);content(s,'alpha hello, world!');effects(s,1);assert.equal(s.nodes[0].runs.every(r=>r.attributes.bold===true),true);
+  await page.evaluate(()=>{const f=window.inputFixture;const a=f.selection.toDOM({node:f.ids[0],offset:6,bias:'right'}),b=f.selection.toDOM({node:f.ids[0],offset:12,bias:'left'});const e=new InputEvent('beforeinput',{bubbles:true,cancelable:true,inputType:'insertReplacementText',data:'bonjour'});Object.defineProperty(e,'getTargetRanges',{value:()=>[new StaticRange({startContainer:a.node,startOffset:a.offset,endContainer:b.node,endOffset:b.offset})]});f.root.dispatchEvent(e);});
+  s=await state(page,fact);content(s,'alpha bonjour world!',13);effects(s,2);assert.equal(s.nodes[0].runs.every(r=>r.attributes.bold===true),true);
+  await page.keyboard.press(`${primary}+z`);s=await state(page,fact);content(s,'alpha hello, world!',6);assert.equal(s.endpoints.focus.offset,12);
+}));
