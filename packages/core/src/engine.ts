@@ -63,6 +63,7 @@ export interface BlockFormatCommand {
   action: FormatAction;
 }
 export type PrepareRequest =
+  | { kind: "fragmentTransfer"; origin: string; source: StableRange; destination: StableRange; copy: boolean }
   | { kind: "fragment"; origin: string; range: StableRange; blocks: readonly FragmentBlock[] }
   | { kind: "text"; origin: string; command: TextCommand }
   | { kind: "editor"; origin: string; commands: readonly EditorCommand[] }

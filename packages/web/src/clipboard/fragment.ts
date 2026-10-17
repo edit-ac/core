@@ -68,6 +68,45 @@ export function encodeContentFragment(engine: EngineHandle, node: ProjectedNode)
   return raw;
 }
 
+/** Read the existing clipboard representation without changing DOM selection.
+ * Drag source validation compares this bounded, lossless value at final admission. */
+export function selectionFragment(engine: EngineHandle, range: import('@edit-ac/core').StableRange) {
+      const a = engine.resolve(range.anchor), b = engine.resolve(range.focus);
+      if (a.type !== 'position' || b.type !== 'position') throw Error('clipboard-target');
+      const snapshot = engine.read(), nodes = snapshot.visible.filter(n => n.kind === 'block');
+      const ai = nodes.findIndex(n => n.id === a.node), bi = nodes.findIndex(n => n.id === b.node);
+      if (ai < 0 || bi < 0) throw Error('clipboard-target');
+      const [first, last, from, to] = (ai < bi || ai === bi && a.offset <= b.offset) ? [ai, bi, a.offset, b.offset] : [bi, ai, b.offset, a.offset];
+      if (first === last && from === to) return undefined;
+      const selected = nodes.slice(first, last + 1);
+      const inert = selected.some(n => Array.isArray(n.blockAttributes) && n.blockAttributes[0] === 'module:editac.inert-extension');
+      const clipped = selected.map((node, index) => ({ node, start: index === 0 ? from : 0, end: index === selected.length - 1 ? to : node.runs.reduce((n, r) => n + r.text.length, 0) }));
+      const plain = clipped.map(({node, start, end}) => node.runs.map(run => run.text).join('').slice(start, end)).join('\n');
+
+  return { plain, inert, encode() {
+        const fragment: Fragment = { version: 1, schema: snapshot.identity.schema,
+          blocks: clipped.map(({node, start, end}) => {
+            const containers: NonNullable<FragmentBlock['containers']>[number][] = [];
+            let parent = node.parent;
+            while (parent !== '@root') {
+              if (containers.length >= 16) throw Error('fragment-container-limit');
+              const container = snapshot.visible.find(n => n.id === parent), tuple = container?.editor?.containerAttributes;
+              if (!container || !Array.isArray(tuple)) throw Error('unsupported-fragment-container');
+              let style: NonNullable<FragmentBlock['containers']>[number]['style'];
+              if (tuple[0] === 'ordered' && typeof tuple[1] === 'number') style = { type: 'ordered', start: tuple[1] };
+              else if (tuple[0] === 'unordered' || tuple[0] === 'checklist' || tuple[0] === 'quote') style = { type: tuple[0] };
+              else throw Error('unsupported-fragment-container');
+              containers.unshift({ key: container.id, style }); parent = container.parent;
+            }
+            const attributes = blockStyle(node);
+            if (attributes?.type === 'content' && (start !== 0 || end !== node.runs.reduce((n,r)=>n+r.text.length,0))) throw Error('partial-atomic-fragment');
+            return { runs: clipRuns(node, start, end), attributes, containers, checked: node.editor?.checked ?? null };
+          }) };
+
+    const raw = JSON.stringify(fragment); decodeFragment(raw, engine); return {fragment, raw};
+  }};
+}
+
 /** Owns clipboard intents independently of keyboard events. Native menu paste,
  * beforeinput-only paste and noncancelable replacement share one mutation gate. */
 export class ClipboardInput {
@@ -307,44 +346,14 @@ export class ClipboardInput {
     if (this.#disposed || (cut && this.#blocked())) return this.last = rejected('clipboard-unavailable');
     const target = this.#selection.retain(); if (!target) return this.last = rejected('clipboard-selection');
     try {
-      const a = this.#engine.resolve(target.range.anchor), b = this.#engine.resolve(target.range.focus);
-      if (a.type !== 'position' || b.type !== 'position') throw Error('clipboard-target');
-      const snapshot = this.#engine.read(), nodes = snapshot.visible.filter(n => n.kind === 'block');
-      const ai = nodes.findIndex(n => n.id === a.node), bi = nodes.findIndex(n => n.id === b.node);
-      if (ai < 0 || bi < 0) throw Error('clipboard-target');
-      const [first, last, from, to] = (ai < bi || ai === bi && a.offset <= b.offset) ? [ai, bi, a.offset, b.offset] : [bi, ai, b.offset, a.offset];
-      if (first === last && from === to) return this.last = { disposition: 'handled' };
-      const selected = nodes.slice(first, last + 1);
-      const inert = selected.some(n => Array.isArray(n.blockAttributes) && n.blockAttributes[0] === 'module:editac.inert-extension');
-      const clipped = selected.map((node, index) => ({ node, start: index === 0 ? from : 0, end: index === selected.length - 1 ? to : node.runs.reduce((n, r) => n + r.text.length, 0) }));
-      const plain = clipped.map(({node, start, end}) => node.runs.map(run => run.text).join('').slice(start, end)).join('\n');
-      const oversized = exceedsLimit(plain);
-      // Copy can export the already admitted document as plain text. Import
-      // and structured-fragment bounds still apply; an oversized cut cannot
-      // promise a restorable fragment and must leave the document untouched.
+      const captured = selectionFragment(this.#engine, target.range);
+      if (!captured) return this.last = {disposition:'handled'};
+      const {plain, inert} = captured, oversized = exceedsLimit(plain);
       if (cut && oversized) throw Error('clipboard-limit');
       data.setData('text/plain', plain);
       if (cut && data.getData('text/plain') !== plain) throw Error('clipboard-write-failed');
       if (!oversized) try {
-        const fragment: Fragment = { version: 1, schema: snapshot.identity.schema,
-          blocks: clipped.map(({node, start, end}) => {
-            const containers: NonNullable<FragmentBlock['containers']>[number][] = [];
-            let parent = node.parent;
-            while (parent !== '@root') {
-              if (containers.length >= 16) throw Error('fragment-container-limit');
-              const container = snapshot.visible.find(n => n.id === parent), tuple = container?.editor?.containerAttributes;
-              if (!container || !Array.isArray(tuple)) throw Error('unsupported-fragment-container');
-              let style: NonNullable<FragmentBlock['containers']>[number]['style'];
-              if (tuple[0] === 'ordered' && typeof tuple[1] === 'number') style = { type: 'ordered', start: tuple[1] };
-              else if (tuple[0] === 'unordered' || tuple[0] === 'checklist' || tuple[0] === 'quote') style = { type: tuple[0] };
-              else throw Error('unsupported-fragment-container');
-              containers.unshift({ key: container.id, style }); parent = container.parent;
-            }
-            const attributes = blockStyle(node);
-            if (attributes?.type === 'content' && (start !== 0 || end !== node.runs.reduce((n,r)=>n+r.text.length,0))) throw Error('partial-atomic-fragment');
-            return { runs: clipRuns(node, start, end), attributes, containers, checked: node.editor?.checked ?? null };
-          }) };
-        const raw = JSON.stringify(fragment); decodeFragment(raw, this.#engine); data.setData(FRAGMENT_MIME, raw);
+        const {fragment, raw} = captured.encode(); data.setData(FRAGMENT_MIME, raw);
         if (inert) this.#diagnose('inert-extension-source-fallback');
         if (fragment.blocks.some(b => b.runs.some(r => r.opaqueMarks?.length))) this.#diagnose('opaque-marks-internal-only');
         if (cut && data.getData(FRAGMENT_MIME) !== raw) throw Error('clipboard-write-failed');

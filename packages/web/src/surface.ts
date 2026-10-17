@@ -39,6 +39,7 @@ export interface EditorSurface {
   readonly slash: import('./modules/slash.js').SlashPresenter | undefined;
   readonly moduleRuntime: ModuleRuntime | undefined;
   readonly recovery: readonly { text: string; reason: string }[];
+  captureTextTransfer(): import('./input/drag.js').TextTransferTarget | undefined;
   captureToolbar(): import('./commands/formatting.js').ToolbarTarget | undefined;
   captureHistory(): import('./input/keyboard.js').HistoryTarget | undefined;
   settle(): Promise<void>;
@@ -118,6 +119,7 @@ export function mountEditorSurface(root: HTMLElement, engine: EngineHandle, opti
       get slash() { return binding.input.slash; },
       get moduleRuntime() { return binding.renderer.moduleRuntime; },
       get recovery() { return binding.input.recovery.map(({ text, reason }) => ({ text, reason })); },
+      captureTextTransfer() { requireLive(); return binding.input.textDrag.capture(); },
       captureToolbar() { requireLive(); return binding.input.keyboard.captureToolbar(); },
       captureHistory() { requireLive(); return binding.input.keyboard.captureHistory(); },
       settle() { requireLive(); return binding.input.settle(); },

@@ -204,6 +204,9 @@ export class BrowserEditor {
   }
   chain(origin = 'local:sdk'): CommandChain { this.#requireReady(); return new CommandChain(this, origin); }
   /** Capture before moving focus into a formatting control. Release on dismissal. */
+  captureTextTransfer(): import('./input/drag.js').TextTransferTarget | undefined {
+    this.#requireReady(); return this.#input?.textDrag.capture();
+  }
   captureToolbar(): import('./commands/formatting.js').ToolbarTarget | undefined {
     this.#requireReady(); return this.#input?.keyboard.captureToolbar();
   }

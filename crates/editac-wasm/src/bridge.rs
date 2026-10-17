@@ -1,11 +1,10 @@
 //! Bounded JSON boundary shared by native fixture proofs and the compiled bridge.
 //! Every fallible parse/translation/preparation precedes a live commit.
 use editac_core::interchange::{
-    Affinity, Command, CommandAction as Action, CommandRange as Range, MarkName, Result,
-    TransferBlock, err, identity, kernel, parse, transfer_blocks,
+    err, identity, kernel, parse, transfer_blocks, Affinity, Command, CommandAction as Action,
+    CommandRange as Range, MarkName, Result, TransferBlock,
 };
 use editac_core::{
-    Utf16Offset,
     anchors::{Anchor, Bias, Resolution, Selection},
     commands::{
         editor::{EditorCommand, PreparedEditorEdit},
@@ -14,12 +13,13 @@ use editac_core::{
     },
     document::{
         BlockAttributes, CreationPermit, Document, DocumentIdentity, InitialNode,
-        InitializedCheckpoint, MAX_RESTORE_BYTES, ReplayUpdate,
+        InitializedCheckpoint, ReplayUpdate, MAX_RESTORE_BYTES,
     },
     history::{HistoryConfig, HistoryGroup},
+    Utf16Offset,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use std::collections::BTreeMap;
 
 const MAX_PLANS: usize = 128;
@@ -100,6 +100,12 @@ struct Capture {
 #[derive(Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
 enum Prepare {
+    FragmentTransfer {
+        origin: String,
+        source: Range,
+        destination: Range,
+        copy: bool,
+    },
     Fragment {
         origin: String,
         range: Range,
@@ -436,6 +442,23 @@ impl Bridge {
     fn prepared(&self, input: &str) -> Result<Plan> {
         let r: Prepare = parse(input, "prepare")?;
         let plan = match r {
+            Prepare::FragmentTransfer {
+                origin,
+                source,
+                destination,
+                copy,
+            } => {
+                let origin = TextOrigin::new(&origin).map_err(|e| kernel("prepare", e))?;
+                let source = self.selection(source)?;
+                let destination = self.selection(destination)?;
+                Plan::Editor(
+                    self.doc
+                        .prepare_fragment_transfer(&source, &destination, &origin, copy)
+                        .map_err(|e| kernel("prepare", e))?,
+                    ResultTokens::default(),
+                )
+            }
+
             Prepare::Fragment {
                 origin,
                 range,
@@ -844,10 +867,9 @@ mod atomic_selection_tests {
         b.release_anchor(&token);
         let plan = b.prepare(&request).unwrap();
         assert_eq!(b.anchor_slots(), MAX_ANCHORS);
-        assert!(
-            b.capture(&json!({"node":node,"offset":0,"bias":"left"}).to_string())
-                .is_err()
-        );
+        assert!(b
+            .capture(&json!({"node":node,"offset":0,"bias":"left"}).to_string())
+            .is_err());
         b.release_plan(plan["token"].as_str().unwrap());
         assert_eq!(b.anchor_slots(), MAX_ANCHORS - 2);
         assert_eq!(b.doc_state(), old);
@@ -947,5 +969,98 @@ mod alignment_profile_tests {
             assert!(b.prepare(&request).is_err());
             assert_eq!(b.doc_state(), before);
         }
+    }
+}
+
+#[cfg(test)]
+mod fragment_transfer_tests {
+    use super::*;
+    fn setup(copy: bool, offset: u32) -> (Bridge, String, String) {
+        static SERIAL: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(100);
+        let serial = SERIAL.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let mut b = Bridge::create(&json!({"profile":"v5","documentId":format!("95000000-0000-4000-8000-{serial:012}"),"epoch":format!("96000000-0000-4000-8000-{serial:012}"),"nodes":[{"text":"abCDef"}]}).to_string()).unwrap();
+        let node = b.doc.snapshot().unwrap().visible[0].id.clone();
+        let mut anchor = |offset, bias| {
+            b.capture(&json!({"node":node,"offset":offset,"bias":bias}).to_string())
+                .unwrap()["token"]
+                .as_str()
+                .unwrap()
+                .to_string()
+        };
+        let a = anchor(4, "right");
+        let z = anchor(2, "left");
+        let d = anchor(offset, "right");
+        let request=json!({"kind":"fragmentTransfer","origin":"test:transfer","source":{"anchor":a,"focus":z},"destination":{"anchor":d,"focus":d},"copy":copy}).to_string();
+        (b, node, request)
+    }
+    #[test]
+    fn move_copy_return_selected_fragment_and_complete_history() {
+        for (copy, offset, expected, start, end) in [
+            (false, 0, "CDabef", 0, 2),
+            (false, 6, "abefCD", 4, 6),
+            (true, 6, "abCDefCD", 6, 8),
+        ] {
+            let (mut b, _, request) = setup(copy, offset);
+            let before = b.doc_state();
+            assert_eq!(b.can(&request).unwrap(), json!(true));
+            assert_eq!(b.doc_state(), before);
+            let plan = b.prepare(&request).unwrap();
+            assert_eq!(b.doc_state(), before);
+            let result = b.commit(plan["token"].as_str().unwrap()).unwrap();
+            let snapshot = b.doc.snapshot().unwrap();
+            assert_eq!(
+                snapshot.visible[0]
+                    .runs
+                    .iter()
+                    .map(|r| r.text.as_str())
+                    .collect::<String>(),
+                expected
+            );
+            let a = result["selection"]["anchor"].as_str().unwrap();
+            let f = result["selection"]["focus"].as_str().unwrap();
+            assert_eq!(b.resolve(a).unwrap()["offset"], start);
+            assert_eq!(b.resolve(f).unwrap()["offset"], end);
+            b.release_anchor(a);
+            b.release_anchor(f);
+            if let Some(caret) = result["caret"].as_str() {
+                b.release_anchor(caret);
+            }
+            assert_eq!(b.anchor_slots(), 3);
+            b.history(r#"{"type":"undo"}"#).unwrap();
+            assert_eq!(
+                b.doc.snapshot().unwrap().visible[0]
+                    .runs
+                    .iter()
+                    .map(|r| r.text.as_str())
+                    .collect::<String>(),
+                "abCDef"
+            );
+            b.history(r#"{"type":"redo"}"#).unwrap();
+            assert_eq!(
+                b.doc.snapshot().unwrap().visible[0]
+                    .runs
+                    .iter()
+                    .map(|r| r.text.as_str())
+                    .collect::<String>(),
+                expected
+            );
+        }
+    }
+    #[test]
+    fn self_drop_invalid_and_stale_plans_never_partially_delete() {
+        for offset in [2, 3, 4] {
+            let (mut b, _, r) = setup(false, offset);
+            let before = b.doc_state();
+            assert!(b.can(&r).is_err());
+            assert!(b.prepare(&r).is_err());
+            assert_eq!(b.doc_state(), before);
+        }
+        let (mut b, node, r) = setup(false, 6);
+        let plan = b.prepare(&r).unwrap();
+        let p=b.prepare(&json!({"kind":"editor","origin":"intervening","commands":[{"type":"replaceAt","owner":node,"from":0,"to":0,"text":"R"}]}).to_string()).unwrap();
+        b.commit(p["token"].as_str().unwrap()).unwrap();
+        let before = b.doc_state();
+        assert!(b.commit(plan["token"].as_str().unwrap()).is_err());
+        assert_eq!(b.doc_state(), before);
     }
 }
