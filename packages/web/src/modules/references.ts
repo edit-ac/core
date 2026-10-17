@@ -4,6 +4,8 @@ import type { FragmentBlock, PrepareRequest } from '@edit-ac/core';
 import type { RetainedSelection } from '../dom/selection.js';
 import type { SlashContext } from './slash.js';
 
+/** label is a shared, authored/neutral fallback or an explicitly host-authorized disclosure.
+ * Viewer-private titles belong to referenceDisplay, never to this insertion record. */
 export interface ReferenceTarget { targetId: string; label: string }
 export interface ReferenceQuery { query: string; requestId: number; signal: AbortSignal }
 /** Only explicit user search calls this host port. Mount/render never resolve IDs. */
@@ -117,9 +119,13 @@ export function referenceBlock(target: ReferenceTarget): FragmentBlock {
   if (!valid(target.targetId) || !valid(target.label)) throw Error('Invalid reference target');
   return { attributes: { type: 'content', tuple: ['module:editac.reference', 1, { targetId: target.targetId, label: target.label }] }, runs: [{ text: target.label, marks: [] }] };
 }
-export function referenceSuggestions(resolve: ReferenceResolver | ReferenceHostV1): ReferenceFactory {
+export interface ReferenceSuggestionOptions { triggers?: readonly string[] }
+export function referenceSuggestions(resolve: ReferenceResolver | ReferenceHostV1, options: ReferenceSuggestionOptions = {}): ReferenceFactory {
   if (typeof resolve !== 'function' && (!resolve || resolve.version !== 1)) throw Error('Invalid reference resolver');
-  return context => new ReferencePresenter(context, resolve);
+  const triggers = [...(options.triggers ?? [])];
+  if (triggers.length > 16 || new Set(triggers).size !== triggers.length || triggers.some(t => typeof t !== 'string' || t.length > 8 || !/^[^\p{L}\p{N}\s\p{C}]{1,8}$/u.test(t))) throw Error('Invalid reference triggers');
+  triggers.sort((a, b) => b.length - a.length);
+  return context => new ReferencePresenter(context, resolve, Object.freeze(triggers));
 }
 interface Session { target: RetainedSelection; node: string; subscription: { dispose(): void } }
 let sequence = 0;
@@ -145,7 +151,7 @@ export class ReferencePresenter {
   private readonly lookup: ReferenceLookupSession | undefined;
   private readonly resolve: ReferenceResolver;
   private readonly listeners: [EventTarget, string, EventListener][] = [];
-  constructor(private readonly context: SlashContext, resolve: ReferenceResolver | ReferenceHostV1) {
+  constructor(private readonly context: SlashContext, resolve: ReferenceResolver | ReferenceHostV1, private readonly triggers: readonly string[] = []) {
     const doc = context.root.ownerDocument;
     this.menu = doc.createElement('div'); this.menu.id = `editac-references-${++sequence}`; this.menu.hidden = true;
     this.menu.setAttribute('role', 'dialog'); this.menu.setAttribute('aria-label', 'Reference suggestions');
@@ -189,6 +195,24 @@ export class ReferencePresenter {
     this.sessionGeneration++; this.session = { target, node: a.node, subscription };
     this.search.value = ''; this.menu.hidden = false; this.control.setAttribute('aria-expanded', 'true'); this.search.focus();
     void this.query();
+  }
+  /** Input owner calls only after correlated committed local direct typing. */
+  typed(nodeId: string, offset: number, text: string, eligible: boolean): void {
+    if (!eligible || !text || this.disposed || this.readOnly || this.session || !this.triggers.length) return;
+    const node = this.context.engine.read().visible.find(n => n.id === nodeId);
+    if (!node || !Array.isArray(node.blockAttributes) || !['paragraph', 'heading'].includes(String(node.blockAttributes[0]))) return;
+    const end = offset + text.length, source = node.runs.map(r => r.text).join('');
+    const trigger = this.triggers.find(t => source.slice(Math.max(0, end - t.length), end) === t && (end === t.length || /\s/u.test(source[end - t.length - 1]!)));
+    if (!trigger) return;
+    const start = end - trigger.length;
+    let at = 0;
+    for (const run of node.runs) {
+      const next = at + run.text.length;
+      if (at < end && next > start && (run.attributes.code || run.attributes.link || Object.keys(run.attributes).some(k => k.startsWith('module:')))) return;
+      at = next;
+    }
+    if (!this.context.selection.place({ node: nodeId, offset: start, bias: 'right' }, { node: nodeId, offset: end, bias: 'right' })) return;
+    this.clearCapture(); this.openExplicit();
   }
   private invalidate(): void {
     this.lookup?.cancel(); this.pending?.abort(); this.pending = undefined; this.requestId++; this.lastQuery = undefined; this.results = []; this.active = -1; this.items.replaceChildren(); this.menu.setAttribute('aria-busy', 'false');
@@ -277,5 +301,5 @@ export class ReferencePresenter {
   dispose(): void { if (this.disposed) return; this.disposed = true; this.clearCapture(); this.dismiss(); this.lookup?.dispose(); for (const [target, type, listener] of this.listeners) target.removeEventListener(type, listener); this.listeners.length = 0; this.control.remove(); this.menu.remove(); }
 }
 
-export { privateReferenceDisplay, PrivateReferenceView } from './references/display.js';
+export { referenceDisplay, privateReferenceDisplay, PrivateReferenceView } from './references/display.js';
 export type { PrivateReferenceDisplayOptions } from './references/display.js';

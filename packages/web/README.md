@@ -154,7 +154,7 @@ Heavy math rendering stays separately opt-in through `@edit-ac/web/math`.
 See the core package's public extension contract v1 for registration, frozen
 registries, supported data versions and limits on custom editing semantics.
 
-## Private reference display
+## Reference display and triggers
 
 `privateReferenceDisplay(options)` is an optional `ContentFactory` for existing
 `referenceBlock` atoms. Pass it as `mountEditorSurface(..., {content: factory})`, or
@@ -163,6 +163,22 @@ It preserves the shared target and authored label; fetched titles, previews and
 icons exist only in the current viewer's DOM. Rendering, replay and remote edits
 read the synchronous `cached(request)` port and never start a lookup. Only the
 Refresh reference button calls `ports.privateCatalog(request, signal)`.
+
+`referenceDisplay` also accepts a public `LinkTarget` from `target()` and an optional
+`ports.publicMetadata` resolver. Both names share the same presenter. Optional
+`activation: {catalog, privateLocator, dispatch}` uses the portable `LinkActivation`
+controller for the Open reference button; it rechecks the stored target and current
+authority at every explicit click or keyboard activation. Metadata never supplies
+the navigation locator. Readonly documents can still allow authorized navigation.
+
+Register optional typing triggers with `referenceSuggestions(host, {triggers: ['@', '[[']})`.
+Registration accepts up to 16 distinct punctuation strings of 1–8 UTF-16 units.
+Only committed direct typing in prose at a word boundary opens the existing search
+presenter. Paste, remote updates, replay and composition do not trigger lookup.
+Escape preserves the literal trigger; choosing a result replaces it with one inert
+reference through the existing prepared fragment/history path. Result labels must
+be authored/neutral fallbacks or explicitly authorized host disclosures; fetched
+private titles remain in the display port.
 
 The host supplies current `context()`, a configured-catalog `target(targetId)`
 projection, and `subscribe(invalidate)` with an unsubscribe function. Notify on

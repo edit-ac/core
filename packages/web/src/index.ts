@@ -17,8 +17,8 @@ export type { ModuleEvent, ModuleScope, ModuleRuntimeOptions, ModuleRuntimeError
 export { slashCommands, SlashPresenter } from './modules/slash.js';
 export type { SlashAction, SlashCommand, SlashContext, SlashFactory } from './modules/slash.js';
 
-export { referenceSuggestions, referenceBlock, ReferencePresenter, ReferenceLookupSession, privateReferenceDisplay, PrivateReferenceView } from './modules/references.js';
-export type { ReferenceTarget, ReferenceQuery, ReferenceResolver, ReferenceFactory, ReferencePermissionV1, ReferenceCatalogResultV1, ReferenceHostV1 } from './modules/references.js';
+export { referenceSuggestions, referenceBlock, ReferencePresenter, ReferenceLookupSession, referenceDisplay, privateReferenceDisplay, PrivateReferenceView } from './modules/references.js';
+export type { ReferenceSuggestionOptions, ReferenceTarget, ReferenceQuery, ReferenceResolver, ReferenceFactory, ReferencePermissionV1, ReferenceCatalogResultV1, ReferenceHostV1 } from './modules/references.js';
 
 export { reorderControls, ReorderPresenter } from './modules/reorder.js';
 export type { ReorderContext, ReorderFactory } from './modules/reorder.js';
@@ -38,7 +38,7 @@ export type { HistoryScope, RevisionProvenance, HistoricalRevision, HistoryRead,
 export { linkEnrichment } from './modules/links/enrichment.js';
 export type { LinkEnrichmentOptions, LinkEnrichmentFactory } from './modules/links/enrichment.js';
 
-export type { PrivateReferenceDisplayOptions } from './modules/references/display.js';
+export type { ReferenceDisplayOptions, PrivateReferenceDisplayOptions } from './modules/references/display.js';
 
 export type { ImageOptions, ImageAssetPort, ImageAssetRequest, ImageAssetResolution, ImageAssetIdentity, ImageAssetDescriptor, ImageAvailability } from './modules/images/presenter.js';
 export { DEFAULT_IMAGE_LIMITS } from './modules/images/policy.js';

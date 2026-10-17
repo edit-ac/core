@@ -333,6 +333,7 @@ export class TextInput {
       }
       this.#selection.capture();
       this.slash?.typed(a.node, a.offset, text, !!slashEligible && a.offset === b.offset);
+      this.references?.typed(a.node, a.offset, text, shortcutEligible && a.offset === b.offset);
     } catch (error) { this.#reject(intent, errorMessage(error)); intent.text = text; }
     finally { this.#engine.releaseAnchor(caretAnchor); }
   }
