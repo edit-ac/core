@@ -33,6 +33,7 @@ def main():
                EDITAC_INTERACTION_PASTE_TABLES_OUTPUT=str(out / 'paste-tables'),
                EDITAC_INTERACTION_BREAK_TABLES_OUTPUT=str(out / 'break-tables'),
                EDITAC_SLASH_CONTEXT_OUTPUT=str(out / 'slash-context'),
+               EDITAC_EXTENSION_FORMATTING_OUTPUT=str(out / 'portable-proof'),
                EDITAC_HISTORY_EXCHANGE=str(out / 'history-exchange'),
                EDITAC_SERVICE_EVIDENCE=str(out / 'sqlite'))
     commands = []
