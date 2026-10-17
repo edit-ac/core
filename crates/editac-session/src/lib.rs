@@ -31,3 +31,5 @@ pub mod links;
 
 /// Resumable host asset intents, independent of document update receipts.
 pub mod assets;
+/// Durable actor-scoped host request results.
+pub mod receipts;

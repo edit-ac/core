@@ -154,6 +154,8 @@ struct Snapshot {
     assets: crate::assets::AssetJournal,
     generation: u64,
     journal: Vec<Entry>,
+    #[serde(default)]
+    requests: Vec<crate::receipts::RequestRecord>,
     receipted: Vec<Id>,
     latest: Option<Point>,
     previous: Option<Point>,
@@ -163,6 +165,7 @@ impl Snapshot {
         Self {
             assets: s.assets.clone(),
             generation: s.generation,
+            requests: s.requests.clone(),
             journal: s
                 .journal
                 .iter()
@@ -214,7 +217,23 @@ impl Snapshot {
             receipted.push(id);
         }
         self.assets.validate()?;
+        if self.requests.len() > limits.max_records {
+            return Err(PortError::ResourceLimit);
+        }
+        for (index, record) in self.requests.iter().enumerate() {
+            record.verify(i)?;
+            if self.requests[..index]
+                .iter()
+                .any(|r| r.actor == record.actor && r.id == record.id)
+                || record
+                    .update(i)
+                    .is_some_and(|id| !journal.iter().any(|e| e.id() == &id))
+            {
+                return Err(PortError::Integrity);
+            }
+        }
         Ok(State {
+            requests: self.requests,
             assets: self.assets,
             generation: self.generation,
             journal,
@@ -537,6 +556,38 @@ impl NativeStore {
     }
 }
 impl LocalStore for NativeStore {
+    fn request_record(
+        &self,
+        identity: &DocumentIdentity,
+        actor: &str,
+        id: &str,
+    ) -> Result<Option<crate::receipts::RequestRecord>, PortError> {
+        self.matches(identity)?;
+        self.read(|memory| memory.request_record(identity, actor, id))
+    }
+    fn append_request(
+        &self,
+        record: crate::receipts::RequestRecord,
+        entry: Option<JournalEntry>,
+    ) -> Result<(), PortError> {
+        self.mutate(|tx, memory| {
+            if let Some(entry) = &entry {
+                if tx
+                    .query_row(
+                        "SELECT writer FROM writers WHERE writer=?1",
+                        [entry.id().writer],
+                        |r| r.get::<_, u32>(0),
+                    )
+                    .optional()
+                    .map_err(sql_error)?
+                    .is_none()
+                {
+                    return Err(PortError::Permission);
+                }
+            }
+            memory.append_request(record, entry)
+        })
+    }
     fn capabilities(&self) -> StoreCapabilities {
         StoreCapabilities {
             durability: Durability::ProcessCrash,

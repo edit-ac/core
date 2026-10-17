@@ -120,3 +120,34 @@ then run `node --test tests/agent-markdown.test.mjs`. Its fake auth, fixed docum
 fixture proposals and memory store are test/demo components. It has no apply
 endpoint, production storage, model provider or MCP server. An embedding app
 supplies its own authorized owner connection.
+
+## Anchored proposals and previews
+
+`createHostPrepare(owner)` builds on the same retained Markdown baseline and
+chunk admission service. Its owner returns a `HostPrepareResult`: a retained
+proposal with the observed revision, profile and source/candidate hashes, a real
+semantic preview, affected stable IDs, and the shared versioned `ChangeModel`
+for exact-source and semantic diffs. These diffs are presentation data. The
+proposal refers to an immutable shared `PreparedEdit` retained by the authorized
+owner, with bounded count/bytes and expiry; it is never reconstructed from the
+preview. The helper bounds and detaches responses and verifies their baseline
+binding. Hosts may lower the default 1 MiB response cap.
+
+The owner checks current actor/document/epoch, permissions, readonly/history
+mode, capabilities, revision and anchors inside its serialized Session boundary.
+Stale candidates return a structured conflict and exact base/proposed source
+plus the current **semantic** snapshot/revision for review. Current semantic
+state is not mislabeled as exact current Markdown. Shared reconciliation can
+refine a stale diagnostic to `Overlap` or `DeletedTarget`; it never silently
+accepts a stale full replacement. A conflict creates no proposal or live edit.
+Source/prose cannot supply authority. Revocation also withholds protected
+responses after an asynchronous owner call.
+
+The deterministic process example's `prepare_v1` path retains the real plan,
+uses `editac-diff` for both previews, caps retained proposals at 32 (each admitted
+source/candidate at 64 KiB), and expires them after five minutes. Its fixed
+actor/scope and monotonic IDs are fixture components, not restart-safe request
+identities. `human` and `policy` are explicit test controls and are never MCP
+tools. Run `node --test tests/agent-prepare.test.mjs` after the build command
+above and `npm run build`. Durable apply/retry receipts remain a separate owner
+boundary; this helper installs read/prepare services only.

@@ -87,6 +87,7 @@ impl std::error::Error for ServiceError {}
 pub struct SourceTarget {
     baseline: SourceBaseline,
     mode: SourceMode,
+    request_binding: [u8; 32],
 }
 impl SourceTarget {
     pub fn source(&self) -> &str {
@@ -121,6 +122,7 @@ pub(crate) enum PreparedPlan {
 /// Opaque and single-use. The host cannot rewrite its expected revision or staged delta.
 pub struct PreparedEdit {
     expected: ObservedRevision,
+    request_payload: [u8; 32],
     plan: PreparedPlan,
     requirements: Requirements,
     preview: Snapshot,
@@ -203,6 +205,9 @@ impl<S: SessionStore> EditService<S> {
         now: u64,
     ) -> Result<crate::ports::ReceiptResult, SessionError> {
         self.session.accept_receipt(receipt, now)
+    }
+    pub fn publish_checkpoint(&mut self) -> Result<crate::ports::PublicationCommit, SessionError> {
+        self.session.publish_checkpoint()
     }
     pub fn recover(&mut self) -> Result<(), SessionError> {
         self.session.recover()
@@ -372,6 +377,10 @@ impl<S: SessionStore> EditService<S> {
         }
         Ok(PreparedEdit {
             expected: expected.clone(),
+            request_payload: crate::receipts::payload_hash(format!(
+                "commands-v1:{commands:?}:{}",
+                origin.as_str()
+            )),
             plan: PreparedPlan::Commands(plan),
             requirements,
             preview,
@@ -462,6 +471,10 @@ impl<S: SessionStore> EditService<S> {
             .map_err(|e| ServiceError::Engine(EditorError::Text(e.into())))?;
         Ok(PreparedEdit {
             expected: expected.clone(),
+            request_payload: crate::receipts::payload_hash(format!(
+                "transfer-v1:{selection:?}:{blocks:?}:{destination:?}:{}",
+                origin.as_str()
+            )),
             plan: PreparedPlan::Commands(plan),
             requirements,
             preview,
@@ -491,7 +504,15 @@ impl<S: SessionStore> EditService<S> {
                 proposed: source.into(),
                 current,
             })?;
-        Ok(SourceTarget { baseline, mode })
+        Ok(SourceTarget {
+            baseline,
+            mode,
+            request_binding: crate::receipts::payload_parts(&[
+                b"source-target-v1",
+                source.as_bytes(),
+                format!("{mode:?}:{owners:?}").as_bytes(),
+            ]),
+        })
     }
     pub fn prepare_source(
         &self,
@@ -530,6 +551,12 @@ impl<S: SessionStore> EditService<S> {
             .map_err(|e| ServiceError::Engine(EditorError::Text(e.into())))?;
         Ok(PreparedEdit {
             expected: expected.clone(),
+            request_payload: crate::receipts::payload_parts(&[
+                b"source-v1",
+                &target.request_binding,
+                proposed.as_bytes(),
+                origin.as_str().as_bytes(),
+            ]),
             plan: PreparedPlan::Source(plan),
             requirements,
             preview,
@@ -576,6 +603,108 @@ impl<S: SessionStore> EditService<S> {
             self.history_requirements.include(prepared.requirements);
         }
         self.record(operation_id, host, prepared.engine_origin, before, &result)?;
+        result
+    }
+    /// Freeze a real prepared plan with authenticated host identity. Tokens grant no authority.
+    pub fn bind_request(
+        &self,
+        prepared: PreparedEdit,
+        actor: &HostActor,
+        request_id: &str,
+        expires_at: u64,
+    ) -> Result<crate::receipts::RequestProposal, crate::receipts::RequestError> {
+        use crate::receipts::*;
+        if request_id.is_empty()
+            || request_id.len() > 128
+            || request_id.chars().any(char::is_control)
+        {
+            return Err(RequestError::InvalidRequest);
+        }
+        use sha2::{Digest, Sha256};
+        let mut hash = Sha256::new();
+        hash.update(b"host-request-v1");
+        hash.update(prepared.expected.to_bytes());
+        hash.update(prepared.request_payload);
+        let token = RequestToken {
+            actor: actor.subject().into(),
+            id: request_id.into(),
+            scope: scope_hash(self.session.document().identity()),
+            payload: hash.finalize().into(),
+        };
+        Ok(RequestProposal {
+            token,
+            prepared,
+            expires_at,
+        })
+    }
+    /// Caller authenticates/authorizes document READ before calling. This also enforces actor
+    /// and document/epoch isolation. Readonly clients can recover their previous outcome.
+    pub fn request_receipt(
+        &self,
+        actor: &HostActor,
+        token: &crate::receipts::RequestToken,
+        can_read: bool,
+    ) -> Result<Option<crate::receipts::RequestReceipt>, crate::receipts::RequestError> {
+        use crate::receipts::*;
+        if !can_read {
+            return Err(RequestError::Unauthorized);
+        }
+        authorize(token, actor, self.session.document().identity())?;
+        let Some(record) = self.session.request_record(actor.subject(), &token.id)? else {
+            if let Some(error) = self.session.pending_request_error(token) {
+                return Err(error);
+            }
+            return Ok(None);
+        };
+        if !record.key_matches(token) || record.payload != token.payload {
+            return Err(RequestError::ChangedPayload);
+        }
+        Ok(Some(RequestReceipt {
+            result: record,
+            local: self.session.store_durability(),
+        }))
+    }
+    /// Invoke under the host's serialized owner, with a fresh clock/cancellation observation.
+    /// Existing outcomes are resolved before expiry, revision and current write preconditions.
+    pub fn apply_request(
+        &mut self,
+        actor: &HostActor,
+        token: &crate::receipts::RequestToken,
+        proposal: Option<crate::receipts::RequestProposal>,
+        can_read: bool,
+        now: u64,
+        cancelled: bool,
+    ) -> Result<crate::receipts::RequestReceipt, crate::receipts::RequestError> {
+        use crate::receipts::*;
+        let existing = self.request_receipt(actor, token, can_read)?;
+        if proposal
+            .as_ref()
+            .is_some_and(|proposal| &proposal.token != token)
+        {
+            return Err(RequestError::ChangedPayload);
+        }
+        if let Some(receipt) = existing {
+            return Ok(receipt);
+        }
+        let proposal = proposal.ok_or(RequestError::MissingProposal)?;
+        if &proposal.token != token {
+            return Err(RequestError::ChangedPayload);
+        }
+        if cancelled {
+            return Err(RequestError::Cancelled);
+        }
+        if now >= proposal.expires_at {
+            return Err(RequestError::Expired);
+        }
+        self.admit(now)?;
+        let prepared = proposal.prepared;
+        self.requirements(prepared.requirements)?;
+        let result = self
+            .session
+            .apply_request_plan(token, &prepared.expected, prepared.plan, now);
+        if result.is_ok() || matches!(result, Err(RequestError::Pending { .. })) {
+            self.history_requirements.include(prepared.requirements);
+        }
         result
     }
     /// Transport/journal origins remain untrusted. Remote integration never joins typing.

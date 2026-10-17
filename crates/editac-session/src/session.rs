@@ -21,6 +21,21 @@ pub trait SessionStore: LocalStore {
     fn claim_writer(&self, writer: u32) -> Result<(), PortError>;
 }
 impl<S: SessionStore + ?Sized> LocalStore for std::sync::Arc<S> {
+    fn append_request(
+        &self,
+        record: crate::receipts::RequestRecord,
+        entry: Option<JournalEntry>,
+    ) -> Result<(), PortError> {
+        (**self).append_request(record, entry)
+    }
+    fn request_record(
+        &self,
+        identity: &DocumentIdentity,
+        actor: &str,
+        id: &str,
+    ) -> Result<Option<crate::receipts::RequestRecord>, PortError> {
+        (**self).request_record(identity, actor, id)
+    }
     fn capabilities(&self) -> StoreCapabilities {
         (**self).capabilities()
     }
@@ -193,6 +208,7 @@ impl From<LocatorError> for SessionError {
 pub struct RecoveryExport {
     pub checkpoint: InitializedCheckpoint,
     pub unjournaled: Option<JournalEntry>,
+    pub request: Option<crate::receipts::RequestRecord>,
     pub locally_committed: bool,
 }
 
@@ -207,6 +223,7 @@ pub struct Session<S: SessionStore> {
     conflict: bool,
     recovery_error: Option<PortError>,
     unjournaled: Option<JournalEntry>,
+    request_recovery: Option<crate::receipts::RequestRecord>,
     initialization: Option<CheckpointRecord>,
     transport: Option<Box<dyn Transport>>,
     auth_expiry: Option<u64>,
@@ -309,6 +326,7 @@ impl<S: SessionStore> Session<S> {
             conflict: false,
             recovery_error: None,
             unjournaled: None,
+            request_recovery: None,
             initialization: None,
             transport: None,
             auth_expiry: None,
@@ -417,8 +435,15 @@ impl<S: SessionStore> Session<S> {
     ) -> Result<Option<LocalCommit>, crate::edit_service::ServiceError> {
         self.admit(now)?;
         self.compare_revision(expected)?;
-        // Every service operation is a conservative gesture boundary. Untrusted
-        // equal origin strings cannot merge agent/import/replay into human typing.
+        match self.commit_service_plan(plan)? {
+            Some((update, origin)) => Ok(self.capture(Some(update), &origin)?),
+            None => Ok(None),
+        }
+    }
+    fn commit_service_plan(
+        &mut self,
+        plan: crate::edit_service::PreparedPlan,
+    ) -> Result<Option<(ReplayUpdate, String)>, crate::edit_service::ServiceError> {
         self.document.reset_history_group();
         let commit = match plan {
             crate::edit_service::PreparedPlan::Commands(plan) => Some(
@@ -432,10 +457,112 @@ impl<S: SessionStore> Session<S> {
                     .commit
             }
         };
-        match commit {
-            Some(commit) => Ok(self.capture(Some(commit.update), commit.origin.as_str())?),
-            None => Ok(None),
+        Ok(commit.map(|c| (c.update, c.origin.as_str().to_owned())))
+    }
+    pub(crate) fn pending_request_error(
+        &self,
+        token: &crate::receipts::RequestToken,
+    ) -> Option<crate::receipts::RequestError> {
+        use crate::receipts::RequestError;
+        self.request_recovery
+            .as_ref()
+            .filter(|r| r.key_matches(token))
+            .map(|record| {
+                if record.payload != token.payload {
+                    RequestError::ChangedPayload
+                } else {
+                    RequestError::Pending {
+                        request: token.clone(),
+                        error: self.recovery_error.unwrap_or(PortError::CommitUnknown),
+                    }
+                }
+            })
+    }
+    pub(crate) fn store_durability(&self) -> Durability {
+        self.store.capabilities().durability
+    }
+    pub(crate) fn request_record(
+        &self,
+        actor: &str,
+        id: &str,
+    ) -> Result<Option<crate::receipts::RequestRecord>, SessionError> {
+        Ok(self
+            .store
+            .request_record(self.document.identity(), actor, id)?)
+    }
+    pub(crate) fn apply_request_plan(
+        &mut self,
+        token: &crate::receipts::RequestToken,
+        expected: &crate::revision::ObservedRevision,
+        plan: crate::edit_service::PreparedPlan,
+        now: u64,
+    ) -> Result<crate::receipts::RequestReceipt, crate::receipts::RequestError> {
+        use crate::receipts::*;
+        self.admit(now)?;
+        self.compare_revision(expected)?;
+        let update = self.commit_service_plan(plan)?;
+        let entry = update
+            .map(|(update, origin)| {
+                JournalEntry::new(
+                    update.identity,
+                    self.document.writer_id(),
+                    self.next_sequence,
+                    origin,
+                    update.bytes,
+                )
+            })
+            .transpose();
+        let entry = match entry {
+            Ok(e) => e,
+            Err(error) => {
+                self.freeze(error);
+                return Err(RequestError::Pending {
+                    request: token.clone(),
+                    error,
+                });
+            }
+        };
+        self.unjournaled = entry.clone();
+        let revision = match crate::revision::ObservedRevision::observe(&self.document) {
+            Ok(r) => r.to_bytes().to_vec(),
+            Err(_) => {
+                self.freeze(PortError::Integrity);
+                return Err(RequestError::Pending {
+                    request: token.clone(),
+                    error: PortError::Integrity,
+                });
+            }
+        };
+        let record = RequestRecord {
+            actor: token.actor.clone(),
+            id: token.id.clone(),
+            scope: token.scope,
+            payload: token.payload,
+            revision,
+            update: entry
+                .as_ref()
+                .map(|e| (e.id().writer, e.id().sequence, e.id().checksum)),
+        };
+        self.request_recovery = Some(record.clone());
+        if let Err(error) = self.store.append_request(record.clone(), entry.clone()) {
+            self.freeze(error);
+            return Err(RequestError::Pending {
+                request: token.clone(),
+                error,
+            });
         }
+        if let Some(entry) = entry {
+            self.next_sequence += 1;
+            self.pending.push(entry);
+        }
+        self.request_recovery = None;
+        self.unjournaled = None;
+        self.local = LocalState::Committed(self.store.capabilities().durability);
+        self.remote = RemoteState::Unknown;
+        Ok(RequestReceipt {
+            result: record,
+            local: self.store.capabilities().durability,
+        })
     }
     /// Read-only equality validation for native position capture on this Session.
     pub fn compare_revision(
@@ -540,7 +667,10 @@ impl<S: SessionStore> Session<S> {
     fn freeze(&mut self, error: PortError) {
         self.recovery_error = Some(error);
         self.conflict |= error == PortError::Conflict;
-        if self.unjournaled.is_some() || self.initialization.is_some() {
+        if self.unjournaled.is_some()
+            || self.request_recovery.is_some()
+            || self.initialization.is_some()
+        {
             self.local = LocalState::Unsaved;
         }
         self.remote = RemoteState::Unknown;
@@ -549,6 +679,7 @@ impl<S: SessionStore> Session<S> {
         RecoveryExport {
             checkpoint: self.document.checkpoint(),
             unjournaled: self.unjournaled.clone(),
+            request: self.request_recovery.clone(),
             locally_committed: self.recovery_error.is_none(),
         }
     }
@@ -581,7 +712,10 @@ impl<S: SessionStore> Session<S> {
                 return Err(PortError::Conflict.into());
             }
         }
-        if let Some(entry) = &self.unjournaled {
+        if let Some(record) = &self.request_recovery {
+            self.store
+                .append_request(record.clone(), self.unjournaled.clone())?;
+        } else if let Some(entry) = &self.unjournaled {
             self.store.append(entry.clone())?;
         }
         let recovery = self.store.recover(self.document.identity())?;
@@ -612,10 +746,33 @@ impl<S: SessionStore> Session<S> {
             LocalState::Committed(self.store.capabilities().durability)
         };
         self.unjournaled = None;
+        self.request_recovery = None;
         self.initialization = None;
         self.recovery_error = None;
         self.conflict = false;
         Ok(())
+    }
+    /// Outbound state-vector responses share the same persistence barrier as the outbox.
+    /// Hosts must use this boundary for transport; recovery_export is labeled local salvage.
+    pub fn sync_update(&self, state_vector: &[u8]) -> Result<Vec<u8>, SessionError> {
+        self.ready()?;
+        Ok(self.document.update_v1(state_vector)?)
+    }
+    /// Checkpoint publication cannot make an unjournaled causal predecessor visible.
+    pub fn publish_checkpoint(&mut self) -> Result<PublicationCommit, SessionError> {
+        self.ready()?;
+        let recovery = self.store.recover(self.document.identity())?;
+        let checkpoint = CheckpointRecord::new(
+            self.document.checkpoint(),
+            recovery.journal.iter().map(|e| e.id().clone()).collect(),
+        )?;
+        match self.store.publish(recovery.generation, checkpoint) {
+            Ok(commit) => Ok(commit),
+            Err(error) => {
+                self.freeze(error);
+                Err(error.into())
+            }
+        }
     }
     /// Wake peers only after durable/volatile store admission, never from unjournaled edits.
     pub fn notify_local(

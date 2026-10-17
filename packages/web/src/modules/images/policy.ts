@@ -49,7 +49,7 @@ export async function validateImagePayload(bytes: Uint8Array, signal: AbortSigna
   const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength), width=view.getUint32(16), height=view.getUint32(20);
   const channels=({0:1,2:3,4:2,6:4} as Record<number,number>)[bytes[25]!];
   if(bytes[24]!==8 || !channels || bytes[26]!==0 || bytes[27]!==0 || bytes[28]!==0)throw Error('png-profile-unsupported');
-  const parts:Uint8Array[]=[];
+  const parts:Uint8Array<ArrayBuffer>[]=[];
   for(let at=8;at+12<=bytes.length;){
     const size=view.getUint32(at);let crc=0xffffffff;
     for(let i=at+4;i<at+8+size;i++){crc^=bytes[i]!;for(let b=0;b<8;b++)crc=(crc>>>1)^((crc&1)?0xedb88320:0);}

@@ -290,6 +290,22 @@ pub enum ReceiptResult {
 /// Implementations must serialize shared writers; checkpoint CAS must never reuse generations.
 /// Errors never imply saving. Pending entries are not pruned by publication or sync delivery.
 pub trait LocalStore: Send + Sync {
+    /// Atomically capture both semantic update and immutable request result.
+    fn append_request(
+        &self,
+        _record: crate::receipts::RequestRecord,
+        _entry: Option<JournalEntry>,
+    ) -> Result<(), PortError> {
+        Err(PortError::Unavailable)
+    }
+    fn request_record(
+        &self,
+        _identity: &DocumentIdentity,
+        _actor: &str,
+        _id: &str,
+    ) -> Result<Option<crate::receipts::RequestRecord>, PortError> {
+        Err(PortError::Unavailable)
+    }
     fn capabilities(&self) -> StoreCapabilities;
     fn append(&self, entry: JournalEntry) -> Result<LocalCommit, PortError>;
     fn generation(&self, identity: &DocumentIdentity) -> Result<u64, PortError>;
