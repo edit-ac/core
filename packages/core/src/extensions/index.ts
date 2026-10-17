@@ -20,3 +20,6 @@ export type { ExtensionTransferDescriptor, ExtensionTransferEnvelope, ExtensionT
 
 export { DocumentSearchSession, DocumentSearchError, DOCUMENT_SEARCH_PROFILE, DOCUMENT_SEARCH_LIMITS } from './search.js';
 export type { DocumentSearchMatch, DocumentSearchResult } from './search.js';
+
+export { CODE_COMMAND_PROFILE, CODE_COMMAND_LIMIT, CODE_PAIRS, CodeCommandError, codeContext, codeEdit, commitCodeEdit, executeCodeCommand } from './code.js';
+export type { CodeAction, CodeContext, CodeEdit } from './code.js';

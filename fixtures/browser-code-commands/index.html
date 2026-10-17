@@ -1,0 +1,9 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Code command integration fixture</title>
+<script type="importmap">{"imports":{"@edit-ac/core":"/core/index.js","@edit-ac/core/extensions":"/core/extensions/index.js"}}</script>
+<style>#projection{height:240px;overflow:auto;border:1px solid;line-height:32px} [data-node-id]{min-height:32px;margin:0} [aria-label="Reorder block"]{position:fixed;bottom:4px;left:4px;background:white}</style>
+<p id="status" role="status">Recovery pending</p>
+<div id="projection" aria-label="Protocol document" contenteditable="false"></div>
+<button id="after">After editor</button>
+<script type="module" src="/fixture/session.mjs"></script>

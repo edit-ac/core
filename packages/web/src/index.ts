@@ -52,3 +52,6 @@ export type { EmbedDescriptor, EmbedTemplate, EmbedOptions } from './modules/emb
 
 export { documentSearch, DocumentSearchPresenter } from './modules/search.js';
 export type { DocumentSearchContext, DocumentSearchOptions, DocumentSearchFactory } from './modules/search.js';
+
+export { codeCommands, CodeCommandsPresenter } from './extensions/code.js';
+export type { CodeBinding, CodeCommandsOptions, CodeCommandsFactory } from './extensions/code.js';
