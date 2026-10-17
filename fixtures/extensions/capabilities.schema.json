@@ -319,6 +319,65 @@
       },
       "minItems": 210,
       "uniqueItems": true
+    },
+    "sourceReturns": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "previousSha256",
+          "currentSha256",
+          "proofs"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "previousSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "currentSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "proofs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "path",
+                "sha256",
+                "engine",
+                "cases"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "engine": {
+                  "enum": [
+                    "chromium",
+                    "firefox",
+                    "webkit"
+                  ]
+                },
+                "cases": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "required": [

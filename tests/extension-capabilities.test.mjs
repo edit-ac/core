@@ -107,6 +107,25 @@ for (const [name, mutate, error] of negatives) test(`reject ${name}`, () => {
   const m = clone(); mutate(m); assert.throws(() => validateCapabilities(m), error);
 });
 
+test('changed module source requires a separate qualified return', () => {
+  const m = clone(); delete m.sourceReturns['packages/web/src/modules/slash.ts'];
+  assert.throws(() => validateCapabilities(m), /missing qualified source: slash/);
+});
+for (const [name, mutate, error] of [
+  ['failed cases', r => { r.counts.failed = 1; }, /current source return counts/],
+  ['skipped cases', r => { r.counts.skipped = 1; }, /current source return counts/],
+  ['wrong source', r => { r.sources['packages/web/src/modules/slash.ts'] = '0'.repeat(64); }, /current source return pin/],
+  ['missing selected case', r => { r.cases[0].name = 'missing'; }, /current source return cases/],
+]) test('reject repinned current source return: '+name, () => {
+  const m = clone(), proof = m.sourceReturns['packages/web/src/modules/slash.ts'].proofs[0];
+  const artifact = JSON.parse(readFileSync(resolve(workspace, proof.path)));
+  // Select the first executed case so removing it exercises selected coverage.
+  proof.cases = [artifact.cases[0].name]; mutate(artifact);
+  const bytes = Buffer.from(JSON.stringify(artifact)); proof.sha256 = digest(bytes);
+  const read = (p, encoding) => p === resolve(workspace, proof.path) ? (encoding ? bytes.toString(encoding) : bytes) : readFileSync(p, encoding);
+  assert.throws(() => validateCapabilities(m, {read}), error);
+});
+
 // Repin edited receipts to test semantic admission rather than just hash detection.
 function alteredReceipt(path, mutate) {
   const m = clone(), receipt = JSON.parse(readFileSync(resolve(workspace, path)));

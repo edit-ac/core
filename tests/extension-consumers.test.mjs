@@ -9,22 +9,36 @@ import {chromium,firefox,webkit} from 'playwright';
 import {prepareTutorial} from '../scripts/prepare-extension-tutorial.mjs';
 import {sha256} from '../scripts/extension-bundles.mjs';
 import {loadMatrix,validateCapabilities} from '../scripts/check-extension-capabilities.mjs';
+import {validateHandoffPins} from '../scripts/extension-handoff.mjs';
 const output=resolve(process.env.EDITAC_EXTENSION_LIBRARY_OUTPUT??'../architecture/evidence/extension-library/current');
 const corpus=JSON.parse(await readFile('fixtures/extensions/clipboard/conformance.json'));
-const facts={schema:1,gate:'EXT-1.11',qualification:'portable public library; actual platform/device/FPX-04 pending; unpublished',node:process.version,sourceRevision:'ee774e02a4e2fb78208a106b8f5028b07e2a1788f8e6f937759fe5c3c73b4d4e',revisions:{core:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),architecture:execFileSync('git',['-C','../architecture','rev-parse','HEAD'],{encoding:'utf8'}).trim()},sourceHashes:{},artifactHashes:{},packedInputHashes:{},browsers:[],cleanup:{}};
+const facts={schema:1,gate:'EXT-1.11',qualification:'portable public library; actual platform/device/FPX-04 pending; unpublished',node:process.version,sourceRevision:process.env.EDITAC_SOURCE_REVISION??'working-tree',revisions:{core:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),architecture:execFileSync('git',['-C','../architecture','rev-parse','HEAD'],{encoding:'utf8'}).trim()},sourceHashes:{},artifactHashes:{},packedInputHashes:{},browsers:[],cleanup:{}};
 let directory,manifest,server,url,stdout='',stderr='';
 before(async()=>{
  await mkdir(output,{recursive:true});directory=await mkdtemp(join(tmpdir(),'editac-extension-library-'));
  manifest=await prepareTutorial(directory);facts.packs=manifest.packs;
+ for(const pack of manifest.packs)await copyFile(join(directory,'qualification',pack.filename),join(output,pack.filename));
  for(const [source,target] of [['fixtures/extensions/consumers/library/browser.mjs','library.mjs'],['fixtures/extensions/profiles/conformance.mjs','profile-conformance.mjs'],['fixtures/extensions/profiles/contracts.json','profiles.json'],['fixtures/extensions/clipboard/conformance.json','clipboard.json']])await copyFile(source,join(directory,target));
  const graph=await build({absWorkingDir:directory,entryPoints:['library.mjs'],outfile:join(directory,'library.js'),bundle:true,format:'esm',platform:'browser',target:'es2022',metafile:true});
  for(const path of Object.keys(graph.metafile.inputs)){assert(!path.startsWith('../')&&!path.includes('/src/'),'private input '+path);facts.packedInputHashes[path]=sha256(await readFile(join(directory,path)));}
  await writeFile(join(output,'library-metafile.json'),JSON.stringify(graph.metafile,null,2)+'\n');
  await writeFile(join(directory,'index.html'),'<!doctype html><html><body><div id="editor"></div><script type="module" src="/library.js"></script></body></html>');
+ // Reuse the official profile fixtures in the same installed consumer/server.
+ // This portable proof does not depend on unrelated historical OS receipts.
+ for(const [source,target] of [['browser.mjs','profile-browser.mjs'],['disabled.mjs','profile-disabled.mjs'],['prepared-worker.js','prepared-worker.js']])await copyFile('fixtures/extensions/profiles/'+source,join(directory,target));
+ await writeFile(join(directory,'optional-feature.js'),'window.optionalFeatureEvaluated=true; throw Error("Disabled feature evaluated");');
+ for(const [entry,name] of [['profile-browser.mjs','profiles.js'],['profile-disabled.mjs','disabled.js']]){
+  const built=await build({absWorkingDir:directory,entryPoints:[entry],outfile:join(directory,name),bundle:true,format:'esm',platform:'browser',target:'es2022',metafile:true,external:['/optional-feature.js']});
+  for(const path of Object.keys(built.metafile.inputs)){assert(!path.startsWith('../')&&!path.includes('/src/'),'private profile input '+path);facts.packedInputHashes[path]=sha256(await readFile(join(directory,path)));}
+  if(name==='disabled.js')assert(Object.keys(built.metafile.inputs).every(path=>path==='profile-disabled.mjs'||path.startsWith('node_modules/@edit-ac/core/dist/extensions/')),'disabled profile graph');
+  await writeFile(join(output,name+'-metafile.json'),JSON.stringify(built.metafile,null,2)+'\n');
+ }
+ await writeFile(join(directory,'profiles.html'),'<!doctype html><html><body><div id="editor"></div><script type="module" src="/disabled.js"></script><script type="module" src="/profiles.js"></script></body></html>');
  for(const name of ['consumer.json',...manifest.packs.map(p=>p.filename)])await copyFile(join(directory,'qualification',name),join(output,name));
  await mkdir(join(output,'fixtures'),{recursive:true});
  for(const name of ['custom-checkpoint.bin','identity.json','conformance.json'])await copyFile(join(directory,'fixtures',name),join(output,'fixtures',name));
  for(const name of ['engine.wasm','markdown.wasm','library.js','library.mjs','profile-conformance.mjs','profiles.json','clipboard.json','tutorial.mjs','definitions.json','index.html','serve.mjs']){await copyFile(join(directory,name),join(output,name));facts.artifactHashes[name]=sha256(await readFile(join(output,name)));}
+ for(const name of ['profiles.js','disabled.js','profiles.html','profile-browser.mjs','profile-disabled.mjs','prepared-worker.js']){await copyFile(join(directory,name),join(output,name));facts.artifactHashes[name]=sha256(await readFile(join(output,name)));}
  for(const name of ['engine.wasm','markdown.wasm'])assert.equal(facts.artifactHashes[name],manifest.inputs[name],'unchanged packed engine/codec');
  const environment={...process.env};delete environment.NODE_TEST_CONTEXT;
  server=spawn(process.execPath,['serve.mjs','--port=0'],{cwd:directory,env:environment,stdio:['ignore','pipe','pipe']});
@@ -35,7 +49,7 @@ before(async()=>{
 after(async()=>{
  try{if(server&&server.exitCode===null&&server.signalCode===null){server.kill('SIGTERM');await new Promise((done,reject)=>{const timeout=setTimeout(()=>reject(Error('server teardown timeout')),10000);server.once('exit',()=>{clearTimeout(timeout);done();});});}facts.cleanup.serverExited=!server||server.exitCode!==null||server.signalCode!==null;
  if(directory){await rm(directory,{recursive:true,force:true});facts.cleanup.consumerRemoved=true;}}
- finally{await writeFile(join(output,'serve.log'),stdout+stderr);for(const path of ['tests/extension-consumers.test.mjs','fixtures/extensions/consumers/library/handoff.json','fixtures/extensions/consumers/library/browser.mjs','fixtures/extensions/capabilities.json','fixtures/extensions/profiles/contracts.json','fixtures/extensions/profiles/conformance.mjs','fixtures/extensions/clipboard/conformance.json','scripts/prepare-extension-tutorial.mjs','docs/extensions/library.md','packages/core/package.json','packages/web/package.json','packages/markdown/package.json'])facts.sourceHashes[path]=sha256(await readFile(path));await writeFile(join(output,'results.json'),JSON.stringify(facts,null,2)+'\n');}
+ finally{await writeFile(join(output,'serve.log'),stdout+stderr);for(const path of ['tests/extension-consumers.test.mjs','scripts/extension-handoff.mjs','fixtures/extensions/consumers/library/handoff.json','fixtures/extensions/consumers/library/browser.mjs','fixtures/extensions/capabilities.json','fixtures/extensions/profiles/contracts.json','fixtures/extensions/profiles/conformance.mjs','fixtures/extensions/clipboard/conformance.json','scripts/prepare-extension-tutorial.mjs','docs/extensions/library.md','packages/core/package.json','packages/web/package.json','packages/markdown/package.json'])facts.sourceHashes[path]=sha256(await readFile(path));await writeFile(join(output,'results.json'),JSON.stringify(facts,null,2)+'\n');}
 });
 test('versioned handoff covers all six built-ins, five platform owners and FPX-04',async()=>{
  const matrix=loadMatrix();facts.capabilities=validateCapabilities(matrix);assert.equal(facts.capabilities.cells,210);assert.equal(facts.capabilities.actualPlatformEvidence,'pending-downstream');
@@ -43,11 +57,7 @@ test('versioned handoff covers all six built-ins, five platform owners and FPX-0
 });
 test('immutable prerequisite catalog pins current fixtures and every downstream owner',async()=>{
  const catalog=JSON.parse(await readFile('fixtures/extensions/consumers/library/handoff.json'));
- assert.equal(catalog.apiVersion,1);assert.equal(catalog.gate,'EXT-1.11');
- for(const [path,hash] of Object.entries(catalog.fixtureHashes))assert.equal(sha256(await readFile(path)),hash,path);
- for(const gate of ['EXT-1.1','EXT-1.2','EXT-1.3','EXT-1.4','EXT-1.5','EXT-1.6','EXT-1.7','EXT-1.8','EXT-1.9','EXT-1.10','EXT-1.12','EXT-1.13']){
-  const receipt=catalog.prerequisites[gate];assert(receipt,gate);assert.equal(sha256(await readFile(receipt.path)),receipt.sha256,gate);
- }
+ await validateHandoffPins(catalog);
  const matrix=loadMatrix();assert.equal(Object.keys(catalog.platforms).length,5);
  for(const [host,owner] of Object.entries(catalog.platforms)){
   assert.equal(owner.actualEvidence,'pending-downstream');const roadmap=await readFile('../architecture/roadmaps/'+owner.roadmap,'utf8');
@@ -61,6 +71,18 @@ test('immutable prerequisite catalog pins current fixtures and every downstream 
  for(const owner of catalog['FPX-04'].owners)assert((await readFile('../architecture/roadmaps/'+owner,'utf8')).length>0);
  assert((await readFile(catalog['FPX-04'].fixture,'utf8')).includes('FPX-04'));facts.handoff=catalog;
 });
+test('handoff rejects stale source bytes, changed retained receipts and missing prerequisites',async()=>{
+ const catalog=JSON.parse(await readFile('fixtures/extensions/consumers/library/handoff.json'));
+ const source=Object.keys(catalog.fixtureHashes)[0],receipt=catalog.prerequisites['EXT-1.1'].path;
+ for(const target of [source,receipt])await assert.rejects(validateHandoffPins(catalog,async path=>path===target?Buffer.from('changed pin'):readFile(path)),/AssertionError/);
+ const missing=structuredClone(catalog);delete missing.prerequisites['EXT-1.12'];
+ await assert.rejects(validateHandoffPins(missing),/EXT-1.12/);
+ const omitted=structuredClone(catalog);delete omitted.fixtureHashes[source];
+ await assert.rejects(validateHandoffPins(omitted),/conformance.json/);
+ const matrix=structuredClone(loadMatrix());delete matrix.cells[0].owner;
+ assert.throws(()=>validateCapabilities(matrix));
+ facts.negativeControls={staleSource:true,changedHistoricalReceipt:true,missingPrerequisite:true,missingSourcePin:true,missingPlatformOwner:true};
+});
 for(const [name,launcher] of Object.entries({chromium,firefox,webkit}))test(name+': packed public profiles, all transfers, history/storage, custom extension and disposal',{timeout:180000},async()=>{
  const fact={host:name,passed:false,cases:[],errors:[],requests:[]};facts.browsers.push(fact);let controller,browser;
  try{controller=await launcher.launchServer({headless:true});browser=await launcher.connect(controller.wsEndpoint());fact.process={pid:controller.process().pid,launcher:controller.process().spawnfile,workspace:directory,purpose:'EXT-1.11 '+name};fact.version=browser.version();
@@ -71,7 +93,22 @@ for(const [name,launcher] of Object.entries({chromium,firefox,webkit}))test(name
  // Use the actual browser shortcut and middleware to verify one owning undo group.
  await page.keyboard.press('Meta+z');assert.deepEqual(await page.evaluate(()=>window.library.read()),[],fixture.id+' undo');await page.keyboard.press('Meta+Shift+z');assert.deepEqual(await page.evaluate(()=>window.library.read()),initial,fixture.id+' redo');
  assert.deepEqual(await page.evaluate(()=>window.library.reopen()),initial,fixture.id+' reopen');assert(await page.evaluate(()=>window.library.stale()));fact.cases.push({id:fixture.id,passed:true,mode:result.mode,semantics:initial});}
- fact.tutorial=await page.evaluate(()=>window.library.tutorial());assert(fact.tutorial.passed);assert(await page.evaluate(()=>window.library.finish()));assert.deepEqual(fact.errors,[]);assert(fact.requests.every(r=>new URL(r).origin===url));fact.passed=true;
+ fact.tutorial=await page.evaluate(()=>window.library.tutorial());assert(fact.tutorial.passed);assert(await page.evaluate(()=>window.library.finish()));
+ await page.goto(url+'/profiles.html');await page.waitForFunction(()=>typeof window.profileRun==='function'&&window.profileDisabled);
+ await page.evaluate(()=>{
+  const root=document.querySelector('#editor'),node=window.profileEditor().read().visible.find(n=>n.kind==='block'&&n.id!=='n:11:1');
+  const target=root.querySelector(`[data-node-id="${node.id}"]`),text=document.createTreeWalker(target,NodeFilter.SHOW_TEXT).nextNode(),range=document.createRange();
+  range.setStart(text,text.length);range.collapse(true);root.focus();const selection=getSelection();selection.removeAllRanges();selection.addRange(range);document.dispatchEvent(new Event('selectionchange'));
+ });
+ const editor=page.locator('#editor'),before=await editor.textContent();await page.keyboard.type('X');assert.notEqual(await editor.textContent(),before);
+ await page.keyboard.press('Meta+z');assert.equal(await editor.textContent(),before);await page.keyboard.press('Meta+Shift+z');assert.notEqual(await editor.textContent(),before);
+ fact.profileMiddleware=[{id:'FPX-01',name:'actual baseline input/undo/redo with none',passed:true},...await page.evaluate(()=>window.profileRun())];
+ assert.equal(fact.profileMiddleware.length,27);assert(fact.profileMiddleware.every(c=>c.passed));
+ const profileFixture=JSON.parse(await readFile('fixtures/extensions/profiles/contracts.json'));
+ for(const id of profileFixture.qualifiedCases)assert(fact.profileMiddleware.some(c=>c.id===id),id);
+ assert.deepEqual(await page.evaluate(()=>({result:window.profileDisabled,evaluated:!!window.optionalFeatureEvaluated})),{result:{resources:0,diagnostics:[]},evaluated:false});
+ assert(!fact.requests.some(r=>r.endsWith('/optional-feature.js')));assert(await page.evaluate(()=>window.profileFinish()));
+ assert.deepEqual(fact.errors,[]);assert(fact.requests.every(r=>new URL(r).origin===url));fact.passed=true;
  }finally{try{await browser?.close();}finally{await controller?.close();fact.browserExited=!controller||controller.process().exitCode!==null||controller.process().signalCode!==null;await writeFile(join(output,'browser-'+name+'.json'),JSON.stringify(fact,null,2)+'\n');}}
 });
 test('all advertised browser fixture cells executed and resources closed',()=>{assert.equal(facts.browsers.length,3);for(const browser of facts.browsers){assert(browser.passed&&browser.browserExited);assert.equal(browser.cases.length,corpus.cases.length);}});

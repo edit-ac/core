@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "parent": "EXT-1.7",
-  "scope": "Portable contracts and prepared desktop browser mechanics; pending downstream platform/OS/accessibility/device qualification. No publication.",
+  "scope": "Portable contracts and prepared browser mechanics; historical receipts retain their pinned scope. Current applicability: architecture/evidence/extension-dx/owner-return-20261017/ext-handoff-receipt.json. Native/OS/AT/device/performance/publication remain pending.",
   "capabilities": [
     "preservation",
     "view",
@@ -116,23 +116,23 @@
     "core/fixtures/extensions/conformance.json": "608d4dcff4ae3da9ef76df5d5407c07830c1936582bd51de0644826b9a7e2eeb",
     "core/fixtures/extensions/versions/conformance.json": "184a9bab5b51096f8bfbbcf4adc2e0147649217b355cb0e487baac3236c323bd",
     "core/fixtures/extensions/presenters/conformance.json": "390393183bfb12d1ef3a02923018be69d2d0e47d5d2fbfb91f93254abb48cede",
-    "architecture/specs/extension-library.md": "503599277d6955cb626f96d09e3a8107da184bb0e1d7332a66afeec9e9748480",
+    "architecture/specs/extension-library.md": "5c0cc3b58abd1033e9dca6438f8e224eace6ef8e98c785beeaa47547f912bf71",
     "architecture/specs/extension-presenters.md": "4fef2220b62700ccaaed0da3b9b7cb5f1354b2bc53453fcfbb3bf89da273e738",
-    "architecture/specs/client-contracts.md": "a1f3ff08c6e1748daa93c4e6a688eaf4b4d628ac36dcb76d58d70c9426f97a62",
-    "core/packages/web/src/modules/slash.ts": "8f116c22e247cfca693d2a4bc950ed100065debfd85b09f37d223540a52c36e6",
-    "core/packages/web/src/modules/references.ts": "01dc9b0d6c0a61e161db566901cb6a975193517d6f8161eb5cda5d0a48d7c4d5",
-    "core/packages/web/src/modules/reorder.ts": "8c541590f9d0900b0dcaeaf5741353e20e787849a1b5a0596f3a65ef8630f473",
-    "core/packages/web/src/modules/content.ts": "270980980d8040d1501eb216cfcfa3d2640f64e1df20e8733082b92e79e93553",
+    "architecture/specs/client-contracts.md": "2f6dce20ea2addcb960ec941b9d72fb241ec42a53c15dba91a57041a06881c85",
+    "core/packages/web/src/modules/slash.ts": "4a6301763a425ec356626a408f3edf0cce789c8d77eb35e95ae9ae1b4c46c185",
+    "core/packages/web/src/modules/references.ts": "9e0a4ea35ec78ccda4f5ca259d405b1e186e677286fb3b6cd804525b572d35f1",
+    "core/packages/web/src/modules/reorder.ts": "dc4e25666ca98d8379834cc1a841a1e5d6eb4530e5819bcc145cf9fbafd33264",
+    "core/packages/web/src/modules/content.ts": "63bda9c1aed7ac51229ee7eed771c550ec9c92f05ceb29dc81386afbce12cba0",
     "core/packages/web/src/modules/math.ts": "3acd59796c36f36a2c248561ad08a047e067cc65f22bac2372e2f6c0bf50eb48",
     "architecture/roadmaps/41-mobile-web-extensions.md": "fa3dd84d497358ffe04a133de05f69847794e2bceccbadafe90fddf4e9ab3bb6",
     "architecture/roadmaps/15-tui-client.md": "a5634dfbe471d6d1d4f6f2062143dd77f498c1d9c11c6727acf81da525a2c53c",
-    "architecture/roadmaps/16-ios-sdk.md": "6fea5b6b362b1f5b24be7770b0a4903ec461412585ba35f59cfae265357050f2",
-    "architecture/roadmaps/17-android-sdk.md": "237797b0087beed05599a62997d91bec712af51de3d0497e8e4922edc35b3095",
-    "architecture/roadmaps/18-desktop-native.md": "8d97d88778dcffdacdebd83ff1d932fd5b7b1b071c56cdbafe1d6fd5c5cf5bf1",
+    "architecture/roadmaps/16-ios-sdk.md": "64472a7faa2184c1404571462bf3724c8b907e9a2a33c3399c5849282c859baa",
+    "architecture/roadmaps/17-android-sdk.md": "bef0199f0ce3a7de226d627fab5b5d11e1e79b8b058061782d49cb270f648370",
+    "architecture/roadmaps/18-desktop-native.md": "6303148fee3dcd7abcb954795c5fa4521a70ac01cdcf791c96c15b7b2c8cfe4c",
     "core/fixtures/browser-reorder/index.html": "53afc310a1b3927759512c8a515b962f10bbb0a4914853c410d80eedb4595543",
-    "core/packages/web/src/modules/index.ts": "4320f8f487f57bad90b7daa44f22be4e556d17a9cdec3bec9067743415d8b340",
-    "core/tests/browser/browser-harness.ts": "1b828fc2f7a7b0efe65ea1454eeff64048c617174fe3f4ea962be828f99412b8",
-    "core/packages/web/src/services/lifecycle.ts": "a15f0b350b24b6540ed632fc8d1ca7836e4020ab640cc7e9429a3850734d3ddb",
+    "core/packages/web/src/modules/index.ts": "f4e1f5fe08c25bf05c8ae4e36a4bd7d18a54b68ab5122e34dd0624835cfc52e7",
+    "core/tests/browser/browser-harness.ts": "03ee81d04e0d2b25046ca85cfc17c1156b782ef437bd1d890ac36d8b4dcc8695",
+    "core/packages/web/src/services/lifecycle.ts": "7dd0f7c735dfd34f6ec8a1c8c3109681fbf897042d65540506eec6a87668b8e4",
     "core/contracts/services.json": "cd99e0f3bea96ca6a86ab593eca0419ec8e8b5d2a932be0c6d46b2ef93797f35"
   },
   "evidence": {
@@ -7850,5 +7850,102 @@
       },
       "limitation": "Portable/desktop prepared mechanics only; actual host/OS/AT/device receipt pending. No richer claim from fallback or headless adapters."
     }
-  ]
+  ],
+  "sourceReturns": {
+    "packages/web/src/modules/slash.ts": {
+      "previousSha256": "8f116c22e247cfca693d2a4bc950ed100065debfd85b09f37d223540a52c36e6",
+      "currentSha256": "4a6301763a425ec356626a408f3edf0cce789c8d77eb35e95ae9ae1b4c46c185",
+      "proofs": [
+        {
+          "path": "architecture/evidence/mobile-web/mwf-1.9-20261017/chromium-portable/modules/receipt.json",
+          "sha256": "4937ff486b6c8ff40a1ab172a4876657a6d3b0349b8fdc920cb893370b4c1650",
+          "engine": "chromium",
+          "cases": [
+            "MBX-01-keyboard",
+            "MBX-01-composing",
+            "MBX-cancel-dispose"
+          ]
+        },
+        {
+          "path": "architecture/evidence/mobile-web/mwf-1.9-20261017/webkit-portable/modules/receipt.json",
+          "sha256": "53167637046562e065c50b2add2f3482920f138a34b3ab32ea1f36e1bdc66445",
+          "engine": "webkit",
+          "cases": [
+            "MBX-01-keyboard",
+            "MBX-01-composing",
+            "MBX-cancel-dispose"
+          ]
+        }
+      ]
+    },
+    "packages/web/src/modules/references.ts": {
+      "previousSha256": "01dc9b0d6c0a61e161db566901cb6a975193517d6f8161eb5cda5d0a48d7c4d5",
+      "currentSha256": "9e0a4ea35ec78ccda4f5ca259d405b1e186e677286fb3b6cd804525b572d35f1",
+      "proofs": [
+        {
+          "path": "architecture/evidence/mobile-web/mwf-1.9-20261017/chromium-portable/modules/receipt.json",
+          "sha256": "4937ff486b6c8ff40a1ab172a4876657a6d3b0349b8fdc920cb893370b4c1650",
+          "engine": "chromium",
+          "cases": [
+            "MBX-reference-command",
+            "MBX-reference-composing",
+            "MBX-reference-cancel"
+          ]
+        },
+        {
+          "path": "architecture/evidence/mobile-web/mwf-1.9-20261017/webkit-portable/modules/receipt.json",
+          "sha256": "53167637046562e065c50b2add2f3482920f138a34b3ab32ea1f36e1bdc66445",
+          "engine": "webkit",
+          "cases": [
+            "MBX-reference-command",
+            "MBX-reference-composing",
+            "MBX-reference-cancel"
+          ]
+        }
+      ]
+    },
+    "packages/web/src/modules/reorder.ts": {
+      "previousSha256": "8c541590f9d0900b0dcaeaf5741353e20e787849a1b5a0596f3a65ef8630f473",
+      "currentSha256": "dc4e25666ca98d8379834cc1a841a1e5d6eb4530e5819bcc145cf9fbafd33264",
+      "proofs": [
+        {
+          "path": "architecture/evidence/mobile-web/mwf-1.4-20261017/regression-reorder-pointer/receipt.json",
+          "sha256": "9d1014e9cc8a55fa2c30d1e618f42b3b37b82d735da292ae441ecc09ff6cbfb1",
+          "engine": "chromium",
+          "cases": [
+            "drop-before",
+            "drop-after",
+            "alternative-keyboard",
+            "cancel-readonly"
+          ]
+        }
+      ]
+    },
+    "packages/web/src/modules/content.ts": {
+      "previousSha256": "270980980d8040d1501eb216cfcfa3d2640f64e1df20e8733082b92e79e93553",
+      "currentSha256": "63bda9c1aed7ac51229ee7eed771c550ec9c92f05ceb29dc81386afbce12cba0",
+      "proofs": [
+        {
+          "path": "architecture/evidence/mobile-web/mwf-1.9-20261017/chromium-portable/modules/receipt.json",
+          "sha256": "4937ff486b6c8ff40a1ab172a4876657a6d3b0349b8fdc920cb893370b4c1650",
+          "engine": "chromium",
+          "cases": [
+            "MBX-03-table-scroll",
+            "MBX-04-table-disabled",
+            "MBX-04-disabled"
+          ]
+        },
+        {
+          "path": "architecture/evidence/mobile-web/mwf-1.9-20261017/webkit-portable/modules/receipt.json",
+          "sha256": "53167637046562e065c50b2add2f3482920f138a34b3ab32ea1f36e1bdc66445",
+          "engine": "webkit",
+          "cases": [
+            "MBX-03-table-scroll",
+            "MBX-04-table-disabled",
+            "MBX-04-disabled"
+          ]
+        }
+      ]
+    }
+  }
 }

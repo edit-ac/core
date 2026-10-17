@@ -69,7 +69,22 @@ export function validateCapabilities(matrix, { read = readFileSync } = {}) {
     const owned = entry.modules.find(m => m.module === module.id);
     demand(module.descriptor === owned.descriptor && module.fallback === owned.fallback && sameSet(module.unsupported, owned.unsupported), `unsupported module claim: ${module.id}`);
     const source = baseline.modules.find(m => m.module === module.id);
-    demand(matrix.inputs['core/' + source.source] === source.sourceSha256, `missing qualified source: ${module.id}`);
+    const current = matrix.inputs['core/' + source.source];
+    if (current !== source.sourceSha256) {
+      // Keep the original module receipts immutable. A changed source requires
+      // separately pinned, successful current cases, never a blind source rehash.
+      const returned = matrix.sourceReturns?.[source.source];
+      demand(returned && returned.previousSha256 === source.sourceSha256 && returned.currentSha256 === current && returned.proofs.length > 0, `missing qualified source: ${module.id}`);
+      for (const proof of returned.proofs) {
+        const bytes = read(boundedPath(proof.path));
+        demand(digest(bytes) === proof.sha256, `current source return hash: ${module.id}`);
+        const artifact = JSON.parse(bytes), counts = artifact.counts;
+        demand(artifact.engine === proof.engine && /^[a-f0-9]{40}$/u.test(artifact.revision) && artifact.sourcesUnchanged === true, `current source return identity: ${module.id}`);
+        demand(artifact.sources[source.source] === current, `current source return pin: ${module.id}`);
+        demand(counts.executed > 0 && counts.passed === counts.executed && counts.failed === 0 && counts.skipped === 0 && (counts.cancelled ?? 0) === 0 && artifact.cases.length === counts.executed && artifact.cases.every(c => c.passed === true && c.errors.length === 0), `current source return counts: ${module.id}`);
+        demand(proof.cases.length > 0 && proof.cases.every(name => artifact.cases.some(c => c.name === name)), `current source return cases: ${module.id}`);
+      }
+    }
   }
   const cache = new Map();
   const receipt = path => { if (!cache.has(path)) cache.set(path, readJSON(path)); return cache.get(path); };

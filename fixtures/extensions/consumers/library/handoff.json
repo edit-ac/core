@@ -9,11 +9,11 @@
     "fixtures/extensions/versions/conformance.json": "184a9bab5b51096f8bfbbcf4adc2e0147649217b355cb0e487baac3236c323bd",
     "fixtures/extensions/presenters/conformance.json": "390393183bfb12d1ef3a02923018be69d2d0e47d5d2fbfb91f93254abb48cede",
     "fixtures/extensions/clipboard/conformance.json": "ffc955446436bd61bf28c66a687ffdff0ef19dd49a2506578e15ed61646f46f9",
-    "fixtures/extensions/profiles/contracts.json": "5afd1df2b8be564309faadc4f47ed4409f7cb64d9baad391069c8e1a7cae2b38",
-    "fixtures/extensions/capabilities.json": "207fc923709cdc84570a8c1a4c3798574eab504aa9d6aa8a1881719f43f21e86",
-    "../architecture/specs/extension-library.md": "503599277d6955cb626f96d09e3a8107da184bb0e1d7332a66afeec9e9748480",
+    "fixtures/extensions/profiles/contracts.json": "146d6df248fd7e33f3d3192e939ec7e3b80106690cd505e4beb4e0374f35b6ca",
+    "fixtures/extensions/capabilities.json": "7953c0b7816ce5f02648f48ce2ec95ac9490a5cd86295d4311f28fc2bcb3b3ef",
+    "../architecture/specs/extension-library.md": "5c0cc3b58abd1033e9dca6438f8e224eace6ef8e98c785beeaa47547f912bf71",
     "../architecture/specs/extension-presenters.md": "4fef2220b62700ccaaed0da3b9b7cb5f1354b2bc53453fcfbb3bf89da273e738",
-    "../architecture/specs/client-contracts.md": "a1f3ff08c6e1748daa93c4e6a688eaf4b4d628ac36dcb76d58d70c9426f97a62"
+    "../architecture/specs/client-contracts.md": "2f6dce20ea2addcb960ec941b9d72fb241ec42a53c15dba91a57041a06881c85"
   },
   "prerequisites": {
     "EXT-1.1": {
@@ -225,5 +225,11 @@
   "release": {
     "physicalClipboard": "FMT-1.15-V1 remains open",
     "publication": "not performed"
+  },
+  "currentApplicability": {
+    "gate": "DXR-1.1",
+    "sourceRoadmapRevision": "cad285cac6f00e670183d02f7390cb552577b579529c235f2dd5cdafedf5fc91",
+    "historicalPrerequisites": "retained integrity only; current behavior requires owner-return receipt",
+    "receipt": "../architecture/evidence/extension-dx/owner-return-20261017/ext-handoff-receipt.json"
   }
 }
