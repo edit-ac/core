@@ -35,3 +35,8 @@ path = "tests/support/native_store_probe.rs"
 required-features = ["native-store"]
 test = false
 bench = false
+
+[[example]]
+name = "host-markdown-owner"
+path = "../../examples/host-mcp/session-owner.rs"
+required-features = ["native-store"]
