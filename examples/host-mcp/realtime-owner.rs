@@ -1,13 +1,15 @@
 //! Prepared embedding-host transport for AGT-1.5. SQLite and the shared Session
 //! own admission, mutation, request replay and sync publication. No provider/MCP
 //! transport belongs in the engine. stdin is a trusted fixture control channel.
+mod previews;
 use editac_core::{
     Utf16Offset,
     commands::{editor::EditorCommand, text::TextOrigin},
     document::{DocumentIdentity, InitialNode},
 };
+use editac_markdown::{optional::Codecs, reconcile::SourceMode};
 use editac_session::{
-    edit_service::{EditService, HostPolicy, PreparedEdit},
+    edit_service::{EditService, HostPolicy, PreparedEdit, SourceTarget},
     operations::HostActor,
     ports::{
         memory::{FaultBoundary, InjectedFault},
@@ -17,7 +19,9 @@ use editac_session::{
     session::{CachedPermission, Session},
     store::NativeStore,
 };
+use previews::previews;
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,
     io::{self, BufRead, Write},
@@ -41,7 +45,7 @@ fn main() {
     )
     .unwrap();
     let store =
-        Arc::new(NativeStore::create_new(path, identity.clone(), StoreLimits::default()).unwrap());
+        Arc::new(NativeStore::create_new(&path, identity.clone(), StoreLimits::default()).unwrap());
     let session = Session::create_local(
         store.clone(),
         identity.clone(),
@@ -63,6 +67,8 @@ fn main() {
     let mut proposals: BTreeMap<String, RequestProposal> = BTreeMap::new();
     let mut tokens: BTreeMap<String, RequestToken> = BTreeMap::new();
     let mut bindings: BTreeMap<String, (String, String)> = BTreeMap::new();
+    let mut targets: BTreeMap<u64, (SourceTarget, editac_session::revision::ObservedRevision)> =
+        BTreeMap::new();
     let mut serial = 0;
     let mut writable = true;
     let mut readable = true;
@@ -71,7 +77,7 @@ fn main() {
         let input: Value = serde_json::from_str(&line.unwrap()).unwrap();
         let result = (|| -> Result<Value, String> {
             let operation = input["op"].as_str().ok_or("missing operation")?;
-            if !readable && !matches!(operation, "policy" | "recover" | "state") {
+            if !readable && !matches!(operation, "policy" | "recover" | "state" | "release") {
                 return Err("Unauthorized".into());
             }
             match operation {
@@ -99,6 +105,99 @@ fn main() {
                     Ok(
                         json!({"identity":identity_json(&c.identity),"initialized":c.initialized,"writerId":c.writer_id,"bytes":c.bytes}),
                     )
+                }
+                "capture" => {
+                    if targets.len() >= 32 {
+                        return Err("Limit".into());
+                    }
+                    let view = service.read(0).map_err(|e| format!("{e:?}"))?;
+                    let owners: Vec<String> = view
+                        .snapshot
+                        .visible
+                        .iter()
+                        .filter(|n| n.kind == "block")
+                        .map(|n| n.id.clone())
+                        .collect();
+                    let blocks = owners
+                        .iter()
+                        .map(|id| {
+                            service
+                                .session()
+                                .document()
+                                .fragment_for_node(id)
+                                .map_err(|e| format!("{e:?}"))
+                        })
+                        .collect::<Result<Vec<_>, _>>()?;
+                    let exported = editac_markdown::export::export(&blocks);
+                    if !exported.diagnostics.is_empty() {
+                        return Err("UnsupportedExport".into());
+                    }
+                    if !writable {
+                        return Ok(
+                            json!({"target":0,"source":exported.markdown,"revision":revision(&view.revision),"profile":"markdown-v1/images-disabled","diagnostics":[]}),
+                        );
+                    }
+                    let target = service
+                        .capture_source(
+                            &exported.markdown,
+                            SourceMode::Markdown(Codecs::default()),
+                            &owners,
+                            0,
+                        )
+                        .map_err(|e| format!("{e:?}"))?;
+                    serial += 1;
+                    let out = json!({"target":serial,"source":exported.markdown,"revision":revision(&view.revision),"profile":"markdown-v1/images-disabled","diagnostics":[]});
+                    targets.insert(serial, (target, view.revision));
+                    Ok(out)
+                }
+                "release" => {
+                    targets.remove(&input["target"].as_u64().ok_or("target")?);
+                    Ok(json!({"released":true}))
+                }
+                "prepare_markdown" => {
+                    let access = &input["access"];
+                    if !writable
+                        || access["actorId"] != "agent-a"
+                        || access["documentId"] != identity.document_id
+                        || access["epoch"] != identity.epoch
+                        || access["readOnly"] != false
+                        || !access["permissions"]
+                            .as_array()
+                            .is_some_and(|p| p.iter().any(|v| v == "prepare"))
+                    {
+                        return Ok(json!({"status":"rejected","code":"denied"}));
+                    }
+                    if prepared.len() + proposals.len() + tokens.len() >= 64 {
+                        return Err("Limit".into());
+                    }
+                    let (target, expected) = targets
+                        .get(&input["target"].as_u64().ok_or("target")?)
+                        .ok_or("MissingTarget")?;
+                    let candidate = input["candidate"].as_str().ok_or("candidate")?;
+                    if candidate.len() > 65536 {
+                        return Err("Limit".into());
+                    }
+                    let origin = TextOrigin::new("agent:agent-a").unwrap();
+                    match service.prepare_source(target, expected, candidate, &origin, 0) {
+                        Ok(plan) => {
+                            let (source_diff, semantic_diff, ids) =
+                                previews(&service, target, candidate, &plan)?;
+                            serial += 1;
+                            let id = format!("proposal-{serial}");
+                            let out = json!({"status":"prepared","proposalId":id,"expectedRevision":revision(expected),"profile":"markdown-v1/images-disabled",
+                                "sourceHash":format!("sha256:{:x}", Sha256::digest(target.source().as_bytes())),"candidateHash":format!("sha256:{:x}", Sha256::digest(candidate.as_bytes())),
+                                "preview":{"visible":plan.preview().visible.iter().map(|n| editac_core::interchange::projection_node(n)).collect::<Vec<_>>()},"sourceDiff":source_diff,"semanticDiff":semantic_diff,"affectedIds":ids});
+                            prepared.insert(id, plan);
+                            Ok(out)
+                        }
+                        Err(error) => {
+                            let current = service.read(0).map_err(|e| format!("{e:?}"))?;
+                            Ok(
+                                json!({"status":"conflict","code":format!("{error:?}"),"target":null,"recovery":{"base":target.source(),"proposed":candidate,
+                                "current":current.snapshot.visible.iter().map(|n| editac_core::interchange::projection_node(n)).collect::<Vec<_>>(),"currentRevision":revision(&current.revision)}}),
+                            )
+                        }
+                    }
                 }
                 "prepare" => {
                     if !writable {
@@ -250,6 +349,24 @@ fn main() {
                         })
                         .map_err(|e| format!("{e:?}"))?;
                     Ok(json!({"armed":true}))
+                }
+                "reopen" => {
+                    let reopened = Arc::new(
+                        NativeStore::open_existing(&path, identity.clone(), StoreLimits::default())
+                            .map_err(|e| format!("{e:?}"))?,
+                    );
+                    service = EditService::new(
+                        Session::open(reopened, &identity, CachedPermission::LOCAL)
+                            .map_err(|e| format!("{e:?}"))?,
+                        HostPolicy {
+                            writable,
+                            ..HostPolicy::default()
+                        },
+                    );
+                    prepared.clear();
+                    proposals.clear();
+                    targets.clear();
+                    Ok(json!({"reopened":true}))
                 }
                 "recover" => {
                     service.recover().map_err(|e| format!("{e:?}"))?;

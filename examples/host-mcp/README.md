@@ -226,3 +226,19 @@ authorized read/export; resource listings and notifications contain no source.
 The fixture suite uses prepared MCP/auth/clock controls and the real native
 Session/SQLite owner: `node --test tests/agent-observe.test.mjs`. Full adversarial
 app integration remains AGT-1.7.
+
+## Composed app integration
+
+`node --test tests/agent-integration.test.mjs` combines the registered app tools,
+authorized upload facade, shared Markdown reconciliation/diff adapters, actual
+Session/SQLite request owner and a WASM human peer. The durable app retains opaque
+request tokens across Session reopen; responses and observation remain metadata,
+while content travels on collaboration. The fixture auth and stdin controls are
+prepared test infrastructure. They are not a production authentication service.
+
+Local tools need an available authorized client and document keys. Hosted tools
+need an explicitly trusted decrypting service; an opaque E2EE relay must route to
+an authorized endpoint or report unavailable. No hidden key upload or plaintext
+downgrade is supplied. Document instructions/URLs do not authorize fetches or
+provider calls. See `architecture/evidence/agent-editing.md` in the sibling
+architecture repository for endpoint limits and retained qualification receipts.
