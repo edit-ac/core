@@ -45,16 +45,38 @@ fn versioned_direction_records_match_fixture_without_claiming_converters() {
         assert!(p.export && !p.available);
         assert_eq!(f["fidelity"], p.fidelity);
         assert_eq!(f["dependencies"]["owner"], p.owner);
-        assert_eq!(f["dependencies"]["status"], "unselected");
-        assert!(f["dependencies"]["versions"].as_array().unwrap().is_empty());
+        if p.format == "docx" {
+            assert_eq!(f["dependencies"]["status"], "candidate-qualified");
+            assert_eq!(
+                f["dependencies"]["versions"],
+                serde_json::json!(["docx-rs@0.4.22", "zip@8.6.0", "quick-xml@0.41.0"])
+            );
+        } else {
+            assert_eq!(f["dependencies"]["status"], "unselected");
+            assert!(f["dependencies"]["versions"].as_array().unwrap().is_empty());
+        }
         assert!(f["dependencies"]["assets"].as_array().unwrap().is_empty());
         assert_eq!(f["limits"]["inputBytes"], p.limits.input_bytes);
         assert_eq!(f["limits"]["outputBytes"], p.limits.output_bytes);
         assert_eq!(f["limits"]["nodes"], p.limits.nodes);
         assert_eq!(f["limits"]["pages"], p.limits.pages);
         assert_eq!(f["diagnosticSchema"], 1);
-        assert_eq!(f["targets"]["native"], "contract-only");
-        assert_eq!(f["targets"]["wasm32-unknown-unknown"], "contract-only");
+        assert_eq!(
+            f["targets"]["native"],
+            if p.format == "docx" {
+                "trusted-candidate-runtime"
+            } else {
+                "contract-only"
+            }
+        );
+        assert_eq!(
+            f["targets"]["wasm32-unknown-unknown"],
+            if p.format == "docx" {
+                "candidate-compile-only"
+            } else {
+                "contract-only"
+            }
+        );
     }
 }
 

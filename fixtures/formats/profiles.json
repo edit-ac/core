@@ -62,13 +62,17 @@
       },
       "diagnosticSchema": 1,
       "targets": {
-        "native": "contract-only",
-        "wasm32-unknown-unknown": "contract-only"
+        "native": "trusted-candidate-runtime",
+        "wasm32-unknown-unknown": "candidate-compile-only"
       },
       "dependencies": {
-        "status": "unselected",
+        "status": "candidate-qualified",
         "owner": "CNV-1.3\u20131.7",
-        "versions": [],
+        "versions": [
+          "docx-rs@0.4.22",
+          "zip@8.6.0",
+          "quick-xml@0.41.0"
+        ],
         "assets": []
       },
       "unsupported": [

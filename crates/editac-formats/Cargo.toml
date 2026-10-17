@@ -16,9 +16,21 @@ unsafe_code = "forbid"
 
 [features]
 default = []
+docx-codecs = ["dep:docx-rs", "dep:zip", "dep:quick-xml"]
 jobs = ["dep:editac-core", "dep:editac-session", "dep:sha2"]
 
+[[test]]
+name = "docx_probe"
+required-features = ["docx-codecs"]
+
+[[example]]
+name = "docx_probe"
+required-features = ["docx-codecs"]
+
 [dependencies]
+docx-rs = { version = "=0.4.22", default-features = false, optional = true }
+zip = { version = "=8.6.0", default-features = false, features = ["deflate"], optional = true }
+quick-xml = { version = "=0.41.0", default-features = false, features = ["encoding"], optional = true }
 editac-core = { path = "../editac-core", optional = true }
 editac-session = { path = "../editac-session", optional = true }
 sha2 = { version = "=0.10.9", optional = true }

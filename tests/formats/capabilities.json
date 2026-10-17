@@ -65,6 +65,47 @@
           "kind": "rust-test"
         }
       ]
+    },
+    "docx-dependencies": {
+      "gate": "CNV-1.3",
+      "commands": [
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats/Cargo.toml",
+            "--features",
+            "docx-codecs",
+            "--locked",
+            "--offline",
+            "--test",
+            "docx_probe",
+            "--",
+            "--nocapture"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/docx-targets.test.mjs"
+          ],
+          "kind": "node-test"
+        }
+      ],
+      "inputs": [
+        "fixtures/formats/docx/probe/tiny.docx",
+        "fixtures/formats/docx/probe/pixel.png",
+        "fixtures/formats/docx/probe/dependencies.json",
+        "crates/editac-formats/tests/docx_probe.rs",
+        "crates/editac-formats/tests/support/docx_probe.rs",
+        "crates/editac-formats/examples/docx_probe.rs",
+        "tests/formats/docx-targets.test.mjs",
+        "tests/formats/inspect-docx.py"
+      ]
     }
   }
 }

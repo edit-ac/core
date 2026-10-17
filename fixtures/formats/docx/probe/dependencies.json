@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "gate": "CNV-1.3",
+  "productionAvailable": false,
+  "stack": {
+    "docx-rs": {
+      "version": "0.4.22",
+      "license": "MIT",
+      "requiredFeatures": [],
+      "forbiddenFeatures": [
+        "image",
+        "wasm",
+        "wasm-bindgen",
+        "ts-rs"
+      ]
+    },
+    "zip": {
+      "version": "8.6.0",
+      "license": "MIT",
+      "requiredFeatures": [
+        "deflate"
+      ],
+      "forbiddenFeatures": [
+        "aes-crypto",
+        "bzip2",
+        "zstd",
+        "deflate-flate2-zlib",
+        "deflate-flate2-zlib-ng"
+      ]
+    },
+    "quick-xml": {
+      "version": "0.41.0",
+      "license": "MIT",
+      "requiredFeatures": [
+        "encoding"
+      ],
+      "forbiddenFeatures": [
+        "async-tokio"
+      ]
+    }
+  },
+  "forbiddenPackages": [
+    "image",
+    "png",
+    "jpeg-decoder",
+    "tiff",
+    "gif",
+    "wasm-bindgen",
+    "ts-rs",
+    "zstd-sys",
+    "libz-sys",
+    "bzip2-sys",
+    "openssl-sys"
+  ],
+  "targets": [
+    "aarch64-apple-darwin",
+    "wasm32-unknown-unknown"
+  ],
+  "security": {
+    "zip8": "RUSTSEC-2026-0367/0368/0369 affect extraction: candidate restricted to in-memory ZipArchive reads and ZipWriter. No extract/filesystem APIs admitted. Not a blanket clean audit.",
+    "quick-xml": "0.41.0 patches RUSTSEC-2026-0194/0195.",
+    "productionIngress": "CNV-1.4 required before untrusted inputs; docx-rs reader may omit optional failed parts."
+  }
+}
