@@ -17,9 +17,9 @@ test('MWF-1.1 changed source contract invalidates frozen registration',()=>{
 });
 test('MWF-1.1 strict groups reject invalid, unimplemented and empty dispatch',()=>{
  assert.equal(selectGroup(['--group','harness']).length,2);assert.equal(selectGroup(['--group','touch']).length,1);
- for(const args of [[],['--group','all'],['--group','modules'],['--group','unknown'],['--group','harness','extra']])assert.throws(()=>selectGroup(args));
+ for(const args of [[],['--group','all'],['--group','unknown'],['--group','harness','extra']])assert.throws(()=>selectGroup(args));
  assert.throws(()=>selectGroup(['--group','empty'],{empty:[]}),/Empty/);
- for(const group of ['unknown','modules','all']){const r=spawnSync(process.execPath,['scripts/test-mobile-web.mjs','--group',group],{encoding:'utf8'});assert.equal(r.status,1);assert.match(r.stderr,/Unknown or unimplemented/);}
+ for(const group of ['unknown','performance','all']){const r=spawnSync(process.execPath,['scripts/test-mobile-web.mjs','--group',group],{encoding:'utf8'});assert.equal(r.status,1);assert.match(r.stderr,/Unknown or unimplemented/);}
 });
 test('MWF-1.1 zero, failed, skipped or cancelled required checks cannot qualify',()=>{
  const valid={executed:3,passed:3,failed:0,skipped:0,cancelled:0};assertCounts(valid);

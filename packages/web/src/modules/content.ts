@@ -113,6 +113,7 @@ class BasicContentView implements ContentView {
       this.image=doc.createElement('img'); this.description=doc.createElement('p'); this.element.append(this.image,this.description);
       const source=doc.createElement('textarea'); source.readOnly=true; source.setAttribute('aria-label','Image source'); this.controls.push(source); this.element.append(source);
     } else {
+      this.element.style.overflowX='auto'; this.element.style.maxWidth='100%';
       this.element.tabIndex=0;
       this.element.setAttribute('aria-label','Table cell selection');
       const help=doc.createElement('p');help.textContent='Table keyboard help: Tab/Shift+Tab moves cells. Tab at the last cell adds one allowed row. Escape then Tab/Shift+Tab leaves the editor. Alt+Enter selects cells; arrows move the cell selection.';this.element.append(help);

@@ -18,20 +18,20 @@ function unchanged(before,after){for(const key of ['nodes','history','journal','
 async function clear(page){await page.keyboard.press('Escape');await page.evaluate(()=>{const f=window.inputFixture;f.select(f.ids[0],0,f.engine.read().visible[0].runs.map(r=>r.text).join('').length);});await page.keyboard.press('Backspace');}
 
 test('500 registrations are frozen and bounded; 501 is rejected',()=>probe('catalog-bound',async(page,fact)=>{
- await page.keyboard.type('/');assert.equal(await page.locator('[role=menuitem]').count(),500);
+ await page.keyboard.type('/');assert.equal(await page.locator('[role=menuitem][data-command]').count(),500);
  const result=await page.evaluate(async()=>{const {slashCommands}=await import('/web/index.js');const commands=Array.from({length:501},(_,i)=>({id:`test-${i}`,label:`Test ${i}`,prepare:()=>undefined}));try{slashCommands(commands);return false;}catch{return true;}});assert.equal(result,true);
  const before=await state(page,fact);assert.equal(before.status,'500 slash commands. Catalog 000.');
  await page.keyboard.press('Escape');unchanged(before,await state(page,fact));
 }));
 test('500-command filtering matches normalized labels and keywords, with disabled and empty result states',()=>probe('filter-keyword',async(page,fact)=>{
- await page.keyboard.type('/NeEdLe');assert.equal(await page.locator('[role=menuitem]').count(),3);
- assert.deepEqual(await page.locator('[role=menuitem]').evaluateAll(items=>items.map(i=>i.getAttribute('data-command'))),['catalog-0','catalog-249','catalog-493']);
+ await page.keyboard.type('/NeEdLe');assert.equal(await page.locator('[role=menuitem][data-command]').count(),3);
+ assert.deepEqual(await page.locator('[role=menuitem][data-command]').evaluateAll(items=>items.map(i=>i.getAttribute('data-command'))),['catalog-0','catalog-249','catalog-493']);
  assert.equal(await page.locator('[data-command=catalog-249]').getAttribute('aria-disabled'),'true');
  await page.keyboard.press('ArrowDown');assert.equal((await state(page,fact)).active,'catalog-493');
  await page.keyboard.press('Home');assert.equal((await state(page,fact)).active,'catalog-0');
- await clear(page);await page.keyboard.type('/Catalog');assert.equal(await page.locator('[role=menuitem]').count(),494);
+ await clear(page);await page.keyboard.type('/Catalog');assert.equal(await page.locator('[role=menuitem][data-command]').count(),494);
  await clear(page);await page.keyboard.type('/absent');const before=await state(page,fact);
- await page.keyboard.press('Enter');unchanged(before,await state(page,fact));assert.equal(await page.locator('[role=menuitem]').count(),0);
+ await page.keyboard.press('Enter');unchanged(before,await state(page,fact));assert.equal(await page.locator('[role=menuitem][data-command]').count(),0);
 }));
 for(const mode of ['pointer','touch','keyboard'])test(`large catalog ${mode} picks exact command, one undo group and durable source`,()=>probe(`activation-${mode}`,async(page,fact)=>{
  await page.keyboard.type('/Needle');const before=await state(page,fact),item=page.locator('[data-command=catalog-493]');

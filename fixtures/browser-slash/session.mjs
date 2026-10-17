@@ -34,7 +34,7 @@ async function mount(value='') {
   root.addEventListener('keydown',focusTiming,true);surface.slash.menu.addEventListener('keydown',focusTiming,true);
   const observer=new MutationObserver(()=>{
    if(!timing)return;const started=timing.started,ready=performance.now();
-   const sample={input:timing.input,milliseconds:ready-started,query:surface.slash.query,results:surface.slash.menu.children.length,status:surface.slash.menu.nextSibling.textContent,active:document.activeElement?.getAttribute('data-command')};
+   const sample={input:timing.input,milliseconds:ready-started,query:surface.slash.query,results:surface.slash.menu.querySelectorAll('[data-command]').length,status:surface.slash.menu.nextSibling.textContent,active:document.activeElement?.getAttribute('data-command')};
    timing=undefined;metrics.push(sample);requestAnimationFrame(()=>{const frame=performance.now();sample.frameMilliseconds=frame-ready;sample.inputToFrameMilliseconds=frame-started;});
   });
   observer.observe(surface.slash.menu,{childList:true,attributes:true,subtree:true});

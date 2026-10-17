@@ -18,6 +18,11 @@
   ],
   "types": "./dist/index.d.ts",
   "exports": {
+    "./editor": {
+      "types": "./dist/editor.d.ts",
+      "import": "./dist/editor.js",
+      "default": "./dist/editor.js"
+    },
     "./host": {
       "types": "./dist/host/index.d.ts",
       "import": "./dist/host/index.js",

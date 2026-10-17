@@ -223,6 +223,8 @@ export class DOMRenderer {
     // Keep the code block's literal, unwrapped layout; prose spaces may wrap.
     const whiteSpace = tag === "pre" ? "pre" : "break-spaces";
     if (entry.content.style.whiteSpace !== whiteSpace) entry.content.style.whiteSpace = whiteSpace;
+    entry.content.style.overflowX = tag === 'pre' ? 'auto' : '';
+    entry.content.style.maxWidth = tag === 'pre' ? '100%' : '';
     this.#patchRuns(entry, node.runs, tag === "pre");
     this.#describeInvisibles(entry);
     if (tag === "pre") this.#code?.update(node, this.#revision);

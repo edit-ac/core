@@ -17,10 +17,11 @@ export interface SlashContext {
   commit(request: PrepareRequest): CommitResult;
   route(event: Event): void;
   focusEscape(event: KeyboardEvent): void;
+  blocked?(): boolean;
 }
 export type SlashFactory = (context: SlashContext) => SlashPresenter;
 interface RegisteredSlashCommand extends SlashCommand { readonly searchTerms: readonly string[] }
-interface Session { node: string; range: StableRange; query: string; generation: number }
+interface Session { node: string; range: StableRange; query: string; generation: number; explicit: boolean }
 let sequence = 0;
 
 /** Host registrations are frozen before mount; callbacks never enter documents.
@@ -41,7 +42,7 @@ export function slashCommands(commands: readonly SlashCommand[], options: { lite
 export class SlashPresenter {
   readonly menu: HTMLElement;
   private readonly status: HTMLElement;
-  private readonly control: HTMLButtonElement;
+  readonly control: HTMLButtonElement;
   private session: Session | undefined;
   private results: readonly SlashCommand[] = [];
   private active = -1;
@@ -80,7 +81,8 @@ export class SlashPresenter {
     });
     this.listen(this.menu, 'click', event => {
       const item = (event.target as Element).closest<HTMLElement>('[data-command]');
-      if (item) void this.activate(item.dataset.command!);
+      if ((event.target as Element).closest('[data-dismiss]')) this.dismiss(true);
+      else if (item) void this.activate(item.dataset.command!);
     });
     this.listen(this.menu, 'focusin', event => {
       const id = (event.target as HTMLElement).dataset.command;
@@ -149,17 +151,17 @@ export class SlashPresenter {
     if (!node || source === undefined || !this.eligible(node, offset) || source[offset] !== '/' || (offset > 0 && !/\s/u.test(source[offset - 1]!))) return;
     this.openRange(nodeId, offset, offset + 1, '');
   }
-  private openRange(node: string, start: number, end: number, query: string): void {
+  private openRange(node: string, start: number, end: number, query: string, explicit = false): void {
     const engine = this.context.engine, anchor = engine.anchor(node, start, 'right');
-    try { this.session = { node, range: { anchor, focus: engine.anchor(node, end, 'right') }, query, generation: ++this.generation }; }
+    try { this.session = { node, range: { anchor, focus: engine.anchor(node, end, 'right') }, query, generation: ++this.generation, explicit }; }
     catch (error) { engine.releaseAnchor(anchor); throw error; }
     this.render();
   }
   private clearTarget(): void { this.explicitTarget?.dispose(); this.explicitTarget = undefined; }
   private captureTarget(): void { this.clearTarget(); this.explicitTarget = this.context.selection.retain(); }
-  /** Visible control accepts an existing literal /query; it never fabricates text. */
+  /** Visible access uses the current stable caret without requiring typed slash text. */
   openExplicit(): void {
-    if (this.disposed || this.readOnly || this.session) return;
+    if (this.disposed || this.readOnly || this.session || this.context.blocked?.()) return;
     const target = this.explicitTarget ?? this.context.selection.retain(); this.explicitTarget = undefined;
     try {
       if (!target) return;
@@ -167,25 +169,27 @@ export class SlashPresenter {
       if (a.type !== 'position' || b.type !== 'position' || a.node !== b.node || a.offset !== b.offset) return;
       const node = this.nodes.get(a.node), source = node?.runs.map(r => r.text).join('') ?? '';
       const match = /(?:^|\s)(\/[^\s/]{0,64})$/.exec(source.slice(Math.max(0, a.offset - 66), a.offset));
-      if (!node || !match || !this.eligible(node, a.offset)) return;
-      this.openRange(a.node, a.offset - match[1]!.length, a.offset, match[1]!.slice(1));
+      if (!node || !this.eligible(node, a.offset)) return;
+      if (match) this.openRange(a.node, a.offset - match[1]!.length, a.offset, match[1]!.slice(1));
+      else this.openRange(a.node, a.offset, a.offset, '', true);
     } finally { target?.dispose(); }
   }
   private current(checkCaret = true): { session: Session; query: string } | undefined {
-    const session = this.session; if (!session || this.readOnly || this.disposed) return;
+    const session = this.session; if (!session || this.readOnly || this.disposed || this.context.blocked?.()) return;
     const { engine, selection } = this.context, a = engine.resolve(session.range.anchor), b = engine.resolve(session.range.focus);
     if (a.type !== 'position' || b.type !== 'position' || a.node !== session.node || b.node !== a.node || b.offset < a.offset || b.offset - a.offset > 65) return;
     const node = this.nodes.get(a.node), source = node?.runs.map(r => r.text).join('') ?? '', query = source.slice(a.offset, b.offset);
-    if (!node || !this.eligible(node, a.offset) || (a.offset > 0 && !/\s/u.test(source[a.offset - 1]!)) || !/^\/[^\s/]{0,64}$/u.test(query)) return;
+    if (!node || !this.eligible(node, a.offset)) return;
+    if (session.explicit ? a.offset !== b.offset : (a.offset > 0 && !/\s/u.test(source[a.offset - 1]!)) || !/^\/[^\s/]{0,64}$/u.test(query)) return;
     if (checkCaret && !this.menu.contains(this.context.root.ownerDocument.activeElement) && this.context.root.ownerDocument.activeElement !== this.control) {
       const target = selection.retain();
       try {
         if (!target) return;
         const p = engine.resolve(target.range.anchor), q = engine.resolve(target.range.focus);
-        if (p.type !== 'position' || q.type !== 'position' || p.node !== a.node || q.node !== a.node || p.offset !== q.offset || p.offset < a.offset + 1 || p.offset > b.offset) return;
+        if (p.type !== 'position' || q.type !== 'position' || p.node !== a.node || q.node !== a.node || p.offset !== q.offset || p.offset < a.offset + (session.explicit ? 0 : 1) || p.offset > b.offset) return;
       } finally { target?.dispose(); }
     }
-    return { session, query: query.slice(1) };
+    return { session, query: session.explicit ? '' : query.slice(1) };
   }
   private refresh(): void {
     if (!this.session) return;
@@ -207,6 +211,7 @@ export class SlashPresenter {
       item.setAttribute('aria-disabled', String(!!command.disabled)); if (command.disabled) item.title = command.disabled;
       return item;
     }));
+    const close = doc.createElement('button'); close.type = 'button'; close.textContent = 'Close commands'; close.dataset.dismiss = ''; close.setAttribute('role', 'menuitem'); this.menu.append(close);
     this.menu.hidden = false; this.context.root.setAttribute('aria-expanded', 'true'); this.control.setAttribute('aria-expanded', 'true');
     this.updateActive();
   }
@@ -257,7 +262,7 @@ export class SlashPresenter {
       const now = this.current();
       if (!action || controller.signal.aborted || now?.session !== session || now.query !== session.query || generation !== session.generation) return;
       const request: PrepareRequest = action.type === 'fragment' ? { kind: 'fragment', origin: `slash:${command.id}`, range: session.range, blocks: action.blocks } :
-        { kind: 'editor', origin: `slash:${command.id}`, commands: [{ type: 'delete', range: session.range }, ...action.commands] };
+        { kind: 'editor', origin: `slash:${command.id}`, commands: [...(session.explicit ? [] : [{ type: 'delete' as const, range: session.range }]), ...action.commands] };
       if (!this.context.engine.can(request)) { this.status.textContent = 'Slash command unavailable. Query retained.'; return; }
       this.context.engine.history({ type: 'boundary' }); this.context.engine.history({ type: 'explicit' });
       let result: CommitResult;

@@ -161,7 +161,8 @@ export class ReferencePresenter {
     this.status = doc.createElement('div'); this.status.setAttribute('role', 'status'); this.status.setAttribute('aria-live', 'polite');
     this.control = doc.createElement('button'); this.control.type = 'button'; this.control.tabIndex = 0; this.control.textContent = 'Insert reference';
     this.control.setAttribute('aria-haspopup', 'dialog'); this.control.setAttribute('aria-controls', this.menu.id); this.control.setAttribute('aria-expanded', 'false');
-    this.menu.append(this.search, this.items, this.status); context.root.after(this.control, this.menu);
+    const close=doc.createElement('button');close.type='button';close.textContent='Close references';this.listen(close,'pointerdown',event=>event.preventDefault());this.listen(close,'click',event=>{event.preventDefault();this.dismiss(true);});
+    this.menu.append(this.search, this.items, this.status, close); context.root.after(this.control, this.menu);
     this.listen(this.control, 'pointerdown', event => { this.capture(); event.preventDefault(); });
     this.listen(this.control, 'click', () => this.openExplicit());
     this.listen(this.menu, 'keydown', event => this.handle(event));
@@ -186,7 +187,7 @@ export class ReferencePresenter {
   private clearCapture(): void { this.captured?.dispose(); this.captured = undefined; }
   private capture(): void { this.clearCapture(); this.captured = this.context.selection.retain(); }
   openExplicit(): void {
-    if (this.disposed || this.readOnly || this.session) return;
+    if (this.disposed || this.readOnly || this.session || this.context.blocked?.()) return;
     const target = this.captured ?? this.context.selection.retain(); this.captured = undefined;
     if (!target) return;
     const a = this.context.engine.resolve(target.range.anchor), b = this.context.engine.resolve(target.range.focus);
@@ -291,12 +292,12 @@ export class ReferencePresenter {
   }
   dismiss(restore = false): void {
     const session = this.session; this.session = undefined; this.composing = false; this.invalidate();
+    this.menu.hidden = true; this.status.textContent = ''; this.control.setAttribute('aria-expanded', 'false');
     if (restore && session) {
-      this.context.root.focus(); const point = this.context.engine.resolve(session.target.range.focus);
-      if (point.type === 'position') { const dom = this.context.selection.toDOM(point); if (dom) this.context.root.ownerDocument.getSelection()?.setBaseAndExtent(dom.node, dom.offset, dom.node, dom.offset); }
+      this.context.root.focus(); this.context.selection.restoreRange(session.target.range);
       this.context.selection.capture();
     }
-    session?.subscription.dispose(); session?.target.dispose(); this.menu.hidden = true; this.status.textContent = ''; this.control.setAttribute('aria-expanded', 'false');
+    session?.subscription.dispose(); session?.target.dispose();
   }
   setReadOnly(value: boolean): void { this.readOnly = value; this.control.disabled = value; if (value) { this.clearCapture(); this.dismiss(); } }
   dispose(): void { if (this.disposed) return; this.disposed = true; this.clearCapture(); this.dismiss(); this.lookup?.dispose(); for (const [target, type, listener] of this.listeners) target.removeEventListener(type, listener); this.listeners.length = 0; this.control.remove(); this.menu.remove(); }

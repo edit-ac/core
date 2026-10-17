@@ -66,3 +66,19 @@ structured target is an explicit mutation-free admission rejection. Registered
 attachment captions/identity and missing-codec inert source are separate checks.
 Clipboard/menu/IME/native-app and cross-platform observations remain deferred to
 the original MWB gates; prepared success makes no device/API availability claim.
+
+
+`--group modules` covers MBX-01–05 portable mechanics in Chromium and WebKit.
+The packed public `@edit-ac/web/editor` entry keeps optional presenters out of
+baseline imports. Visible slash access opens at a stable prose caret without
+requiring typed slash text; existing literal queries retain their semantics.
+The menu includes a named tap cancellation action and ignores commands during
+composition. The owning viewport lease bounds slash/reference/code controls,
+observes menu visibility without polling and restores resources on disposal.
+Code and baseline table content scroll horizontally without capturing page
+scroll or native selection. Insert-paragraph controls remain available with
+enhanced presenters disabled. Disabled table presentation retains inert source
+and ordinary input. Native menu overlap/keyboard geometry/touch cancellation are
+prepared traces; accessible names, focus, semantic history, real IndexedDB,
+imports and resource disposal execute in browser engines. Actual mobile scroll,
+selection menus, keyboard/IME and VoiceOver/TalkBack remain original MWB gates.

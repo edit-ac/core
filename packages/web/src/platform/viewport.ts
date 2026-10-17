@@ -119,7 +119,14 @@ export class EditorViewport {
   requestCaret(): void { if(this.disposed || this.suspended)return;this.follow=true;this.owner.invalidate(); }
   addControls(element: HTMLElement): ()=>void {
     this.controlStyles.set(element,element.style.cssText);this.controls.add(element);this.invalidate();
-    return ()=>{element.style.cssText=this.controlStyles.get(element)??'';this.controlStyles.delete(element);this.controls.delete(element);};
+    // Menus may open without any resize/scroll event. Observe only visibility,
+    // never our own style writes, and retain no polling or frame loop.
+    const observer = new element.ownerDocument.defaultView!.MutationObserver(() => this.invalidate());
+    observer.observe(element,{attributes:true,attributeFilter:['hidden']});
+    const focus = () => this.invalidate(); element.addEventListener('focusin',focus);
+    let released=false;
+    const release=()=>{if(released)return;released=true;observer.disconnect();element.removeEventListener('focusin',focus);element.style.cssText=this.controlStyles.get(element)??'';this.controlStyles.delete(element);this.controls.delete(element);};
+    this.releases.push(release); return release;
   }
   private measure(s: Snapshot): ()=>void {
     const old=this.previous;this.previous=s;

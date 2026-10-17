@@ -541,12 +541,12 @@ export class TextInput {
   }
   attachReferences(factory: import('../modules/references.js').ReferenceFactory): void {
     if (this.references || this.#disposed) throw Error('Reference presenter already attached or disposed');
-    this.references = factory({ root: this.#renderer.root, selection: this.#selection, engine: this.#engine, commit: this.#commit, route: event => this.#handle(event, true), focusEscape: event => { this.keyboard.action(event); } });
+    this.references = factory({ root: this.#renderer.root, selection: this.#selection, engine: this.#engine, commit: this.#commit, route: event => this.#handle(event, true), blocked: () => this.#composition.active, focusEscape: event => { this.keyboard.action(event); } });
     this.references.setReadOnly(this.#readOnly);
   }
   attachSlash(factory: import('../modules/slash.js').SlashFactory): void {
     if (this.slash || this.#disposed) throw Error('Slash presenter already attached or disposed');
-    this.slash = factory({ root: this.#renderer.root, selection: this.#selection, engine: this.#engine, commit: this.#commit, route: event => this.#handle(event, true), focusEscape: event => { this.keyboard.action(event); } });
+    this.slash = factory({ root: this.#renderer.root, selection: this.#selection, engine: this.#engine, commit: this.#commit, route: event => this.#handle(event, true), blocked: () => this.#composition.active, focusEscape: event => { this.keyboard.action(event); } });
     this.slash.setReadOnly(this.#readOnly);
   }
   setReadOnly(value: boolean): void {

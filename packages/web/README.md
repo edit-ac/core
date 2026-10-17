@@ -4,8 +4,14 @@ Private development package for the edit.ac browser input, selection, clipboard,
 local recovery, and incremental DOM adapter. Its API is under development.
 Build from the repository root with `npm run build` before importing `dist/`.
 
+Use `@edit-ac/web/editor` for the baseline browser adapter when optional module
+presenters are disabled. This public entry avoids evaluating the convenience
+barrel's slash/reference/media/code presenters. Enable presenter factories only
+when the host requests them; disabled presenters allocate no resources. The
+convenience `@edit-ac/web` entry still exports the complete API.
+
 ```ts
-import { mountEditor } from '@edit-ac/web';
+import { mountEditor } from '@edit-ac/web/editor';
 
 // root, assetUrl, databaseName and identity are supplied by the host.
 

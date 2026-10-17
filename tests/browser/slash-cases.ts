@@ -7,8 +7,8 @@ async function select(page,start,end=start){await page.evaluate(({start,end})=>w
 
 test('eligible start/whitespace typing opens bounded named menu; literal query persists',()=>probe('eligible',async(page,fact)=>{
  await type(page,'/Al');const s=await state(page,fact);assert.equal(s.open,true);assert.equal(s.query,'Al');assert.equal(s.text[0],'/Al');
- assert.equal(await page.locator('[role=menu]').getAttribute('aria-label'),'Slash commands');assert.equal(await page.locator('[role=menuitem]').count(),1);
- assert.equal(await page.locator('[role=menuitem]').getAttribute('aria-disabled'),'false');
+ assert.equal(await page.locator('[role=menu]').getAttribute('aria-label'),'Slash commands');assert.equal(await page.locator('[role=menuitem][data-command]').count(),1);
+ assert.equal(await page.locator('[role=menuitem][data-command]').getAttribute('aria-disabled'),'false');
 },''));
 for(const prefix of ['word','https:','path/','\\'])test(`ineligible boundary ${JSON.stringify(prefix)} stays literal`,()=>probe(`excluded-${prefix.replace(/\W/g,'')}`,async(page,fact)=>{
  await type(page,'/');const s=await state(page,fact);assert.equal(s.open,false);assert.equal(s.text[0],prefix+'/');
