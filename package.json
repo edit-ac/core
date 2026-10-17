@@ -44,7 +44,8 @@
     "check:browser-size": "node scripts/check-browser-size.mjs",
     "build:wasm:fixture": "node scripts/build-wasm.mjs --fixture",
     "build:wasm:markdown": "node scripts/build-wasm.mjs --markdown",
-    "check:markdown-codec": "npm run build:wasm:markdown && npm run build && node --test tests/markdown-codec.test.mjs"
+    "check:markdown-codec": "npm run build:wasm:markdown && npm run build && node --test tests/markdown-codec.test.mjs",
+    "test:interactions": "node scripts/test-interactions.mjs"
   },
   "devDependencies": {
     "@astrojs/node": "11.1.7",

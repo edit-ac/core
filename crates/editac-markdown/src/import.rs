@@ -272,6 +272,18 @@ pub fn import(source: &str) -> Result<PreparedContent, ImportError> {
                 b.diagnose("table-codec-disabled", span);
                 skip = Some((TagEnd::Table, 1));
             }
+            Event::Html(html) | Event::InlineHtml(html)
+                if matches!(
+                    html.trim_end_matches(['\r', '\n'])
+                        .to_ascii_lowercase()
+                        .as_str(),
+                    "<br>" | "<br/>" | "<br />"
+                ) =>
+            {
+                // A finite inert semantic vocabulary, never DOM/HTML execution.
+                // CommonMark has no backslash spelling for a terminal break.
+                b.text("\n", &span, false);
+            }
             Event::Html(_) | Event::InlineHtml(_) => {
                 b.text(&source[span.clone()], &span, false);
                 b.diagnose("raw-html-inert", span);

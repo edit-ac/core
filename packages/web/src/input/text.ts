@@ -216,8 +216,14 @@ export class TextInput {
     let range = target.range, ownedRange: StableRange | undefined;
     try {
       const a = this.#engine.resolve(range.anchor), b = this.#engine.resolve(range.focus);
-      if (a.type !== 'position' || b.type !== 'position' || a.node !== b.node) {
+      if (a.type !== 'position' || b.type !== 'position') {
         event.preventDefault(); this.#reject(intent, 'unsupported-ordinary-range'); return;
+      }
+      if (a.node !== b.node) {
+        event.preventDefault();
+        this.#apply(intent, range, input.inputType === 'insertText' ? input.data! : '');
+        this.#eligibleKey=false;
+        return;
       }
       if (input.inputType !== 'insertText' && a.offset === b.offset) {
         // Use the browser's actual deletion unit (grapheme/word policy), never a
@@ -314,7 +320,27 @@ export class TextInput {
     if (this.#disposed || intent.generation !== this.#generation) { intent.disposition = 'disposed'; return; }
     if (this.#readOnly) { this.#reject(intent, 'read-only'); return; }
     const a = this.#engine.resolve(range.anchor), b = this.#engine.resolve(range.focus);
-    if (a.type !== 'position' || b.type !== 'position' || a.node !== b.node) { this.#reject(intent, 'stale-target'); return; }
+    if (a.type !== 'position' || b.type !== 'position') { this.#reject(intent, 'stale-target'); return; }
+    if (a.node !== b.node) {
+      // The shared fragment preparer owns structural replacement, including
+      // whole-document ranges ending in an empty block and atomic rejection.
+      const typing = this.keyboard.formatting.typing(range);
+      const marks = Object.entries(typing).map(([mark, value]) => ({ mark: mark as import('@edit-ac/core').MarkCommand['mark'], ...(mark === 'link' ? { href: String(value) } : {}) }));
+      const request: PrepareRequest = { kind: 'fragment', origin: `text-input:${intent.id}`, range,
+        blocks: [{ attributes: null, runs: text ? [{ text, marks }] : [] }] };
+      try {
+        if (!this.#engine.can(request)) { this.#reject(intent, 'unsupported-ordinary-range'); return; }
+        this.keyboard.resetFocusEscape(); this.#engine.history({type:'explicit'});
+        const result = this.#commit(request);
+        intent.disposition='committed'; intent.text=text;
+        if (result.caret) {
+          try { this.#selection.move(result.caret); } finally { this.#engine.releaseAnchor(result.caret); }
+        } else this.#selection.restore();
+        this.keyboard.formatting.remember(typing);
+      } catch(error) { this.#reject(intent,errorMessage(error)); }
+      finally { this.#engine.history({type:'boundary'}); }
+      return;
+    }
     if (a.offset === b.offset && !text) { intent.disposition = 'handled'; return; }
     if(shortcutEligible){const result=this.shortcuts.convert(range,text,`typing-shortcut:${intent.id}`);if(result){intent.disposition='committed';intent.text=text;this.#moveShortcut(result);return;}}
     // The upper endpoint survives replacement; a start anchor attached to the
@@ -326,7 +352,8 @@ export class TextInput {
       // neither necessarily reaches KeyboardInput.action through beforeinput.
       this.keyboard.resetFocusEscape();
       this.#engine.history({ type: 'explicit' });
-      this.#commit({ kind: 'text', origin: `text-input:${intent.id}`, command: { type: 'replace', range, text } });
+      const typing = this.keyboard.formatting.typing(range);
+      this.#commit(this.keyboard.formatting.replacement(range, text, `text-input:${intent.id}`));
       intent.disposition = 'committed'; intent.text = text;
       const caret = this.#engine.resolve(caretAnchor);
       if (nativeCaret) {
@@ -336,6 +363,7 @@ export class TextInput {
         this.#selection.place({ ...caret, bias: 'right' });
       }
       this.#selection.capture();
+      this.keyboard.formatting.remember(typing);
       this.slash?.typed(a.node, a.offset, text, !!slashEligible && a.offset === b.offset);
       this.references?.typed(a.node, a.offset, text, shortcutEligible && a.offset === b.offset);
     } catch (error) { this.#reject(intent, errorMessage(error)); intent.text = text; }

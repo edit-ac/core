@@ -55,3 +55,5 @@ export type { DocumentSearchContext, DocumentSearchOptions, DocumentSearchFactor
 
 export { codeCommands, CodeCommandsPresenter } from './extensions/code.js';
 export type { CodeBinding, CodeCommandsOptions, CodeCommandsFactory } from './extensions/code.js';
+
+export type { ToolbarTarget, MarkState, FormattingChanges } from './commands/formatting.js';

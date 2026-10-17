@@ -1,0 +1,9 @@
+# Interaction fixture ownership
+
+INT-1.1 indexes both source catalogs in `case-index.json`. Each ID retains its source-row hash, original semantic expectation, selection/effect oracle, owning task, related owners, profile and evidence class. Caret pipes inside inline examples are not table separators. Review changed catalog rows explicitly; missing, duplicate, extra and stale bindings fail the harness group.
+
+`existingRecipes` identifies reusable RGS corpus overlap. `baselineOverlap` identifies the permanent heading-before-list and visible-whitespace browser guards. Neither field claims a runtime pass. Other feature fixtures remain planned under their original owners; native, performance and optional rich-content rows do not become browser replay qualifications. No unsupported structure is emulated in the DOM.
+
+Run `npm run test:interactions -- --group harness` with the pinned Node/npm toolchain after building the current WASM and packages. The wrapper rejects unknown and unimplemented groups. It executes catalog guards and a mounted, packed real-engine adapter in Chromium, Firefox and WebKit, with real input middleware, selection, IndexedDB persistence and semantic history. External event sequences are prepared deterministic input; this is not OS/IME/AT support evidence.
+
+`harness.json` contains independently authored forward/backward replacement and UTF-16 snapshots. `InteractionHarness` delegates execution to the RGS `BrowserEditingDriver`; expected values never enter the engine or DOM action. Negative controls must reject bad content, marks, pending marks, endpoints, direction, commit/history counts and a missing engine. Unsupported initial profiles reject atomically. Each browser receipt retains source/package hashes, observed snapshots, failure controls, versions and cleanup facts. The catalog's `planned` states remain unchanged by these harness infrastructure checks.

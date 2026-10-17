@@ -46,6 +46,100 @@ fn engine() -> Document {
     d.enable_history(HistoryConfig::default()).unwrap();
     d
 }
+
+#[test]
+fn interaction_heading_middle_split_undo_restores_entry_caret() {
+    let mut d = engine();
+    let setup = d
+        .prepare_editor(
+            &[EditorCommand::Block {
+                target: A.into(),
+                tuple: Any::Array(vec![Any::from("heading"), Any::from(2i32)].into()),
+            }],
+            &origin(),
+        )
+        .unwrap();
+    d.commit_editor(setup).unwrap();
+    d.clear_history();
+    let before = d.snapshot().unwrap().visible;
+    let at = d.anchor(A, U(1), Bias::Right).unwrap();
+    let plan = d
+        .prepare_editor(
+            &[
+                EditorCommand::HistorySelectionAt {
+                    anchor: EditorPosition {
+                        owner: A.into(),
+                        offset: U(1),
+                        bias: Bias::Right,
+                    },
+                    focus: EditorPosition {
+                        owner: A.into(),
+                        offset: U(1),
+                        bias: Bias::Right,
+                    },
+                },
+                EditorCommand::Split {
+                    owner: A.into(),
+                    at,
+                },
+            ],
+            &origin(),
+        )
+        .unwrap();
+    d.commit_editor(plan).unwrap();
+    let after = d.snapshot().unwrap().visible;
+    for _ in 0..3 {
+        let undone = d.undo().unwrap().unwrap();
+        assert_eq!(d.snapshot().unwrap().visible, before);
+        assert_eq!(
+            bookmark_cuts(&d, &undone.selection.unwrap()),
+            (A.into(), 1, Bias::Right, A.into(), 1, Bias::Right)
+        );
+        d.redo().unwrap().unwrap();
+        assert_eq!(d.snapshot().unwrap().visible, after);
+    }
+}
+
+#[test]
+fn interaction_selected_hard_break_redo_keeps_collapsed_result_after_break() {
+    for backward in [false, true] {
+        let mut d = engine();
+        let (start, end) = if backward { (3, 1) } else { (1, 3) };
+        let range = d
+            .selection((A, U(start), Bias::Right), (A, U(end), Bias::Right))
+            .unwrap();
+        let at = d.anchor(A, U(1), Bias::Right).unwrap();
+        let p = d
+            .prepare_editor(
+                &[
+                    EditorCommand::HistorySelectionAt {
+                        anchor: bookmark_position(A, start, Bias::Right),
+                        focus: bookmark_position(A, end, Bias::Right),
+                    },
+                    EditorCommand::Text(TextCommand::Delete { selection: range }),
+                    EditorCommand::BlockCommand(
+                        editac_core::commands::blocks::BlockCommand::HardBreak { at },
+                    ),
+                ],
+                &origin(),
+            )
+            .unwrap();
+        d.commit_editor(p).unwrap();
+        assert_eq!(text(&d, A), "a\nb");
+        let undone = d.undo().unwrap().unwrap();
+        assert_eq!(text(&d, A), "a😀b");
+        assert_eq!(
+            bookmark_cuts(&d, &undone.selection.unwrap()),
+            (A.into(), start, Bias::Right, A.into(), end, Bias::Right)
+        );
+        let redone = d.redo().unwrap().unwrap();
+        assert_eq!(text(&d, A), "a\nb");
+        assert_eq!(
+            bookmark_cuts(&d, &redone.selection.unwrap()),
+            (A.into(), 2, Bias::Right, A.into(), 2, Bias::Right)
+        );
+    }
+}
 fn origin() -> TextOrigin {
     TextOrigin::new("history:test").unwrap()
 }

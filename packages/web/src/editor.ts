@@ -202,6 +202,10 @@ export class BrowserEditor {
     return !this.#readOnly && session.storage.state.phase !== 'error' && session.writer.engine.can(request);
   }
   chain(origin = 'local:sdk'): CommandChain { this.#requireReady(); return new CommandChain(this, origin); }
+  /** Capture before moving focus into a formatting control. Release on dismissal. */
+  captureToolbar(): import('./commands/formatting.js').ToolbarTarget | undefined {
+    this.#requireReady(); return this.#input?.keyboard.captureToolbar();
+  }
   /** Host drives receive/pump on transport events and retry deadlines. Sending
    * frames establishes no durable remote-save claim. Attachment never restores a replica. */
   async attachSync(options: AttachSyncOptions): Promise<SyncAttachment> {

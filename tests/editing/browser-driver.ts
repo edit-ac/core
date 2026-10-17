@@ -101,6 +101,13 @@ export class BrowserEditingDriver {
       // No expected state enters this callback or the production engine.
       const block = f.renderer.getBlock(id), old = block.textContent;
       f.mutate(old.slice(0, Math.min(a, b)) + text + old.slice(Math.max(a, b)), id);
+      // A native replacement leaves the caret after its inserted text, not
+      // at the end of the retained suffix. Model the action before notifications;
+      // never derive the native caret from an expected checkpoint.
+      const caret = Math.min(a, b) + text.length;
+      const nativeText = document.createTreeWalker(block, NodeFilter.SHOW_TEXT).nextNode();
+      if (!nativeText) throw Error('Native replacement did not leave a text node');
+      document.getSelection()!.setBaseAndExtent(nativeText, caret, nativeText, caret);
       for (const notification of notifications) {
         if (notification === 'input') f.event('input', { inputType: 'insertText', data: text });
         else await Promise.resolve(); // actual MutationObserver delivery, never a fabricated record
@@ -125,7 +132,7 @@ export class BrowserEditingDriver {
   async replay(recipe: Recipe) {
     for (const capability of recipe.requires) if (!browserCapabilities.has(capability)) throw Error(`Unsupported browser capability: ${capability}`);
     await this.mount(recipe.initial);
-    const results = [];
+    const results: Array<{ id: string } & Awaited<ReturnType<BrowserEditingDriver['step']>>> = [];
     for (const step of recipe.steps) results.push({ id: step.id, ...await this.step(step.action, step.expect) });
     return results;
   }
