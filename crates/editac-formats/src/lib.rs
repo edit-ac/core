@@ -8,6 +8,9 @@ pub mod container;
 #[cfg(feature = "jobs")]
 pub mod job;
 
+#[cfg(all(feature = "docx-codecs", feature = "jobs"))]
+pub mod docx;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Direction {
     Import,

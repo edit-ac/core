@@ -122,3 +122,60 @@ sandbox enforcement remains with platform owners 31–36. Run the manifest-drive
 `node tests/formats/run.mjs container-limits` for native hostile-container and real
 Session/AssetWork tests, affected regressions and WASM compilation. WASM compilation
 does not qualify browser execution, a sandbox, packed size or production conversion.
+
+## Guarded DOCX text preparation
+
+With `docx-codecs,jobs`, `docx::import::prepare_text` maps the versioned
+`docx-text-semantic-v1` subset from a `PreparedJob`'s immutable input. Use
+`docx::import::TEXT_PROFILE` for this import-only API. The aggregate registry DOCX
+profile remains unavailable pending the structured import/export owners and host
+installation. No additional dependency or minimum-editor asset is introduced.
+
+The input is a bounded classic OPC ZIP with the conventional Transitional OOXML
+`word/document.xml` main part and an explicit main content type/relationship.
+Only related conventional `word/styles.xml` is consumed. Namespace URIs, rather
+than prefix spellings, identify Word content. UTF-8 XML/entities are decoded by
+XML rules; authored Unicode is never normalized. Paragraphs, empty paragraphs,
+run text, tabs and text-wrapping breaks map to existing fragments. Paragraph
+styles and explicit outline levels 0–5 map to headings 1–6. Run defaults,
+paragraph/character style inheritance and direct bold/italic/strike/single
+underline are supported. Style toggles and direct on/off overrides differ;
+paragraph-mark properties do not become formatting for all paragraph text.
+Script-specific b/i behavior beyond the declared Latin/Greek/Cyrillic,
+CJK/Hangul/common emoji scope is diagnosed; Unicode text itself is retained.
+
+HTTP(S)/mailto hyperlink relationships use the shared URL policy, never fetch,
+and retain the normalized destination as a mark. Unsafe, relative, anchor-only
+or missing targets retain visible text with diagnostics. Other parts, style or
+theme/layout properties, complex-script formatting, tracked revisions, fields,
+content controls and alternate-content branches have structured locations and
+recovery actions. No arbitrary revision or alternate branch is chosen. Complex
+field paragraphs retain an empty paragraph and explicit omission report rather
+than accepting cached results; unrepresentable-only bodies fail with diagnostics.
+This is a semantic subset, without Word pagination, original XML spelling or
+source-package round-trip fidelity. The exact original remains in the job/host
+recovery policy; the result carries its SHA-256.
+
+Preparation returns immutable shared `FragmentBlock` data and a bounded report.
+It never writes the live Session. Review every lossy diagnostic before explicitly
+approving loss; a rejected report immediately aborts only that job's staging.
+`PreparedText::commit` binds the exact job and uses its single shared
+prepare/apply operation, revision/target revalidation, cancellation/deadline,
+asset cleanup and history. The source package remains recoverable on failure.
+The caller supplies the existing enforced execution/asset ports. Native proof
+uses prepared ports and real Session/MemoryStore/AssetWork; WASM is compile-only.
+Platform watchdog, worker/process isolation, UI wiring and viewer support remain
+with roadmaps31–36 and qualification37.
+
+`validate_span` and `admit_adapter_spans` check adapter-owned byte/scalar/UTF-16
+coordinates, overflow, UTF-8 boundaries, surrogate boundaries and declared lengths
+before shared preparation. The mapper uses that same admission function. No
+prefix commits on a later invalid run. Public offsets must fit u32; shared
+fragment limits additionally bound 128 paragraphs and 1024 runs. Package scans,
+mapping scans and output nodes share the ingress allowance; diagnostic overflow
+rejects instead of returning a successful incomplete report.
+
+Run `node tests/formats/run.mjs docx-import-text` with the locked toolchains.
+The canonical receipt includes actual Rust tests, regressions, optional WASM
+builds, graph checks, original generated input packages, semantic observations
+and exact source pins. Compile tests are not WASM runtime or platform proof.

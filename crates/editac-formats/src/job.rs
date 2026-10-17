@@ -216,7 +216,7 @@ pub struct PreparedJob<S: SessionStore + AssetStore> {
     poisoned: bool,
     work: Work,
     output: Vec<u8>,
-    token: Arc<()>,
+    pub(crate) token: Arc<()>,
     reference_prefix: String,
     asset_bytes: u64,
     staged: Vec<StagedAsset>,
@@ -450,7 +450,7 @@ impl<S: SessionStore + AssetStore> PreparedJob<S> {
     pub fn asset_bytes(&self) -> u64 {
         self.asset_bytes
     }
-    fn check(&self, now: u64) -> Result<(), JobError> {
+    pub(crate) fn check(&self, now: u64) -> Result<(), JobError> {
         if self.terminal {
             return Err(JobError::Finished);
         }

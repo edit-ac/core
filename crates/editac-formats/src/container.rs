@@ -298,6 +298,9 @@ pub struct Package {
     pub(crate) job_token: Option<std::sync::Arc<()>>,
 }
 impl Package {
+    pub(crate) fn part_names(&self) -> impl Iterator<Item = &str> {
+        self.parts.keys().map(String::as_str)
+    }
     pub fn work(&self) -> Work {
         self.work
     }
@@ -356,6 +359,14 @@ impl Package {
             self.rejected.insert(name.into(), e.clone());
         }
         result
+    }
+    pub(crate) fn charge_mapping_bytes(&mut self, count: usize) -> Result<()> {
+        add(
+            &mut self.work.scanned,
+            count,
+            self.limits.work,
+            "semantic-mapping",
+        )
     }
     pub fn charge_output_nodes(&mut self, count: usize) -> Result<()> {
         add(
