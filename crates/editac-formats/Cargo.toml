@@ -20,6 +20,7 @@ pdf-export = ["pdf-probe", "jobs", "krilla/raster-images", "dep:flate2"]
 pdf-probe = ["dep:krilla", "dep:rustybuzz"]
 container-codecs = ["dep:zip", "dep:quick-xml", "dep:flate2"]
 docx-codecs = ["container-codecs", "dep:docx-rs"]
+epub-import = ["container-codecs", "jobs", "dep:editac-html", "dep:serde_json"]
 odt-import = ["container-codecs", "jobs"]
 odt-export = ["container-codecs", "jobs"]
 rtf-import = ["jobs"]
@@ -103,6 +104,8 @@ name = "container_probe"
 required-features = ["docx-codecs", "jobs"]
 
 [dependencies]
+editac-html = { path = "../editac-html", default-features = false, optional = true }
+serde_json = { version = "=1.0.152", optional = true }
 krilla = { version = "=0.8.2", default-features = false, features = ["simple-text"], optional = true }
 rustybuzz = { version = "=0.20.1", optional = true }
 # Reuse the already-qualified ZIP transitive codec with the same pure-Rust backend.
@@ -132,3 +135,11 @@ required-features = ["rtf-export"]
 [[example]]
 name = "rtf_export"
 required-features = ["rtf-export"]
+
+[[test]]
+name = "epub_import"
+required-features = ["epub-import"]
+
+[[example]]
+name = "epub_import"
+required-features = ["epub-import"]

@@ -278,3 +278,12 @@ Node/Rust: real Session tests, independent macOS textutil output inspection and
 negative mutations, WASM compilation, optional/default graph and native process
 resource measurements. The OS reader is qualification tooling only. Platform
 sandbox/wiring and release remain with roadmaps31–36/37.
+
+`epub-import` exposes `epub::import::prepare` and its token-bound prepared commit
+for the declared `fixtures/formats/epub/profile.md` reflowable EPUB3.3 subset.
+It reuses guarded ZIP/XML, the shared inert HTML tree codec (parser disabled),
+original PNG AssetWork staging and one Session insertion. Chapter/navigation and
+source hashes are available in the report. Unsupported content requires explicit
+loss approval and retains original input. No DOM, network, DRM/fixed-layout,
+EPUB export, platform sandbox or release support is implied. Default dependencies
+remain empty. Run `node tests/formats/run.mjs epub-import` with isolated evidence.

@@ -212,6 +212,25 @@ pub struct Package {
     pub(crate) job_token: Option<std::sync::Arc<()>>,
 }
 impl Package {
+    #[cfg(feature = "epub-import")]
+    pub(crate) fn scan_mapping_xml(
+        &mut self,
+        name: &str,
+        control: &mut impl FnMut() -> Result<()>,
+    ) -> Result<()> {
+        let bytes = self
+            .parts
+            .get(name)
+            .ok_or_else(|| Failure::new(Code::Xml, name))?;
+        scan_xml(
+            bytes,
+            name,
+            &mut self.work,
+            &mut self.diagnostics,
+            self.limits,
+            control,
+        )
+    }
     pub(crate) fn part_names(&self) -> impl Iterator<Item = &str> {
         self.parts.keys().map(String::as_str)
     }

@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "id": "edit-ac-epub-v1",
+  "direction": "import",
+  "profile": "epub33-reflowable-semantic-v1",
+  "owner": "CNV-1.14",
+  "optionalDependencies": {
+    "zip": "8.6.0; default=false; deflate",
+    "quick-xml": "0.41.0; default=false",
+    "flate2": "1.1.10; default=false; zlib-rs",
+    "editac-html": "0.0.0; default/parser=false; local shared semantic whitelist",
+    "serde_json": "1.0.152"
+  },
+  "targets": {
+    "native": "aarch64-apple-darwin actual deterministic Session integration",
+    "wasm": "wasm32-unknown-unknown compile only"
+  },
+  "limits": {
+    "input": 1048576,
+    "inflated": 2097152,
+    "entries": 256,
+    "nodes": 4096,
+    "xmlTreeDepth": 32,
+    "attributes": 64,
+    "attributeBytes": 4096,
+    "diagnostics": 512,
+    "blocks": 128,
+    "output": 4194304
+  },
+  "unsupported": [
+    "EPUB2/NCX",
+    "DRM/encryption",
+    "fixed layout",
+    "multiple renditions",
+    "scripts/forms/active resources",
+    "remote/query/encoded package resources",
+    "inline images/non-PNG media",
+    "tables/foreign XHTML",
+    "unrepresented metadata/navigation/layout/styles"
+  ],
+  "sourceRecovery": "immutable PreparedJob original bytes and sha256; loss approval explicit",
+  "defaultGraph": "empty",
+  "profileDetails": "profile.md"
+}
