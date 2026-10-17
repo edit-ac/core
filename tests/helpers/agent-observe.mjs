@@ -4,12 +4,12 @@ import { once } from 'node:events';
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { createHostAgent, createHostApply, createHostObserve } from '@edit-ac/web/host';
+import { createHostAgent, createHostApply, createHostObserve, createHostPrepare } from '@edit-ac/web/host';
 import { registerHostAgent } from '../../examples/host-mcp/register.mjs';
 import { registerHostObservation } from '../../examples/host-mcp/src/observe.ts';
 
 export async function fixture(t, options = {}) {
-  const directory = await mkdtemp(join(process.env.EDITAC_AGENT_OBSERVE_OUTPUT ?? tmpdir(), 'observe-'));
+  const directory = resolve(await mkdtemp(join(process.env.EDITAC_AGENT_OBSERVE_OUTPUT ?? tmpdir(), 'observe-')));
   const child = spawn(resolve('target/debug/examples/host-realtime-owner'), [join(directory, 'host.sqlite3')], { stdio: ['pipe', 'pipe', 'pipe'] });
   const exited = once(child, 'exit');
   const pending = [], transcript = [];
@@ -35,13 +35,22 @@ export async function fixture(t, options = {}) {
   };
   const access = () => ({ actorId, documentId, epoch, permissions: [...permissions], readOnly: !writable });
   const authorize = async (context, id) => context === 'trusted' && readable && id === documentId ? access() : null;
-  const available = a => readable && a.actorId === actorId && a.epoch === epoch && a.documentId === documentId;
+  // This fixture owner represents one authenticated native actor/document/epoch.
+  // Changing the connection identity cannot inherit that owner's source or tokens.
+  const available = a => readable && a.actorId === 'agent-a' && a.epoch === '23456789-2345-4345-8345-23456789abcd' && a.documentId === documentId;
   let revisionCalls = 0;
   const revision = async a => { revisionCalls++; return (await send({ op: 'observe', access: a })).revision; };
   const observe = createHostObserve({ available, revision: options.wrapRevision ? a => options.wrapRevision(() => revision(a)) : revision });
+  const markdown = options.markdown ? createHostPrepare({
+    available,
+    capture: () => send({ op: 'capture' }),
+    release: target => { void send({ op: 'release', target }); },
+    prepare: (target, candidate, a) => send({ op: 'prepare_markdown', target, candidate, access: a }),
+  }, { now: () => time }) : null;
   const services = { observe,
     read: { available, async execute(_r, a) { const state = await send({ op: 'state' }); if (!available(a)) throw Error('revoked'); return state; } },
     prepare: { available: a => available(a) && writable, execute: request => send({ op: 'prepare', text: request.candidateMarkdown }) },
+    ...(markdown?.services ?? {}),
     ...createHostApply({ available: (a, op) => available(a) && (op === 'receipt' || writable),
       apply: request => send({ op: 'apply', ...request }), receipt: request => send({ op: 'receipt', ...request }) }) };
   const host = createHostAgent({ authorize, services });
@@ -60,11 +69,16 @@ export async function fixture(t, options = {}) {
   t.after(async () => {
     facades.forEach(f => f.dispose());
     try {
-      if (!dead) { child.stdin.end(); await exited; }
+      if (!dead) { await markdown?.dispose(); child.stdin.end(); await exited; }
       await writeFile(join(directory, 'transcript.json'), JSON.stringify({ pid: child.pid, exited: dead, stderr, transcript, notifications }, null, 2));
     } finally { lines.close(); if (!dead) { child.kill('SIGTERM'); await exited; } }
   });
-  return { host, call, send, access, authorize, connect, documentId, notifications, providers, observe, directory,
+  const upload = async (method, args = [], context = 'trusted') => {
+    const a = await authorize(context, documentId);
+    if (!a) throw Error('Unauthorized');
+    return markdown[method](a, ...JSON.parse(JSON.stringify(args)));
+  };
+  return { host, call, send, access, upload, markdown, authorize, connect, documentId, notifications, providers, observe, directory,
     get revisionCalls() { return revisionCalls; },
     advance(ms = 1000) { time += ms; },
     identity(value) { if (value.actorId) actorId = value.actorId; if (value.epoch) epoch = value.epoch; if (value.permissions) permissions = value.permissions; },
