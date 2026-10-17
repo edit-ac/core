@@ -5,12 +5,13 @@ import { CheckpointStorage } from '/web/storage/checkpoint.js';
 import { UpdateJournal } from '/web/storage/journal.js';
 const identity={documentId:'45678901-4567-4567-8567-45678901abcd',epoch:'56789012-5678-4678-8678-56789012abcd',schema:'editac.registry.editor.v5',offsets:'utf16',profile:'editac.yrs-yjs.editor.v5',protocolVersion:1,updateEncoding:1};
 const root=document.querySelector('#projection'),databaseName='mobile-harness';
-let runtime,session,editor,subscription,ids,selection,patches=[],disposed=false;
+let runtime,session,editor,subscription,ids,selection,patches=[],disposed=false,preparedViewport=false;
 const viewportGeometry=()=>{if(window.mobileGeometryError)throw Error("prepared unavailable");return window.mobileGeometry;};
 async function mount(value){
- const options=typeof value==='string'?{text:value}:value;
+ const options=typeof value==='string'?{text:value}:value;preparedViewport=!!options.viewport;
  runtime=await init('/core/wasm/editac_wasm_bg.wasm');
  const seed=runtime.createEngine({profile:'v5',documentId:identity.documentId,epoch:identity.epoch,nodes:options.nodes??[{text:options.text}]});
+ if(options.code){const plan=seed.prepare({kind:'editor',origin:'mobile-seed-code',commands:[{type:'setCode',owner:seed.read().visible[0].id,language:'typescript'}]});try{seed.commit(plan);}finally{seed.releasePlan(plan);}}
  let modules;
  if(options.marks){for(const mark of options.marks){const owner=seed.read().visible[mark.node??0].id;seed.commit(seed.prepare({kind:'editor',origin:'mobile-seed',commands:[{type:'markAt',owner,from:mark.from,to:mark.to,mark:mark.type,action:'apply'}]}));}}
  if(options.reorder){const first=seed.read().visible[0].id;seed.commit(seed.prepare({kind:'editor',origin:'mobile-seed',commands:[{type:'markAt',owner:first,from:0,to:5,mark:'bold',action:'apply'}]}));}
@@ -22,7 +23,7 @@ async function mount(value){
  subscription=session.writer.engine.subscribe({type:'all'},p=>patches.push({origin:p.origin,update:!!p.update,revision:p.revision}));
  let markdown,slash;
  if(options.triggers){const {initMarkdown}=await import('/markdown/index.js'),{markdownExtension}=await import('/markdown/web.js'),{slashCommands}=await import('/web/modules/slash.js');markdown=markdownExtension(await initMarkdown('/markdown/wasm/editac_markdown_wasm_bg.wasm'));slash=slashCommands([{id:'paragraph',label:'Insert mobile paragraph',prepare:()=>({type:'fragment',blocks:[{attributes:{type:'paragraph'},runs:[{text:'mobile command',marks:[]}]}]})}]);}
- editor=new BrowserEditor(root,{assetUrl:'/core/wasm/editac_wasm_bg.wasm',databaseName,identity,indexedDB,locks:navigator.locks,plainPasteControl:false,modules,markdown,slash,viewport:options.viewport?{requestedMode:options.requestedMode,geometry:viewportGeometry}:undefined,...(options.reorder?{reorder:context=>{selection=context.selection;return reorderControls()(context);}}:{}),recover:async()=>session});
+ editor=new BrowserEditor(root,{assetUrl:'/core/wasm/editac_wasm_bg.wasm',databaseName,identity,indexedDB,locks:navigator.locks,plainPasteControl:options.plainPasteControl??false,readOnly:options.readOnly,commandAllowed:name=>!options.deniedCommands?.includes(name),commandControls:options.commandControls,inputHints:options.inputHints,modules,markdown,slash,viewport:options.viewport?{requestedMode:options.requestedMode,geometry:viewportGeometry}:undefined,...(options.reorder?{reorder:context=>{selection=context.selection;return reorderControls()(context);}}:{}),recover:async()=>session});
  await editor.ready;window.editor=editor;select(ids[0],0);return ids;
 }
 function select(id,a,b=a,focusId=id){root.focus();const point=(id,offset)=>{const block=root.querySelector(`[data-node-id="${id}"]`),walker=document.createTreeWalker(block,NodeFilter.SHOW_TEXT);let node;while(node=walker.nextNode()){if(offset<=node.length)return {node,offset};offset-=node.length;}return {node:block,offset:0};};const anchor=point(id,a),focus=point(focusId,b);getSelection().setBaseAndExtent(anchor.node,anchor.offset,focus.node,focus.offset);selection?.capture();}
@@ -46,7 +47,7 @@ async function sibling(){
  const databaseName='mobile-harness-sibling',store=await CheckpointStorage.open(indexedDB,databaseName);
  try{await store.publish(session.writer.engine.checkpoint(),[]);}finally{store.close();}
  const secondRoot=document.createElement('div');secondRoot.setAttribute('aria-label','Second mobile document');root.parentElement.append(secondRoot);
- const second=new BrowserEditor(secondRoot,{assetUrl:'/core/wasm/editac_wasm_bg.wasm',databaseName,identity,indexedDB,locks:navigator.locks,plainPasteControl:false,viewport:{geometry:viewportGeometry}});await second.ready;
+ const second=new BrowserEditor(secondRoot,{assetUrl:'/core/wasm/editac_wasm_bg.wasm',databaseName,identity,indexedDB,locks:navigator.locks,plainPasteControl:false,viewport:preparedViewport?{geometry:viewportGeometry}:undefined});await second.ready;
  return {editor:second,root:secondRoot,async dispose(){await second.destroy({policy:'flush'});secondRoot.remove();}};
 }
 window.inputFixture={sibling,deliver,mutate,mount,select,settle,state,destroy,host,capability,requestCapability,get engine(){return session?.writer.engine},get root(){return root},get ids(){return ids},remote,get selection(){return selection},get pointer(){return editor.reorder?.pointerState},get surface(){return editor}};

@@ -1,3 +1,5 @@
+import { CommandControls } from './ui/commands.js';
+import { InputHintController, type InputHints } from './input/hints.js';
 import type { AnchorToken, Bias, CommitResult, DocumentIdentity, EditorCommand, Patch, PatchScope, PrepareRequest, Snapshot } from '@edit-ac/core';
 import { SyncSession, type SyncSessionOptions, type SyncTransport } from './sync/session.js';
 import { UpdateOutbox } from './storage/outbox.js';
@@ -14,6 +16,8 @@ import type { RetainedSelection } from './dom/selection.js';
 type LocalSession = Awaited<ReturnType<typeof recoverLocalDocument>>;
 type RecoveryOptions = Parameters<typeof recoverLocalDocument>[0];
 export interface EditorOptions extends RecoveryOptions {
+  commandControls?: boolean;
+  inputHints?: InputHints;
   viewport?: import('./platform/viewport.js').ViewportOptions;
   shortcutProfile?: import('./commands/catalog.js').ShortcutProfile;
   commandAllowed?: (command: import('./commands/catalog.js').PortableCommand) => boolean;
@@ -85,6 +89,9 @@ export class BrowserEditor {
   readonly ready: Promise<void>;
   readonly lifecycle: BrowserLifecycle;
   readonly #status: HTMLElement;
+  #controls: CommandControls | undefined;
+  readonly #pasteTargets = new Set<() => void>();
+  #hints: InputHintController | undefined;
   readonly #plainButton: HTMLButtonElement | undefined;
   #plainTarget: RetainedSelection | undefined;
   readonly #capturePlainTarget = (event: Event): void => {
@@ -129,7 +136,7 @@ export class BrowserEditor {
     this.#status.id = `editac-status-${++editorSequence}`;
     root.setAttribute('aria-describedby', [root.getAttribute('aria-describedby'), this.#status.id].filter(Boolean).join(' '));
     this.#status.textContent = 'Loading local document'; root.after(this.#status);
-    if (options.plainPasteControl !== false) {
+    if (options.plainPasteControl !== false && !options.commandControls) {
       this.#plainButton = root.ownerDocument.createElement('button'); this.#plainButton.type = 'button';
       this.#plainButton.textContent = 'Paste without formatting'; this.#plainButton.disabled = true; this.#status.after(this.#plainButton);
       this.#plainButton.addEventListener('pointerdown', this.#capturePlainTarget); this.#plainButton.addEventListener('click', this.#plainClick);
@@ -180,6 +187,9 @@ export class BrowserEditor {
       this.#status.textContent = 'Document ready';
       if (this.#plainButton) this.#plainButton.disabled = this.#readOnly;
       this.lifecycle.update({ phase: 'ready', ready: true, visible: true, preview });
+      this.#hints = new InputHintController(this.root);
+      if (options.inputHints) this.setInputHints(options.inputHints);
+      if (options.commandControls) this.#controls = new CommandControls(this);
     } catch (error) {
       if (!this.#closing && !this.#destroyed) {
         this.root.contentEditable = 'false'; this.root.setAttribute('aria-busy', 'false'); this.root.setAttribute('aria-readonly', 'true');
@@ -193,6 +203,10 @@ export class BrowserEditor {
   }
   #requireReady(): LocalSession {
     if (this.#closing || this.#destroyed || !this.state.ready || !this.#session) throw Error('Editor is not ready'); return this.#session;
+  }
+  get commandControls(): CommandControls | undefined { return this.#controls; }
+  setInputHints(hints: InputHints): void {
+    this.#requireReady(); (this.#hints ??= new InputHintController(this.root)).set(hints);
   }
   get codeCommands(): import('./extensions/code.js').CodeCommandsPresenter | undefined { return this.#input?.codeCommands; }
   get search(): import('./modules/search.js').DocumentSearchPresenter | undefined { return this.#input?.search; }
@@ -216,8 +230,8 @@ export class BrowserEditor {
     this.#requireReady(); return this.#input?.textDrag.capture();
   }
   get commands() { this.#requireReady(); return this.#input!.keyboard.commands; }
-  captureCommand(name: string, supplied?: import('@edit-ac/core').StableRange): import('./commands/catalog.js').CapturedCommand | undefined {
-    this.#requireReady(); return this.#input?.keyboard.captureCommand(name, supplied);
+  captureCommand(name: string, supplied?: import('@edit-ac/core').StableRange, focusOwner?: HTMLElement): import('./commands/catalog.js').CapturedCommand | undefined {
+    this.#requireReady(); return this.#input?.keyboard.captureCommand(name, supplied, focusOwner);
   }
   settle(): Promise<void> { this.#requireReady(); return this.#input!.settle(); }
   captureHistory(): import('./input/keyboard.js').HistoryTarget | undefined { this.#requireReady(); return this.#input?.keyboard.captureHistory(); }
@@ -277,6 +291,32 @@ export class BrowserEditor {
   pasteDeferred(data: Pick<ClipboardData, 'getData'>, options: {literal?:boolean; schedule?:()=>Promise<void>} = {}): import('./clipboard/pending.js').PendingPaste {
     this.#requireReady(); return this.#input!.clipboard.pasteDeferred(data,options);
   }
+  /** Capture an explicit literal-paste intent before its owning control focuses.
+   * The existing clipboard owner supplies limits, diagnostics and cancellation. */
+  capturePlainPaste(focusOwner?: HTMLElement) {
+    this.#requireReady();
+    const guard = this.captureCommand('replace', undefined, focusOwner);
+    if (!guard) return undefined; // composition/read-only must not map provisional DOM
+    const target = this.#selection?.retain();
+    if (!target) { guard.dispose(); return undefined; }
+    let consumed = false, disposed = false;
+    const active = () => !disposed && !consumed && guard.active && target.active;
+    const dispose = () => { if (disposed) return; disposed = true; guard.dispose(); target.dispose(); this.#pasteTargets.delete(dispose); };
+    this.#pasteTargets.add(dispose);
+    return {
+      get active() { return active(); }, dispose,
+      paste: (read?: () => Promise<string>): Promise<ClipboardOutcome> => {
+        if (!active()) { dispose(); return Promise.resolve({ disposition: 'rejected', reason: 'stale-paste-intent' }); }
+        consumed = true;
+        return this.#plainPaste(async () => {
+          const clipboard = this.root.ownerDocument.defaultView?.navigator.clipboard;
+          const text = await (read ? read() : clipboard?.readText ? clipboard.readText() : Promise.reject(Error('Use native Paste')));
+          if (disposed || !guard.active) throw Error('stale-paste-intent');
+          return text;
+        }, target).finally(dispose);
+      },
+    };
+  }
   pastePlainText(read?: () => Promise<string>): Promise<ClipboardOutcome> {
     this.#plainTarget?.dispose(); this.#plainTarget = undefined;
     return this.#plainPaste(read);
@@ -309,6 +349,8 @@ export class BrowserEditor {
         this.#plainTarget?.dispose(); this.#plainTarget = undefined;
         if (this.#plainButton) { this.#plainButton.disabled = true; this.#plainButton.removeEventListener('pointerdown', this.#capturePlainTarget); this.#plainButton.removeEventListener('click', this.#plainClick); }
         this.root.removeEventListener('keydown', this.#capturePlainTarget);
+        this.#controls?.dispose(); this.#hints?.dispose();
+        for (const dispose of this.#pasteTargets) dispose();
         this.#surface?.dispose(); this.#unsubscribe?.();
         const provisional = this.#input?.recovery.map(r => ({ text: r.text, reason: r.reason })) ?? [];
         const clipboard = this.clipboardRecovery;

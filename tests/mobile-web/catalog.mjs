@@ -24,10 +24,10 @@ export function assertIndex(index, rows = catalogRows()) {
   assert.deepEqual(index.cases, rows, 'missing, unexpected, stale or misowned mobile case');
   return index;
 }
-export const implementedGroups = Object.freeze({ harness: ['tests/mobile-web/catalog.test.mjs', 'tests/mobile-web/harness.spec.ts'], touch: ['tests/mobile-web/touch.spec.ts'], input: ['tests/mobile-web/input.spec.ts'], viewport: ['tests/mobile-web/viewport.spec.ts'] });
+export const implementedGroups = Object.freeze({ harness: ['tests/mobile-web/catalog.test.mjs', 'tests/mobile-web/harness.spec.ts'], touch: ['tests/mobile-web/touch.spec.ts'], input: ['tests/mobile-web/input.spec.ts'], viewport: ['tests/mobile-web/viewport.spec.ts'], focus: ['tests/mobile-web/focus.spec.ts'] });
 export function selectGroup(args, groups = implementedGroups) {
   assert.ok(args.length === 2 && args[0] === '--group' && Object.hasOwn(groups, args[1]),
-    'Unknown or unimplemented mobile group; expected --group harness, touch, input or viewport');
+    'Unknown or unimplemented mobile group; expected --group harness, touch, input, viewport or focus');
   const files = groups[args[1]];
   assert.ok(Array.isArray(files) && files.length > 0, 'Empty mobile group');
   return files;

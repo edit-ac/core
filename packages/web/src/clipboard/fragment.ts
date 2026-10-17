@@ -344,7 +344,7 @@ export class ClipboardInput {
       const text = this.#literal(raw);
       if (!text) return this.last = rejected('clipboard-empty');
       // Preserve a user's later selection for an asynchronous result.
-      const current = this.#selection.retain();
+      const current = this.#renderer.root.ownerDocument.activeElement === this.#renderer.root ? this.#selection.retain() : undefined;
       try { return this.last = this.#apply(target, [{ runs: [{ text, marks: [] }], attributes: null }],!!current); }
       finally { if (current) { this.#restore(current); current.dispose(); } }
     } catch (error) {

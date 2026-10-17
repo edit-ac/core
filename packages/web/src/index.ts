@@ -68,3 +68,5 @@ export type { PortableCommand, ShortcutProfile, CapturedCommand } from './comman
 
 export { EditorViewport } from './platform/viewport.js';
 export type { ViewportOptions, ViewportGeometry, ViewportRect } from './platform/viewport.js';
+export { CommandControls } from './ui/commands.js';
+export type { InputHints } from './input/hints.js';

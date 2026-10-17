@@ -124,7 +124,7 @@ export class KeyboardInput {
 
   /** Capture while the editor owns focus. Supplied anchors are copied and owned
    * here; invalid targets never fall back to the current native caret. */
-  captureCommand(name: string, supplied?: StableRange): CapturedCommand | undefined {
+  captureCommand(name: string, supplied?: StableRange, focusOwner?: HTMLElement): CapturedCommand | undefined {
     const action = resolveCommand(name), root = this.#renderer.root, doc = root.ownerDocument;
     if (!action || this.#disposed || this.#blocked() || !this.#allowed(action) || doc.activeElement !== root) return undefined;
     let range: StableRange;
@@ -143,7 +143,8 @@ export class KeyboardInput {
     let disposed = false, redirected = false, consumed = false;
     const focus = (event: FocusEvent) => {
       const node = event.target;
-      if (node instanceof Element && node !== root && node.closest('input, textarea, select, [contenteditable="true"], [role="textbox"]')) redirected = true;
+      if (node instanceof Element && node !== root && !root.contains(node) && !focusOwner?.contains(node) &&
+        (focusOwner || node.closest('input, textarea, select, [contenteditable="true"], [role="textbox"]'))) redirected = true;
     };
     doc.addEventListener('focusin', focus);
     const valid = () => !disposed && !consumed && !redirected && !this.#disposed && !this.#blocked() && this.#allowed(action) && this.#engine.read().revision === revision;
@@ -152,7 +153,7 @@ export class KeyboardInput {
       execute: text => {
         if (!valid()) return rejected('stale-or-unavailable-command-target');
         consumed = true;
-        if (action !== 'replace') { root.focus(); this.#selection.restoreRange(range); return this.execute(action) ?? rejected('native-command-owner'); }
+        if (action !== 'replace') { root.focus(); if (doc.activeElement !== root) return rejected('editor-focus-declined'); this.#selection.restoreRange(range); return this.execute(action) ?? rejected('native-command-owner'); }
         if (typeof text !== 'string') return rejected('replacement-text-required');
         const request = this.formatting.replacement(range, text, `command:replace:${++this.#sequence}`);
         try {
@@ -430,7 +431,7 @@ export class KeyboardInput {
     cancel.addEventListener('click', () => this.#closeLink(true));
     form.addEventListener('keydown', event => { if (event.key === 'Escape' && !event.isComposing) { event.preventDefault(); this.#closeLink(true); this.#escape = true; } });
     form.addEventListener('submit', event => {
-      event.preventDefault();
+      event.preventDefault(); event.stopPropagation(); // owned dialog must not submit a host form
       if (input.value === initial) { this.#closeLink(true); return; }
       const result = target.apply({ link: input.value || null });
       if (result.disposition === 'rejected') { status.textContent = Array.from(result.reason ?? 'Link unavailable').slice(0, 240).join(''); return; }
