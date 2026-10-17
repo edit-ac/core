@@ -33,3 +33,9 @@ test('captured rich artifact preserves fonts, heading/list tags, decoration and 
  const r=JSON.parse(readFileSync(resolve(output,'rich-inspection.json')));
  assert.equal(r.rejectedMutations.length,4);assert.ok(r.inspection.pages>1);assert.equal(r.inspection.labels.length,4);
 });
+
+test('captured table and original PNG retain cell reading order, headers, image pixels, alt and visible layout; six corruptions fail',()=>{
+ run(process.env.EDITAC_PDF_PYTHON,['tests/formats/inspect-pdf-structure.py',output,'fixtures/formats/pdf/export/structure.json','fixtures/formats/pdf/export/panels.png'],'structure-independent');
+ const r=JSON.parse(readFileSync(resolve(output,'structure-inspection.json')));
+ assert.equal(r.logical.cells,18);assert.equal(r.visual.images,1);assert.ok(r.logical.pages>=3);assert.equal(r.rejectedMutations.length,6);
+});

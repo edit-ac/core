@@ -16,13 +16,17 @@ unsafe_code = "forbid"
 
 [features]
 default = []
-pdf-export = ["pdf-probe", "jobs"]
+pdf-export = ["pdf-probe", "jobs", "krilla/raster-images", "dep:flate2"]
 pdf-probe = ["dep:krilla", "dep:rustybuzz"]
 docx-codecs = ["dep:docx-rs", "dep:zip", "dep:quick-xml", "dep:flate2"]
 jobs = ["dep:editac-core", "dep:editac-session", "dep:sha2"]
 
 [[test]]
 name = "pdf_export"
+required-features = ["pdf-export"]
+
+[[test]]
+name = "pdf_structure"
 required-features = ["pdf-export"]
 
 [[test]]

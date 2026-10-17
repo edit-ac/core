@@ -607,6 +607,21 @@
             "--features",
             "pdf-export",
             "--test",
+            "pdf_structure"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--features",
+            "pdf-export",
+            "--test",
             "pdf_probe"
           ],
           "kind": "rust-test"
@@ -666,7 +681,15 @@
         "fixtures/formats/fonts/NotoSans-Bold.ttf",
         "fixtures/formats/fonts/NotoSans-Italic.ttf",
         "fixtures/formats/fonts/NotoSans-BoldItalic.ttf",
-        "fixtures/formats/fonts/NotoSansMono-Regular.ttf"
+        "fixtures/formats/fonts/NotoSansMono-Regular.ttf",
+        "crates/editac-formats/src/pdf/export_assets.rs",
+        "crates/editac-formats/tests/pdf_structure.rs",
+        "fixtures/formats/pdf/export/structure.json",
+        "fixtures/formats/pdf/export/panels.png",
+        "tests/formats/inspect-pdf-structure.py",
+        "crates/editac-formats/src/media.rs",
+        "crates/editac-formats/src/container.rs",
+        "fixtures/formats/pdf/export/excess-inflate.png"
       ]
     }
   }

@@ -203,3 +203,36 @@ there is no Word layout, original package, macro or signature preservation claim
 Run `node tests/formats/run.mjs docx-export` for the real Session, independent
 package/semantic inspection and declared macOS textutil reader fixtures. WASM
 proof is compilation only; aggregate registry/platform/release gates stay closed.
+
+
+## Captured PDF publication prerequisites
+
+The optional `pdf-export` feature exposes `pdf::export::export_with_fonts` for
+qualified text/rich/v1-table output and `export_with_assets` with an explicit
+`OriginalAssetHost` for original PNG images. Both consume the existing immutable
+`PreparedJob`, shared fragments, explicit pinned fonts and typed diagnostics.
+The aggregate PDF profile remains unavailable pending isolated document execution
+and full WCF-13/14/resource qualification. PDF import remains rejected.
+
+Rectangular v1 tables have at most128 cells, equal-width columns, explicit
+left/center/right alignment,6pt padding, semantic first-row column headers and
+atomic row pagination. Empty cells and shaped-cluster wrapping preserve cell
+text. Rows taller than a page refuse; headers are not fabricated on continuation
+pages. V2/merged/nested cells and shared cell hard breaks remain unsupported.
+
+Images require captured host identity, original length/digest/dimensions and
+current read authorization through the Session asset journal. No source URL is
+fetched. The PNG profile accepts static noninterlaced8-bit grayscale/RGB/alpha
+with IHDR/IDAT/IEND only; ancillary profiles, animation, indexed/16-bit input and
+other codecs refuse. Cumulative original bytes obey the job input limit and
+decoded pixels are reserved before library allocation (1,048,576 total). Identical
+originals share one read/decode; conflicting identity declarations refuse. Images
+scale down within160x160pt and retain literal captions and Figure alternative
+text. Output, timeout/cancellation and asset failures abort without live content
+mutation and queue only job-owned cleanup.
+
+`krilla/raster-images` is enabled only by this optional exporter. Its12 additional
+locked package versions/notices are retained with C5 evidence; default registry
+and minimum editor do not load converters, fonts or media. Prepared execution
+ports and WASM compilation do not establish production process isolation,
+platform support, PDF/UA, archival compliance or release qualification.

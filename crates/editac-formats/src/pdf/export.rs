@@ -1,5 +1,6 @@
-//! Bounded captured text and rich publication prerequisites. Tables/images remain refused;
+//! Bounded captured text, rich, rectangular table and original PNG prerequisites;
 //! this module does not install or qualify the aggregate PDF publication profile.
+pub use super::export_assets::OriginalAssetHost;
 use crate::{Direction, Limits, Profile, job::*};
 use editac_core::{
     commands::{
@@ -8,16 +9,21 @@ use editac_core::{
         lists::ContainerStyle,
     },
     document::BlockAttributes,
+    modules::{
+        assets::*,
+        content::{Alignment, Content},
+    },
 };
 use editac_session::{assets::AssetStore, session::SessionStore};
 use krilla::{
     Document,
     action::{Action, LinkAction},
     annotation::{Annotation, LinkAnnotation, Target},
-    geom::{PathBuilder, Point, Rect, Size},
+    geom::{PathBuilder, Point, Rect, Size, Transform},
+    image::Image,
     page::PageSettings,
     paint::{Fill, Stroke},
-    tagging::{ContentTag, ListNumbering, Node, SpanTag, Tag, TagGroup, TagTree},
+    tagging::{ContentTag, ListNumbering, Node, SpanTag, TableHeaderScope, Tag, TagGroup, TagTree},
     text::{Font, TextDirection},
 };
 use sha2::{Digest, Sha256};
@@ -74,6 +80,30 @@ pub struct Report {
     pub pages: usize,
     pub shaped_bytes: usize,
     pub nodes: usize,
+    pub cells: Vec<CellBox>,
+    pub images: Vec<ImageBox>,
+    pub original_bytes: usize,
+    pub pixels: usize,
+    pub png_scan_bytes: usize,
+    pub png_scan_calls: usize,
+}
+#[derive(Clone, Debug)]
+pub struct CellBox {
+    pub block: usize,
+    pub page: usize,
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+}
+#[derive(Clone, Debug)]
+pub struct ImageBox {
+    pub block: usize,
+    pub page: usize,
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
 }
 impl Report {
     fn add(&mut self, code: &str, location: &str, lossy: bool) {
@@ -146,16 +176,29 @@ pub struct PaintRun {
     pub width: f32,
     pub style: Style,
 }
+#[derive(Clone)]
 struct SourceRun {
     range: Range<usize>,
     style: Style,
 }
+#[derive(Clone)]
+struct SourceCell {
+    table: String,
+    row: usize,
+    column: usize,
+    columns: usize,
+    alignment: Alignment,
+}
+#[derive(Clone)]
 struct Paragraph {
     text: String,
     runs: Vec<SourceRun>,
     heading: Option<u8>,
     path: Vec<(String, ContainerStyle)>,
     marker: Option<String>,
+    cell: Option<SourceCell>,
+    image: Option<AssetDescriptor>,
+    available: Option<f32>,
 }
 fn shape(
     text: &str,
@@ -225,6 +268,90 @@ fn paragraphs(
             unsupported = true;
             continue;
         };
+        if let Some(BlockAttributes::Unknown(tuple)) = &block.attributes {
+            if !block.containers.is_empty() || block.checked.is_some() {
+                report.add("ATOMIC_CONTAINER_UNAVAILABLE", id, true);
+                unsupported = true;
+            }
+            match Content::from_tuple(tuple) {
+                Ok(Some(Content::Table {
+                    rows, alignments, ..
+                })) => {
+                    if rows.is_empty()
+                        || alignments.is_empty()
+                        || rows.len() * alignments.len() > 128
+                    {
+                        report.add("TABLE_CELL_LIMIT", id, true);
+                        unsupported = true;
+                        continue;
+                    }
+                    report.add("TABLE_LAYOUT_DEFAULTS", id, false);
+                    for (row, cells) in rows.iter().enumerate() {
+                        if cells.len() != alignments.len() {
+                            return Err("TABLE_RECTANGLE_REQUIRED".into());
+                        }
+                        for (column, runs) in cells.iter().enumerate() {
+                            let cell_id = format!("{id}/{row}/{column}");
+                            let block = FragmentBlock {
+                                runs: runs.clone(),
+                                attributes: None,
+                                containers: vec![],
+                                checked: None,
+                            };
+                            match paragraphs(&[(cell_id, Ok(block))], report) {
+                                Ok(mut cell) => {
+                                    let mut p = cell.remove(0);
+                                    p.cell = Some(SourceCell {
+                                        table: id.clone(),
+                                        row,
+                                        column,
+                                        columns: alignments.len(),
+                                        alignment: alignments[column],
+                                    });
+                                    p.available = Some(
+                                        (WIDTH - 2.0 * MARGIN) / alignments.len() as f32 - 12.0,
+                                    );
+                                    result.push(p);
+                                }
+                                Err(_) => unsupported = true,
+                            }
+                        }
+                    }
+                }
+                Ok(Some(Content::Asset { descriptor }))
+                    if descriptor.kind == AssetKind::Image
+                        && descriptor.metadata.media_type == "image/png"
+                        && descriptor.metadata.byte_length.is_some()
+                        && descriptor.metadata.sha256.is_some()
+                        && descriptor.metadata.width.is_some() =>
+                {
+                    descriptor.validate().map_err(|_| "INVALID_ASSET")?;
+                    let block = FragmentBlock {
+                        runs: vec![editac_core::commands::editor::FragmentRun {
+                            text: descriptor.metadata.caption.clone(),
+                            marks: vec![],
+                        }],
+                        attributes: None,
+                        containers: vec![],
+                        checked: None,
+                    };
+                    match paragraphs(&[(id.clone(), Ok(block))], report) {
+                        Ok(mut image) => {
+                            let mut p = image.remove(0);
+                            p.image = Some(descriptor);
+                            result.push(p);
+                        }
+                        Err(_) => unsupported = true,
+                    }
+                }
+                _ => {
+                    report.add("UNSUPPORTED_ATOMIC_CONTENT", id, true);
+                    unsupported = true;
+                }
+            }
+            previous_path.clear();
+            continue;
+        }
         let heading = match block.attributes {
             None | Some(BlockAttributes::Paragraph) => None,
             Some(BlockAttributes::Heading(n)) if (1..=6).contains(&n) => Some(n),
@@ -333,6 +460,9 @@ fn paragraphs(
             heading,
             path: block.containers.clone(),
             marker,
+            cell: None,
+            image: None,
+            available: None,
         });
     }
     if unsupported {
@@ -383,7 +513,7 @@ fn paint_runs(
     }
     Ok(out)
 }
-fn layout(
+fn layout_text(
     paragraphs: &[Paragraph],
     fonts: Fonts<'_>,
     max_pages: usize,
@@ -410,7 +540,7 @@ fn layout(
         } else {
             p.path.len() as f32 * 24.0 + (marker_width - 18.0).max(0.0)
         };
-        let available = WIDTH - 2.0 * MARGIN - indent;
+        let available = p.available.unwrap_or(WIDTH - 2.0 * MARGIN) - indent;
         let mut offset = 0;
         let chunks = if p.text.is_empty() {
             vec![""]
@@ -517,6 +647,165 @@ fn layout(
     report.pages = page + 1;
     Ok(())
 }
+fn layout(
+    paragraphs: &[Paragraph],
+    fonts: Fonts<'_>,
+    max_pages: usize,
+    report: &mut Report,
+    mut check: impl FnMut() -> Result<(), String>,
+) -> Result<(), String> {
+    if paragraphs
+        .iter()
+        .all(|p| p.cell.is_none() && p.image.is_none())
+    {
+        return layout_text(paragraphs, fonts, max_pages, report, check);
+    }
+    let mut page = 0;
+    let mut top = MARGIN;
+    let mut block = 0;
+    while block < paragraphs.len() {
+        check()?;
+        let p = &paragraphs[block];
+        if let Some(cell) = &p.cell {
+            let columns = cell.columns;
+            if cell.column != 0 || block + columns > paragraphs.len() {
+                return Err("TABLE_RECTANGLE_REQUIRED".into());
+            }
+            let mut row = vec![];
+            let mut height = 0.0f32;
+            for (column, p) in paragraphs[block..block + columns].iter().enumerate() {
+                check()?;
+                let c = p.cell.as_ref().ok_or("TABLE_RECTANGLE_REQUIRED")?;
+                if c.table != cell.table || c.row != cell.row || c.column != column {
+                    return Err("TABLE_RECTANGLE_REQUIRED".into());
+                }
+                let mut local = Report {
+                    shaped_bytes: report.shaped_bytes,
+                    ..Report::default()
+                };
+                layout_text(std::slice::from_ref(p), fonts, 1, &mut local, &mut check).map_err(
+                    |reason| {
+                        if reason == "PAGE_LIMIT" {
+                            "TABLE_ROW_TOO_TALL".into()
+                        } else {
+                            reason
+                        }
+                    },
+                )?;
+                report.shaped_bytes = local.shaped_bytes;
+                if report.shaped_bytes > SHAPING_BUDGET {
+                    return Err("SHAPING_BUDGET".into());
+                }
+                if local.pages > 1 {
+                    return Err("TABLE_ROW_TOO_TALL".into());
+                }
+                height = height.max(local.lines.len() as f32 * LEADING + 12.0);
+                row.push(local.lines);
+            }
+            if height > HEIGHT - 2.0 * MARGIN {
+                return Err("TABLE_ROW_TOO_TALL".into());
+            }
+            if top + height > HEIGHT - MARGIN {
+                page += 1;
+                top = MARGIN;
+            }
+            if page >= max_pages {
+                return Err("PAGE_LIMIT".into());
+            }
+            let width = (WIDTH - 2.0 * MARGIN) / columns as f32;
+            for (column, lines) in row.into_iter().enumerate() {
+                let x = MARGIN + column as f32 * width;
+                report.cells.push(CellBox {
+                    block: block + column,
+                    page,
+                    x,
+                    y: top,
+                    width,
+                    height,
+                });
+                let c = paragraphs[block + column].cell.as_ref().unwrap();
+                for mut line in lines {
+                    line.block = block + column;
+                    line.page = page;
+                    line.y += top + 6.0 - MARGIN;
+                    let offset = match c.alignment {
+                        Alignment::Center => (width - 12.0 - line.width) / 2.0,
+                        Alignment::Right => width - 12.0 - line.width,
+                        Alignment::None if line.rtl => width - 12.0 - line.width,
+                        _ => 0.0,
+                    };
+                    line.x = x + 6.0 + offset;
+                    report.lines.push(line);
+                }
+            }
+            top += height;
+            block += columns;
+            continue;
+        }
+        let mut local = Report {
+            shaped_bytes: report.shaped_bytes,
+            ..Report::default()
+        };
+        layout_text(std::slice::from_ref(p), fonts, 8, &mut local, &mut check)?;
+        report.shaped_bytes = local.shaped_bytes;
+        if report.shaped_bytes > SHAPING_BUDGET {
+            return Err("SHAPING_BUDGET".into());
+        }
+        if let Some(descriptor) = &p.image {
+            let w = descriptor.metadata.width.unwrap() as f32;
+            let h = descriptor.metadata.height.unwrap() as f32;
+            let scale = (160.0 / w).min(160.0 / h).min(1.0);
+            let (width, height) = (w * scale, h * scale);
+            let caption_height = if p.text.is_empty() {
+                0.0
+            } else {
+                local.lines.len() as f32 * LEADING
+            };
+            let total = height + caption_height + 12.0;
+            if total > HEIGHT - 2.0 * MARGIN {
+                return Err("IMAGE_BLOCK_TOO_TALL".into());
+            }
+            if top + total > HEIGHT - MARGIN {
+                page += 1;
+                top = MARGIN;
+            }
+            if page >= max_pages {
+                return Err("PAGE_LIMIT".into());
+            }
+            report.images.push(ImageBox {
+                block,
+                page,
+                x: MARGIN,
+                y: top,
+                width,
+                height,
+            });
+            top += height + 6.0;
+        }
+        if p.image.is_none() || !p.text.is_empty() {
+            for mut line in local.lines {
+                if top + line.size > HEIGHT - MARGIN {
+                    page += 1;
+                    top = MARGIN;
+                }
+                if page >= max_pages {
+                    return Err("PAGE_LIMIT".into());
+                }
+                line.block = block;
+                line.page = page;
+                line.y = top + line.size;
+                top += LEADING.max(line.size * 1.55);
+                report.lines.push(line);
+            }
+        }
+        if p.image.is_some() {
+            top += 6.0;
+        }
+        block += 1;
+    }
+    report.pages = page + 1;
+    Ok(())
+}
 fn list_tree(
     paragraphs: &[Paragraph],
     bodies: &mut [Option<TagGroup>],
@@ -562,6 +851,7 @@ fn render(
     report: &Report,
     paragraphs: &[Paragraph],
     fonts: Fonts<'_>,
+    images: &BTreeMap<usize, Image>,
     mut check: impl FnMut() -> Result<(), String>,
 ) -> Result<Vec<u8>, String> {
     let mut faces = vec![];
@@ -572,12 +862,22 @@ fn render(
     let mut groups = paragraphs
         .iter()
         .map(|p| {
-            Some(match p.heading {
-                Some(n) => TagGroup::new(Tag::Hn(
-                    NonZeroU16::new(u16::from(n)).unwrap(),
-                    Some(p.text.clone()),
-                )),
-                None => TagGroup::new(Tag::P),
+            Some(if let Some(cell) = &p.cell {
+                if cell.row == 0 {
+                    TagGroup::new(Tag::TH(TableHeaderScope::Column))
+                } else {
+                    TagGroup::new(Tag::TD)
+                }
+            } else if let Some(image) = &p.image {
+                TagGroup::new(Tag::Figure(Some(image.metadata.alt.clone())))
+            } else {
+                match p.heading {
+                    Some(n) => TagGroup::new(Tag::Hn(
+                        NonZeroU16::new(u16::from(n)).unwrap(),
+                        Some(p.text.clone()),
+                    )),
+                    None => TagGroup::new(Tag::P),
+                }
             })
         })
         .collect::<Vec<_>>();
@@ -588,6 +888,40 @@ fn render(
             document.start_page_with(PageSettings::new(Size::from_wh(WIDTH, HEIGHT).unwrap()));
         let mut annotations: Vec<(usize, usize, Annotation)> = vec![];
         let mut surface = page.surface();
+        for cell in report.cells.iter().filter(|c| c.page == number) {
+            check()?;
+            let mut path = PathBuilder::new();
+            path.move_to(cell.x, cell.y);
+            path.line_to(cell.x + cell.width, cell.y);
+            path.line_to(cell.x + cell.width, cell.y + cell.height);
+            path.line_to(cell.x, cell.y + cell.height);
+            path.close();
+            surface.start_tagged(ContentTag::Artifact(Default::default()));
+            surface.set_fill(None);
+            surface.set_stroke(Some(Stroke {
+                width: 0.5,
+                ..Default::default()
+            }));
+            surface.draw_path(&path.finish().unwrap());
+            surface.set_stroke(None);
+            surface.set_fill(Some(Fill::default()));
+            surface.end_tagged();
+        }
+        for placement in report.images.iter().filter(|i| i.page == number) {
+            check()?;
+            let id = surface.start_tagged(ContentTag::Other);
+            surface.push_transform(&Transform::from_translate(placement.x, placement.y));
+            surface.draw_image(
+                images
+                    .get(&placement.block)
+                    .ok_or("ASSET_IMAGE_MISSING")?
+                    .clone(),
+                Size::from_wh(placement.width, placement.height).ok_or("IMAGE_RECT")?,
+            );
+            surface.pop();
+            surface.end_tagged();
+            groups[placement.block].as_mut().unwrap().push(id);
+        }
         for line in report.lines.iter().filter(|l| l.page == number) {
             check()?;
             if let Some(marker) = &line.marker {
@@ -696,7 +1030,30 @@ fn render(
     let mut tree = TagTree::new();
     let mut i = 0;
     while i < paragraphs.len() {
-        if paragraphs[i].path.is_empty() {
+        if let Some(cell) = &paragraphs[i].cell {
+            let table_id = cell.table.clone();
+            let mut table = TagGroup::new(Tag::Table);
+            while i < paragraphs.len()
+                && paragraphs[i]
+                    .cell
+                    .as_ref()
+                    .is_some_and(|c| c.table == table_id)
+            {
+                let row_id = paragraphs[i].cell.as_ref().unwrap().row;
+                let mut row = TagGroup::new(Tag::TR);
+                while i < paragraphs.len()
+                    && paragraphs[i]
+                        .cell
+                        .as_ref()
+                        .is_some_and(|c| c.table == table_id && c.row == row_id)
+                {
+                    row.push(groups[i].take().unwrap());
+                    i += 1;
+                }
+                table.push(row);
+            }
+            tree.push(table);
+        } else if paragraphs[i].path.is_empty() {
             tree.push(groups[i].take().unwrap());
             i += 1;
         } else {
@@ -710,9 +1067,10 @@ fn render(
 /// Captures were produced by the shared Session when the PreparedJob began.
 /// Prepared ports are portable integration evidence only; an isolated native
 /// document launcher remains a full-profile qualification requirement.
-pub fn export_with_fonts<S: SessionStore + AssetStore>(
+pub fn export_with_assets<S: SessionStore + AssetStore, H: OriginalAssetHost>(
     job: &mut PreparedJob<S>,
     fonts: Fonts<'_>,
+    host: &mut H,
     approve_mark_loss: bool,
     mut now: impl FnMut() -> u64,
 ) -> Result<Completion, Failure> {
@@ -776,6 +1134,47 @@ pub fn export_with_fonts<S: SessionStore + AssetStore>(
         if total > PROFILE.limits.input_bytes || paragraphs.len() > job.contract().limits.nodes {
             return Err("TEXT_LIMIT".into());
         }
+        let mut images = BTreeMap::new();
+        let mut identities = BTreeMap::new();
+        for p in &paragraphs {
+            if let Some(d) = &p.image {
+                let key = (d.identity.host.clone(), d.identity.key.clone());
+                let signature = (
+                    d.metadata.sha256.clone(),
+                    d.metadata.byte_length,
+                    d.metadata.width,
+                    d.metadata.height,
+                );
+                if identities
+                    .insert(key, signature.clone())
+                    .is_some_and(|old| old != signature)
+                {
+                    report.add("ASSET_IDENTITY_CONFLICT", "images", true);
+                    return Err("ASSET_IDENTITY_CONFLICT".into());
+                }
+            }
+        }
+        let mut originals = BTreeMap::<(String, String), Image>::new();
+        for (index, p) in paragraphs.iter().enumerate() {
+            if let Some(descriptor) = &p.image {
+                let key = (
+                    descriptor.identity.host.clone(),
+                    descriptor.identity.key.clone(),
+                );
+                if let Some(image) = originals.get(&key) {
+                    images.insert(index, image.clone());
+                    continue;
+                }
+                let image =
+                    super::export_assets::load(job, host, descriptor, &mut report, &mut now)
+                        .map_err(|reason| {
+                            report.add(&reason, &format!("image/{index}"), true);
+                            reason
+                        })?;
+                originals.insert(key, image.clone());
+                images.insert(index, image);
+            }
+        }
         let layout_result = layout(
             &paragraphs,
             fonts,
@@ -787,7 +1186,7 @@ pub fn export_with_fonts<S: SessionStore + AssetStore>(
             report.add(&reason, "layout", true);
             return Err(reason);
         }
-        let bytes = render(&report, &paragraphs, fonts, || {
+        let bytes = render(&report, &paragraphs, fonts, &images, || {
             job.check(now()).map_err(|e| format!("JOB:{e:?}"))
         })?;
         job.append(&bytes, report.nodes, report.pages, now())
@@ -807,6 +1206,23 @@ pub fn export_with_fonts<S: SessionStore + AssetStore>(
             })
         }
     }
+}
+
+/// Text/table compatibility entry point. Images require an explicit original
+/// asset host; approval never grants read authority.
+pub fn export_with_fonts<S: SessionStore + AssetStore>(
+    job: &mut PreparedJob<S>,
+    fonts: Fonts<'_>,
+    approve_mark_loss: bool,
+    now: impl FnMut() -> u64,
+) -> Result<Completion, Failure> {
+    export_with_assets(
+        job,
+        fonts,
+        &mut super::export_assets::Unavailable,
+        approve_mark_loss,
+        now,
+    )
 }
 
 /// Base-face compatibility entry point. Rich faces must be provided explicitly;

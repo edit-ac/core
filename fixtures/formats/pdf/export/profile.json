@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "owner": "CNV-1.9",
-  "state": "text-and-rich-layout-prerequisites-only",
+  "state": "text-rich-table-and-original-image-prerequisites-only",
   "aggregateProfileAvailable": false,
-  "boundary": "Captured shared Session paragraphs, qualified six marks, headings, ordered/unordered nested lists and safe links; pinned explicit font faces; prepared execution ports",
+  "boundary": "Captured shared Session paragraphs, qualified six marks, headings, ordered/unordered nested lists and safe links; pinned explicit font faces; prepared execution ports; bounded v1 rectangular semantic tables and host-authorized original PNG images",
   "layout": {
     "pageWidthPt": 420,
     "pageHeightPt": 360,
@@ -15,22 +15,26 @@
     "textNormalization": "none",
     "headingPt": "26,24,22,20,18,16",
     "listIndentPt": 24,
-    "maxListDepth": 4
+    "maxListDepth": 4,
+    "table": "at most128 rectangular v1 cells, equal columns,6pt padding, first row column headers, atomic rows, no repeated fabricated headers",
+    "image": "original static PNG8,scale down within160x160pt, caption and Figure alt"
   },
   "limits": {
     "textBytes": 65536,
     "shapedBytes": 2000000,
-    "outputBytes": 4194304
+    "outputBytes": 4194304,
+    "imagePixels": 1048576,
+    "imageChunks": 256
   },
   "unimplemented": [
-    "tables",
-    "authorized images",
     "mixed bidi paragraphs",
     "heterogeneous Arabic rich runs and styled Arabic faces",
     "code+bold/italic face combinations",
     "quote/checklist and empty/unmapped containers",
     "native-isolated semantic document invocation",
-    "complete WCF-13/14 fixture matrix"
+    "complete WCF-13/14 fixture matrix",
+    "v2 rich/merged tables; nested cells; rows taller than a page",
+    "remote/source-URL images, non-PNG, PNG ancillary/profile/animation/interlace or indexed/16-bit images"
   ],
   "unsupportedPolicy": "complete diagnostics and refusal for structural/shaping gaps; explicit approval for unknown mark/source-provenance loss; immutable source retained",
   "targets": {

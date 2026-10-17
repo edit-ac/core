@@ -98,3 +98,5 @@ pub fn admit_probe(
 
 #[cfg(feature = "pdf-export")]
 pub mod export;
+#[cfg(feature = "pdf-export")]
+mod export_assets;

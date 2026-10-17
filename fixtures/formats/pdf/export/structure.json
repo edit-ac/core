@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "before": "Before table",
+  "rows": [
+    [
+      {
+        "text": "Item",
+        "marks": [
+          "bold"
+        ]
+      },
+      {
+        "text": "Publication note",
+        "marks": [
+          "bold"
+        ]
+      }
+    ],
+    [
+      {
+        "text": "Row 1",
+        "marks": []
+      },
+      {
+        "text": "Café bounded publication with exact cell order. Café bounded publication with exact cell order. Café bounded publication with exact cell order. ",
+        "marks": []
+      }
+    ],
+    [
+      {
+        "text": "Row 2",
+        "marks": []
+      },
+      {
+        "text": "Café bounded publication with exact cell order. Café bounded publication with exact cell order. Café bounded publication with exact cell order. ",
+        "marks": []
+      }
+    ],
+    [
+      {
+        "text": "Row 3",
+        "marks": []
+      },
+      {
+        "text": "لا لَا العربية",
+        "marks": []
+      }
+    ],
+    [
+      {
+        "text": "Row 4",
+        "marks": []
+      },
+      {
+        "text": "Café bounded publication with exact cell order. Café bounded publication with exact cell order. Café bounded publication with exact cell order. ",
+        "marks": []
+      }
+    ],
+    [
+      {
+        "text": "Row 5",
+        "marks": []
+      },
+      {
+        "text": "Café bounded publication with exact cell order. Café bounded publication with exact cell order. Café bounded publication with exact cell order. ",
+        "marks": []
+      }
+    ],
+    [
+      {
+        "text": "Row 6",
+        "marks": []
+      },
+      {
+        "text": "Café bounded publication with exact cell order. Café bounded publication with exact cell order. Café bounded publication with exact cell order. ",
+        "marks": []
+      }
+    ],
+    [
+      {
+        "text": "Row 7",
+        "marks": []
+      },
+      {
+        "text": "Café bounded publication with exact cell order. Café bounded publication with exact cell order. Café bounded publication with exact cell order. ",
+        "marks": []
+      }
+    ],
+    [
+      {
+        "text": "Row 8",
+        "marks": []
+      },
+      {
+        "text": "Café bounded publication with exact cell order. Café bounded publication with exact cell order. Café bounded publication with exact cell order. ",
+        "marks": []
+      }
+    ]
+  ],
+  "alignments": [
+    "left",
+    "center"
+  ],
+  "after": "After original image",
+  "image": {
+    "width": 120,
+    "height": 60,
+    "alt": "Red, green and blue vertical panels",
+    "caption": "Original authorized color panels"
+  }
+}
