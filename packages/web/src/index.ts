@@ -43,3 +43,6 @@ export type { PrivateReferenceDisplayOptions } from './modules/references/displa
 export type { ImageOptions, ImageAssetPort, ImageAssetRequest, ImageAssetResolution, ImageAssetIdentity, ImageAssetDescriptor, ImageAvailability } from './modules/images/presenter.js';
 export { DEFAULT_IMAGE_LIMITS } from './modules/images/policy.js';
 export type { ImageLimits } from './modules/images/policy.js';
+
+export { attachmentPresenters, attachmentClipboard, ATTACHMENT_CLIPBOARD_MIME } from './modules/attachments/presenter.js';
+export type { AttachmentDescriptor, AttachmentState, AttachmentAction, AttachmentRequest, AttachmentAuthorization, AttachmentResult, AttachmentPort, AttachmentOptions, AttachmentClipboard } from './modules/attachments/presenter.js';

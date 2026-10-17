@@ -47,3 +47,6 @@ export type { CodeHighlightOptions, CodeHighlightFactory } from './code/presente
 export type { ImageOptions, ImageAssetPort, ImageAssetRequest, ImageAssetResolution, ImageAssetIdentity, ImageAssetDescriptor, ImageAvailability } from './images/presenter.js';
 export { DEFAULT_IMAGE_LIMITS } from './images/policy.js';
 export type { ImageLimits } from './images/policy.js';
+
+export { attachmentPresenters, attachmentClipboard, ATTACHMENT_CLIPBOARD_MIME } from './attachments/presenter.js';
+export type { AttachmentDescriptor, AttachmentState, AttachmentAction, AttachmentRequest, AttachmentAuthorization, AttachmentResult, AttachmentPort, AttachmentOptions, AttachmentClipboard } from './attachments/presenter.js';
