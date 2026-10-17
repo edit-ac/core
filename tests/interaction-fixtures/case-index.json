@@ -2121,7 +2121,7 @@
         "INT-1.11"
       ],
       "catalog": "tests/editor-interaction-cases.md",
-      "sourceSha256": "bdf702106be89c3cdedd509e1abe7b18f49f87d5559856f7595c863390aded3c",
+      "sourceSha256": "9e59afc14ab56359c21087c9480a8db9a45ae06ffde0ce136d1f95a0969217f9",
       "action": "List/quote/heading typing triggers and immediate Backspace",
       "fixtureOwner": "tests/browser/interaction-harness.ts",
       "engineDriver": "tests/editing/browser-driver.ts",
@@ -2131,7 +2131,7 @@
         "qualification": "planned owner-specific fixture; harness paragraph replay only; no structural emulation"
       },
       "expected": {
-        "semantic": "Exact local trigger converts; Backspace reverses conversion without losing typed source",
+        "semantic": "Exact local trigger (including `0. `) converts through the shared ordered tuple; Backspace reverses conversion without losing typed source; undo/redo and durable reopen preserve start/content",
         "selection": "Independent UTF-16 anchor/focus/direction/affinity snapshot; forward and backward variants; source row defines resulting target.",
         "effects": "Assert actual local/remote commits, durable updates and semantic history; navigation/rejection/cancellation are zero-effect."
       },
@@ -2266,7 +2266,7 @@
         "INT-1.11"
       ],
       "catalog": "tests/editor-interaction-cases.md",
-      "sourceSha256": "d4ba05c1ae301ee5df1ed0480ab038d1d8f96b8652979829cb33a9b0a4f5413b",
+      "sourceSha256": "e455608b336e746e15eeb7b0ec5964b6edd28947aea9f22ea4a401860bc18028",
       "action": "Parse `Hi. there`, `Ex) aside`, and a valid list starting at `0.`",
       "fixtureOwner": "tests/browser/interaction-harness.ts",
       "engineDriver": "tests/editing/browser-driver.ts",
@@ -2276,7 +2276,7 @@
         "qualification": "planned owner-specific fixture; harness paragraph replay only; no structural emulation"
       },
       "expected": {
-        "semantic": "First two remain ordinary text; valid ordered list preserves start value zero and content",
+        "semantic": "First two remain ordinary text; valid ordered list preserves start value zero and content through shared command/schema admission, export/reimport, projection, undo/redo and durable reopen; malformed, fractional, negative and overflow starts still reject",
         "selection": "Independent UTF-16 anchor/focus/direction/affinity snapshot; forward and backward variants; source row defines resulting target.",
         "effects": "Assert actual local/remote commits, durable updates and semantic history; navigation/rejection/cancellation are zero-effect."
       },
