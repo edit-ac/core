@@ -75,6 +75,25 @@ fn main() {
                 return Err("Unauthorized".into());
             }
             match operation {
+                "observe" => {
+                    let access = &input["access"];
+                    let permissions = access["permissions"].as_array().ok_or("Unauthorized")?;
+                    if access["actorId"] != "agent-a"
+                        || access["documentId"] != identity.document_id
+                        || access["epoch"] != identity.epoch
+                        || !permissions.iter().any(|p| p == "read")
+                        || !permissions.iter().any(|p| p == "observe")
+                    {
+                        return Err("Unauthorized".into());
+                    }
+                    // Use the ordinary revision boundary, including its recovery
+                    // barrier. Do not snapshot/export source for an invalidation.
+                    let current = service
+                        .session()
+                        .observed_revision()
+                        .map_err(|e| format!("{e:?}"))?;
+                    Ok(json!({"revision":revision(&current)}))
+                }
                 "seed" => {
                     let c = service.session().document().checkpoint();
                     Ok(

@@ -6,3 +6,5 @@ export { createHostPrepare } from './prepare.js';
 export type { HostPrepareOwner, HostPrepareResult, HostChangeModel } from './prepare.js';
 export { createHostApply } from './apply.js';
 export type { HostApplyOwner } from './apply.js';
+export { createHostObserve } from './observe.js';
+export type { HostObserveOwner, HostObservation } from './observe.js';

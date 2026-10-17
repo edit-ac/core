@@ -115,7 +115,8 @@ export function createHostAgent<Context>(options: HostAgentOptions<Context>) {
   // Freeze registration; services still evaluate live capabilities on every request.
   const services = { ...options.services };
   const permitted = (access: HostAgentAccess, op: HostAgentOperation) =>
-    access.permissions.includes(op) && !(access.readOnly && (op === 'apply' || op === 'prepare'));
+    access.permissions.includes(op) && (op !== 'observe' || access.permissions.includes('read'))
+    && !(access.readOnly && (op === 'apply' || op === 'prepare'));
   const resolve = async (context: Context, documentId: string) => {
     const access = await options.authorize(context, documentId);
     if (!access || !access.actorId || !access.epoch || access.documentId !== documentId) return null;
@@ -147,6 +148,11 @@ export function createHostAgent<Context>(options: HostAgentOptions<Context>) {
       try { if (!service?.available(access)) return error('unavailable'); } catch { return error('unavailable'); }
       try {
         const data = await service.execute(Object.freeze(request), access);
+        if (op === 'observe') {
+          const current = await resolve(context, request.documentId);
+          if (!current || !permitted(current, op) || !current.permissions.includes('read')
+            || current.actorId !== access.actorId || current.epoch !== access.epoch) return error('denied');
+        }
         if ((op === 'apply' || op === 'receipt') && !validReceipt(data, request.requestId)) return error('unknown-outcome');
         return { version: 1, status: 'ok', data };
       } catch {

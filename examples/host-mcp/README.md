@@ -184,4 +184,45 @@ native-store --locked --offline`, then `npm run test:browser -- agent-realtime`.
 The canonical browser suite drives real Session/SQLite, two mounted human WASM
 views, storage/outboxes, prepared collaboration transport, revocation, concurrent
 edits, retry/recovery, history and actual keyboard input. Observation negotiation
-and complete adversarial app-MCP qualification remain AGT-1.6 and AGT-1.7.
+and complete adversarial app-MCP qualification remain separately tracked.
+
+## Capability-negotiated observation
+
+`createHostObserve(owner)` installs the optional `observe` service. The authorized
+owner reads the ordinary shared revision token, without exporting source, updates,
+history or receipt data. The helper requires read and observe permissions. The
+host facade reauthorizes after asynchronous execution and rejects a changed actor
+or epoch. Revision cursors are opaque equality tokens, not ordered clocks. A
+mismatch requests collaboration resynchronization; it does not replay an edit.
+The SQLite example denies ordinary observation while its recovery barrier is
+active, then returns the current revision after ordered recovery. Explicit local
+salvage remains a separate, labeled host recovery workflow.
+
+`src/observe.ts` demonstrates connection-scoped registration on an embedding app's
+existing MCP resource facade. Map its resource provider methods to the installed
+MCP SDK and pass the host's actual negotiated resource/subscription support.
+Resource reads return JSON revision metadata. Supported subscriptions send only
+`notifications/resources/updated` with an opaque resource URI. The host calls
+`invalidate(documentId)` after a document event; updates themselves always travel
+on the collaboration channel. Unsupported subscription transports use explicit
+`poll(documentId, cursor)` or the authorized observe tool. No new MCP server or
+engine transport is required.
+
+Each authenticated connection defaults to at most 16 retained documents and 16
+in-flight reads, a one-second minimum read interval and a 60-second lease. Hosts
+may configure the documented bounded ranges. No timer or event backlog is created;
+the caller schedules bounded polls while connected and disposes the facade on
+disconnect. Requests within the interval return `rate-limited` plus a retry delay;
+concurrent work returns `busy`. Notifications coalesce and may be lost or duplicated.
+Reconnect reads the current revision and resynchronizes through collaboration.
+Reauthorization, scope pinning, unsubscribe, lease expiry and disposal remove
+subscriptions; the embedding transport must dispatch on the authenticated
+connection and enforce its own revocation before flushing any queued messages.
+
+Observation always reports `durability: 'not-reported'`. A notification, revision
+read, send or render cannot confirm durable synchronization. Use the authorized
+durable request receipt for that claim. Source must be fetched through a separate
+authorized read/export; resource listings and notifications contain no source.
+The fixture suite uses prepared MCP/auth/clock controls and the real native
+Session/SQLite owner: `node --test tests/agent-observe.test.mjs`. Full adversarial
+app integration remains AGT-1.7.
