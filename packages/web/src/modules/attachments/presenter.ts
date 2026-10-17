@@ -1,4 +1,5 @@
-import { FRAGMENT_MIME } from '../../clipboard/fragment.js';
+import { FRAGMENT_MIME, encodeContentFragment } from '../../clipboard/fragment.js';
+import { renderContentRuns } from '../transfer.js';
 import type { ContentContext, ContentFactory } from '../content.js';
 import type { ImageAssetDescriptor, ImageAssetIdentity } from '../images/presenter.js';
 
@@ -55,7 +56,9 @@ export function attachmentPresenters(options: AttachmentOptions = {}): ContentFa
     let disposed = false, key = '', current = context.node, stop: (() => void) | undefined;
     const setState = (state: string) => { element.dataset.attachmentState = state; status.textContent = `File ${state}. Binary data is not included in source or clipboard.`; };
     const present = () => {
-      element.setAttribute('aria-label',data!.metadata.filename); label.textContent = data!.metadata.filename; detail.textContent = ` — ${data!.metadata.byteLength === null ? 'Size unknown' : `${data!.metadata.byteLength} bytes`} — ${data!.fallback}`;
+      element.setAttribute('aria-label',data!.metadata.filename); label.textContent = data!.metadata.filename;
+      const fallback = doc.createElement('span'); fallback.dataset.attachmentFallback = ''; renderContentRuns(fallback, current);
+      detail.replaceChildren(doc.createTextNode(` — ${data!.metadata.byteLength === null ? 'Size unknown' : `${data!.metadata.byteLength} bytes`} — `), fallback);
       if (source.value !== data!.source.replaceAll('\r\n','\n').replaceAll('\r','\n')) source.value = data!.source;
       let state: AttachmentState = 'missing';
       try { const observation = port?.observe?.(Object.freeze({...data!.identity})); if (observation && equal(observation.identity,data!.identity) && states.has(observation.state)) state = observation.state; } catch { state = 'failed'; }
@@ -88,7 +91,7 @@ export function attachmentPresenters(options: AttachmentOptions = {}): ContentFa
     const contain = (event: Event) => event.stopPropagation();
     const events = ['beforeinput','input','keydown','keyup','compositionstart','compositionend','cut','paste','dragstart','dragover','drop','dragend'];
     for (const type of events) element.addEventListener(type,contain);
-    const onCopy = (event: Event) => { event.stopPropagation(); const e = event as ClipboardEvent; if (!e.clipboardData) return; e.clipboardData.clearData(); e.clipboardData.setData('text/plain',event.target === source ? source.value.slice(source.selectionStart,source.selectionEnd) : data!.source); e.clipboardData.setData(ATTACHMENT_CLIPBOARD_MIME,JSON.stringify(attachmentClipboard(data!))); const fragment = JSON.stringify({version:1,schema:context.engine.read().identity.schema,blocks:[{attributes:{type:'content',tuple:['module:editac.asset',1,data]},runs:[{text:data!.fallback,marks:[]}]}]}); if (new TextEncoder().encode(fragment).length <= 1048576) e.clipboardData.setData(FRAGMENT_MIME,fragment); e.preventDefault(); };
+    const onCopy = (event: Event) => { event.stopPropagation(); const e = event as ClipboardEvent; if (!e.clipboardData) return; e.clipboardData.clearData(); e.clipboardData.setData('text/plain',event.target === source ? source.value.slice(source.selectionStart,source.selectionEnd) : data!.source); e.clipboardData.setData(ATTACHMENT_CLIPBOARD_MIME,JSON.stringify(attachmentClipboard(data!))); try { e.clipboardData.setData(FRAGMENT_MIME,encodeContentFragment(context.engine,current)); } catch { /* Keep source and descriptor when an internal fragment exceeds its bounds. */ } e.preventDefault(); };
     element.addEventListener('copy',onCopy);
     const update = (node: ContentContext['node']) => { const next = descriptor(node); if (disposed || !next) return false; const nextKey = JSON.stringify(next); current = node; if (key !== nextKey) { stop?.(); data = next; key = nextKey; present(); } else if (!stop) present(); return true; };
     update(context.node);

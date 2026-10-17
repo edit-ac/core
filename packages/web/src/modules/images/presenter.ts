@@ -1,5 +1,7 @@
 import type { ContentContext, ContentView, ImageMetadata } from '../content.js';
 import { imageLimits, inspectImage, validateImagePayload, type ImageLimits } from './policy.js';
+import { renderContentRuns } from '../transfer.js';
+import { FRAGMENT_MIME, encodeContentFragment } from '../../clipboard/fragment.js';
 /** Mirrors the owning Rust assets records; descriptive metadata never grants access. */
 export interface ImageAssetIdentity { host: string; key: string }
 export interface ImageAssetDescriptor { identity: ImageAssetIdentity; kind: 'image'; metadata: { alt: string; caption: string; filename: string; mediaType: string; byteLength: number | null; sha256: string | null; width: number | null; height: number | null; durationMs: number | null }; fallback: string; source: string }
@@ -38,17 +40,20 @@ export function imagePresenters(options: ImageOptions): (context: ContentContext
     const doc=context.element.ownerDocument, retry=doc.createElement('button'), element=doc.createElement('section'), image=doc.createElement('img'), status=doc.createElement('p'), alt=doc.createElement('p'), source=doc.createElement('textarea');
     const events=['keydown','keyup','beforeinput','input','compositionstart','compositionupdate','compositionend','copy','cut','paste','pointerdown','pointermove','pointerup','pointercancel','dragstart','dragover','drop','dragend'];
     const contain=(event:Event)=>event.stopPropagation();
-    const copy=(event:Event)=>{const e=event as ClipboardEvent;if(e.clipboardData){e.clipboardData.setData('text/plain',source.value.slice(source.selectionStart,source.selectionEnd));e.preventDefault();}};
-    source.addEventListener('copy',copy);
+    let current=context.node;
+    const copy=(event:Event)=>{const e=event as ClipboardEvent;if(e.clipboardData){e.clipboardData.setData('text/plain',event.target===source?source.value.slice(source.selectionStart,source.selectionEnd):source.value);if(event.target!==source)try{e.clipboardData.setData(FRAGMENT_MIME,encodeContentFragment(context.engine,current));}catch{/* Oversized/unsupported copies retain only explicit source text. */}e.preventDefault();}};
+    element.addEventListener('copy',copy);
     for(const type of events)element.addEventListener(type,contain);
     element.dataset.contentModule='image'; element.contentEditable='false'; status.setAttribute('role','status'); source.readOnly=true; source.setAttribute('aria-label','Image source'); image.hidden=true; retry.type='button';retry.textContent='Load image';element.append(image,alt,source,status,retry);
     let disposed=false, key='', stop=()=>{};
     const setState=(value:string)=>{element.dataset.imageState=value;retry.hidden=['ready','loading','disposed'].includes(value);status.textContent=`Image ${value}; source preserved.`;};
     function update(node: ContentContext['node']): boolean {
       const d=imageDescriptor(node); if (disposed || !d) return false;
+      current=node;
+      if (!('url' in d)) renderContentRuns(alt,node);
       const next=JSON.stringify(d); if (next===key) return true; key=next; stop();
       const legacy='url' in d;
-      image.alt=legacy?d.alt:d.metadata.alt; image.title=legacy?d.title:d.metadata.caption; alt.textContent=image.alt || (legacy?'Image':d.fallback); source.value=d.source;
+      image.alt=legacy?d.alt:d.metadata.alt; image.title=legacy?d.title:d.metadata.caption; if(legacy)alt.textContent=image.alt || 'Image'; source.value=d.source;
       image.hidden=true;image.removeAttribute('src');
       if (legacy ? !options.imageUrl : !options.imageAssets) {setState('missing');return true;}
       if (active>=limits.concurrency) {setState('busy');return true;}
@@ -88,9 +93,9 @@ export function imagePresenters(options: ImageOptions): (context: ContentContext
       })();
       return true;
     }
-    let current=context.node; const originalUpdate=update;
+    const originalUpdate=update;
     retry.onclick=()=>{key='';originalUpdate(current);};
     update(context.node);
-    return {element,update(node){current=node;return update(node);},setReadOnly(){},dispose(){if(disposed)return;disposed=true;retry.onclick=null;source.removeEventListener('copy',copy);for(const type of events)element.removeEventListener(type,contain);stop();image.removeAttribute('src');image.hidden=true;setState('disposed');}};
+    return {element,update(node){current=node;return update(node);},setReadOnly(){},dispose(){if(disposed)return;disposed=true;retry.onclick=null;element.removeEventListener('copy',copy);for(const type of events)element.removeEventListener(type,contain);stop();image.removeAttribute('src');image.hidden=true;setState('disposed');}};
   };
 }
