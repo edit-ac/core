@@ -243,6 +243,88 @@ fn origin() -> TextOrigin {
 }
 
 #[test]
+fn table_source_rechecks_authority_codec_and_persists_exact_source_history() {
+    let f = Fixture::new(false);
+    let (store, mut service) = f.service("source");
+    let original = tuple(&service, &f.table);
+    let commands = [EditorCommand::TableSource {
+        target: f.table.clone(),
+        expected: service
+            .session()
+            .document()
+            .fragment_for_node(&f.table)
+            .unwrap()
+            .attributes
+            .unwrap()
+            .tuple(),
+        source: "| exact | source |\r\n| --- | --- |\r\n".into(),
+    }];
+    let revision = service.read(0).unwrap().revision;
+    let bytes = service.session().document().checkpoint().bytes;
+    let prepared = service
+        .prepare_commands(&revision, &commands, &origin(), 0)
+        .unwrap();
+    service.set_policy(HostPolicy {
+        writable: false,
+        ..policy()
+    });
+    assert!(matches!(
+        service.apply(prepared, 0),
+        Err(ServiceError::ReadOnly)
+    ));
+    assert!(matches!(
+        service.prepare_commands(&revision, &commands, &origin(), 0),
+        Err(ServiceError::ReadOnly)
+    ));
+    service.set_policy(HostPolicy::default());
+    assert!(matches!(
+        service.prepare_commands(&revision, &commands, &origin(), 0),
+        Err(ServiceError::UnsupportedModule)
+    ));
+    service.set_policy(policy());
+    let prepared = service
+        .prepare_commands(&revision, &commands, &origin(), 0)
+        .unwrap();
+    service.set_policy(HostPolicy::default());
+    assert!(matches!(
+        service.apply(prepared, 0),
+        Err(ServiceError::UnsupportedModule)
+    ));
+    assert_eq!(service.session().document().checkpoint().bytes, bytes);
+    assert_eq!(service.session().document().history_state().undo_groups, 0);
+    assert_eq!(store.pending(&f.id).unwrap().len(), 0);
+    service.set_policy(policy());
+    let prepared = service
+        .prepare_commands(&revision, &commands, &origin(), 0)
+        .unwrap();
+    let receipt = service.apply(prepared, 0).unwrap().unwrap();
+    assert_eq!(
+        service.local_receipt(&receipt.update).unwrap(),
+        Some(receipt)
+    );
+    assert_eq!(store.pending(&f.id).unwrap().len(), 1);
+    assert_eq!(service.session().document().history_state().undo_groups, 1);
+    let edited = tuple(&service, &f.table);
+    assert_eq!(
+        edited[2]["source"],
+        "| exact | source |\r\n| --- | --- |\r\n"
+    );
+    assert_eq!(edited[2]["rows"], original[2]["rows"]);
+    assert_eq!(edited[2]["alignments"], original[2]["alignments"]);
+    let revision = service.read(0).unwrap().revision;
+    service.undo(&revision, 0).unwrap().unwrap();
+    assert_eq!(tuple(&service, &f.table), original);
+    let revision = service.read(0).unwrap().revision;
+    service.redo(&revision, 0).unwrap().unwrap();
+    assert_eq!(tuple(&service, &f.table), edited);
+    let reopened = EditService::new(
+        Session::open(store.clone(), &f.id, CachedPermission::LOCAL).unwrap(),
+        policy(),
+    );
+    assert_eq!(tuple(&reopened, &f.table), edited);
+}
+
+#[test]
 fn rectangle_uses_one_durable_receipt_and_rechecks_readonly_before_any_write() {
     use editac_core::commands::table::{CellRectangle, RectangleEdit, rectangle_commands};
     for v2 in [false, true] {

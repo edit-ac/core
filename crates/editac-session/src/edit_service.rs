@@ -322,6 +322,7 @@ impl<S: SessionStore> EditService<S> {
                     Content::Table { .. } | Content::RichTable { .. } => requirements.tables = true,
                     Content::Callout { .. } => requirements.callouts = true,
                     Content::Reference { .. } => requirements.references = true,
+                    Content::Asset { .. } => requirements.extensions = true,
                     Content::InertExtension { .. } => {}
                 },
                 EditorCommand::AtomicContent {
@@ -336,7 +337,9 @@ impl<S: SessionStore> EditService<S> {
                         match content {
                             Content::Image { .. } => requirements.images = true,
                             Content::Reference { .. } => requirements.references = true,
-                            Content::InertExtension { .. } => requirements.extensions = true,
+                            Content::InertExtension { .. } | Content::Asset { .. } => {
+                                requirements.extensions = true
+                            }
                             _ => return Err(ServiceError::Engine(EditorError::UnsupportedTarget)),
                         }
                     }
@@ -344,7 +347,8 @@ impl<S: SessionStore> EditService<S> {
                 EditorCommand::TableCell { .. }
                 | EditorCommand::TableStructure { .. }
                 | EditorCommand::TableRectangle { .. }
-                | EditorCommand::TableAttributes { .. } => requirements.tables = true,
+                | EditorCommand::TableAttributes { .. }
+                | EditorCommand::TableSource { .. } => requirements.tables = true,
                 _ => {}
             }
         }
@@ -445,6 +449,7 @@ impl<S: SessionStore> EditService<S> {
                     }
                     Some(Content::Callout { .. }) => requirements.callouts = true,
                     Some(Content::Reference { .. }) => requirements.references = true,
+                    Some(Content::Asset { .. }) => requirements.extensions = true,
                     Some(Content::InertExtension { .. }) => {}
                     None => return Err(ServiceError::UnsupportedModule),
                 }

@@ -1,8 +1,9 @@
+import { imagePresenters, type ImageOptions } from './images/presenter.js';
 import { decodeTableClipboard, encodeTableClipboard } from './tables/clipboard.js';
 import type { EditorCommand, CommitResult, EngineHandle, Json, PrepareRequest, ProjectedNode } from '@edit-ac/core';
 
 export interface ImageMetadata { url: string; alt: string; title: string; source: string }
-export interface ContentOptions {
+export interface ContentOptions extends ImageOptions {
   /** Synchronous host asset policy. No URL is loaded when this port is absent. */
   imageUrl?: (metadata: Readonly<ImageMetadata>) => string | null;
   /** Host policy captured for each table action; coordinates are relative to the exact descriptor. */
@@ -50,9 +51,11 @@ const cellText = (runs: Run[]) => runs.map(r=>r[0]).join('');
 export function contentModules(options: ContentOptions = {}): ContentFactory {
   const imageUrl = options.imageUrl;
   if (imageUrl !== undefined && typeof imageUrl !== 'function') throw Error('Invalid image policy');
+  const images = imagePresenters(options);
   return context => {
+    const image = images(context); if (image) return image;
     const descriptor = parse(context.node);
-    if (!descriptor) return;
+    if (!descriptor || 'url' in descriptor) return;
     return new BasicContentView(context, descriptor, imageUrl, options.tableProtectedCells);
   };
 }
@@ -69,7 +72,6 @@ class BasicContentView implements ContentView {
   private readonly status: HTMLElement;
   private image: HTMLImageElement | undefined;
   private description: HTMLElement | undefined;
-  private imageKey = '';
   private cells: { row: number; column: number; rows: number; columns: number; expected: Json } | undefined;
   private firstCell: { row: number; column: number } | undefined;
   private focusCell: { row: number; column: number } | undefined;
@@ -147,8 +149,7 @@ class BasicContentView implements ContentView {
     if('url' in data){
       this.image!.alt=data.alt; this.image!.title=data.title; this.description!.textContent=data.alt;
       if(this.controls[0]!.value!==data.source)this.controls[0]!.value=data.source;
-      const key=JSON.stringify(data);if(key!==this.imageKey){this.imageKey=key;let url:string|null=null;try{url=safeUrl(this.imageUrl?.(Object.freeze({...data})));}catch{this.status.textContent='Image policy failed; source preserved.';}
-        if(url){this.image!.src=url;this.image!.hidden=false;}else{this.image!.removeAttribute('src');this.image!.hidden=true;}}
+      this.image!.removeAttribute('src'); this.image!.hidden=true;
     }else data.rows.forEach((row,r)=>row.forEach((runs,c)=>{
       const at=r*data.alignments.length+c,input=this.controls[at]!,preview=this.previews[at]!;
       const value=cellText(runs); if(!this.compositions.has(input)&&input.value!==value){const start=input.selectionStart,end=input.selectionEnd;input.value=value;input.setSelectionRange(Math.min(start,value.length),Math.min(end,value.length));}

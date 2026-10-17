@@ -72,3 +72,8 @@ pub(super) fn validate(value: &Any) -> Result<(), ContentError> {
     }
     Ok(())
 }
+
+/// A fixed-shape asset may carry one MiB source plus bounded display metadata.
+pub(super) fn bounded_asset_data(value: &Any) -> Result<(), ContentError> {
+    bounded(value, &mut 64, &mut (LIMIT + 65536), 0)
+}

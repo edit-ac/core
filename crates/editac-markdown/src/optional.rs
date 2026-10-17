@@ -173,6 +173,7 @@ pub fn import_with_codecs(source: &str, codecs: Codecs) -> Result<PreparedConten
             }
         };
         let fallback = match &descriptor {
+            Content::Asset { descriptor } => descriptor.fallback.clone(),
             Content::InertExtension { .. } => descriptor.inert_source().unwrap().to_owned(),
             Content::RichTable { .. } => descriptor.rich_table_source().unwrap().to_owned(),
             Content::Reference { label, .. } => label.clone(),

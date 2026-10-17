@@ -1,3 +1,4 @@
+pub mod assets;
 pub mod content;
 pub mod evolution;
 mod inert_content;

@@ -179,6 +179,168 @@ impl PreparedSourceEdit {
     }
 }
 impl SourceBaseline {
+    /// Format one retained top-level GFM table. All other source bytes stay exact.
+    /// A strict captured revision is required even when formatting is a no-op.
+    pub fn prepare_table_format(
+        &self,
+        document: &Document,
+        owner: &str,
+        origin: &TextOrigin,
+    ) -> Result<crate::table_format::PreparedTableFormat, Conflict> {
+        use editac_core::{
+            commands::editor::EditorCommand, document::BlockAttributes, modules::content::Content,
+        };
+        if document.identity() != &self.checkpoint.identity {
+            return Err(conflict(ConflictKind::IdentityMismatch, Some(owner)));
+        }
+        if document.checkpoint().bytes != self.checkpoint.bytes {
+            return Err(conflict(ConflictKind::StalePlan, Some(owner)));
+        }
+        if !matches!(self.mode, SourceMode::Markdown(Codecs { tables: true, .. })) {
+            return Err(conflict(ConflictKind::UnsupportedContent, Some(owner)));
+        }
+        let index = self
+            .bindings
+            .iter()
+            .position(|b| b.node.id == owner)
+            .ok_or_else(|| conflict(ConflictKind::DeletedTarget, Some(owner)))?;
+        let block = &self.parsed.blocks[index];
+        let Some(BlockAttributes::Unknown(expected)) = &block.attributes else {
+            return Err(conflict(ConflictKind::UnsupportedContent, Some(owner)));
+        };
+        let Some(Content::Table {
+            alignments,
+            rows,
+            source,
+        }) = Content::from_tuple(expected)
+            .map_err(|_| conflict(ConflictKind::UnsupportedContent, Some(owner)))?
+        else {
+            return Err(conflict(ConflictKind::UnsupportedContent, Some(owner)));
+        };
+        let range = self.parsed.ranges[index].clone();
+        if self.source[range.clone()] != source
+            || (range.start > 0 && self.source.as_bytes()[range.start - 1] != b'\n')
+        {
+            let mut error = conflict(ConflictKind::UnsupportedContent, Some(owner));
+            error.detail = Some("table source is not an exact top-level retained range".into());
+            return Err(error);
+        }
+        let current = document
+            .fragment_for_node(owner)
+            .map_err(|_| conflict(ConflictKind::DeletedTarget, Some(owner)))?;
+        if current.attributes != block.attributes || !equivalent(&[current], &[block.clone()]) {
+            return Err(conflict(ConflictKind::Overlap, Some(owner)));
+        }
+        let formatted =
+            crate::table_format::format(&source, &alignments, rows.len()).map_err(|kind| {
+                let mut error = conflict(kind, Some(owner));
+                error.detail = Some("table row/column source mapping is unsupported".into());
+                error
+            })?;
+        let mut edited = self.source.clone();
+        edited.replace_range(range, &formatted);
+        let candidate = parse(&edited, self.mode)?;
+        // Compare through the real codec, independently of the row lexer.
+        // Unaffected diagnostic byte offsets may shift when padding grows.
+        if !equivalent(&self.parsed.blocks, &candidate.blocks)
+            || candidate.diagnostics.iter().map(|d| d.code).ne(self
+                .parsed
+                .diagnostics
+                .iter()
+                .map(|d| d.code))
+        {
+            let mut error = conflict(ConflictKind::UnsupportedContent, Some(owner));
+            error.detail = Some(
+                "formatted source did not preserve parsed document semantics/diagnostics".into(),
+            );
+            return Err(error);
+        }
+        let changed = usize::from(edited != self.source);
+        let plan = if changed == 0 {
+            None
+        } else {
+            Some(
+                document
+                    .prepare_editor(
+                        &[EditorCommand::TableSource {
+                            target: owner.into(),
+                            expected: expected.clone(),
+                            source: formatted,
+                        }],
+                        origin,
+                    )
+                    .map_err(|_| conflict(ConflictKind::EngineRejected, Some(owner)))?,
+            )
+        };
+        Ok(crate::table_format::PreparedTableFormat::new(
+            PreparedSourceEdit {
+                source: edited,
+                changed,
+                plan,
+                identity: document.identity().clone(),
+            },
+            document.checkpoint(),
+        ))
+    }
+
+    /// Rejoin current retained table source with untouched opening bytes after
+    /// normal engine undo/redo. Reject if any represented content has changed.
+    pub fn source_with_current_table(
+        &self,
+        document: &Document,
+        owner: &str,
+    ) -> Result<String, Conflict> {
+        use editac_core::{document::BlockAttributes, modules::content::Content};
+        if document.identity() != &self.checkpoint.identity {
+            return Err(conflict(ConflictKind::IdentityMismatch, Some(owner)));
+        }
+        let index = self
+            .bindings
+            .iter()
+            .position(|b| b.node.id == owner)
+            .ok_or_else(|| conflict(ConflictKind::DeletedTarget, Some(owner)))?;
+        let current = document
+            .fragment_for_node(owner)
+            .map_err(|_| conflict(ConflictKind::DeletedTarget, Some(owner)))?;
+        let Some(BlockAttributes::Unknown(tuple)) = current.attributes else {
+            return Err(conflict(ConflictKind::UnsupportedContent, Some(owner)));
+        };
+        let Some(Content::Table { source, .. }) = Content::from_tuple(&tuple)
+            .map_err(|_| conflict(ConflictKind::UnsupportedContent, Some(owner)))?
+        else {
+            return Err(conflict(ConflictKind::UnsupportedContent, Some(owner)));
+        };
+        let mut result = self.source.clone();
+        result.replace_range(self.parsed.ranges[index].clone(), &source);
+        let candidate = parse(&result, self.mode)?;
+        if !equivalent(&self.parsed.blocks, &candidate.blocks) {
+            return Err(conflict(ConflictKind::Overlap, Some(owner)));
+        }
+        let snapshot = document
+            .snapshot()
+            .map_err(|_| conflict(ConflictKind::EngineRejected, Some(owner)))?;
+        let mut last = None;
+        for (index, binding) in self.bindings.iter().enumerate() {
+            let position = snapshot
+                .visible
+                .iter()
+                .position(|n| n.id == binding.node.id)
+                .ok_or_else(|| conflict(ConflictKind::DeletedTarget, Some(&binding.node.id)))?;
+            if last.is_some_and(|last| position <= last) {
+                return Err(conflict(ConflictKind::MovedTarget, Some(&binding.node.id)));
+            }
+            last = Some(position);
+            let block = document
+                .fragment_for_node(&binding.node.id)
+                .map_err(|_| conflict(ConflictKind::UnsupportedContent, Some(&binding.node.id)))?;
+            if block.attributes != candidate.blocks[index].attributes
+                || !equivalent(&[block], &[candidate.blocks[index].clone()])
+            {
+                return Err(conflict(ConflictKind::Overlap, Some(&binding.node.id)));
+            }
+        }
+        Ok(result)
+    }
     pub fn source(&self) -> &str {
         &self.source
     }

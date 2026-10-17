@@ -45,3 +45,10 @@ required-features = ["native-store"]
 name = "host-realtime-owner"
 path = "../../examples/host-mcp/realtime-owner.rs"
 required-features = ["native-store"]
+
+[[bin]]
+name = "editac-asset-crash-probe"
+path = "tests/support/asset_crash_probe.rs"
+required-features = ["native-store"]
+test = false
+bench = false

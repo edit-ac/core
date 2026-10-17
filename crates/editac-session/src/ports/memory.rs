@@ -8,6 +8,7 @@ use std::{
 #[derive(Clone, Debug)]
 pub(crate) struct State {
     pub(crate) journal: Vec<JournalEntry>,
+    pub(crate) assets: crate::assets::AssetJournal,
     pub(crate) requests: Vec<crate::receipts::RequestRecord>,
     pub(crate) receipted: Vec<UpdateId>,
     pub(crate) latest: Option<CheckpointRecord>,
@@ -48,6 +49,7 @@ impl MemoryStore {
             inner: Arc::new(Mutex::new(Inner {
                 state: State {
                     journal: vec![],
+                    assets: Default::default(),
                     requests: vec![],
                     receipted: vec![],
                     latest: None,
@@ -109,15 +111,20 @@ impl MemoryStore {
         }
     }
     fn limits(&self, state: &State) -> Result<(), PortError> {
-        if state.journal.len() > self.limits.max_records
+        if state.journal.len() + state.assets.intents().len() > self.limits.max_records
             || state.requests.len() > self.limits.max_records
         {
+            return Err(PortError::ResourceLimit);
+        }
+        state.assets.validate()?;
+        if state.assets.byte_size() > self.limits.max_record_bytes {
             return Err(PortError::ResourceLimit);
         }
         let mut total = state
             .requests
             .len()
             .checked_mul(512)
+            .and_then(|n| n.checked_add(state.assets.byte_size()))
             .ok_or(PortError::ResourceLimit)?;
         for record in &state.requests {
             record.verify(&self.identity)?;
@@ -545,5 +552,34 @@ impl Transport for PreparedTransport {
             self.queued_bytes -= frame.bytes.len();
         }
         Ok(frame)
+    }
+}
+
+impl crate::assets::AssetStore for MemoryStore {
+    fn asset_journal(&self) -> Result<crate::assets::AssetJournal, PortError> {
+        Ok(self
+            .inner
+            .lock()
+            .map_err(|_| PortError::Unavailable)?
+            .state
+            .assets
+            .clone())
+    }
+    fn update_assets<R>(
+        &self,
+        work: impl FnOnce(&mut crate::assets::AssetJournal) -> Result<R, PortError>,
+    ) -> Result<R, PortError> {
+        self.transaction(|s| work(&mut s.assets))
+    }
+}
+impl crate::assets::AssetStore for FaultInjectedStore {
+    fn asset_journal(&self) -> Result<crate::assets::AssetJournal, PortError> {
+        crate::assets::AssetStore::asset_journal(&self.0)
+    }
+    fn update_assets<R>(
+        &self,
+        work: impl FnOnce(&mut crate::assets::AssetJournal) -> Result<R, PortError>,
+    ) -> Result<R, PortError> {
+        crate::assets::AssetStore::update_assets(&self.0, work)
     }
 }

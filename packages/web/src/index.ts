@@ -39,3 +39,7 @@ export { linkEnrichment } from './modules/links/enrichment.js';
 export type { LinkEnrichmentOptions, LinkEnrichmentFactory } from './modules/links/enrichment.js';
 
 export type { PrivateReferenceDisplayOptions } from './modules/references/display.js';
+
+export type { ImageOptions, ImageAssetPort, ImageAssetRequest, ImageAssetResolution, ImageAssetIdentity, ImageAssetDescriptor, ImageAvailability } from './modules/images/presenter.js';
+export { DEFAULT_IMAGE_LIMITS } from './modules/images/policy.js';
+export type { ImageLimits } from './modules/images/policy.js';

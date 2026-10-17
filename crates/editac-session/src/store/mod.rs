@@ -150,6 +150,8 @@ impl Point {
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Snapshot {
+    #[serde(default)]
+    assets: crate::assets::AssetJournal,
     generation: u64,
     journal: Vec<Entry>,
     #[serde(default)]
@@ -161,6 +163,7 @@ struct Snapshot {
 impl Snapshot {
     fn encode(s: &State) -> Self {
         Self {
+            assets: s.assets.clone(),
             generation: s.generation,
             requests: s.requests.clone(),
             journal: s
@@ -213,6 +216,7 @@ impl Snapshot {
             }
             receipted.push(id);
         }
+        self.assets.validate()?;
         if self.requests.len() > limits.max_records {
             return Err(PortError::ResourceLimit);
         }
@@ -230,6 +234,7 @@ impl Snapshot {
         }
         Ok(State {
             requests: self.requests,
+            assets: self.assets,
             generation: self.generation,
             journal,
             receipted,
@@ -643,5 +648,17 @@ impl LocalStore for NativeStore {
         }
         self.matches(&r.update.identity)?;
         self.mutate(|_, s| s.accept_receipt(n, r))
+    }
+}
+
+impl crate::assets::AssetStore for NativeStore {
+    fn asset_journal(&self) -> Result<crate::assets::AssetJournal, PortError> {
+        self.read(crate::assets::AssetStore::asset_journal)
+    }
+    fn update_assets<R>(
+        &self,
+        work: impl FnOnce(&mut crate::assets::AssetJournal) -> Result<R, PortError>,
+    ) -> Result<R, PortError> {
+        self.mutate(|_, memory| crate::assets::AssetStore::update_assets(memory, work))
     }
 }

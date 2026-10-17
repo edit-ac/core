@@ -140,6 +140,13 @@ pub enum EditorCommand {
         header: Option<bool>,
         protected: Vec<(usize, usize)>,
     },
+    /// Retain formatter source without changing table semantics or backing text.
+    /// Markdown parsing/semantic equality belongs to the optional codec owner.
+    TableSource {
+        target: String,
+        expected: Any,
+        source: String,
+    },
     Container {
         target: String,
         tuple: Any,
@@ -355,7 +362,7 @@ impl Document {
                         crate::modules::content::Content::Reference { label, .. } => {
                             Some(label.as_str())
                         }
-                        _ => content.inert_source(),
+                        _ => content.asset_fallback().or_else(|| content.inert_source()),
                     };
                     if let Some(fallback) = fallback {
                         if block
@@ -1904,6 +1911,11 @@ impl Document {
                     target: id,
                     expected,
                     ..
+                }
+                | EditorCommand::TableSource {
+                    target: id,
+                    expected,
+                    ..
                 } => {
                     use crate::anchors::{Bias, Selection};
                     let o = target(&stage, stable, id)?;
@@ -1914,7 +1926,10 @@ impl Document {
                         return Err(EditorError::PresentationConflict);
                     }
                     let (tuple, fallback) = super::table::plan(expected, &c)?;
-                    if matches!(c, EditorCommand::TableAttributes { .. }) {
+                    if matches!(
+                        c,
+                        EditorCommand::TableAttributes { .. } | EditorCommand::TableSource { .. }
+                    ) {
                         // Metadata never replaces the backing text: retain Y.Text
                         // item identities, anchors and remote text ownership.
                         m::set(&stage, 4, id, tuple);
@@ -1985,7 +2000,8 @@ impl Document {
                         .ok_or(EditorError::UnsupportedTarget)?;
                     if !matches!(
                         old,
-                        Content::Image { .. }
+                        Content::Asset { .. }
+                            | Content::Image { .. }
                             | Content::Reference { .. }
                             | Content::InertExtension { .. }
                     ) {
@@ -2003,7 +2019,8 @@ impl Document {
                     let (tuple, fallback) = if let Some(content) = replacement {
                         if !matches!(
                             (&old, content),
-                            (Content::Image { .. }, Content::Image { .. })
+                            (Content::Asset { .. }, Content::Asset { .. })
+                                | (Content::Image { .. }, Content::Image { .. })
                                 | (Content::Reference { .. }, Content::Reference { .. })
                                 | (
                                     Content::InertExtension { .. },
@@ -2043,6 +2060,7 @@ impl Document {
                             }
                         })?;
                         let fallback = match content {
+                            Content::Asset { descriptor } => descriptor.fallback.as_str(),
                             Content::Reference { label, .. } => label.as_str(),
                             Content::Image { source, .. } => source.as_str(),
                             Content::InertExtension { .. } => {
@@ -2120,6 +2138,22 @@ impl Document {
                             EditorError::InvalidCommand
                         }
                     })?;
+                    if let crate::modules::content::Content::Asset { descriptor } = content {
+                        let d = self.virtual_document(&stage)?;
+                        let n = d
+                            .inspect()
+                            .map_err(|_| EditorError::InvalidCommand)?
+                            .visible
+                            .into_iter()
+                            .find(|n| n.id == *id)
+                            .ok_or(EditorError::UnsupportedTarget)?;
+                        if n.runs.iter().map(|r| r.text.as_str()).collect::<String>()
+                            != descriptor.fallback
+                            || n.runs.iter().any(|r| !r.attributes.is_empty())
+                        {
+                            return Err(EditorError::InvalidCommand);
+                        }
+                    }
                     m::set(&stage, 4, id, tuple);
                     let after = target(&stage, stable, id)?;
                     if after.spans != o.spans
