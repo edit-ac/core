@@ -1,0 +1,1163 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "id": "MBT-01",
+      "priority": "P0",
+      "action": "Tap/double-tap/long-press text, empty block, trailing hard break and inline atom",
+      "expected": "Native placement/selection/context menu remains available; model mapping has no filler offset; device",
+      "group": "touch",
+      "originalParent": "MWB-1.2",
+      "projectedParent": "MWF-1.2",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "a841ddaeddd71826351838853c44104c0c5299dfade2554d06c8db3d9a0145dc"
+    },
+    {
+      "id": "MBT-02",
+      "priority": "P0",
+      "action": "Drag native selection handles across marked blocks while an unrelated remote patch arrives",
+      "expected": "Stable selected text/direction and native handles; no subtree replacement or focus theft; device",
+      "group": "touch",
+      "originalParent": "MWB-1.2",
+      "projectedParent": "MWF-1.2",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "20acb8a92e7cfcea9337c2630226100f1c6502cc41fb5ef581749aebb6a2bd48"
+    },
+    {
+      "id": "MBT-03",
+      "priority": "P0",
+      "action": "Pan/nested-scroll/pinch zoom over editor and optional control edges",
+      "expected": "Browser scroll/zoom stays available; no broad preventDefault/touch-action:none or content mutation; device",
+      "group": "touch",
+      "originalParent": "MWB-1.2",
+      "projectedParent": "MWF-1.2",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "fc6ab033cccf441d60846aa5e5bdd3b4d02293046adc7adfd1a7317dacdf0f49"
+    },
+    {
+      "id": "MBT-04",
+      "priority": "P0",
+      "action": "Handle gesture: pointerdown/move → pointercancel/lost capture → compatibility click",
+      "expected": "Provisional state cleared; no semantic commit, stuck capture, auto-scroll or duplicate click",
+      "group": "touch",
+      "originalParent": "MWB-1.2",
+      "projectedParent": "MWF-1.2",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "3db82002f200d2ffba4213867c8e8cdf1f918665481b8ed3b8ac0ad96b70752d"
+    },
+    {
+      "id": "MBT-05",
+      "priority": "P0",
+      "action": "Successful handle pointerup then lost capture/click; unrelated pointer events in a separate variant",
+      "expected": "Ignore unrelated pointers; exactly one command from tracked pointer, with no repeat/rollback after completion; a competing second-touch/pinch before acceptance cancels instead",
+      "group": "touch",
+      "originalParent": "MWB-1.2",
+      "projectedParent": "MWF-1.2",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "47dd034c823b720d1a9ac0f33a955da491100ce4b7563e774183275e44b6f74c"
+    },
+    {
+      "id": "MBT-06",
+      "priority": "P1",
+      "action": "Touch then mouse/trackpad/pen, coarse+fine pointer availability changes",
+      "expected": "Controls remain usable; stale touch-only mode does not disable hover/keyboard or native pen text",
+      "group": "touch",
+      "originalParent": "MWB-1.2",
+      "projectedParent": "MWF-1.2",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "586b3bd15dd1ea49ebcad312136d006a0a943377337a54ffa1ee7f97fabc54e2"
+    },
+    {
+      "id": "MBT-07",
+      "priority": "P0",
+      "action": "Touch controls under zoom/large text/forced colors; no drag capability",
+      "expected": "Reachable named targets meet declared size/spacing; tap alternative and visible focus work; device",
+      "group": "touch",
+      "originalParent": "MWB-1.2",
+      "projectedParent": "MWF-1.2",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "ab14e7dae7eac8f9a33fcd9dd89a9ad999df94d6510f5d05d4b7dfe367bb2de4"
+    },
+    {
+      "id": "MBI-01",
+      "priority": "P0",
+      "action": "Insert/delete from virtual keyboard with no keydown or Unidentified; observer echoes",
+      "expected": "Correct content/range once; identical result to ordinary input route",
+      "group": "input",
+      "originalParent": "MWB-1.3",
+      "projectedParent": "MWF-1.3",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "bb7445f785ec9ecd2f122c03cd654a8a43eb3af2ccfe12717cd55475ce167871"
+    },
+    {
+      "id": "MBI-02",
+      "priority": "P0",
+      "action": "Accept predictive word, autocorrect phrase or double-space punctuation over marked selection",
+      "expected": "Actual committed replacement/marks/spacing preserved; no duplicate or guessed text",
+      "group": "input",
+      "originalParent": "MWB-1.3",
+      "projectedParent": "MWF-1.3",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "14329e6d7de0bd5d6c905b1d67e46e6220a51ae2172ea57da94dfcd4f8183a09"
+    },
+    {
+      "id": "MBI-03",
+      "priority": "P0",
+      "action": "CJK/Indic composition with partial delete and commit Enter before/after compositionend",
+      "expected": "OS candidate ownership retained; no accidental split/slash activation, next intentional Enter works; device",
+      "group": "input",
+      "originalParent": "MWB-1.3",
+      "projectedParent": "MWF-1.3",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "2566e21508667d90ea3e68619efb5e83799a5be182c792ece1884ed24a81d40b"
+    },
+    {
+      "id": "MBI-04",
+      "priority": "P0",
+      "action": "Swipe typing, emoji picker, native dictation correction and handwriting/Scribble",
+      "expected": "Correct replacement and grapheme/UTF-16 selection without requiring physical key events; device",
+      "group": "input",
+      "originalParent": "MWB-1.3",
+      "projectedParent": "MWF-1.3",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "bf7072d24d05a633ec922227e3c9a0ecd656fef0e68d1ff1b8cf5b7f12ac2786"
+    },
+    {
+      "id": "MBI-05",
+      "priority": "P0",
+      "action": "Hold Backspace/autorepeat around emoji, adjacent blocks and empty editor",
+      "expected": "Platform deletion reconciles once; no double delete, split surrogate or unrelated block loss; device",
+      "group": "input",
+      "originalParent": "MWB-1.3",
+      "projectedParent": "MWF-1.3",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "7cc0cd720cac13054d7b699e9cedf8aecf769c15953d7875c5cbb81407a65557"
+    },
+    {
+      "id": "MBI-06",
+      "priority": "P0",
+      "action": "During composing text: remote edit, toolbar selection, read-only, blur or pagehide",
+      "expected": "Qualified commit/cancel/conflict policy preserves recoverable text and rejects stale mutation",
+      "group": "input",
+      "originalParent": "MWB-1.3",
+      "projectedParent": "MWF-1.3",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "37513d928f37f55a01a5ae00b9ab960769907e10fda464aefabcdc68b218b5ed"
+    },
+    {
+      "id": "MBI-07",
+      "priority": "P1",
+      "action": "Hardware keyboard connect/disconnect, virtual keyboard switch, AltGraph/dead keys/RTL",
+      "expected": "Correct platform shortcuts/characters and no stale occlusion or forced model reset; device",
+      "group": "input",
+      "originalParent": "MWB-1.3",
+      "projectedParent": "MWF-1.3",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "4b91cb9ec712a12f75a98f1e03c0308ba40f8e9eae1446336376b279ec23977e"
+    },
+    {
+      "id": "MBI-08",
+      "priority": "P0",
+      "action": "Same slash/Markdown trigger inserted by direct typing and unclassified replacement",
+      "expected": "Only positively qualified input auto-converts; explicit mobile command route remains available",
+      "group": "input",
+      "originalParent": "MWB-1.3",
+      "projectedParent": "MWF-1.3",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "8852d5c6ac19b0093a8128a69a1113b158cc58507a196969e17eb97f78ada0a3"
+    },
+    {
+      "id": "MBV-01",
+      "priority": "P0",
+      "action": "Focus bottom-of-document caret, open/close keyboard with browser visual/layout resize variants",
+      "expected": "Caret and essential controls reachable; original semantic selection retained; device",
+      "group": "viewport",
+      "originalParent": "MWB-1.4",
+      "projectedParent": "MWF-1.4",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "9262539c0bb444afbe95f0232b92f648044e217568dd46b551e69b7707d3b20e"
+    },
+    {
+      "id": "MBV-02",
+      "priority": "P0",
+      "action": "Keyboard overlay geometry plus resize notifications; two editor mounts",
+      "expected": "One host-owned policy and one compensation; destroying one mount preserves other's/host policy",
+      "group": "viewport",
+      "originalParent": "MWB-1.4",
+      "projectedParent": "MWF-1.4",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "91544470c8e73124799e47d19a3f3e4d2148a1eb8ef2c58ce8957f6b63bf7b64"
+    },
+    {
+      "id": "MBV-03",
+      "priority": "P0",
+      "action": "Keyboard open → portrait/landscape rotation or split-screen resize",
+      "expected": "Stable document/focus and usable caret/toolbar; obsolete insets/gesture state cleared; device",
+      "group": "viewport",
+      "originalParent": "MWB-1.4",
+      "projectedParent": "MWF-1.4",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "7ab311d54ec748b197fed324b7b92493e9b4c1b82ce801bb92e3a3ddd387469f"
+    },
+    {
+      "id": "MBV-04",
+      "priority": "P1",
+      "action": "Floating/split keyboard or hardware keyboard leaves non-bottom occlusion",
+      "expected": "No invented full-width keyboard height; available geometry or reachable scroll/control fallback; device",
+      "group": "viewport",
+      "originalParent": "MWB-1.4",
+      "projectedParent": "MWF-1.4",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "396c9ea5e8cad0a21a5c2ff86f532f80a114337fb277f94661bc6070a078103e"
+    },
+    {
+      "id": "MBV-05",
+      "priority": "P0",
+      "action": "Pinch zoom with nonzero viewport offset/scale then tap caret/menu item",
+      "expected": "Correct CSS-coordinate mapping and target hit; no double DPR/scale compensation; device",
+      "group": "viewport",
+      "originalParent": "MWB-1.4",
+      "projectedParent": "MWF-1.4",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "f1b0faabb64508e36c346cabadf475f96d9e3b9182ebcc671ae8cbb61722e1a2"
+    },
+    {
+      "id": "MBV-06",
+      "priority": "P1",
+      "action": "Browser address bar expands/collapses, safe-area changes, small/dynamic viewport layouts",
+      "expected": "No false keyboard command, double bottom inset, hidden action or fixed-100vh clipping; device",
+      "group": "viewport",
+      "originalParent": "MWB-1.4",
+      "projectedParent": "MWF-1.4",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "ff4c171fc8a449f0a14057d0eec97aa6742ca573142f7875c01308dc7a6cbea3"
+    },
+    {
+      "id": "MBV-07",
+      "priority": "P0",
+      "action": "Nested scroller, sticky toolbar, same-origin iframe and isolated cross-origin host",
+      "expected": "Correct owning window/scroll root; no top-window assumption or unauthorized parent access",
+      "group": "viewport",
+      "originalParent": "MWB-1.4",
+      "projectedParent": "MWF-1.4",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "559a06347bf8513753050281301069563ee23772343f1b4f9e6c6ff009e2935a"
+    },
+    {
+      "id": "MBV-08",
+      "priority": "P0",
+      "action": "Many viewport/scroll events in one frame; remote edit during scroll",
+      "expected": "Bounded read/write batch, no continuous scrollIntoView loop, no remote scroll/focus jump",
+      "group": "viewport",
+      "originalParent": "MWB-1.4",
+      "projectedParent": "MWF-1.4",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "9e23316877f0aac8552b61ec9a220fa0a75bf7b5fed47e7c625ffc7e41a4f649"
+    },
+    {
+      "id": "MBV-09",
+      "priority": "P0",
+      "action": "VisualViewport/keyboard geometry missing or throwing; tiny available viewport",
+      "expected": "Native scroll and reachable static/sheet controls work; fallback does not disable editing",
+      "group": "viewport",
+      "originalParent": "MWB-1.4",
+      "projectedParent": "MWF-1.4",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "fc5aac7b94eb6a11103249bb5992dc8a9bbf192e7f70a5744984aa6e12b9b3e2"
+    },
+    {
+      "id": "MBF-01",
+      "priority": "P0",
+      "action": "Select text via handles then tap Bold/Link/soft break, including pointerdown→blur→click",
+      "expected": "Captured selection used once; valid internal focus transition is not premature dismissal; device",
+      "group": "focus",
+      "originalParent": "MWB-1.5",
+      "projectedParent": "MWF-1.5",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "1b2c7c96ba1fa92cba6e8772d1b011ae5e40086388e01b130571e15216e58a06"
+    },
+    {
+      "id": "MBF-02",
+      "priority": "P0",
+      "action": "Open command-search input/dialog, dismiss, then user focuses another editor before async result",
+      "expected": "Intentional control focus works; stale completion cannot steal focus or reopen keyboard",
+      "group": "focus",
+      "originalParent": "MWB-1.5",
+      "projectedParent": "MWF-1.5",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "349571db0779a8d9506c15885fcfa5d2d092940c9e8e1b00f68a85ffaa44e591"
+    },
+    {
+      "id": "MBF-03",
+      "priority": "P1",
+      "action": "Browser declines programmatic focus/keyboard show without activation",
+      "expected": "No false keyboard-visible state or retry loop; direct user action can continue",
+      "group": "focus",
+      "originalParent": "MWB-1.5",
+      "projectedParent": "MWF-1.5",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "19bdc6337f6e447bbfd5e062ca0962819067ab05e194a2841afacddef03d1148"
+    },
+    {
+      "id": "MBF-04",
+      "priority": "P0",
+      "action": "Virtual keyboard without Shift/Escape/Tab; apply break, undo/redo, indent, literal paste",
+      "expected": "All advertised commands have reachable labeled controls and correct semantic result; device",
+      "group": "focus",
+      "originalParent": "MWB-1.5",
+      "projectedParent": "MWF-1.5",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "d884f2d4c1a51c5783ee9960ae4f58595d8a384717446e67e3f44dfe6545dd46"
+    },
+    {
+      "id": "MBF-05",
+      "priority": "P1",
+      "action": "Switch prose/code/search hints during composition and after commit",
+      "expected": "No remount/lost text/forced keyboard reopen; code input remains literal; supported hints applied safely",
+      "group": "focus",
+      "originalParent": "MWB-1.5",
+      "projectedParent": "MWF-1.5",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "595e097f7c3f45fb82424794595c9789da9286fc0e83d1127b4558b0b1d89b2e"
+    },
+    {
+      "id": "MBF-06",
+      "priority": "P0",
+      "action": "Enter key labeled Done/Go/Send inside form-embedded editor",
+      "expected": "Existing multiline/explicit host-submit policy wins; no accidental form submit or blur",
+      "group": "focus",
+      "originalParent": "MWB-1.5",
+      "projectedParent": "MWF-1.5",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "b20df4bdbeeed18c4c6da0e84336e1ff9708d9be4210bccb1408290bd7e42b7a"
+    },
+    {
+      "id": "MBC-01",
+      "priority": "P0",
+      "action": "Long-press native Copy/Cut/Paste, including canceled/failed clipboard write",
+      "expected": "Supported format/selection retained; failed cut preserves content; device",
+      "group": "lifecycle",
+      "originalParent": "MWB-1.6",
+      "projectedParent": "MWF-1.6",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "da9559ce2fbe38dbe5cdfa9539ac9a19a8220950f8a83850371dd41b1d81fd3a"
+    },
+    {
+      "id": "MBC-02",
+      "priority": "P0",
+      "action": "Rich/text/image clipboard flavors; script permission denied, API absent or activation expired",
+      "expected": "Safe bounded importer/fallback and native paste route remain usable; no prompt on mount",
+      "group": "lifecycle",
+      "originalParent": "MWB-1.6",
+      "projectedParent": "MWF-1.6",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "6efa73377db7fd85161e3cc0e2105827c864eaa4013c5c8171a89358940990fd"
+    },
+    {
+      "id": "MBC-03",
+      "priority": "P0",
+      "action": "Paste preparation pending then focus/document/read-only changes or target deletion",
+      "expected": "Original stable target/session revalidated; cancellation/rejection has zero edits",
+      "group": "lifecycle",
+      "originalParent": "MWB-1.6",
+      "projectedParent": "MWF-1.6",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "ece0042faf3568dadb4208a33bbdc0d3ac881106e7819fce6c2364c0b5938e1f"
+    },
+    {
+      "id": "MBC-04",
+      "priority": "P0",
+      "action": "Pagehide/visibility pause while typing or a gesture is active; pageshow/BFCache return",
+      "expected": "Durable state/session restored, provisional gestures canceled, no duplicate listeners or replayed input; device",
+      "group": "lifecycle",
+      "originalParent": "MWB-1.6",
+      "projectedParent": "MWF-1.6",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "69ba2065fcb4812cf60c2e7a93c15cb75c5815392369b95d5041a890c86647e0"
+    },
+    {
+      "id": "MBC-05",
+      "priority": "P0",
+      "action": "Browser process eviction/offline reopen after localCommitted versus uncommitted edit",
+      "expected": "Existing durability contract honored; no fabricated unload flush guarantee; device",
+      "group": "lifecycle",
+      "originalParent": "MWB-1.6",
+      "projectedParent": "MWF-1.6",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "e9186914ed7cb450898b459321ab88a5e641c5f5f1dc50ed6c97f23ae0ded00b"
+    },
+    {
+      "id": "MBC-06",
+      "priority": "P1",
+      "action": "OS picker/share sheet blurs/backgrounds page then cancels/returns twice",
+      "expected": "Cancellation harmless, accepted result deduplicated, selected target preserved, no forced refocus",
+      "group": "lifecycle",
+      "originalParent": "MWB-1.6",
+      "projectedParent": "MWF-1.6",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "80ede6291ad61c491125eb461e3311e271bffdf3733a647bc15da85ff6038412"
+    },
+    {
+      "id": "MBC-07",
+      "priority": "P0",
+      "action": "Two editors with one disposed while clipboard/lifecycle work is pending",
+      "expected": "No cross-editor insertion or shared resource teardown; late callbacks inert",
+      "group": "lifecycle",
+      "originalParent": "MWB-1.6",
+      "projectedParent": "MWF-1.6",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "68d2cdafa8469002274f54cdf7b39351666d7716202a26e41959ccbccd9966cc"
+    },
+    {
+      "id": "MBC-08",
+      "priority": "P0",
+      "action": "Native mobile Paste menu produces ClipboardEvent plus beforeinput/input, beforeinput only, or a noncancelable replacement",
+      "expected": "Event lifecycle owns one prepared paste; no keyboard prerequisite, duplicate edit or history/journal echo; physical or target-platform virtual runtime evidence remains required",
+      "group": "lifecycle",
+      "originalParent": "MWB-1.6",
+      "projectedParent": "MWF-1.6",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "283c4a32f5418bad6cb387ebd74e0adaa058ceef5b4f6cb4270f9e463dae1d52"
+    },
+    {
+      "id": "MBC-09",
+      "priority": "P0",
+      "action": "Same native clipboard payload pasted twice deliberately, including soft-keyboard suggestions",
+      "expected": "Two distinct user intents both apply; payload equality and timing never suppress the second paste",
+      "group": "lifecycle",
+      "originalParent": "MWB-1.6",
+      "projectedParent": "MWF-1.6",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "e665366ed39ffb49d3c1fc87888e0b3e3fd4e6e06385ac15744e57db73766ed1"
+    },
+    {
+      "id": "MBC-10",
+      "priority": "P0",
+      "action": "Rich internal/Markdown/HTML flavors and explicit Paste without formatting, with touch and hardware keyboard shortcuts",
+      "expected": "Declared full-palette codec precedence; plain mode bypasses parsing and formatting; native menu remains available after script-clipboard denial",
+      "group": "lifecycle",
+      "originalParent": "MWB-1.6",
+      "projectedParent": "MWF-1.6",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "1705c7fd93b8069022824abdcf0885cde81645b01f9894e7888fcc4c3ca98e7b"
+    },
+    {
+      "id": "MBC-11",
+      "priority": "P0",
+      "action": "Mobile delayed paste crosses navigation, read-only, target deletion, backgrounding or disposal",
+      "expected": "Initiating stable target/session retained; later selection preserved; canceled/stale result has zero semantic/history/storage effects",
+      "group": "lifecycle",
+      "originalParent": "MWB-1.6",
+      "projectedParent": "MWF-1.6",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "9c529195000c090798d1d2a5b4e9811b8507289be90c2cdf5b83e570f8aefd51"
+    },
+    {
+      "id": "MBC-12",
+      "priority": "P0",
+      "action": "Formatted table cells, lists, links, code, captions and other registered extensions copied between mobile web and native apps",
+      "expected": "Admitted structure/formatting round-trips; missing codec preserves inert source with diagnostics; emulator replay and physical or virtual platform results recorded separately",
+      "group": "lifecycle",
+      "originalParent": "MWB-1.6",
+      "projectedParent": "MWF-1.6",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "afd1bbb9e00c6c050b36779bbb0e7385d2d2a971a824c990e935b020494f0ad4"
+    },
+    {
+      "id": "MBA-01",
+      "priority": "P0",
+      "action": "Each API absent/present-but-rejecting/insecure/embedding-restricted",
+      "expected": "Same essential editing/fallback; no eager permission prompts or exception escape",
+      "group": "capabilities",
+      "originalParent": "MWB-1.7",
+      "projectedParent": "MWF-1.7",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "2ca01fbc0a4b05e12c9317ce565409c551039f0d6cc4b4fa6392db89aba3cd32"
+    },
+    {
+      "id": "MBA-02",
+      "priority": "P1",
+      "action": "Optional VirtualKeyboard geometry/show/hide/overlay host request",
+      "expected": "Only explicit supported action attempted; failure recovers; host-global lease restored without fighting other editors",
+      "group": "capabilities",
+      "originalParent": "MWB-1.7",
+      "projectedParent": "MWF-1.7",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "f467b1d31fe4d599fbb0c32db07e4959120a2721ffa0290e62351c10fc1b6f98"
+    },
+    {
+      "id": "MBA-03",
+      "priority": "P1",
+      "action": "getLayoutMap absent/rejected/layout changed and non-US hardware keyboard",
+      "expected": "Fallback shortcut labels; no altered semantic keys or blocked AltGraph/IME",
+      "group": "capabilities",
+      "originalParent": "MWB-1.7",
+      "projectedParent": "MWF-1.7",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "83d7fade336c40301e31bf1cff0afccdc02391dc21539d3f21a449a115a560f6"
+    },
+    {
+      "id": "MBA-04",
+      "priority": "P0",
+      "action": "Default editor then explicit host kiosk keyboard-lock session; denial/exit/dispose",
+      "expected": "Default never locks keys; requested mode has escape and releases only owned capture; device if advertised",
+      "group": "capabilities",
+      "originalParent": "MWB-1.7",
+      "projectedParent": "MWF-1.7",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "3256f126d9aa3a1d2134c4da7b2ed2c3c8c017f7bcf04ba0052539e377599225"
+    },
+    {
+      "id": "MBA-05",
+      "priority": "P1",
+      "action": "Experimental EditContext enabled/unsupported/disabled in a separate probe",
+      "expected": "Feasibility evidence only; contenteditable fallback usable, no default dependency or second committed model",
+      "group": "capabilities",
+      "originalParent": "MWB-1.7",
+      "projectedParent": "MWF-1.7",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "b321638682e621963b9c00eb9014d257e874624c326fdbc1d4cd1a6021c52248"
+    },
+    {
+      "id": "MBA-06",
+      "priority": "P0",
+      "action": "Host viewport policy changes while multiple editors exist",
+      "expected": "SDK does not rewrite meta viewport; declared mode reconciled without double keyboard compensation",
+      "group": "capabilities",
+      "originalParent": "MWB-1.7",
+      "projectedParent": "MWF-1.7",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "47313d39087b7f1c3a0aa61b49bc166a8a41dc66db2229818b69f4ed7a4226d2"
+    },
+    {
+      "id": "MBA-07",
+      "priority": "P1",
+      "action": "File/Share/fullscreen/orientation capabilities missing, denied or unsupported MIME",
+      "expected": "User-visible action/fallback remains explicit; baseline editing independent of these APIs",
+      "group": "capabilities",
+      "originalParent": "MWB-1.7",
+      "projectedParent": "MWF-1.7",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "943d38dc36d21a3f7477e638bbfd26cb400e92a22ea306205ffd0b0dfb694742"
+    },
+    {
+      "id": "MBX-01",
+      "priority": "P0",
+      "action": "Open baseline slash menu through visible control with keyboard open",
+      "expected": "Reachable results/dismissal; no hover/physical slash requirement; correct anchored command",
+      "group": "modules",
+      "originalParent": "MWB-1.8",
+      "projectedParent": "MWF-1.8",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "21a451e4be2a08bfe4bdea2a658b19c349caf3c67756887508c040113bac2b4c"
+    },
+    {
+      "id": "MBX-02",
+      "priority": "P0",
+      "action": "Native text-selection menu covers formatting controls",
+      "expected": "Alternate toolbar/command route works without disabling native selection/context menu; device",
+      "group": "modules",
+      "originalParent": "MWB-1.8",
+      "projectedParent": "MWF-1.8",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "4d962b6e4380f892a1c44d2e4141953ce1b6ce7a6ae0a302373a15af8085e19a"
+    },
+    {
+      "id": "MBX-03",
+      "priority": "P0",
+      "action": "Baseline table/code block scrolls horizontally while page scrolls vertically",
+      "expected": "Caret/native selection and touch command access coexist; no scroll trap or full-document mutation",
+      "group": "modules",
+      "originalParent": "MWB-1.8",
+      "projectedParent": "MWF-1.8",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "9af8a62b81f4a133d56df9372658fd0969b9d482bcce57d17a9f9cf929630318"
+    },
+    {
+      "id": "MBX-04",
+      "priority": "P0",
+      "action": "Baseline block action with no drag support; enhanced presenters disabled",
+      "expected": "Tap/keyboard equivalent retains core command access; no optional asset/listener load",
+      "group": "modules",
+      "originalParent": "MWB-1.8",
+      "projectedParent": "MWF-1.8",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "21add952f756874a6b1ea394d0ae7f7fef2ea8c594ff70a9de8f911db4177654"
+    },
+    {
+      "id": "MBX-05",
+      "priority": "P0",
+      "action": "VoiceOver/TalkBack exploration and activation with keyboard and suggestion panel open",
+      "expected": "Correct accessible names/states/focus and reachable cancellation; device",
+      "group": "modules",
+      "originalParent": "MWB-1.8",
+      "projectedParent": "MWF-1.8",
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "700fa5963c7511cadf3b6ae97c402edce31fb165915de267ae04d69a226921f8"
+    },
+    {
+      "id": "MBP-01",
+      "priority": "P0",
+      "action": "Same packed minimal consumer before/after baseline support",
+      "expected": "Incremental/total Brotli budgets and cold-evaluation/startup limits pass; no new default runtime dependency",
+      "group": "performance",
+      "originalParent": "MWB-1.9",
+      "projectedParent": null,
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11",
+        "performance": "deferred-original-MWB-1.9"
+      },
+      "sourceSha256": "b6c901527e1014d8ba8f6498056d485fc17474b319ccba9c368bf416858329dd"
+    },
+    {
+      "id": "MBP-02",
+      "priority": "P0",
+      "action": "Optional mobile API/gesture/media/converter modules absent or disabled",
+      "expected": "Zero optional import/evaluation/assets/network/workers/listeners/observers/frame callbacks",
+      "group": "performance",
+      "originalParent": "MWB-1.9",
+      "projectedParent": null,
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11",
+        "performance": "deferred-original-MWB-1.9"
+      },
+      "sourceSha256": "eac23f1076af05b6c8e6ae776cbaa605e34d58bdd8e76cf85747275d0418176a"
+    },
+    {
+      "id": "MBP-03",
+      "priority": "P1",
+      "action": "Many viewport/pointer notifications across visible/hidden editors, small/long docs",
+      "expected": "At most one dirty geometry batch per window/frame; work scales with active surfaces, no full-text scan",
+      "group": "performance",
+      "originalParent": "MWB-1.9",
+      "projectedParent": null,
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11",
+        "performance": "deferred-original-MWB-1.9"
+      },
+      "sourceSha256": "bbf0e43d6b174a15854a8f3ccd5d018a1bf06a29ef02c150d23d01a19688350a"
+    },
+    {
+      "id": "MBP-04",
+      "priority": "P0",
+      "action": "Repeated mount, keyboard cycles, rotate, cancel/dispose",
+      "expected": "Listener/observer/capture/object-URL ownership settles; memory plateaus, no active session-owned timers",
+      "group": "performance",
+      "originalParent": "MWB-1.9",
+      "projectedParent": null,
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11",
+        "performance": "deferred-original-MWB-1.9"
+      },
+      "sourceSha256": "8d30ae161e92391971de234d96d58bdd59c527c2300f4c1457ac97927264f96a"
+    },
+    {
+      "id": "MBP-05",
+      "priority": "P1",
+      "action": "Real phone typing/menu/scroll with baseline and optional modules enabled",
+      "expected": "Comparable raw latency/frame/memory deltas satisfy reviewed limits; no emulated phone-performance claim",
+      "group": "performance",
+      "originalParent": "MWB-1.9",
+      "projectedParent": null,
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11",
+        "performance": "deferred-original-MWB-1.9"
+      },
+      "sourceSha256": "ca20a318108f135ee16b1548ad9dcce77d254994f72942fa783d63b3c06181c9"
+    },
+    {
+      "id": "MBP-06",
+      "priority": "P0",
+      "action": "Idle editor and hidden page with extensions registered but unused",
+      "expected": "No polling/perpetual frames/remote fetches; registration alone does not start feature work",
+      "group": "performance",
+      "originalParent": "MWB-1.9",
+      "projectedParent": null,
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11",
+        "performance": "deferred-original-MWB-1.9"
+      },
+      "sourceSha256": "114b7b50ad10a6c31f3801c77858640f84ef55b3552c7abbb6c1ab2dde337e3d"
+    },
+    {
+      "id": "MBQ-01",
+      "priority": "P0",
+      "action": "Actual iPhone Safari and iPadOS Safari, software/hardware keyboards and touch/pen",
+      "expected": "Required row receipts with exact versions/modes; supported envelope is explicit",
+      "group": "device",
+      "originalParent": "MWB-1.11",
+      "projectedParent": null,
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "c6d39193077e4b27374281162e52fb26a53366ab68e1003685ac8c9415f00bfa"
+    },
+    {
+      "id": "MBQ-02",
+      "priority": "P0",
+      "action": "Actual Android Chrome and Firefox, named keyboard versions and vendor device",
+      "expected": "Replacement/viewport/selection/clipboard cases qualify independently; no stale browser-default assumptions",
+      "group": "device",
+      "originalParent": "MWB-1.11",
+      "projectedParent": null,
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "0cd29393a90026702dc082a23c9dc1766fca990f2096c955b9407478190c6a02"
+    },
+    {
+      "id": "MBQ-03",
+      "priority": "P0",
+      "action": "Browser tab versus installed web-app/embedded-host profile where advertised",
+      "expected": "Profile-specific lifecycle/viewport/permissions/keyboard evidence; one mode does not qualify another",
+      "group": "device",
+      "originalParent": "MWB-1.11",
+      "projectedParent": null,
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "d8761916b3b2b13388411edefd9a9b022ea9c832acc6cde38ee6b640d5761647"
+    },
+    {
+      "id": "MBQ-04",
+      "priority": "P0",
+      "action": "Capability table contains untested API/platform or only emulated/desktop-WebKit evidence",
+      "expected": "Validator rejects support claim; preserve pending/unsupported/failure and actual fallback results",
+      "group": "device",
+      "originalParent": "MWB-1.11",
+      "projectedParent": null,
+      "receiptTypes": [
+        "mechanics",
+        "device"
+      ],
+      "provenance": {
+        "mechanics": "not-executed",
+        "device": "deferred-original-MWB-1.11"
+      },
+      "sourceSha256": "28e4db397eecdcbe6154613b669ca490833b9a3c9a368e7bb6fea1e9aa5c02c8"
+    }
+  ]
+}

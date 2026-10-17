@@ -1,0 +1,266 @@
+[
+  {
+    "id": "MWF-harness-forward",
+    "initial": {
+      "blocks": [
+        {
+          "id": "p1",
+          "kind": "paragraph",
+          "text": "abcd",
+          "hardBreaks": [],
+          "marks": []
+        }
+      ],
+      "selection": {
+        "anchor": {
+          "block": "p1",
+          "offset": 1
+        },
+        "focus": {
+          "block": "p1",
+          "offset": 3
+        },
+        "affinity": "forward"
+      },
+      "pendingMarks": null
+    },
+    "action": {
+      "type": "nativeInsert",
+      "text": "X",
+      "range": {
+        "anchor": {
+          "block": "p1",
+          "offset": 1
+        },
+        "focus": {
+          "block": "p1",
+          "offset": 3
+        },
+        "affinity": "forward"
+      },
+      "beforeinput": "noncancelable",
+      "notifications": [
+        "input",
+        "observer",
+        "input"
+      ]
+    },
+    "expected": {
+      "outcome": "applied",
+      "state": {
+        "blocks": [
+          {
+            "id": "p1",
+            "kind": "paragraph",
+            "text": "aXd",
+            "hardBreaks": [],
+            "marks": []
+          }
+        ],
+        "selection": {
+          "anchor": {
+            "block": "p1",
+            "offset": 2
+          },
+          "focus": {
+            "block": "p1",
+            "offset": 2
+          },
+          "affinity": "forward"
+        },
+        "pendingMarks": null
+      },
+      "effects": {
+        "localCommits": 1,
+        "remoteCommits": 0
+      }
+    },
+    "navigation": {
+      "anchor": {
+        "block": "p1",
+        "offset": 2
+      },
+      "focus": {
+        "block": "p1",
+        "offset": 0
+      },
+      "affinity": "backward"
+    }
+  },
+  {
+    "id": "MWF-harness-backward",
+    "initial": {
+      "blocks": [
+        {
+          "id": "p1",
+          "kind": "paragraph",
+          "text": "abcd",
+          "hardBreaks": [],
+          "marks": []
+        }
+      ],
+      "selection": {
+        "anchor": {
+          "block": "p1",
+          "offset": 3
+        },
+        "focus": {
+          "block": "p1",
+          "offset": 1
+        },
+        "affinity": "backward"
+      },
+      "pendingMarks": null
+    },
+    "action": {
+      "type": "nativeInsert",
+      "text": "X",
+      "range": {
+        "anchor": {
+          "block": "p1",
+          "offset": 3
+        },
+        "focus": {
+          "block": "p1",
+          "offset": 1
+        },
+        "affinity": "backward"
+      },
+      "beforeinput": "noncancelable",
+      "notifications": [
+        "input",
+        "observer",
+        "input"
+      ]
+    },
+    "expected": {
+      "outcome": "applied",
+      "state": {
+        "blocks": [
+          {
+            "id": "p1",
+            "kind": "paragraph",
+            "text": "aXd",
+            "hardBreaks": [],
+            "marks": []
+          }
+        ],
+        "selection": {
+          "anchor": {
+            "block": "p1",
+            "offset": 2
+          },
+          "focus": {
+            "block": "p1",
+            "offset": 2
+          },
+          "affinity": "forward"
+        },
+        "pendingMarks": null
+      },
+      "effects": {
+        "localCommits": 1,
+        "remoteCommits": 0
+      }
+    },
+    "navigation": {
+      "anchor": {
+        "block": "p1",
+        "offset": 2
+      },
+      "focus": {
+        "block": "p1",
+        "offset": 0
+      },
+      "affinity": "backward"
+    }
+  },
+  {
+    "id": "MWF-harness-utf16",
+    "initial": {
+      "blocks": [
+        {
+          "id": "p1",
+          "kind": "paragraph",
+          "text": "a\ud83d\ude00b",
+          "hardBreaks": [],
+          "marks": []
+        }
+      ],
+      "selection": {
+        "anchor": {
+          "block": "p1",
+          "offset": 3
+        },
+        "focus": {
+          "block": "p1",
+          "offset": 1
+        },
+        "affinity": "backward"
+      },
+      "pendingMarks": null
+    },
+    "action": {
+      "type": "nativeInsert",
+      "text": "\u00e9",
+      "range": {
+        "anchor": {
+          "block": "p1",
+          "offset": 3
+        },
+        "focus": {
+          "block": "p1",
+          "offset": 1
+        },
+        "affinity": "backward"
+      },
+      "beforeinput": "noncancelable",
+      "notifications": [
+        "input",
+        "observer",
+        "input"
+      ]
+    },
+    "expected": {
+      "outcome": "applied",
+      "state": {
+        "blocks": [
+          {
+            "id": "p1",
+            "kind": "paragraph",
+            "text": "a\u00e9b",
+            "hardBreaks": [],
+            "marks": []
+          }
+        ],
+        "selection": {
+          "anchor": {
+            "block": "p1",
+            "offset": 2
+          },
+          "focus": {
+            "block": "p1",
+            "offset": 2
+          },
+          "affinity": "forward"
+        },
+        "pendingMarks": null
+      },
+      "effects": {
+        "localCommits": 1,
+        "remoteCommits": 0
+      }
+    },
+    "navigation": {
+      "anchor": {
+        "block": "p1",
+        "offset": 2
+      },
+      "focus": {
+        "block": "p1",
+        "offset": 0
+      },
+      "affinity": "backward"
+    }
+  }
+]

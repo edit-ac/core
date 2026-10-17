@@ -46,7 +46,8 @@
     "build:wasm:markdown": "node scripts/build-wasm.mjs --markdown",
     "check:markdown-codec": "npm run build:wasm:markdown && npm run build && node --test tests/markdown-codec.test.mjs",
     "test:interactions": "node scripts/test-interactions.mjs",
-    "test:web": "node scripts/test-web.mjs"
+    "test:web": "node scripts/test-web.mjs",
+    "test:mobile-web": "node scripts/test-mobile-web.mjs"
   },
   "devDependencies": {
     "@astrojs/node": "11.1.7",

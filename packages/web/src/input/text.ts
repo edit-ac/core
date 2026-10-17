@@ -154,6 +154,9 @@ export class TextInput {
     }
     this.textDrag.beforeEvent(event);
     this.#flushNative();
+    // A host capture listener may cancel native input before this surface sees
+    // it. Do not turn that canceled delivery into a new semantic command.
+    if (event.type === 'beforeinput' && event.defaultPrevented) return;
     if (['paste','cut','drop','compositionstart','compositionend','blur','keyup'].includes(event.type)) this.codeCommands?.handle(event);
     if (['compositionstart', 'paste', 'cut', 'beforeinput'].includes(event.type)) { this.slash?.handle(event); this.references?.handle(event); }
     const historyAction = this.#composition.active &&
