@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "edit-ac-epub-v1",
+  "direction": "export",
+  "fidelity": "epub33-reflowable-export-v1",
+  "owner": "CNV-1.15",
+  "dependencies": {
+    "zip": "8.6.0",
+    "quick-xml": "0.41.0",
+    "flate2": "1.1.10"
+  },
+  "supported": [
+    "EPUB3.3 OCF first stored mimetype without extra field; container/package/manifest/spine/nav",
+    "Unicode paragraphs/headings1-6, all five text marks and safe absolute links; literal HTML escaped",
+    "top-level headings start deterministic chapters, nested headings retained in list, flat TOC in exact spine order",
+    "ordered/bullet nested lists <=9 with starts; rectangular v1 rich text tables/alignments",
+    "authorized original PNGs, exact bytes/digest, alt/caption and intrinsic dimensions"
+  ],
+  "unsupported": [
+    "arbitrary layout/styles/pagination/source package bytes",
+    "unknown containers/blocks/atoms/marks require explicit lossy approval and retained report",
+    "unavailable shared fragments reject even with lossy approval"
+  ],
+  "metadata": "title from first chapter or Untitled publication; language und; content-derived identifier; fixed modified 1970-01-01T00:00:00Z; omit source/private metadata and arbitrary navigation hierarchy",
+  "targets": {
+    "aarch64-apple-darwin": "real Session captured export with prepared execution/asset transports",
+    "wasm32-unknown-unknown": "actual writer compile only"
+  },
+  "reader": "EbookLib0.20/lxml6.0.2/six1.17.0; qualification only; explicit pre-provisioned offline environment; no automatic install/download"
+}

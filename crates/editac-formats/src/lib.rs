@@ -321,5 +321,5 @@ pub mod odt;
 #[cfg(any(feature = "rtf-import", feature = "rtf-export"))]
 pub mod rtf;
 
-#[cfg(feature = "epub-import")]
+#[cfg(any(feature = "epub-import", feature = "epub-export"))]
 pub mod epub;

@@ -287,3 +287,14 @@ source hashes are available in the report. Unsupported content requires explicit
 loss approval and retains original input. No DOM, network, DRM/fixed-layout,
 EPUB export, platform sandbox or release support is implied. Default dependencies
 remain empty. Run `node tests/formats/run.mjs epub-import` with isolated evidence.
+
+`epub-export` independently exposes `epub::export::export` and its `PROFILE` for
+captured revisions. It produces the safe reflowable chapters/spine/navigation,
+generated metadata, semantic XHTML and authorized original PNG profile documented
+in `fixtures/formats/epub/export/profile.md`. Review complete loss diagnostics,
+retain original input, and pass matching import `Provenance` when available.
+`node tests/formats/run.mjs epub-export` runs actual Session tests and the
+independent EbookLib/lxml output reader; explicitly set
+`EDITAC_EPUB_READER_PYTHON` to the pre-provisioned pinned validation environment.
+The default graph remains empty. WASM compilation and prepared native execution
+are not platform sandbox, reader UI, pagination or release qualification.

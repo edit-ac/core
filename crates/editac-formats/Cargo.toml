@@ -20,6 +20,7 @@ pdf-export = ["pdf-probe", "jobs", "krilla/raster-images", "dep:flate2"]
 pdf-probe = ["dep:krilla", "dep:rustybuzz"]
 container-codecs = ["dep:zip", "dep:quick-xml", "dep:flate2"]
 docx-codecs = ["container-codecs", "dep:docx-rs"]
+epub-export = ["container-codecs", "jobs"]
 epub-import = ["container-codecs", "jobs", "dep:editac-html", "dep:serde_json"]
 odt-import = ["container-codecs", "jobs"]
 odt-export = ["container-codecs", "jobs"]
@@ -143,3 +144,11 @@ required-features = ["epub-import"]
 [[example]]
 name = "epub_import"
 required-features = ["epub-import"]
+
+[[test]]
+name = "epub_export"
+required-features = ["epub-export"]
+
+[[example]]
+name = "epub_export"
+required-features = ["epub-export"]

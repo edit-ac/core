@@ -1085,6 +1085,109 @@
         "fixtures/formats/epub/second.xhtml",
         "fixtures/formats/epub/profile.md"
       ]
+    },
+    "epub-export": {
+      "commands": [
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--features",
+            "epub-export,epub-import",
+            "--test",
+            "epub_export",
+            "--",
+            "--nocapture"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--features",
+            "epub-import",
+            "--test",
+            "epub_import",
+            "--",
+            "--nocapture"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--features",
+            "docx-codecs,jobs,epub-import",
+            "--test",
+            "container_limits",
+            "--test",
+            "jobs",
+            "--test",
+            "profiles"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/epub-export-targets.test.mjs",
+            "tests/formats/dispatcher.test.mjs"
+          ],
+          "kind": "node-test"
+        }
+      ],
+      "inputs": [
+        "crates/editac-formats/src/epub/mod.rs",
+        "crates/editac-formats/src/epub/import.rs",
+        "crates/editac-formats/tests/epub_import.rs",
+        "crates/editac-formats/examples/epub_import.rs",
+        "tests/formats/epub-targets.test.mjs",
+        "fixtures/formats/epub/profile.json",
+        "crates/editac-html/src/lib.rs",
+        "crates/editac-html/Cargo.toml",
+        "crates/editac-formats/src/container.rs",
+        "crates/editac-formats/src/job.rs",
+        "crates/editac-formats/src/media.rs",
+        "crates/editac-formats/src/lib.rs",
+        "crates/editac-formats/Cargo.toml",
+        "crates/editac-formats/Cargo.lock",
+        "crates/editac-formats/tests/support/jobs_harness.rs",
+        "tests/formats/capabilities.json",
+        "tests/formats/run.mjs",
+        "tests/formats/dispatcher.test.mjs",
+        "tests/formats/inspect-epub-import.py",
+        "fixtures/formats/docx/probe/pixel.png",
+        "fixtures/formats/epub/container.xml",
+        "fixtures/formats/epub/package.opf",
+        "fixtures/formats/epub/nav.xhtml",
+        "fixtures/formats/epub/first.xhtml",
+        "fixtures/formats/epub/second.xhtml",
+        "fixtures/formats/epub/profile.md",
+        "crates/editac-formats/src/epub/export.rs",
+        "crates/editac-formats/tests/epub_export.rs",
+        "crates/editac-formats/examples/epub_export.rs",
+        "tests/formats/inspect-epub-export.py",
+        "tests/formats/epub-export-targets.test.mjs",
+        "fixtures/formats/epub/export/profile.json",
+        "fixtures/formats/epub/export/profile.md"
+      ],
+      "gate": "CNV-1.15"
     }
   }
 }
