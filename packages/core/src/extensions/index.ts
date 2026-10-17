@@ -23,3 +23,6 @@ export type { DocumentSearchMatch, DocumentSearchResult } from './search.js';
 
 export { CODE_COMMAND_PROFILE, CODE_COMMAND_LIMIT, CODE_PAIRS, CodeCommandError, codeContext, codeEdit, commitCodeEdit, executeCodeCommand } from './code.js';
 export type { CodeAction, CodeContext, CodeEdit } from './code.js';
+
+export { AI_VERSION, AI_PROFILE, AI_CAPABILITIES, AiHost, AiError } from './ai.js';
+export type { AiOperation, AiScope, AiLimits, AiDescriptor, AiTarget, AiRequest, AiErrorCode, AiStatus, AiUsage, AiResponse, AiPolicy, AiTransport } from './ai.js';

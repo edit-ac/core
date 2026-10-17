@@ -1,0 +1,992 @@
+{
+  "profile": "editac-ai-text-v1",
+  "prepared": true,
+  "cases": [
+    {
+      "id": "valid-ask",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "ask",
+          "fill",
+          "continue",
+          "rewrite",
+          "completion"
+        ],
+        "limits": {
+          "requests": 2,
+          "instructionBytes": 256,
+          "contextBytes": 1024,
+          "outputBytes": 128,
+          "timeoutMs": 1000
+        }
+      },
+      "request": {
+        "version": 1,
+        "requestId": "prepared-1",
+        "operation": "ask",
+        "scope": "selection",
+        "instruction": "Explain this passage",
+        "context": "A prepared passage. שלום 🧪",
+        "format": "plain-text",
+        "outputBytes": 100
+      },
+      "policy": {
+        "allowRemote": true,
+        "protectedDocument": false
+      },
+      "transport": true,
+      "canceled": false,
+      "prior": 0,
+      "expected": "ok"
+    },
+    {
+      "id": "valid-fill",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "ask",
+          "fill",
+          "continue",
+          "rewrite",
+          "completion"
+        ],
+        "limits": {
+          "requests": 2,
+          "instructionBytes": 256,
+          "contextBytes": 1024,
+          "outputBytes": 128,
+          "timeoutMs": 1000
+        }
+      },
+      "request": {
+        "version": 1,
+        "requestId": "prepared-1",
+        "operation": "fill",
+        "scope": "selection",
+        "instruction": "Explain this passage",
+        "context": "A prepared passage. שלום 🧪",
+        "format": "plain-text",
+        "outputBytes": 100
+      },
+      "policy": {
+        "allowRemote": true,
+        "protectedDocument": false
+      },
+      "transport": true,
+      "canceled": false,
+      "prior": 0,
+      "expected": "ok"
+    },
+    {
+      "id": "valid-continue",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "ask",
+          "fill",
+          "continue",
+          "rewrite",
+          "completion"
+        ],
+        "limits": {
+          "requests": 2,
+          "instructionBytes": 256,
+          "contextBytes": 1024,
+          "outputBytes": 128,
+          "timeoutMs": 1000
+        }
+      },
+      "request": {
+        "version": 1,
+        "requestId": "prepared-1",
+        "operation": "continue",
+        "scope": "selection",
+        "instruction": "Explain this passage",
+        "context": "A prepared passage. שלום 🧪",
+        "format": "plain-text",
+        "outputBytes": 100
+      },
+      "policy": {
+        "allowRemote": true,
+        "protectedDocument": false
+      },
+      "transport": true,
+      "canceled": false,
+      "prior": 0,
+      "expected": "ok"
+    },
+    {
+      "id": "valid-rewrite",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "ask",
+          "fill",
+          "continue",
+          "rewrite",
+          "completion"
+        ],
+        "limits": {
+          "requests": 2,
+          "instructionBytes": 256,
+          "contextBytes": 1024,
+          "outputBytes": 128,
+          "timeoutMs": 1000
+        }
+      },
+      "request": {
+        "version": 1,
+        "requestId": "prepared-1",
+        "operation": "rewrite",
+        "scope": "selection",
+        "instruction": "Explain this passage",
+        "context": "A prepared passage. שלום 🧪",
+        "format": "plain-text",
+        "outputBytes": 100
+      },
+      "policy": {
+        "allowRemote": true,
+        "protectedDocument": false
+      },
+      "transport": true,
+      "canceled": false,
+      "prior": 0,
+      "expected": "ok"
+    },
+    {
+      "id": "valid-completion",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "ask",
+          "fill",
+          "continue",
+          "rewrite",
+          "completion"
+        ],
+        "limits": {
+          "requests": 2,
+          "instructionBytes": 256,
+          "contextBytes": 1024,
+          "outputBytes": 128,
+          "timeoutMs": 1000
+        }
+      },
+      "request": {
+        "version": 1,
+        "requestId": "prepared-1",
+        "operation": "completion",
+        "scope": "selection",
+        "instruction": "Explain this passage",
+        "context": "A prepared passage. שלום 🧪",
+        "format": "plain-text",
+        "outputBytes": 100
+      },
+      "policy": {
+        "allowRemote": true,
+        "protectedDocument": false
+      },
+      "transport": true,
+      "canceled": false,
+      "prior": 0,
+      "expected": "ok"
+    },
+    {
+      "id": "absent",
+      "descriptor": null,
+      "request": {
+        "version": 1,
+        "requestId": "prepared-1",
+        "operation": "ask",
+        "scope": "selection",
+        "instruction": "Explain this passage",
+        "context": "A prepared passage. שלום 🧪",
+        "format": "plain-text",
+        "outputBytes": 100
+      },
+      "policy": {
+        "allowRemote": true,
+        "protectedDocument": false
+      },
+      "transport": true,
+      "canceled": false,
+      "prior": 0,
+      "expected": "unavailable"
+    },
+    {
+      "id": "disabled",
+      "descriptor": {
+        "version": 1,
+        "enabled": false,
+        "capabilities": [
+          "ask",
+          "fill",
+          "continue",
+          "rewrite",
+          "completion"
+        ],
+        "limits": {
+          "requests": 2,
+          "instructionBytes": 256,
+          "contextBytes": 1024,
+          "outputBytes": 128,
+          "timeoutMs": 1000
+        }
+      },
+      "request": {
+        "version": 1,
+        "requestId": "prepared-1",
+        "operation": "ask",
+        "scope": "selection",
+        "instruction": "Explain this passage",
+        "context": "A prepared passage. שלום 🧪",
+        "format": "plain-text",
+        "outputBytes": 100
+      },
+      "policy": {
+        "allowRemote": true,
+        "protectedDocument": false
+      },
+      "transport": true,
+      "canceled": false,
+      "prior": 0,
+      "expected": "unavailable"
+    },
+    {
+      "id": "invalid-descriptor-version",
+      "descriptor": {
+        "version": 2,
+        "enabled": true,
+        "capabilities": [
+          "ask",
+          "fill",
+          "continue",
+          "rewrite",
+          "completion"
+        ],
+        "limits": {
+          "requests": 2,
+          "instructionBytes": 256,
+          "contextBytes": 1024,
+          "outputBytes": 128,
+          "timeoutMs": 1000
+        }
+      },
+      "request": {
+        "version": 1,
+        "requestId": "prepared-1",
+        "operation": "ask",
+        "scope": "selection",
+        "instruction": "Explain this passage",
+        "context": "A prepared passage. שלום 🧪",
+        "format": "plain-text",
+        "outputBytes": 100
+      },
+      "policy": {
+        "allowRemote": true,
+        "protectedDocument": false
+      },
+      "transport": true,
+      "canceled": false,
+      "prior": 0,
+      "expected": "version"
+    },
+    {
+      "id": "invalid-request-version",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "ask",
+          "fill",
+          "continue",
+          "rewrite",
+          "completion"
+        ],
+        "limits": {
+          "requests": 2,
+          "instructionBytes": 256,
+          "contextBytes": 1024,
+          "outputBytes": 128,
+          "timeoutMs": 1000
+        }
+      },
+      "request": {
+        "version": 2,
+        "requestId": "prepared-1",
+        "operation": "ask",
+        "scope": "selection",
+        "instruction": "Explain this passage",
+        "context": "A prepared passage. שלום 🧪",
+        "format": "plain-text",
+        "outputBytes": 100
+      },
+      "policy": {
+        "allowRemote": true,
+        "protectedDocument": false
+      },
+      "transport": true,
+      "canceled": false,
+      "prior": 0,
+      "expected": "version"
+    },
+    {
+      "id": "missing-transport",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "ask",
+          "fill",
+          "continue",
+          "rewrite",
+          "completion"
+        ],
+        "limits": {
+          "requests": 2,
+          "instructionBytes": 256,
+          "contextBytes": 1024,
+          "outputBytes": 128,
+          "timeoutMs": 1000
+        }
+      },
+      "request": {
+        "version": 1,
+        "requestId": "prepared-1",
+        "operation": "ask",
+        "scope": "selection",
+        "instruction": "Explain this passage",
+        "context": "A prepared passage. שלום 🧪",
+        "format": "plain-text",
+        "outputBytes": 100
+      },
+      "policy": {
+        "allowRemote": true,
+        "protectedDocument": false
+      },
+      "transport": false,
+      "canceled": false,
+      "prior": 0,
+      "expected": "unavailable"
+    },
+    {
+      "id": "missing-limits",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "ask",
+          "fill",
+          "continue",
+          "rewrite",
+          "completion"
+        ]
+      },
+      "request": {
+        "version": 1,
+        "requestId": "prepared-1",
+        "operation": "ask",
+        "scope": "selection",
+        "instruction": "Explain this passage",
+        "context": "A prepared passage. שלום 🧪",
+        "format": "plain-text",
+        "outputBytes": 100
+      },
+      "policy": {
+        "allowRemote": true,
+        "protectedDocument": false
+      },
+      "transport": true,
+      "canceled": false,
+      "prior": 0,
+      "expected": "limits"
+    },
+    {
+      "id": "zero-requests",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "ask",
+          "fill",
+          "continue",
+          "rewrite",
+          "completion"
+        ],
+        "limits": {
+          "requests": 0,
+          "instructionBytes": 256,
+          "contextBytes": 1024,
+          "outputBytes": 128,
+          "timeoutMs": 1000
+        }
+      },
+      "request": {
+        "version": 1,
+        "requestId": "prepared-1",
+        "operation": "ask",
+        "scope": "selection",
+        "instruction": "Explain this passage",
+        "context": "A prepared passage. שלום 🧪",
+        "format": "plain-text",
+        "outputBytes": 100
+      },
+      "policy": {
+        "allowRemote": true,
+        "protectedDocument": false
+      },
+      "transport": true,
+      "canceled": false,
+      "prior": 0,
+      "expected": "limits"
+    },
+    {
+      "id": "zero-instructionBytes",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "ask",
+          "fill",
+          "continue",
+          "rewrite",
+          "completion"
+        ],
+        "limits": {
+          "requests": 2,
+          "instructionBytes": 0,
+          "contextBytes": 1024,
+          "outputBytes": 128,
+          "timeoutMs": 1000
+        }
+      },
+      "request": {
+        "version": 1,
+        "requestId": "prepared-1",
+        "operation": "ask",
+        "scope": "selection",
+        "instruction": "Explain this passage",
+        "context": "A prepared passage. שלום 🧪",
+        "format": "plain-text",
+        "outputBytes": 100
+      },
+      "policy": {
+        "allowRemote": true,
+        "protectedDocument": false
+      },
+      "transport": true,
+      "canceled": false,
+      "prior": 0,
+      "expected": "limits"
+    },
+    {
+      "id": "zero-contextBytes",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "ask",
+          "fill",
+          "continue",
+          "rewrite",
+          "completion"
+        ],
+        "limits": {
+          "requests": 2,
+          "instructionBytes": 256,
+          "contextBytes": 0,
+          "outputBytes": 128,
+          "timeoutMs": 1000
+        }
+      },
+      "request": {
+        "version": 1,
+        "requestId": "prepared-1",
+        "operation": "ask",
+        "scope": "selection",
+        "instruction": "Explain this passage",
+        "context": "A prepared passage. שלום 🧪",
+        "format": "plain-text",
+        "outputBytes": 100
+      },
+      "policy": {
+        "allowRemote": true,
+        "protectedDocument": false
+      },
+      "transport": true,
+      "canceled": false,
+      "prior": 0,
+      "expected": "limits"
+    },
+    {
+      "id": "zero-outputBytes",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "ask",
+          "fill",
+          "continue",
+          "rewrite",
+          "completion"
+        ],
+        "limits": {
+          "requests": 2,
+          "instructionBytes": 256,
+          "contextBytes": 1024,
+          "outputBytes": 0,
+          "timeoutMs": 1000
+        }
+      },
+      "request": {
+        "version": 1,
+        "requestId": "prepared-1",
+        "operation": "ask",
+        "scope": "selection",
+        "instruction": "Explain this passage",
+        "context": "A prepared passage. שלום 🧪",
+        "format": "plain-text",
+        "outputBytes": 100
+      },
+      "policy": {
+        "allowRemote": true,
+        "protectedDocument": false
+      },
+      "transport": true,
+      "canceled": false,
+      "prior": 0,
+      "expected": "limits"
+    },
+    {
+      "id": "zero-timeoutMs",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "ask",
+          "fill",
+          "continue",
+          "rewrite",
+          "completion"
+        ],
+        "limits": {
+          "requests": 2,
+          "instructionBytes": 256,
+          "contextBytes": 1024,
+          "outputBytes": 128,
+          "timeoutMs": 0
+        }
+      },
+      "request": {
+        "version": 1,
+        "requestId": "prepared-1",
+        "operation": "ask",
+        "scope": "selection",
+        "instruction": "Explain this passage",
+        "context": "A prepared passage. שלום 🧪",
+        "format": "plain-text",
+        "outputBytes": 100
+      },
+      "policy": {
+        "allowRemote": true,
+        "protectedDocument": false
+      },
+      "transport": true,
+      "canceled": false,
+      "prior": 0,
+      "expected": "limits"
+    },
+    {
+      "id": "quota-exhausted",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "ask",
+          "fill",
+          "continue",
+          "rewrite",
+          "completion"
+        ],
+        "limits": {
+          "requests": 2,
+          "instructionBytes": 256,
+          "contextBytes": 1024,
+          "outputBytes": 128,
+          "timeoutMs": 1000
+        }
+      },
+      "request": {
+        "version": 1,
+        "requestId": "prepared-1",
+        "operation": "ask",
+        "scope": "selection",
+        "instruction": "Explain this passage",
+        "context": "A prepared passage. שלום 🧪",
+        "format": "plain-text",
+        "outputBytes": 100
+      },
+      "policy": {
+        "allowRemote": true,
+        "protectedDocument": false
+      },
+      "transport": true,
+      "canceled": false,
+      "prior": 2,
+      "expected": "quota"
+    },
+    {
+      "id": "protected",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "ask",
+          "fill",
+          "continue",
+          "rewrite",
+          "completion"
+        ],
+        "limits": {
+          "requests": 2,
+          "instructionBytes": 256,
+          "contextBytes": 1024,
+          "outputBytes": 128,
+          "timeoutMs": 1000
+        }
+      },
+      "request": {
+        "version": 1,
+        "requestId": "prepared-1",
+        "operation": "ask",
+        "scope": "selection",
+        "instruction": "Explain this passage",
+        "context": "A prepared passage. שלום 🧪",
+        "format": "plain-text",
+        "outputBytes": 100
+      },
+      "policy": {
+        "allowRemote": true,
+        "protectedDocument": true
+      },
+      "transport": true,
+      "canceled": false,
+      "prior": 0,
+      "expected": "forbidden"
+    },
+    {
+      "id": "unauthorized",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "ask",
+          "fill",
+          "continue",
+          "rewrite",
+          "completion"
+        ],
+        "limits": {
+          "requests": 2,
+          "instructionBytes": 256,
+          "contextBytes": 1024,
+          "outputBytes": 128,
+          "timeoutMs": 1000
+        }
+      },
+      "request": {
+        "version": 1,
+        "requestId": "prepared-1",
+        "operation": "ask",
+        "scope": "selection",
+        "instruction": "Explain this passage",
+        "context": "A prepared passage. שלום 🧪",
+        "format": "plain-text",
+        "outputBytes": 100
+      },
+      "policy": {
+        "allowRemote": false,
+        "protectedDocument": false
+      },
+      "transport": true,
+      "canceled": false,
+      "prior": 0,
+      "expected": "forbidden"
+    },
+    {
+      "id": "unsupported-format",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "ask",
+          "fill",
+          "continue",
+          "rewrite",
+          "completion"
+        ],
+        "limits": {
+          "requests": 2,
+          "instructionBytes": 256,
+          "contextBytes": 1024,
+          "outputBytes": 128,
+          "timeoutMs": 1000
+        }
+      },
+      "request": {
+        "version": 1,
+        "requestId": "prepared-1",
+        "operation": "ask",
+        "scope": "selection",
+        "instruction": "Explain this passage",
+        "context": "A prepared passage. שלום 🧪",
+        "format": "html",
+        "outputBytes": 100
+      },
+      "policy": {
+        "allowRemote": true,
+        "protectedDocument": false
+      },
+      "transport": true,
+      "canceled": false,
+      "prior": 0,
+      "expected": "format"
+    },
+    {
+      "id": "oversized-context",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "ask",
+          "fill",
+          "continue",
+          "rewrite",
+          "completion"
+        ],
+        "limits": {
+          "requests": 2,
+          "instructionBytes": 256,
+          "contextBytes": 1024,
+          "outputBytes": 128,
+          "timeoutMs": 1000
+        }
+      },
+      "request": {
+        "version": 1,
+        "requestId": "prepared-1",
+        "operation": "ask",
+        "scope": "selection",
+        "instruction": "Explain this passage",
+        "context": "🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪",
+        "format": "plain-text",
+        "outputBytes": 100
+      },
+      "policy": {
+        "allowRemote": true,
+        "protectedDocument": false
+      },
+      "transport": true,
+      "canceled": false,
+      "prior": 0,
+      "expected": "invalid-request"
+    },
+    {
+      "id": "oversized-instruction",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "ask",
+          "fill",
+          "continue",
+          "rewrite",
+          "completion"
+        ],
+        "limits": {
+          "requests": 2,
+          "instructionBytes": 256,
+          "contextBytes": 1024,
+          "outputBytes": 128,
+          "timeoutMs": 1000
+        }
+      },
+      "request": {
+        "version": 1,
+        "requestId": "prepared-1",
+        "operation": "ask",
+        "scope": "selection",
+        "instruction": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "context": "A prepared passage. שלום 🧪",
+        "format": "plain-text",
+        "outputBytes": 100
+      },
+      "policy": {
+        "allowRemote": true,
+        "protectedDocument": false
+      },
+      "transport": true,
+      "canceled": false,
+      "prior": 0,
+      "expected": "invalid-request"
+    },
+    {
+      "id": "oversized-output",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "ask",
+          "fill",
+          "continue",
+          "rewrite",
+          "completion"
+        ],
+        "limits": {
+          "requests": 2,
+          "instructionBytes": 256,
+          "contextBytes": 1024,
+          "outputBytes": 128,
+          "timeoutMs": 1000
+        }
+      },
+      "request": {
+        "version": 1,
+        "requestId": "prepared-1",
+        "operation": "ask",
+        "scope": "selection",
+        "instruction": "Explain this passage",
+        "context": "A prepared passage. שלום 🧪",
+        "format": "plain-text",
+        "outputBytes": 129
+      },
+      "policy": {
+        "allowRemote": true,
+        "protectedDocument": false
+      },
+      "transport": true,
+      "canceled": false,
+      "prior": 0,
+      "expected": "invalid-request"
+    },
+    {
+      "id": "missing-id",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "ask",
+          "fill",
+          "continue",
+          "rewrite",
+          "completion"
+        ],
+        "limits": {
+          "requests": 2,
+          "instructionBytes": 256,
+          "contextBytes": 1024,
+          "outputBytes": 128,
+          "timeoutMs": 1000
+        }
+      },
+      "request": {
+        "version": 1,
+        "requestId": "",
+        "operation": "ask",
+        "scope": "selection",
+        "instruction": "Explain this passage",
+        "context": "A prepared passage. שלום 🧪",
+        "format": "plain-text",
+        "outputBytes": 100
+      },
+      "policy": {
+        "allowRemote": true,
+        "protectedDocument": false
+      },
+      "transport": true,
+      "canceled": false,
+      "prior": 0,
+      "expected": "invalid-request"
+    },
+    {
+      "id": "canceled",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "ask",
+          "fill",
+          "continue",
+          "rewrite",
+          "completion"
+        ],
+        "limits": {
+          "requests": 2,
+          "instructionBytes": 256,
+          "contextBytes": 1024,
+          "outputBytes": 128,
+          "timeoutMs": 1000
+        }
+      },
+      "request": {
+        "version": 1,
+        "requestId": "prepared-1",
+        "operation": "ask",
+        "scope": "selection",
+        "instruction": "Explain this passage",
+        "context": "A prepared passage. שלום 🧪",
+        "format": "plain-text",
+        "outputBytes": 100
+      },
+      "policy": {
+        "allowRemote": true,
+        "protectedDocument": false
+      },
+      "transport": true,
+      "canceled": true,
+      "prior": 0,
+      "expected": "canceled"
+    },
+    {
+      "id": "unregistered-operation",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "completion"
+        ],
+        "limits": {
+          "requests": 2,
+          "instructionBytes": 256,
+          "contextBytes": 1024,
+          "outputBytes": 128,
+          "timeoutMs": 1000
+        }
+      },
+      "request": {
+        "version": 1,
+        "requestId": "prepared-1",
+        "operation": "ask",
+        "scope": "selection",
+        "instruction": "Explain this passage",
+        "context": "A prepared passage. שלום 🧪",
+        "format": "plain-text",
+        "outputBytes": 100
+      },
+      "policy": {
+        "allowRemote": true,
+        "protectedDocument": false
+      },
+      "transport": true,
+      "canceled": false,
+      "prior": 0,
+      "expected": "capability"
+    }
+  ]
+}
