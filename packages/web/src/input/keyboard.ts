@@ -1,11 +1,12 @@
 import { FormattingInput, type ToolbarTarget } from '../commands/formatting.js';
 export type { ToolbarTarget } from '../commands/formatting.js';
+import { leaveEditor } from './focus.js';
 import { errorMessage, rejected } from '../errors.js';
 import type { AnchorToken, CommitResult, EditorCommand, EngineHandle, PrepareRequest, ProjectedNode, StableRange } from '@edit-ac/core';
 import type { DOMRenderer } from '../dom/render.js';
 import type { DOMSelection, RetainedSelection } from '../dom/selection.js';
 
-export type KeyboardAction = 'enter' | 'break' | 'backward' | 'forward' | 'indent' | 'outdent' | 'undo' | 'redo' | 'bold' | 'italic' | 'underline' | 'strike';
+export type KeyboardAction = 'enter' | 'break' | 'backward' | 'forward' | 'indent' | 'outdent' | 'undo' | 'redo' | 'bold' | 'italic' | 'underline' | 'strike' | 'link';
 export interface CommandResult { disposition: 'committed' | 'handled' | 'rejected'; reason?: string }
 const kind = (node: ProjectedNode) => Array.isArray(node.blockAttributes) ? node.blockAttributes[0] : undefined;
 const length = (node: ProjectedNode) => node.runs.reduce((n, run) => n + run.text.length, 0);
@@ -18,6 +19,10 @@ export class KeyboardInput {
   #disposed = false;
   #escape = false;
   #sequence = 0;
+  readonly #help: HTMLElement;
+  #link: { element: HTMLElement; target: ToolbarTarget; selection: RetainedSelection } | undefined;
+  readonly #description: string | null;
+  static #helpId = 0;
   readonly formatting: FormattingInput;
   readonly #renderer: DOMRenderer;
   readonly #selection: DOMSelection;
@@ -32,7 +37,15 @@ export class KeyboardInput {
     this.#engine = engine;
     this.#commit = commit;
     this.#blocked = blocked;
-    this.formatting = new FormattingInput(renderer, selection, engine, commit, blocked);}
+    this.formatting = new FormattingInput(renderer, selection, engine, commit, blocked);
+    const root = renderer.root, doc = root.ownerDocument;
+    this.#help = doc.createElement('p');
+    this.#help.id = `editac-keyboard-help-${++KeyboardInput.#helpId}`;
+    this.#help.textContent = 'Keyboard help: Tab moves focus in prose, indents lists/code and moves table cells. Shift+Tab reverses; Escape then Tab leaves the editor. Primary+B/I/U formats; Primary+K edits a link; Primary+Z/Shift+Z undoes/redoes. Browser and system shortcuts remain available.';
+    this.#description = root.getAttribute('aria-describedby');
+    root.setAttribute('aria-describedby', [this.#description, this.#help.id].filter(Boolean).join(' '));
+    root.after(this.#help);
+  }
 
   action(event: Event): KeyboardAction | undefined {
     if (event.defaultPrevented) {
@@ -56,15 +69,19 @@ export class KeyboardInput {
     const mac = /Mac|iPhone|iPad/.test(this.#renderer.root.ownerDocument.defaultView?.navigator.platform ?? '');
     const primary = mac ? key.metaKey && !key.ctrlKey : key.ctrlKey && !key.metaKey;
     if (primary && !key.shiftKey) {
-      const mark = ({ b: 'bold', i: 'italic', u: 'underline' } as const)[key.key.toLowerCase() as 'b' | 'i' | 'u'];
-      if (mark) return mark;
+      const mark = ({ b: 'bold', i: 'italic', u: 'underline', k: 'link' } as const)[key.key.toLowerCase() as 'b' | 'i' | 'u' | 'k'];
+      if (mark) {
+        const target = this.formatting.capture();
+        try { return target && target.state(mark) !== 'disabled' ? mark : undefined; }
+        finally { target?.dispose(); }
+      }
     }
     if (primary && key.shiftKey && key.key.toLowerCase() === 'x') return 'strike';
     if (primary && key.key.toLowerCase() === 'z') return key.shiftKey ? 'redo' : 'undo';
     if (!mac && primary && !key.shiftKey && key.key.toLowerCase() === 'y') return 'redo';
     if (key.ctrlKey || key.metaKey) return undefined;
-    if (key.key === 'Escape') { this.#escape = true; return undefined; }
-    if (key.key === 'Tab' && escape) return undefined;
+    if (key.key === 'Escape') { if (this.#link) { this.#closeLink(true); key.preventDefault(); } this.#escape = true; return undefined; }
+    if (key.key === 'Tab' && escape) { if (leaveEditor(this.#renderer.root, key.shiftKey)) key.preventDefault(); return undefined; }
     if (key.key === 'Enter') return key.shiftKey ? 'break' : 'enter';
     if (key.key === 'Tab') return key.shiftKey ? 'outdent' : 'indent';
     if (key.key === 'Backspace') return 'backward';
@@ -87,6 +104,7 @@ export class KeyboardInput {
   execute(action: KeyboardAction, origin = `keyboard:${++this.#sequence}`): CommandResult | undefined {
     this.resetFocusEscape();
     if (this.#disposed || this.#blocked()) return rejected(this.#disposed ? 'disposed' : 'read-only-or-composing');
+    if (action === 'link') return this.openLink();
     const selectedNode = (action === 'backward' || action === 'forward') && this.#selection.selectedNode();
     if (selectedNode) {
       let at: AnchorToken | undefined, caret: AnchorToken | undefined, selection: StableRange | undefined, started = false;
@@ -196,7 +214,10 @@ export class KeyboardInput {
             const lines = [first]; for (let i = first; i < last; i++) if (text[i] === '\n') lines.push(i + 1);
             for (const offset of lines.reverse()) {
               if (action === 'indent') commands.push({ type: 'insert', at: anchor(node.id, offset), text: '\t' });
-              else if (text[offset] === '\t') commands.push({ type: 'delete', range: { anchor: anchor(node.id, offset), focus: anchor(node.id, offset + 1) } });
+              else {
+                const width = text[offset] === '\t' ? 1 : /^ {1,4}/u.exec(text.slice(offset))?.[0].length ?? 0;
+                if (width) commands.push({ type: 'delete', range: { anchor: anchor(node.id, offset), focus: anchor(node.id, offset + width) } });
+              }
             }
           }
         } else return undefined;
@@ -274,8 +295,48 @@ export class KeyboardInput {
     finally { for (const token of tokens) this.#engine.releaseAnchor(token); target.dispose(); }
   }
 
+  /** Link UI and host toolbar both use the same captured formatting target. */
+  openLink(): CommandResult {
+    if (this.#disposed || this.#blocked()) return rejected('read-only-or-composing');
+    const target = this.captureToolbar();
+    if (!target || target.state('link') === 'disabled') { target?.dispose(); return rejected('unsupported-formatting'); }
+    this.#closeLink();
+    const retained = this.#selection.retain();
+    if (!retained) { target.dispose(); return rejected('unmapped-selection'); }
+    const doc = this.#renderer.root.ownerDocument, form = doc.createElement('form');
+    form.setAttribute('role', 'dialog'); form.setAttribute('aria-label', 'Edit link');
+    const label = doc.createElement('label'); label.textContent = 'Link URL';
+    const input = doc.createElement('input'); input.type = 'url'; input.value = String(this.formatting.typing(retained.range).link ?? ''); const initial = input.value; label.append(input);
+    const apply = doc.createElement('button'); apply.type = 'submit'; apply.textContent = 'Apply link';
+    const cancel = doc.createElement('button'); cancel.type = 'button'; cancel.textContent = 'Cancel link';
+    const status = doc.createElement('span'); status.setAttribute('role', 'status');
+    form.append(label, apply, cancel, status); this.#help.after(form); this.#link = { element: form, target, selection: retained };
+    cancel.addEventListener('click', () => this.#closeLink(true));
+    form.addEventListener('keydown', event => { if (event.key === 'Escape' && !event.isComposing) { event.preventDefault(); this.#closeLink(true); this.#escape = true; } });
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      if (input.value === initial) { this.#closeLink(true); return; }
+      const result = target.apply({ link: input.value || null });
+      if (result.disposition === 'rejected') { status.textContent = result.reason ?? 'Link unavailable'; return; }
+      this.#closeLink(); this.#renderer.root.focus();
+    });
+    input.focus(); return { disposition: 'handled' };
+  }
+  #closeLink(restore = false): void {
+    const link = this.#link; if (!link) return; this.#link = undefined;
+    if (restore) { this.#renderer.root.focus(); this.#selection.restoreRetained(link.selection); }
+    link.target.dispose(); link.selection.dispose(); link.element.remove();
+  }
   captureToolbar(): ToolbarTarget | undefined { this.resetFocusEscape(); return this.formatting.capture(); }
   #move(token: AnchorToken): void { this.#selection.move(token); }
   #restore(target: RetainedSelection): void { this.#selection.restoreRetained(target); }
-  dispose(): void { if (this.#disposed) return; this.#disposed = true; this.formatting.dispose(); }
+  dispose(): void {
+    if (this.#disposed) return;
+    this.#disposed = true; this.#closeLink(); this.#help.remove();
+    const root = this.#renderer.root, current = root.getAttribute('aria-describedby');
+    const installed = [this.#description, this.#help.id].filter(Boolean).join(' ');
+    const description = current === installed ? this.#description : current?.split(/\s+/u).filter(id => id !== this.#help.id).join(' ');
+    if (description !== null && description !== undefined) root.setAttribute('aria-describedby', description); else root.removeAttribute('aria-describedby');
+    this.formatting.dispose();
+  }
 }

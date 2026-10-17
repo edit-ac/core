@@ -129,10 +129,15 @@ export class TextInput {
     this.recovery.push({ ...recovery, intent: intent.id, generation: intent.generation });
     if (this.recovery.length > 32) this.recovery.shift();
   }
-  #handle(event: Event): void {
+  #handle(event: Event, routedFromPopup = false): void {
     if (this.#disposed) return;
     const eventTarget=event.target as Element | null;
-    if (eventTarget !== this.#renderer.root) {
+    // An observed key keeps its original popup target after focus restoration.
+    // Only an explicit route from this surface's own popup may cross that boundary.
+    const ownedPopup = routedFromPopup && event.type === 'keydown' && !event.defaultPrevented &&
+      this.#renderer.root.ownerDocument.activeElement === this.#renderer.root &&
+      (!!this.slash?.menu.contains(eventTarget) || !!this.references?.menu.contains(eventTarget));
+    if (eventTarget !== this.#renderer.root && !ownedPopup) {
       if (eventTarget?.closest?.('input, textarea, select, button')) return;
       const editable = eventTarget?.closest?.<HTMLElement>('[contenteditable]');
       if (editable !== this.#renderer.root) {
@@ -200,9 +205,8 @@ export class TextInput {
     }
     if (event.type === 'keydown' && this.keyboard.navigate(key)) { event.preventDefault(); return; }
     const action = this.keyboard.action(event);
-    if ((action === 'indent' || action === 'outdent') && event.cancelable && this.codeCommands?.execute(action)) {
-      event.preventDefault(); return;
-    }
+    // Native Tab belongs to the baseline literal-code/list/table profile.
+    // Optional code convenience commands keep their explicit controls/bindings.
     if (action && (event.type === 'keydown' || event.type === 'beforeinput' && event.cancelable)) {
       this.#flushNative();
       const intent = event.type === 'beforeinput' ? this.#key ?? this.#create('beforeinput') : this.#create('key');
@@ -459,12 +463,12 @@ export class TextInput {
   }
   attachReferences(factory: import('../modules/references.js').ReferenceFactory): void {
     if (this.references || this.#disposed) throw Error('Reference presenter already attached or disposed');
-    this.references = factory({ root: this.#renderer.root, selection: this.#selection, engine: this.#engine, commit: this.#commit, route: event => this.#handle(event), focusEscape: event => { this.keyboard.action(event); } });
+    this.references = factory({ root: this.#renderer.root, selection: this.#selection, engine: this.#engine, commit: this.#commit, route: event => this.#handle(event, true), focusEscape: event => { this.keyboard.action(event); } });
     this.references.setReadOnly(this.#readOnly);
   }
   attachSlash(factory: import('../modules/slash.js').SlashFactory): void {
     if (this.slash || this.#disposed) throw Error('Slash presenter already attached or disposed');
-    this.slash = factory({ root: this.#renderer.root, selection: this.#selection, engine: this.#engine, commit: this.#commit, route: event => this.#handle(event), focusEscape: event => { this.keyboard.action(event); } });
+    this.slash = factory({ root: this.#renderer.root, selection: this.#selection, engine: this.#engine, commit: this.#commit, route: event => this.#handle(event, true), focusEscape: event => { this.keyboard.action(event); } });
     this.slash.setReadOnly(this.#readOnly);
   }
   setReadOnly(value: boolean): void {

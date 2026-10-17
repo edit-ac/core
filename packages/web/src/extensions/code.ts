@@ -44,7 +44,7 @@ export class CodeCommandsPresenter {
     if(event.type==='keydown') {
       this.#direct=undefined;
       if(['Shift','Control','Meta','Alt'].includes(key.key))return false;
-      if(this.#blocked() || key.isComposing || key.defaultPrevented)return false;
+      if(this.#blocked() || key.isComposing || key.defaultPrevented || key.getModifierState('AltGraph') || ['Dead','Process'].includes(key.key))return false;
       const binding=this.options.bindings?.find(b=>key.key===b.key&&key.ctrlKey===!!b.ctrl&&key.metaKey===!!b.meta&&key.altKey===!!b.alt&&key.shiftKey===!!b.shift);
       if(binding){if(this.execute(binding.action)){event.preventDefault();return true;}return false;}
       if(key.ctrlKey || key.metaKey || key.altKey){this.#pair=undefined;return false;}

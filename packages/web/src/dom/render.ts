@@ -50,7 +50,7 @@ export class DOMRenderer {
   }
   isHeld(id: string): boolean { return this.#held.has(id); }
   getBlock(id: string): HTMLElement | undefined { return this.#entries.get(id)?.content; }
-  /** Only adapter-created view decorations own asynchronous DOM mutations.
+  /** Only renderer-mounted presenter DOM owns temporary input/display mutations.
    * Authored data attributes cannot confer ownership of canonical source. */
   ownsModuleDecoration(node: Node): boolean {
     for (let at: Node | null = node; at && at !== this.root; at = at.parentNode) {
@@ -186,7 +186,7 @@ export class DOMRenderer {
         const view = this.#options.content({ element: entry.content, node, engine: this.#engine,
           commit: this.#options.commit ?? (request => this.#engine.commit(this.#engine.prepare(request))),
           readOnly: this.root.contentEditable === 'false' });
-        if (view) { this.#disposeRuns(entry); entry.runs = []; entry.content.replaceChildren(view.element); entry.contentView = view; }
+        if (view) { this.#disposeRuns(entry); entry.runs = []; this.#moduleDecorations.add(view.element); entry.content.replaceChildren(view.element); entry.contentView = view; }
       }
       entry.contentDescriptorKey = descriptorKey;
       if (entry.contentView) { entry.content.contentEditable = 'false'; return; }
