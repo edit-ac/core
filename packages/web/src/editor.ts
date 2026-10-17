@@ -290,6 +290,10 @@ export class BrowserEditor {
   captureCommand(name: string, supplied?: import('@edit-ac/core').StableRange, focusOwner?: HTMLElement): import('./commands/catalog.js').CapturedCommand | undefined {
     this.#requireReady(); return this.#input?.keyboard.captureCommand(name, supplied, focusOwner);
   }
+  takeExtensionErrors(): readonly import('./extensions/authoring.js').ExtensionDiagnosticV1[] { return this.#surface?.takeExtensionErrors() ?? []; }
+  runExtensionCommand(id: string, name: string, argument?: import('@edit-ac/core').Json): CommitResult | undefined {
+    this.#requireReady(); return this.#surface!.runExtensionCommand(id, name, argument);
+  }
   settle(): Promise<void> { this.#requireReady(); return this.#input!.settle(); }
   captureHistory(): import('./input/keyboard.js').HistoryTarget | undefined { this.#requireReady(); return this.#input?.keyboard.captureHistory(); }
   captureToolbar(): import('./commands/formatting.js').ToolbarTarget | undefined {

@@ -83,3 +83,6 @@ export type { PresenceOptions, PresenceAttachment } from './sync/presence.js';
 
 export { managedCodeHighlighting } from './extensions/highlighting.js';
 export type { ManagedCodeHighlightOptions, ManagedCodeHighlightFactory, ManagedCodeHighlightAttachment, CodeHighlightAttachment } from './extensions/highlighting.js';
+
+export { Extension } from './extensions/authoring.js';
+export type { ExtensionCreateV1, ExtensionHooksV1, ExtensionContextV1, ExtensionInputV1, ExtensionDiagnosticV1 } from './extensions/authoring.js';

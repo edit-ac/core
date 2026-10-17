@@ -1,3 +1,4 @@
+import { isAuthored, admitAuthoring, authoringAdapters } from './authoring.js';
 import { FIRST_PARTY_FEATURES } from '@edit-ac/core/extensions';
 import type { ProfileEnvironment } from '@edit-ac/core/extensions';
 import { documentSearch } from '../modules/search.js';
@@ -118,8 +119,11 @@ export function prepareSurfaceConfiguration(options: EditorSurfaceOptions, schem
   if (prepared.configuration.platform?.spellcheck === 'custom') throw new ExtensionConfigurationError('missing-checker', 'editor', 'platform.spellcheck', 'Custom checking requires the explicit checker adapter delivered by EXT-1.18');
   for (const extension of prepared.extensions) {
     const factory = adapters.get(extension.feature.id);
+    if (isAuthored((options.extensions ?? [])[prepared.extensions.indexOf(extension)]!)) continue;
     if (!factory || JSON.stringify(extension) !== JSON.stringify(factory.configure(extension.options as never))) throw new ExtensionConfigurationError('missing-adapter', extension.feature.id, 'extensions', 'Use an unchanged shipped facade factory; authoring adapters are delivered by EXT-1.15');
   }
+  admitAuthoring(prepared, options.extensions ?? []);
+  authoringAdapters(prepared); // Validate codec conflicts before attachment.
   preparedHosts.set(prepared, Object.freeze(hosts));
   return prepared;
 }
@@ -134,6 +138,10 @@ export function configuredSurfaceOptions(options: EditorSurfaceOptions, prepared
     if (extension.feature.id === 'editac.reorder') result.reorder = reorderControls();
     if (extension.feature.id === 'editac.math') result.moduleRuntime = { renderers: { 'editac.math': managedMathRenderer(prepared.configuration.assets) }, presentations: { 'editac.math': { tag: 'span' } } };
   }
+  const authored = authoringAdapters(prepared);
+  if (Object.keys(authored.renderers).length) result.moduleRuntime = { ...result.moduleRuntime, renderers: { ...result.moduleRuntime?.renderers, ...authored.renderers }, presentations: { ...result.moduleRuntime?.presentations, ...Object.fromEntries(Object.keys(authored.renderers).map(type => [type, { tag: 'span' as const }])) } };
+  if (authored.markdown) result.markdown = authored.markdown;
+  if (authored.clipboardCodecs.length) result.clipboardCodecs = authored.clipboardCodecs;
   const marks = prepared.configuration.formatting?.marks;
   if (marks) {
     result.commandAllowed = command => !(command in marks) || marks[command as keyof typeof marks]?.commands !== false;

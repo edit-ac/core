@@ -4,9 +4,9 @@ import { resolve } from 'node:path';
 import { requireTestNode } from './test-toolchain.mjs';
 await requireTestNode();
 const args = process.argv.slice(2);
-const groups = { contract: { files: ['tests/extension-dx/contract.test.mjs'], minimumTests: 30 }, configuration: { files: ['tests/extension-dx/configuration.test.mjs'], minimumTests: 45 }, loading: { files: ['tests/extension-dx/loading.test.mjs'], minimumTests: 24 } };
+const groups = { authoring: { files: ['tests/extension-dx/authoring.test.mjs'], minimumTests: 33 }, contract: { files: ['tests/extension-dx/contract.test.mjs'], minimumTests: 30 }, configuration: { files: ['tests/extension-dx/configuration.test.mjs'], minimumTests: 45 }, loading: { files: ['tests/extension-dx/loading.test.mjs'], minimumTests: 24 } };
 if (args.length !== 2 || args[0] !== '--group' || !Object.hasOwn(groups, args[1])) {
-  console.error('Specify exactly --group contract, --group configuration or --group loading; unavailable/unimplemented groups fail closed.'); process.exit(2);
+  console.error('Specify exactly --group contract, --group configuration, --group authoring or --group loading; unavailable/unimplemented groups fail closed.'); process.exit(2);
 }
 const output = resolve(process.env.EDITAC_EXTENSION_DX_OUTPUT ?? `.artifacts/extension-dx/${args[1]}`);
 mkdirSync(output, { recursive: true });

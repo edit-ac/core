@@ -285,8 +285,8 @@ export class DOMRenderer {
       const presentation = resolved?.presentation ?? (resolved ? this.moduleRuntime?.presentation(resolved.definition.type) : undefined);
       const wrapper = this.root.ownerDocument.createElement(presentation?.tag ?? 'span');
       wrapper.dataset.moduleType = key.slice('module:'.length);
-      if (!resolved?.presentation) wrapper.dataset.moduleFallback = 'text';
-      if (resolved?.definition.kind === 'inline-atom' && resolved.presentation) wrapper.contentEditable = 'false';
+      if (!presentation) wrapper.dataset.moduleFallback = 'text';
+      if (resolved?.definition.kind === 'inline-atom' && presentation) wrapper.contentEditable = 'false';
       target.append(wrapper); target = wrapper;
       if (resolved && presentation && this.moduleRuntime) {
         const decoration = this.root.ownerDocument.createElement('span');

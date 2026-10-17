@@ -1,3 +1,4 @@
+import { attachAuthoring } from './extensions/authoring.js';
 import { configuredSurfaceOptions, prepareSurfaceConfiguration, type EditorFacadeOptionsV1 } from './extensions/configuration.js';
 import type { PreparedEditorConfigurationV1, PlatformObservationV1 } from './extensions/contract.js';
 import { ExtensionConfigurationError } from './extensions/contract.js';
@@ -72,6 +73,8 @@ export interface EditorSurface {
   captureToolbar(): import('./commands/formatting.js').ToolbarTarget | undefined;
   readonly commands: typeof import('./commands/catalog.js').commandCatalog;
   captureCommand(name: string, supplied?: import('@edit-ac/core').StableRange): import('./commands/catalog.js').CapturedCommand | undefined;
+  takeExtensionErrors(): readonly import('./extensions/authoring.js').ExtensionDiagnosticV1[];
+  runExtensionCommand(id: string, name: string, argument?: import('@edit-ac/core').Json): CommitResult | undefined;
   captureHistory(): import('./input/keyboard.js').HistoryTarget | undefined;
   settle(): Promise<void>;
   setReadOnly(value: boolean): void;
@@ -137,7 +140,9 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
     return { dispose() { contentFactories.delete(id); } };
   }));
   const resources = [resource, ...contentResources];
+  let authoring: ReturnType<typeof attachAuthoring> | undefined;
   const disposeAdapters = (): void => {
+    authoring?.dispose();
     for (const owned of resources) owned.dispose();
     page?.dispose(); viewport?.dispose();
     try { links?.dispose(); } finally { try { input?.dispose(); } finally { try { selection?.dispose(); } finally { try { renderer.dispose(); } finally { markdown?.dispose(); } } } }
@@ -170,6 +175,26 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
       root.setAttribute('aria-readonly', String(value || !requiredReady));
     };
     setReadOnly(requestedReadOnly);
+    authoring = attachAuthoring(prepared, renderer.moduleRuntime, {
+      blocked: () => input!.extensionBlocked,
+      can: request => engine.can(request),
+      commit: request => {
+        if (!engine.can(request)) throw Error('Extension command is inapplicable; source and history retained');
+        engine.history({ type: 'boundary' }); engine.history({ type: 'explicit' });
+        const result = commit(request);
+        try { if (!input!.extensionBlocked) {
+          if (result.selection) selection!.restoreRange(result.selection);
+          else if (result.caret) selection!.move(result.caret);
+        } } finally {
+          if (result.selection) { engine.releaseAnchor(result.selection.anchor); engine.releaseAnchor(result.selection.focus); }
+          if (result.caret) engine.releaseAnchor(result.caret);
+        }
+        return Object.freeze({ revision: result.revision });
+      },
+      captureCommand: (name, target) => input!.keyboard.captureCommand(name, target),
+      captureTarget: () => selection!.retain(),
+    });
+    input.extensionInput = authoring.hasInput ? authoring.handle : undefined;
     const boundInput = input, boundSelection = selection;
     viewport = new EditorViewport(root, options.viewport, recoverable => {
       if (!recoverable) boundSelection.pointer.cancel();
@@ -194,11 +219,12 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
     };
     const ready = Promise.all(resources.filter(owned => owned.required).map(owned => loadExtension(owned.id))).then(() => {});
     void ready.catch(() => {});
-    return { ready, loadExtension, setReadOnly,
+    return { ready, loadExtension, setReadOnly, runExtensionCommand: authoring.runCommand, takeExtensionErrors: () => authoring!.diagnostics.splice(0),
       get extensionStatus() { return Object.freeze(Object.fromEntries((prepared?.extensions ?? []).map(e => [e.feature.id,
         resources.find(owned => owned.id === e.feature.id)?.status ?? Object.freeze({ state: disposed ? 'cancelled' as const : 'ready' as const, generation: 1 })]))); },
       async exportMarkdown(blocks: readonly import('@edit-ac/core').FragmentBlock[]) {
         const captured = structuredClone(blocks);
+        if (options.markdown) return engine.exportMarkdown(captured);
         await loadExtension('editac.markdown');
         return resource.adapter!.codec.exportMarkdown(captured);
       },
@@ -306,6 +332,8 @@ export function mountEditorSurface(root: HTMLElement, engine: EngineHandle, opti
       get slash() { return binding.input.slash; },
       get moduleRuntime() { return binding.renderer.moduleRuntime; },
       get recovery() { return binding.input.recovery.map(({ text, reason }) => ({ text, reason })); },
+      takeExtensionErrors() { return binding.takeExtensionErrors(); },
+      runExtensionCommand(id, name, argument) { requireReady(); return binding.runExtensionCommand(id, name, argument); },
       captureTextTransfer() { requireReady(); return binding.input.textDrag.capture(); },
       captureToolbar() { requireReady(); return binding.input.keyboard.captureToolbar(); },
       get commands() { return binding.input.keyboard.commands; },

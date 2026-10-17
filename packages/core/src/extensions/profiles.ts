@@ -64,7 +64,7 @@ export function prepareExtensionProfile(input: ExtensionProfile, catalog: readon
   try { raw = copyModuleData({ profile: input, catalog }); } catch { return fail('invalid-data', 'profile/catalog'); }
   const { profile, catalog: entries } = raw as { profile: ExtensionProfile; catalog: ProfileFeature[] };
   if (!object(profile) || profile.apiVersion !== 1 || !id(profile.id) || !version(profile.version) ||
-      !Array.isArray(profile.features) || profile.features.length > 64 || !Array.isArray(entries) || entries.length > 64)
+      !Array.isArray(profile.features) || profile.features.length > 256 || !Array.isArray(entries) || entries.length > 256)
     return fail('invalid-profile', 'profile');
   if (!text(environment.schema) || !strings([...environment.capabilities]) || !strings([...(environment.permissions ?? [])]))
     return fail('invalid-environment', 'schema/capabilities');
