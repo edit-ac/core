@@ -1226,7 +1226,7 @@ impl Document {
                     ContainerStyle::Ordered {
                         start: start
                             .as_f64()
-                            .filter(|v| v.fract() == 0.0 && (1.0..=2147483647.0).contains(v))
+                            .filter(|v| v.fract() == 0.0 && (0.0..=2147483647.0).contains(v))
                             .ok_or(EditorError::InvalidCommand)?
                             as u32,
                     }

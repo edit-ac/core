@@ -65,7 +65,7 @@ pub fn validate(raw: &str, schema: &str) -> Result<()> {
                     if style["type"] == "ordered" {
                         keys(style, &["type", "start"])
                             && style["start"].as_f64().is_some_and(|n| {
-                                n.fract() == 0.0 && (1.0..=2_147_483_647.0).contains(&n)
+                                n.fract() == 0.0 && (0.0..=2_147_483_647.0).contains(&n)
                             })
                     } else {
                         keys(style, &["type"])
@@ -237,6 +237,22 @@ mod tests {
         assert_eq!(validate(&v.to_string(), "s"), Ok(()));
         v["blocks"][0]["containers"][0]["key"] = json!("😀".repeat(65));
         assert_eq!(validate(&v.to_string(), "s"), Err("fragment-container"));
+    }
+    #[test]
+    fn ordered_start_zero_preserves_bounded_fragment_admission() {
+        let mut v = valid();
+        v["blocks"][0]["containers"] = json!([{"key":"list","style":{"type":"ordered","start":0}}]);
+        assert_eq!(validate(&v.to_string(), "s"), Ok(()));
+        for start in [
+            json!(-1),
+            json!(0.5),
+            json!(2147483648u64),
+            json!("0"),
+            json!(null),
+        ] {
+            v["blocks"][0]["containers"][0]["style"]["start"] = start;
+            assert_eq!(validate(&v.to_string(), "s"), Err("fragment-container"));
+        }
     }
     #[test]
     fn international_links_remain_structurally_admitted() {

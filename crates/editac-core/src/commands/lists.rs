@@ -172,7 +172,7 @@ impl ContainerStyle {
     fn tuple(&self) -> Result<Any, EditorError> {
         Ok(match self {
             Self::Unordered => m::arr(vec![Any::from("unordered")]),
-            Self::Ordered { start } if (1..=2147483647).contains(start) => {
+            Self::Ordered { start } if (0..=2147483647).contains(start) => {
                 m::arr(vec![Any::from("ordered"), Any::from(*start)])
             }
             Self::Ordered { .. } => return Err(EditorError::InvalidCommand),

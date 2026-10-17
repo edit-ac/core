@@ -620,7 +620,7 @@ fn malformed_immutable_root_source_tuple_and_resource_updates_are_atomic() {
         &p,
         7,
         L,
-        m::arr(vec![Any::from("ordered"), Any::from(0u32)]),
+        m::arr(vec![Any::from("ordered"), Any::from(-1i32)]),
     );
     let b = d.checkpoint().bytes;
     assert!(admit(&mut d, &p).is_err());

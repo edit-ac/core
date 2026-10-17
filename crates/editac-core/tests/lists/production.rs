@@ -425,7 +425,7 @@ fn invalid_wrap_modes_parent_targets_and_first_indent_are_silent() {
             }],
         );
     }
-    for start in [0, 2147483648] {
+    for start in [2147483648, u32::MAX] {
         assert_stable(
             &d,
             &[ListCommand::Wrap {
@@ -894,4 +894,24 @@ fn empty_middle_item_exit_keeps_trailing_items_and_numbering_in_tail() {
     assert_eq!(number(&d, C), Some(9));
     assert_eq!(sources(&d), before);
     assert!(d.anchor(E, U(0), Bias::Right).is_ok());
+}
+
+#[test]
+fn zero_start_uses_production_tuple_projection_history_and_restore() {
+    let mut d = engine();
+    d.enable_history(editac_core::history::HistoryConfig::default()).unwrap();
+    let original_sources = sources(&d);
+    wrap(&mut d, &[A, B], ContainerStyle::Ordered { start: 0 });
+    assert_eq!(number(&d, A), Some(0));
+    assert_eq!(number(&d, B), Some(1));
+    assert_eq!(canonical(&restore(&d.checkpoint().bytes)), canonical(&d));
+    d.undo().unwrap().unwrap();
+    assert_eq!(number(&d, A), None);
+    assert_eq!(number(&d, B), None);
+    assert_eq!(sources(&d), original_sources);
+    d.redo().unwrap().unwrap();
+    assert_eq!(number(&d, A), Some(0));
+    assert_eq!(number(&d, B), Some(1));
+    assert_eq!(sources(&d), original_sources);
+    assert_eq!(canonical(&restore(&d.checkpoint().bytes)), canonical(&d));
 }

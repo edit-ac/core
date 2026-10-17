@@ -388,7 +388,7 @@ impl Converter {
                             None | Some(Value::Null) => 1,
                             Some(value) => value
                                 .as_u64()
-                                .filter(|n| (1..=2_147_483_647).contains(n))
+                                .filter(|n| (0..=2_147_483_647).contains(n))
                                 .ok_or_else(|| {
                                     MigrationError::InvalidContent(format!(
                                         "{path}: invalid list start"

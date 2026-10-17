@@ -29,7 +29,7 @@ function runs(x,start,end){let pos=0;return x.toDelta().flatMap(v=>{if(typeof v.
 function canonical(key){const p=key?.split(':')[0];if(!['c','n','o'].includes(p))fail('invalid-id');return [p,...id(key,p)];}
 const cmpId=(a,b)=>a[0].localeCompare(b[0])||a[1]-b[1]||a[2]-b[2];
 function boolTuple(v,k){if(!Array.isArray(v)||v.length!==2||v[0]!==k||typeof v[1]!=='boolean')fail('invalid-tuple');}
-function containerTuple(v){if(['paragraph','heading','code','separator','check','enabled'].includes(v?.[0]))fail('invalid-tuple');if(!Array.isArray(v)||typeof v[0]!=='string'||!json(v))fail('invalid-tuple');if(['quote','checklist','unordered'].includes(v[0])&&v.length!==1)fail('invalid-tuple');if(v[0]==='ordered'&&(v.length!==2||!Number.isInteger(v[1])||v[1]<1||v[1]>2147483647))fail('invalid-tuple');}
+function containerTuple(v){if(['paragraph','heading','code','separator','check','enabled'].includes(v?.[0]))fail('invalid-tuple');if(!Array.isArray(v)||typeof v[0]!=='string'||!json(v))fail('invalid-tuple');if(['quote','checklist','unordered'].includes(v[0])&&v.length!==1)fail('invalid-tuple');if(v[0]==='ordered'&&(v.length!==2||!Number.isInteger(v[1])||v[1]<0||v[1]>2147483647))fail('invalid-tuple');}
 const enabled=(controls,k)=>controls.get(k)?.[1]!==false;
 const container=o=>o.id.startsWith('c:')&&['list','quote'].includes(o.kind);
 function descendant(owners,start,target){let cursor=start;for(let i=0;i<=owners.length;i++){if(cursor===target)return true;if(cursor==='@root')return false;const o=owners.find(o=>o.id===cursor);if(!o)return false;cursor=o.parent;}return true;}

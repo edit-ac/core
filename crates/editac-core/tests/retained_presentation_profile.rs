@@ -1025,3 +1025,26 @@ fn literal_insert_and_separator_insertion_keep_exact_source_identities_and_acces
     assert_eq!(owner(&d, A).spans.len(), 2);
     restored(&d);
 }
+
+#[test]
+fn zero_start_container_tuple_and_invalid_starts_are_atomic_in_v5() {
+    let d = seed();
+    set(&d, 7, "c:11:3", tuple_json(r#"["ordered",0]"#));
+    assert_eq!(field(&d, C, "number"), Any::from(0u32));
+    assert_eq!(field(&d, D, "number"), Any::from(1u32));
+    restored(&d);
+    for invalid in [
+        r#"["ordered",-1]"#,
+        r#"["ordered",0.5]"#,
+        r#"["ordered",2147483648]"#,
+        r#"["ordered"]"#,
+        r#"["ordered",0,null]"#,
+        r#"["ordered","0"]"#,
+    ] {
+        let peer = fork(&d, 31);
+        set(&peer, 7, "c:11:3", tuple_json(invalid));
+        let before = bytes(&d);
+        assert_eq!(admit(&d, &envelope(), &bytes(&peer)), Err("invalid-tuple"));
+        assert_eq!(bytes(&d), before);
+    }
+}

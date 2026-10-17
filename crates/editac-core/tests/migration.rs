@@ -300,7 +300,7 @@ fn malformed_supported_content_is_not_silently_downgraded() {
     for node in [
         json!({"type":"heading","attrs":{"level":7}}),
         json!({"type":"codeBlock","attrs":{"language":"a b"}}),
-        json!({"type":"orderedList","attrs":{"start":0}}),
+        json!({"type":"orderedList","attrs":{"start":-1}}),
         json!({"type":"paragraph","content":"bad"}),
         json!({"type":"paragraph","content":[{"type":"text"}]}),
         json!({"type":"horizontalRule","content":[{"type":"text","text":"bad"}]}),

@@ -161,19 +161,11 @@ pub fn import(source: &str) -> Result<PreparedContent, ImportError> {
                 b.code = false;
             }
             Event::Start(Tag::List(start)) => {
-                if start == Some(0) {
-                    b.block(BlockAttributes::Paragraph, &span);
-                    b.text(&source[span.clone()], &span, false);
-                    b.finish();
-                    b.diagnose("zero-start-list-unadmitted", span);
-                    skip = Some((TagEnd::List(true), 1));
-                    continue;
-                }
                 let style = match start {
                     Some(n) => ContainerStyle::Ordered {
                         start: u32::try_from(n)
                             .ok()
-                            .filter(|n| (1..=2147483647).contains(n))
+                            .filter(|n| (0..=2147483647).contains(n))
                             .ok_or(ImportError::ResourceLimit)?,
                     },
                     None => ContainerStyle::Unordered,

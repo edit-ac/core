@@ -172,3 +172,21 @@ fn adjacent_ambiguous_marks_never_report_a_lossless_export() {
         [(Mark::Bold, None), (Mark::Italic, None)]
     );
 }
+
+#[test]
+fn zero_ordered_start_is_semantic_and_roundtrips_without_fallback() {
+    let source = "0. zero 😀\n1. one\n";
+    let parsed = import(source).unwrap();
+    assert!(parsed.diagnostics.is_empty());
+    assert_eq!(
+        parsed.blocks[0].containers[0].1,
+        editac_core::commands::lists::ContainerStyle::Ordered { start: 0 }
+    );
+    assert_eq!(parsed.blocks[0].runs[0].text, "zero 😀");
+    roundtrip(source);
+    for prose in ["Hi. there", "Ex) aside"] {
+        let parsed = import(prose).unwrap();
+        assert!(parsed.blocks[0].containers.is_empty());
+        assert_eq!(parsed.blocks[0].runs[0].text, prose);
+    }
+}

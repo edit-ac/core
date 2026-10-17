@@ -93,3 +93,14 @@ test('PAR-04 an interrupted direct key cannot claim later ambiguous input',()=>p
 for(const interruption of ['history-clear','Escape'])test(`PAR-03 ${interruption} cancels the recorded reversal`,()=>probe(`PAR-03-interrupted-${interruption}`,async(page,fact)=>{
  await page.keyboard.type('*');if(interruption==='history-clear')await page.evaluate(()=>window.inputFixture.engine.history({type:'clear'}));else await page.keyboard.press('Escape');await page.keyboard.press('Backspace');const s=await state(page,fact);assert.equal(s.text[0],'bol');assert.ok(s.nodes[0].runs.some(r=>r.attributes.bold));assert.equal(s.commands.filter(c=>c.origin==='typing-rule:restore-source').length,0);
 },'**bold*'));
+
+for(const mode of ['typing','markdown'])test(`PAR-08 ${mode} zero-start semantic history and durable reopen`,()=>probe(`PAR-08-zero-${mode}-durable`,async(page,fact)=>{
+ if(mode==='typing'){await page.keyboard.type('0.');await page.keyboard.press('Space');await page.keyboard.type('zero');}
+ else await page.evaluate(()=>window.inputFixture.paste('0. zero\n1. one\n'));
+ let s=await state(page,fact);
+ const summary=nodes=>({containers:nodes.filter(n=>n.kind==='list').map(n=>n.editor.containerAttributes),text:nodes.filter(n=>n.kind==='block').map(n=>n.runs.map(r=>r.text).join(''))});
+ const expected=summary(s.nodes);assert.deepEqual(expected.containers,[['ordered',0]]);assert.ok(expected.text.includes('zero'));if(mode==='markdown')assert.ok(expected.text.includes('one'));
+ await page.keyboard.press(`${mod}+z`);s=await state(page,fact);assert.notDeepEqual(summary(s.nodes),expected);
+ await page.keyboard.press(`${mod}+Shift+z`);s=await state(page,fact);assert.deepEqual(summary(s.nodes),expected);
+ const restored=await page.evaluate(()=>window.inputFixture.reopen());assert.deepEqual(summary(restored),expected);fact.durableZeroStart=true;
+},mode==='markdown'?{text:'',pastePolicy:'markdown'}:''));

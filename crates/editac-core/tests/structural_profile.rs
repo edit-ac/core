@@ -467,7 +467,15 @@ fn unknown_tuples_marks_kinds_and_dormant_controls_are_retained_not_executed() {
 #[test]
 fn malformed_container_check_control_and_block_tuples_reject_without_partial_mutation() {
     for (root, key, tuple) in [
-        (7, L, arr(vec![Any::from("ordered"), Any::from(0u32)])),
+        (7, L, arr(vec![Any::from("ordered"), Any::from(-1i32)])),
+        (7, L, arr(vec![Any::from("ordered"), Any::from(0.5)])),
+        (7, L, arr(vec![Any::from("ordered")])),
+        (
+            7,
+            L,
+            arr(vec![Any::from("ordered"), Any::from(0u32), Any::Null]),
+        ),
+        (7, L, arr(vec![Any::from("ordered"), Any::from("0")])),
         (
             7,
             L,

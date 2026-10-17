@@ -67,3 +67,11 @@ test('staged structural and metadata batch captures preparation witnesses and in
 test('witness JSON depth binary cuts ids versions and operation resources share exact v4 ceilings',()=>{const valid=joined(),row=m(valid)[5].get(J),live=construct();let deep=null;for(let i=0;i<34;i++)deep=[deep];const bad=construct();m(bad)[5].set(J,[...row.slice(0,5),['ext:witness',deep],row[6]]);stable(live,()=>admit(live,seed.envelope,bytes(bad)));bad.destroy();split(valid,S,A,0,1);const splitRow=m(valid)[5].get(S);for(const [index,value]of [[5,new Uint8Array(257)],[1,'n:0:1'],[2,S],[3,-1]]){const source=construct(),r=[...splitRow];r[index]=value;m(source)[5].set(S,r);stable(live,()=>admit(live,seed.envelope,bytes(source)));source.destroy();}const source=construct();for(let i=1;i<=4097;i++)m(source)[5].set(`o:50:${i}`,['join',A,'base',B,'base',['heading',1],['paragraph']]);stable(live,()=>admit(live,seed.envelope,bytes(source)));for(const d of [valid,live,source])d.destroy();});
 
 test('literal span insertion and separator insertion retain all original source identities',()=>{const d=joined();batch(d,[{kind:'insert',owner:A,span:1,offset:1,value:' \n\n'}]);assert.equal(plain(d,A),'a😀bc \n\nאבd');batch(d,[{kind:'separator',id:'n:21:1',parent:'c:11:1',before:A,place:'o:21:5'}]);assert.deepEqual(node(d,'n:21:1').tuple,['separator']);assert.equal(node(d,A).spans.length,2);restore(d);d.destroy();});
+
+test('zero ordered start survives v5 restore and malformed starts reject atomically',()=>{
+ const d=construct();m(d)[7].set('c:11:3',['ordered',0]);assert.equal(node(d,C).number,0);assert.equal(node(d,D).number,1);restore(d);
+ for(const tuple of [['ordered',-1],['ordered',0.5],['ordered',2147483648],['ordered'],['ordered',0,null],['ordered','0']]){
+  const r=fork(d,31);m(r)[7].set('c:11:3',tuple);const before=bytes(d);assert.throws(()=>admit(d,seed.envelope,bytes(r)),/invalid-tuple/);assert.deepEqual(bytes(d),before);r.destroy();
+ }
+ d.destroy();
+});

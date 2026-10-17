@@ -1183,7 +1183,7 @@ fn container_tuple(value: &Any) -> Result<()> {
     match tuple_kind(value) {
         "unordered" | "checklist" | "quote" if a.len() == 1 => Ok(()),
         "ordered"
-            if a.len() == 2 && integer(&a[1]).is_ok_and(|n| (1..=2147483647).contains(&n)) =>
+            if a.len() == 2 && integer(&a[1]).is_ok_and(|n| (0..=2147483647).contains(&n)) =>
         {
             Ok(())
         }
