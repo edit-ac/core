@@ -352,6 +352,7 @@ fn atom(content: Content) -> Result<FragmentBlock> {
         .map_err(|_| fail(Code::Profile, "shared-content-descriptor"))?;
     Ok(FragmentBlock {
         runs: vec![FragmentRun {
+            opaque_marks: vec![],
             text: fallback,
             marks: vec![],
         }],

@@ -471,6 +471,7 @@ fn asset_blocks() -> Vec<FragmentBlock> {
     };
     vec![FragmentBlock {
         runs: vec![FragmentRun {
+            opaque_marks: vec![],
             text: descriptor.fallback.clone(),
             marks: vec![],
         }],

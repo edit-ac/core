@@ -709,6 +709,7 @@ impl Runs {
             last.text.push_str(text)
         } else {
             self.runs.push(FragmentRun {
+                opaque_marks: vec![],
                 text: text.into(),
                 marks,
             })
@@ -833,6 +834,7 @@ fn atom(content: Content) -> Result<FragmentBlock> {
         .map_err(|_| fail("SHARED_DESCRIPTOR", "content"))?;
     Ok(FragmentBlock {
         runs: vec![FragmentRun {
+            opaque_marks: vec![],
             text: fallback,
             marks: vec![],
         }],

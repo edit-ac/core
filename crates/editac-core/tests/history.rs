@@ -1348,6 +1348,7 @@ fn original_seq13_seq14_fragment_history_restores_backward_entry_and_sentinel() 
             let blocks = if hard_break {
                 vec![FragmentBlock {
                     runs: vec![FragmentRun {
+                        opaque_marks: vec![],
                         text: "\n".into(),
                         marks: vec![],
                     }],
@@ -1547,6 +1548,7 @@ fn original_seq03_seq13_seq14_typing_consumes_native_undo_range() {
                 } else {
                     vec![FragmentBlock {
                         runs: vec![FragmentRun {
+                            opaque_marks: vec![],
                             text: "\n".into(),
                             marks: vec![],
                         }],

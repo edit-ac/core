@@ -330,6 +330,7 @@ fn paragraphs(
                     descriptor.validate().map_err(|_| "INVALID_ASSET")?;
                     let block = FragmentBlock {
                         runs: vec![editac_core::commands::editor::FragmentRun {
+                            opaque_marks: vec![],
                             text: descriptor.metadata.caption.clone(),
                             marks: vec![],
                         }],

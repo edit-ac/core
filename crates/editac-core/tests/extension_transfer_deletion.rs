@@ -31,6 +31,7 @@ fn blank() -> Document {
 }
 fn run(text: &str) -> FragmentRun {
     FragmentRun {
+        opaque_marks: vec![],
         text: text.into(),
         marks: vec![],
     }

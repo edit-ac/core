@@ -32,7 +32,7 @@ function unchanged(a,b){for(const key of ['text','nodes','history','journal'])as
 async function seedUnknownMark(page){
   const opening=await page.evaluate(()=>{const f=window.inputFixture;return {bytes:Array.from(f.engine.checkpoint().bytes),source:f.engine.read().visible[0].spans[0].source};});
   const peer=new Y.Doc();Y.applyUpdate(peer,new Uint8Array(opening.bytes));const vector=Y.encodeStateVector(peer);
-  peer.getMap('registry-texts').get(opening.source).format(0,5,{'vendor-note':{color:'purple',untouched:true}});
+  peer.getMap('registry-texts').get(opening.source).format(0,5,{'vendor-note':{color:'purple',untouched:true},bold:true});
   const update=Y.encodeStateAsUpdate(peer,vector);peer.destroy();await page.evaluate(bytes=>window.inputFixture.apply(bytes),Array.from(update));
   await page.evaluate(()=>{const f=window.inputFixture;f.engine.history({type:'clear'});f.select(f.ids[0],5,0);});
 }
@@ -124,15 +124,19 @@ test('PST-02 visible plain action is focusable and uses captured target',()=>pro
 }));
 test('PST-07 unknown bounded mark survives internal backward copy and paste',()=>probe('PST-07-unknown-roundtrip',async(page,fact)=>{
   await seedUnknownMark(page);
-  const before=await state(page,fact);const copied=await page.evaluate(()=>{const f=window.inputFixture,values={};const result=f.protocol.clipboard.copy({getData:m=>values[m]??'',setData:(m,v)=>values[m]=v});return {result,values};});fact.copy=copied;
+  const identity=await page.evaluate(()=>window.inputFixture.engine.read().identity);const before=await state(page,fact);const copied=await page.evaluate(()=>{const f=window.inputFixture,values={};const result=f.protocol.clipboard.copy({getData:m=>values[m]??'',setData:(m,v)=>values[m]=v});return {result,values};});fact.copy=copied;
   assert.equal(copied.result.disposition,'handled');assert.ok(copied.values[MIME],'Unknown bounded mark must have a lossless internal flavor');
+  assert.ok((await state(page,fact)).diagnostics.includes('opaque-marks-internal-only'));
   await page.evaluate(()=>window.inputFixture.select(window.inputFixture.ids[1],0,11));await paste(page,copied.values);const s=await state(page,fact);
   assert.deepEqual(s.nodes[1].runs,before.nodes[0].runs);
+  await page.evaluate(()=>window.inputFixture.engine.history({type:'undo'}));assert.deepEqual((await state(page,fact)).nodes,before.nodes);
+  await page.evaluate(()=>window.inputFixture.engine.history({type:'redo'}));assert.deepEqual((await state(page,fact)).nodes,s.nodes);
+  await page.evaluate(()=>window.inputFixture.reopen());assert.deepEqual((await state(page,fact)).nodes,s.nodes);assert.deepEqual(await page.evaluate(()=>window.inputFixture.engine.read().identity),identity);
 }));
-test('PST-07 unrepresentable unknown-mark cut preserves the complete source',()=>probe('PST-07-unknown-cut-safety',async(page,fact)=>{
+test('PST-07 opaque-mark cut refusal preserves the complete source',()=>probe('PST-07-unknown-cut-safety',async(page,fact)=>{
   await seedUnknownMark(page);const before=await state(page,fact);
-  const result=await page.evaluate(()=>{const f=window.inputFixture,values={};return f.protocol.clipboard.copy({getData:m=>values[m]??'',setData:(m,v)=>values[m]=v},true);});
-  assert.equal(result.disposition,'rejected');assert.equal(result.reason,'unsupported-fragment-mark');unchanged(before,await state(page,fact));
+  const result=await page.evaluate(()=>{const f=window.inputFixture,values={};return f.protocol.clipboard.copy({getData:m=>values[m]??'',setData:(m,v)=>{if(m!=="application/x-edit-ac-fragment+json")values[m]=v;}},true);});
+  assert.equal(result.disposition,'rejected');assert.ok(result.reason);unchanged(before,await state(page,fact));
 }));
 test('PST-07 backward internal fragment preserves breaks, atom, marks and one undo',()=>probe('PST-07-break-atom-roundtrip',async(page,fact)=>{
   await selectAll(page);await paste(page,{[MIME]:JSON.stringify({version:1,schema:'editac.registry.editor.v5',blocks:[
@@ -148,4 +152,16 @@ test('PST-07 backward internal fragment preserves breaks, atom, marks and one un
   assert.equal(after.history.undoGroups,entry.history.undoGroups+1);assert.equal(after.journal.length,entry.journal.length+1);
   await page.evaluate(()=>window.inputFixture.engine.history({type:'undo'}));assert.deepEqual(semantic(await state(page,fact)),semantic(entry));
   await page.evaluate(()=>window.inputFixture.engine.history({type:'redo'}));assert.deepEqual(semantic(await state(page,fact)),semantic(original));
+}));
+
+for(const mode of ['acknowledged','silent','throw'])test(`PST-07 opaque mixed cut ${mode} exact history`,()=>probe(`PST-07-opaque-cut-${mode}`,async(page,fact)=>{
+  await seedUnknownMark(page);const before=await state(page,fact);
+  const copied=await page.evaluate(mode=>{const f=window.inputFixture,values={};const result=f.protocol.clipboard.copy({getData:m=>values[m]??'',setData:(m,v)=>{if(m==='application/x-edit-ac-fragment+json'&&mode!=='acknowledged'){if(mode==='throw')throw Error('refused');return;}values[m]=v;}},true);return {result,values};},mode);
+  fact.copy=copied;
+  if(mode!=='acknowledged'){assert.equal(copied.result.disposition,'rejected');unchanged(before,await state(page,fact));return;}
+  assert.equal(copied.result.disposition,'committed');assert.equal((await state(page,fact)).history.undoGroups,1);
+  await page.evaluate(()=>window.inputFixture.engine.history({type:'undo'}));assert.deepEqual((await state(page,fact)).nodes,before.nodes);
+  await page.evaluate(()=>window.inputFixture.engine.history({type:'redo'}));
+  await page.evaluate(()=>window.inputFixture.select(window.inputFixture.ids[1],0,11));await paste(page,copied.values);
+  assert.deepEqual((await state(page,fact)).nodes[1].runs,before.nodes[0].runs);
 }));

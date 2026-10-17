@@ -91,6 +91,7 @@ fn base() -> CheckpointRecord {
                         .unwrap(),
                     )),
                     runs: vec![FragmentRun {
+                        opaque_marks: vec![],
                         text: d.fallback,
                         marks: vec![],
                     }],

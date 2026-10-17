@@ -43,6 +43,7 @@ fn atom(c: Content) -> FragmentBlock {
     let text = c.asset_fallback().unwrap_or("").to_string();
     FragmentBlock {
         runs: vec![FragmentRun {
+            opaque_marks: vec![],
             text,
             marks: vec![],
         }],
@@ -70,6 +71,7 @@ fn content() -> Vec<FragmentBlock> {
                 .iter()
                 .map(|c| {
                     vec![FragmentRun {
+                        opaque_marks: vec![],
                         text: c["text"].as_str().unwrap().into(),
                         marks: if c["marks"].as_array().unwrap().is_empty() {
                             vec![]
@@ -318,6 +320,7 @@ fn table_page_output_and_deadline_failures_never_return_partial_artifacts() {
 fn oversized_rows_and_cell_counts_refuse_instead_of_clipping_or_truncating() {
     for rows in [
         vec![vec![vec![FragmentRun {
+            opaque_marks: vec![],
             text: "very long cell ".repeat(400),
             marks: vec![],
         }]]],
@@ -353,6 +356,7 @@ fn empty_unicode_long_word_and_aligned_cells_preserve_exact_text() {
             .iter()
             .map(|t| {
                 vec![FragmentRun {
+                    opaque_marks: vec![],
                     text: t.clone(),
                     marks: vec![],
                 }]
@@ -552,6 +556,7 @@ fn matching_digest_does_not_admit_excess_inflate_or_bad_final_crc() {
 #[test]
 fn explicit_left_and_right_arabic_cell_alignment_is_preserved() {
     let runs = vec![FragmentRun {
+        opaque_marks: vec![],
         text: "العربية".into(),
         marks: vec![],
     }];

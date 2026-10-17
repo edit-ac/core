@@ -120,11 +120,31 @@ pub fn validate(raw: &str, schema: &str) -> Result<()> {
             count += 1;
             require(
                 count <= 1024
-                    && keys(run, &["text", "marks"])
+                    && keys(run, &["text", "marks", "opaqueMarks"])
                     && run["text"].is_string()
                     && run["marks"].as_array().is_some_and(|m| m.len() <= 6),
                 "fragment-run",
             )?;
+            if let Some(raw) = run.get("opaqueMarks") {
+                require(
+                    raw.as_array().is_some_and(|a| a.len() <= 32),
+                    "fragment-opaque-mark",
+                )?;
+                let mut marks = Vec::new();
+                for m in raw.as_array().unwrap() {
+                    require(
+                        keys(m, &["key", "value"])
+                            && m["key"].is_string()
+                            && m.get("value").is_some(),
+                        "fragment-opaque-mark",
+                    )?;
+                    let value = yrs::Any::from_json(&m["value"].to_string())
+                        .map_err(|_| "fragment-opaque-mark")?;
+                    marks.push((m["key"].as_str().unwrap().to_owned(), value));
+                }
+                crate::commands::fragment::validate_opaque_marks(&marks)
+                    .map_err(|_| "fragment-opaque-mark")?;
+            }
             size += run["text"].as_str().unwrap().len();
             let mut seen = Vec::new();
             for mark in run["marks"].as_array().unwrap() {
@@ -221,6 +241,38 @@ mod tests {
         for href in ["javascript:alert(1)", "https://a/ bad", "http:\u{7f}"] {
             v["blocks"][0]["runs"][0]["marks"] = json!([{"mark":"link","href":href}]);
             assert_eq!(validate(&v.to_string(), "s"), Err("fragment-url"));
+        }
+    }
+}
+
+#[cfg(test)]
+mod opaque_clipboard_tests {
+    use super::*;
+    use serde_json::json;
+    #[test]
+    fn opaque_shapes_profiles_limits_and_duplicates_are_shared() {
+        let base = json!({"version":1,"schema":"s","blocks":[{"attributes":{"type":"paragraph"},"runs":[{"text":"😀","marks":[{"mark":"bold"}],"opaqueMarks":[{"key":"vendor-note","value":{"version":1,"nested":[false,"value"]}}]}]}]});
+        assert_eq!(validate(&base.to_string(), "s"), Ok(()));
+        assert_eq!(validate(&base.to_string(), "other"), Err("fragment-schema"));
+        let mut deep = json!(1);
+        for _ in 0..10 {
+            deep = json!([deep]);
+        }
+        for marks in [
+            json!([{"key":"bold","value":true}]),
+            json!([{"key":"x","value":null}]),
+            json!([{"key":"x","value":1},{"key":"x","value":2}]),
+            json!([{"key":"x","value":deep}]),
+            json!([{"key":"x","value":"x".repeat(16385)}]),
+            json!([{"key":"x","value":true,"execute":true}]),
+            json!({"x":true}),
+        ] {
+            let mut invalid = base.clone();
+            invalid["blocks"][0]["runs"][0]["opaqueMarks"] = marks;
+            assert_eq!(
+                validate(&invalid.to_string(), "s"),
+                Err("fragment-opaque-mark")
+            );
         }
     }
 }

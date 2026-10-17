@@ -699,6 +699,7 @@ fn reg06_schema_crossing_delete_replace_and_format_preserve_bold_suffix_on_rejec
     for text in ["", "X"] {
         let fragment = FragmentBlock {
             runs: vec![FragmentRun {
+                opaque_marks: vec![],
                 text: text.into(),
                 marks: vec![],
             }],
@@ -756,6 +757,7 @@ fn separated_pre(in_code: bool) {
     };
     let make = |text: &str, attributes| FragmentBlock {
         runs: vec![FragmentRun {
+            opaque_marks: vec![],
             text: text.into(),
             marks: vec![],
         }],
@@ -902,6 +904,7 @@ fn selected_pre(in_code: bool, cross_owner: bool, backward: bool) {
     };
     let make = |text: &str, attributes| FragmentBlock {
         runs: vec![FragmentRun {
+            opaque_marks: vec![],
             text: text.into(),
             marks: vec![],
         }],
@@ -1598,6 +1601,7 @@ fn g03_action_result(id: &str) {
             vec![]
         } else {
             vec![FragmentRun {
+                opaque_marks: vec![],
                 text: text.into(),
                 marks: vec![],
             }]
@@ -1933,6 +1937,7 @@ fn reg06_rejection_matrix(id: &str) {
     } else {
         let fragment = FragmentBlock {
             runs: vec![FragmentRun {
+                opaque_marks: vec![],
                 text: if v["kind"] == "delete" { "" } else { "X" }.into(),
                 marks: vec![],
             }],
@@ -2894,6 +2899,7 @@ fn canonical_recipe(id: &str) {
                     vec![make(vec![]), make(vec![])]
                 } else {
                     vec![make(vec![FragmentRun {
+                        opaque_marks: vec![],
                         text: "\n".into(),
                         marks: vec![],
                     }])]

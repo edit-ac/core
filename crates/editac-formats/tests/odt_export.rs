@@ -68,6 +68,7 @@ fn checkpoint(o: &Owner) -> Vec<u8> {
 fn atom(c: Content) -> FragmentBlock {
     FragmentBlock {
         runs: vec![FragmentRun {
+            opaque_marks: vec![],
             text: match &c {
                 Content::Table { source, .. } => source.clone(),
                 _ => c
@@ -136,10 +137,12 @@ fn fixture() -> Vec<FragmentBlock> {
         rows: vec![
             vec![
                 vec![FragmentRun {
+                    opaque_marks: vec![],
                     text: "cell A".into(),
                     marks: vec![(Mark::Bold, None)],
                 }],
                 vec![FragmentRun {
+                    opaque_marks: vec![],
                     text: "cell B 🙂".into(),
                     marks: vec![],
                 }],
@@ -147,6 +150,7 @@ fn fixture() -> Vec<FragmentBlock> {
             vec![
                 vec![],
                 vec![FragmentRun {
+                    opaque_marks: vec![],
                     text: "0".into(),
                     marks: vec![(Mark::Italic, None)],
                 }],

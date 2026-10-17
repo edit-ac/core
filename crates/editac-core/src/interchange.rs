@@ -61,6 +61,14 @@ pub struct TransferContainer {
 pub struct TransferRun {
     text: String,
     marks: Vec<TransferMark>,
+    #[serde(default, rename = "opaqueMarks")]
+    opaque_marks: Vec<OpaqueMark>,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct OpaqueMark {
+    key: String,
+    value: Value,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -145,15 +153,28 @@ pub fn transfer_blocks(blocks: Vec<TransferBlock>) -> Result<Vec<FragmentBlock>>
                 runs: b
                     .runs
                     .into_iter()
-                    .map(|r| FragmentRun {
-                        text: r.text,
-                        marks: r
-                            .marks
-                            .into_iter()
-                            .map(|m| (m.mark.native(), m.href))
-                            .collect(),
+                    .map(|r| {
+                        Ok(FragmentRun {
+                            opaque_marks: r
+                                .opaque_marks
+                                .into_iter()
+                                .map(|m| {
+                                    Ok((
+                                        m.key,
+                                        Any::from_json(&m.value.to_string())
+                                            .map_err(|e| kernel("fragment", e))?,
+                                    ))
+                                })
+                                .collect::<Result<Vec<_>>>()?,
+                            text: r.text,
+                            marks: r
+                                .marks
+                                .into_iter()
+                                .map(|m| (m.mark.native(), m.href))
+                                .collect(),
+                        })
                     })
-                    .collect(),
+                    .collect::<Result<Vec<_>>>()?,
                 attributes: b
                     .attributes
                     .map(|a| match a {
@@ -201,9 +222,16 @@ pub fn transfer_value(b: &FragmentBlock) -> Value {
             let style=match style {ContainerStyle::Unordered=>json!({"type":"unordered"}),ContainerStyle::Checklist=>json!({"type":"checklist"}),ContainerStyle::Quote=>json!({"type":"quote"}),ContainerStyle::Ordered{start}=>json!({"type":"ordered","start":start})};
             json!({"key":key,"style":style})
         }).collect::<Vec<_>>(),
-        "runs":b.runs.iter().map(|r|json!({"text":r.text,"marks":r.marks.iter().map(|(m,href)|{
-            let name=match m {Mark::Bold=>"bold",Mark::Italic=>"italic",Mark::Strike=>"strike",Mark::Underline=>"underline",Mark::Code=>"code",Mark::Link=>"link"};json!({"mark":name,"href":href})
-        }).collect::<Vec<_>>()})).collect::<Vec<_>>()})
+        "runs":b.runs.iter().map(|r| {
+            let mut run=json!({"text":r.text,"marks":r.marks.iter().map(|(m,href)|{
+                let name=match m {Mark::Bold=>"bold",Mark::Italic=>"italic",Mark::Strike=>"strike",Mark::Underline=>"underline",Mark::Code=>"code",Mark::Link=>"link"};json!({"mark":name,"href":href})
+            }).collect::<Vec<_>>()});
+            // Keep the original named-only wire shape for older consumers.
+            if !r.opaque_marks.is_empty() {
+                run["opaqueMarks"]=json!(r.opaque_marks.iter().map(|(key,v)| json!({"key":key,"value":value(v)})).collect::<Vec<_>>());
+            }
+            run
+        }).collect::<Vec<_>>()})
 }
 pub fn value(a: &Any) -> Value {
     match a {

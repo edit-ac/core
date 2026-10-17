@@ -69,6 +69,7 @@ impl Importer {
         }
         if !text.is_empty() {
             b.runs.push(FragmentRun {
+                opaque_marks: vec![],
                 text,
                 marks: marks.to_vec(),
             });

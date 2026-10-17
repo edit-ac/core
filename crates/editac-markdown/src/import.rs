@@ -50,6 +50,7 @@ impl Builder {
         if let Some(mut block) = self.current.take() {
             if block.runs.is_empty() {
                 block.runs.push(FragmentRun {
+                    opaque_marks: vec![],
                     text: String::new(),
                     marks: vec![],
                 });
@@ -75,6 +76,7 @@ impl Builder {
             }
         }
         block.runs.push(FragmentRun {
+            opaque_marks: vec![],
             text: text.into(),
             marks,
         });

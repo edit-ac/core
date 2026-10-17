@@ -52,6 +52,7 @@ fn table(
             Event::End(TagEnd::TableCell) => {
                 if cell.is_empty() {
                     cell.push(FragmentRun {
+                        opaque_marks: vec![],
                         text: String::new(),
                         marks: vec![],
                     });
@@ -82,6 +83,7 @@ fn table(
                     last.text.push('\n');
                 } else {
                     cell.push(FragmentRun {
+                        opaque_marks: vec![],
                         text: "\n".into(),
                         marks: marks.clone(),
                     });
@@ -96,6 +98,7 @@ fn table(
                     last.text.push_str(s);
                 } else {
                     cell.push(FragmentRun {
+                        opaque_marks: vec![],
                         text: s.to_string(),
                         marks: active,
                     });
@@ -202,6 +205,7 @@ pub fn import_with_codecs(source: &str, codecs: Codecs) -> Result<PreparedConten
         };
         result.blocks[block].attributes = Some(BlockAttributes::Unknown(tuple));
         result.blocks[block].runs = vec![FragmentRun {
+            opaque_marks: vec![],
             text: fallback,
             marks: vec![],
         }];
@@ -282,6 +286,7 @@ fn apply_callouts(
             [crate::FragmentBlock {
                 attributes: Some(BlockAttributes::Unknown(tuple)),
                 runs: vec![FragmentRun {
+                    opaque_marks: vec![],
                     text: format!("{kind}\n{body}"),
                     marks: vec![],
                 }],

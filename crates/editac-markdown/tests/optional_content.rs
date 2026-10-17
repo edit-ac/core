@@ -330,6 +330,7 @@ fn reference_export_keeps_literal_label_and_reports_identity_loss() {
     let result = export(&[FragmentBlock {
         attributes: Some(BlockAttributes::Unknown(tuple)),
         runs: vec![editac_core::commands::editor::FragmentRun {
+            opaque_marks: vec![],
             text: "Unknown [label]".into(),
             marks: vec![],
         }],
@@ -414,6 +415,7 @@ fn multiline_table_code_and_unrepresentable_marks_keep_exact_typed_recovery() {
         let descriptor = Content::Table {
             alignments: vec![Alignment::None],
             rows: vec![vec![vec![FragmentRun {
+                opaque_marks: vec![],
                 text: "a\n😀\n".into(),
                 marks: vec![(mark, None)],
             }]]],
@@ -422,6 +424,7 @@ fn multiline_table_code_and_unrepresentable_marks_keep_exact_typed_recovery() {
         let block = FragmentBlock {
             attributes: Some(BlockAttributes::Unknown(descriptor.tuple().unwrap())),
             runs: vec![FragmentRun {
+                opaque_marks: vec![],
                 text: "a\n😀\n".into(),
                 marks: vec![],
             }],

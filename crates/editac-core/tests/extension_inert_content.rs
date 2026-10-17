@@ -79,6 +79,7 @@ fn markdown_reports_fallback_and_preserves_typed_recovery_without_active_syntax(
     let block = FragmentBlock {
         attributes: Some(BlockAttributes::Unknown(t.clone())),
         runs: vec![FragmentRun {
+            opaque_marks: vec![],
             text: content.inert_source().unwrap().into(),
             marks: vec![],
         }],

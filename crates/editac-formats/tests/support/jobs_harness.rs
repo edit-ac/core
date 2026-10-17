@@ -92,6 +92,7 @@ fn edit(owner: &mut Owner, value: &str) {
 fn blocks(value: &str) -> Vec<FragmentBlock> {
     vec![FragmentBlock {
         runs: vec![FragmentRun {
+            opaque_marks: vec![],
             text: value.into(),
             marks: vec![],
         }],

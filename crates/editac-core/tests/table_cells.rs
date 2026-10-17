@@ -30,15 +30,18 @@ fn engine() -> Document {
         rows: vec![vec![
             vec![
                 FragmentRun {
+                    opaque_marks: vec![],
                     text: "ab😀".into(),
                     marks: vec![(Mark::Bold, None)],
                 },
                 FragmentRun {
+                    opaque_marks: vec![],
                     text: "cd".into(),
                     marks: vec![],
                 },
             ],
             vec![FragmentRun {
+                opaque_marks: vec![],
                 text: "other".into(),
                 marks: vec![],
             }],

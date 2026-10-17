@@ -15,6 +15,7 @@ impl Extension for Badge {
             vec![FragmentBlock {
                 attributes: Some(BlockAttributes::Heading(2)),
                 runs: vec![FragmentRun {
+                    opaque_marks: vec![],
                     text: text.into(),
                     marks: vec![(Mark::Bold, None)],
                 }],
@@ -111,6 +112,7 @@ fn duplicate_names_and_oversized_outputs_rejected() {
         fn import(&self, _: &PreparedContent) -> Result<Option<Vec<FragmentBlock>>, ImportError> {
             Ok(Some(vec![FragmentBlock {
                 runs: vec![FragmentRun {
+                    opaque_marks: vec![],
                     text: "x".repeat(1_048_577),
                     marks: vec![],
                 }],

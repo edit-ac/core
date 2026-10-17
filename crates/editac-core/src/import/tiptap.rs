@@ -556,6 +556,7 @@ impl Converter {
         let truncated = self.diagnostics.last().unwrap().truncated;
         self.blocks.push(FragmentBlock {
             runs: vec![FragmentRun {
+                opaque_marks: vec![],
                 text: source.clone(),
                 marks: vec![],
             }],
@@ -582,6 +583,7 @@ impl Converter {
         if !matches!(kind, "text" | "hardBreak") {
             let source = self.diagnostic(path, "unsupported inline node", node)?;
             return Ok(FragmentRun {
+                opaque_marks: vec![],
                 text: source,
                 marks: vec![],
             });
@@ -660,6 +662,7 @@ impl Converter {
             return invalid(path, "code excludes rich marks");
         }
         Ok(FragmentRun {
+            opaque_marks: vec![],
             text: text.into(),
             marks,
         })

@@ -919,6 +919,7 @@ fn paragraph_end_destination_accepts_a_formatted_fragment() {
         let fragment = vec![
             FragmentBlock {
                 runs: vec![FragmentRun {
+                    opaque_marks: vec![],
                     text: "Offline heading".into(),
                     marks: vec![],
                 }],
@@ -928,6 +929,7 @@ fn paragraph_end_destination_accepts_a_formatted_fragment() {
             },
             FragmentBlock {
                 runs: vec![FragmentRun {
+                    opaque_marks: vec![],
                     text: "Saved".into(),
                     marks: vec![(Mark::Bold, None)],
                 }],

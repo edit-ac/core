@@ -23,6 +23,7 @@ fn rich_blocks() -> Vec<FragmentBlock> {
                 .unwrap()
                 .iter()
                 .map(|r| FragmentRun {
+                    opaque_marks: vec![],
                     text: r["text"].as_str().unwrap().into(),
                     marks: r["marks"]
                         .as_array()

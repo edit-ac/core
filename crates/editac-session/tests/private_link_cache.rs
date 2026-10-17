@@ -756,6 +756,7 @@ fn add_reference(d: &mut Document, owner: &str, target: &str, label: &str) {
                 containers: vec![],
                 checked: None,
                 runs: vec![FragmentRun {
+                    opaque_marks: vec![],
                     text: label.into(),
                     marks: vec![],
                 }],

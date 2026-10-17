@@ -651,10 +651,12 @@ fn decoded_fragment_cells_admit_plain_text_and_reject_lossy_marks_or_line_bounda
     let cell = FragmentBlock {
         runs: vec![
             FragmentRun {
+                opaque_marks: vec![],
                 text: "A😀".into(),
                 marks: vec![],
             },
             FragmentRun {
+                opaque_marks: vec![],
                 text: "B".into(),
                 marks: vec![],
             },

@@ -67,7 +67,7 @@ export type PrepareRequest =
   | { kind: "text"; origin: string; command: TextCommand }
   | { kind: "editor"; origin: string; commands: readonly EditorCommand[] }
   | { kind: "format"; origin: string; marks: readonly MarkCommand[]; blocks: readonly BlockFormatCommand[] };
-export interface FragmentRun { text: string; marks: readonly { mark: MarkCommand["mark"]; href?: string | null }[] }
+export interface FragmentRun { opaqueMarks?: readonly { key: string; value: unknown }[]; text: string; marks: readonly { mark: MarkCommand["mark"]; href?: string | null }[] }
 export interface FragmentBlock {
   runs: readonly FragmentRun[];
   attributes: null | { type: "paragraph" } | { type: "heading"; level: number } | { type: "code"; language: string } | { type: "separator" } | { type: "content"; tuple: Json };

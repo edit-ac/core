@@ -48,6 +48,7 @@ fn block() -> FragmentBlock {
         containers: vec![],
         checked: None,
         runs: vec![FragmentRun {
+            opaque_marks: vec![],
             text: "Offline <label> 😀".into(),
             marks: vec![],
         }],

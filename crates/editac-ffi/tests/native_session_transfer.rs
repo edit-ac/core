@@ -919,3 +919,139 @@ fn shared_html_precedence_literal_and_stale_permission_guards() {
     assert!(s.commit_transfer(p.token, false, None, 0).is_err());
     assert_eq!(text(&s), "<b>literal</b>");
 }
+
+#[test]
+fn opaque_mixed_marks_transfer_cut_ack_history_and_sqlite_reopen() {
+    let f = Fixture::new();
+    let s = f.create("original");
+    let descriptor = json!({"type":"vendor.note","version":7,"payload":{"color":"purple","nested":[false,42,"😀"]}});
+    paste(
+        &s,
+        all(&s),
+        envelope(
+            &s,
+            json!([{"attributes":{"type":"paragraph"},"runs":[
+                {"text":"A😀","marks":[{"mark":"bold"}],"opaqueMarks":[{"key":"vendor-note","value":descriptor}]},
+                {"text":"B","marks":[{"mark":"italic"}],"opaqueMarks":[{"key":"vendor-note","value":false}]}
+            ]}]),
+        ),
+    );
+    assert_eq!(text(&s), "A😀B");
+    let metadata: Value =
+        serde_json::from_str(&s.recovery_export().unwrap().checkpoint.metadata_json).unwrap();
+    let identity = metadata["identity"].clone();
+    let exported = s.export_transfer(revision(&s), all(&s), 0).unwrap();
+    assert!(
+        exported
+            .diagnostics
+            .iter()
+            .any(|d| d == "opaque-marks-internal-only")
+    );
+    let wire: Value = serde_json::from_str(&exported.fragment_json).unwrap();
+    assert_eq!(
+        wire["blocks"][0]["runs"][0]["opaqueMarks"][0]["value"],
+        descriptor
+    );
+    assert_eq!(
+        wire["blocks"][0]["runs"][1]["opaqueMarks"][0]["value"],
+        false
+    );
+    s.undo(revision(&s), 0).unwrap();
+    assert_eq!(text(&s), "original");
+    s.redo(revision(&s), 0).unwrap();
+    assert_eq!(text(&s), "A😀B");
+    let p = s.prepare_cut(revision(&s), all(&s), 0).unwrap();
+    assert!(s.commit_transfer(p.token, false, None, 0).is_err());
+    assert_eq!(text(&s), "A😀B");
+    let p = s.prepare_cut(revision(&s), all(&s), 0).unwrap();
+    s.commit_transfer(p.token, true, None, 0).unwrap();
+    assert_eq!(text(&s), "");
+    s.undo(revision(&s), 0).unwrap();
+    assert_eq!(
+        s.export_transfer(revision(&s), all(&s), 0)
+            .unwrap()
+            .fragment_json,
+        exported.fragment_json
+    );
+    s.dispose().unwrap();
+    let reopened = f.open();
+    let metadata: Value =
+        serde_json::from_str(&reopened.recovery_export().unwrap().checkpoint.metadata_json)
+            .unwrap();
+    assert_eq!(metadata["identity"], identity);
+    assert_eq!(
+        reopened
+            .export_transfer(revision(&reopened), all(&reopened), 0)
+            .unwrap()
+            .fragment_json,
+        exported.fragment_json
+    );
+    let f2 = Fixture::new();
+    let dest = f2.create("destination");
+    paste(&dest, all(&dest), exported_input(&exported));
+    let copied: Value = serde_json::from_str(
+        &dest
+            .export_transfer(revision(&dest), all(&dest), 0)
+            .unwrap()
+            .fragment_json,
+    )
+    .unwrap();
+    assert_eq!(copied["blocks"], wire["blocks"]);
+    dest.dispose().unwrap();
+    assert_eq!(text(&f2.open()), "A😀B");
+}
+
+#[test]
+fn opaque_invalid_cancelled_stale_and_scalar_split_leave_session_unchanged() {
+    let f = Fixture::new();
+    let s = f.create("😀safe");
+    let fragment = |marks: Value| {
+        envelope(
+            &s,
+            json!([{"attributes":{"type":"paragraph"},"runs":[{"text":"x","marks":[],"opaqueMarks":marks}]}]),
+        )
+    };
+    let before = s.read(0).unwrap();
+    let history = s.history_state(0).unwrap();
+    for marks in [
+        json!([{"key":"bold","value":true}]),
+        json!([{"key":"x","value":null}]),
+        json!([{"key":"x","value":true},{"key":"x","value":false}]),
+    ] {
+        let mut input = fragment(marks);
+        input.plain_text = None;
+        assert!(
+            s.prepare_paste(revision(&s), all(&s), input, None, 0)
+                .is_err()
+        );
+        assert_eq!(revision(&s), before.revision.clone().unwrap());
+        assert_eq!(s.read(0).unwrap().pending_upload, before.pending_upload);
+        assert_eq!(s.history_state(0).unwrap(), history);
+    }
+    let input = fragment(json!([{"key":"vendor-note","value":{"version":1}}]));
+    let p = s
+        .prepare_paste(revision(&s), all(&s), input.clone(), None, 0)
+        .unwrap();
+    s.cancel_transfer(p.token.clone()).unwrap();
+    assert!(s.commit_transfer(p.token, false, None, 0).is_err());
+    assert_eq!(text(&s), "😀safe");
+    let p = s
+        .prepare_paste(revision(&s), all(&s), input, None, 0)
+        .unwrap();
+    paste(&s, range(&s, 6, 6), plain("!"));
+    let changed = revision(&s);
+    assert!(s.commit_transfer(p.token, false, None, 0).is_err());
+    assert_eq!(revision(&s), changed);
+    let node = s.read(0).unwrap().nodes[0].id.clone();
+    assert!(
+        s.capture_anchors(
+            revision(&s),
+            vec![AnchorInput {
+                node,
+                offset_utf16: 1,
+                bias: AnchorBias::Left
+            }]
+        )
+        .is_err()
+    );
+}

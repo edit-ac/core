@@ -558,6 +558,7 @@ fn authorized_but_malformed_original_png_is_rejected_by_guarded_decoder() {
     };
     let b = FragmentBlock {
         runs: vec![FragmentRun {
+            opaque_marks: vec![],
             text: "image".into(),
             marks: vec![],
         }],

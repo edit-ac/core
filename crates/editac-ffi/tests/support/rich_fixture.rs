@@ -59,6 +59,7 @@ impl Fixture {
         let anchor = doc.anchor(&id, U(0), Bias::Right).unwrap();
         let block = |text: &str, marks| FragmentBlock {
             runs: vec![FragmentRun {
+                opaque_marks: vec![],
                 text: text.into(),
                 marks,
             }],

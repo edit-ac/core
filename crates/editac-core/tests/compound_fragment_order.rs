@@ -163,6 +163,7 @@ fn repeated_rich_replacement_and_append_preserve_the_original_lineage() {
             },
             &[FragmentBlock {
                 runs: vec![FragmentRun {
+                    opaque_marks: vec![],
                     text: " tail".into(),
                     marks: vec![],
                 }],

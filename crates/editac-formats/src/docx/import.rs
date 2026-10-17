@@ -275,6 +275,7 @@ fn admit<S: SessionStore + AssetStore>(
                 return Err(fail(Code::Budget, "shared-run-limit"));
             }
             runs.push(FragmentRun {
+                opaque_marks: vec![],
                 text: text.into(),
                 marks: run.marks,
             });

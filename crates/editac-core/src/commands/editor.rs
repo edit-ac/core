@@ -228,6 +228,8 @@ pub struct EditorCommit {
 /// Portable clipboard data, without live owner IDs or executable content.
 #[derive(Clone, Debug)]
 pub struct FragmentRun {
+    /// Bounded inert attributes; never interpreted as formatting commands.
+    pub opaque_marks: Vec<(String, Any)>,
     pub text: String,
     pub marks: Vec<(super::format::Mark, Option<String>)>,
 }
@@ -278,6 +280,7 @@ impl Document {
             Document::restore(self.identity(), &baseline, &[]).map_err(EditorError::Admission)?;
         let empty = FragmentBlock {
             runs: vec![FragmentRun {
+                opaque_marks: vec![],
                 text: String::new(),
                 marks: vec![],
             }],
@@ -324,6 +327,7 @@ impl Document {
         };
         use crate::anchors::{Bias, Resolution, Selection};
         use crate::{Utf16Offset, document::BlockAttributes};
+        super::fragment::validate(blocks).map_err(|_| EditorError::InvalidCommand)?;
         // Edge atoms need editable cuts around them. Otherwise assigning an
         // opaque tuple to the first/last destination could absorb unrelated
         // prefix/suffix text into an atom's fallback. Padding stays staged and
@@ -338,6 +342,7 @@ impl Document {
         let mut padded;
         let empty = || FragmentBlock {
             runs: vec![FragmentRun {
+                opaque_marks: vec![],
                 text: String::new(),
                 marks: vec![],
             }],
@@ -395,7 +400,10 @@ impl Document {
                             .map(|r| r.text.as_str())
                             .collect::<String>()
                             != fallback
-                            || block.runs.iter().any(|r| !r.marks.is_empty())
+                            || block
+                                .runs
+                                .iter()
+                                .any(|r| !(r.marks.is_empty() && r.opaque_marks.is_empty()))
                         {
                             return Err(EditorError::InvalidCommand);
                         }
@@ -410,7 +418,10 @@ impl Document {
             && blocks[0].attributes.is_none()
             && blocks[0].containers.is_empty()
             && blocks[0].checked.is_none()
-            && blocks[0].runs.iter().all(|run| run.marks.is_empty())
+            && blocks[0]
+                .runs
+                .iter()
+                .all(|run| run.marks.is_empty() && run.opaque_marks.is_empty())
         {
             if let (Ok(Resolution::Position(a)), Ok(Resolution::Position(b))) = (
                 self.resolve_anchor(&selection.anchor),
@@ -761,6 +772,7 @@ impl Document {
                         });
                     }
                 }
+                stage.apply_fragment_opaque(&fresh, offset, end, &run.opaque_marks, origin)?;
                 offset = end;
             }
             for batch in marks.chunks(128) {
@@ -1076,6 +1088,61 @@ fn register(
 }
 impl Document {
     /// Suggest the next retained namespace ID; reservation occurs only on commit.
+    fn apply_fragment_opaque(
+        &mut self,
+        node: &str,
+        start: u32,
+        end: u32,
+        marks: &[(String, Any)],
+        origin: &TextOrigin,
+    ) -> Result<(), EditorError> {
+        if marks.is_empty() || start == end {
+            return Ok(());
+        }
+        // Logical owners may contain retained split/join source spans. Resolve
+        // exactly as the named-format preparation path, never by owner-map key.
+        let snapshot = self.inspect().map_err(|_| EditorError::InvalidCommand)?;
+        let node = snapshot
+            .visible
+            .iter()
+            .find(|n| n.id == node)
+            .ok_or(EditorError::UnsupportedTarget)?;
+        let text: String = node.runs.iter().map(|r| r.text.as_str()).collect();
+        crate::anchors::validate_range(&text, crate::Utf16Offset(start)..crate::Utf16Offset(end))
+            .map_err(|_| EditorError::InvalidCommand)?;
+        if matches!(
+            node.block_attributes,
+            Some(crate::document::BlockAttributes::Code(_))
+        ) && marks.iter().any(|(_, v)| !matches!(v, Any::Null))
+        {
+            return Err(EditorError::UnsupportedTarget);
+        }
+        let mut tx = self.doc.transact_mut_with(origin.as_str());
+        let mut base = 0;
+        use yrs::Text;
+        for span in &node.spans {
+            let len = span.end - span.start;
+            let lo = start.max(base);
+            let hi = end.min(base + len);
+            if lo < hi {
+                let source = match tx.get_map(m::ROOTS[1]).unwrap().get(&tx, &span.source) {
+                    Some(yrs::Out::YXmlText(source)) => source,
+                    _ => return Err(EditorError::InvalidCommand),
+                };
+                source.format(
+                    &mut tx,
+                    span.start + lo - base,
+                    hi - lo,
+                    marks
+                        .iter()
+                        .map(|(k, v)| (k.as_str().into(), v.clone()))
+                        .collect(),
+                );
+            }
+            base += len;
+        }
+        Ok(())
+    }
     /// Portable semantic view; unknown marks are not silently removed.
     pub fn fragment_for_node(&self, id: &str) -> Result<FragmentBlock, EditorError> {
         use super::{format::Mark, lists::ContainerStyle};
@@ -1088,8 +1155,13 @@ impl Document {
         let mut runs = Vec::new();
         for run in &node.runs {
             let mut marks = Vec::new();
+            let mut opaque_marks = Vec::new();
             for (key, value) in &run.attributes {
-                if matches!(value, Any::Null | Any::Bool(false)) {
+                if matches!(
+                    key.as_str(),
+                    "bold" | "italic" | "strike" | "underline" | "code" | "link"
+                ) && matches!(value, Any::Null | Any::Bool(false))
+                {
                     continue;
                 }
                 let mark = match key.as_str() {
@@ -1099,7 +1171,10 @@ impl Document {
                     "underline" => Mark::Underline,
                     "code" => Mark::Code,
                     "link" => Mark::Link,
-                    _ => return Err(EditorError::UnsupportedTarget),
+                    _ => {
+                        opaque_marks.push((key.clone(), value.clone()));
+                        continue;
+                    }
                 };
                 let href = if mark == Mark::Link {
                     let Any::String(href) = value else {
@@ -1114,7 +1189,10 @@ impl Document {
                 };
                 marks.push((mark, href));
             }
+            super::fragment::validate_opaque_marks(&opaque_marks)
+                .map_err(|_| EditorError::UnsupportedTarget)?;
             runs.push(FragmentRun {
+                opaque_marks,
                 text: run.text.clone(),
                 marks,
             });
@@ -1187,6 +1265,7 @@ impl Document {
         }
         let mut owners = std::collections::BTreeSet::new();
         for (selection, blocks) in edits {
+            super::fragment::validate(blocks).map_err(|_| EditorError::InvalidCommand)?;
             let (Ok(Resolution::Position(a)), Ok(Resolution::Position(b))) = (
                 self.resolve_anchor(&selection.anchor),
                 self.resolve_anchor(&selection.focus),
@@ -1220,7 +1299,12 @@ impl Document {
             let will_code = block.attributes.as_ref().map_or(was_code, |attributes| {
                 matches!(attributes, crate::document::BlockAttributes::Code(_))
             });
-            if will_code && block.runs.iter().any(|r| !r.marks.is_empty()) {
+            if will_code
+                && block
+                    .runs
+                    .iter()
+                    .any(|r| !(r.marks.is_empty() && r.opaque_marks.is_empty()))
+            {
                 return Err(EditorError::InvalidCommand);
             }
             if was_code && !will_code {
@@ -1258,6 +1342,34 @@ impl Document {
                 .0
                 .checked_sub(length)
                 .ok_or(EditorError::InvalidCommand)?;
+            // Replacement formatting is exact, including removal of inherited
+            // opaque attributes absent from the incoming span. These nulls are
+            // internal removals, never accepted as imported descriptors.
+            if length > 0 {
+                let snapshot = stage.inspect().map_err(|_| EditorError::InvalidCommand)?;
+                let node = snapshot
+                    .visible
+                    .iter()
+                    .find(|n| n.id == a.node)
+                    .ok_or(EditorError::InvalidCommand)?;
+                let clear: std::collections::BTreeMap<String, Any> = node
+                    .runs
+                    .iter()
+                    .flat_map(|r| r.attributes.keys())
+                    .filter(|k| {
+                        !["bold", "italic", "strike", "underline", "code", "link"]
+                            .contains(&k.as_str())
+                    })
+                    .map(|k| (k.clone(), Any::Null))
+                    .collect();
+                stage.apply_fragment_opaque(
+                    &a.node,
+                    start,
+                    end.offset.0,
+                    &clear.into_iter().collect::<Vec<_>>(),
+                    origin,
+                )?;
+            }
             let mut formats = Vec::new();
             if length > 0 {
                 let range = Selection {
@@ -1304,6 +1416,7 @@ impl Document {
                         });
                     }
                 }
+                stage.apply_fragment_opaque(&a.node, offset, end, &run.opaque_marks, origin)?;
                 offset = end;
             }
             for batch in formats.chunks(128).filter(|_| !(was_code && will_code)) {

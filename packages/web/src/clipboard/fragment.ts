@@ -45,13 +45,14 @@ function clipRuns(node: ProjectedNode, start: number, end: number): FragmentRun[
     const from = Math.max(0, start - offset), to = Math.min(run.text.length, end - offset); offset += run.text.length;
     if (from >= to) continue;
     const marks: { mark: FragmentRun['marks'][number]['mark']; href?: string }[] = [];
+    const opaqueMarks: { key: string; value: unknown }[] = [];
     for (const [mark, value] of Object.entries(run.attributes)) {
-      if (!names.has(mark)) throw Error('unsupported-fragment-mark');
+      if (!names.has(mark)) { opaqueMarks.push({key: mark, value}); continue; }
       if (value === true) marks.push({ mark: mark as FragmentRun['marks'][number]['mark'] });
       else if (mark === 'link' && typeof value === 'string') marks.push({ mark: 'link', href: value });
       else throw Error('unsupported-fragment-mark');
     }
-    result.push({ text: run.text.slice(from, to), marks });
+    result.push({ text: run.text.slice(from, to), marks, ...(opaqueMarks.length ? {opaqueMarks} : {}) });
   }
   return result;
 }
@@ -332,6 +333,7 @@ export class ClipboardInput {
           }) };
         const raw = JSON.stringify(fragment); decodeFragment(raw, this.#engine); data.setData(FRAGMENT_MIME, raw);
         if (inert) this.#diagnose('inert-extension-source-fallback');
+        if (fragment.blocks.some(b => b.runs.some(r => r.opaqueMarks?.length))) this.#diagnose('opaque-marks-internal-only');
         if (cut && data.getData(FRAGMENT_MIME) !== raw) throw Error('clipboard-write-failed');
         data.setData('text/html', exportHTML(fragment.blocks));
       } catch (error) { this.#diagnose(errorMessage(error)); if (cut) throw error; }

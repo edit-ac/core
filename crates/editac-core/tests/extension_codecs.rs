@@ -248,6 +248,7 @@ fn owning_codecs_copy_export_and_literal_bypass_preserve_semantics() {
             vec![FragmentBlock {
                 attributes: None,
                 runs: vec![FragmentRun {
+                    opaque_marks: vec![],
                     text: source.into(),
                     marks: vec![],
                 }],
@@ -532,6 +533,7 @@ impl extensions::Extension for Badge {
             vec![FragmentBlock {
                 attributes: Some(BlockAttributes::Heading(2)),
                 runs: vec![FragmentRun {
+                    opaque_marks: vec![],
                     text: s.into(),
                     marks: vec![(editac_core::commands::format::Mark::Bold, None)],
                 }],
@@ -580,6 +582,7 @@ fn trusted_custom_source_hooks_and_reference_export_keep_explicit_recovery() {
     let blocks = vec![FragmentBlock {
         attributes: Some(BlockAttributes::Unknown(tuple)),
         runs: vec![FragmentRun {
+            opaque_marks: vec![],
             text: "Offline 😀".into(),
             marks: vec![],
         }],
@@ -619,6 +622,7 @@ fn literal_source_reconciliation_never_parses_markdown_syntax() {
         &[FragmentBlock {
             attributes: None,
             runs: vec![FragmentRun {
+                opaque_marks: vec![],
                 text: source.into(),
                 marks: vec![],
             }],

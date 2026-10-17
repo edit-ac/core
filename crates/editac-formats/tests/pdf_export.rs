@@ -267,6 +267,7 @@ fn rich_blocks() -> Vec<FragmentBlock> {
                 .unwrap()
                 .iter()
                 .map(|r| FragmentRun {
+                    opaque_marks: vec![],
                     text: r["text"].as_str().unwrap().into(),
                     marks: r["marks"]
                         .as_array()
@@ -444,10 +445,12 @@ fn unsupported_arabic_style_boundaries_refuse_instead_of_breaking_joining() {
     let mut content = blocks("لا");
     content[0].runs = vec![
         FragmentRun {
+            opaque_marks: vec![],
             text: "ل".into(),
             marks: vec![],
         },
         FragmentRun {
+            opaque_marks: vec![],
             text: "ا".into(),
             marks: vec![(Mark::Underline, None)],
         },
@@ -470,10 +473,12 @@ fn split_combining_cluster_marks_refuse_but_identical_style_runs_coalesce() {
     let mut content = blocks("e");
     content[0].runs = vec![
         FragmentRun {
+            opaque_marks: vec![],
             text: "e".into(),
             marks: vec![],
         },
         FragmentRun {
+            opaque_marks: vec![],
             text: "\u{301}".into(),
             marks: vec![(Mark::Bold, None)],
         },

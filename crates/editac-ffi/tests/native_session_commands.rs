@@ -692,6 +692,7 @@ fn restored_heading_end_and_selection_commands_use_shared_planner_and_one_commit
                 },
                 &[FragmentBlock {
                     runs: vec![FragmentRun {
+                        opaque_marks: vec![],
                         text: "A🦀אבB".into(),
                         marks: vec![],
                     }],

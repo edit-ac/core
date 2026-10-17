@@ -60,6 +60,7 @@ fn block(d: &AssetDescriptor) -> FragmentBlock {
     FragmentBlock {
         attributes: Some(BlockAttributes::Unknown(tuple(d))),
         runs: vec![FragmentRun {
+            opaque_marks: vec![],
             text: d.fallback.clone(),
             marks: vec![],
         }],

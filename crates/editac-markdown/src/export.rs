@@ -186,8 +186,41 @@ fn semantics(blocks: &[FragmentBlock]) -> Vec<SemanticBlock> {
         .collect()
 }
 
+// Keep descriptor data once per run, never cloned once per character. The
+// existing text/known-mark comparison still owns ordinary Markdown semantics.
+type OpaqueSpan = (
+    usize,
+    usize,
+    Vec<editac_core::commands::fragment::OpaqueMark>,
+);
+fn opaque_spans(blocks: &[FragmentBlock]) -> Vec<Vec<OpaqueSpan>> {
+    blocks
+        .iter()
+        .map(|b| {
+            let mut offset = 0;
+            let mut spans: Vec<OpaqueSpan> = Vec::new();
+            for run in &b.runs {
+                let end = offset + run.text.encode_utf16().count();
+                if end > offset && !run.opaque_marks.is_empty() {
+                    let mut marks = run.opaque_marks.clone();
+                    marks.sort_by(|a, b| a.0.cmp(&b.0));
+                    if let Some(last) = spans
+                        .last_mut()
+                        .filter(|last| last.1 == offset && last.2 == marks)
+                    {
+                        last.1 = end;
+                    } else {
+                        spans.push((offset, end, marks));
+                    }
+                }
+                offset = end;
+            }
+            spans
+        })
+        .collect()
+}
 pub fn equivalent(a: &[FragmentBlock], b: &[FragmentBlock]) -> bool {
-    semantics(a) == semantics(b)
+    opaque_spans(a) == opaque_spans(b) && semantics(a) == semantics(b)
 }
 
 pub fn export(blocks: &[FragmentBlock]) -> ExportResult {
@@ -196,6 +229,12 @@ pub fn export(blocks: &[FragmentBlock]) -> ExportResult {
     let mut counts: BTreeMap<String, u32> = BTreeMap::new();
     let mut widths: BTreeMap<String, usize> = BTreeMap::new();
     for block in blocks {
+        if block.runs.iter().any(|r| !r.opaque_marks.is_empty()) {
+            diagnostics.push(Diagnostic {
+                code: "opaque-marks-internal-only",
+                range: 0..0,
+            });
+        }
         let text: String = block.runs.iter().map(|r| r.text.as_str()).collect();
         let body = match block
             .attributes
@@ -382,7 +421,7 @@ pub fn export(blocks: &[FragmentBlock]) -> ExportResult {
                 tables: true,
             },
         )
-        .is_ok_and(|p| semantics(&p.blocks) == semantics(blocks))
+        .is_ok_and(|p| equivalent(&p.blocks, blocks))
     {
         diagnostics.push(Diagnostic {
             code: "markdown-unrepresentable",

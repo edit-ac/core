@@ -81,6 +81,7 @@ fn markdown_reports_loss_and_retains_exact_rich_recovery() {
     let block = FragmentBlock {
         attributes: Some(BlockAttributes::Unknown(tuple.clone())),
         runs: vec![FragmentRun {
+            opaque_marks: vec![],
             text: "fallback".into(),
             marks: vec![],
         }],

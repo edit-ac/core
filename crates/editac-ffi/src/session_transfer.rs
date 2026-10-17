@@ -81,6 +81,7 @@ fn canonical(blocks: &[FragmentBlock], schema: &str) -> Result<String> {
 fn empty() -> Vec<FragmentBlock> {
     vec![FragmentBlock {
         runs: vec![FragmentRun {
+            opaque_marks: vec![],
             text: String::new(),
             marks: vec![],
         }],
@@ -99,6 +100,7 @@ fn literal(text: &str, in_code: bool) -> Vec<FragmentBlock> {
         .into_iter()
         .map(|text| FragmentBlock {
             runs: vec![FragmentRun {
+                opaque_marks: vec![],
                 text: text.into(),
                 marks: vec![],
             }],

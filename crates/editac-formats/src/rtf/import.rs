@@ -208,6 +208,7 @@ impl<C: FnMut() -> std::result::Result<(), JobError>> Parser<'_, C> {
         if self.runs.last().is_none_or(|r| r.marks != self.state.marks) {
             self.node(1)?;
             self.runs.push(FragmentRun {
+                opaque_marks: vec![],
                 text: String::new(),
                 marks: self.state.marks.clone(),
             });
@@ -300,6 +301,7 @@ impl<C: FnMut() -> std::result::Result<(), JobError>> Parser<'_, C> {
         self.node(2)?;
         self.blocks.push(FragmentBlock {
             runs: vec![FragmentRun {
+                opaque_marks: vec![],
                 text: source,
                 marks: vec![],
             }],

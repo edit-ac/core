@@ -91,6 +91,7 @@ pub(crate) fn edit_cell(runs: &mut Vec<FragmentRun>, text: &str) {
             let n = (prefix - at).min(r.text.len());
             if n > 0 {
                 result.push(FragmentRun {
+                    opaque_marks: r.opaque_marks.clone(),
                     text: r.text[..n].into(),
                     marks: r.marks.clone(),
                 });
@@ -100,6 +101,7 @@ pub(crate) fn edit_cell(runs: &mut Vec<FragmentRun>, text: &str) {
     }
     if !inserted.is_empty() {
         result.push(FragmentRun {
+            opaque_marks: vec![],
             text: inserted.into(),
             marks: marks.clone(),
         });
@@ -110,6 +112,7 @@ pub(crate) fn edit_cell(runs: &mut Vec<FragmentRun>, text: &str) {
         if stop > end {
             let start = end.saturating_sub(at);
             result.push(FragmentRun {
+                opaque_marks: r.opaque_marks.clone(),
                 text: r.text[start..].into(),
                 marks: r.marks.clone(),
             });
@@ -118,13 +121,17 @@ pub(crate) fn edit_cell(runs: &mut Vec<FragmentRun>, text: &str) {
     }
     if result.is_empty() {
         result.push(FragmentRun {
+            opaque_marks: vec![],
             text: String::new(),
             marks,
         });
     }
     let mut compact: Vec<FragmentRun> = Vec::new();
     for r in result {
-        if let Some(last) = compact.last_mut().filter(|last| last.marks == r.marks) {
+        if let Some(last) = compact
+            .last_mut()
+            .filter(|last| last.marks == r.marks && last.opaque_marks == r.opaque_marks)
+        {
             last.text.push_str(&r.text);
         } else {
             compact.push(r);
@@ -259,7 +266,10 @@ impl Content {
                     return Err(ContentError::ResourceLimit);
                 }
                 for run in runs {
-                    if run.marks.len() > 6 || run.text.contains('\r') {
+                    if !run.opaque_marks.is_empty()
+                        || run.marks.len() > 6
+                        || run.text.contains('\r')
+                    {
                         return Err(ContentError::InvalidShape);
                     }
                     for (mark, href) in &run.marks {
@@ -542,7 +552,11 @@ impl Content {
                             };
                             marks.push((kind, href));
                         }
-                        cell.push(FragmentRun { text, marks });
+                        cell.push(FragmentRun {
+                            opaque_marks: vec![],
+                            text,
+                            marks,
+                        });
                     }
                     row.push(cell);
                 }

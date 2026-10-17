@@ -48,6 +48,7 @@ fn authored_terminal_hard_breaks_round_trip_without_filler_or_recovery() {
             let blocks = vec![FragmentBlock {
                 attributes: Some(BlockAttributes::Paragraph),
                 runs: vec![FragmentRun {
+                    opaque_marks: vec![],
                     text: text.into(),
                     marks,
                 }],
@@ -120,6 +121,7 @@ fn underline_unknown_content_and_unrepresentable_code_retain_data() {
         let blocks = vec![FragmentBlock {
             attributes: Some(attributes),
             runs: vec![FragmentRun {
+                opaque_marks: vec![],
                 text: "retained".into(),
                 marks,
             }],
@@ -139,14 +141,17 @@ fn adjacent_ambiguous_marks_never_report_a_lossless_export() {
         attributes: Some(BlockAttributes::Paragraph),
         runs: vec![
             FragmentRun {
+                opaque_marks: vec![],
                 text: "a".into(),
                 marks: vec![(Mark::Bold, None)],
             },
             FragmentRun {
+                opaque_marks: vec![],
                 text: "b".into(),
                 marks: vec![(Mark::Bold, None), (Mark::Italic, None)],
             },
             FragmentRun {
+                opaque_marks: vec![],
                 text: "c".into(),
                 marks: vec![(Mark::Italic, None)],
             },

@@ -59,6 +59,7 @@ fn parse(source: &str, mode: SourceMode) -> Result<PreparedContent, Conflict> {
             source: source.into(),
             blocks: vec![FragmentBlock {
                 runs: vec![FragmentRun {
+                    opaque_marks: vec![],
                     text: source.into(),
                     marks: vec![],
                 }],
@@ -86,16 +87,28 @@ fn parse(source: &str, mode: SourceMode) -> Result<PreparedContent, Conflict> {
     }
     Ok(result)
 }
-type Cell<'a> = (char, &'a [(Mark, Option<String>)]);
+type Cell<'a> = (
+    char,
+    &'a [(Mark, Option<String>)],
+    &'a [editac_core::commands::fragment::OpaqueMark],
+);
 fn cells(block: &FragmentBlock) -> Vec<Cell<'_>> {
     block
         .runs
         .iter()
-        .flat_map(|r| r.text.chars().map(move |c| (c, r.marks.as_slice())))
+        .flat_map(|r| {
+            r.text
+                .chars()
+                .map(move |c| (c, r.marks.as_slice(), r.opaque_marks.as_slice()))
+        })
         .collect()
 }
 fn same(a: &Cell<'_>, b: &Cell<'_>) -> bool {
-    a.0 == b.0 && a.1.iter().all(|m| b.1.contains(m)) && b.1.iter().all(|m| a.1.contains(m))
+    a.0 == b.0
+        && a.1.iter().all(|m| b.1.contains(m))
+        && b.1.iter().all(|m| a.1.contains(m))
+        && a.2.iter().all(|m| b.2.contains(m))
+        && b.2.iter().all(|m| a.2.contains(m))
 }
 fn slice(block: &FragmentBlock, start: u32, end: u32) -> Result<Vec<FragmentRun>, Conflict> {
     let mut offset = 0;
@@ -110,6 +123,7 @@ fn slice(block: &FragmentBlock, start: u32, end: u32) -> Result<Vec<FragmentRun>
             let b = utf16_to_byte(&run.text, Utf16Offset(to))
                 .map_err(|_| conflict(ConflictKind::AmbiguousMapping, None))?;
             result.push(FragmentRun {
+                opaque_marks: run.opaque_marks.clone(),
                 text: run.text[a..b].into(),
                 marks: run.marks.clone(),
             });
