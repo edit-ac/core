@@ -80,3 +80,6 @@ export type { ExtensionReadonlyV1, ExtensionLoadPolicyV1, ExtensionStatusV1, Ext
 export { DocumentSearch, BlockReorder, Images, Tables, MathNotation, References, SlashCommands, Markdown, defaultPreset, documentPreset } from './extensions/configuration.js';
 export type { EditorFacadeOptionsV1, ExtensionPresetOverridesV1, ReferenceConfigurationV1, SlashConfigurationV1 } from './extensions/configuration.js';
 export type { PresenceOptions, PresenceAttachment } from './sync/presence.js';
+
+export { managedCodeHighlighting } from './extensions/highlighting.js';
+export type { ManagedCodeHighlightOptions, ManagedCodeHighlightFactory, ManagedCodeHighlightAttachment, CodeHighlightAttachment } from './extensions/highlighting.js';

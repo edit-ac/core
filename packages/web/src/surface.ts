@@ -5,8 +5,7 @@ import { markdownResource } from './extensions/markdown-resource.js';
 import { configuredResource } from './extensions/resource.js';
 import { literalShortcuts } from './input/shortcuts.js';
 import { editorStoragePorts, type EditorStorageOwner } from './storage/owner.js';
-import { attachStoredSync, type AttachSyncOptions, type SyncAttachment } from './sync/attachment.js';
-import { connectConfiguredCollaboration } from './sync/configured.js';
+import type { AttachSyncOptions, SyncAttachment } from './sync/attachment.js';
 import { PlatformPreferenceController } from './platform/preferences.js';
 import { PageLifecycle } from './lifecycle.js';
 import { EditorViewport, type ViewportOptions } from './platform/viewport.js';
@@ -29,7 +28,7 @@ export interface EditorSurfaceOptions extends Partial<EditorFacadeOptionsV1> {
   codeCommands?: import('./extensions/code.js').CodeCommandsFactory;
   search?: import('./modules/search.js').DocumentSearchFactory;
   markdown?: import('./input/shortcuts.js').MarkdownAdapter;
-  codeHighlight?: import("./modules/code/presenter.js").CodeHighlightFactory;
+  codeHighlight?: import("./modules/code/presenter.js").CodeHighlightFactory | import('./extensions/highlighting.js').ManagedCodeHighlightFactory;
   content?: import('./modules/content.js').ContentFactory;
   reorder?: import('./modules/reorder.js').ReorderFactory;
   links?: LinkEnrichmentFactory;
@@ -248,6 +247,9 @@ export function mountEditorSurface(root: HTMLElement, engine: EngineHandle, opti
     const attach = async (syncOptions: AttachSyncOptions): Promise<SyncAttachment> => {
       requireLive(); if (!localReady || !owner) throw Error('Managed sync requires a ready local storage owner');
       const currentGeneration = ++generation;
+      const { attachStoredSync } = await import('./sync/attachment.js');
+      requireLive();
+      if (generation !== currentGeneration) throw Error('Sync attachment superseded');
       const next = await attachStoredSync({ root, selection: binding.selection, engine, storage: owner.storage,
         indexedDB: owner.indexedDB, databaseName: owner.databaseName,
         current: () => !disposed && generation === currentGeneration,
@@ -264,6 +266,8 @@ export function mountEditorSurface(root: HTMLElement, engine: EngineHandle, opti
       const current = () => !disposed && !currentController.signal.aborted && controller === currentController;
       collaborationStatus = Object.freeze({ state: 'loading', generation: currentGeneration });
       try {
+        const { connectConfiguredCollaboration } = await import('./sync/configured.js');
+        if (!current()) throw Error('Collaboration superseded');
         await connectConfiguredCollaboration(policy, { signal: currentController.signal, generation: currentGeneration, current, attach });
         collaborationStatus = Object.freeze({ state: 'ready', generation: currentGeneration });
         if (!isReady && policy.readiness === 'remote') { isReady = true; binding.setReadOnly(requestedReadOnly); }

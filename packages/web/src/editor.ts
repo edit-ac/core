@@ -3,8 +3,7 @@ import type { PreparedEditorConfigurationV1, PlatformObservationV1, ExtensionSta
 import { CommandControls } from './ui/commands.js';
 import { InputHintController, type InputHints } from './input/hints.js';
 import type { AnchorToken, Bias, CommitResult, DocumentIdentity, EditorCommand, Patch, PatchScope, PrepareRequest, Snapshot } from '@edit-ac/core';
-import { attachStoredSync, type AttachSyncOptions, type SyncAttachment } from './sync/attachment.js';
-import { connectConfiguredCollaboration } from './sync/configured.js';
+import type { AttachSyncOptions, SyncAttachment } from './sync/attachment.js';
 export type { AttachSyncOptions, SyncAttachment } from './sync/attachment.js';
 import { recoverLocalDocument } from './entry.js';
 import type { DOMRenderer } from './dom/render.js';
@@ -28,7 +27,7 @@ export interface EditorOptions extends RecoveryOptions, Partial<EditorFacadeOpti
   codeCommands?: import('./extensions/code.js').CodeCommandsFactory;
   search?: import('./modules/search.js').DocumentSearchFactory;
   markdown?: import('./input/shortcuts.js').MarkdownAdapter;
-  codeHighlight?: import("./modules/code/presenter.js").CodeHighlightFactory;
+  codeHighlight?: import("./modules/code/presenter.js").CodeHighlightFactory | import('./extensions/highlighting.js').ManagedCodeHighlightFactory;
   content?: import('./modules/content.js').ContentFactory;
   reorder?: import('./modules/reorder.js').ReorderFactory;
   links?: import('./modules/links/enrichment.js').LinkEnrichmentFactory;
@@ -309,6 +308,9 @@ export class BrowserEditor {
       return this.#session;
     };
     const session = requireSession(), generation = ++this.#syncGeneration;
+    const { attachStoredSync } = await import('./sync/attachment.js');
+    requireSession();
+    if (generation !== this.#syncGeneration) throw Error('Sync attachment superseded');
     const attachment = await attachStoredSync({ root: this.root, selection: this.#selection!, engine: session.writer.engine,
       storage: session.storage, indexedDB: this.#recoveryOptions.indexedDB, databaseName: this.#recoveryOptions.databaseName,
       current: () => requireSession() === session && generation === this.#syncGeneration,
@@ -351,6 +353,8 @@ export class BrowserEditor {
     this.#collaborationStatus = Object.freeze({ state: 'loading', generation });
     const current = () => !controller.signal.aborted && this.#collaborationController === controller && !this.#closing && !this.#destroyed;
     try {
+      const { connectConfiguredCollaboration } = await import('./sync/configured.js');
+      if (!current()) throw Error('Collaboration superseded');
       await connectConfiguredCollaboration(policy, { signal: controller.signal, generation, current,
         attach: options => this.#attachSync(options, true) });
       this.#collaborationStatus = Object.freeze({ state: 'ready', generation });

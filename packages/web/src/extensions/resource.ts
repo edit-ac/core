@@ -15,6 +15,7 @@ export function configuredResource(prepared: PreparedEditorConfigurationV1 | und
     if (disposed) return Promise.reject(Error('Extension attachment is disposed'));
     if (pending) return pending;
     if (status.state === 'ready') return Promise.resolve();
+    if (status.generation >= 3) return Promise.reject(Error(`Extension ${id} retry limit reached; remount after repairing the host configuration`));
     const generation = status.generation + 1;
     status = Object.freeze({ state: 'loading', generation });
     const owner = new ExtensionProfileActivation({ ...prepared.profile,
@@ -26,7 +27,7 @@ export function configuredResource(prepared: PreparedEditorConfigurationV1 | und
     } }).then(success => {
       if (disposed) throw Error('Extension attachment is disposed');
       if (!success) {
-        status = Object.freeze({ state: 'failed', generation, code: 'adapter-load-failed', retryable: true });
+        status = Object.freeze({ state: 'failed', generation, code: 'adapter-load-failed', retryable: generation < 3 });
         throw Error(`Extension ${id} unavailable; source retained. Check optional package, asset URL, MIME/CSP/CORS; retry explicitly.`, { cause });
       }
       status = Object.freeze({ state: 'ready', generation });

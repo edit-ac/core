@@ -11,7 +11,10 @@ export async function connectConfiguredCollaboration(policy: CollaborationConfig
     if (context.signal.aborted) cancel(); else context.signal.addEventListener('abort', cancel, { once: true });
   });
   let options: AttachSyncOptions;
-  try { options = await Promise.race([Promise.resolve().then(() => policy.connect({ signal: context.signal, generation: context.generation })), cancelled]); }
+  try { options = await Promise.race([Promise.resolve().then(() => {
+    if (context.signal.aborted || !context.current()) throw Error('Collaboration superseded');
+    return policy.connect({ signal: context.signal, generation: context.generation });
+  }), cancelled]); }
   finally { if (cancel) context.signal.removeEventListener('abort', cancel); }
   if (!context.current()) throw Error('Collaboration superseded');
   if (options.authorized !== true) throw Error('Collaboration authorization denied');

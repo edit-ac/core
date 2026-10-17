@@ -7,8 +7,8 @@ editing without a provider. Shipped factories include `DocumentSearch`,
 `BlockReorder`, `Images`, `Tables`, `MathNotation`, `References`, `SlashCommands`, and `Markdown`. Their codecs, presenters,
 commands, cleanup and history remain the existing implementations. Factories
 return separate frozen values. Unknown or modified adapters fail before
-attachment. Custom authoring belongs to EXT-1.15; production bundle/hosting
-qualification remains open. The catalog entries for Code and Pairs are still
+attachment. Custom authoring belongs to EXT-1.15; optional hosting and loading
+are described in [the loading guide](loading-v1.md). The catalog entries for Code and Pairs are still
 contract fixtures and are not advertised as qualified facade factories.
 
 ```ts
@@ -32,8 +32,9 @@ qualified codec and installs its existing typing and paste adapter. Install the
 optional `@edit-ac/markdown` package alongside `@edit-ac/web`; a direct browser
 host maps `@edit-ac/markdown/web` to that package's `dist/web.js`. Its default WASM
 URL is relative to that entry. `assets.manifest.markdown` or `assets.baseURL`
-provides the single explicit override. The module import initializes no codec
-until selected. Independent bundle/hosting/browser qualification is SDK-1.12.
+provides the single explicit override; `assets.manifest.markdownModule` selects
+the dedicated module entry. The module import initializes no codec until selected.
+The loading guide defines the optional installation and bundled-host recipe.
 
 `Markdown.configure({ input: false })` is command-lazy: ordinary input remains
 literal and ready while `editor.exportMarkdown(blocks)` loads the exporter on
@@ -41,7 +42,8 @@ its first explicit call. This method snapshots the supplied blocks before its
 asynchronous boundary. It returns the existing codec's diagnostics and recovery
 blocks without mutating the editor. The borrowed surface exposes the same method.
 Per-feature status reports idle/loading/ready/failed/cancelled and a generation;
-`loadExtension('editac.markdown')` explicitly retries a failed codec. A failed
+`loadExtension('editac.markdown')` explicitly retries a failed codec, with at most
+three attachment attempts including the first. A failed
 required adapter rejects the original `ready` promise and keeps canonical source
 read-only. Await `loadExtension` to resume that same replica after repair. Failed
 module resolution may require installing the optional package and remounting;
@@ -133,6 +135,8 @@ commands unavailable until an authorized attachment succeeds. Identity and wire
 admission stay with the existing sync adapter. `collaborationStatus` distinguishes
 loading, ready, failed and cancelled; errors are observable without rejecting local
 readiness. `connectCollaboration()` retries/replaces the connection;
+local readiness does not imply that the lazily imported connector has started.
+Await the explicit connection operation when the host needs remote attachment.
 `disconnectCollaboration()` aborts pending work and detaches it. Public legacy
 `attachSync()` supersedes pending facade work and preserves its legacy unauthorized
 handle behavior. Neither detach nor reconnect recreates the replica/history or
@@ -151,10 +155,10 @@ An advanced `assets` override is one absolute base URL or manifest. The engine
 base URL points to the directory containing `editac_wasm_bg.wasm`; a manifest
 uses `engine` for that file. It overrides the recovery bootstrap `assetUrl`.
 Compatible editors must retain the existing runtime's identical asset URL.
-Borrowed engines are already initialized by their host. Optional feature chunks,
-broader managed asset discovery, MIME/CSP/CORS qualification and omitted-package
-graphs remain SDK-1.12 work. No runtime or optional assets are fetched by importing
-the facade on a server.
+Borrowed engines are already initialized by their host. The
+[loading guide](loading-v1.md) covers independent feature entries, the single
+host manifest, MIME/CSP/CORS diagnostics and omitted-package bundling. No runtime
+or optional assets are fetched by importing the facade on a server.
 
 The executable installed consumer and declaration fixture live in
 `tests/extension-dx/configuration-consumer/`. The `configuration` test group uses

@@ -4,7 +4,8 @@ import { documentSearch } from '../modules/search.js';
 import { reorderControls } from '../modules/reorder.js';
 import { slashCommands, type SlashCommand, type SlashFactory } from '../modules/slash.js';
 import { referenceSuggestions, type ReferenceHostV1, type ReferenceResolver, type ReferenceFactory } from '../modules/references.js';
-import { mathModuleDefinition, mathRenderer } from '../modules/math.js';
+import { mathModuleDefinition } from '../modules/math-definition.js';
+import { managedMathRenderer } from './math.js';
 import { defineExtensionContract, prepareEditorExtensionConfiguration, ExtensionConfigurationError } from './contract.js';
 import type { ConfiguredExtensionV1, EditorExtensionConfigurationV1, PreparedEditorConfigurationV1 } from './contract.js';
 import type { EditorSurfaceOptions } from '../surface.js';
@@ -131,7 +132,7 @@ export function configuredSurfaceOptions(options: EditorSurfaceOptions, prepared
   for (const extension of prepared.extensions) {
     if (extension.feature.id === 'editac.search') result.search = documentSearch();
     if (extension.feature.id === 'editac.reorder') result.reorder = reorderControls();
-    if (extension.feature.id === 'editac.math') result.moduleRuntime = { renderers: { 'editac.math': mathRenderer() }, presentations: { 'editac.math': { tag: 'span' } } };
+    if (extension.feature.id === 'editac.math') result.moduleRuntime = { renderers: { 'editac.math': managedMathRenderer(prepared.configuration.assets) }, presentations: { 'editac.math': { tag: 'span' } } };
   }
   const marks = prepared.configuration.formatting?.marks;
   if (marks) {

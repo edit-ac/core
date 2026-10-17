@@ -25,14 +25,14 @@ export class DOMRenderer {
   #disposed = false;
   readonly #held = new Set<string>();
   readonly #deferred = new Map<string, Patch["nodes"][number]>();
-  readonly #code: import("../modules/code/presenter.js").CodeHighlightPresenter | undefined;
+  readonly #code: import("../extensions/highlighting.js").CodeHighlightAttachment | undefined;
   patchBoundary: { before(): void; after(): void } | undefined;
   #revision: number;
   readonly #modules: ModuleRegistry | undefined;
   readonly moduleRuntime: ModuleRuntime | undefined;
   readonly #engine: EngineHandle;
-  readonly #options: { codeHighlight?: import("../modules/code/presenter.js").CodeHighlightFactory; readOnly?: boolean; modules?: ModuleRegistry; moduleRuntime?: ModuleRuntimeOptions; content?: ContentFactory; commit?: (request: import('@edit-ac/core').PrepareRequest) => import('@edit-ac/core').CommitResult };
-  constructor(readonly root: HTMLElement, engine: EngineHandle, options: { codeHighlight?: import("../modules/code/presenter.js").CodeHighlightFactory; readOnly?: boolean; modules?: ModuleRegistry; moduleRuntime?: ModuleRuntimeOptions; content?: ContentFactory; commit?: (request: import('@edit-ac/core').PrepareRequest) => import('@edit-ac/core').CommitResult } = {}) {
+  readonly #options: { codeHighlight?: import("../modules/code/presenter.js").CodeHighlightFactory | import('../extensions/highlighting.js').ManagedCodeHighlightFactory; readOnly?: boolean; modules?: ModuleRegistry; moduleRuntime?: ModuleRuntimeOptions; content?: ContentFactory; commit?: (request: import('@edit-ac/core').PrepareRequest) => import('@edit-ac/core').CommitResult };
+  constructor(readonly root: HTMLElement, engine: EngineHandle, options: { codeHighlight?: import("../modules/code/presenter.js").CodeHighlightFactory | import('../extensions/highlighting.js').ManagedCodeHighlightFactory; readOnly?: boolean; modules?: ModuleRegistry; moduleRuntime?: ModuleRuntimeOptions; content?: ContentFactory; commit?: (request: import('@edit-ac/core').PrepareRequest) => import('@edit-ac/core').CommitResult } = {}) {
     this.#engine = engine;
     this.#options = options;
     this.#modules = options.modules?.freeze();
