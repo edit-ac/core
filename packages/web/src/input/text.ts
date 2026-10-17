@@ -19,7 +19,7 @@ export interface TextIntent {
 interface Trace { type: string; trusted: boolean; generation: number; intent?: string; count?: number; inputType?: string; cancelable?: boolean }
 interface NativeEdit { intent: TextIntent; node: string; before: string; range: StableRange; text: string; captured: string; caret?: { anchor: number; focus: number } }
 let editorSequence = 0;
-const ordinary = new Set(['insertText', 'deleteContentBackward', 'deleteContentForward', 'deleteWordBackward', 'deleteWordForward', 'deleteSoftLineBackward', 'deleteSoftLineForward', 'deleteHardLineBackward', 'deleteHardLineForward']);
+const ordinary = new Set(['insertText', 'insertReplacementText', 'deleteContentBackward', 'deleteContentForward', 'deleteWordBackward', 'deleteWordForward', 'deleteSoftLineBackward', 'deleteSoftLineForward', 'deleteHardLineBackward', 'deleteHardLineForward']);
 
 /** Ordinary input adapter. Rust owns every committed edit; DOM text is read only
  * for a bounded native intent in one mapped text block. Unsupported mutations
@@ -151,24 +151,20 @@ export class TextInput {
     this.#flushNative();
     if (['paste','cut','drop','compositionstart','compositionend','blur','keyup'].includes(event.type)) this.codeCommands?.handle(event);
     if (['compositionstart', 'paste', 'cut', 'beforeinput'].includes(event.type)) { this.slash?.handle(event); this.references?.handle(event); }
+    if (this.#composition.active && (['paste', 'cut', 'drop'].includes(event.type) ||
+      event.type === 'keydown' && !((event as KeyboardEvent).isComposing) &&
+      ((event as KeyboardEvent).metaKey || (event as KeyboardEvent).ctrlKey) &&
+      ['z', 'y'].includes((event as KeyboardEvent).key.toLowerCase()))) {
+      const owner = this.#composition.owner;
+      this.#composition.finish(event.type === 'keydown' ? 'cancel' : 'blur');
+      if (this.#key === owner) this.#key = undefined;
+      if (this.#pending === owner) this.#pending = undefined;
+    }
     if (this.clipboard.handle(event)) return;
     const input = event as InputEvent, key = event as KeyboardEvent;
     const trace: Trace = { type: event.type, trusted: event.isTrusted, generation: this.#generation, inputType: input.inputType, cancelable: event.cancelable };
     this.#record(trace);
     if(['keyup','blur','compositionstart'].includes(event.type)){this.#eligibleKey=false;this.#directKey=undefined;}
-    if(event.type==='keydown') {
-      this.shortcuts.key(key.key);
-      this.#directKey=key.key;
-      this.#eligibleKey=event.isTrusted&&!key.isComposing&&!key.ctrlKey&&!key.metaKey&&!key.altKey&&(key.key.length===1||key.key==='Enter');
-      if(key.key==='Backspace'&&!this.#composition.active&&!this.#readOnly) {
-        const reversed=this.shortcuts.reverse();
-        if(reversed){event.preventDefault();this.#selection.place({...reversed,bias:'right'});this.#selection.capture();return;}
-      }
-      if(key.key==='Enter'&&this.#eligibleKey&&!this.#composition.active&&!this.#readOnly){
-        const target=this.#selection.retain();
-        try{const result=target&&this.shortcuts.convert(target.range,'\n','typing-shortcut:fence');if(result){event.preventDefault();this.#moveShortcut(result);return;}}finally{target?.dispose();}
-      }
-    }
     const owned = this.#events.get(event);
     if (owned) { trace.intent = owned.id; if (event.type === 'beforeinput' && event.cancelable && owned.disposition !== 'native-pending') event.preventDefault(); return; }
     const compositionOwner = this.#composition.handle(event, this.#readOnly);
@@ -191,6 +187,19 @@ export class TextInput {
         this.#pending = intent; this.#events.set(event, intent); trace.intent = intent.id;
       }
       return;
+    }
+    if(event.type==='keydown') {
+      this.shortcuts.key(key.key);
+      this.#directKey=key.key;
+      this.#eligibleKey=event.isTrusted&&!key.isComposing&&!key.ctrlKey&&!key.metaKey&&!key.altKey&&(key.key.length===1||key.key==='Enter');
+      if(key.key==='Backspace'&&!this.#composition.active&&!this.#readOnly) {
+        const reversed=this.shortcuts.reverse();
+        if(reversed){event.preventDefault();this.#selection.place({...reversed,bias:'right'});this.#selection.capture();return;}
+      }
+      if(key.key==='Enter'&&this.#eligibleKey&&!this.#composition.active&&!this.#readOnly){
+        const target=this.#selection.retain();
+        try{const result=target&&this.shortcuts.convert(target.range,'\n','typing-shortcut:fence');if(result){event.preventDefault();this.#moveShortcut(result);return;}}finally{target?.dispose();}
+      }
     }
     if (event.type === 'keyup' && /^(ArrowLeft|ArrowRight|ArrowUp|ArrowDown|Home|End|PageUp|PageDown)$/.test(key.key)) this.#selection.ensureVisible();
     if (event.type === 'keyup' || event.type === 'blur') {
@@ -238,22 +247,37 @@ export class TextInput {
     this.#pending = intent; this.#events.set(event, intent); trace.intent = intent.id;
     if (intent.disposition !== 'native-pending') { if (event.cancelable) event.preventDefault(); return; }
     if (this.#readOnly) { if (event.cancelable) event.preventDefault(); this.#reject(intent, 'read-only'); return; }
-    if (!ordinary.has(input.inputType) || !event.cancelable || (input.inputType === 'insertText' && input.data === null)) return;
+    const insertion = input.inputType === 'insertText' || input.inputType === 'insertReplacementText';
+    if (!ordinary.has(input.inputType) || !event.cancelable || (insertion && input.data === null)) return;
+    const reported = input.getTargetRanges();
+    // A correction without a reported target belongs to bounded native fallback.
+    // It must never replace the latest visible caret as a guessed target.
+    if (input.inputType === 'insertReplacementText' && !reported.length) return;
     const target = this.#selection.retain();
     if (!target) { event.preventDefault(); this.#reject(intent, 'unmapped-selection'); return; }
     let range = target.range, ownedRange: StableRange | undefined;
     try {
+      if (insertion && reported.length) {
+        const native = reported.length === 1 ? reported[0] : undefined;
+        const start = native && this.#selection.toModel(native.startContainer, native.startOffset, 'right');
+        const end = native && this.#selection.toModel(native.endContainer, native.endOffset, 'left');
+        if (!start || !end) { event.preventDefault(); this.#reject(intent, 'unmapped-replacement-target'); return; }
+        const anchor = this.#engine.anchor(start.node, start.offset, 'right');
+        try { ownedRange = { anchor, focus: this.#engine.anchor(end.node, end.offset, 'left') }; }
+        catch (error) { this.#engine.releaseAnchor(anchor); throw error; }
+        range = ownedRange;
+      }
       const a = this.#engine.resolve(range.anchor), b = this.#engine.resolve(range.focus);
       if (a.type !== 'position' || b.type !== 'position') {
         event.preventDefault(); this.#reject(intent, 'unsupported-ordinary-range'); return;
       }
       if (a.node !== b.node) {
         event.preventDefault();
-        this.#apply(intent, range, input.inputType === 'insertText' ? input.data! : '');
+        this.#apply(intent, range, insertion ? input.data! : '');
         this.#eligibleKey=false;
         return;
       }
-      if (input.inputType !== 'insertText' && a.offset === b.offset) {
+      if (!insertion && a.offset === b.offset) {
         // Use the browser's actual deletion unit (grapheme/word policy), never a
         // guessed UTF-16 code unit. Engines without target ranges mutate natively.
         const ranges = input.getTargetRanges();
@@ -267,7 +291,7 @@ export class TextInput {
         range = ownedRange;
       }
       event.preventDefault();
-      this.#apply(intent, range, input.inputType === 'insertText' ? input.data! : '', undefined, true, input.inputType==='insertText'&&event.isTrusted&&this.#eligibleKey&&input.data===this.#directKey&&!input.isComposing);
+      this.#apply(intent, range, insertion ? input.data! : '', undefined, true, input.inputType==='insertText'&&event.isTrusted&&this.#eligibleKey&&input.data===this.#directKey&&!input.isComposing);
       this.#eligibleKey=false;
     } catch (error) { event.preventDefault(); this.#reject(intent, errorMessage(error)); }
     finally { if (ownedRange) this.#release(ownedRange); target.dispose(); }
@@ -415,12 +439,19 @@ export class TextInput {
       this.#engine.history({ type: 'explicit' });
       const typing = this.keyboard.formatting.typing(range);
       const entry = this.#entrySelections.get(intent);
-      const request: PrepareRequest = !text && entry ? { kind: 'editor', origin: `text-input:${intent.id}`, commands: [
+      let request: PrepareRequest = !text && entry ? { kind: 'editor', origin: `text-input:${intent.id}`, commands: [
         { type: 'historySelectionAt', ...entry },
         { type: 'delete', range },
         { type: 'selectionAt', anchor: { owner: a.node, offset: nativeCaret?.anchor ?? Math.min(a.offset, b.offset), bias: 'right' },
           focus: { owner: a.node, offset: nativeCaret?.focus ?? Math.min(a.offset, b.offset), bias: 'right' } },
       ] } : this.keyboard.formatting.replacement(range, text, `text-input:${intent.id}`);
+      if (nativeCaret && (request.kind === 'editor' || request.kind === 'text')) {
+        request = { kind: 'editor', origin: request.origin, commands: [
+          ...(request.kind === 'editor' ? request.commands.filter(command => command.type !== 'selectionAt') : [request.command]),
+          { type: 'selectionAt', anchor: { owner: a.node, offset: nativeCaret.anchor, bias: 'right' },
+            focus: { owner: a.node, offset: nativeCaret.focus, bias: 'right' } },
+        ] };
+      }
       const result = this.#commit(request);
       if (result.selection) { this.#engine.releaseAnchor(result.selection.anchor); this.#engine.releaseAnchor(result.selection.focus); }
       intent.disposition = 'committed'; intent.text = text;
