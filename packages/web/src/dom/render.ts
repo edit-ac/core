@@ -1,3 +1,4 @@
+import { patternText } from '../extensions/matching.js';
 import { invisibleCharacterSummary } from '../input/characters.js';
 import type { EngineHandle, Json, Patch, PatchSubscription, ProjectedNode } from "@edit-ac/core";
 
@@ -59,6 +60,10 @@ export class DOMRenderer {
     if (summary) entry.content.title = summary; else entry.content.removeAttribute('title');
   }
   isHeld(id: string): boolean { return this.#held.has(id); }
+  /** Bounded committed projection access for async target revalidation. */
+  patternText(id: string, start: number, end: number): string | undefined {
+    const node = this.#entries.get(id)?.node; return node ? patternText(node, start, end) : undefined;
+  }
   getBlock(id: string): HTMLElement | undefined { return this.#entries.get(id)?.content; }
   /** Only renderer-mounted presenter DOM owns temporary input/display mutations.
    * Authored data attributes cannot confer ownership of canonical source. */

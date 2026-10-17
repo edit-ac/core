@@ -1,3 +1,4 @@
+import { attachPatternMatching, type PatternOptionsV1, type PatternControllerV1, type PatternPorts } from './matching.js';
 import type { Json, PrepareRequest, PatchSubscription } from '@edit-ac/core';
 import type { ModuleRenderer, ModuleRuntime, ModuleScope } from '../modules/runtime.js';
 import { literalShortcuts } from '../input/shortcuts.js';
@@ -10,6 +11,7 @@ import type { ConfiguredExtensionV1, ExtensionCallbackContextV1, ExtensionDefini
 export interface ExtensionInputV1 { readonly type: 'key' | 'input' | 'paste'; readonly key: string; readonly text: string; readonly primary: boolean; readonly shift: boolean; readonly alt: boolean }
 export interface ExtensionDiagnosticV1 { readonly extension: string; readonly phase: 'attach' | 'patch' | 'resource' | 'input' | 'dispose' }
 export interface ExtensionContextV1 extends ExtensionCallbackContextV1 {
+  readonly match: (options: PatternOptionsV1) => PatternControllerV1;
   readonly captureTarget: () => { readonly range: import('@edit-ac/core').StableRange; dispose(): void } | undefined;
   readonly command: (name: string, argument?: Json) => import('@edit-ac/core').CommitResult | undefined;
   /** Resources are per attachment. Late completion is disposed after abort. */
@@ -92,7 +94,7 @@ export function authoringAdapters(prepared: PreparedEditorConfigurationV1) {
 
 /** Lifecycle adapter only: ModuleRuntime owns all committed-event dispatch. */
 export function attachAuthoring(prepared: PreparedEditorConfigurationV1 | undefined, runtime: ModuleRuntime | undefined,
-  ports: Pick<ExtensionCallbackContextV1, 'can' | 'commit' | 'captureCommand'> & { blocked(): boolean; captureTarget: ExtensionContextV1['captureTarget'] }) {
+  ports: Pick<ExtensionCallbackContextV1, 'can' | 'commit' | 'captureCommand'> & { blocked(): boolean; captureTarget: ExtensionContextV1['captureTarget']; matching?: PatternPorts }) {
   const controller = new AbortController(), cleanups = new Set<() => void>();
   const commands = new Map<string, ExtensionContextV1>();
   const inputs = new Map<string, { priority: number; run(input: ExtensionInputV1): boolean }[]>();
@@ -126,6 +128,7 @@ export function attachAuthoring(prepared: PreparedEditorConfigurationV1 | undefi
         const subscription = runtime.subscribe(scope, callback); own(() => subscription.dispose()); return subscription;
       };
       const context: ExtensionContextV1 = Object.freeze<ExtensionContextV1>({ signal: controller.signal, generation: 1,
+        match: options => { if (controller.signal.aborted) throw Error('Extension attachment disposed'); if (!ports.matching) throw Error('Matching projection unavailable'); return attachPatternMatching(options, context, ports.matching); },
         can: request => !controller.signal.aborted && !ports.blocked() && ports.can(request),
         commit: request => { live(); return ports.commit(request); },
         captureCommand: (name, target) => {

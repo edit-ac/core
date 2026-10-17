@@ -86,3 +86,5 @@ export type { ManagedCodeHighlightOptions, ManagedCodeHighlightFactory, ManagedC
 
 export { Extension } from './extensions/authoring.js';
 export type { ExtensionCreateV1, ExtensionHooksV1, ExtensionContextV1, ExtensionInputV1, ExtensionDiagnosticV1 } from './extensions/authoring.js';
+
+export type { PatternPermissionV1, PatternWindowV1, PatternMatchV1, PatternResolutionV1, PatternStatusV1, PatternOptionsV1, PatternControllerV1 } from './extensions/matching.js';

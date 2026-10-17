@@ -1,3 +1,4 @@
+let matchingSequence = 0;
 import { attachAuthoring } from './extensions/authoring.js';
 import { configuredSurfaceOptions, prepareSurfaceConfiguration, type EditorFacadeOptionsV1 } from './extensions/configuration.js';
 import type { PreparedEditorConfigurationV1, PlatformObservationV1 } from './extensions/contract.js';
@@ -167,9 +168,13 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
     input.shortcuts.enabled=options.typingShortcuts??true;
     input.clipboard.plainTextPolicy = options.plainTextPolicy ?? (options.preset === 'minimal' || !engine.markdownAvailable ? 'literal' : 'markdown');
     input.clipboard.contentCodecs = options.contentCodecs ?? {};
+    let authorityGeneration = 0;
+    const matchingIdentity = engine.read().identity;
+    const matchingSession = `surface-${++matchingSequence}`;
     let requestedReadOnly = options.readOnly ?? false;
     let requiredReady = !resources.some(owned => owned.required);
     const setReadOnly = (value: boolean) => {
+      authorityGeneration++;
       requestedReadOnly = value;
       input!.setReadOnly(value || !requiredReady);
       root.setAttribute('aria-readonly', String(value || !requiredReady));
@@ -193,6 +198,20 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
       },
       captureCommand: (name, target) => input!.keyboard.captureCommand(name, target),
       captureTarget: () => selection!.retain(),
+      matching: {
+        identity: `${matchingIdentity.documentId}:${matchingIdentity.epoch}`, session: matchingSession,
+        generation: () => authorityGeneration, available: () => !input!.extensionBlocked,
+        resolve: token => engine.resolve(token), read: (owner, start, end) => renderer.patternText(owner, start, end),
+        capture(owner, start, end) {
+          if (input!.extensionBlocked) return;
+          const tokens: import('@edit-ac/core').AnchorToken[] = [];
+          try {
+            tokens.push(engine.anchor(owner, start, 'right')); tokens.push(engine.anchor(owner, end, 'left'));
+            let released = false;
+            return { range: { anchor: tokens[0]!, focus: tokens[1]! }, dispose() { if (released) return; released = true; for (const token of tokens) engine.releaseAnchor(token); } };
+          } catch { for (const token of tokens) engine.releaseAnchor(token); return; }
+        },
+      },
     });
     input.extensionInput = authoring.hasInput ? authoring.handle : undefined;
     const boundInput = input, boundSelection = selection;
