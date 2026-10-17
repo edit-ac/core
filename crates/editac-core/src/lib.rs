@@ -8,6 +8,7 @@ pub mod anchors;
 pub mod clipboard;
 pub mod commands;
 pub mod document;
+pub mod extensions;
 pub mod history;
 pub mod import;
 pub mod modules;

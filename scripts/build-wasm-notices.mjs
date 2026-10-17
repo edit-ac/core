@@ -9,7 +9,11 @@ const metadata=JSON.parse(result.stdout);
 const markdown = process.argv.includes('--markdown');
 const nodes=new Map(metadata.resolve.nodes.map(n=>[n.id,n]));
 const ids=new Set(),todo=[metadata.packages.find(p=>p.name===(markdown ? 'editac-markdown-wasm' : 'editac-wasm')).id];
-while(todo.length){const id=todo.pop();if(ids.has(id))continue;ids.add(id);todo.push(...nodes.get(id).dependencies);}
+// Test-only edges are not part of a distributed WASM artifact.
+while(todo.length){
+ const id=todo.pop();if(ids.has(id))continue;ids.add(id);
+ todo.push(...nodes.get(id).deps.filter(d=>d.dep_kinds.some(k=>k.kind!=='dev')).map(d=>d.pkg));
+}
 const notices=['Third-party notices for the locked edit.ac WASM build. Includes its build dependencies.\n'];
 for(const pkg of metadata.packages.sort((a,b)=>a.name.localeCompare(b.name))){
  if(!ids.has(pkg.id)||!pkg.source)continue;

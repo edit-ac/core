@@ -222,3 +222,46 @@ Custom attributes remain untouched by formatting commands and are not exposed as
 pending typing fields. The engine's Markdown exporter reports unsupported marks
 (such as underline) with explicit loss diagnostics and recovery data; the toolbar
 does not substitute Unicode characters or claim lossless Markdown serialization.
+
+## Optional AI writing actions
+
+The private `@edit-ac/web/ai` entry supplies `aiActions(host, options)` for explicit
+Ask AI, fill and continue flows. Configure it once through the existing slash
+presenter port:
+
+```ts
+import { mountEditor } from '@edit-ac/web';
+import { AiHost } from '@edit-ac/core/extensions';
+import { aiActions } from '@edit-ac/web/ai';
+
+// descriptor, transport, contextPolicy and reserveQuota are host-owned.
+// Credentials stay on the host backend; the editor never discovers a provider.
+const host = new AiHost(descriptor, transport, contextPolicy, reserveQuota);
+const editor = mountEditor(root, {
+  ...hostOptions,
+  slash: aiActions(host, { contextBytes: 4096, outputBytes: 1024 }),
+});
+await editor.ready;
+```
+
+The declared byte bounds must fit the host descriptor. Missing configuration shows
+an availability reason and sends no requests. The visible commands, selection
+control and slash commands open an instruction panel with an explicit context
+scope. A slash query remains literal document content; opening the panel does not
+silently delete it. Ask AI is answer-only. Fill previews a captured selection,
+caret or paragraph; Continue previews insertion at the captured paragraph end.
+Responses use the plain-text profile: markup is displayed and inserted literally.
+Code, atomic and unsupported structured contexts are rejected.
+
+Generate and Regenerate each require new host admission. Stop and Escape cancel
+pending work. Reject clears the proposal and restores the captured selection when
+the panel still owns focus. Accept applies once through the storage commit port,
+with an isolated undo group; unrelated edits survive undo. Relevant context edits,
+read-only transitions and disposal invalidate acceptance. Destroying the editor
+also aborts pending work and removes the controls.
+
+`npm run test:web -- ai-actions` exercises production WASM, BrowserEditor,
+IndexedDB and prepared transports. Chromium virtual keyboard/touch and browser
+accessibility semantics have local evidence. Actual screen-reader mechanics remain
+unqualified because the test host reports Accessibility scripting disabled. These
+fixtures make no provider, model-quality or all-platform support claim.
