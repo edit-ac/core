@@ -63,7 +63,10 @@ function decodeHtml(doc: Document, html: string): string[][] {
   }
   return validate([...table.rows].map(row => [...row.cells].map(cell => cell.textContent ?? '')));
 }
-export function decodeTableClipboard(doc: Document, data: DataTransfer): string[][] {
+export function decodeTableClipboard(doc: Document, data: DataTransfer, literal = false): string[][] {
+  // The explicit literal action ignores richer offers and cannot turn tabs
+  // into a rectangle. Embedded breaks remain outside the admitted cell profile.
+  if (literal) return validate([[data.getData('text/plain')]]);
   const html = data.getData('text/html');
   // Validate all offered HTML even when TSV is preferred: no fallback may hide
   // unsupported merges, nesting or rich markup by flattening them.

@@ -7,6 +7,7 @@ import type { ModuleRuntime, ModuleRuntimeOptions } from './modules/runtime.js';
 import type { ClipboardCodec } from './clipboard/fragment.js';
 
 export interface EditorSurfaceOptions {
+  selectionViewport?: import('./selection/pointer.js').PointerSelectionViewport;
   codeCommands?: import('./extensions/code.js').CodeCommandsFactory;
   search?: import('./modules/search.js').DocumentSearchFactory;
   markdown?: import('./input/shortcuts.js').MarkdownAdapter;
@@ -29,6 +30,7 @@ export interface EditorSurfaceOptions {
   commit?: (request: PrepareRequest) => CommitResult;
 }
 export interface EditorSurface {
+  readonly pointerSelection: import('./selection/pointer.js').PointerSelection;
   readonly codeCommands: import('./extensions/code.js').CodeCommandsPresenter | undefined;
   readonly search: import('./modules/search.js').DocumentSearchPresenter | undefined;
   readonly reorder: import('./modules/reorder.js').ReorderPresenter | undefined;
@@ -68,6 +70,7 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
     root.setAttribute('aria-label', options.label ?? root.getAttribute('aria-label') ?? 'Document editor');
     if (!root.hasAttribute('tabindex')) root.tabIndex = 0;
     selection = new DOMSelection(renderer, engine);
+    selection.pointer.viewport = options.selectionViewport;
     links = options.links?.(root, engine, commit);
     input = new TextInput(renderer, selection, engine,
       links?.commit ?? commit, options.clipboardCodecs ?? []);
@@ -84,7 +87,7 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
     root.setAttribute('aria-readonly', String(options.readOnly ?? false));
     const boundInput = input, boundSelection = selection;
     let disposed = false;
-    return { renderer, selection: boundSelection, input: boundInput,
+    return { renderer, selection: boundSelection, input: boundInput, pointerSelection: boundSelection.pointer,
       dispose(): void {
         if (disposed) return; disposed = true;
         root.contentEditable = 'false'; root.setAttribute('aria-readonly', 'true');
@@ -104,6 +107,7 @@ export function mountEditorSurface(root: HTMLElement, engine: EngineHandle, opti
     let disposed = false;
     const requireLive = () => { if (disposed) throw Error('Editor surface is disposed'); };
     return {
+      get pointerSelection() { return binding.pointerSelection; },
       get codeCommands() { return binding.input.codeCommands; },
       get search() { return binding.input.search; },
       get reorder() { return binding.input.reorder; },

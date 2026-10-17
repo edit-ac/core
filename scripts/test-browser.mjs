@@ -27,6 +27,8 @@ suites['reorder'] = ['tests/browser/reorder.spec.ts'];
 suites['link-enrichment'] = ['tests/browser/link-enrichment.spec.ts'];
 suites['private-link-display'] = ['tests/browser/private-link-display.spec.ts'];
 suites['references'] = ['tests/browser/references.spec.ts'];
+suites['interaction-pointer-selection'] = ['tests/browser/interactions/pointer-selection.spec.ts'];
+suites['interaction-paste'] = ['tests/browser/interactions/paste.spec.ts', 'tests/browser/interactions/paste-tables.spec.ts'];
 suites['interaction-slash'] = ['tests/browser/interactions/slash.spec.ts'];
 suites['slash'] = ['tests/browser/slash.spec.ts'];
 suites['module-runtime'] = ['tests/browser/module-runtime.spec.ts'];
@@ -71,7 +73,7 @@ const engines = !['recovery', 'offline-collaboration'].includes(suite) ? ['chrom
 for (const engine of engines) {
   const env = { ...process.env };
   if (engine) {
-    for (const group of suite === 'baseline' ? ['render', 'keyboard', 'example'] : suite === 'extension-formatting' ? [suite,'extension-formatting-mixed'] : [suite]) {
+    for (const group of suite === 'baseline' ? ['render', 'keyboard', 'example'] : suite === 'interaction-paste' ? [suite,'interaction-paste-tables'] : suite === 'extension-formatting' ? [suite,'extension-formatting-mixed'] : [suite]) {
       const key = `EDITAC_${group.toUpperCase().replaceAll("-", "_")}`;
       env[`${key}_BROWSER`] = engine;
       if (suite === 'baseline' && env.EDITAC_BASELINE_OUTPUT) env[`${key}_OUTPUT`] = join(env.EDITAC_BASELINE_OUTPUT, engine, group);
