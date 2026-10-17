@@ -77,17 +77,31 @@ export function decodeTableClipboard(doc: Document, data: DataTransfer): string[
 /** Versioned, inert run matrix. Engine admission remains authoritative. */
 export const TABLE_RICH_MIME = 'application/x-edit-ac-table-cells+json';
 export type TableRun = [string, [string, ...string[]][]];
-export type RichCellMatrix = TableRun[][][];
-function richMatrix(value: unknown): RichCellMatrix {
-  if (!Array.isArray(value) || !value.length || value.length > MAX_CELLS) throw Error('Invalid rich rectangle');
+export interface TableCellBlock { style: [string, ...(string | number)[]]; runs: TableRun[] }
+export interface TableRichCell { paragraphs: TableCellBlock[]; rowSpan: 1; columnSpan: 1; header: boolean }
+export type RichCellMatrix = TableRun[][][] | TableRichCell[][];
+function richMatrix(value: unknown, version = 1, maxCells = MAX_CELLS): RichCellMatrix {
+  if (!Array.isArray(value) || !value.length || value.length > maxCells) throw Error('Invalid rich rectangle');
   const width = Array.isArray(value[0]) ? value[0].length : 0;
-  if (!width || width > 32 || width * value.length > MAX_CELLS) throw Error('Rich rectangle limit');
-  let count = 0;
+  if (!width || width > 32 || width * value.length > maxCells) throw Error('Rich rectangle limit');
+  let count = 0, blocks = 0;
   for (const row of value) {
     if (!Array.isArray(row) || row.length !== width) throw Error('Invalid rich row');
     for (const cell of row) {
-      if (!Array.isArray(cell)) throw Error('Invalid rich cell');
-      for (const run of cell) {
+      let lists: unknown[];
+      if (version === 2) {
+        if (!cell || typeof cell !== 'object' || Array.isArray(cell) || Object.keys(cell).sort().join(',') !== 'columnSpan,header,paragraphs,rowSpan' || cell.rowSpan !== 1 || cell.columnSpan !== 1 || typeof cell.header !== 'boolean' || !Array.isArray(cell.paragraphs) || !cell.paragraphs.length) throw Error('Unsupported rich cell');
+        lists = cell.paragraphs.map((block: any) => {
+          if (++blocks > 1024 || !block || typeof block !== 'object' || Array.isArray(block) || Object.keys(block).sort().join(',') !== 'runs,style' || !Array.isArray(block.style) || !Array.isArray(block.runs)) throw Error('Invalid cell block');
+          const a = block.style;
+          if (!(a.length === 1 && a[0] === 'paragraph') && !(a.length === 2 && a[0] === 'heading' && Number.isInteger(a[1]) && a[1] >= 1 && a[1] <= 6) && !(a.length === 2 && a[0] === 'code' && typeof a[1] === 'string' && /^[a-zA-Z0-9+._-]{0,64}$/.test(a[1]))) throw Error('Unsupported cell style');
+          return block.runs;
+        });
+      } else {
+        if (!Array.isArray(cell)) throw Error('Invalid rich cell');
+        lists = [cell];
+      }
+      for (const list of lists) for (const run of list as any[]) {
         if (++count > 1024 || !Array.isArray(run) || run.length !== 2 || typeof run[0] !== 'string' || /[\r\n]/u.test(run[0]) || !Array.isArray(run[1]) || run[1].length > 6) throw Error('Invalid rich run');
         const seen = new Set();
         for (const mark of run[1]) {
@@ -103,15 +117,20 @@ function richMatrix(value: unknown): RichCellMatrix {
   bounded(JSON.stringify(value));
   return value as RichCellMatrix;
 }
+export function validateRichTableCells(value: unknown, maxCells = MAX_CELLS): TableRichCell[][] { return richMatrix(value, 2, maxCells) as TableRichCell[][]; }
 export function encodeRichTableClipboard(doc: Document, cells: RichCellMatrix): Record<string, string> {
-  richMatrix(cells);
-  const rich = JSON.stringify({ version: 1, cells }); bounded(rich);
-  return { ...encodeTableClipboard(doc, cells.map(row => row.map(cell => cell.map(run => run[0]).join('')))), [TABLE_RICH_MIME]: rich };
+  const version = Array.isArray(cells[0]?.[0]) ? 1 : 2;
+  richMatrix(cells, version);
+  const rich = JSON.stringify({ version, cells }); bounded(rich);
+  const literal = cells.map(row => row.map(cell => Array.isArray(cell) ? cell.map(run => run[0]).join('') : cell.paragraphs.map(block => block.runs.map(run => run[0]).join('')).join('\n')));
+  // Literal table profile has no embedded newlines. Keep the structured flavor
+  // alone for multi-block cells rather than flattening their block boundaries.
+  return { ...(literal.some(row => row.some(text => /[\r\n]/u.test(text))) ? {} : encodeTableClipboard(doc, literal)), [TABLE_RICH_MIME]: rich };
 }
 export function decodeRichTableClipboard(data: DataTransfer): RichCellMatrix | undefined {
   if (!data.types.includes(TABLE_RICH_MIME)) return;
   const raw = data.getData(TABLE_RICH_MIME); bounded(raw);
   const value = JSON.parse(raw);
-  if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).sort().join(',') !== 'cells,version' || value.version !== 1) throw Error('Unsupported rich cells');
-  return richMatrix(value.cells);
+  if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).sort().join(',') !== 'cells,version' || ![1,2].includes(value.version)) throw Error('Unsupported rich cells');
+  return richMatrix(value.cells, value.version);
 }

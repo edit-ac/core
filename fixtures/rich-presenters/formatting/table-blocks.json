@@ -1,0 +1,120 @@
+{
+  "version": 2,
+  "profile": "editac.table.cell-blocks.v2",
+  "tuple": [
+    "module:editac.table",
+    2,
+    {
+      "alignments": [
+        "left",
+        "right"
+      ],
+      "rows": [
+        [
+          {
+            "paragraphs": [
+              {
+                "style": [
+                  "heading",
+                  2
+                ],
+                "runs": [
+                  [
+                    "Heading \u00e9\ud83d\ude00",
+                    [
+                      [
+                        "bold"
+                      ]
+                    ]
+                  ]
+                ]
+              }
+            ],
+            "rowSpan": 1,
+            "columnSpan": 1,
+            "header": true
+          },
+          {
+            "paragraphs": [
+              {
+                "style": [
+                  "code",
+                  "rust"
+                ],
+                "runs": [
+                  [
+                    "=SUM(A1); <script>",
+                    []
+                  ]
+                ]
+              }
+            ],
+            "rowSpan": 1,
+            "columnSpan": 1,
+            "header": false
+          }
+        ],
+        [
+          {
+            "paragraphs": [
+              {
+                "style": [
+                  "paragraph"
+                ],
+                "runs": [
+                  [
+                    "\u05d0\u05d1 marked",
+                    [
+                      [
+                        "italic"
+                      ],
+                      [
+                        "underline"
+                      ]
+                    ]
+                  ]
+                ]
+              }
+            ],
+            "rowSpan": 1,
+            "columnSpan": 1,
+            "header": false
+          },
+          {
+            "paragraphs": [
+              {
+                "style": [
+                  "paragraph"
+                ],
+                "runs": [
+                  [
+                    "linked",
+                    [
+                      [
+                        "link",
+                        "https://example.test/"
+                      ],
+                      [
+                        "strike"
+                      ]
+                    ]
+                  ]
+                ]
+              }
+            ],
+            "rowSpan": 1,
+            "columnSpan": 1,
+            "header": true
+          }
+        ]
+      ],
+      "source": "retained | source\n<script>inert</script>"
+    }
+  ],
+  "unsupported": [
+    "lists",
+    "nested-tables",
+    "merged-cell-editing",
+    "multiblock-text-editing"
+  ]
+}

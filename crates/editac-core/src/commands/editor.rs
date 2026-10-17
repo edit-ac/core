@@ -123,7 +123,7 @@ pub enum EditorCommand {
         cells: Option<Vec<Vec<String>>>,
         protected: Vec<(usize, usize)>,
     },
-    /// Bounded v1 cell formatting; the inline-format owner supplies precedence.
+    /// Bounded v1/v2 cell formatting; the inline-format owner supplies precedence.
     TableFormat {
         target: String,
         expected: Any,
@@ -133,7 +133,7 @@ pub enum EditorCommand {
         href: Option<String>,
         protected: Vec<(usize, usize)>,
     },
-    /// Lossless v1 run matrix. The full resulting tuple is admitted before mutation.
+    /// Lossless v1 run matrix or v2 cell-block matrix. The full resulting tuple is admitted before mutation.
     TableRichRectangle {
         target: String,
         expected: Any,

@@ -741,3 +741,96 @@ fn scoped_inline_commands_recheck_table_capability_and_persist_exact_marks() {
         assert_eq!(tuple(&reopened, &f.table), edited);
     }
 }
+
+#[test]
+fn v2_scoped_format_and_block_rectangle_use_native_store_authority_and_exact_recovery() {
+    use editac_core::commands::{
+        format::{FormatAction, Mark},
+        table::CellRectangle,
+    };
+    for blocks in [false, true] {
+        let f = Fixture::new(true);
+        let (store, mut service) = f.service(if blocks { "v2-blocks" } else { "v2-format" });
+        let original = tuple(&service, &f.table);
+        let expected = service
+            .session()
+            .document()
+            .fragment_for_node(&f.table)
+            .unwrap()
+            .attributes
+            .unwrap()
+            .tuple();
+        let rectangle = CellRectangle {
+            row: 1,
+            column: 0,
+            rows: 1,
+            columns: 1,
+        };
+        let mut incoming = original[2]["rows"][1][0].clone();
+        incoming["paragraphs"][0]["style"] = json!(["heading", 4]);
+        let command = if blocks {
+            let command: editac_core::interchange::Command = serde_json::from_value(json!({
+                "type":"tableRichRectangle","owner":f.table,"expected":original,
+                "row":1,"column":0,"rows":1,"columns":1,"protected":[],"cells":[[incoming]]
+            }))
+            .unwrap();
+            command.translate(|_| unreachable!()).unwrap()
+        } else {
+            EditorCommand::TableFormat {
+                target: f.table.clone(),
+                expected,
+                rectangle,
+                mark: Mark::Underline,
+                action: FormatAction::Apply,
+                href: None,
+                protected: vec![],
+            }
+        };
+        let commands = [command];
+        let revision = service.read(0).unwrap().revision;
+        service.set_policy(HostPolicy::default());
+        assert!(matches!(
+            service.prepare_commands(&revision, &commands, &origin(), 0),
+            Err(ServiceError::UnsupportedModule)
+        ));
+        assert!(store.pending(&f.id).unwrap().is_empty());
+        service.set_policy(policy());
+        let prepared = service
+            .prepare_commands(&revision, &commands, &origin(), 0)
+            .unwrap();
+        service.set_policy(HostPolicy::default());
+        assert!(matches!(
+            service.apply(prepared, 0),
+            Err(ServiceError::UnsupportedModule)
+        ));
+        assert_eq!(tuple(&service, &f.table), original);
+        assert!(store.pending(&f.id).unwrap().is_empty());
+        service.set_policy(policy());
+        let prepared = service
+            .prepare_commands(&revision, &commands, &origin(), 0)
+            .unwrap();
+        service.apply(prepared, 0).unwrap().unwrap();
+        assert_eq!(store.pending(&f.id).unwrap().len(), 1);
+        assert_eq!(service.session().document().history_state().undo_groups, 1);
+        let edited = tuple(&service, &f.table);
+        let mut expected = original.clone();
+        if blocks {
+            expected[2]["rows"][1][0] = incoming;
+        } else {
+            expected[2]["rows"][1][0]["paragraphs"][0]["runs"][0][1] =
+                json!([["bold"], ["underline"]]);
+        }
+        assert_eq!(edited, expected);
+        let revision = service.read(0).unwrap().revision;
+        service.undo(&revision, 0).unwrap().unwrap();
+        assert_eq!(tuple(&service, &f.table), original);
+        let revision = service.read(0).unwrap().revision;
+        service.redo(&revision, 0).unwrap().unwrap();
+        assert_eq!(tuple(&service, &f.table), edited);
+        let reopened = EditService::new(
+            Session::open(store.clone(), &f.id, CachedPermission::LOCAL).unwrap(),
+            policy(),
+        );
+        assert_eq!(tuple(&reopened, &f.table), edited);
+    }
+}
