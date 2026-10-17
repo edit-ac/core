@@ -20,6 +20,7 @@ function valid(r: ViewportRect): boolean { return [r.left,r.top,r.width,r.height
 class ViewportOwner {
   readonly consumers = new Set<Consumer>();
   readonly leases = new Set<Consumer>();
+  readonly occlusionSources = new Set<() => ViewportRect | undefined>();
   readonly sources = new Map<EventTarget, number>();
   frame: number | undefined;
   reads = 0; writes = 0;
@@ -47,7 +48,11 @@ class ViewportOwner {
       const v = this.visual;
       const g = this.geometry ? this.geometry() : { visual: v ? { left:v.offsetLeft,top:v.offsetTop,width:v.width,height:v.height } : {left:0,top:0,width:this.window.innerWidth,height:this.window.innerHeight}, scale:v?.scale ?? 1 };
       if (!valid(g.visual) || !Number.isFinite(g.scale) || g.scale <= 0 || (g.occlusions && (g.occlusions.length>8 || g.occlusions.some(r => !valid(r)))) || (g.safeArea && [g.safeArea.top,g.safeArea.right,g.safeArea.bottom,g.safeArea.left].some(n=>!Number.isFinite(n)||n<0))) throw Error('Unusable viewport');
-      return {visual:{...g.visual},scale:g.scale,...(g.occlusions?{occlusions:g.occlusions.map(r=>({...r}))}:{}),...(g.safeArea?{safeArea:{...g.safeArea}}:{}),fallback: !this.geometry && !v};
+      const occlusions = [...(g.occlusions ?? [])];
+      for (const source of this.occlusionSources) {
+        try { const r = source(); if (r && valid(r) && occlusions.length < 8 && !occlusions.some(old => old.left===r.left && old.top===r.top && old.width===r.width && old.height===r.height)) occlusions.push({...r}); } catch { /* optional capability fallback */ }
+      }
+      return {visual:{...g.visual},scale:g.scale,...(g.occlusions || occlusions.length?{occlusions}:{}),...(g.safeArea?{safeArea:{...g.safeArea}}:{}),fallback: !this.geometry && !v};
     } catch { return { visual:{left:0,top:0,width:Math.max(1,this.window.innerWidth),height:Math.max(1,this.window.innerHeight)},scale:1,fallback:true }; }
   }
   source(target: EventTarget): () => void {
@@ -103,6 +108,13 @@ export class EditorViewport {
     this.suspended=false;this.previous=undefined;this.owner.consumers.add(this.consumer);this.invalidate();
   }
   invalidate(): void { if(!this.disposed && !this.suspended)this.owner.invalidate(); }
+  /** Optional host-leased geometry, merged once per owning-window read batch. */
+  addOcclusionSource(source: () => ViewportRect | undefined): () => void {
+    if (this.disposed) return () => {};
+    this.owner.occlusionSources.add(source); this.invalidate();
+    const release = () => { this.owner.occlusionSources.delete(source); this.invalidate(); };
+    this.releases.push(release); return release;
+  }
   /** Only explicit local edit/focus requests can scroll a caret. */
   requestCaret(): void { if(this.disposed || this.suspended)return;this.follow=true;this.owner.invalidate(); }
   addControls(element: HTMLElement): ()=>void {

@@ -92,6 +92,7 @@ export class BrowserEditor {
   #controls: CommandControls | undefined;
   readonly #pasteTargets = new Set<() => void>();
   #hints: InputHintController | undefined;
+  #capabilities: Promise<import('./platform/capabilities.js').BrowserCapabilities> | undefined;
   readonly #plainButton: HTMLButtonElement | undefined;
   #plainTarget: RetainedSelection | undefined;
   readonly #capturePlainTarget = (event: Event): void => {
@@ -207,6 +208,14 @@ export class BrowserEditor {
   }
   #requireReady(): LocalSession {
     if (this.#closing || this.#destroyed || !this.state.ready || !this.#session) throw Error('Editor is not ready'); return this.#session;
+  }
+  /** Explicit opt-in; optional platform code is absent from the ordinary editor import graph. */
+  enableBrowserCapabilities(): Promise<import('./platform/capabilities.js').BrowserCapabilities> {
+    this.#requireReady();
+    return this.#capabilities ??= import('./platform/capabilities.js').then(({ BrowserCapabilities }) => {
+      this.#requireReady();
+      return new BrowserCapabilities(this.root, this.viewport);
+    });
   }
   get commandControls(): CommandControls | undefined { return this.#controls; }
   setInputHints(hints: InputHints): void {
@@ -356,6 +365,7 @@ export class BrowserEditor {
         if (this.#plainButton) { this.#plainButton.disabled = true; this.#plainButton.removeEventListener('pointerdown', this.#capturePlainTarget); this.#plainButton.removeEventListener('click', this.#plainClick); }
         this.root.removeEventListener('keydown', this.#capturePlainTarget);
         this.#controls?.dispose(); this.#hints?.dispose();
+        await this.#capabilities?.then(c => c.dispose(), () => {});
         for (const dispose of this.#pasteTargets) dispose();
         this.#surface?.dispose(); this.#unsubscribe?.();
         const provisional = this.#input?.recovery.map(r => ({ text: r.text, reason: r.reason })) ?? [];
