@@ -257,3 +257,24 @@ network or attachment capability is added; the disabled crate graph stays empty.
 Run `node tests/formats/run.mjs rtf-import` for the canonical qualification.
 Native execution ports are prepared and WASM is compile-only; export and platform
 wiring qualify separately.
+
+## Bounded captured RTF export
+
+Enable `rtf-export` independently of `rtf-import`; call `rtf::export::export`
+with a `PreparedJob` using that direction's `PROFILE`. The job captures shared
+Session fragments once and returns an artifact labelled with that revision.
+`approve_loss=false` rejects any lossy report; review all location-bearing
+reports before explicitly allowing inert text fallbacks. When exporting retained
+RTF input, pass `Provenance::from_import` and the identical original bytes in the
+job to carry hash-correlated omission reports; missing provenance requires loss
+approval. The caller retains original input. No live semantic state is changed.
+
+The writer supports Unicode, four direct marks, paragraphs and rectangular v1
+text tables, with explicit default font/color/code-page controls and escaped
+literal control syntax. It neither fetches resources nor embeds fonts/objects.
+See `fixtures/formats/rtf/export/profile.md` for budgets, unsupported constructs
+and exact fidelity. Run `node tests/formats/run.mjs rtf-export` using locked
+Node/Rust: real Session tests, independent macOS textutil output inspection and
+negative mutations, WASM compilation, optional/default graph and native process
+resource measurements. The OS reader is qualification tooling only. Platform
+sandbox/wiring and release remain with roadmaps31–36/37.

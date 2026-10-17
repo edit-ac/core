@@ -23,6 +23,7 @@ docx-codecs = ["container-codecs", "dep:docx-rs"]
 odt-import = ["container-codecs", "jobs"]
 odt-export = ["container-codecs", "jobs"]
 rtf-import = ["jobs"]
+rtf-export = ["jobs"]
 jobs = ["dep:editac-core", "dep:editac-session", "dep:sha2"]
 
 [[test]]
@@ -123,3 +124,11 @@ required-features = ["rtf-import"]
 [[example]]
 name = "rtf_import"
 required-features = ["rtf-import"]
+
+[[test]]
+name = "rtf_export"
+required-features = ["rtf-export"]
+
+[[example]]
+name = "rtf_export"
+required-features = ["rtf-export"]
