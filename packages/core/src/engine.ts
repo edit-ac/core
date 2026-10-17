@@ -28,6 +28,8 @@ export type EditorCommand =
   | { type: "tableCell"; owner: string; expected: Json; row: number; column: number; text: string }
   /** Exact-descriptor, bounded simple-cell clear or literal matrix paste. Host policy supplies protected coordinates. */
   | { type: "tableRectangle"; owner: string; expected: Json; row: number; column: number; rows: number; columns: number; cells: readonly (readonly string[])[] | null; protected: readonly (readonly [number, number])[] }
+  | { type: "tableFormat"; owner: string; expected: Json; row: number; column: number; rows: number; columns: number; mark: MarkCommand["mark"]; action: FormatAction; href?: string | null; protected: readonly (readonly [number, number])[] }
+  | { type: "tableRichRectangle"; owner: string; expected: Json; row: number; column: number; rows: number; columns: number; cells: Json; protected: readonly (readonly [number, number])[] }
   | { type: "tableStructure"; owner: string; expected: Json; action: "insertRow" | "deleteRow" | "insertColumn" | "deleteColumn"; index: number }
   | { type: "tableAttributes"; owner: string; expected: Json; row: number; column: number; rows: number; columns: number; alignment: "none" | "left" | "center" | "right" | null; header: boolean | null; protected: readonly (readonly [number, number])[] }
   | { type: "insert"; at: AnchorToken; text: string }

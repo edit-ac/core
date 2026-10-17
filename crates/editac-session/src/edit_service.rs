@@ -347,6 +347,8 @@ impl<S: SessionStore> EditService<S> {
                 EditorCommand::TableCell { .. }
                 | EditorCommand::TableStructure { .. }
                 | EditorCommand::TableRectangle { .. }
+                | EditorCommand::TableFormat { .. }
+                | EditorCommand::TableRichRectangle { .. }
                 | EditorCommand::TableAttributes { .. }
                 | EditorCommand::TableSource { .. } => requirements.tables = true,
                 _ => {}

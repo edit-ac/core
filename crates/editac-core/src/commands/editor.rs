@@ -129,6 +129,24 @@ pub enum EditorCommand {
         cells: Option<Vec<Vec<String>>>,
         protected: Vec<(usize, usize)>,
     },
+    /// Bounded v1/v2 cell formatting; the inline-format owner supplies precedence.
+    TableFormat {
+        target: String,
+        expected: Any,
+        rectangle: super::table::CellRectangle,
+        mark: super::format::Mark,
+        action: super::format::FormatAction,
+        href: Option<String>,
+        protected: Vec<(usize, usize)>,
+    },
+    /// Lossless v1 run matrix or v2 cell-block matrix. The full resulting tuple is admitted before mutation.
+    TableRichRectangle {
+        target: String,
+        expected: Any,
+        rectangle: super::table::CellRectangle,
+        cells: Any,
+        protected: Vec<(usize, usize)>,
+    },
     /// Bounded unmerged row/column operation on an exact captured descriptor.
     TableStructure {
         target: String,
@@ -1954,6 +1972,16 @@ impl Document {
                     expected,
                     ..
                 }
+                | EditorCommand::TableFormat {
+                    target: id,
+                    expected,
+                    ..
+                }
+                | EditorCommand::TableRichRectangle {
+                    target: id,
+                    expected,
+                    ..
+                }
                 | EditorCommand::TableSource {
                     target: id,
                     expected,
@@ -1970,7 +1998,9 @@ impl Document {
                     let (tuple, fallback) = super::table::plan(expected, &c)?;
                     if matches!(
                         c,
-                        EditorCommand::TableAttributes { .. } | EditorCommand::TableSource { .. }
+                        EditorCommand::TableAttributes { .. }
+                            | EditorCommand::TableFormat { .. }
+                            | EditorCommand::TableSource { .. }
                     ) {
                         // Metadata never replaces the backing text: retain Y.Text
                         // item identities, anchors and remote text ownership.

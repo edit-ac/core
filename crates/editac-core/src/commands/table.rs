@@ -32,6 +32,47 @@ pub enum RectangleEdit<'a> {
     PasteFragment(&'a [Vec<FragmentBlock>]),
 }
 
+fn cell_run_lists(cell: &Any, v2: bool) -> Result<Vec<&Any>, EditorError> {
+    if !v2 {
+        return Ok(vec![cell]);
+    }
+    let data = map(cell)?;
+    if data.get("rowSpan") != Some(&Any::from(1u32))
+        || data.get("columnSpan") != Some(&Any::from(1u32))
+    {
+        return Err(EditorError::UnsupportedTarget);
+    }
+    let blocks = array(data.get("paragraphs").ok_or(EditorError::InvalidCommand)?)?;
+    if blocks.is_empty() || blocks.len() > 1024 {
+        return Err(EditorError::ResourceLimit);
+    }
+    blocks
+        .iter()
+        .map(|block| match block {
+            Any::Map(data) => data.get("runs").ok_or(EditorError::InvalidCommand),
+            _ => Err(EditorError::InvalidCommand),
+        })
+        .collect()
+}
+
+fn promote_rows(rows: &mut [Vec<Any>]) {
+    for (r, cells) in rows.iter_mut().enumerate() {
+        for cell in cells {
+            let mut promoted = empty_cell(true);
+            let data = data_mut(&mut promoted);
+            data.insert("header".into(), Any::Bool(r == 0));
+            data.insert(
+                "paragraphs".into(),
+                values(vec![Any::Map(Arc::new(HashMap::from([
+                    ("style".into(), values(vec![Any::from("paragraph")])),
+                    ("runs".into(), cell.clone()),
+                ])))]),
+            );
+            *cell = promoted;
+        }
+    }
+}
+
 fn simple_cells(rows: &[Vec<Any>]) -> bool {
     rows.iter().flatten().all(|c| {
         map(c).is_ok_and(|m| m["rowSpan"] == Any::from(1u32) && m["columnSpan"] == Any::from(1u32))
@@ -300,6 +341,211 @@ pub(super) fn plan(expected: &Any, command: &EditorCommand) -> Result<(Any, Stri
         .collect::<Result<_, _>>()?;
     let mut alignments = array(&data["alignments"])?.to_vec();
     match command {
+        EditorCommand::TableFormat {
+            rectangle,
+            protected,
+            ..
+        }
+        | EditorCommand::TableRichRectangle {
+            rectangle,
+            protected,
+            ..
+        } => {
+            if v2 && !simple_cells(&rows) {
+                return Err(EditorError::UnsupportedTarget);
+            }
+            let CellRectangle {
+                row,
+                column,
+                rows: height,
+                columns: width,
+            } = *rectangle;
+            let end_row = row.checked_add(height).ok_or(EditorError::ResourceLimit)?;
+            let end_column = column
+                .checked_add(width)
+                .ok_or(EditorError::ResourceLimit)?;
+            if height == 0
+                || width == 0
+                || height
+                    .checked_mul(width)
+                    .ok_or(EditorError::ResourceLimit)?
+                    > 128
+                || protected.len() > 4096
+            {
+                return Err(EditorError::ResourceLimit);
+            }
+            if end_row > rows.len() || end_column > alignments.len() {
+                return Err(EditorError::InvalidCommand);
+            }
+            if protected
+                .iter()
+                .any(|&(r, c)| (row..end_row).contains(&r) && (column..end_column).contains(&c))
+            {
+                return Err(EditorError::UnsupportedTarget);
+            }
+            if let EditorCommand::TableRichRectangle { cells, .. } = command {
+                let incoming = array(cells)?;
+                if incoming.len() != height
+                    || incoming
+                        .iter()
+                        .any(|r| array(r).map_or(true, |r| r.len() != width))
+                {
+                    return Err(EditorError::InvalidCommand);
+                }
+                let mut run_count = 0usize;
+                let mut text_bytes = 0usize;
+                if !v2
+                    && incoming
+                        .first()
+                        .and_then(|r| array(r).ok())
+                        .and_then(|r| r.first())
+                        .is_some_and(|cell| matches!(cell, Any::Map(_)))
+                {
+                    promote_rows(&mut rows);
+                    v2 = true;
+                }
+                for (r, incoming_row) in incoming.iter().enumerate() {
+                    for (c, cell) in array(incoming_row)?.iter().enumerate() {
+                        for run in cell_run_lists(cell, v2)?
+                            .into_iter()
+                            .map(array)
+                            .collect::<Result<Vec<_>, _>>()?
+                            .into_iter()
+                            .flatten()
+                        {
+                            let run = array(run)?;
+                            if run.len() != 2 {
+                                return Err(EditorError::InvalidCommand);
+                            }
+                            run_count += 1;
+                            let Any::String(text) = &run[0] else {
+                                return Err(EditorError::InvalidCommand);
+                            };
+                            text_bytes = text_bytes
+                                .checked_add(text.len())
+                                .ok_or(EditorError::ResourceLimit)?;
+                            if run_count > 1024 || text_bytes > 1_048_576 {
+                                return Err(EditorError::ResourceLimit);
+                            }
+                            if text.contains(['\r', '\n']) {
+                                return Err(EditorError::InvalidCommand);
+                            }
+                            let marks = array(&run[1])?;
+                            if marks.len() > 6 {
+                                return Err(EditorError::ResourceLimit);
+                            }
+                            let mut seen = std::collections::HashSet::new();
+                            for mark in marks {
+                                let mark = array(mark)?;
+                                let Some(Any::String(key)) = mark.first() else {
+                                    return Err(EditorError::InvalidCommand);
+                                };
+                                if !seen.insert(key.to_string()) {
+                                    return Err(EditorError::InvalidCommand);
+                                }
+                            }
+                            if marks.len() > 1 && seen.contains("code") {
+                                return Err(EditorError::UnsupportedTarget);
+                            }
+                        }
+                        rows[row + r][column + c] = cell.clone();
+                    }
+                }
+            } else if let EditorCommand::TableFormat {
+                mark, action, href, ..
+            } = command
+            {
+                use super::format::{FormatAction, Mark, normalize_link_url};
+                let key = mark.key();
+                let value = match (mark, href) {
+                    (Mark::Link, Some(href)) => values(vec![
+                        Any::from(key),
+                        Any::from(
+                            normalize_link_url(href).map_err(|_| EditorError::InvalidCommand)?,
+                        ),
+                    ]),
+                    (Mark::Link, None) if *action == FormatAction::Remove => {
+                        values(vec![Any::from(key)])
+                    }
+                    (Mark::Link, None) | (_, Some(_)) => return Err(EditorError::InvalidCommand),
+                    _ => values(vec![Any::from(key)]),
+                };
+                let mut all = true;
+                for line in &rows[row..end_row] {
+                    for cell in &line[column..end_column] {
+                        for run in cell_run_lists(cell, v2)?
+                            .into_iter()
+                            .map(array)
+                            .collect::<Result<Vec<_>, _>>()?
+                            .into_iter()
+                            .flatten()
+                        {
+                            let run = array(run)?;
+                            if !array(&run[1])?.iter().any(|m| {
+                                if *action == FormatAction::Remove {
+                                    array(m).is_ok_and(|m| m[0] == Any::from(key))
+                                } else {
+                                    *m == value
+                                }
+                            }) {
+                                all = false;
+                            }
+                        }
+                    }
+                }
+                let remove =
+                    *action == FormatAction::Remove || (*action == FormatAction::Toggle && all);
+                for line in &mut rows[row..end_row] {
+                    for cell in &mut line[column..end_column] {
+                        let rewrite = |original: Any| -> Result<Any, EditorError> {
+                            let mut runs = Vec::new();
+                            for run in array(&original)? {
+                                let mut run = array(run)?.to_vec();
+                                let marks = array(&run[1])?;
+                                if !remove
+                                    && *mark != Mark::Code
+                                    && marks
+                                        .iter()
+                                        .any(|m| array(m).is_ok_and(|m| m[0] == Any::from("code")))
+                                {
+                                    return Err(EditorError::UnsupportedTarget);
+                                }
+                                let mut next = if !remove && *mark == Mark::Code {
+                                    Vec::new()
+                                } else {
+                                    marks
+                                        .iter()
+                                        .filter(|m| !array(m).is_ok_and(|m| m[0] == Any::from(key)))
+                                        .cloned()
+                                        .collect::<Vec<_>>()
+                                };
+                                if !remove {
+                                    next.push(value.clone());
+                                }
+                                run[1] = values(next);
+                                runs.push(values(run));
+                            }
+                            Ok(values(runs))
+                        };
+                        if v2 {
+                            let mut blocks = array(&map(cell)?["paragraphs"])?.to_vec();
+                            for block in &mut blocks {
+                                let data = map(block)?;
+                                // Code blocks are literal; inline marks cannot decorate them.
+                                if array(&data["style"])?.first() == Some(&Any::from("code")) {
+                                    return Err(EditorError::UnsupportedTarget);
+                                }
+                                let runs = rewrite(data["runs"].clone())?;
+                                data_mut(block).insert("runs".into(), runs);
+                            }
+                            data_mut(cell).insert("paragraphs".into(), values(blocks));
+                        } else {
+                            *cell = rewrite(cell.clone())?;
+                        }
+                    }
+                }
+            }
+        }
         EditorCommand::TableAttributes {
             rectangle,
             alignment,
@@ -343,21 +589,7 @@ pub(super) fn plan(expected: &Any, command: &EditorCommand) -> Result<(Any, Stri
             // v1 headers are implicit. Promote only when the requested flags cannot
             // be represented there; retain every existing run, source and coordinate.
             if !v2 && header.is_some_and(|h| (row..end_row).any(|r| h != (r == 0))) {
-                for (r, cells) in rows.iter_mut().enumerate() {
-                    for cell in cells {
-                        let mut promoted = empty_cell(true);
-                        let data = data_mut(&mut promoted);
-                        data.insert("header".into(), Any::Bool(r == 0));
-                        data.insert(
-                            "paragraphs".into(),
-                            values(vec![Any::Map(Arc::new(HashMap::from([
-                                ("style".into(), values(vec![Any::from("paragraph")])),
-                                ("runs".into(), cell.clone()),
-                            ])))]),
-                        );
-                        *cell = promoted;
-                    }
-                }
+                promote_rows(&mut rows);
                 v2 = true;
             }
             if let Some(h) = header.filter(|_| v2) {

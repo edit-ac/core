@@ -1,0 +1,290 @@
+{
+  "schemaVersion": 1,
+  "scope": "capability-contract; no new converter qualified",
+  "hostRoutes": [
+    "rust-local-boundary"
+  ],
+  "baseline": {
+    "policy": "delegate-existing-adapters",
+    "formats": [
+      "markdown",
+      "safe-html",
+      "utf8-text",
+      "semantic-json-v1"
+    ],
+    "owners": [
+      "editac-markdown",
+      "editac-html",
+      "editac-core"
+    ],
+    "claims": "existing portable semantic/source contracts; no history in semantic JSON"
+  },
+  "excluded": [
+    "doc",
+    "ppt",
+    "xls",
+    "pdf-import",
+    "universal-fidelity"
+  ],
+  "diagnostics": {
+    "schemaVersion": 1,
+    "required": [
+      "code",
+      "message",
+      "action",
+      "originalInput"
+    ],
+    "codes": [
+      "FORMAT_EXPORT_ONLY",
+      "FORMAT_UNSUPPORTED",
+      "FORMAT_DIRECTION_UNAVAILABLE",
+      "FORMAT_ADAPTER_UNAVAILABLE",
+      "FORMAT_INPUT_LIMIT",
+      "FORMAT_OUTPUT_LIMIT"
+    ]
+  },
+  "profiles": [
+    {
+      "id": "edit-ac-docx-v1",
+      "format": "docx",
+      "version": 1,
+      "directions": {
+        "import": "planned-unavailable",
+        "export": "planned-unavailable"
+      },
+      "enabledFeatures": [],
+      "fidelity": "semantic-subset",
+      "limits": {
+        "inputBytes": 1048576,
+        "outputBytes": 4194304,
+        "nodes": 4096,
+        "pages": 256
+      },
+      "diagnosticSchema": 1,
+      "targets": {
+        "native": "trusted-candidate-runtime",
+        "wasm32-unknown-unknown": "candidate-compile-only"
+      },
+      "dependencies": {
+        "status": "candidate-qualified",
+        "owner": "CNV-1.3\u20131.7",
+        "versions": [
+          "docx-rs@0.4.22",
+          "zip@8.6.0",
+          "quick-xml@0.41.0"
+        ],
+        "assets": []
+      },
+      "unsupported": [
+        "universal-fidelity",
+        "original-package-byte-identity",
+        "implicit-network"
+      ],
+      "originalInput": "caller-retained"
+    },
+    {
+      "id": "edit-ac-pdf-v1",
+      "format": "pdf",
+      "version": 1,
+      "directions": {
+        "import": "export-only",
+        "export": "planned-unavailable"
+      },
+      "enabledFeatures": [],
+      "fidelity": "publication",
+      "limits": {
+        "inputBytes": 1048576,
+        "outputBytes": 4194304,
+        "nodes": 4096,
+        "pages": 256
+      },
+      "diagnosticSchema": 1,
+      "targets": {
+        "native": "contract-only",
+        "wasm32-unknown-unknown": "contract-only"
+      },
+      "dependencies": {
+        "status": "unselected",
+        "owner": "CNV-1.8\u20131.9",
+        "versions": [],
+        "assets": []
+      },
+      "unsupported": [
+        "universal-fidelity",
+        "original-package-byte-identity",
+        "implicit-network"
+      ],
+      "originalInput": "caller-retained"
+    },
+    {
+      "id": "edit-ac-odt-v1",
+      "format": "odt",
+      "version": 1,
+      "directions": {
+        "import": "planned-unavailable",
+        "export": "planned-unavailable"
+      },
+      "enabledFeatures": [],
+      "fidelity": "semantic-subset",
+      "limits": {
+        "inputBytes": 1048576,
+        "outputBytes": 4194304,
+        "nodes": 4096,
+        "pages": 256
+      },
+      "diagnosticSchema": 1,
+      "targets": {
+        "native": "contract-only",
+        "wasm32-unknown-unknown": "contract-only"
+      },
+      "dependencies": {
+        "status": "unselected",
+        "owner": "CNV-1.10\u20131.11",
+        "versions": [],
+        "assets": []
+      },
+      "unsupported": [
+        "universal-fidelity",
+        "original-package-byte-identity",
+        "implicit-network"
+      ],
+      "originalInput": "caller-retained"
+    },
+    {
+      "id": "edit-ac-rtf-v1",
+      "format": "rtf",
+      "version": 1,
+      "directions": {
+        "import": "planned-unavailable",
+        "export": "planned-unavailable"
+      },
+      "enabledFeatures": [],
+      "fidelity": "bounded-rich-text",
+      "limits": {
+        "inputBytes": 1048576,
+        "outputBytes": 4194304,
+        "nodes": 4096,
+        "pages": 256
+      },
+      "diagnosticSchema": 1,
+      "targets": {
+        "native": "contract-only",
+        "wasm32-unknown-unknown": "contract-only"
+      },
+      "dependencies": {
+        "status": "unselected",
+        "owner": "CNV-1.12\u20131.13",
+        "versions": [],
+        "assets": []
+      },
+      "unsupported": [
+        "universal-fidelity",
+        "original-package-byte-identity",
+        "implicit-network"
+      ],
+      "originalInput": "caller-retained"
+    },
+    {
+      "id": "edit-ac-epub-v1",
+      "format": "epub",
+      "version": 1,
+      "directions": {
+        "import": "planned-unavailable",
+        "export": "planned-unavailable"
+      },
+      "enabledFeatures": [],
+      "fidelity": "reflowable-publication",
+      "limits": {
+        "inputBytes": 1048576,
+        "outputBytes": 4194304,
+        "nodes": 4096,
+        "pages": 256
+      },
+      "diagnosticSchema": 1,
+      "targets": {
+        "native": "contract-only",
+        "wasm32-unknown-unknown": "contract-only"
+      },
+      "dependencies": {
+        "status": "unselected",
+        "owner": "CNV-1.14\u20131.15",
+        "versions": [],
+        "assets": []
+      },
+      "unsupported": [
+        "universal-fidelity",
+        "original-package-byte-identity",
+        "implicit-network"
+      ],
+      "originalInput": "caller-retained"
+    },
+    {
+      "id": "edit-ac-csv-v1",
+      "format": "csv",
+      "version": 1,
+      "directions": {
+        "import": "planned-unavailable",
+        "export": "planned-unavailable"
+      },
+      "enabledFeatures": [],
+      "fidelity": "selected-table-text",
+      "limits": {
+        "inputBytes": 1048576,
+        "outputBytes": 4194304,
+        "nodes": 4096,
+        "pages": 256
+      },
+      "diagnosticSchema": 1,
+      "targets": {
+        "native": "contract-only",
+        "wasm32-unknown-unknown": "contract-only"
+      },
+      "dependencies": {
+        "status": "unselected",
+        "owner": "CNV-1.16\u20131.17",
+        "versions": [],
+        "assets": []
+      },
+      "unsupported": [
+        "universal-fidelity",
+        "original-package-byte-identity",
+        "implicit-network"
+      ],
+      "originalInput": "caller-retained"
+    },
+    {
+      "id": "edit-ac-tsv-v1",
+      "format": "tsv",
+      "version": 1,
+      "directions": {
+        "import": "planned-unavailable",
+        "export": "planned-unavailable"
+      },
+      "enabledFeatures": [],
+      "fidelity": "selected-table-text",
+      "limits": {
+        "inputBytes": 1048576,
+        "outputBytes": 4194304,
+        "nodes": 4096,
+        "pages": 256
+      },
+      "diagnosticSchema": 1,
+      "targets": {
+        "native": "contract-only",
+        "wasm32-unknown-unknown": "contract-only"
+      },
+      "dependencies": {
+        "status": "unselected",
+        "owner": "CNV-1.16\u20131.17",
+        "versions": [],
+        "assets": []
+      },
+      "unsupported": [
+        "universal-fidelity",
+        "original-package-byte-identity",
+        "implicit-network"
+      ],
+      "originalInput": "caller-retained"
+    }
+  ]
+}

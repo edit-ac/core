@@ -5,6 +5,7 @@ import type { DOMRenderer } from '../dom/render.js';
 import type { DOMSelection, RetainedSelection } from '../dom/selection.js';
 import { importHTML, exportHTML } from './html.js';
 import { inlineMarks } from '../dom/marks.js';
+import { EXTENSION_TRANSFER_MIME } from '@edit-ac/core/extensions';
 
 export const FRAGMENT_MIME = 'application/x-edit-ac-fragment+json';
 const LIMIT = 1024 * 1024;
@@ -33,7 +34,7 @@ function blockStyle(node: ProjectedNode): FragmentBlock['attributes'] {
   if (type === 'paragraph' || type === 'separator') return { type };
   if (type === 'heading' && typeof tuple[1] === 'number') return { type, level: tuple[1] };
   if (type === 'code' && typeof tuple[1] === 'string') return { type, language: tuple[1] };
-  if (['module:editac.image','module:editac.table','module:editac.callout','module:editac.reference','module:editac.inert-extension'].includes(String(tuple[0]))) return { type: 'content', tuple };
+  if (['module:editac.asset','module:editac.image','module:editac.table','module:editac.callout','module:editac.reference','module:editac.inert-extension'].includes(String(tuple[0]))) return { type: 'content', tuple };
   throw Error('unsupported-fragment-style');
 }
 function clipRuns(node: ProjectedNode, start: number, end: number): FragmentRun[] {
@@ -132,6 +133,18 @@ export class ClipboardInput {
           if (candidate.some(b => b.attributes?.type === 'content' && Array.isArray(b.attributes.tuple) && b.attributes.tuple[0] === 'module:editac.inert-extension')) this.#diagnose('inert-extension-source-fallback');
         }
         catch (error) { const reason=errorMessage(error);this.#diagnose(reason);if(!exceedsLimit(raw))this.#recoverSource(FRAGMENT_MIME,raw,reason); }
+      }
+      if (!blocks && !literal) {
+        const raw = data.getData(EXTENSION_TRANSFER_MIME), codec = this.#codecs.find(c => c.mime === EXTENSION_TRANSFER_MIME);
+        // A registered structured extension offer is authoritative. Invalid data
+        // must not silently flatten into an accompanying HTML/plain flavor.
+        if (raw && codec) {
+          if (exceedsLimit(raw)) throw Error('clipboard-limit');
+          try {
+            blocks = decodeFragment(JSON.stringify({ version: 1, schema: snapshot.identity.schema, blocks: codec.prepare(raw) }), this.#engine).blocks;
+            if (!this.#engine.can({kind:'fragment',origin:`clipboard:${this.#sequence+1}`,range:target.range,blocks})) throw Error('extension-semantics');
+          } catch (error) { const reason = errorMessage(error); this.#diagnose(reason); this.#recoverSource(EXTENSION_TRANSFER_MIME,raw,reason); throw error; }
+        }
       }
       if (!blocks && !literal) {
         for (const mime of ['text/markdown', 'text/x-markdown', 'text/html', ...this.#codecs.map(c => c.mime)]) {

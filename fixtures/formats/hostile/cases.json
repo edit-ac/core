@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "gate": "CNV-1.4",
+  "source": "crates/editac-formats/tests/container_limits.rs",
+  "fixturePolicy": "Hand-authored classic ZIP builder and tiny trusted original PNG; deterministic raw metadata/CRC/name corruptions in both orders; no extraction, fetching, decoder, private inputs or fixture recording.",
+  "cases": ["unsafe-paths", "duplicates-aliases-both-orders", "file-directory-conflicts", "local-central-disagreement", "encryption", "symlink", "unsupported-method-zip64-multidisk", "crc-corruption-both-orders", "input-entry-part-total-actual-inflation-ratio", "dtd-entities", "malformed-encoding-xml", "depth-attributes-text-nodes", "nested-packages", "content-types", "relationships", "inert-macro-ole-altchunk-template-remote-media", "WCF-06-cumulative-nested-scans-references-output", "WCF-07-pixel-reservation-rejected-dedup-fresh-job", "mid-work-cancel-timeout", "real-session-owned-staging-failure-cleanup-reopen"]
+}

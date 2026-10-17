@@ -1,0 +1,12 @@
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+<w:body>
+ <w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="7"/></w:numPr></w:pPr><w:r><w:t>Three</w:t></w:r></w:p>
+ <w:p><w:pPr><w:numPr><w:ilvl w:val="1"/><w:numId w:val="7"/></w:numPr></w:pPr><w:r><w:t>nested 🙂</w:t></w:r></w:p>
+ <w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="7"/></w:numPr></w:pPr><w:r><w:t>Four</w:t></w:r></w:p>
+ <w:tbl>
+  <w:tr><w:tc><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>A</w:t></w:r></w:p></w:tc><w:tc><w:p/></w:tc></w:tr>
+  <w:tr><w:tc><w:p><w:r><w:t>é🙂</w:t></w:r></w:p></w:tc><w:tc><w:p><w:hyperlink r:id="web"><w:r><w:t>link</w:t></w:r></w:hyperlink></w:p></w:tc></w:tr>
+ </w:tbl>
+ <w:p><w:r><w:drawing><wp:inline><wp:docPr id="1" name="original" descr="A &amp; 🙂" title="caption"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:blipFill><a:blip r:embed="img"/></pic:blipFill></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>
+ <w:p><w:r><w:t>tail</w:t></w:r></w:p>
+</w:body></w:document>

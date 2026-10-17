@@ -9,6 +9,7 @@ suites['reference-presenters'] = ['tests/browser/reference-presenters.spec.ts'];
 suites['controlled-embeds'] = ['tests/browser/controlled-embeds.spec.ts'];
 suites['attachment-actions'] = ['tests/browser/attachment-actions.spec.ts'];
 suites['image-lifecycle'] = ['tests/browser/image-lifecycle.spec.ts'];
+suites['extension-formatting'] = ['tests/browser/extension-formatting.spec.ts','tests/browser/extension-formatting-mixed.spec.ts'];
 suites['table-selection'] = ['tests/browser/table-selection.spec.ts'];
 suites['table-command'] = ['tests/browser/table-command.spec.ts'];
 suites['code-highlight'] = ['tests/browser/code-highlight.spec.ts'];
@@ -68,10 +69,11 @@ const engines = !['recovery', 'offline-collaboration'].includes(suite) ? ['chrom
 for (const engine of engines) {
   const env = { ...process.env };
   if (engine) {
-    for (const group of suite === 'baseline' ? ['render', 'keyboard', 'example'] : [suite]) {
+    for (const group of suite === 'baseline' ? ['render', 'keyboard', 'example'] : suite === 'extension-formatting' ? [suite,'extension-formatting-mixed'] : [suite]) {
       const key = `EDITAC_${group.toUpperCase().replaceAll("-", "_")}`;
       env[`${key}_BROWSER`] = engine;
       if (suite === 'baseline' && env.EDITAC_BASELINE_OUTPUT) env[`${key}_OUTPUT`] = join(env.EDITAC_BASELINE_OUTPUT, engine, group);
+      else if (group === 'extension-formatting-mixed' && env.EDITAC_EXTENSION_FORMATTING_OUTPUT) env[`${key}_OUTPUT`] = join(process.env.EDITAC_EXTENSION_FORMATTING_OUTPUT, engine, 'mixed');
       else if (env[`${key}_OUTPUT`]) env[`${key}_OUTPUT`] = join(env[`${key}_OUTPUT`], engine);
     }
     console.log(`${suite} browser: ${engine}`);

@@ -1,0 +1,181 @@
+# Optional local format boundary
+
+CNV-1.1 delivers a capability contract, import admission and a bounded complete
+output builder. It installs no converter, font, network transport or filesystem
+writer. All seven new format records remain `planned-unavailable`; import and
+export qualification are separate. The crate is an independent Cargo workspace
+to avoid changing the common owner's workspace manifest/lock or the minimum
+editor graph. Its default feature has no runtime dependencies. Its only test dependency is the
+already-used, exactly locked `serde_json` 1.0.152.
+
+`fixtures/formats/profiles.json` records version 1 profiles, limits, fidelity,
+diagnostics, targets and the owners of pending dependency/asset selection. A
+contract compilation target does not qualify a converter on that target. The
+registry exposes only the optional new profiles. Existing Markdown, safe HTML,
+UTF-8 text and semantic JSON routes continue through `editac-markdown` import/
+export, `editac-html` and the existing core/Session prepared fragment APIs.
+There is no second baseline parser or semantic model here.
+
+`admit_import` examines the selected profile, filename, MIME and the first 1024
+bytes for PDF hints before converter dispatch. Any PDF hint returns
+`FORMAT_EXPORT_ONLY`, including mislabeled input. This conservative recognition
+is a routing guard, not a PDF parser. A codec must still validate its own input;
+an unrecognized signature is not evidence of a valid package. DOC/PPT/XLS and
+universal fidelity have no profiles.
+
+Every failure carries a versioned code, visible message, actionable next step
+and borrowed original input. Callers retain the input and unsaved edits under
+their retention policy. They must present the failure; it is never a successful
+Save receipt. `Output::begin` checks the requested export direction before any
+converter work. `append` charges bytes/nodes/pages before buffering. Exceeding a
+limit permanently poisons the builder and discards its prefix; `finish` cannot
+return a truncated complete artifact after an ignored error. A successful result
+labels the captured revision and actual work. It does not acknowledge a host
+write, journal durability or that a later document revision is saved.
+
+Only `rust-local-boundary` is advertised by this gate. WCF-05 uses a prepared
+import-only capability and exact-budget/exhausted output cases through this
+actual boundary, with converter/write effect counts. No browser/native Save UI
+route or converter is claimed. CNV-1.2 owns async jobs and host completion
+correlation; roadmaps 31–36 own platform wiring. Shared Session prepared edits,
+`AssetWork`/`AssetStore` and identity/action-scoped host grants remain the sole
+mutation and attachment lifecycle ports; this crate does not stage or publish
+assets on its own.
+
+Run `node tests/formats/run.mjs profiles` from core with Node 24.19.0 and rustup
+1.97.1 on the child PATH. `tests/formats/capabilities.json` locks the exact test
+commands. Unknown, missing, failed, skipped and zero-case suites fail. Logs,
+counts, fixture/lock hashes and elapsed times are written below
+`EDITAC_FORMATS_OUTPUT` (default `.artifacts/formats/profiles`). Later parents add
+their real named suites before dispatch; names without implementation fail.
+
+CNV-1.2 adds the optional `jobs` feature. The default graph still has no runtime
+dependencies. Jobs reuse `EditService`/Session and `AssetWork`; no shared schema,
+wire, Cargo workspace or ABI changes are introduced. `ConversionOwner` pairs one
+Session with its exact asset store. A job freezes the selected installed profile,
+source SHA-256, owned input, observed revision, target anchors, snapshot, budgets
+and deadline. Registry profiles remain unavailable. Integration fixtures explicitly
+use a prepared available profile and do not qualify or install a converter.
+
+`ExecutionPort` is a trusted host enforcement contract for a browser worker or
+native process. It must install the input/output ceilings, hard memory limit,
+watchdog/cancellation monitor, restricted approved assets and no-network policy
+before work. Missing capabilities fail closed. `JobPool` bounds active jobs;
+`append` checks before allocation and poisons exhausted results. The shared
+fragment planner rechecks revision, target and current authority before a single
+Session commit. Full fragment metadata counts toward the output budget. Export
+captures one snapshot and never reads later edits. Source buffers remain available
+for recovery after cancellation/failure, within the original fixed input limit.
+
+Asset work uses identity/action grants, bounded cumulative byte reservations,
+fresh job-owned reference IDs and the existing durable intent protocol. Failure,
+cancel and drop fence only those references, queue cancel/release and retain
+cleanup handles if persistence fails. Hosts explicitly dispatch queued cleanup;
+no network is run on drop. A committed import returns `ImportCompletion` with
+its local journal receipt and transferred asset-reference bindings. The host must
+retain these bindings for its existing deletion/recovery hooks. Unused import
+staging and all export staging are retired. A local store failure during Session
+commit follows the Session's existing recoverable-state contract; conversion does
+not manufacture durability or discard the recovery export.
+
+`SaveTransition` accepts only its own completed artifact and captured revision,
+including a private per-instance correlation token. `ArtifactSink::write` stages;
+`close` atomically installs the output, preserving the prior artifact on failure.
+Picker cancellation, write/close failure and duplicate/foreign completions cannot
+permit New/Open. Successful N completion returns false for current N+1. Artifacts
+carry conversion work and revision, with no file or journal durability assertion.
+
+Run `node tests/formats/run.mjs jobs` using the manifest-pinned toolchains. Its
+real Rust integration suite uses Session/MemoryStore/AssetWork and prepared
+execution, asset and file-destination ports. WCF-03 fixtures are reusable by the
+platform owners. Roadmaps31–36 must implement and test real worker/process hard
+limits, cancellation termination, approved asset transfer, atomic destination
+writes and actual host transitions; compiling this portable boundary does not
+qualify any of that platform wiring.
+
+CNV-1.4 adds optional guarded OPC ingress through `container` (`docx-codecs`) and
+`PreparedJob::prepare_container` (`docx-codecs,jobs`). It never calls the raw
+DOCX reader on untrusted input. The qualified profile uses classic single-disk
+ZIP, ASCII canonical part paths, UTF-8 XML and original 8-bit noninterlaced PNG
+(color types 0/2/4/6). ZIP64, directory entries, alias/traversal names and other
+unqualified constructs fail explicitly; input remains in the job for recovery.
+Unsupported optional binary parts and active/remote content have inert structured
+reports. No filesystem extraction, external fetch, preview or semantic mapping is
+introduced, and production direction availability is unchanged.
+
+`Budgets::default()` is the qualified ceiling; callers can tighten every allowance.
+The guard bounds metadata before codec allocation, then checks actual inflation,
+ratio, nested XML scans, attributes/text and nodes. A bounded one-byte sentinel
+can establish exhaustion; failed receipts include that observed work. PNG checks
+reserve pixels/RGBA allowance before fixed-scratch zlib scanline validation and
+require exact scanline size, valid filters, chunks/CRCs and termination. No raster
+is allocated. Original image bytes become accessible only after validation.
+Repeated references consume aggregate work; rejected resources are cached only
+inside the immutable package/profile. `work()` returns an immutable counter copy.
+
+For jobs, prepare only once and call `validate_container_media` with the returned
+package and the host clock. Foreign packages, failure, cancellation and timeout
+abort scoped staging before a live commit. Memory admission reserves input,
+inflated parts, metadata/diagnostic headroom, output and scratch; the real Session
+fixtures request a prepared 32 MiB execution ceiling. Actual worker/process
+sandbox enforcement remains with platform owners 31–36. Run the manifest-driven
+`node tests/formats/run.mjs container-limits` for native hostile-container and real
+Session/AssetWork tests, affected regressions and WASM compilation. WASM compilation
+does not qualify browser execution, a sandbox, packed size or production conversion.
+
+## Guarded DOCX text preparation
+
+With `docx-codecs,jobs`, `docx::import::prepare_text` maps the versioned
+`docx-text-semantic-v1` subset from a `PreparedJob`'s immutable input. Use
+`docx::import::TEXT_PROFILE` for this import-only API. The aggregate registry DOCX
+profile remains unavailable pending the structured import/export owners and host
+installation. No additional dependency or minimum-editor asset is introduced.
+
+The input is a bounded classic OPC ZIP with the conventional Transitional OOXML
+`word/document.xml` main part and an explicit main content type/relationship.
+Only related conventional `word/styles.xml` is consumed. Namespace URIs, rather
+than prefix spellings, identify Word content. UTF-8 XML/entities are decoded by
+XML rules; authored Unicode is never normalized. Paragraphs, empty paragraphs,
+run text, tabs and text-wrapping breaks map to existing fragments. Paragraph
+styles and explicit outline levels 0–5 map to headings 1–6. Run defaults,
+paragraph/character style inheritance and direct bold/italic/strike/single
+underline are supported. Style toggles and direct on/off overrides differ;
+paragraph-mark properties do not become formatting for all paragraph text.
+Script-specific b/i behavior beyond the declared Latin/Greek/Cyrillic,
+CJK/Hangul/common emoji scope is diagnosed; Unicode text itself is retained.
+
+HTTP(S)/mailto hyperlink relationships use the shared URL policy, never fetch,
+and retain the normalized destination as a mark. Unsafe, relative, anchor-only
+or missing targets retain visible text with diagnostics. Other parts, style or
+theme/layout properties, complex-script formatting, tracked revisions, fields,
+content controls and alternate-content branches have structured locations and
+recovery actions. No arbitrary revision or alternate branch is chosen. Complex
+field paragraphs retain an empty paragraph and explicit omission report rather
+than accepting cached results; unrepresentable-only bodies fail with diagnostics.
+This is a semantic subset, without Word pagination, original XML spelling or
+source-package round-trip fidelity. The exact original remains in the job/host
+recovery policy; the result carries its SHA-256.
+
+Preparation returns immutable shared `FragmentBlock` data and a bounded report.
+It never writes the live Session. Review every lossy diagnostic before explicitly
+approving loss; a rejected report immediately aborts only that job's staging.
+`PreparedText::commit` binds the exact job and uses its single shared
+prepare/apply operation, revision/target revalidation, cancellation/deadline,
+asset cleanup and history. The source package remains recoverable on failure.
+The caller supplies the existing enforced execution/asset ports. Native proof
+uses prepared ports and real Session/MemoryStore/AssetWork; WASM is compile-only.
+Platform watchdog, worker/process isolation, UI wiring and viewer support remain
+with roadmaps31–36 and qualification37.
+
+`validate_span` and `admit_adapter_spans` check adapter-owned byte/scalar/UTF-16
+coordinates, overflow, UTF-8 boundaries, surrogate boundaries and declared lengths
+before shared preparation. The mapper uses that same admission function. No
+prefix commits on a later invalid run. Public offsets must fit u32; shared
+fragment limits additionally bound 128 paragraphs and 1024 runs. Package scans,
+mapping scans and output nodes share the ingress allowance; diagnostic overflow
+rejects instead of returning a successful incomplete report.
+
+Run `node tests/formats/run.mjs docx-import-text` with the locked toolchains.
+The canonical receipt includes actual Rust tests, regressions, optional WASM
+builds, graph checks, original generated input packages, semantic observations
+and exact source pins. Compile tests are not WASM runtime or platform proof.

@@ -13,6 +13,7 @@ export { referenceSuggestions, referenceBlock, ReferencePresenter, ReferenceLook
 export type { ReferenceSuggestionOptions, ReferenceTarget, ReferenceQuery, ReferenceResolver, ReferenceFactory, ReferencePermissionV1, ReferenceCatalogResultV1, ReferenceHostV1, ReferenceLookupOptions } from './references.js';
 export { reorderControls, ReorderPresenter } from './reorder.js';
 export type { ReorderContext, ReorderFactory } from './reorder.js';
+export { TABLE_RICH_MIME } from './tables/clipboard.js';
 export { contentModules } from './content.js';
 export type { ContentFactory, ContentView, ContentContext, ImageMetadata, ContentOptions } from './content.js';
 // Heavy math renderer remains separately opt-in through @edit-ac/web/math.
@@ -28,6 +29,7 @@ export { PRESENTER_API_VERSION, PRESENTER_HOSTS, PRESENTER_CAPABILITIES, validat
 export type { PresenterHost, PresenterCapabilitiesV1, PresenterInputV1, PresenterUpdateV1, PresenterFocusV1, PresenterInputEventV1, PresenterAccessibilityV1, PresenterRepresentationV1, PresenterAdapterV1 } from './presenters.js';
 export { EXTENSION_TRANSFER_VERSION, EXTENSION_TRANSFER_MIME, ExtensionTransferRegistry, ExtensionTransferError, exportExtensionTransfer, importExtensionTransfer, extensionTransferRequest } from '@edit-ac/core/extensions';
 export type { ExtensionTransferDescriptor, ExtensionTransferEnvelope, ExtensionTransferCodec, PreparedExtensionTransfer, TransferMark } from '@edit-ac/core/extensions';
+export { extensionClipboardCodec, extensionSourcePresenter } from './transfer.js';
 
 export { ServiceLifecycle, serviceScopeFailure } from '../services/lifecycle.js';
 export type { ServiceScope, ServiceResult, ServiceFailure, ServiceLimits, ServiceRequest, ServiceClock } from '../services/lifecycle.js';

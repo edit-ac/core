@@ -1,0 +1,1267 @@
+{
+  "version": 1,
+  "parent": "RCH-1.23-T3",
+  "descriptors": [
+    {
+      "type": "editac.image",
+      "versions": [
+        1
+      ],
+      "inline": [
+        "bold",
+        "italic",
+        "underline",
+        "strike",
+        "code",
+        "link"
+      ],
+      "blocks": [
+        "paragraph",
+        "heading",
+        "code",
+        "content"
+      ],
+      "tableMetadata": [],
+      "fallback": "inert-source-with-recovery"
+    },
+    {
+      "type": "editac.file",
+      "versions": [
+        1
+      ],
+      "inline": [
+        "bold",
+        "italic",
+        "underline",
+        "strike",
+        "code",
+        "link"
+      ],
+      "blocks": [
+        "paragraph",
+        "heading",
+        "code",
+        "content"
+      ],
+      "tableMetadata": [],
+      "fallback": "inert-source-with-recovery"
+    },
+    {
+      "type": "editac.reference",
+      "versions": [
+        1
+      ],
+      "inline": [
+        "bold",
+        "italic",
+        "underline",
+        "strike",
+        "code",
+        "link"
+      ],
+      "blocks": [
+        "paragraph",
+        "heading",
+        "code",
+        "content"
+      ],
+      "tableMetadata": [],
+      "fallback": "inert-source-with-recovery"
+    },
+    {
+      "type": "editac.text",
+      "versions": [
+        1
+      ],
+      "inline": [
+        "bold",
+        "italic",
+        "underline",
+        "strike",
+        "code",
+        "link"
+      ],
+      "blocks": [
+        "paragraph",
+        "heading",
+        "code",
+        "content"
+      ],
+      "tableMetadata": [],
+      "fallback": "inert-source-with-recovery"
+    },
+    {
+      "type": "editac.unavailable",
+      "versions": [
+        1
+      ],
+      "inline": [
+        "bold",
+        "italic",
+        "underline",
+        "strike",
+        "code",
+        "link"
+      ],
+      "blocks": [
+        "paragraph",
+        "heading",
+        "code",
+        "content"
+      ],
+      "tableMetadata": [],
+      "fallback": "inert-source-with-recovery"
+    }
+  ],
+  "cases": [
+    {
+      "id": "image-caption-bold",
+      "kind": "image",
+      "tag": "strong",
+      "envelope": {
+        "version": 1,
+        "type": "editac.image",
+        "dataVersion": 1,
+        "source": "image with caption é😀 אב <script> =SUM(A1)",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.image",
+                1,
+                {
+                  "url": "https://assets.invalid/image.png",
+                  "alt": "image alt",
+                  "title": "caption metadata",
+                  "source": "![image alt](https://assets.invalid/image.png)"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "",
+                "marks": []
+              }
+            ]
+          },
+          {
+            "attributes": {
+              "type": "paragraph"
+            },
+            "runs": [
+              {
+                "text": "caption é😀 אב <script> =SUM(A1)",
+                "marks": [
+                  {
+                    "mark": "bold"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "image-caption-italic",
+      "kind": "image",
+      "tag": "em",
+      "envelope": {
+        "version": 1,
+        "type": "editac.image",
+        "dataVersion": 1,
+        "source": "image with caption é😀 אב <script> =SUM(A1)",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.image",
+                1,
+                {
+                  "url": "https://assets.invalid/image.png",
+                  "alt": "image alt",
+                  "title": "caption metadata",
+                  "source": "![image alt](https://assets.invalid/image.png)"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "",
+                "marks": []
+              }
+            ]
+          },
+          {
+            "attributes": {
+              "type": "paragraph"
+            },
+            "runs": [
+              {
+                "text": "caption é😀 אב <script> =SUM(A1)",
+                "marks": [
+                  {
+                    "mark": "italic"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "image-caption-underline",
+      "kind": "image",
+      "tag": "u",
+      "envelope": {
+        "version": 1,
+        "type": "editac.image",
+        "dataVersion": 1,
+        "source": "image with caption é😀 אב <script> =SUM(A1)",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.image",
+                1,
+                {
+                  "url": "https://assets.invalid/image.png",
+                  "alt": "image alt",
+                  "title": "caption metadata",
+                  "source": "![image alt](https://assets.invalid/image.png)"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "",
+                "marks": []
+              }
+            ]
+          },
+          {
+            "attributes": {
+              "type": "paragraph"
+            },
+            "runs": [
+              {
+                "text": "caption é😀 אב <script> =SUM(A1)",
+                "marks": [
+                  {
+                    "mark": "underline"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "image-caption-strike",
+      "kind": "image",
+      "tag": "s",
+      "envelope": {
+        "version": 1,
+        "type": "editac.image",
+        "dataVersion": 1,
+        "source": "image with caption é😀 אב <script> =SUM(A1)",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.image",
+                1,
+                {
+                  "url": "https://assets.invalid/image.png",
+                  "alt": "image alt",
+                  "title": "caption metadata",
+                  "source": "![image alt](https://assets.invalid/image.png)"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "",
+                "marks": []
+              }
+            ]
+          },
+          {
+            "attributes": {
+              "type": "paragraph"
+            },
+            "runs": [
+              {
+                "text": "caption é😀 אב <script> =SUM(A1)",
+                "marks": [
+                  {
+                    "mark": "strike"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "image-caption-code",
+      "kind": "image",
+      "tag": "code",
+      "envelope": {
+        "version": 1,
+        "type": "editac.image",
+        "dataVersion": 1,
+        "source": "image with caption é😀 אב <script> =SUM(A1)",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.image",
+                1,
+                {
+                  "url": "https://assets.invalid/image.png",
+                  "alt": "image alt",
+                  "title": "caption metadata",
+                  "source": "![image alt](https://assets.invalid/image.png)"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "",
+                "marks": []
+              }
+            ]
+          },
+          {
+            "attributes": {
+              "type": "paragraph"
+            },
+            "runs": [
+              {
+                "text": "caption é😀 אב <script> =SUM(A1)",
+                "marks": [
+                  {
+                    "mark": "code"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "image-caption-link",
+      "kind": "image",
+      "tag": "a",
+      "envelope": {
+        "version": 1,
+        "type": "editac.image",
+        "dataVersion": 1,
+        "source": "image with caption é😀 אב <script> =SUM(A1)",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.image",
+                1,
+                {
+                  "url": "https://assets.invalid/image.png",
+                  "alt": "image alt",
+                  "title": "caption metadata",
+                  "source": "![image alt](https://assets.invalid/image.png)"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "",
+                "marks": []
+              }
+            ]
+          },
+          {
+            "attributes": {
+              "type": "paragraph"
+            },
+            "runs": [
+              {
+                "text": "caption é😀 אב <script> =SUM(A1)",
+                "marks": [
+                  {
+                    "mark": "link",
+                    "href": "https://example.invalid/caption"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "file-caption-bold",
+      "kind": "file",
+      "tag": "strong",
+      "envelope": {
+        "version": 1,
+        "type": "editac.file",
+        "dataVersion": 1,
+        "source": "file with caption é😀 אב <script> =SUM(A1)",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.asset",
+                1,
+                {
+                  "identity": {
+                    "host": "fixture-host",
+                    "key": "file-v1"
+                  },
+                  "kind": "file",
+                  "metadata": {
+                    "filename": "report.pdf",
+                    "mediaType": "application/pdf",
+                    "byteLength": 1024,
+                    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "width": null,
+                    "height": null,
+                    "durationMs": null,
+                    "alt": "Alt 😀 אב",
+                    "caption": "caption"
+                  },
+                  "fallback": "file fallback 😀",
+                  "source": "opaque asset source\\n😀"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "file fallback 😀",
+                "marks": []
+              }
+            ]
+          },
+          {
+            "attributes": {
+              "type": "paragraph"
+            },
+            "runs": [
+              {
+                "text": "caption é😀 אב <script> =SUM(A1)",
+                "marks": [
+                  {
+                    "mark": "bold"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "file-caption-italic",
+      "kind": "file",
+      "tag": "em",
+      "envelope": {
+        "version": 1,
+        "type": "editac.file",
+        "dataVersion": 1,
+        "source": "file with caption é😀 אב <script> =SUM(A1)",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.asset",
+                1,
+                {
+                  "identity": {
+                    "host": "fixture-host",
+                    "key": "file-v1"
+                  },
+                  "kind": "file",
+                  "metadata": {
+                    "filename": "report.pdf",
+                    "mediaType": "application/pdf",
+                    "byteLength": 1024,
+                    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "width": null,
+                    "height": null,
+                    "durationMs": null,
+                    "alt": "Alt 😀 אב",
+                    "caption": "caption"
+                  },
+                  "fallback": "file fallback 😀",
+                  "source": "opaque asset source\\n😀"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "file fallback 😀",
+                "marks": []
+              }
+            ]
+          },
+          {
+            "attributes": {
+              "type": "paragraph"
+            },
+            "runs": [
+              {
+                "text": "caption é😀 אב <script> =SUM(A1)",
+                "marks": [
+                  {
+                    "mark": "italic"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "file-caption-underline",
+      "kind": "file",
+      "tag": "u",
+      "envelope": {
+        "version": 1,
+        "type": "editac.file",
+        "dataVersion": 1,
+        "source": "file with caption é😀 אב <script> =SUM(A1)",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.asset",
+                1,
+                {
+                  "identity": {
+                    "host": "fixture-host",
+                    "key": "file-v1"
+                  },
+                  "kind": "file",
+                  "metadata": {
+                    "filename": "report.pdf",
+                    "mediaType": "application/pdf",
+                    "byteLength": 1024,
+                    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "width": null,
+                    "height": null,
+                    "durationMs": null,
+                    "alt": "Alt 😀 אב",
+                    "caption": "caption"
+                  },
+                  "fallback": "file fallback 😀",
+                  "source": "opaque asset source\\n😀"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "file fallback 😀",
+                "marks": []
+              }
+            ]
+          },
+          {
+            "attributes": {
+              "type": "paragraph"
+            },
+            "runs": [
+              {
+                "text": "caption é😀 אב <script> =SUM(A1)",
+                "marks": [
+                  {
+                    "mark": "underline"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "file-caption-strike",
+      "kind": "file",
+      "tag": "s",
+      "envelope": {
+        "version": 1,
+        "type": "editac.file",
+        "dataVersion": 1,
+        "source": "file with caption é😀 אב <script> =SUM(A1)",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.asset",
+                1,
+                {
+                  "identity": {
+                    "host": "fixture-host",
+                    "key": "file-v1"
+                  },
+                  "kind": "file",
+                  "metadata": {
+                    "filename": "report.pdf",
+                    "mediaType": "application/pdf",
+                    "byteLength": 1024,
+                    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "width": null,
+                    "height": null,
+                    "durationMs": null,
+                    "alt": "Alt 😀 אב",
+                    "caption": "caption"
+                  },
+                  "fallback": "file fallback 😀",
+                  "source": "opaque asset source\\n😀"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "file fallback 😀",
+                "marks": []
+              }
+            ]
+          },
+          {
+            "attributes": {
+              "type": "paragraph"
+            },
+            "runs": [
+              {
+                "text": "caption é😀 אב <script> =SUM(A1)",
+                "marks": [
+                  {
+                    "mark": "strike"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "file-caption-code",
+      "kind": "file",
+      "tag": "code",
+      "envelope": {
+        "version": 1,
+        "type": "editac.file",
+        "dataVersion": 1,
+        "source": "file with caption é😀 אב <script> =SUM(A1)",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.asset",
+                1,
+                {
+                  "identity": {
+                    "host": "fixture-host",
+                    "key": "file-v1"
+                  },
+                  "kind": "file",
+                  "metadata": {
+                    "filename": "report.pdf",
+                    "mediaType": "application/pdf",
+                    "byteLength": 1024,
+                    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "width": null,
+                    "height": null,
+                    "durationMs": null,
+                    "alt": "Alt 😀 אב",
+                    "caption": "caption"
+                  },
+                  "fallback": "file fallback 😀",
+                  "source": "opaque asset source\\n😀"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "file fallback 😀",
+                "marks": []
+              }
+            ]
+          },
+          {
+            "attributes": {
+              "type": "paragraph"
+            },
+            "runs": [
+              {
+                "text": "caption é😀 אב <script> =SUM(A1)",
+                "marks": [
+                  {
+                    "mark": "code"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "file-caption-link",
+      "kind": "file",
+      "tag": "a",
+      "envelope": {
+        "version": 1,
+        "type": "editac.file",
+        "dataVersion": 1,
+        "source": "file with caption é😀 אב <script> =SUM(A1)",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.asset",
+                1,
+                {
+                  "identity": {
+                    "host": "fixture-host",
+                    "key": "file-v1"
+                  },
+                  "kind": "file",
+                  "metadata": {
+                    "filename": "report.pdf",
+                    "mediaType": "application/pdf",
+                    "byteLength": 1024,
+                    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "width": null,
+                    "height": null,
+                    "durationMs": null,
+                    "alt": "Alt 😀 אב",
+                    "caption": "caption"
+                  },
+                  "fallback": "file fallback 😀",
+                  "source": "opaque asset source\\n😀"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "file fallback 😀",
+                "marks": []
+              }
+            ]
+          },
+          {
+            "attributes": {
+              "type": "paragraph"
+            },
+            "runs": [
+              {
+                "text": "caption é😀 אב <script> =SUM(A1)",
+                "marks": [
+                  {
+                    "mark": "link",
+                    "href": "https://example.invalid/caption"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "registered-paragraph",
+      "kind": "text",
+      "tag": "p",
+      "envelope": {
+        "version": 1,
+        "type": "editac.text",
+        "dataVersion": 1,
+        "source": "exact block source",
+        "payload": [
+          {
+            "attributes": {
+              "type": "paragraph"
+            },
+            "runs": [
+              {
+                "text": "formatted é😀 אב <script> =SUM(A1)",
+                "marks": [
+                  {
+                    "mark": "bold"
+                  },
+                  {
+                    "mark": "italic"
+                  },
+                  {
+                    "mark": "underline"
+                  },
+                  {
+                    "mark": "strike"
+                  },
+                  {
+                    "mark": "link",
+                    "href": "https://example.invalid/block"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "registered-heading1",
+      "kind": "text",
+      "tag": "h1",
+      "envelope": {
+        "version": 1,
+        "type": "editac.text",
+        "dataVersion": 1,
+        "source": "exact block source",
+        "payload": [
+          {
+            "attributes": {
+              "type": "heading",
+              "level": 1
+            },
+            "runs": [
+              {
+                "text": "formatted é😀 אב <script> =SUM(A1)",
+                "marks": [
+                  {
+                    "mark": "bold"
+                  },
+                  {
+                    "mark": "italic"
+                  },
+                  {
+                    "mark": "underline"
+                  },
+                  {
+                    "mark": "strike"
+                  },
+                  {
+                    "mark": "link",
+                    "href": "https://example.invalid/block"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "registered-heading2",
+      "kind": "text",
+      "tag": "h2",
+      "envelope": {
+        "version": 1,
+        "type": "editac.text",
+        "dataVersion": 1,
+        "source": "exact block source",
+        "payload": [
+          {
+            "attributes": {
+              "type": "heading",
+              "level": 2
+            },
+            "runs": [
+              {
+                "text": "formatted é😀 אב <script> =SUM(A1)",
+                "marks": [
+                  {
+                    "mark": "bold"
+                  },
+                  {
+                    "mark": "italic"
+                  },
+                  {
+                    "mark": "underline"
+                  },
+                  {
+                    "mark": "strike"
+                  },
+                  {
+                    "mark": "link",
+                    "href": "https://example.invalid/block"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "registered-heading3",
+      "kind": "text",
+      "tag": "h3",
+      "envelope": {
+        "version": 1,
+        "type": "editac.text",
+        "dataVersion": 1,
+        "source": "exact block source",
+        "payload": [
+          {
+            "attributes": {
+              "type": "heading",
+              "level": 3
+            },
+            "runs": [
+              {
+                "text": "formatted é😀 אב <script> =SUM(A1)",
+                "marks": [
+                  {
+                    "mark": "bold"
+                  },
+                  {
+                    "mark": "italic"
+                  },
+                  {
+                    "mark": "underline"
+                  },
+                  {
+                    "mark": "strike"
+                  },
+                  {
+                    "mark": "link",
+                    "href": "https://example.invalid/block"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "registered-heading4",
+      "kind": "text",
+      "tag": "h4",
+      "envelope": {
+        "version": 1,
+        "type": "editac.text",
+        "dataVersion": 1,
+        "source": "exact block source",
+        "payload": [
+          {
+            "attributes": {
+              "type": "heading",
+              "level": 4
+            },
+            "runs": [
+              {
+                "text": "formatted é😀 אב <script> =SUM(A1)",
+                "marks": [
+                  {
+                    "mark": "bold"
+                  },
+                  {
+                    "mark": "italic"
+                  },
+                  {
+                    "mark": "underline"
+                  },
+                  {
+                    "mark": "strike"
+                  },
+                  {
+                    "mark": "link",
+                    "href": "https://example.invalid/block"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "registered-heading5",
+      "kind": "text",
+      "tag": "h5",
+      "envelope": {
+        "version": 1,
+        "type": "editac.text",
+        "dataVersion": 1,
+        "source": "exact block source",
+        "payload": [
+          {
+            "attributes": {
+              "type": "heading",
+              "level": 5
+            },
+            "runs": [
+              {
+                "text": "formatted é😀 אב <script> =SUM(A1)",
+                "marks": [
+                  {
+                    "mark": "bold"
+                  },
+                  {
+                    "mark": "italic"
+                  },
+                  {
+                    "mark": "underline"
+                  },
+                  {
+                    "mark": "strike"
+                  },
+                  {
+                    "mark": "link",
+                    "href": "https://example.invalid/block"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "registered-heading6",
+      "kind": "text",
+      "tag": "h6",
+      "envelope": {
+        "version": 1,
+        "type": "editac.text",
+        "dataVersion": 1,
+        "source": "exact block source",
+        "payload": [
+          {
+            "attributes": {
+              "type": "heading",
+              "level": 6
+            },
+            "runs": [
+              {
+                "text": "formatted é😀 אב <script> =SUM(A1)",
+                "marks": [
+                  {
+                    "mark": "bold"
+                  },
+                  {
+                    "mark": "italic"
+                  },
+                  {
+                    "mark": "underline"
+                  },
+                  {
+                    "mark": "strike"
+                  },
+                  {
+                    "mark": "link",
+                    "href": "https://example.invalid/block"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "registered-code",
+      "kind": "text",
+      "tag": "pre",
+      "envelope": {
+        "version": 1,
+        "type": "editac.text",
+        "dataVersion": 1,
+        "source": "exact block source",
+        "payload": [
+          {
+            "attributes": {
+              "type": "code",
+              "language": "js"
+            },
+            "runs": [
+              {
+                "text": "formatted é😀 אב <script> =SUM(A1)",
+                "marks": []
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "reference-label",
+      "kind": "reference",
+      "envelope": {
+        "version": 1,
+        "type": "editac.reference",
+        "dataVersion": 1,
+        "source": "[label](ac://document/opaque)",
+        "payload": [
+          {
+            "attributes": {
+              "type": "content",
+              "tuple": [
+                "module:editac.reference",
+                1,
+                {
+                  "targetId": "host:opaque/😀",
+                  "label": "label"
+                }
+              ]
+            },
+            "runs": [
+              {
+                "text": "label",
+                "marks": []
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "registered-quote",
+      "kind": "text",
+      "envelope": {
+        "version": 1,
+        "type": "editac.text",
+        "dataVersion": 1,
+        "source": "exact quote",
+        "payload": [
+          {
+            "attributes": {
+              "type": "paragraph"
+            },
+            "runs": [
+              {
+                "text": "nested 😀",
+                "marks": [
+                  {
+                    "mark": "bold"
+                  }
+                ]
+              }
+            ],
+            "containers": [
+              {
+                "key": "q",
+                "style": {
+                  "type": "quote"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "registered-list",
+      "kind": "text",
+      "envelope": {
+        "version": 1,
+        "type": "editac.text",
+        "dataVersion": 1,
+        "source": "exact list",
+        "payload": [
+          {
+            "attributes": {
+              "type": "paragraph"
+            },
+            "runs": [
+              {
+                "text": "nested 😀",
+                "marks": [
+                  {
+                    "mark": "bold"
+                  }
+                ]
+              }
+            ],
+            "containers": [
+              {
+                "key": "l",
+                "style": {
+                  "type": "checklist"
+                }
+              }
+            ],
+            "checked": false
+          }
+        ]
+      }
+    }
+  ],
+  "fallbacks": [
+    {
+      "version": 1,
+      "type": "editac.math",
+      "dataVersion": 1,
+      "source": "$$\\input{secret} + x^2$$",
+      "payload": {
+        "formula": "\\input{secret} + x^2",
+        "version": 1
+      }
+    },
+    {
+      "version": 1,
+      "type": "vendor.atom",
+      "dataVersion": 1,
+      "source": "future é😀",
+      "payload": {
+        "identity": "stable:atom",
+        "attributes": {
+          "nested": [
+            true,
+            "exact"
+          ]
+        }
+      }
+    },
+    {
+      "version": 1,
+      "type": "editac.unavailable",
+      "dataVersion": 1,
+      "source": "![alt](https://example.invalid/image.png \"title\")\n\n**caption é😀**",
+      "payload": {
+        "caption": "caption",
+        "url": "https://example.invalid/image.png"
+      }
+    },
+    {
+      "version": 1,
+      "type": "editac.text",
+      "dataVersion": 99,
+      "source": "future version source",
+      "payload": {
+        "exact": [
+          "😀",
+          true
+        ]
+      }
+    }
+  ],
+  "unavailable": [
+    "editac.unavailable"
+  ],
+  "pending": [
+    "registered inline module fragment transport; marked atomic labels are not admitted by current shared fragment schema"
+  ]
+}
