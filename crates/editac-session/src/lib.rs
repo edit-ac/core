@@ -33,3 +33,6 @@ pub mod links;
 pub mod assets;
 /// Durable actor-scoped host request results.
 pub mod receipts;
+
+/// Optional bounded AI output over the existing exact-source review service.
+pub mod ai_proposal;

@@ -26,3 +26,6 @@ export type { CodeAction, CodeContext, CodeEdit } from './code.js';
 
 export { AI_VERSION, AI_PROFILE, AI_CAPABILITIES, AiHost, AiError } from './ai.js';
 export type { AiOperation, AiScope, AiLimits, AiDescriptor, AiTarget, AiRequest, AiErrorCode, AiStatus, AiUsage, AiResponse, AiPolicy, AiTransport } from './ai.js';
+
+export { AiSession, captureAiTarget } from './ai-session.js';
+export type { AiSessionStatus, AiReviewTarget } from './ai-session.js';
