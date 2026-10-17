@@ -1,3 +1,4 @@
+import { invisibleCharacterSummary } from '../input/characters.js';
 import type { EngineHandle, Json, Patch, PatchSubscription, ProjectedNode } from "@edit-ac/core";
 
 import { safeLink } from './links.js';
@@ -47,6 +48,15 @@ export class DOMRenderer {
     // Publish only after every nested owner is assembled off-document.
     root.append(this.#arrange(root.ownerDocument.createDocumentFragment()));
     this.#subscription = engine.subscribe({ type: "all" }, patch => this.#apply(patch));
+  }
+  setInvisibleCharacters(enabled: boolean): void {
+    this.#invisibles = enabled;
+    for (const entry of this.#entries.values()) this.#describeInvisibles(entry);
+  }
+  #invisibles = false;
+  #describeInvisibles(entry: Entry): void {
+    const summary = this.#invisibles ? invisibleCharacterSummary(entry.node.runs.map(run => run.text).join('')) : '';
+    if (summary) entry.content.title = summary; else entry.content.removeAttribute('title');
   }
   isHeld(id: string): boolean { return this.#held.has(id); }
   getBlock(id: string): HTMLElement | undefined { return this.#entries.get(id)?.content; }
@@ -214,6 +224,7 @@ export class DOMRenderer {
     const whiteSpace = tag === "pre" ? "pre" : "break-spaces";
     if (entry.content.style.whiteSpace !== whiteSpace) entry.content.style.whiteSpace = whiteSpace;
     this.#patchRuns(entry, node.runs, tag === "pre");
+    this.#describeInvisibles(entry);
     if (tag === "pre") this.#code?.update(node, this.#revision);
   }
   #arrange(root: HTMLElement | DocumentFragment = this.root): HTMLElement | DocumentFragment {

@@ -1,3 +1,4 @@
+import { inputTextDiagnostic } from './characters.js';
 import { errorMessage } from '../errors.js';
 import type { AnchorToken, CommitResult, EngineHandle, PatchSubscription, PrepareRequest, StableRange, EditorPosition, EditorCommand } from '@edit-ac/core';
 import type { DOMRenderer } from '../dom/render.js';
@@ -387,6 +388,8 @@ export class TextInput {
   #apply(intent: TextIntent, range: StableRange, text: string, nativeCaret?: { anchor: number; focus: number }, moveCaret = true, shortcutEligible = false): void {
     if (this.#disposed || intent.generation !== this.#generation) { intent.disposition = 'disposed'; return; }
     if (this.#readOnly) { this.#reject(intent, 'read-only'); return; }
+    const diagnostic = inputTextDiagnostic(text);
+    if (diagnostic) { this.#recover(intent, { reason: diagnostic, text, truncated: false }); return; }
     const a = this.#engine.resolve(range.anchor), b = this.#engine.resolve(range.focus);
     if (a.type !== 'position' || b.type !== 'position') { this.#reject(intent, 'stale-target'); return; }
     if (a.node !== b.node) {

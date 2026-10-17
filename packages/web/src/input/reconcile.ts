@@ -1,3 +1,4 @@
+import { inputTextDiagnostic } from './characters.js';
 import type { DOMRenderer } from '../dom/render.js';
 
 export interface NativeRecovery {
@@ -56,7 +57,7 @@ export function captureComposingBlock(renderer: DOMRenderer, node: string): Nati
   if (!block || !renderer.root.contains(block)) return { reason: 'stale-target', node, text: '', truncated: false };
   const value = capture(take(block.childNodes, MAX_NODES), true);
   return { reason: value.truncated || block.childNodes.length > MAX_NODES ? 'native-limit' :
-    value.structure ? 'unsupported-composition-structure' : '', node, text: value.text, truncated: value.truncated || block.childNodes.length > MAX_NODES };
+    value.structure ? 'unsupported-composition-structure' : inputTextDiagnostic(value.text) ?? '', node, text: value.text, truncated: value.truncated || block.childNodes.length > MAX_NODES };
 }
 
 /** Native offsets are temporary projection state. The edit target itself is
@@ -92,6 +93,8 @@ export function reconcileMutation(renderer: DOMRenderer, content: ReadonlyMap<st
   // New elements may encode formatting/atoms/structure. Leave those semantics to
   // their dedicated commands; a literal pasted text node remains admissible.
   if (block.contentEditable === 'false' || !renderer.positions(node).length || value.structure || bounded.some(record => record.addedNodes.length > MAX_RECORDS || take(record.addedNodes, MAX_RECORDS).some(added => added.nodeType !== 3))) return reject('unsupported-native-structure');
+  const diagnostic = inputTextDiagnostic(value.text);
+  if (diagnostic) return reject(diagnostic);
   const before = content.get(node);
   if (before === undefined) return reject('stale-target');
   const after = value.text;

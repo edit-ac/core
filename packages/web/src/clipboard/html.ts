@@ -1,9 +1,13 @@
+import { inputTextDiagnostic } from '../input/characters.js';
 import type { EngineHandle, FragmentBlock, HTMLNode } from '@edit-ac/core';
 import { inlineTags } from '../dom/marks.js';
 
 /** Inert HTML5 tokenization only. Rust owns the whitelist and semantic mapping. */
 export function importHTML(document: Document, raw: string, engine: EngineHandle, diagnose: (code: string) => void): readonly FragmentBlock[] {
   if (new TextEncoder().encode(raw).length > 1048576) throw Error('html-limit');
+  // HTML parsing replaces NUL/unpaired surrogates; reject before tokenization.
+  const diagnostic = inputTextDiagnostic(raw);
+  if (diagnostic) throw Error(diagnostic);
   const template = document.createElement('template'); template.innerHTML = raw;
   let visits = 0;
   const tokenize = (node: Node, depth: number): HTMLNode => {
@@ -33,7 +37,7 @@ export function exportHTML(blocks: readonly FragmentBlock[]): string {
       return text;
     }).join('');
     const tag = block.attributes?.type === 'heading' ? `h${block.attributes.level}` : block.attributes?.type === 'code' ? 'pre' : 'p';
-    return `<${tag}>${content}</${tag}>`;
+    return `<${tag} style="white-space:${tag === 'pre' ? 'pre' : 'break-spaces'}">${content}</${tag}>`;
   };
   type Piece = { html: string; container: boolean };
   const children = (selected: readonly FragmentBlock[], depth: number): Piece[] => {
