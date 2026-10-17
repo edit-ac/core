@@ -45,11 +45,12 @@ async function state(page, fact) {
     const f = window.inputFixture, s = await f.state(), sel = document.getSelection();
     const blocks = f.engine.read().visible.filter(n => n.kind === 'block');
     const endpoint = (node,offset) => { const p = f.selection.toModel(node,offset); return p ? [blocks.findIndex(n=>n.id===p.node),p.offset] : null; };
-    return {...s,nodes:f.engine.read().visible,text:blocks.map(n=>n.runs.map(r=>r.text).join('')),
+    return {...s,...(window.inputContentEnabled ? {atomDebug:{collapsed:sel?.isCollapsed,anchor:sel?.anchorNode?.nodeName,focus:sel?.focusNode?.nodeName,anchorOffset:sel?.anchorOffset,focusOffset:sel?.focusOffset,views:blocks.map(n=>({id:n.id,tag:f.renderer.getBlock(n.id)?.tagName,editable:f.renderer.getBlock(n.id)?.contentEditable,positions:f.renderer.positions(n.id).length}))}} : {}),nodes:f.engine.read().visible,text:blocks.map(n=>n.runs.map(r=>r.text).join('')),
       selection:sel?.anchorNode ? {anchor:endpoint(sel.anchorNode,sel.anchorOffset),focus:endpoint(sel.focusNode,sel.focusOffset)} : null};
   });
   fact.snapshots.push(s); assert.deepEqual(s.errors,[]); assert.equal(s.storage,'localCommitted');
-  assert.deepEqual(s.dom.filter((_,i)=>s.nodes[i].kind==='block'),s.text);
+  const prose=n=>n.kind==='block'&&!(Array.isArray(n.blockAttributes)&&String(n.blockAttributes[0]).startsWith('module:'));
+  assert.deepEqual(s.dom.filter((_,i)=>prose(s.nodes[i])),s.nodes.filter(prose).map(n=>n.runs.map(r=>r.text).join('')));
   return s;
 }
 function caret(s, point) { assert.deepEqual(s.selection,{anchor:point,focus:point}); }
@@ -125,4 +126,21 @@ for(const offset of [1,99])test(`DEL-02 invalid shared WASM cut ${offset}`,()=>p
 
 test('DEL-01 digit and letter native ArrowLeft has zero content effects',()=>probe('DEL-01-native-arrow',async(page,fact)=>{
  await mount(page,['1a']);await position(page,[0,2]);const before=await state(page,fact);await page.keyboard.press('ArrowLeft');const after=await state(page,fact);assert.deepEqual(after.nodes,before.nodes);caret(after,[0,1]);effects(before,after,0);
+}));
+
+async function imageAtom(page) {
+ await page.evaluate(()=>{window.inputContentEnabled=true;});await mount(page,['ab','','cd']);
+ await page.evaluate(async()=>{const f=window.inputFixture,n=f.engine.read().visible.filter(n=>n.kind==='block'),a=f.engine.anchor(n[0].id,0,'right'),b=f.engine.anchor(n[2].id,2,'left');try{const parsed=f.engine.importMarkdown('ab\n\n![An image](https://assets.invalid/image.png "Title")\n\ncd',{images:true});const result=f.commit({kind:'fragment',origin:'image-atom-fixture',range:{anchor:a,focus:b},blocks:parsed.blocks});if(result.caret)f.engine.releaseAnchor(result.caret);if(result.selection){f.engine.releaseAnchor(result.selection.anchor);f.engine.releaseAnchor(result.selection.focus);}}finally{f.engine.releaseAnchor(a);f.engine.releaseAnchor(b);}f.engine.history({type:'clear'});await f.settle();});
+ assert.equal(await page.locator('[data-content-module="image"]').count(),1);
+ assert.equal(await page.locator('img').getAttribute('src'),null);
+}
+for(const key of ['Backspace','Delete','preselected'])test(`DEL-06 real image presenter ${key}`,()=>probe(`DEL-06-image-${key}`,async(page,fact)=>{
+ await imageAtom(page);const owner=await page.evaluate(()=>window.inputFixture.engine.read().visible.find(n=>n.blockAttributes?.[0]==='module:editac.image').id);
+ if(key==='preselected')await page.evaluate(owner=>{const f=window.inputFixture,r=document.createRange();r.selectNode(f.renderer.getBlock(owner));f.root.focus();document.getSelection().removeAllRanges();document.getSelection().addRange(r);},owner);else await position(page,key==='Backspace'?[2,0]:[0,2]);
+ const before=await state(page,fact);if(key!=='preselected'){await page.keyboard.press(key);const first=await state(page,fact);assert.deepEqual(first.nodes,before.nodes);effects(before,first,0);assert.equal(await page.evaluate(()=>window.inputFixture.selection.selectedNode()),owner);}await page.keyboard.press(key==='Delete'?'Delete':'Backspace');const after=await state(page,fact);assert.deepEqual(after.text,['ab','','cd']);caret(after,[1,0]);effects(before,after);assert.equal(await page.locator('[data-content-module="image"]').count(),0);
+ await page.keyboard.press(`${primary}+z`);const restored=await state(page,fact);assert.deepEqual(restored.nodes,before.nodes);assert.equal(await page.evaluate(()=>window.inputFixture.selection.selectedNode()),owner);assert.equal(await page.locator('[data-content-module="image"]').count(),1);
+ await page.keyboard.press(`${primary}+Shift+z`);const redone=await state(page,fact);assert.deepEqual(redone.nodes,after.nodes);caret(redone,[1,0]);await page.evaluate(()=>window.inputFixture.reopen());assert.deepEqual((await state(page,fact)).nodes,after.nodes);assert.ok(fact.requests.every(url=>!url.includes('assets.invalid')));
+}));
+test('DEL-06 selected real image respects read-only rejection',()=>probe('DEL-06-image-read-only',async(page,fact)=>{
+ await imageAtom(page);await page.evaluate(()=>{const f=window.inputFixture,n=f.engine.read().visible.find(n=>n.blockAttributes?.[0]==='module:editac.image'),r=document.createRange();r.selectNode(f.renderer.getBlock(n.id));f.root.focus();document.getSelection().removeAllRanges();document.getSelection().addRange(r);f.protocol.setReadOnly(true);});const before=await state(page,fact);await page.evaluate(()=>window.inputFixture.event('keydown',{key:'Backspace'}));const after=await state(page,fact);assert.deepEqual(after.nodes,before.nodes);effects(before,after,0);assert.equal(after.intents.at(-1).disposition,'rejected');
 }));

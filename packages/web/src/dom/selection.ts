@@ -115,7 +115,7 @@ export class DOMSelection {
     const id = element && this.renderer.getNodeId(element);
     return id && (element as HTMLElement).contentEditable === 'false' && this.renderer.getBlock(id) === element ? id : undefined;
   }
-  /** Selection-first deletion for renderer-owned noneditable atoms. */
+  /** Select inline atoms; block adjacency stays with semantic keyboard policy. */
   selectAdjacentAtom(backward: boolean): boolean {
     const native = this.#native();
     if (this.#disposed || !native?.isCollapsed || !native.anchorNode || !this.#inside(native)) return false;
@@ -125,7 +125,7 @@ export class DOMSelection {
       if (!element.parentNode || element.closest('[data-module-view]') || element.parentElement?.closest('[contenteditable="false"]')) continue;
       // Static checklist markers and host decorations are not semantic atoms.
       const owner = this.renderer.getNodeId(element);
-      if (!element.hasAttribute('data-module-type') && (!owner || this.renderer.getBlock(owner) !== element)) continue;
+      if (!element.hasAttribute('data-module-type') || !owner || this.renderer.getBlock(owner) === element) continue;
       const parent = element.parentNode, index = Array.prototype.indexOf.call(parent.childNodes, element) as number;
       const edge = this.toModel(parent, index + (backward ? 1 : 0), backward ? 'left' : 'right');
       if (!edge || edge.node !== point.node || edge.offset !== point.offset) continue;
@@ -185,14 +185,25 @@ export class DOMSelection {
   place(anchor: ModelPoint, focus: ModelPoint = anchor): boolean {
     const a = this.toDOM(anchor), f = focus === anchor ? a : this.toDOM(focus);
     if (!a || !f) return false;
-    this.renderer.root.ownerDocument.getSelection()?.setBaseAndExtent(a.node, a.offset, f.node, f.offset);
+    const native = this.renderer.root.ownerDocument.getSelection();
+    if (a.node === f.node && a.offset === f.offset) native?.collapse(a.node, a.offset);
+    else native?.setBaseAndExtent(a.node, a.offset, f.node, f.offset);
     return true;
   }
   move(token: AnchorToken): void { this.restoreRange({ anchor: token, focus: token }); }
   /** Restore semantic endpoints with their resolved affinity; caller owns tokens. */
   restoreRange(range: StableRange): void {
     const a = this.#engine.resolve(range.anchor), f = range.focus === range.anchor ? a : this.#engine.resolve(range.focus);
-    if (a.type === "position" && f.type === "position" && this.place(a, f)) this.capture({ anchor: a.bias, focus: f.bias });
+    if (a.type === "position" && f.type === "position") {
+      // A semantic atom bookmark has one logical cut; its view is a node range.
+      const element = a.node === f.node && a.offset === 0 && f.offset === 0 ? this.renderer.getBlock(a.node) : undefined;
+      const tuple = element && this.#engine.read().visible.find(n => n.id === a.node)?.blockAttributes;
+      const atom = Array.isArray(tuple) && (tuple[0] === 'separator' || typeof tuple[0] === 'string' && tuple[0].startsWith('module:'));
+      if (atom && element?.contentEditable === 'false' && element.parentNode) {
+        const range = this.renderer.root.ownerDocument.createRange(); range.selectNode(element);
+        const native = this.#native(); native?.removeAllRanges(); native?.addRange(range); this.clear();
+      } else if (this.place(a, f)) this.capture({ anchor: a.bias, focus: f.bias });
+    }
   }
   restoreRetained(target: RetainedSelection): void { this.restoreRange(target.range); }
   restore(): RestoreResult {

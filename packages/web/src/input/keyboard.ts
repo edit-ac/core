@@ -80,16 +80,34 @@ export class KeyboardInput {
     if (this.#disposed || this.#blocked()) return rejected(this.#disposed ? 'disposed' : 'read-only-or-composing');
     const selectedNode = (action === 'backward' || action === 'forward') && this.#selection.selectedNode();
     if (selectedNode) {
-      const request: PrepareRequest = { kind: 'editor', origin, commands: [{ type: 'deleteSeparator', owner: selectedNode }] };
-      if (!this.#engine.can(request)) return rejected('inapplicable-command');
-      this.#engine.history({ type: 'explicit' });
-      let caret: AnchorToken | undefined;
+      let at: AnchorToken | undefined, caret: AnchorToken | undefined, selection: StableRange | undefined, started = false;
       try {
-        caret = this.#commit(request).caret;
-        if (caret) this.#move(caret);
+        const node = this.#engine.read().visible.find(n => n.id === selectedNode);
+        if (!node) return rejected('stale-target');
+        const descriptor = node.blockAttributes;
+        const content = Array.isArray(descriptor) && typeof descriptor[0] === 'string' && descriptor[0].startsWith('module:');
+        const commands: EditorCommand[] = [];
+        if (content) {
+          at = this.#engine.anchor(selectedNode, 0, 'right');
+          const point = { owner: selectedNode, offset: 0, bias: 'right' as const };
+          commands.push({ type: 'historySelectionAt', anchor: point, focus: point },
+            { type: 'atomicContent', owner: selectedNode, expected: descriptor, at, replacement: null },
+            { type: 'selectionAt', anchor: point, focus: point });
+        } else commands.push({ type: 'deleteSeparator', owner: selectedNode });
+        const request: PrepareRequest = { kind: 'editor', origin, commands };
+        if (!this.#engine.can(request)) return rejected('inapplicable-command');
+        this.#engine.history({ type: 'explicit' }); started = true;
+        const result = this.#commit(request); caret = result.caret; selection = result.selection;
+        if (selection) this.#selection.restoreRange(selection);
+        else if (caret) this.#move(caret);
         return { disposition: 'committed' };
-      } catch(error) { return rejected(errorMessage(error)); }
-      finally { if (caret) this.#engine.releaseAnchor(caret); this.#engine.history({ type: 'boundary' }); }
+      } catch (error) { return rejected(errorMessage(error)); }
+      finally {
+        if (at) this.#engine.releaseAnchor(at);
+        if (caret) this.#engine.releaseAnchor(caret);
+        if (selection) { this.#engine.releaseAnchor(selection.anchor); this.#engine.releaseAnchor(selection.focus); }
+        if (started) this.#engine.history({ type: 'boundary' });
+      }
     }
     if (action === 'bold' || action === 'italic' || action === 'underline' || action === 'strike') {
       const target = this.captureToolbar(); if (!target) return rejected('unmapped-selection');
@@ -176,7 +194,7 @@ export class KeyboardInput {
       } else {
         if ((action === 'backward' || action === 'forward') && collapsed) {
           const adjacent = action === 'backward' && start.offset === 0 ? nodes[si - 1] : action === 'forward' && start.offset === length(node) ? nodes[si + 1] : undefined;
-          if (adjacent && kind(adjacent) === 'separator') {
+          if (adjacent && adjacent.parent === node.parent && this.#renderer.getBlock(adjacent.id)?.contentEditable === 'false') {
             const element = this.#renderer.getBlock(adjacent.id);
             if (!element) return rejected('unmapped-atom');
             const range = this.#renderer.root.ownerDocument.createRange(); range.selectNode(element);

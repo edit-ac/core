@@ -34,7 +34,8 @@ async function bind(){
  session.writer.engine.subscribe({type:'all'},p=>patches.push({sequence:p.sequence,revision:p.revision,operation:p.operation,origin:p.origin,update:!!p.update,bytes:p.update?.bytes.length??0}));
  const modules=window.inputModuleDefinitions ? new ModuleRegistry() : undefined;
  if(modules) for(const definition of window.inputModuleDefinitions) modules.register(definition,{tag:'code'});
- renderer=new DOMRenderer(root,session.writer.engine,{codeHighlight:window.codeHighlightFactory,modules});selection=new DOMSelection(renderer,session.writer.engine);
+ const content=window.inputContentEnabled ? (await import('/web/modules/content.js')).contentModules() : undefined;
+ renderer=new DOMRenderer(root,session.writer.engine,{codeHighlight:window.codeHighlightFactory,modules,content,commit:request=>session.storage.commit(request)});selection=new DOMSelection(renderer,session.writer.engine);
  protocol=new TextInput(renderer,selection,session.writer.engine,request=>{const result=session.storage.commit(request);commandResults.push(result);return result;});
  if (window.markdownAdapter) protocol.shortcuts=window.markdownAdapter.createShortcuts(session.writer.engine, request=>session.storage.commit(request));
  otherBlock=ids[1]?renderer.getBlock(ids[1]):undefined;otherText=otherBlock?document.createTreeWalker(otherBlock,NodeFilter.SHOW_TEXT).nextNode():undefined;
@@ -75,4 +76,4 @@ async function destroy(){
  const active=session;session=undefined;
  if(active)await active.storage.destroy({policy:'flush'});
 }
-window.inputFixture={disableMarkdown(){markdownRegistration?.dispose();protocol.shortcuts.enabled=false;},mount,reopen,select,event,mutate,settle,state,remote,remoteReplace,apply,destroy,get commandResults(){return commandResults},get ids(){return ids},get root(){return root},get protocol(){return protocol},get engine(){return session.writer.engine},get renderer(){return renderer},get selection(){return selection}};
+window.inputFixture={commit(request){return session.storage.commit(request)},disableMarkdown(){markdownRegistration?.dispose();protocol.shortcuts.enabled=false;},mount,reopen,select,event,mutate,settle,state,remote,remoteReplace,apply,destroy,get commandResults(){return commandResults},get ids(){return ids},get root(){return root},get protocol(){return protocol},get engine(){return session.writer.engine},get renderer(){return renderer},get selection(){return selection}};
