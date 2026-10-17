@@ -1,5 +1,5 @@
-import { type AssistiveRegistration, type AssistivePresenterStatus, type AssistiveCommandApplicability } from '@edit-ac/core/extensions';
-import type { EngineHandle } from '@edit-ac/core';
+import { AssistiveInputSession, captureAssistiveTarget, type AssistiveTransport, type AssistiveRegistration, type AssistivePresenterStatus, type AssistiveCommandApplicability } from '@edit-ac/core/extensions';
+import type { EngineHandle, PrepareRequest, CommitResult } from '@edit-ac/core';
 import type { DOMSelection, RetainedSelection } from '../dom/selection.js';
 import { commandCatalog, type CapturedCommand } from '../commands/catalog.js';
 
@@ -14,6 +14,9 @@ export interface AssistivePresenterOptions {
   /** Explicit host lifecycle actions; availability never implies microphone access. */
   cancel?(): void;
   recover?(): void;
+  /** Explicit injected host only. Commit through this editor's existing Session
+   * storage port; allowed must mirror the host permission for replacement. */
+  host?: { transport: AssistiveTransport; commit(request: PrepareRequest): CommitResult; allowed(): boolean };
 }
 export type AssistivePresenterFactory = (context: AssistivePresenterContext) => AssistiveInputPresenter | undefined;
 /** Optional existing presenter boundary. Disabled registration creates no UI/listeners. */
@@ -28,6 +31,10 @@ let nextId = 0;
 export class AssistiveInputPresenter {
   readonly element: HTMLElement; readonly button: HTMLButtonElement; readonly panel: HTMLElement;
   readonly query: HTMLInputElement; readonly status: HTMLElement; readonly cancel: HTMLButtonElement; readonly recover: HTMLButtonElement;
+  readonly preview: HTMLElement;
+  readonly session: AssistiveInputSession | undefined;
+  readonly startControl: HTMLButtonElement | undefined;
+  readonly stopControl: HTMLButtonElement | undefined;
   readonly #commands = new Map<string, HTMLButtonElement>();
   readonly #targets = new Map<string, CapturedCommand>();
   readonly #reasons = new Map<string, HTMLElement>();
@@ -67,16 +74,23 @@ export class AssistiveInputPresenter {
     }
     this.panel.append(results);
     this.status = doc.createElement('p'); this.status.setAttribute('role','status'); this.status.setAttribute('aria-live','polite'); this.status.setAttribute('aria-atomic','true');
+    this.preview=doc.createElement('p');this.preview.dataset.assistivePreview='';this.preview.setAttribute('aria-live','off');this.preview.hidden=true;
     const availability = doc.createElement('p');
     availability.textContent = !registration.supports('commands') ? 'Editing commands are unavailable in this extension.' : 'Choose commands for the captured editor selection.';
     const transport = descriptor.transport;
     const privacy = doc.createElement('p'); privacy.textContent = transport
       ? `Host assistance: ${transport.input}; processing: ${transport.locality}; retention: ${transport.retention}; permission: host.`
       : 'Host transport is unsupported. Ordinary text input remains available.';
+    if (options.host && registration.supports('host-transport')) {
+      this.session = new AssistiveInputSession(registration, options.host.transport, value => this.update(value));
+      this.startControl = button('Start assistance', () => this.start());
+      this.stopControl = button('Stop assistance', () => this.session?.stop());
+      this.panel.append(this.startControl,this.stopControl);
+    }
     this.cancel = button('Cancel assistance', () => this.#host('cancel'));
     this.recover = button('Recover assistance', () => this.#host('recover'));
-    const reasons = doc.createElement('p'); reasons.textContent = [!options.cancel && 'Cancellation is unsupported by this host.',!options.recover && 'Recovery is unsupported by this host.'].filter(Boolean).join(' ');
-    this.panel.append(availability,privacy,this.status,this.cancel,this.recover,reasons,button('Close assistance', () => this.close()));
+    const reasons = doc.createElement('p'); reasons.textContent = [!options.cancel && !this.session && 'Cancellation is unsupported by this host.',!options.recover && !this.session && 'Recovery is unsupported by this host.'].filter(Boolean).join(' ');
+    this.panel.append(availability,privacy,this.status,this.preview,this.cancel,this.recover,reasons,button('Close assistance', () => this.close()));
     this.element.append(this.button,this.panel); context.root.after(this.element);
     this.#listen(this.query,'input',() => this.#filter());
     this.#listen(this.panel,'keydown',event => {
@@ -94,7 +108,10 @@ export class AssistiveInputPresenter {
     });
     this.#listen(context.root,'keydown',event => { if ((event as KeyboardEvent).key === 'Tab' && !(event as KeyboardEvent).isComposing) this.#capture(); },true);
     this.#listen(context.root,'focusout',() => this.#capture());
+    // OS input retains its existing route, including missing/noncancelable beforeinput.
+    for (const type of ['beforeinput','input','compositionstart']) this.#listen(context.root,type,() => this.session?.invalidate(type==='compositionstart'?'composing':'stale'),true);
     this.#listen(context.root,'compositionstart',() => { this.close(false); });
+    this.#listen(context.root,'blur',() => this.session?.cancel());
     this.#listen(doc,'focusin',event => {
       const node = event.target as Node;
       if (!this.element.contains(node) && node !== context.root) this.close(false);
@@ -126,8 +143,10 @@ export class AssistiveInputPresenter {
       reason.textContent = !b.disabled ? '' : this.#readOnly ? 'Read-only editor.' : this.context.blocked()
         ? 'Finish composing text before using commands.' : 'Command unavailable. Select a supported target and reopen assistance.';
     }
-    this.cancel.disabled = !this.options.cancel || !['starting','active','preparing'].includes(this.#state);
-    this.recover.disabled = !this.options.recover || !['failed','stale','cancelled'].includes(this.#state) || this.#readOnly || this.context.blocked();
+    if (this.startControl) this.startControl.disabled = !!this.session?.active || this.#readOnly || this.context.blocked() || !this.options.host?.allowed();
+    if (this.stopControl) this.stopControl.disabled = !this.session?.active || !this.registration.descriptor?.transport?.canStop;
+    this.cancel.disabled = (!this.options.cancel && !this.session) || !['starting','active','preparing'].includes(this.#state);
+    this.recover.disabled = (!this.options.recover && !this.session) || !['failed','stale','cancelled'].includes(this.#state) || this.#readOnly || this.context.blocked();
   }
   #filter(): void { const q = this.query.value.toLocaleLowerCase(); for (const [id,b] of this.#commands) { b.hidden = !b.textContent!.toLocaleLowerCase().includes(q); this.#reasons.get(id)!.hidden = b.hidden; } }
   #announce(message: string): void {
@@ -148,6 +167,7 @@ export class AssistiveInputPresenter {
       try { if (this.#selection?.active && !this.context.blocked() && !this.#readOnly) { this.context.root.focus(); this.context.selection.restoreRetained(this.#selection); } else this.button.focus(); }
       catch { this.button.focus(); }
     }
+    this.preview.textContent='';this.preview.hidden=true;
     this.#release(); this.#refresh();
   }
   activate(id: string): void {
@@ -161,14 +181,35 @@ export class AssistiveInputPresenter {
   update(value: AssistivePresenterStatus): void {
     if (this.#disposed) return;
     const status = this.registration.validateStatus(value); this.#state = status.state;
+    const provisional=this.session?.active ? status.provisional : '';
+    this.preview.textContent=provisional ? `Uncommitted assistance preview: ${provisional}` : '';this.preview.hidden=!provisional;
     this.#announce(status.message); this.#refresh();
+  }
+  /** Capture before host work; current caret changes never redirect the result. */
+  start(): void {
+    if (this.#disposed || !this.session || !this.options.host || this.session.active) return;
+    this.#capture();
+    if (this.#readOnly || this.context.blocked() || !this.options.host.allowed() || !this.#selection?.active) { this.#announce('Assistance unavailable. Select text and try again.');return; }
+    const host=this.options.host;
+    try {
+      const target=captureAssistiveTarget(this.context.engine,this.#selection.range,request=>host.commit(request),
+        () => !this.#disposed && !this.#readOnly && !this.context.blocked() && host.allowed(),
+        result => { this.context.root.focus();if(result.selection)this.context.selection.restoreRange(result.selection);else this.context.selection.restore(); });
+      this.session.start(target);
+    } catch { this.#announce('Assistance unavailable. Select text and try again.'); }
+    this.#refresh();
   }
   #host(action: 'cancel' | 'recover'): void {
     if (this.#disposed || (action === 'cancel' ? this.cancel : this.recover).disabled) return;
+    if (this.session) {
+      if (action==='cancel') this.session.cancel();
+      else {const text=this.session.recoveryText();this.session.reset();this.preview.textContent=text ? `Uncommitted recovery text: ${text}` : '';this.preview.hidden=!text;}
+      this.#refresh();return;
+    }
     try { this.options[action]?.(); this.#state = action === 'cancel' ? 'cancelled' : 'idle'; this.#announce(action === 'cancel' ? 'Assistance cancelled.' : 'Assistance ready. Select text and try again.'); }
     catch { this.#state = 'failed'; this.#announce('Assistance unavailable. Try recovery.'); }
     this.#refresh();
   }
-  setReadOnly(value: boolean): void { this.#readOnly = value; if (value) this.#release(); this.#refresh(); }
-  dispose(): void { if (this.#disposed) return; this.#disposed = true; this.#release(); for (const remove of this.#listeners.splice(0)) remove(); this.element.remove(); }
+  setReadOnly(value: boolean): void { this.#readOnly = value; if(value)this.session?.invalidate('read-only'); if (value) this.#release(); this.#refresh(); }
+  dispose(): void { if (this.#disposed) return; this.#disposed = true; this.session?.dispose(); this.#release(); for (const remove of this.#listeners.splice(0)) remove(); this.element.remove(); }
 }

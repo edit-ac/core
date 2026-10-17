@@ -11,3 +11,47 @@ Registration owns only the immutable descriptor and its cancellation signal. Fai
 Status states are idle, starting, active, preparing, completed, cancelled, stale and failed. Provisional text is separate bounded presenter memory; announcements use the message field and exclude transcripts by default. Accepted final text must pass the existing engine prepare/validate/commit and history boundary. Registration and envelope validation cannot edit a document. This descriptor layer checks shape/bounds only: AIN-1.3 owns state transitions, deadline/session quota enforcement, generation binding, sequence ordering/deduplication, anchor resolution, mutually exclusive OS/transport acceptance and terminal cleanup. AIN-1.2 owns actual accessible controls. Neither dependent gate is qualified by this protocol suite.
 
 The shared Rust conformance harness and TypeScript public-import suite consume hand-authored valid/invalid fixtures. Rust checks real production Document checkpoints, revision, stable anchors, patch/update notifications and shared history around admission/status/results/disposal. Baseline edit/undo/redo uses real engine commands. These are deterministic protocol/engine observations on the local host, not browser/native dictation, device, microphone, screen-reader or provider qualification.
+
+AIN-1.3 portable lifecycle uses `AssistiveInputSession` and `captureAssistiveTarget`.
+A session accepts one final result and then terminates. Provisional/result sequences
+are strictly increasing within a unique instance ID and generation; gaps are
+allowed, duplicates and prior identities are inert. One active session per instance
+and the descriptor's registration-wide concurrent-session limit are enforced.
+The deadline spans start through final completion; stop requests completion but
+does not reset the deadline. All terminal states abort acceptance before cancelling
+and disposing the host handle and releasing copied engine anchors. Synchronous
+callbacks from start and cleanup use the same guards as asynchronous callbacks.
+
+Web hosts opt in with `assistiveInput(registration, {host:{transport, commit,
+allowed}})`. The commit callback must call the captured editor's existing Session
+storage commit port; `allowed` mirrors host replacement permission and is rechecked
+at acceptance. The editor captures stable engine anchors locally, rechecks document
+identity/epoch and target existence, and executes the existing prepared replacement
+and selection/history commands with origin `assistive:final`. An independent remote
+edit rebases anchors; deletion of the selected range or its owner becomes stale.
+The portable target admits stable text-block ranges, including directional ranges
+across blocks; unsupported owners are rejected without mutation. Changing the live caret never redirects that range.
+A committed result stays consumed when a subsequent persistence/presentation callback
+fails. Provisional/status messages create no document updates or undo entries.
+
+OS beforeinput/input/composition retains its existing owner. Any such input revokes
+the optional transport before reconciliation, including missing/noncancelable
+beforeinput sequences. Blur cancels; read-only invalidates; editor/registration
+teardown disposes. Start/stop/cancel/recovery are ordinary named controls. Recovery
+returns bounded unaccepted text only on explicit user request; reset clears it,
+and no recovery automatically inserts into a new target. Unknown processing locality
+is displayed as unknown; audio/transcript processing, permission and retention are
+host-declared. No microphone, document context, raw transcript metadata, provider,
+credential lookup or network fallback is introduced.
+
+Only explicitly active transport sessions display bounded uncommitted preview text;
+standalone status updates keep provisional text private. Preview text is outside
+status announcements. Explicit recovery displays unaccepted text without inserting it.
+Hosts must deliver each recognition result through one route, never mirror it into
+both OS input and the optional transport. OS input revokes any active transport;
+subsequent ordinary OS edits after a terminal result remain baseline input.
+
+Cross-block text replacement delegates to the existing bounded plain-fragment
+replacement command, including its result caret and history bookmarks. Single-block
+replacement uses the existing editor commands. Starting an already active instance
+releases the new target without starting host work; cancel explicitly before restart.
