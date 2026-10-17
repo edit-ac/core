@@ -72,6 +72,15 @@ export class KeyboardInput {
     return undefined;
   }
 
+  /** Only scoped Select All needs adapter ownership; visual movement stays native. */
+  navigate(key: KeyboardEvent): boolean {
+    const mac = /Mac|iPhone|iPad/.test(this.#renderer.root.ownerDocument.defaultView?.navigator.platform ?? '');
+    const primary = mac ? key.metaKey && !key.ctrlKey : key.ctrlKey && !key.metaKey;
+    if (this.#disposed || key.defaultPrevented || key.isComposing || key.altKey || key.shiftKey || key.getModifierState('AltGraph') || !primary || key.key.toLowerCase() !== 'a') return false;
+    this.resetFocusEscape();
+    return this.#selection.selectAll();
+  }
+
   resetFocusEscape(): void { this.#escape = false; }
 
   /** Undefined means native ownership: do not prevent the event. */
