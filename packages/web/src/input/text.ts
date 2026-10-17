@@ -1,5 +1,5 @@
 import { errorMessage } from '../errors.js';
-import type { AnchorToken, CommitResult, EngineHandle, PatchSubscription, PrepareRequest, StableRange } from '@edit-ac/core';
+import type { AnchorToken, CommitResult, EngineHandle, PatchSubscription, PrepareRequest, StableRange, EditorPosition, EditorCommand } from '@edit-ac/core';
 import type { DOMRenderer } from '../dom/render.js';
 import type { DOMSelection } from '../dom/selection.js';
 import { literalShortcuts, type TypingShortcutAdapter } from './shortcuts.js';
@@ -19,7 +19,7 @@ export interface TextIntent {
 interface Trace { type: string; trusted: boolean; generation: number; intent?: string; count?: number; inputType?: string; cancelable?: boolean }
 interface NativeEdit { intent: TextIntent; node: string; before: string; range: StableRange; text: string; captured: string; caret?: { anchor: number; focus: number } }
 let editorSequence = 0;
-const ordinary = new Set(['insertText', 'deleteContentBackward', 'deleteContentForward']);
+const ordinary = new Set(['insertText', 'deleteContentBackward', 'deleteContentForward', 'deleteWordBackward', 'deleteWordForward', 'deleteSoftLineBackward', 'deleteSoftLineForward', 'deleteHardLineBackward', 'deleteHardLineForward']);
 
 /** Ordinary input adapter. Rust owns every committed edit; DOM text is read only
  * for a bounded native intent in one mapped text block. Unsupported mutations
@@ -35,6 +35,7 @@ export class TextInput {
   readonly #subscription: PatchSubscription;
   readonly #observer: MutationObserver;
   readonly #events = new WeakMap<Event, TextIntent>();
+  readonly #entrySelections = new WeakMap<TextIntent, { anchor: EditorPosition; focus: EditorPosition }>();
   readonly #listeners: [string, EventListener][] = [];
   shortcuts: TypingShortcutAdapter;
   references: import('../modules/references.js').ReferencePresenter | undefined;
@@ -108,6 +109,17 @@ export class TextInput {
   }
   #create(origin: TextIntent['origin']): TextIntent {
     const intent: TextIntent = { id: `${this.#scope}/${this.#generation}/${++this.#sequence}`, generation: this.#generation, origin, disposition: 'native-pending' };
+    // Capture the user selection before native word/line deletion supplies a
+    // wider affected range. History owns both entry and result bookmarks.
+    const native = this.#renderer.root.ownerDocument.getSelection();
+    if ((origin === 'key' || origin === 'beforeinput') && native?.anchorNode && native.focusNode) {
+      const a = this.#selection.toModel(native.anchorNode, native.anchorOffset);
+      const b = this.#selection.toModel(native.focusNode, native.focusOffset);
+      if (a && b) this.#entrySelections.set(intent, {
+        anchor: { owner: a.node, offset: a.offset, bias: a.bias },
+        focus: { owner: b.node, offset: b.offset, bias: b.bias },
+      });
+    }
     this.intents.push(intent); if (this.intents.length > 128) this.intents.shift(); return intent;
   }
   #record(trace: Trace): void { this.trace.push(trace); if (this.trace.length > 256) this.trace.shift(); }
@@ -120,7 +132,17 @@ export class TextInput {
   #handle(event: Event): void {
     if (this.#disposed) return;
     const eventTarget=event.target as Element | null;
-    if (eventTarget!==this.#renderer.root && eventTarget?.closest?.('input, textarea, select, button, [contenteditable="false"]')) return;
+    if (eventTarget !== this.#renderer.root) {
+      if (eventTarget?.closest?.('input, textarea, select, button')) return;
+      const editable = eventTarget?.closest?.<HTMLElement>('[contenteditable]');
+      if (editable !== this.#renderer.root) {
+        const owner = editable && this.#renderer.getNodeId(editable);
+        // WebKit may target an edge atom for copy/beforeinput after Select All.
+        // An actual presenter boundary belongs to this focused surface; foreign
+        // editors and native controls retain their own event ownership.
+        if (!owner || this.#renderer.getBlock(owner) !== editable || editable.contentEditable !== 'false' || this.#renderer.root.ownerDocument.activeElement !== this.#renderer.root) return;
+      }
+    }
     this.#flushNative();
     if (['paste','cut','drop','compositionstart','compositionend','blur','keyup'].includes(event.type)) this.codeCommands?.handle(event);
     if (['compositionstart', 'paste', 'cut', 'beforeinput'].includes(event.type)) { this.slash?.handle(event); this.references?.handle(event); }
@@ -165,6 +187,7 @@ export class TextInput {
       }
       return;
     }
+    if (event.type === 'keyup' && /^(ArrowLeft|ArrowRight|ArrowUp|ArrowDown|Home|End|PageUp|PageDown)$/.test(key.key)) this.#selection.ensureVisible();
     if (event.type === 'keyup' || event.type === 'blur') {
       if (event.type === 'blur') this.keyboard.resetFocusEscape();
       this.#flushNative();
@@ -175,6 +198,7 @@ export class TextInput {
       const intent = this.#create('key'); intent.disposition = 'handled';
       this.#events.set(event, intent); trace.intent = intent.id; this.#key = intent; this.#pending = intent; return;
     }
+    if (event.type === 'keydown' && this.keyboard.navigate(key)) { event.preventDefault(); return; }
     const action = this.keyboard.action(event);
     if ((action === 'indent' || action === 'outdent') && event.cancelable && this.codeCommands?.execute(action)) {
       event.preventDefault(); return;
@@ -182,7 +206,7 @@ export class TextInput {
     if (action && (event.type === 'keydown' || event.type === 'beforeinput' && event.cancelable)) {
       this.#flushNative();
       const intent = event.type === 'beforeinput' ? this.#key ?? this.#create('beforeinput') : this.#create('key');
-      const result = intent.disposition === 'native-pending' ? this.keyboard.execute(action, `keyboard:${intent.id}`) : { disposition: intent.disposition };
+      const result = this.#readOnly ? { disposition: 'rejected' as const, reason: 'read-only' } : intent.disposition === 'native-pending' ? this.keyboard.execute(action, `keyboard:${intent.id}`) : { disposition: intent.disposition };
       if (result) {
         if (event.cancelable) event.preventDefault();
         Object.assign(intent, result); this.#events.set(event, intent); trace.intent = intent.id;
@@ -326,16 +350,49 @@ export class TextInput {
       // whole-document ranges ending in an empty block and atomic rejection.
       const typing = this.keyboard.formatting.typing(range);
       const marks = Object.entries(typing).map(([mark, value]) => ({ mark: mark as import('@edit-ac/core').MarkCommand['mark'], ...(mark === 'link' ? { href: String(value) } : {}) }));
-      const request: PrepareRequest = { kind: 'fragment', origin: `text-input:${intent.id}`, range,
+      let request: PrepareRequest = { kind: 'fragment', origin: `text-input:${intent.id}`, range,
         blocks: [{ attributes: null, runs: text ? [{ text, marks }] : [] }] };
+      // A separator has no editable text witness for the fragment join path.
+      // Compose existing paragraph conversion/join commands for the selected atoms
+      // with ordinary range replacement in one prepared batch; failed applicability still makes no mutation.
+      const nodes = this.#engine.read().visible.filter(node => node.kind === 'block');
+      const ai = nodes.findIndex(node => node.id === a.node), bi = nodes.findIndex(node => node.id === b.node);
+      const separators = nodes.slice(Math.min(ai, bi), Math.max(ai, bi) + 1).filter(node => Array.isArray(node.blockAttributes) && node.blockAttributes[0] === 'separator');
+      if (ai >= 0 && bi >= 0 && separators.length) {
+        const start = ai < bi ? a : b;
+        const point = { owner: start.node, offset: start.offset + text.length, bias: 'right' as const };
+        const commands: EditorCommand[] = [
+          { type: 'historySelectionAt', anchor: { owner: a.node, offset: a.offset, bias: a.bias }, focus: { owner: b.node, offset: b.offset, bias: b.bias } },
+          ...separators.map(node => ({ type: 'setParagraph' as const, owner: node.id })),
+        ];
+        const end = ai < bi ? b : a;
+        for (const node of nodes.slice(Math.min(ai, bi), Math.max(ai, bi) + 1)) {
+          const from = node.id === start.node ? start.offset : 0;
+          const to = node.id === end.node ? end.offset : node.runs.reduce((n, run) => n + run.text.length, 0);
+          commands.push({ type: 'replaceAt', owner: node.id, from, to, text: '' });
+          if (node.id !== start.node) commands.push({ type: 'join', first: start.node, second: node.id });
+        }
+        commands.push({ type: 'replaceAt', owner: start.node, from: start.offset, to: start.offset, text });
+        if (text) for (const mark of ['bold', 'italic', 'underline', 'strike', 'code', 'link'] as const) {
+          const value = typing[mark];
+          commands.push({ type: 'markAt', owner: start.node, from: start.offset, to: point.offset, mark, action: value ? 'apply' : 'remove', ...(mark === 'link' && value ? { href: String(value) } : {}) });
+        }
+        commands.push({ type: 'selectionAt', anchor: point, focus: point });
+        request = { kind: 'editor', origin: `text-input:${intent.id}`, commands };
+      }
       try {
         if (!this.#engine.can(request)) { this.#reject(intent, 'unsupported-ordinary-range'); return; }
         this.keyboard.resetFocusEscape(); this.#engine.history({type:'explicit'});
         const result = this.#commit(request);
         intent.disposition='committed'; intent.text=text;
-        if (result.caret) {
-          try { this.#selection.move(result.caret); } finally { this.#engine.releaseAnchor(result.caret); }
-        } else this.#selection.restore();
+        try {
+          if (result.selection) this.#selection.restoreRange(result.selection);
+          else if (result.caret) this.#selection.move(result.caret);
+          else this.#selection.restore();
+        } finally {
+          if (result.caret) this.#engine.releaseAnchor(result.caret);
+          if (result.selection) { this.#engine.releaseAnchor(result.selection.anchor); this.#engine.releaseAnchor(result.selection.focus); }
+        }
         this.keyboard.formatting.remember(typing);
       } catch(error) { this.#reject(intent,errorMessage(error)); }
       finally { this.#engine.history({type:'boundary'}); }
@@ -353,7 +410,15 @@ export class TextInput {
       this.keyboard.resetFocusEscape();
       this.#engine.history({ type: 'explicit' });
       const typing = this.keyboard.formatting.typing(range);
-      this.#commit(this.keyboard.formatting.replacement(range, text, `text-input:${intent.id}`));
+      const entry = this.#entrySelections.get(intent);
+      const request: PrepareRequest = !text && entry ? { kind: 'editor', origin: `text-input:${intent.id}`, commands: [
+        { type: 'historySelectionAt', ...entry },
+        { type: 'delete', range },
+        { type: 'selectionAt', anchor: { owner: a.node, offset: nativeCaret?.anchor ?? Math.min(a.offset, b.offset), bias: 'right' },
+          focus: { owner: a.node, offset: nativeCaret?.focus ?? Math.min(a.offset, b.offset), bias: 'right' } },
+      ] } : this.keyboard.formatting.replacement(range, text, `text-input:${intent.id}`);
+      const result = this.#commit(request);
+      if (result.selection) { this.#engine.releaseAnchor(result.selection.anchor); this.#engine.releaseAnchor(result.selection.focus); }
       intent.disposition = 'committed'; intent.text = text;
       const caret = this.#engine.resolve(caretAnchor);
       if (nativeCaret) {

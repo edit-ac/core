@@ -4,6 +4,7 @@ import { CheckpointStorage } from '/web/storage/checkpoint.js';
 import { UpdateJournal } from '/web/storage/journal.js';
 import { DOMSelection } from '/web/dom/selection.js';
 import { DOMRenderer } from '/web/dom/render.js';
+import { ModuleRegistry } from '/web/modules/registry.js';
 import { TextInput } from '/web/input/text.js';
 const identity={documentId:'45678901-4567-4567-8567-45678901abcd',epoch:'56789012-5678-4678-8678-56789012abcd',schema:'editac.registry.editor.v5',offsets:'utf16',profile:'editac.yrs-yjs.editor.v5',protocolVersion:1,updateEncoding:1};
 const root=document.querySelector('#projection'),databaseName='browser-input';
@@ -31,7 +32,10 @@ async function bind(){
  }
  session.writer.engine.history({type:'clear'});
  session.writer.engine.subscribe({type:'all'},p=>patches.push({sequence:p.sequence,revision:p.revision,operation:p.operation,origin:p.origin,update:!!p.update,bytes:p.update?.bytes.length??0}));
- renderer=new DOMRenderer(root,session.writer.engine,{codeHighlight:window.codeHighlightFactory});selection=new DOMSelection(renderer,session.writer.engine);
+ const modules=window.inputModuleDefinitions ? new ModuleRegistry() : undefined;
+ if(modules) for(const definition of window.inputModuleDefinitions) modules.register(definition,{tag:'code'});
+ const content=window.inputContentEnabled ? (await import('/web/modules/content.js')).contentModules() : undefined;
+ renderer=new DOMRenderer(root,session.writer.engine,{codeHighlight:window.codeHighlightFactory,modules,content,commit:request=>session.storage.commit(request)});selection=new DOMSelection(renderer,session.writer.engine);
  protocol=new TextInput(renderer,selection,session.writer.engine,request=>{const result=session.storage.commit(request);commandResults.push(result);return result;});
  if (window.markdownAdapter) protocol.shortcuts=window.markdownAdapter.createShortcuts(session.writer.engine, request=>session.storage.commit(request));
  otherBlock=ids[1]?renderer.getBlock(ids[1]):undefined;otherText=otherBlock?document.createTreeWalker(otherBlock,NodeFilter.SHOW_TEXT).nextNode():undefined;
@@ -72,4 +76,4 @@ async function destroy(){
  const active=session;session=undefined;
  if(active)await active.storage.destroy({policy:'flush'});
 }
-window.inputFixture={disableMarkdown(){markdownRegistration?.dispose();protocol.shortcuts.enabled=false;},mount,reopen,select,event,mutate,settle,state,remote,remoteReplace,apply,destroy,get commandResults(){return commandResults},get ids(){return ids},get root(){return root},get protocol(){return protocol},get engine(){return session.writer.engine},get renderer(){return renderer},get selection(){return selection}};
+window.inputFixture={commit(request){return session.storage.commit(request)},disableMarkdown(){markdownRegistration?.dispose();protocol.shortcuts.enabled=false;},mount,reopen,select,event,mutate,settle,state,remote,remoteReplace,apply,destroy,get commandResults(){return commandResults},get ids(){return ids},get root(){return root},get protocol(){return protocol},get engine(){return session.writer.engine},get renderer(){return renderer},get selection(){return selection}};
