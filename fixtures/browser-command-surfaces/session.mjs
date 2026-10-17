@@ -10,7 +10,7 @@ const root=document.querySelector('#projection'), databaseName='browser-command-
 let runtime,session,surface,ids,markdown,commands=[],patches=[],pending=[],others=[],disposed=false,subscription,disposeHost;
 async function mount(value='') {
  const config=typeof value==='string'?{text:value}:value,text=config.text??'';
- markdown=markdownExtension(await initMarkdown('/markdown/wasm/editac_markdown_wasm_bg.wasm')); 
+ markdown=markdownExtension(await initMarkdown('/markdown/wasm/editac_markdown_wasm_bg.wasm'));
  runtime=await init('/core/wasm/editac_wasm_bg.wasm');
  const seed=runtime.createEngine({profile:'v5',documentId:identity.documentId,epoch:identity.epoch,nodes:[{text},{text:'independent'}]});const checkpoint=seed.checkpoint();seed.dispose();
  const store=await CheckpointStorage.open(indexedDB,databaseName);try{await store.publish(checkpoint,[]);}finally{store.close();}
