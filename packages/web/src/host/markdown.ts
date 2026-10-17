@@ -4,13 +4,13 @@ import type { HostAgentAccess, HostAgentService } from './contract.js';
  * capture must prove the exact source/owner mapping; prepare must call that
  * owner's prepare_source (never import/replace the live document). Neither mutates.
  */
-export interface HostMarkdownOwner<Target> {
+export interface HostMarkdownOwner<Target, Result = unknown> {
   available(access: Readonly<HostAgentAccess>): boolean;
   capture(access: Readonly<HostAgentAccess>): Promise<{
     target: Target; source: string; revision: string; profile: string;
     diagnostics: readonly unknown[];
   }>;
-  prepare(target: Target, candidate: string, access: Readonly<HostAgentAccess>): Promise<unknown>;
+  prepare(target: Target, candidate: string, access: Readonly<HostAgentAccess>): Promise<Result>;
   /** Release retained owner handles on expiry, eviction, or disposal. */
   release(target: Target): void;
 }
@@ -48,7 +48,7 @@ export interface MarkdownUpload extends MarkdownBase { totalBytes: number; check
  * including for chunk calls; upload IDs and document prose grant no authority.
  * Fixed global counts and byte bounds also cap aggregate retained memory.
  */
-export function createHostMarkdown<Target>(owner: HostMarkdownOwner<Target>, options: {
+export function createHostMarkdown<Target, Result = unknown>(owner: HostMarkdownOwner<Target, Result>, options: {
   limits?: Partial<HostMarkdownLimits>; now?: () => number;
 } = {}) {
   const limits = Object.freeze({ ...defaults, ...options.limits });
