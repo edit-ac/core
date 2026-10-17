@@ -576,6 +576,91 @@
         "fixtures/formats/fonts/NotoNaskhArabic-Regular.ttf",
         "tests/formats/run.mjs"
       ]
+    },
+    "pdf-export": {
+      "gate": "CNV-1.9",
+      "qualification": "partial-text-layout-prerequisite; parent remains open",
+      "commands": [
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--features",
+            "pdf-export",
+            "--test",
+            "pdf_export"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--features",
+            "pdf-export",
+            "--test",
+            "pdf_probe"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--features",
+            "jobs",
+            "--test",
+            "jobs"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--test",
+            "profiles"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/pdf-export-targets.test.mjs",
+            "tests/formats/dispatcher.test.mjs"
+          ],
+          "kind": "node-test"
+        }
+      ],
+      "inputs": [
+        "crates/editac-formats/src/pdf/export.rs",
+        "crates/editac-formats/tests/pdf_export.rs",
+        "fixtures/formats/pdf/export/text.json",
+        "tests/formats/inspect-pdf-export.py",
+        "tests/formats/pdf-export-targets.test.mjs",
+        "crates/editac-formats/src/pdf/mod.rs",
+        "fixtures/formats/fonts/provenance.json",
+        "tests/formats/run.mjs",
+        "fixtures/formats/pdf/export/profile.json"
+      ]
     }
   }
 }

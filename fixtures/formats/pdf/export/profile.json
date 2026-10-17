@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "owner": "CNV-1.9",
+  "state": "text-layout-prerequisite-only",
+  "aggregateProfileAvailable": false,
+  "boundary": "Captured shared Session paragraphs; exact source text, single-script Latin or Arabic paragraphs, approved fonts only; prepared execution ports",
+  "layout": {"pageWidthPt": 420, "pageHeightPt": 360, "marginPt": 28, "fontPt": 14, "leadingPt": 24, "maxPages": 8, "wordBreak": "prefer whitespace, otherwise shaped-cluster boundary", "textNormalization": "none"},
+  "limits": {"textBytes": 65536, "shapedBytes": 2000000, "outputBytes": 4194304},
+  "unimplemented": ["rich marks", "headings and lists", "tables", "authorized images", "link annotations", "mixed bidi paragraphs", "native-isolated semantic document invocation", "complete WCF-13/14 fixture matrix"],
+  "unsupportedPolicy": "report and refuse structural omission; explicit approval required for mark/source-provenance loss; immutable source retained",
+  "targets": {"native": "real Session with prepared job port", "wasm": "compile only"},
+  "runtimePdfReaders": false
+}
