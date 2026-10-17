@@ -1,0 +1,10 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Configured editor product flow</title>
+<script type="importmap">{"imports":{"@edit-ac/core":"/core/index.js","@edit-ac/core/extensions":"/core/extensions/index.js","@edit-ac/web":"/web/index.js","@edit-ac/web/host":"/web/host/index.js"}}</script>
+<style>body{font:16px system-ui;max-width:850px;margin:20px auto;padding:12px} [contenteditable]{min-height:70px;border:1px solid #777;padding:12px} button{min-height:36px} section{margin:24px 0}</style>
+<h1>Configured editor product flow</h1><p>Two collaborative views share a local prepared host. The local note has its own configuration and document. This is disposable test content.</p>
+<section><h2>Collaborative editor</h2><div id="one" aria-label="Collaborative editor"></div></section>
+<section><h2>Peer editor</h2><div id="two" aria-label="Peer editor"></div></section>
+<section><h2>Local note</h2><div id="local" aria-label="Local note"></div></section>
+<p><button id="agent">Apply prepared host-agent edit</button> <button id="reopen">Flush and reopen</button></p><output id="status" aria-live="polite"></output>
+<script type="module" src="/fixture/session.mjs"></script></html>

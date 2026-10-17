@@ -151,3 +151,11 @@ extension cancellation/resume across prepared page lifecycle events. This uses t
 existing engine and browser adapters; new extension facade/authoring/lazy-loading
 DX work remains pending with PARALLEL. Desktop touch/clipboard/lifecycle traces
 remain portable mechanics, with original device/IME/AT/performance/release gates open.
+
+The landed configuration subset is tested together with real host-agent admission
+in [the PIN-1.3 configured product flow](../integrated-browser/primary-flow-20261018/README.md).
+That fixture adds independent local/collaborative configurations, Search/Reorder,
+remote human/agent history and durable reopen to focused desktop and portable
+mobile journeys. Its on-demand packed preview includes exact user actions and
+teardown; the broader PARALLEL facade/loading/recipe and original qualification
+gates remain separate.
