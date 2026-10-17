@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "toolchains": {
+    "node": "v24.19.0",
+    "rust": "1.97.1"
+  },
+  "scenarios": {
+    "profiles": {
+      "gate": "CNV-1.1",
+      "commands": [
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--test",
+            "profiles"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--doc"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/dispatcher.test.mjs"
+          ],
+          "kind": "node-test"
+        }
+      ]
+    }
+  }
+}

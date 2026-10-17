@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "caseId": "WCF-05",
+  "fixtureRevision": 1,
+  "boundary": "rust-local-boundary",
+  "original": "original and unsaved edits",
+  "capturedRevision": "revision-N",
+  "profile": {
+    "available": true,
+    "import": true,
+    "export": false
+  },
+  "limits": {
+    "inputBytes": 64,
+    "outputBytes": 4,
+    "nodes": 2,
+    "pages": 1
+  },
+  "cases": [
+    {
+      "id": "import-only-export",
+      "converterCalls": 0,
+      "hostWrites": 0,
+      "code": "FORMAT_DIRECTION_UNAVAILABLE"
+    },
+    {
+      "id": "exhausted-bytes",
+      "prefix": "abc",
+      "suffix": "de",
+      "suffixNodes": 0,
+      "suffixPages": 0,
+      "hostWrites": 0,
+      "code": "FORMAT_OUTPUT_LIMIT"
+    },
+    {
+      "id": "exhausted-nodes",
+      "prefix": "abc",
+      "suffix": "",
+      "suffixNodes": 2,
+      "suffixPages": 0,
+      "hostWrites": 0,
+      "code": "FORMAT_OUTPUT_LIMIT"
+    },
+    {
+      "id": "exhausted-pages",
+      "prefix": "abc",
+      "suffix": "",
+      "suffixNodes": 0,
+      "suffixPages": 1,
+      "hostWrites": 0,
+      "code": "FORMAT_OUTPUT_LIMIT"
+    }
+  ]
+}

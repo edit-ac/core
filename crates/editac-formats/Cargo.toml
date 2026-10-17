@@ -1,0 +1,18 @@
+[package]
+name = "editac-formats"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.97.1"
+license = "Apache-2.0"
+publish = false
+description = "Optional local conversion capability and completeness boundary"
+
+# Deliberately independent until the common Cargo owner admits conversion jobs.
+# Neither the minimum editor nor this registry depends on a converter or font.
+[workspace]
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[dev-dependencies]
+serde_json = "=1.0.152"
