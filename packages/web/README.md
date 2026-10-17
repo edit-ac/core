@@ -265,3 +265,19 @@ IndexedDB and prepared transports. Chromium virtual keyboard/touch and browser
 accessibility semantics have local evidence. Actual screen-reader mechanics remain
 unqualified because the test host reports Accessibility scripting disabled. These
 fixtures make no provider, model-quality or all-platform support claim.
+
+
+### Optional writing completion
+
+`@edit-ac/web/ai/completion` supplies `aiCompletion(host, options)` through the same
+existing presenter port. It is disabled unless `enabled: true` is explicit and
+AiHost admits the completion capability, quotas and byte/time bounds. Configure
+`debounceMs`, `contextBytes`, `outputBytes` and optional `acceptKey` (Tab, Enter or
+false). Visible Suggest writing, Accept completion and Dismiss completion controls
+work alongside the keyboard path. Only explicit acceptance enters document state.
+
+See [the completion lifecycle guide](../../docs/extensions/ai-completion.md) and
+[the pinned optional SDK backend recipe](../../examples/ai-completion-backend/README.md).
+`npm run test:web -- ai-completion` covers fixed-clock browser behavior and the
+real SDK with prepared models; install the recipe's locked dependencies first.
+This local integration evidence does not qualify OS screen readers or providers.

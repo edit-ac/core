@@ -1,0 +1,7 @@
+{
+  "name": "editac-prepared-completion-backend",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test backend.test.mjs" },
+  "dependencies": { "ai": "7.0.143", "@ai-sdk/provider": "4.0.29" }
+}

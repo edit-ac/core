@@ -52,6 +52,11 @@
       "types": "./dist/extensions/ai/actions.d.ts",
       "import": "./dist/extensions/ai/actions.js",
       "default": "./dist/extensions/ai/actions.js"
+    },
+    "./ai/completion": {
+      "types": "./dist/extensions/ai/completion.d.ts",
+      "import": "./dist/extensions/ai/completion.js",
+      "default": "./dist/extensions/ai/completion.js"
     }
   },
   "scripts": {
