@@ -4,11 +4,11 @@ import { resolve } from 'node:path';
 import { requireTestNode } from './test-toolchain.mjs';
 await requireTestNode();
 const args = process.argv.slice(2);
-const groups = { contract: { files: ['tests/extension-dx/contract.test.mjs'], minimumTests: 30 } };
+const groups = { contract: { files: ['tests/extension-dx/contract.test.mjs'], minimumTests: 30 }, configuration: { files: ['tests/extension-dx/configuration.test.mjs'], minimumTests: 28 } };
 if (args.length !== 2 || args[0] !== '--group' || !Object.hasOwn(groups, args[1])) {
-  console.error('Specify exactly --group contract; unavailable/unimplemented groups fail closed.'); process.exit(2);
+  console.error('Specify exactly --group contract or --group configuration; unavailable/unimplemented groups fail closed.'); process.exit(2);
 }
-const output = resolve(process.env.EDITAC_EXTENSION_DX_OUTPUT ?? '.artifacts/extension-dx/contract');
+const output = resolve(process.env.EDITAC_EXTENSION_DX_OUTPUT ?? `.artifacts/extension-dx/${args[1]}`);
 mkdirSync(output, { recursive: true });
 const { files, minimumTests } = groups[args[1]];
 for (const file of files) if (!readFileSync(file).length) throw Error(`Missing/empty test file ${file}`);

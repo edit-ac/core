@@ -74,3 +74,7 @@ export type { InputHints } from './input/hints.js';
 // Versioned pre-attachment admission contract; mounting is a separate delivery.
 export { EXTENSION_DX_VERSION, defineExtensionContract, prepareEditorExtensionConfiguration, ExtensionConfigurationError } from './extensions/contract.js';
 export type { ExtensionReadonlyV1, ExtensionLoadPolicyV1, ExtensionStatusV1, ExtensionSemanticsV1, ExtensionInterestV1, ExtensionCallbackContextV1, ExtensionAuthoringV1, ExtensionDefinitionV1, ConfiguredExtensionV1, ExtensionFactoryV1, CoreFormattingMarkV1, CoreFormattingV1, PresenceConfigurationV1, CollaborationConfigurationV1, PlatformPreferencesV1, PlatformObservationV1, ExtensionAssetsV1, EditorExtensionConfigurationV1, PreparedEditorConfigurationV1 } from './extensions/contract.js';
+
+export { DocumentSearch, BlockReorder, defaultPreset, documentPreset } from './extensions/configuration.js';
+export type { EditorFacadeOptionsV1, ExtensionPresetOverridesV1 } from './extensions/configuration.js';
+export type { PresenceOptions, PresenceAttachment } from './sync/presence.js';

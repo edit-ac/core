@@ -54,7 +54,7 @@ export class CommandControls {
     this.search = doc.createElement('input'); this.search.type = 'search'; this.search.hidden = true;
     this.search.setAttribute('aria-label', 'Search editing commands'); this.search.inputMode = 'search'; this.search.enterKeyHint = 'search';
     this.search.addEventListener('input', this.#query); this.search.addEventListener('keydown', this.#dismiss);
-    for (const [id, label] of [['search', 'Search commands'], ...commandCatalog.filter(c => ['enter','break','undo','redo','indent','outdent','bold','italic','underline','link'].includes(c.id)).map(c => [c.id, c.label]), ['paste', 'Paste without formatting']]) {
+    for (const [id, label] of [['search', 'Search commands'], ...commandCatalog.filter(c => ['enter','break','undo','redo','indent','outdent','bold','italic','underline','link', ...(editor.extensionConfiguration ? ['strike','code'] : [])].includes(c.id)).filter(c => editor.extensionConfiguration?.configuration.formatting?.marks?.[c.id as import('../extensions/contract.js').CoreFormattingMarkV1]?.controls !== false).map(c => [c.id, c.label]), ['paste', 'Paste without formatting']]) {
       const button = doc.createElement('button'); button.type = 'button'; button.dataset.command = id;
       button.disabled = editor.state.readOnly; button.textContent = label!; if (id === 'search') button.setAttribute('aria-expanded', 'false'); button.style.cssText = 'min-width:44px;min-height:44px'; this.#buttons.set(id!, button); this.element.append(button);
     }

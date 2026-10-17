@@ -13,6 +13,7 @@ export const commandCatalog = Object.freeze(Object.freeze([
   { id: 'italic', label: 'Italic', aliases: ['toggleItalic'], key: 'Primary+i' },
   { id: 'underline', label: 'Underline', aliases: ['toggleUnderline'], key: 'Primary+u' },
   { id: 'strike', label: 'Strikethrough', aliases: ['toggleStrike'], key: 'Primary+Shift+x' },
+  { id: 'code', label: 'Inline code', aliases: ['toggleCode'], key: null },
   { id: 'link', label: 'Edit link', aliases: ['editLink'], key: 'Primary+k' },
   { id: 'undo', label: 'Undo', aliases: ['historyUndo'], key: 'Primary+z' },
   { id: 'redo', label: 'Redo', aliases: ['historyRedo'], key: 'Primary+Shift+z' },

@@ -4,8 +4,8 @@ EXT-1.14 freezes pre-attachment data and admission. Public exports are
 `EXTENSION_DX_VERSION`, `defineExtensionContract`,
 `prepareEditorExtensionConfiguration` and their `*V1` types. These helpers do
 not mount an editor, activate callbacks, fetch assets, or change a document.
-`createEditor` and `mountEditorSurface` retain their existing signatures until
-SDK-1.11 wires this contract to their common lifecycle. `Extension.create`
+`createEditor` and `mountEditorSurface` now accept the configuration fields through
+their existing lifecycle; see [configuration behavior](configuration-v1.md). `Extension.create`
 authoring execution belongs to EXT-1.15. The proposed `Markdown`, `PatternLink`,
 `PdfExport` and other factories will implement `ExtensionFactoryV1.configure`;
 this contract does not advertise those factories as shipped implementations.

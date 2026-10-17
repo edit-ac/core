@@ -12,7 +12,7 @@ import type { AnchorToken, CommitResult, EditorCommand, EngineHandle, PrepareReq
 import type { DOMRenderer } from '../dom/render.js';
 import type { DOMSelection, RetainedSelection } from '../dom/selection.js';
 
-export type KeyboardAction = 'enter' | 'break' | 'backward' | 'forward' | 'indent' | 'outdent' | 'undo' | 'redo' | 'bold' | 'italic' | 'underline' | 'strike' | 'link';
+export type KeyboardAction = 'enter' | 'break' | 'backward' | 'forward' | 'indent' | 'outdent' | 'undo' | 'redo' | 'bold' | 'italic' | 'underline' | 'strike' | 'code' | 'link';
 export interface CommandResult { disposition: 'committed' | 'handled' | 'rejected'; reason?: string }
 const kind = (node: ProjectedNode) => Array.isArray(node.blockAttributes) ? node.blockAttributes[0] : undefined;
 const length = (node: ProjectedNode) => node.runs.reduce((n, run) => n + run.text.length, 0);
@@ -47,7 +47,7 @@ export class KeyboardInput {
     this.#engine = engine;
     this.#commit = commit;
     this.#blocked = blocked;
-    this.formatting = new FormattingInput(renderer, selection, engine, commit, blocked, mark => mark === 'code' || this.#allowed(mark), node => this.#link?.element.contains(node) ?? false);
+    this.formatting = new FormattingInput(renderer, selection, engine, commit, blocked, mark => this.#allowed(mark), node => this.#link?.element.contains(node) ?? false);
     const root = renderer.root, doc = root.ownerDocument;
     this.#help = doc.createElement('p');
     this.#help.dataset.editacUi = '';
@@ -252,7 +252,7 @@ export class KeyboardInput {
         if (started) this.#engine.history({ type: 'boundary' });
       }
     }
-    if (action === 'bold' || action === 'italic' || action === 'underline' || action === 'strike') {
+    if (action === 'bold' || action === 'italic' || action === 'underline' || action === 'strike' || action === 'code') {
       const target = this.captureToolbar(); if (!target) return rejected('unmapped-selection');
       try { return target.format(action); } finally { target.dispose(); this.#engine.history({ type: 'boundary' }); }
     }

@@ -1,3 +1,7 @@
+import { configuredSurfaceOptions, prepareSurfaceConfiguration, type EditorFacadeOptionsV1 } from './extensions/configuration.js';
+import type { PreparedEditorConfigurationV1, PlatformObservationV1 } from './extensions/contract.js';
+import { ExtensionConfigurationError } from './extensions/contract.js';
+import { PlatformPreferenceController } from './platform/preferences.js';
 import { PageLifecycle } from './lifecycle.js';
 import { EditorViewport, type ViewportOptions } from './platform/viewport.js';
 import type { LinkEnrichment, LinkEnrichmentFactory } from './modules/links/enrichment.js';
@@ -9,7 +13,7 @@ import { TextInput } from './input/text.js';
 import type { ModuleRuntime, ModuleRuntimeOptions } from './modules/runtime.js';
 import type { ClipboardCodec } from './clipboard/fragment.js';
 
-export interface EditorSurfaceOptions {
+export interface EditorSurfaceOptions extends Partial<EditorFacadeOptionsV1> {
   viewport?: ViewportOptions;
   shortcutProfile?: import('./commands/catalog.js').ShortcutProfile;
   commandAllowed?: (command: import('./commands/catalog.js').PortableCommand) => boolean;
@@ -29,13 +33,17 @@ export interface EditorSurfaceOptions {
   label?: string;
   clipboardCodecs?: readonly ClipboardCodec[];
   typingShortcuts?: boolean;
-  preset?: 'task' | 'minimal';
+  preset?: 'task' | 'minimal' | 'default' | 'document';
   plainTextPolicy?: 'markdown' | 'literal';
   contentCodecs?: import('@edit-ac/core').MarkdownOptions;
   /** Host persistence/command port; defaults to committing to the borrowed engine. */
   commit?: (request: PrepareRequest) => CommitResult;
 }
 export interface EditorSurface {
+  readonly ready: Promise<void>;
+  readonly extensionStatus: Readonly<Record<string, import('./extensions/contract.js').ExtensionStatusV1>>;
+  readonly extensionConfiguration: PreparedEditorConfigurationV1 | undefined;
+  readonly platformPreferences: PlatformObservationV1;
   readonly viewport: EditorViewport;
   readonly pointerSelection: import('./selection/pointer.js').PointerSelection;
   readonly codeCommands: import('./extensions/code.js').CodeCommandsPresenter | undefined;
@@ -66,13 +74,15 @@ export function reserveEditorSurface(root: HTMLElement): () => void {
 }
 
 /** Shared adapter assembly for recovered documents and host-owned replicas. */
-export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, options: EditorSurfaceOptions & { onSuspend?: () => void } = {}) {
+export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, options: EditorSurfaceOptions & { onSuspend?: () => void } = {}, prepared?: PreparedEditorConfigurationV1) {
+  options = configuredSurfaceOptions(options, prepared);
   let viewport: EditorViewport | undefined;
   let page: PageLifecycle | undefined;
   const baseCommit = options.commit ?? ((request: PrepareRequest) => engine.commit(engine.prepare(request)));
   const commit = (request: PrepareRequest): CommitResult => { const result=baseCommit(request);viewport?.requestCaret();return result; };
   const renderer = new DOMRenderer(root, engine, { ...options, readOnly: true });
   const disposePresentation = accessiblePresentation(root);
+  const preferences = new PlatformPreferenceController(root, prepared?.configuration.platform);
   let selection: DOMSelection | undefined, input: TextInput | undefined;
   let links: LinkEnrichment | undefined;
   let markdown: import('@edit-ac/core').PatchSubscription | undefined;
@@ -117,26 +127,32 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
       else { boundInput.resume(); boundViewport.resume(); }
     });
     let disposed = false;
-    return { viewport: boundViewport, renderer, selection: boundSelection, input: boundInput, pointerSelection: boundSelection.pointer,
+    return { platformPreferences: preferences.observation, viewport: boundViewport, renderer, selection: boundSelection, input: boundInput, pointerSelection: boundSelection.pointer,
       dispose(): void {
         if (disposed) return; disposed = true;
         root.contentEditable = 'false'; root.setAttribute('aria-readonly', 'true');
-        try { disposeAdapters(); } finally { disposePresentation(); }
+        try { disposeAdapters(); } finally { preferences.dispose(); disposePresentation(); }
       } };
   } catch (error) {
-    try { disposeAdapters(); } finally { disposePresentation(); }
+    try { disposeAdapters(); } finally { preferences.dispose(); disposePresentation(); }
     root.contentEditable = 'false'; throw error;
   }
 }
 
 /** Mount a synchronous view over a host-owned engine, without a storage service. */
 export function mountEditorSurface(root: HTMLElement, engine: EngineHandle, options: EditorSurfaceOptions = {}): EditorSurface {
+  const prepared = prepareSurfaceConfiguration(options, engine.read().identity.schema);
+  if (prepared?.configuration.collaboration) throw new ExtensionConfigurationError('requires-storage-owner', 'editor', 'collaboration', 'Use createEditor for managed sync; borrowed surfaces retain host-owned sync');
   const release = reserveEditorSurface(root);
   try {
-    const binding = bindEditorSurface(root, engine, options);
+    const binding = bindEditorSurface(root, engine, options, prepared);
     let disposed = false;
     const requireLive = () => { if (disposed) throw Error('Editor surface is disposed'); };
     return {
+      ready: Promise.resolve(),
+      get extensionStatus() { return Object.freeze(Object.fromEntries((prepared?.extensions ?? []).map(e => [e.feature.id, Object.freeze({ state: disposed ? 'cancelled' as const : 'ready' as const, generation: 1 })]))); },
+      extensionConfiguration: prepared,
+      platformPreferences: binding.platformPreferences,
       get viewport() { return binding.viewport; },
       get pointerSelection() { return binding.pointerSelection; },
       get codeCommands() { return binding.input.codeCommands; },
