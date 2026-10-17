@@ -19,6 +19,7 @@ const owners = new WeakMap<Window, ViewportOwner>();
 function valid(r: ViewportRect): boolean { return [r.left,r.top,r.width,r.height].every(Number.isFinite) && r.width > 0 && r.height > 0; }
 class ViewportOwner {
   readonly consumers = new Set<Consumer>();
+  readonly leases = new Set<Consumer>();
   readonly sources = new Map<EventTarget, number>();
   frame: number | undefined;
   reads = 0; writes = 0;
@@ -56,8 +57,8 @@ class ViewportOwner {
     return () => { const n=this.sources.get(target)!; if(n===1){target.removeEventListener('scroll',this.invalidate,true);this.sources.delete(target);}else this.sources.set(target,n-1); };
   }
   release(consumer: Consumer): void {
-    this.consumers.delete(consumer);
-    if (this.consumers.size) return;
+    this.consumers.delete(consumer); this.leases.delete(consumer);
+    if (this.leases.size) return;
     if (this.frame !== undefined) this.window.cancelAnimationFrame(this.frame);
     this.frame=undefined;
     for(const target of [this.window,this.visual]) for(const type of ['resize','scroll']) target?.removeEventListener(type,this.invalidate);
@@ -79,21 +80,31 @@ export class EditorViewport {
   private readonly controlStyles=new Map<HTMLElement,string>();
   private follow=false;
   private disposed=false;
+  private suspended=false;
   private previous: Snapshot | undefined;
   private snapshot: Snapshot | undefined;
   constructor(readonly root: HTMLElement, readonly options: ViewportOptions = {}, private readonly geometryChanged?: (recoverable:boolean)=>void) {
     this.owner=acquire(root.ownerDocument.defaultView!,options);
-    this.consumer={read:s=>this.measure(s)};this.owner.consumers.add(this.consumer);
+    this.consumer={read:s=>this.measure(s)};this.owner.leases.add(this.consumer);this.owner.consumers.add(this.consumer);
     // Capture scroll on actual nested roots, without accessing any parent window.
     this.releases.push(this.owner.source(root.ownerDocument));
     const focus=()=>this.requestCaret();
     root.addEventListener('focus',focus);this.releases.push(()=>root.removeEventListener('focus',focus));
     this.owner.invalidate();
   }
-  get state() { return { requestedMode:this.options.requestedMode ?? 'resizes-content',observed:this.snapshot,readBatches:this.owner.reads,writePhases:this.owner.writes,pendingFrame:this.owner.frame!==undefined,consumers:this.owner.consumers.size,disposed:this.disposed }; }
-  invalidate(): void { if(!this.disposed)this.owner.invalidate(); }
+  get state() { return { requestedMode:this.options.requestedMode ?? 'resizes-content',observed:this.snapshot,readBatches:this.owner.reads,writePhases:this.owner.writes,pendingFrame:this.owner.frame!==undefined,consumers:this.owner.consumers.size,disposed:this.disposed,suspended:this.suspended }; }
+  suspend(): void {
+    if(this.disposed || this.suspended)return;
+    this.suspended=true;this.follow=false;this.owner.consumers.delete(this.consumer);
+    if(!this.owner.consumers.size && this.owner.frame!==undefined){this.owner.window.cancelAnimationFrame(this.owner.frame);this.owner.frame=undefined;}
+  }
+  resume(): void {
+    if(this.disposed || !this.suspended)return;
+    this.suspended=false;this.previous=undefined;this.owner.consumers.add(this.consumer);this.invalidate();
+  }
+  invalidate(): void { if(!this.disposed && !this.suspended)this.owner.invalidate(); }
   /** Only explicit local edit/focus requests can scroll a caret. */
-  requestCaret(): void { if(this.disposed)return;this.follow=true;this.owner.invalidate(); }
+  requestCaret(): void { if(this.disposed || this.suspended)return;this.follow=true;this.owner.invalidate(); }
   addControls(element: HTMLElement): ()=>void {
     this.controlStyles.set(element,element.style.cssText);this.controls.add(element);this.invalidate();
     return ()=>{element.style.cssText=this.controlStyles.get(element)??'';this.controlStyles.delete(element);this.controls.delete(element);};

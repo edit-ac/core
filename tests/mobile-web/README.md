@@ -46,3 +46,23 @@ for host recovery separately from committed document content.
 The `viewport` group maps MBV-01–09 to prepared geometry delivery through real browser editors. `EditorViewport` leases one read/write scheduler per owning window, observes nested document scroll, uses CSS client coordinates, and never changes host meta viewport or keyboard policy. Hosts may pass one shared `viewport.geometry` function per window with observed visual bounds, up to eight rectangular occlusions and safe areas; conflicting ports reject mounting. `requestedMode` records host intent only. Missing, throwing or out-of-bounds geometry uses ordinary layout scrolling. At most eight unobstructed candidate regions are retained per occlusion step. Local edit/focus requests can follow the active caret; passive geometry and remote updates cannot. Reorder controls use a reachable bounded sheet; valid refresh retains the existing gesture owner, while scale/lost geometry cancels it. No keyboard visibility or actual mobile API support is inferred from these prepared receipts.
 
 `--group focus` executes MBF-01–06 using packed production controls, stable commands, composition hints and real IndexedDB. Prepared focus/clipboard traces and desktop-browser activation qualify portable mechanics only; mobile keyboard/native selection/IME/AT remain original MWB device gates.
+
+
+`--group lifecycle` executes MBC-01–12 using production clipboard/input and page leases.
+Prepared pagehide or hidden visibility finalizes already observed composing input
+through the existing blur policy, cancels pending clipboard reads and gesture state,
+and pauses viewport consumers. Resume reuses the same Session without refocusing,
+replaying input, changing host read-only policy or duplicating listeners. Disposing
+one suspended viewport lease cannot remove another editor's owner. Destroy/recreate
+uses the existing storage recovery API; failed journal transactions remain unsaved
+recovery exports, separately from localCommitted state. No unload-flush guarantee
+or actual BFCache/process-eviction qualification is inferred.
+
+Native paste sequences and equal repeated payloads use event lifecycle ownership,
+never content/time deduplication. A noncancelable replacement projects its admitted
+patch before mapping the result caret. The full-palette transfer proof uses the
+established plain-text destination after undo; replacement across the tested mixed
+structured target is an explicit mutation-free admission rejection. Registered
+attachment captions/identity and missing-codec inert source are separate checks.
+Clipboard/menu/IME/native-app and cross-platform observations remain deferred to
+the original MWB gates; prepared success makes no device/API availability claim.

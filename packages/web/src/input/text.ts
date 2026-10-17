@@ -58,13 +58,23 @@ export class TextInput {
   #key: TextIntent | undefined;
   #pending: TextIntent | undefined;
   #jobs: NativeEdit[] = [];
-  readonly #pagehide = () => {
-    // Use the existing blur finalization policy while this owner is still live.
-    // A later compositionend cannot replay the buffered text after suspension.
+  #suspended = false;
+  #requestedReadOnly = false;
+  get suspended(): boolean { return this.#suspended; }
+  suspend(): void {
+    if (this.#disposed || this.#suspended) return;
+    // Finalize already observed native input while the original owner is live.
     this.#flushNative(); this.#composition.finish('blur');
     this.#key = undefined; this.#pending = undefined;
     this.#eligibleKey = false; this.#directKey = undefined;
-  };
+    this.#suspended = true; this.#generation++;
+    this.#selection.pointer.cancel();
+    this.#applyReadOnly(true);
+  }
+  resume(): void {
+    if (this.#disposed || !this.#suspended) return;
+    this.#suspended = false; this.#applyReadOnly(this.#requestedReadOnly);
+  }
 
   readonly #renderer: DOMRenderer;
   readonly #selection: DOMSelection;
@@ -114,7 +124,6 @@ export class TextInput {
         this.#rendering = false;
       }
     };
-    renderer.root.ownerDocument.defaultView?.addEventListener('pagehide', this.#pagehide);
     for (const type of ['keydown', 'keyup', 'beforeinput', 'input', 'compositionstart', 'compositionupdate', 'compositionend', 'blur', 'copy', 'cut', 'paste', 'drop']) {
       const listener: EventListener = event => this.#handle(event);
       this.#listeners.push([type, listener]); renderer.root.addEventListener(type, listener);
@@ -541,6 +550,9 @@ export class TextInput {
     this.slash.setReadOnly(this.#readOnly);
   }
   setReadOnly(value: boolean): void {
+    this.#requestedReadOnly = value; this.#applyReadOnly(value || this.#suspended);
+  }
+  #applyReadOnly(value: boolean): void {
     this.codeCommands?.setReadOnly(value); this.search?.setReadOnly(value); this.reorder?.setReadOnly(value); this.slash?.setReadOnly(value); this.references?.setReadOnly(value);
     if (value) {
       this.clipboard.cancel(); this.textDrag.cancel();
@@ -567,7 +579,6 @@ export class TextInput {
     this.#composition.finish('dispose'); this.#composition.dispose(); this.keyboard.dispose(); this.clipboard.dispose(); this.textDrag.dispose();
     this.#disposed = true; this.#generation++; this.#observer.disconnect(); this.#subscription.dispose();
     this.#renderer.patchBoundary = undefined; this.#renderer.setReadOnly(true);
-    this.#renderer.root.ownerDocument.defaultView?.removeEventListener('pagehide', this.#pagehide);
     for (const [type, listener] of this.#listeners) this.#renderer.root.removeEventListener(type, listener);
     for (const job of this.#jobs.splice(0)) { job.intent.disposition = 'disposed'; this.#release(job.range); }
     for (const intent of this.intents) if (intent.disposition === 'native-pending') intent.disposition = 'disposed';

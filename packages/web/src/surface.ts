@@ -1,3 +1,4 @@
+import { PageLifecycle } from './lifecycle.js';
 import { EditorViewport, type ViewportOptions } from './platform/viewport.js';
 import type { LinkEnrichment, LinkEnrichmentFactory } from './modules/links/enrichment.js';
 import type { CommitResult, EngineHandle, PrepareRequest } from '@edit-ac/core';
@@ -65,8 +66,9 @@ export function reserveEditorSurface(root: HTMLElement): () => void {
 }
 
 /** Shared adapter assembly for recovered documents and host-owned replicas. */
-export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, options: EditorSurfaceOptions = {}) {
+export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, options: EditorSurfaceOptions & { onSuspend?: () => void } = {}) {
   let viewport: EditorViewport | undefined;
+  let page: PageLifecycle | undefined;
   const baseCommit = options.commit ?? ((request: PrepareRequest) => engine.commit(engine.prepare(request)));
   const commit = (request: PrepareRequest): CommitResult => { const result=baseCommit(request);viewport?.requestCaret();return result; };
   const renderer = new DOMRenderer(root, engine, { ...options, readOnly: true });
@@ -75,7 +77,7 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
   let links: LinkEnrichment | undefined;
   let markdown: import('@edit-ac/core').PatchSubscription | undefined;
   const disposeAdapters = (): void => {
-    viewport?.dispose();
+    page?.dispose(); viewport?.dispose();
     try { links?.dispose(); } finally { try { input?.dispose(); } finally { try { selection?.dispose(); } finally { try { renderer.dispose(); } finally { markdown?.dispose(); } } } }
   };
   try {
@@ -107,6 +109,10 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
     });
     if(input.reorder) viewport.addControls(input.reorder.controls);
     const boundViewport = viewport;
+    page = new PageLifecycle(root, suspended => {
+      if (suspended) { boundInput.suspend(); boundViewport.suspend(); options.onSuspend?.(); }
+      else { boundInput.resume(); boundViewport.resume(); }
+    });
     let disposed = false;
     return { viewport: boundViewport, renderer, selection: boundSelection, input: boundInput, pointerSelection: boundSelection.pointer,
       dispose(): void {

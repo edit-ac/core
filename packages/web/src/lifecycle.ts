@@ -37,3 +37,36 @@ export function previewMatches(preview: PreviewTag | undefined, identity: Docume
   return !!preview && Number.isSafeInteger(preview.revision) && preview.revision === revision
     && (Object.keys(identity) as (keyof DocumentIdentity)[]).every(key => preview.identity[key] === identity[key]);
 }
+
+/** A page lease only suspends disposable adapters. The existing Session/storage
+ * remains the durability owner; no unload flush or BFCache guarantee is made. */
+export class PageLifecycle {
+  #hidden = false;
+  #away = false;
+  #suspended = false;
+  #disposed = false;
+  readonly #document: Document;
+  readonly #window: Window;
+  constructor(root: HTMLElement, private readonly change: (suspended: boolean) => void) {
+    this.#document = root.ownerDocument; this.#window = this.#document.defaultView!;
+    this.#window.addEventListener('pagehide', this.#hide);
+    this.#window.addEventListener('pageshow', this.#show);
+    this.#document.addEventListener('visibilitychange', this.#visibility);
+    this.#visibility();
+  }
+  readonly #hide = () => { this.#away = true; this.#update(); };
+  readonly #show = () => { this.#away = false; this.#hidden = this.#document.visibilityState === 'hidden'; this.#update(); };
+  readonly #visibility = () => { this.#hidden = this.#document.visibilityState === 'hidden'; this.#update(); };
+  #update(): void {
+    if (this.#disposed) return;
+    const suspended = this.#away || this.#hidden;
+    if (suspended === this.#suspended) return;
+    this.#suspended = suspended; this.change(suspended);
+  }
+  dispose(): void {
+    if (this.#disposed) return; this.#disposed = true;
+    this.#window.removeEventListener('pagehide', this.#hide);
+    this.#window.removeEventListener('pageshow', this.#show);
+    this.#document.removeEventListener('visibilitychange', this.#visibility);
+  }
+}

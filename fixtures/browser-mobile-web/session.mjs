@@ -19,11 +19,15 @@ async function mount(value){
  const store=await CheckpointStorage.open(indexedDB,databaseName);
  try{await store.publish(seed.checkpoint(),[]);}finally{store.close();seed.dispose();}
  session=await recoverLocalDocument({assetUrl:'/core/wasm/editac_wasm_bg.wasm',databaseName,identity,indexedDB,locks:navigator.locks});
+ return bind(options,modules);
+}
+async function bind(options={},modules){
+ disposed=false;patches=[];
  session.writer.engine.history({type:'clear'});ids=session.writer.engine.read().visible.map(n=>n.id);
  subscription=session.writer.engine.subscribe({type:'all'},p=>patches.push({origin:p.origin,update:!!p.update,revision:p.revision}));
  let markdown,slash;
- if(options.triggers){const {initMarkdown}=await import('/markdown/index.js'),{markdownExtension}=await import('/markdown/web.js'),{slashCommands}=await import('/web/modules/slash.js');markdown=markdownExtension(await initMarkdown('/markdown/wasm/editac_markdown_wasm_bg.wasm'));slash=slashCommands([{id:'paragraph',label:'Insert mobile paragraph',prepare:()=>({type:'fragment',blocks:[{attributes:{type:'paragraph'},runs:[{text:'mobile command',marks:[]}]}]})}]);}
- editor=new BrowserEditor(root,{assetUrl:'/core/wasm/editac_wasm_bg.wasm',databaseName,identity,indexedDB,locks:navigator.locks,plainPasteControl:options.plainPasteControl??false,readOnly:options.readOnly,commandAllowed:name=>!options.deniedCommands?.includes(name),commandControls:options.commandControls,inputHints:options.inputHints,modules,markdown,slash,viewport:options.viewport?{requestedMode:options.requestedMode,geometry:viewportGeometry}:undefined,...(options.reorder?{reorder:context=>{selection=context.selection;return reorderControls()(context);}}:{}),recover:async()=>session});
+ if(options.triggers||options.palette){const {initMarkdown}=await import('/markdown/index.js'),{markdownExtension}=await import('/markdown/web.js'),{slashCommands}=await import('/web/modules/slash.js');markdown=markdownExtension(await initMarkdown('/markdown/wasm/editac_markdown_wasm_bg.wasm'));if(options.triggers)slash=slashCommands([{id:'paragraph',label:'Insert mobile paragraph',prepare:()=>({type:'fragment',blocks:[{attributes:{type:'paragraph'},runs:[{text:'mobile command',marks:[]}]}]})}]);}
+ editor=new BrowserEditor(root,{assetUrl:'/core/wasm/editac_wasm_bg.wasm',databaseName,identity,indexedDB,locks:navigator.locks,plainPasteControl:options.plainPasteControl??false,readOnly:options.readOnly,commandAllowed:name=>!options.deniedCommands?.includes(name),commandControls:options.commandControls,inputHints:options.inputHints,modules,markdown,slash,contentCodecs:options.palette?{images:true,tables:true,callouts:true}:undefined,viewport:options.viewport?{requestedMode:options.requestedMode,geometry:viewportGeometry}:undefined,...(options.reorder?{reorder:context=>{selection=context.selection;return reorderControls()(context);}}:{}),recover:async()=>session});
  await editor.ready;window.editor=editor;select(ids[0],0);return ids;
 }
 function select(id,a,b=a,focusId=id){root.focus();const point=(id,offset)=>{const block=root.querySelector(`[data-node-id="${id}"]`),walker=document.createTreeWalker(block,NodeFilter.SHOW_TEXT);let node;while(node=walker.nextNode()){if(offset<=node.length)return {node,offset};offset-=node.length;}return {node:block,offset:0};};const anchor=point(id,a),focus=point(focusId,b);getSelection().setBaseAndExtent(anchor.node,anchor.offset,focus.node,focus.offset);selection?.capture();}
@@ -31,7 +35,7 @@ async function settle(){await editor.settle();await session.storage.flush({targe
 async function remote(index,offset,text){const local=session.writer.engine,peer=runtime.restoreEngine(identity,local.checkpoint()),vector=local.stateVector(),at=peer.anchor(ids[index],offset,'right');try{const result=peer.commit(peer.prepare({kind:'text',origin:'mobile-peer',command:{type:'insert',at,text}}));if(result.caret)peer.releaseAnchor(result.caret);local.applyUpdate(peer.encodeUpdate(vector));await settle();}finally{peer.releaseAnchor(at);peer.dispose();}}
 function point(node,offset){const el=node?.nodeType===1?node:node?.parentElement,block=el?.closest('[data-node-id]');if(!block)return null;const r=document.createRange();r.selectNodeContents(block);r.setEnd(node,offset);return {node:block.dataset.nodeId,offset:r.toString().length};}
 async function state(){await settle();const native=getSelection(),engine=session.writer.engine,journal=await UpdateJournal.open(indexedDB,databaseName);let entries;try{entries=await journal.read(identity);}finally{journal.close();}return {nodes:engine.read().visible,selection:{anchor:point(native.anchorNode,native.anchorOffset),focus:point(native.focusNode,native.focusOffset)},history:engine.history({type:'state'}),patches,journal:entries.map(e=>({origin:e.origin,bytes:e.bytes.length})),storage:session.storage.state.phase,errors:engine.takeObserverErrors(),focus:document.activeElement===root,dom:root.textContent,revision:engine.read().revision,recovery:editor.inputRecovery};}
-async function destroy(){if(disposed)return;disposed=true;subscription?.dispose();const report=await editor?.destroy({policy:'flush'});window.fixtureDisposed=true;return report;}
+async function destroy(policy='flush'){if(disposed)return;disposed=true;subscription?.dispose();const report=await editor?.destroy({policy});window.fixtureDisposed=true;return report;}
 // Host contract records observed CSS coordinates, owning window/root and requested
 // policy. It does not infer keyboard visibility, API authorization or device support.
 function host(){const w=root.ownerDocument.defaultView,v=w.visualViewport,r=root.getBoundingClientRect();return {requestedMode:'resizes-content',observed:{layout:{width:w.innerWidth,height:w.innerHeight},visual:v?{width:v.width,height:v.height,offsetLeft:v.offsetLeft,offsetTop:v.offsetTop,scale:v.scale}:null,root:{x:r.x,y:r.y,width:r.width,height:r.height}},ownerWindow:w===window,scrollRoot:root.parentElement.id,focus:document.activeElement===root,viewportMeta:document.querySelector('meta[name=viewport]').content};}
@@ -50,4 +54,9 @@ async function sibling(){
  const second=new BrowserEditor(secondRoot,{assetUrl:'/core/wasm/editac_wasm_bg.wasm',databaseName,identity,indexedDB,locks:navigator.locks,plainPasteControl:false,viewport:preparedViewport?{geometry:viewportGeometry}:undefined});await second.ready;
  return {editor:second,root:secondRoot,async dispose(){await second.destroy({policy:'flush'});secondRoot.remove();}};
 }
-window.inputFixture={sibling,deliver,mutate,mount,select,settle,state,destroy,host,capability,requestCapability,get engine(){return session?.writer.engine},get root(){return root},get ids(){return ids},remote,get selection(){return selection},get pointer(){return editor.reorder?.pointerState},get surface(){return editor}};
+async function recover(){
+ runtime=await init('/core/wasm/editac_wasm_bg.wasm');
+ session=await recoverLocalDocument({assetUrl:'/core/wasm/editac_wasm_bg.wasm',databaseName,identity,indexedDB,locks:navigator.locks});
+ return bind({});
+}
+window.inputFixture={recover,sibling,deliver,mutate,mount,select,settle,state,destroy,host,capability,requestCapability,get engine(){return session?.writer.engine},get root(){return root},get ids(){return ids},remote,get selection(){return selection},get pointer(){return editor.reorder?.pointerState},get surface(){return editor}};

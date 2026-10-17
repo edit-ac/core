@@ -147,7 +147,7 @@ export class ClipboardInput {
     try { this.#selection.move(result.caret);
     } finally { this.#engine.releaseAnchor(result.caret); }
   }
-  #apply(target: RetainedSelection, blocks: readonly FragmentBlock[], moveSelection = true): ClipboardOutcome {
+  #apply(target: RetainedSelection, blocks: readonly FragmentBlock[], moveSelection = true, project?: () => void): ClipboardOutcome {
     if (this.#disposed || this.#blocked() || !target.active) return rejected('clipboard-unavailable');
     const request: PrepareRequest = { kind: 'fragment', origin: `clipboard:${++this.#sequence}`, range: target.range, blocks };
     try {
@@ -156,6 +156,7 @@ export class ClipboardInput {
       this.#engine.history({ type: 'explicit' });
       try {
         const result=this.#commit(request);
+        project?.();
         if(moveSelection)this.#move(result);
         else for(const anchor of new Set([result.caret,result.selection?.anchor,result.selection?.focus]))if(anchor)this.#engine.releaseAnchor(anchor);
       } finally { this.#engine.history({ type: 'boundary' }); }
@@ -449,7 +450,12 @@ export class ClipboardInput {
     }
     if (event.type === 'input' && this.#pending) {
       const pending = this.#pending;
-      if (pending.target && pending.text) this.last = this.#apply(pending.target, [{ runs: [{ text: pending.text, marks: [] }], attributes: null }]);
+      if (pending.target && pending.text) this.last = this.#apply(pending.target, [{ runs: [{ text: pending.text, marks: [] }], attributes: null }], true, () => {
+        // Native replacement may have detached the renderer's text mappings.
+        // Project the admitted patch before resolving/moving its semantic caret.
+        for (const node of pending.nodes) this.#renderer.resume(node);
+        pending.nodes = [];
+      });
       this.finish(); return true;
     }
     if (this.#pending && !['selectionchange', 'keyup'].includes(event.type)) this.finish();

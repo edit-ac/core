@@ -175,7 +175,11 @@ export class BrowserEditor {
       // Always bind fresh canonical mappings, including matching preview content.
       // Raw host DOM is never reused as an authoritative editable projection.
       this.#surface = bindEditorSurface(this.root, session.writer.engine, {
-        ...options, readOnly: true, commit: request => this.commit(request) });
+        ...options, readOnly: true, commit: request => this.commit(request),
+        onSuspend: () => {
+          this.#plainTarget?.dispose(); this.#plainTarget = undefined;
+          for (const dispose of this.#pasteTargets) dispose();
+        } });
       this.#renderer = this.#surface.renderer; this.#selection = this.#surface.selection; this.#input = this.#surface.input;
       this.#unsubscribe = session.storage.subscribe(state => {
         if (this.#destroyed) return;
@@ -272,7 +276,9 @@ export class BrowserEditor {
     } catch (error) { sync?.dispose(); outbox.close(); throw error; }
   }
   commit(request: PrepareRequest): CommitResult {
-    const session = this.#requireReady(); if (this.#readOnly) throw Error('Editor is read-only'); return session.storage.commit(request);
+    const session = this.#requireReady(); if (this.#readOnly) throw Error('Editor is read-only');
+    if (this.#input?.suspended) throw Error('Editor is suspended');
+    return session.storage.commit(request);
   }
   setReadOnly(value: boolean): void {
     if (this.#closing || this.#destroyed) throw Error('Editor is closing');
