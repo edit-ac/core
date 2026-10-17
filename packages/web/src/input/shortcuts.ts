@@ -2,7 +2,7 @@ import type {EngineHandle, PrepareRequest, CommitResult, StableRange, MarkdownCo
 export interface TypingShortcutAdapter {
   enabled: boolean;
   key(key: string): void;
-  reverse(): {node: string; offset: number} | undefined;
+  reverse(range: StableRange): {node: string; offset: number} | undefined;
   convert(range: StableRange, text: string, origin: string): CommitResult | undefined;
 }
 export interface MarkdownAdapter {

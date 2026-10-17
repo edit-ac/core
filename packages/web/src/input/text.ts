@@ -195,9 +195,11 @@ export class TextInput {
       this.shortcuts.key(key.key);
       this.#directKey=key.key;
       this.#eligibleKey=event.isTrusted&&!key.isComposing&&!key.ctrlKey&&!key.metaKey&&!key.altKey&&(key.key.length===1||key.key==='Enter');
-      if(key.key==='Backspace'&&!this.#composition.active&&!this.#readOnly) {
-        const reversed=this.shortcuts.reverse();
-        if(reversed){event.preventDefault();this.#selection.place({...reversed,bias:'right'});this.#selection.capture();return;}
+      if(key.key==='Backspace'&&event.isTrusted&&!key.ctrlKey&&!key.metaKey&&!key.altKey&&!key.shiftKey&&!this.#composition.active&&!this.#readOnly) {
+        const target=this.#selection.retain();
+        try {const reversed=target&&this.shortcuts.reverse(target.range);
+          if(reversed){event.preventDefault();this.#selection.place({...reversed,bias:'right'});this.#selection.capture();return;}
+        } finally {target?.dispose();}
       }
       if(key.key==='Enter'&&this.#eligibleKey&&!this.#composition.active&&!this.#readOnly){
         const target=this.#selection.retain();
@@ -381,9 +383,8 @@ export class TextInput {
     }
   }
   #moveShortcut(result:CommitResult): void {
-    if(!result.caret)return;
-    try{this.#selection.move(result.caret);}
-    finally{this.#engine.releaseAnchor(result.caret);}
+    try{if(result.caret)this.#selection.move(result.caret);else if(result.selection)this.#selection.move(result.selection.focus);}
+    finally{if(result.caret)this.#engine.releaseAnchor(result.caret);if(result.selection){this.#engine.releaseAnchor(result.selection.anchor);this.#engine.releaseAnchor(result.selection.focus);}}
   }
   #apply(intent: TextIntent, range: StableRange, text: string, nativeCaret?: { anchor: number; focus: number }, moveCaret = true, shortcutEligible = false): void {
     if (this.#disposed || intent.generation !== this.#generation) { intent.disposition = 'disposed'; return; }

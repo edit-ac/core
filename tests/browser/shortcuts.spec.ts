@@ -7,7 +7,7 @@ for(const [name,prefix,attribute,container,checked]of [
  ['heading','#',['heading',1],null,null],['list','-',['paragraph'],'unordered',null],['ordered','3.',['paragraph'],'ordered',null],['quote','>',['paragraph'],'quote',null],['checked','- [x]',['paragraph'],'checklist',true]
 ])test(`${name} space trigger is local, atomic and reversible`,()=>probe(name,async(page,fact)=>{
   await page.keyboard.press('Space');let s=await state(page,fact),block=s.nodes.find(n=>n.kind==='block');assert.deepEqual(block.blockAttributes,attribute);assert.equal(block.runs.map(r=>r.text).join(''),'');if(container)assert.ok(s.nodes.some(n=>n.editor?.containerAttributes?.[0]===container));if(checked!==null)assert.equal(block.editor.checked,checked);assert.equal(s.journal.length,1);assert.equal(s.history.undoGroups,1);assert.equal(s.unrelatedIdentity,true);
-  await page.keyboard.press('Backspace');s=await state(page,fact);assert.equal(s.text[0],prefix);assert.deepEqual(s.nodes[0].blockAttributes,['paragraph']);assert.equal(s.history.undoGroups,0);
+  await page.keyboard.press('Backspace');s=await state(page,fact);assert.equal(s.text[0],prefix+' ');assert.deepEqual(s.nodes[0].blockAttributes,['paragraph']);assert.equal(s.history.undoGroups,1);
 },prefix));
 test('fence Enter preserves code language and caret; code typing remains literal',()=>probe('fence',async(page,fact)=>{
   await page.keyboard.press('Enter');let s=await state(page,fact);assert.deepEqual(s.nodes[0].blockAttributes,['code','js']);assert.equal(s.journal.length,1);assert.equal(s.history.undoGroups,1);await page.keyboard.type('**literal**');s=await state(page,fact);assert.equal(s.text[0],'**literal**');assert.ok(s.nodes[0].runs.every(r=>!r.attributes.bold));

@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+import {spawnSync} from 'node:child_process';
+import {mkdir,writeFile,readFile} from 'node:fs/promises';
+import {resolve,join} from 'node:path';
+import {homedir} from 'node:os';
+import {createHash} from 'node:crypto';
+import {requireTestNode} from './test-toolchain.mjs';
+await requireTestNode();
+const output=resolve(process.env.EDITAC_PARSING_VECTORS_OUTPUT??'target/parsing-vectors');
+await mkdir(output,{recursive:true});
+const fixtures=['fixtures/markdown/commonmark-0.31.2.json','fixtures/markdown/gfm-required.json'];
+const sources=['crates/editac-markdown/src/profile.rs','crates/editac-markdown/src/import.rs','crates/editac-markdown/src/export.rs','crates/editac-markdown/tests/parser_profile.rs','crates/editac-markdown/tests/commonmark.rs','crates/editac-markdown/tests/gfm.rs','crates/editac-markdown/tests/roundtrip.rs',...fixtures];
+const pins=Object.fromEntries(await Promise.all(sources.map(async path=>[path,createHash('sha256').update(await readFile(path)).digest('hex')])));
+const args=['+1.97.1','test','-p','editac-markdown','--locked','--offline','--test','parser_profile','--test','commonmark','--test','gfm','--test','roundtrip'];
+const result=spawnSync(join(homedir(),'.cargo/bin/cargo'),args,{encoding:'utf8',env:{...process.env,CARGO_TARGET_DIR:resolve('target')}});
+const log=`${result.stdout??''}\n${result.stderr??''}`;await writeFile(join(output,'vectors.log'),log);
+const rows=[...log.matchAll(/test result: (\w+)\. (\d+) passed; (\d+) failed; (\d+) ignored/g)];
+const counts={passed:0,failed:0,skipped:0};for(const row of rows){counts.passed+=Number(row[2]);counts.failed+=Number(row[3]);counts.skipped+=Number(row[4]);}
+await writeFile(join(output,'receipt.json'),JSON.stringify({command:['cargo',...args],exit:result.status,counts,sources:pins,fixtures:await Promise.all(fixtures.map(async path=>({path,count:JSON.parse(await readFile(path)).length})))},null,2));
+console.log(`Pinned CommonMark/GFM vectors: ${JSON.stringify(counts)}; evidence ${output}`);
+assert.equal(result.error,undefined);assert.equal(result.status,0);assert.ok(rows.length===4&&counts.passed>0);assert.equal(counts.failed+counts.skipped,0);
