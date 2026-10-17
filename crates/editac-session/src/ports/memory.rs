@@ -8,6 +8,7 @@ use std::{
 #[derive(Clone, Debug)]
 pub(crate) struct State {
     pub(crate) journal: Vec<JournalEntry>,
+    pub(crate) requests: Vec<crate::receipts::RequestRecord>,
     pub(crate) receipted: Vec<UpdateId>,
     pub(crate) latest: Option<CheckpointRecord>,
     pub(crate) previous: Option<CheckpointRecord>,
@@ -47,6 +48,7 @@ impl MemoryStore {
             inner: Arc::new(Mutex::new(Inner {
                 state: State {
                     journal: vec![],
+                    requests: vec![],
                     receipted: vec![],
                     latest: None,
                     previous: None,
@@ -107,10 +109,19 @@ impl MemoryStore {
         }
     }
     fn limits(&self, state: &State) -> Result<(), PortError> {
-        if state.journal.len() > self.limits.max_records {
+        if state.journal.len() > self.limits.max_records
+            || state.requests.len() > self.limits.max_records
+        {
             return Err(PortError::ResourceLimit);
         }
-        let mut total = 0usize;
+        let mut total = state
+            .requests
+            .len()
+            .checked_mul(512)
+            .ok_or(PortError::ResourceLimit)?;
+        for record in &state.requests {
+            record.verify(&self.identity)?;
+        }
         for bytes in state.journal.iter().map(|e| e.bytes.len()).chain(
             [state.latest.as_ref(), state.previous.as_ref()]
                 .into_iter()
@@ -156,6 +167,66 @@ impl MemoryStore {
     }
 }
 impl LocalStore for MemoryStore {
+    fn request_record(
+        &self,
+        identity: &DocumentIdentity,
+        actor: &str,
+        id: &str,
+    ) -> Result<Option<crate::receipts::RequestRecord>, PortError> {
+        self.matches(identity)?;
+        let inner = self.inner.lock().map_err(|_| PortError::Unavailable)?;
+        Ok(inner
+            .state
+            .requests
+            .iter()
+            .find(|r| r.actor == actor && r.id == id)
+            .cloned())
+    }
+    fn append_request(
+        &self,
+        record: crate::receipts::RequestRecord,
+        entry: Option<JournalEntry>,
+    ) -> Result<(), PortError> {
+        record.verify(&self.identity)?;
+        if let Some(e) = &entry {
+            e.verify(&self.identity)?;
+        }
+        let update = entry
+            .as_ref()
+            .map(|e| (e.id.writer, e.id.sequence, e.id.checksum));
+        if update != record.update {
+            return Err(PortError::Integrity);
+        }
+        self.transaction(|state| {
+            if let Some(old) = state
+                .requests
+                .iter()
+                .find(|r| r.actor == record.actor && r.id == record.id)
+            {
+                return if old == &record && entry.as_ref().is_none_or(|e| state.journal.contains(e))
+                {
+                    Ok(())
+                } else {
+                    Err(PortError::Conflict)
+                };
+            }
+            if let Some(entry) = entry {
+                let last = state
+                    .journal
+                    .iter()
+                    .filter(|e| e.id.writer == entry.id.writer)
+                    .map(|e| e.id.sequence)
+                    .max()
+                    .unwrap_or(0);
+                if last.checked_add(1) != Some(entry.id.sequence) {
+                    return Err(PortError::Sequence);
+                }
+                state.journal.push(entry);
+            }
+            state.requests.push(record);
+            Ok(())
+        })
+    }
     fn capabilities(&self) -> StoreCapabilities {
         StoreCapabilities {
             durability: Durability::Volatile,
@@ -352,6 +423,21 @@ impl FaultInjectedStore {
     }
 }
 impl LocalStore for FaultInjectedStore {
+    fn append_request(
+        &self,
+        record: crate::receipts::RequestRecord,
+        entry: Option<JournalEntry>,
+    ) -> Result<(), PortError> {
+        self.0.append_request(record, entry)
+    }
+    fn request_record(
+        &self,
+        identity: &DocumentIdentity,
+        actor: &str,
+        id: &str,
+    ) -> Result<Option<crate::receipts::RequestRecord>, PortError> {
+        self.0.request_record(identity, actor, id)
+    }
     fn capabilities(&self) -> StoreCapabilities {
         self.0.capabilities()
     }

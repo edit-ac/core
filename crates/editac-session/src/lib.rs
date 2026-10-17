@@ -28,3 +28,6 @@ pub mod diagnostics;
 
 /// Host-owned public/private link contracts; no IO or semantic transactions.
 pub mod links;
+
+/// Durable actor-scoped host request results.
+pub mod receipts;
