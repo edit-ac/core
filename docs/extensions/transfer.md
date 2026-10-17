@@ -105,3 +105,28 @@ bypasses rich decoding when enabled. Formulas and source remain inert. The v1
 commands `tableFormat` and `tableRichRectangle` do not support v2 block styles or
 nested/list cells. Existing whole-atom v2 recovery is unchanged. Full cross-
 extension formatting and native clipboard qualification remain separate work.
+
+## Browser extension clipboard offers
+
+Pass `extensionClipboardCodec(registry, engine)` from `@edit-ac/web/modules`
+as a `clipboardCodecs` entry when mounting the editor. This adapter uses the
+portable registry and the editor's existing selection, readonly, prepared commit,
+history and persistence owners. It supports deferred paste without following later
+navigation. The host supplies trusted codecs; document data cannot register one.
+
+The native structured fragment has first priority. A registered
+`application/x-edit-ac-extension+json` offer then precedes Markdown, HTML and plain
+text. Malformed, inaccessible or inadmissible extension data rejects the paste
+and remains available in clipboard recovery; accompanying flavors do not silently
+replace it. Explicit literal paste bypasses the extension codec and inserts only
+plain text. Unknown types, absent codecs and future versions use the registry's
+inert carrier. `contentModules()` displays its readonly source and preservation
+status without activating the extension.
+
+Image/file captions can travel as marked companion paragraphs through the same
+prepared fragment. File metadata, reference identity, and complete inert recovery
+envelopes survive structured document copy. The current fragment schema does not
+carry registered inline-module attributes. Math and future inline atoms therefore
+have source/recovery fallback; this adapter does not qualify their formatted
+inline transfer. Atomic reference/file fallback labels must remain unmarked under
+the owning engine admission. Captions retain their ordinary paragraph owner.

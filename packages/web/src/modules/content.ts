@@ -1,4 +1,5 @@
 import { embedPresenters, type EmbedOptions } from './embeds/presenter.js';
+import { extensionSourcePresenter } from './transfer.js';
 import { attachmentPresenters, type AttachmentOptions } from './attachments/presenter.js';
 import { imagePresenters, type ImageOptions } from './images/presenter.js';
 import { decodeTableClipboard, encodeRichTableClipboard, decodeRichTableClipboard, validateRichTableCells, type TableRichCell, type TableCellBlock } from './tables/clipboard.js';
@@ -64,6 +65,7 @@ export function contentModules(options: ContentOptions = {}): ContentFactory {
   const attachments = attachmentPresenters(options);
   const embeds = embedPresenters(options);
   return context => {
+    const fallback = extensionSourcePresenter(context); if (fallback) return fallback;
     const embed = embeds(context); if (embed) return embed;
     const image = images(context); if (image) return image;
     const attachment = attachments(context); if (attachment) return attachment;
