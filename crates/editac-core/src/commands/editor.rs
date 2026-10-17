@@ -18,6 +18,12 @@ pub struct EditorPosition {
 
 #[derive(Clone, Debug)]
 pub enum EditorCommand {
+    /// Qualified extended-grapheme deletion on the disposable prepared replica.
+    DeleteGraphemeAt {
+        owner: String,
+        offset: crate::Utf16Offset,
+        backward: bool,
+    },
     /// A registered mark/inline atom envelope on an exact virtual UTF-16 range.
     CustomMarkAt {
         owner: String,
@@ -1481,6 +1487,42 @@ impl Document {
                             data: Any::Map(replacement.into()),
                         }),
                     });
+                }
+                EditorCommand::DeleteGraphemeAt {
+                    owner,
+                    offset,
+                    backward,
+                } => {
+                    let snapshot =
+                        crate::projection::ProjectionIndex::with_identity(&stage, self.identity())
+                            .read()
+                            .map_err(|_| EditorError::InvalidCommand)?;
+                    let node = snapshot
+                        .visible
+                        .iter()
+                        .find(|n| n.id == *owner)
+                        .ok_or(EditorError::UnsupportedTarget)?;
+                    let text: String = node.runs.iter().map(|r| r.text.as_str()).collect();
+                    let direction = if *backward {
+                        crate::anchors::Direction::Backward
+                    } else {
+                        crate::anchors::Direction::Forward
+                    };
+                    if let Some(range) = crate::anchors::deletion_range(&text, *offset, direction)
+                        .map_err(|_| EditorError::InvalidCommand)?
+                    {
+                        pending.push_front(EditorCommand::ResultCaretAt(EditorPosition {
+                            owner: owner.clone(),
+                            offset: range.start,
+                            bias: crate::anchors::Bias::Right,
+                        }));
+                        pending.push_front(EditorCommand::ReplaceAt {
+                            owner: owner.clone(),
+                            from: range.start,
+                            to: range.end,
+                            text: String::new(),
+                        });
+                    }
                 }
                 EditorCommand::ReplaceAt {
                     owner,

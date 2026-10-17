@@ -87,7 +87,15 @@ export class DOMSelection {
     const candidates: DOMPoint[] = [];
     for (const position of positions) {
       if (point.offset < position.start || point.offset > position.start + position.length) continue;
-      if (position.node.nodeType === 3) candidates.push({ node: position.node, offset: point.offset - position.start });
+      const atom = position.node.parentElement?.closest<HTMLElement>('[contenteditable="false"]');
+      if (atom && atom !== this.renderer.root && this.renderer.root.contains(atom)) {
+        const parts = positions.filter(p => atom.contains(p.node));
+        const first = parts[0]!, last = parts[parts.length - 1]!;
+        if (point.offset !== first.start && point.offset !== last.start + last.length) continue;
+        const parent = atom.parentNode!, index = Array.prototype.indexOf.call(parent.childNodes, atom) as number;
+        candidates.push({ node: parent, offset: index + (point.offset === first.start ? 0 : 1) });
+      }
+      else if (position.node.nodeType === 3) candidates.push({ node: position.node, offset: point.offset - position.start });
       else candidates.push(this.#boundary(position, point.offset > position.start));
     }
     return point.bias === "left" ? candidates[0] : candidates[candidates.length - 1];
@@ -106,6 +114,27 @@ export class DOMSelection {
     const element = native.anchorNode.childNodes[Math.min(native.anchorOffset, native.focusOffset)];
     const id = element && this.renderer.getNodeId(element);
     return id && (element as HTMLElement).contentEditable === 'false' && this.renderer.getBlock(id) === element ? id : undefined;
+  }
+  /** Selection-first deletion for renderer-owned noneditable atoms. */
+  selectAdjacentAtom(backward: boolean): boolean {
+    const native = this.#native();
+    if (this.#disposed || !native?.isCollapsed || !native.anchorNode || !this.#inside(native)) return false;
+    const point = this.toModel(native.anchorNode, native.anchorOffset, backward ? 'left' : 'right');
+    if (!point) return false;
+    for (const element of this.renderer.root.querySelectorAll<HTMLElement>('[contenteditable="false"]')) {
+      if (!element.parentNode || element.closest('[data-module-view]') || element.parentElement?.closest('[contenteditable="false"]')) continue;
+      // Static checklist markers and host decorations are not semantic atoms.
+      const owner = this.renderer.getNodeId(element);
+      if (!element.hasAttribute('data-module-type') && (!owner || this.renderer.getBlock(owner) !== element)) continue;
+      const parent = element.parentNode, index = Array.prototype.indexOf.call(parent.childNodes, element) as number;
+      const edge = this.toModel(parent, index + (backward ? 1 : 0), backward ? 'left' : 'right');
+      if (!edge || edge.node !== point.node || edge.offset !== point.offset) continue;
+      const range = this.renderer.root.ownerDocument.createRange(); range.selectNode(element);
+      native.removeAllRanges(); native.addRange(range); this.clear();
+      if (!this.selectedNode()) this.capture();
+      return true;
+    }
+    return false;
   }
   capture(affinity?: { anchor: Bias; focus: Bias }): CaptureResult {
     if (this.#disposed) return { type: "unsupported", reason: "selection bridge disposed" };

@@ -46,7 +46,7 @@ function effects(state,count,keyboard=0){
  const local=p=>p.origin.startsWith('editac:local:text-input:')||p.origin.startsWith('editac:local:keyboard:');
  const commits=state.patches.filter(p=>local(p)&&p.update),journal=state.journal.filter(local);
  assert.equal(commits.length,count);assert.equal(journal.length,count);
- // Selected deletions now belong to the structural keyboard bridge. Keep
+ // Character and selected deletions belong to the prepared keyboard bridge. Keep
  // exact owner counts, rather than dropping their update/journal assertions.
  for(const family of ['text-input','keyboard']){
   const expected=family==='keyboard'?keyboard:count-keyboard,prefix=`editac:local:${family}:`;
@@ -59,16 +59,16 @@ function content(state,text,caret=text.length){assert.equal(state.text[0],text);
 
 
 test('native-typing: agreement and attributable effects after every physical edit',()=>probe('native-typing',async(page,fact)=>{
- let text='alpha',count=0;
+ let text='alpha',count=0,keyboard=0;
  for(const key of ['x','x','Backspace','y','Backspace','Backspace']) {
   await page.keyboard.press(key);text=key==='Backspace'?text.slice(0,-1):text+key;
-  const state=await observe(page,fact);content(state,text);effects(state,++count);
+  const state=await observe(page,fact);content(state,text);if(key==='Backspace')keyboard++;effects(state,++count,keyboard);
  }
  const state=fact.snapshots.at(-1);assert.ok(state.trace.some(t=>t.type==='beforeinput'&&t.trusted));assert.ok(state.trace.some(t=>t.type==='renderer-echo'&&t.count>0));
 }));
 test('native-forward-delete: browser deletion range preserves caret and unrelated nodes',()=>probe('native-forward-delete',async(page,fact)=>{
- await page.evaluate(()=>window.inputFixture.select(window.inputFixture.ids[0],1));await page.keyboard.press('Delete');let state=await observe(page,fact);content(state,'apha',1);effects(state,1);
- await page.keyboard.press('Delete');state=await observe(page,fact);content(state,'aha',1);effects(state,2);
+ await page.evaluate(()=>window.inputFixture.select(window.inputFixture.ids[0],1));await page.keyboard.press('Delete');let state=await observe(page,fact);content(state,'apha',1);effects(state,1,1);
+ await page.keyboard.press('Delete');state=await observe(page,fact);content(state,'aha',1);effects(state,2,2);
 }));
 for(const backward of [false,true])test(`native-selected-${backward?'backward':'forward'} replacement`,()=>probe('native-selected-'+backward,async(page,fact)=>{
  await page.evaluate(backward=>{const f=window.inputFixture;f.select(f.ids[0],backward?4:1,backward?1:4);},backward);
@@ -80,13 +80,13 @@ for(const key of ['Backspace','Delete'])test(`native-selected deletion ${key}`,(
 test('native-empty-block: delete final character then type again',()=>probe('native-empty-block',async(page,fact)=>{
  await page.evaluate(()=>{const f=window.inputFixture;f.select(f.ids[0],0,5);});await page.keyboard.press('Backspace');let state=await observe(page,fact);content(state,'',0);effects(state,1,1);
  await page.keyboard.press('q');state=await observe(page,fact);content(state,'q',1);effects(state,2,1);
- await page.keyboard.press('Backspace');state=await observe(page,fact);content(state,'',0);effects(state,3,1);
- await page.keyboard.press('z');state=await observe(page,fact);content(state,'z',1);effects(state,4,1);
+ await page.keyboard.press('Backspace');state=await observe(page,fact);content(state,'',0);effects(state,3,2);
+ await page.keyboard.press('z');state=await observe(page,fact);content(state,'z',1);effects(state,4,2);
 }));
 test('native-emoji: browser deletion never splits UTF-16 pairs',()=>probe('native-emoji',async(page,fact)=>{
  fact.provenance='prepared ordinary emoji insertion; actual browser Backspace (Firefox insertText automation uses composition, outside WEB-1.4)';
  await page.evaluate(()=>window.inputFixture.event('beforeinput',{inputType:'insertText',data:'😀',cancelable:true}));let state=await observe(page,fact);content(state,'alpha😀',7);effects(state,1);
- await page.keyboard.press('Backspace');state=await observe(page,fact);content(state,'alpha',5);effects(state,2);
+ await page.keyboard.press('Backspace');state=await observe(page,fact);content(state,'alpha',5);effects(state,2,1);
 }));
 test('native-boundary: deletion no-op has no update/history/journal effect',()=>probe('native-boundary',async(page,fact)=>{
  await page.evaluate(()=>{const f=window.inputFixture;f.select(f.ids[0],0);});await page.keyboard.press('Backspace');const state=await observe(page,fact);content(state,'alpha',0);effects(state,0);
@@ -105,7 +105,7 @@ for(const order of ['input-first','observer-first'])test(`prepared ordinary nati
  await page.evaluate(()=>{const f=window.inputFixture;f.event('beforeinput',{inputType:'insertText',data:'X',cancelable:false});f.mutate('alphaXX');f.event('input',{inputType:'insertText',data:'X'});});state=await observe(page,fact);content(state,'alphaXX');effects(state,2);
 }));
 test('prepared cancelable target deletion uses the supplied mapped range',()=>probe('target-range',async(page,fact)=>{
- await page.evaluate(()=>{const f=window.inputFixture;f.select(f.ids[0],3);const start=f.selection.toDOM({node:f.ids[0],offset:2,bias:'right'}),end=f.selection.toDOM({node:f.ids[0],offset:3,bias:'left'});const e=new InputEvent('beforeinput',{bubbles:true,cancelable:true,inputType:'deleteContentBackward'});Object.defineProperty(e,'getTargetRanges',{value:()=>[new StaticRange({startContainer:start.node,startOffset:start.offset,endContainer:end.node,endOffset:end.offset})]});f.root.dispatchEvent(e);if(!e.defaultPrevented)throw Error('Deletion not owned');});const state=await observe(page,fact);content(state,'alha',2);effects(state,1);
+ await page.evaluate(()=>{const f=window.inputFixture;f.select(f.ids[0],3);const start=f.selection.toDOM({node:f.ids[0],offset:2,bias:'right'}),end=f.selection.toDOM({node:f.ids[0],offset:3,bias:'left'});const e=new InputEvent('beforeinput',{bubbles:true,cancelable:true,inputType:'deleteContentBackward'});Object.defineProperty(e,'getTargetRanges',{value:()=>[new StaticRange({startContainer:start.node,startOffset:start.offset,endContainer:end.node,endOffset:end.offset})]});f.root.dispatchEvent(e);if(!e.defaultPrevented)throw Error('Deletion not owned');});const state=await observe(page,fact);content(state,'alha',2);effects(state,1,1);
 }));
 test('prepared renderer echo leaves an independent native edit in the same turn',()=>probe('renderer-echo',async(page,fact)=>{
  await page.evaluate(async()=>{const f=window.inputFixture;f.event('beforeinput',{inputType:'insertText',data:'X',cancelable:false});f.mutate('alphaX');await f.remote(0,'!',f.ids[1]);f.event('input',{inputType:'insertText',data:'X'});});const state=await observe(page,fact);content(state,'alphaX');effects(state,1);assert.equal(state.text[1],'!independent');assert.ok(state.trace.some(t=>t.type==='renderer-echo'));

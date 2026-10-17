@@ -332,6 +332,11 @@ pub enum TableAlignment {
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
 pub enum Command {
+    DeleteGraphemeAt {
+        owner: String,
+        offset: u32,
+        backward: bool,
+    },
     CustomMarkAt {
         owner: String,
         from: u32,
@@ -561,6 +566,7 @@ impl Command {
     pub const TYPES: &'static [&'static str] = &[
         "customMarkAt",
         "extensionSource",
+        "deleteGraphemeAt",
         "replaceAt",
         "markAt",
         "selectionAt",
@@ -621,6 +627,15 @@ impl Command {
                     .map_err(|e| kernel("extensionSource", e))?,
                 at: anchor(&at)?,
                 source,
+            },
+            Command::DeleteGraphemeAt {
+                owner,
+                offset,
+                backward,
+            } => EditorCommand::DeleteGraphemeAt {
+                owner,
+                offset: Utf16Offset(offset),
+                backward,
             },
             Command::ReplaceAt {
                 owner,

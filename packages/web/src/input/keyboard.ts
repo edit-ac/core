@@ -12,7 +12,7 @@ const length = (node: ProjectedNode) => node.runs.reduce((n, run) => n + run.tex
 
 /** Called only after the sole input owner has resolved composition precedence.
  * All content changes are applicability-checked prepared engine transactions.
- * Native visual navigation and ordinary grapheme deletion stay browser-owned.
+ * Native visual navigation and platform word/line ranges stay browser-owned.
  */
 export class KeyboardInput {
   #disposed = false;
@@ -41,7 +41,7 @@ export class KeyboardInput {
     }
     if (event.type === 'beforeinput') {
       this.resetFocusEscape();
-      return ({ insertParagraph: 'enter', insertLineBreak: 'break', historyUndo: 'undo', historyRedo: 'redo' } as const)[(event as InputEvent).inputType as 'insertParagraph'];
+      return ({ deleteContentBackward: 'backward', deleteContentForward: 'forward', insertParagraph: 'enter', insertLineBreak: 'break', historyUndo: 'undo', historyRedo: 'redo' } as const)[(event as InputEvent).inputType as 'insertParagraph'];
     }
     if (event.type !== 'keydown') return undefined;
     const key = event as KeyboardEvent;
@@ -112,7 +112,7 @@ export class KeyboardInput {
       if (before !== this.#engine.read().revision && pending) this.formatting.remember(pending);
       return { disposition: before === this.#engine.read().revision ? 'handled' : 'committed' };
     }
-    if (action === 'enter') {
+    if (action === 'enter' || action === 'backward' || action === 'forward') {
       // A native block-end point must stay on that owner when adjacent split
       // blocks share a source cut. Keep starts right-affine and ends left-affine
       // while capturing this synchronous structural intent; engine routing stays
@@ -128,6 +128,7 @@ export class KeyboardInput {
         this.#selection.capture({ anchor: bias(native.anchorNode, native.anchorOffset), focus: bias(native.focusNode, native.focusOffset) });
       }
     }
+    if ((action === 'backward' || action === 'forward') && this.#selection.selectAdjacentAtom(action === 'backward')) return { disposition: 'handled' };
     const target = this.#selection.retain();
     if (!target) return rejected('unmapped-selection');
     const tokens: AnchorToken[] = [];
@@ -143,6 +144,16 @@ export class KeyboardInput {
       const forward = ai < bi || ai === bi && a.offset <= b.offset;
       const start = forward ? a : b, end = forward ? b : a, si = Math.min(ai, bi), ei = Math.max(ai, bi);
       const node = nodes[si]!, collapsed = si === ei && start.offset === end.offset;
+      if (!collapsed && si !== ei && (action === 'backward' || action === 'forward')) {
+        const request: PrepareRequest = { kind: 'fragment', origin, range: target.range, blocks: [{ attributes: null, runs: [] }] };
+        if (!this.#engine.can(request)) return rejected('inapplicable-command');
+        this.#engine.history({ type: 'explicit' });
+        try {
+          const result = this.#commit(request);
+          if (result.caret) { tokens.push(result.caret); this.#move(result.caret); }
+          return { disposition: 'committed' };
+        } finally { this.#engine.history({ type: 'boundary' }); }
+      }
       const commands: EditorCommand[] = [];
       const caret = anchor(start.node, start.offset);
       if (action === 'indent' || action === 'outdent') {
@@ -164,6 +175,14 @@ export class KeyboardInput {
         } else return undefined;
       } else {
         if ((action === 'backward' || action === 'forward') && collapsed) {
+          const adjacent = action === 'backward' && start.offset === 0 ? nodes[si - 1] : action === 'forward' && start.offset === length(node) ? nodes[si + 1] : undefined;
+          if (adjacent && kind(adjacent) === 'separator') {
+            const element = this.#renderer.getBlock(adjacent.id);
+            if (!element) return rejected('unmapped-atom');
+            const range = this.#renderer.root.ownerDocument.createRange(); range.selectNode(element);
+            const native = this.#renderer.root.ownerDocument.getSelection(); native?.removeAllRanges(); native?.addRange(range);
+            this.#selection.clear(); return { disposition: 'handled' };
+          }
           if (action === 'backward' && start.offset === 0) {
             const parent = this.#engine.read().visible.find(n => n.id === node.parent);
             if (parent?.kind === 'list' || parent?.kind === 'quote') commands.push({ type: 'backspace', owner: node.id, at: caret });
@@ -172,7 +191,7 @@ export class KeyboardInput {
           } else if (action === 'forward' && start.offset === length(node)) {
             if (nodes[si + 1]?.parent === node.parent) commands.push({ type: 'join', first: node.id, second: nodes[si + 1]!.id });
             else return { disposition: 'handled' };
-          } else return undefined;
+          } else commands.push({ type: 'deleteGraphemeAt', owner: node.id, offset: start.offset, backward: action === 'backward' });
         } else {
           if (!collapsed) {
             if (si === ei) commands.push({ type: 'delete', range: target.range });

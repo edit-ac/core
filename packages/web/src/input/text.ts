@@ -1,5 +1,5 @@
 import { errorMessage } from '../errors.js';
-import type { AnchorToken, CommitResult, EngineHandle, PatchSubscription, PrepareRequest, StableRange } from '@edit-ac/core';
+import type { AnchorToken, CommitResult, EngineHandle, PatchSubscription, PrepareRequest, StableRange, EditorPosition } from '@edit-ac/core';
 import type { DOMRenderer } from '../dom/render.js';
 import type { DOMSelection } from '../dom/selection.js';
 import { literalShortcuts, type TypingShortcutAdapter } from './shortcuts.js';
@@ -19,7 +19,7 @@ export interface TextIntent {
 interface Trace { type: string; trusted: boolean; generation: number; intent?: string; count?: number; inputType?: string; cancelable?: boolean }
 interface NativeEdit { intent: TextIntent; node: string; before: string; range: StableRange; text: string; captured: string; caret?: { anchor: number; focus: number } }
 let editorSequence = 0;
-const ordinary = new Set(['insertText', 'deleteContentBackward', 'deleteContentForward']);
+const ordinary = new Set(['insertText', 'deleteContentBackward', 'deleteContentForward', 'deleteWordBackward', 'deleteWordForward', 'deleteSoftLineBackward', 'deleteSoftLineForward', 'deleteHardLineBackward', 'deleteHardLineForward']);
 
 /** Ordinary input adapter. Rust owns every committed edit; DOM text is read only
  * for a bounded native intent in one mapped text block. Unsupported mutations
@@ -35,6 +35,7 @@ export class TextInput {
   readonly #subscription: PatchSubscription;
   readonly #observer: MutationObserver;
   readonly #events = new WeakMap<Event, TextIntent>();
+  readonly #entrySelections = new WeakMap<TextIntent, { anchor: EditorPosition; focus: EditorPosition }>();
   readonly #listeners: [string, EventListener][] = [];
   shortcuts: TypingShortcutAdapter;
   references: import('../modules/references.js').ReferencePresenter | undefined;
@@ -108,6 +109,17 @@ export class TextInput {
   }
   #create(origin: TextIntent['origin']): TextIntent {
     const intent: TextIntent = { id: `${this.#scope}/${this.#generation}/${++this.#sequence}`, generation: this.#generation, origin, disposition: 'native-pending' };
+    // Capture the user selection before native word/line deletion supplies a
+    // wider affected range. History owns both entry and result bookmarks.
+    const native = this.#renderer.root.ownerDocument.getSelection();
+    if ((origin === 'key' || origin === 'beforeinput') && native?.anchorNode && native.focusNode) {
+      const a = this.#selection.toModel(native.anchorNode, native.anchorOffset);
+      const b = this.#selection.toModel(native.focusNode, native.focusOffset);
+      if (a && b) this.#entrySelections.set(intent, {
+        anchor: { owner: a.node, offset: a.offset, bias: a.bias },
+        focus: { owner: b.node, offset: b.offset, bias: b.bias },
+      });
+    }
     this.intents.push(intent); if (this.intents.length > 128) this.intents.shift(); return intent;
   }
   #record(trace: Trace): void { this.trace.push(trace); if (this.trace.length > 256) this.trace.shift(); }
@@ -182,7 +194,7 @@ export class TextInput {
     if (action && (event.type === 'keydown' || event.type === 'beforeinput' && event.cancelable)) {
       this.#flushNative();
       const intent = event.type === 'beforeinput' ? this.#key ?? this.#create('beforeinput') : this.#create('key');
-      const result = intent.disposition === 'native-pending' ? this.keyboard.execute(action, `keyboard:${intent.id}`) : { disposition: intent.disposition };
+      const result = this.#readOnly ? { disposition: 'rejected' as const, reason: 'read-only' } : intent.disposition === 'native-pending' ? this.keyboard.execute(action, `keyboard:${intent.id}`) : { disposition: intent.disposition };
       if (result) {
         if (event.cancelable) event.preventDefault();
         Object.assign(intent, result); this.#events.set(event, intent); trace.intent = intent.id;
@@ -353,7 +365,15 @@ export class TextInput {
       this.keyboard.resetFocusEscape();
       this.#engine.history({ type: 'explicit' });
       const typing = this.keyboard.formatting.typing(range);
-      this.#commit(this.keyboard.formatting.replacement(range, text, `text-input:${intent.id}`));
+      const entry = this.#entrySelections.get(intent);
+      const request: PrepareRequest = !text && entry ? { kind: 'editor', origin: `text-input:${intent.id}`, commands: [
+        { type: 'historySelectionAt', ...entry },
+        { type: 'delete', range },
+        { type: 'selectionAt', anchor: { owner: a.node, offset: nativeCaret?.anchor ?? Math.min(a.offset, b.offset), bias: 'right' },
+          focus: { owner: a.node, offset: nativeCaret?.focus ?? Math.min(a.offset, b.offset), bias: 'right' } },
+      ] } : this.keyboard.formatting.replacement(range, text, `text-input:${intent.id}`);
+      const result = this.#commit(request);
+      if (result.selection) { this.#engine.releaseAnchor(result.selection.anchor); this.#engine.releaseAnchor(result.selection.focus); }
       intent.disposition = 'committed'; intent.text = text;
       const caret = this.#engine.resolve(caretAnchor);
       if (nativeCaret) {

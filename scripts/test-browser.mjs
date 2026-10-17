@@ -47,6 +47,7 @@ suites['review-concurrent'] = ['tests/browser/review-concurrent.spec.ts'];
 suites['history-review'] = ['tests/browser/history-review.spec.ts'];
 suites['editing-presenters'] = ['tests/browser/editing-presenters.spec.ts'];
 suites['editing-lifetime'] = ['tests/browser/editing-lifetime.spec.ts'];
+suites['interaction-deletion'] = ['tests/browser/interactions/deletion.spec.ts'];
 suites['interaction-formatting'] = ['tests/browser/interactions/formatting.spec.ts'];
 suites['interaction-breaks'] = ['tests/browser/interactions/breaks.spec.ts'];
 suites['interaction-break-tables'] = ['tests/browser/interactions/break-tables.spec.ts'];
