@@ -14,6 +14,7 @@ import type { RetainedSelection } from './dom/selection.js';
 type LocalSession = Awaited<ReturnType<typeof recoverLocalDocument>>;
 type RecoveryOptions = Parameters<typeof recoverLocalDocument>[0];
 export interface EditorOptions extends RecoveryOptions {
+  search?: import('./modules/search.js').DocumentSearchFactory;
   markdown?: import('./input/shortcuts.js').MarkdownAdapter;
   codeHighlight?: import("./modules/code/presenter.js").CodeHighlightFactory;
   content?: import('./modules/content.js').ContentFactory;
@@ -186,6 +187,7 @@ export class BrowserEditor {
   #requireReady(): LocalSession {
     if (this.#closing || this.#destroyed || !this.state.ready || !this.#session) throw Error('Editor is not ready'); return this.#session;
   }
+  get search(): import('./modules/search.js').DocumentSearchPresenter | undefined { return this.#input?.search; }
   get reorder(): import('./modules/reorder.js').ReorderPresenter | undefined { return this.#input?.reorder; }
   get references(): import('./modules/references.js').ReferencePresenter | undefined { return this.#input?.references; }
   get slash(): import('./modules/slash.js').SlashPresenter | undefined { return this.#input?.slash; }

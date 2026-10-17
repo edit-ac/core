@@ -7,6 +7,7 @@ import type { ModuleRuntime, ModuleRuntimeOptions } from './modules/runtime.js';
 import type { ClipboardCodec } from './clipboard/fragment.js';
 
 export interface EditorSurfaceOptions {
+  search?: import('./modules/search.js').DocumentSearchFactory;
   markdown?: import('./input/shortcuts.js').MarkdownAdapter;
   codeHighlight?: import("./modules/code/presenter.js").CodeHighlightFactory;
   content?: import('./modules/content.js').ContentFactory;
@@ -27,6 +28,7 @@ export interface EditorSurfaceOptions {
   commit?: (request: PrepareRequest) => CommitResult;
 }
 export interface EditorSurface {
+  readonly search: import('./modules/search.js').DocumentSearchPresenter | undefined;
   readonly reorder: import('./modules/reorder.js').ReorderPresenter | undefined;
   readonly references: import('./modules/references.js').ReferencePresenter | undefined;
   readonly slash: import('./modules/slash.js').SlashPresenter | undefined;
@@ -66,6 +68,7 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
     links = options.links?.(root, engine, commit);
     input = new TextInput(renderer, selection, engine,
       links?.commit ?? commit, options.clipboardCodecs ?? []);
+    if (options.search) input.attachSearch(options.search);
     if (options.reorder) input.attachReorder(options.reorder);
     if (options.references) input.attachReferences(options.references);
     if (options.slash) input.attachSlash(options.slash);
@@ -97,6 +100,7 @@ export function mountEditorSurface(root: HTMLElement, engine: EngineHandle, opti
     let disposed = false;
     const requireLive = () => { if (disposed) throw Error('Editor surface is disposed'); };
     return {
+      get search() { return binding.input.search; },
       get reorder() { return binding.input.reorder; },
       get references() { return binding.input.references; },
       get slash() { return binding.input.slash; },

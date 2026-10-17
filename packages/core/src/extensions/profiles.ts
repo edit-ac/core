@@ -220,7 +220,7 @@ export const FIRST_PARTY_FEATURES: readonly Readonly<ProfileFeature>[] = /* @__P
   feature('slash','07/21',['commands']), feature('references','07/21',['commands','host-resolver']),
   feature('reorder','07/21',['commands']), feature('images','07/21',['source-fallback']),
   feature('tables','07/21',['commands','source-fallback']), feature('math','07/21',['source-fallback']),
-  feature('search','desktop-search',['commands'],'contract-fixture'),
+  feature('search','25-rich-content',['commands']),
   feature('code','25-rich-content',['source-fallback'],'contract-fixture'),
   feature('pairs','desktop-editing',['commands'],'contract-fixture'),
 ]))();

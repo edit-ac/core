@@ -53,3 +53,6 @@ export type { AttachmentDescriptor, AttachmentState, AttachmentAction, Attachmen
 
 export { embedPresenters } from './embeds/presenter.js';
 export type { EmbedDescriptor, EmbedTemplate, EmbedOptions } from './embeds/presenter.js';
+
+export { documentSearch, DocumentSearchPresenter } from './search.js';
+export type { DocumentSearchContext, DocumentSearchOptions, DocumentSearchFactory } from './search.js';

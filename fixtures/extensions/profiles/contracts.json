@@ -263,8 +263,8 @@
           "priority": 100
         }
       ],
-      "qualification": "contract-fixture",
-      "owner": "desktop-search",
+      "qualification": "qualified",
+      "owner": "25-rich-content",
       "ownership": {
         "focus": "host",
         "nestedControls": "exclude",

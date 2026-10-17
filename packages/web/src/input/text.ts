@@ -338,6 +338,13 @@ export class TextInput {
     finally { this.#engine.releaseAnchor(caretAnchor); }
   }
   #release(range: StableRange): void { this.#engine.releaseAnchor(range.anchor); this.#engine.releaseAnchor(range.focus); }
+  search: import('../modules/search.js').DocumentSearchPresenter | undefined;
+  attachSearch(factory: import('../modules/search.js').DocumentSearchFactory): void {
+    if (this.search || this.#disposed) throw Error('Search presenter already attached or disposed');
+    this.search = factory({ root: this.#renderer.root, selection: this.#selection, engine: this.#engine, commit: this.#commit,
+      blocked: () => this.#composition.active || !!this.slash?.open || !!this.references?.open });
+    this.search.setReadOnly(this.#readOnly);
+  }
   attachReorder(factory: import('../modules/reorder.js').ReorderFactory): void {
     if (this.reorder || this.#disposed) throw Error('Reorder presenter already attached or disposed');
     this.reorder = factory({ root: this.#renderer.root, selection: this.#selection, engine: this.#engine, commit: this.#commit, copyDrop: (event,target) => {
@@ -357,7 +364,7 @@ export class TextInput {
     this.slash.setReadOnly(this.#readOnly);
   }
   setReadOnly(value: boolean): void {
-    this.reorder?.setReadOnly(value); this.slash?.setReadOnly(value); this.references?.setReadOnly(value);
+    this.search?.setReadOnly(value); this.reorder?.setReadOnly(value); this.slash?.setReadOnly(value); this.references?.setReadOnly(value);
     if (value) {
       this.clipboard.cancel();
       const owner = this.#composition.owner;
@@ -379,7 +386,7 @@ export class TextInput {
   }
   dispose(): void {
     if (this.#disposed) return;
-    this.reorder?.dispose(); this.slash?.dispose(); this.references?.dispose();
+    this.search?.dispose(); this.reorder?.dispose(); this.slash?.dispose(); this.references?.dispose();
     this.#composition.finish('dispose'); this.#composition.dispose(); this.keyboard.dispose(); this.clipboard.dispose();
     this.#disposed = true; this.#generation++; this.#observer.disconnect(); this.#subscription.dispose();
     this.#renderer.patchBoundary = undefined; this.#renderer.setReadOnly(true);
