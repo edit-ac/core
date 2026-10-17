@@ -1,11 +1,12 @@
+import { FormattingInput, type ToolbarTarget } from '../commands/formatting.js';
+export type { ToolbarTarget } from '../commands/formatting.js';
 import { errorMessage, rejected } from '../errors.js';
-import type { AnchorToken, CommitResult, EditorCommand, EngineHandle, MarkCommand, PrepareRequest, ProjectedNode, StableRange } from '@edit-ac/core';
+import type { AnchorToken, CommitResult, EditorCommand, EngineHandle, PrepareRequest, ProjectedNode, StableRange } from '@edit-ac/core';
 import type { DOMRenderer } from '../dom/render.js';
 import type { DOMSelection, RetainedSelection } from '../dom/selection.js';
 
 export type KeyboardAction = 'enter' | 'break' | 'backward' | 'forward' | 'indent' | 'outdent' | 'undo' | 'redo' | 'bold' | 'italic' | 'underline' | 'strike';
 export interface CommandResult { disposition: 'committed' | 'handled' | 'rejected'; reason?: string }
-export interface ToolbarTarget { readonly active: boolean; applicable(mark: MarkCommand['mark']): boolean; format(mark: MarkCommand['mark']): CommandResult; dispose(): void }
 const kind = (node: ProjectedNode) => Array.isArray(node.blockAttributes) ? node.blockAttributes[0] : undefined;
 const length = (node: ProjectedNode) => node.runs.reduce((n, run) => n + run.text.length, 0);
 
@@ -17,7 +18,7 @@ export class KeyboardInput {
   #disposed = false;
   #escape = false;
   #sequence = 0;
-  readonly #targets = new Set<RetainedSelection>();
+  readonly formatting: FormattingInput;
   readonly #renderer: DOMRenderer;
   readonly #selection: DOMSelection;
   readonly #engine: EngineHandle;
@@ -30,7 +31,8 @@ export class KeyboardInput {
     this.#selection = selection;
     this.#engine = engine;
     this.#commit = commit;
-    this.#blocked = blocked;}
+    this.#blocked = blocked;
+    this.formatting = new FormattingInput(renderer, selection, engine, commit, blocked);}
 
   action(event: Event): KeyboardAction | undefined {
     if (event.defaultPrevented) {
@@ -96,6 +98,7 @@ export class KeyboardInput {
     if (action === 'undo' || action === 'redo') {
       this.#engine.history({ type: 'boundary' });
       const before = this.#engine.read().revision;
+      const pending = this.#selection.current && this.formatting.typing(this.#selection.current.range);
       const result = this.#engine.history({ type: action });
       if (result.selection) {
         const selection = result.selection;
@@ -106,6 +109,7 @@ export class KeyboardInput {
           this.#engine.releaseAnchor(selection.focus);
         }
       } else this.#selection.restore();
+      if (before !== this.#engine.read().revision && pending) this.formatting.remember(pending);
       return { disposition: before === this.#engine.read().revision ? 'handled' : 'committed' };
     }
     if (action === 'enter') {
@@ -201,6 +205,7 @@ export class KeyboardInput {
       const request: PrepareRequest = { kind: 'editor', origin, commands };
       if (!this.#engine.can(request)) return action === 'indent' || action === 'outdent' ? undefined : rejected('inapplicable-command');
       this.#engine.history({ type: 'explicit' });
+      const pending = (action === 'enter' || action === 'break') ? this.formatting.typing(target.range) : undefined;
       const result = this.#commit(request);
       if (result.caret) tokens.push(result.caret);
       // Indentation preserves an expanded range/direction; structural edits use
@@ -217,26 +222,14 @@ export class KeyboardInput {
           try { this.#move(after); } finally { this.#engine.releaseAnchor(after); }
         }
       } else this.#move(caret);
+      if (pending) { delete pending.link; delete pending.code; this.formatting.remember(pending); }
       return { disposition: 'committed' };
     } catch (error) { return rejected(errorMessage(error)); }
     finally { for (const token of tokens) this.#engine.releaseAnchor(token); target.dispose(); }
   }
 
-  captureToolbar(): ToolbarTarget | undefined {
-    if (this.#disposed || this.#blocked()) return undefined;
-    const target = this.#selection.retain(); if (!target) return undefined;
-    this.#targets.add(target);
-    const request = (mark: MarkCommand['mark']): PrepareRequest => ({ kind: 'format', origin: `toolbar:${++this.#sequence}`, marks: [{ range: target.range, mark, action: 'toggle' }], blocks: [] });
-    const applicable = (mark: MarkCommand['mark']) => !this.#disposed && !this.#blocked() && target.active && this.#engine.can(request(mark));
-    return { get active() { return target.active; }, applicable,
-      format: mark => {
-        this.resetFocusEscape();
-        if (!applicable(mark)) return rejected('inapplicable-toolbar-target');
-        try { this.#engine.history({ type: 'explicit' }); this.#commit(request(mark)); this.#renderer.root.focus(); this.#restore(target); return { disposition: 'committed' }; }
-        catch (error) { return rejected(errorMessage(error)); }
-      }, dispose: () => { target.dispose(); this.#targets.delete(target); } };
-  }
+  captureToolbar(): ToolbarTarget | undefined { this.resetFocusEscape(); return this.formatting.capture(); }
   #move(token: AnchorToken): void { this.#selection.move(token); }
   #restore(target: RetainedSelection): void { this.#selection.restoreRetained(target); }
-  dispose(): void { if (this.#disposed) return; this.#disposed = true; for (const target of this.#targets) target.dispose(); this.#targets.clear(); }
+  dispose(): void { if (this.#disposed) return; this.#disposed = true; this.formatting.dispose(); }
 }

@@ -324,8 +324,10 @@ export class TextInput {
     if (a.node !== b.node) {
       // The shared fragment preparer owns structural replacement, including
       // whole-document ranges ending in an empty block and atomic rejection.
+      const typing = this.keyboard.formatting.typing(range);
+      const marks = Object.entries(typing).map(([mark, value]) => ({ mark: mark as import('@edit-ac/core').MarkCommand['mark'], ...(mark === 'link' ? { href: String(value) } : {}) }));
       const request: PrepareRequest = { kind: 'fragment', origin: `text-input:${intent.id}`, range,
-        blocks: [{ attributes: null, runs: text ? [{ text, marks: [] }] : [] }] };
+        blocks: [{ attributes: null, runs: text ? [{ text, marks }] : [] }] };
       try {
         if (!this.#engine.can(request)) { this.#reject(intent, 'unsupported-ordinary-range'); return; }
         this.keyboard.resetFocusEscape(); this.#engine.history({type:'explicit'});
@@ -334,6 +336,7 @@ export class TextInput {
         if (result.caret) {
           try { this.#selection.move(result.caret); } finally { this.#engine.releaseAnchor(result.caret); }
         } else this.#selection.restore();
+        this.keyboard.formatting.remember(typing);
       } catch(error) { this.#reject(intent,errorMessage(error)); }
       finally { this.#engine.history({type:'boundary'}); }
       return;
@@ -349,7 +352,8 @@ export class TextInput {
       // neither necessarily reaches KeyboardInput.action through beforeinput.
       this.keyboard.resetFocusEscape();
       this.#engine.history({ type: 'explicit' });
-      this.#commit({ kind: 'text', origin: `text-input:${intent.id}`, command: { type: 'replace', range, text } });
+      const typing = this.keyboard.formatting.typing(range);
+      this.#commit(this.keyboard.formatting.replacement(range, text, `text-input:${intent.id}`));
       intent.disposition = 'committed'; intent.text = text;
       const caret = this.#engine.resolve(caretAnchor);
       if (nativeCaret) {
@@ -359,6 +363,7 @@ export class TextInput {
         this.#selection.place({ ...caret, bias: 'right' });
       }
       this.#selection.capture();
+      this.keyboard.formatting.remember(typing);
       this.slash?.typed(a.node, a.offset, text, !!slashEligible && a.offset === b.offset);
       this.references?.typed(a.node, a.offset, text, shortcutEligible && a.offset === b.offset);
     } catch (error) { this.#reject(intent, errorMessage(error)); intent.text = text; }

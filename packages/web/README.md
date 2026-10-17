@@ -202,3 +202,23 @@ This presenter does not publish private metadata or implement target activation.
 Use `@edit-ac/web/links` for `linkEnrichment`, `LinkEnrichment`, `privateReferenceDisplay`, `PrivateReferenceView` and `bindLinkActivation`, plus the shared records and helpers re-exported from `@edit-ac/core/links`. These public imports are inert until explicitly configured. Existing root `linkEnrichment` and modules reference exports remain compatible.
 
 Hosts supply current principal/tenant/authority, owning document/revision/cancellation identity, permissions and finite policies. Enrichment calls only host-owned ports under disabled/local-paste/explicit-refresh settings. Rendering/open/remote/replay/history initiate no lookup. Keep private fields in per-viewer cache/display state, revoke assets and remove stale views on context changes, and use vetted local raster asset handles. Shared-label publication is a deliberate separate authorized action. Readonly can permit navigation without document mutation. See the core package's portable link section for actual-connection egress obligations, cache policy and the headless native/TUI handoff; neither browser ports nor prepared fixtures claim deployed backend enforcement.
+
+Capture a toolbar target with `editor.captureToolbar()` (also available on a
+mounted surface) before moving focus into a control. Its `state(mark)` reports
+`on`, `off`, `mixed` or `disabled`; `format(mark)` toggles a supported non-link
+mark. `apply({ bold: true, italic: null, link: 'https://example.test/' })` changes
+only supplied fields in one prepared batch. `null`/`false` removes a field;
+links require an explicit URL. `clear()` removes presentation marks while
+preserving links, opaque custom attributes and block kind. Call `dispose()` on
+acceptance or dismissal. Any intervening document revision, permission loss,
+composition or disposal rejects a captured target; recapture after resolving the
+conflict. Navigation never redirects the captured range to another caret.
+
+Collapsed formatting changes local typing state without content or history.
+Moving the caret recomputes that state; portable marks continue for immediate
+typing after Enter or a hard break. Inline code excludes incompatible marks.
+Typing inside a link retains its URL; typing at its end starts outside it.
+Custom attributes remain untouched by formatting commands and are not exposed as
+pending typing fields. The engine's Markdown exporter reports unsupported marks
+(such as underline) with explicit loss diagnostics and recovery data; the toolbar
+does not substitute Unicode characters or claim lossless Markdown serialization.
