@@ -2,10 +2,10 @@
 //! not convert documents, write a Session, fetch resources, or publish a file.
 //! Baseline formats continue through their existing shared adapters.
 
-#[cfg(any(feature = "docx-codecs", feature = "pdf-export"))]
+#[cfg(any(feature = "container-codecs", feature = "pdf-export"))]
 mod media;
 
-#[cfg(feature = "docx-codecs")]
+#[cfg(feature = "container-codecs")]
 pub mod container;
 
 #[cfg(feature = "jobs")]
@@ -314,3 +314,6 @@ impl<'a> Output<'a> {
         })
     }
 }
+
+#[cfg(feature = "odt-import")]
+pub mod odt;

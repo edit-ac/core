@@ -224,7 +224,7 @@ pub struct PreparedJob<S: SessionStore + AssetStore> {
     reference_prefix: String,
     asset_bytes: u64,
     staged: Vec<StagedAsset>,
-    #[cfg(feature = "docx-codecs")]
+    #[cfg(feature = "container-codecs")]
     container_prepared: bool,
 }
 impl<S: SessionStore + AssetStore> PreparedJob<S> {
@@ -358,17 +358,26 @@ impl<S: SessionStore + AssetStore> PreparedJob<S> {
             reference_prefix,
             asset_bytes: 0,
             staged: vec![],
-            #[cfg(feature = "docx-codecs")]
+            #[cfg(feature = "container-codecs")]
             container_prepared: false,
         })
     }
     /// Inspect immutable input under this job's deadline/cancellation contract.
     /// Any rejected package retires only this job's staged references.
-    #[cfg(feature = "docx-codecs")]
+    #[cfg(feature = "container-codecs")]
     pub fn prepare_container(
         &mut self,
         budgets: crate::container::Budgets,
         mut now: impl FnMut() -> u64,
+    ) -> Result<crate::container::Package, crate::container::Failure> {
+        self.prepare_archive(budgets, &mut now, true)
+    }
+    #[cfg(feature = "container-codecs")]
+    pub(crate) fn prepare_archive(
+        &mut self,
+        budgets: crate::container::Budgets,
+        mut now: impl FnMut() -> u64,
+        opc: bool,
     ) -> Result<crate::container::Package, crate::container::Failure> {
         use crate::container::{Code, Failure};
         if self.container_prepared {
@@ -404,18 +413,23 @@ impl<S: SessionStore + AssetStore> PreparedJob<S> {
                 .map_err(|_| Failure::new(Code::Cleanup, "job"))?;
             return Err(Failure::new(Code::Budget, "job-memory"));
         }
-        let mut result = crate::container::inspect(&self.source.original, budgets, || {
-            self.check(now()).map_err(|error| {
-                Failure::new(
-                    match error {
-                        JobError::Cancelled => Code::Cancelled,
-                        JobError::Timeout => Code::Timeout,
-                        _ => Code::Budget,
-                    },
-                    "job",
-                )
-            })
-        });
+        let mut result = crate::container::inspect_archive(
+            &self.source.original,
+            budgets,
+            || {
+                self.check(now()).map_err(|error| {
+                    Failure::new(
+                        match error {
+                            JobError::Cancelled => Code::Cancelled,
+                            JobError::Timeout => Code::Timeout,
+                            _ => Code::Budget,
+                        },
+                        "job",
+                    )
+                })
+            },
+            opc,
+        );
         if let Ok(package) = &mut result {
             package.job_token = Some(self.token.clone());
         }
@@ -428,7 +442,7 @@ impl<S: SessionStore + AssetStore> PreparedJob<S> {
     }
     /// Charge original-media validation to this exact prepared input/job. A
     /// failed/cancelled decode retires staging before a semantic batch can commit.
-    #[cfg(feature = "docx-codecs")]
+    #[cfg(feature = "container-codecs")]
     pub fn validate_container_media(
         &mut self,
         package: &mut crate::container::Package,

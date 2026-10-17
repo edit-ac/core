@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "id": "edit-ac-odt-v1",
+  "version": 1,
+  "direction": "import",
+  "odfVersion": "1.3",
+  "fidelity": "odf13-semantic-v1",
+  "targets": {
+    "aarch64-apple-darwin": "native shared Session; prepared execution and asset transports",
+    "wasm32-unknown-unknown": "compile only"
+  },
+  "dependencies": {
+    "zip": "8.6.0 default-features=false deflate",
+    "quick-xml": "0.41.0 default-features=false encoding",
+    "flate2": "1.1.10 default-features=false zlib-rs"
+  },
+  "supported": [
+    "mimetype first stored without extra header; ODF1.3 manifest/content.xml and optional styles.xml",
+    "p/h1\u20136; ordered text/span/link/entity/CDATA; collapsed XML whitespace; explicit s<=4096/tab/line-break",
+    "bold/italic/underline/strike with normal/on overrides and bounded paragraph/text style ancestry",
+    "number format1 and bullet\u2022, starts1\u20132147483647; lists<=8; explicit root style inherited by nesting",
+    "rectangular text table, one paragraph per cell, <=32 columns/128 rows; formula strings inert",
+    "paragraph-isolated as-char PNG in Pictures/, original bytes/digest identity/title/desc"
+  ],
+  "unsupported": [
+    "other styles/fonts/layout/fields/sections/notes/tracked changes/metadata/signatures",
+    "list continuation/restart/custom numbering/multiple item paragraphs",
+    "merged/repeated/covered/nested/block table cells and cell line-breaks",
+    "floating/mixed inline images/non-PNG/remote images/embedded objects/scripts",
+    "other ODF versions and encrypted packages (explicit failure)"
+  ],
+  "limits": {
+    "input": 1048576,
+    "inflated": 2097152,
+    "parts": 256,
+    "xmlDepth": 64,
+    "attributes": 64,
+    "xmlAndOutputNodes": 4096,
+    "blocks": 126,
+    "runsPerParagraph": 1024,
+    "utf16Total": 1048576,
+    "diagnostics": 512,
+    "output": 4194304,
+    "jobMemoryAdmission": 33554432
+  },
+  "diagnosticSchema": {
+    "code": "category",
+    "location": "part#node plus expanded name/attribute",
+    "lossy": true,
+    "action": "retain original; review report; explicit approve_loss required"
+  },
+  "sourceRecovery": "immutable PreparedJob original bytes/SHA256; no silent loss",
+  "registryAvailability": "aggregate unavailable; consumer/platform owners remain open"
+}

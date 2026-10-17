@@ -18,8 +18,18 @@ unsafe_code = "forbid"
 default = []
 pdf-export = ["pdf-probe", "jobs", "krilla/raster-images", "dep:flate2"]
 pdf-probe = ["dep:krilla", "dep:rustybuzz"]
-docx-codecs = ["dep:docx-rs", "dep:zip", "dep:quick-xml", "dep:flate2"]
+container-codecs = ["dep:zip", "dep:quick-xml", "dep:flate2"]
+docx-codecs = ["container-codecs", "dep:docx-rs"]
+odt-import = ["container-codecs", "jobs"]
 jobs = ["dep:editac-core", "dep:editac-session", "dep:sha2"]
+
+[[example]]
+name = "odt_import"
+required-features = ["odt-import"]
+
+[[test]]
+name = "odt_import"
+required-features = ["odt-import"]
 
 [[test]]
 name = "pdf_export"

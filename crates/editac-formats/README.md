@@ -236,3 +236,10 @@ locked package versions/notices are retained with C5 evidence; default registry
 and minimum editor do not load converters, fonts or media. Prepared execution
 ports and WASM compilation do not establish production process isolation,
 platform support, PDF/UA, archival compliance or release qualification.
+
+`odt-import` exposes `odt::import::{PROFILE, prepare, Prepared}` for the declared
+ODF1.3 subset in `fixtures/formats/odt/profile.json`. It uses `container-codecs`
+without docx-rs or PDF dependencies and returns one job-correlated prepared batch.
+Original media enters the shared AssetWork service only after guarded validation;
+unsupported features require explicit loss approval and retain original bytes.
+The aggregate ODT registry remains unavailable until its consumer/platform gates.

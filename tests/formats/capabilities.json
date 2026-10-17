@@ -699,6 +699,78 @@
         "fixtures/formats/pdf/export/arabic-glyphs.json",
         "tests/formats/pdf-logical-text.py"
       ]
+    },
+    "odt-import": {
+      "gate": "CNV-1.10",
+      "commands": [
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--features",
+            "odt-import",
+            "--test",
+            "odt_import",
+            "--",
+            "--nocapture"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--features",
+            "docx-codecs,jobs,odt-import",
+            "--test",
+            "container_limits",
+            "--test",
+            "jobs",
+            "--test",
+            "profiles",
+            "--test",
+            "docx_import_text",
+            "--test",
+            "docx_import_structure",
+            "--test",
+            "docx_export"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/odt-targets.test.mjs",
+            "tests/formats/dispatcher.test.mjs"
+          ],
+          "kind": "node-test"
+        }
+      ],
+      "inputs": [
+        "crates/editac-formats/src/odt/mod.rs",
+        "crates/editac-formats/src/odt/import.rs",
+        "crates/editac-formats/src/container.rs",
+        "crates/editac-formats/src/media.rs",
+        "crates/editac-formats/tests/odt_import.rs",
+        "crates/editac-formats/examples/odt_import.rs",
+        "crates/editac-formats/tests/support/jobs_harness.rs",
+        "fixtures/formats/odt/supported.xml",
+        "fixtures/formats/docx/probe/pixel.png",
+        "tests/formats/odt-targets.test.mjs",
+        "tests/formats/inspect-odt-import.py",
+        "tests/formats/run.mjs",
+        "fixtures/formats/odt/profile.json"
+      ]
     }
   }
 }

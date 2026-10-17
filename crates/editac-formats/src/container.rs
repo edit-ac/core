@@ -15,7 +15,7 @@ pub struct Diagnostic {
     pub part: String,
     pub code: &'static str,
 }
-fn safe_name(name: &str) -> Result<()> {
+pub(crate) fn safe_name(name: &str) -> Result<()> {
     if name.is_empty()
         || name.len() > 1024
         || name.starts_with('/')
@@ -215,6 +215,21 @@ impl Package {
     pub(crate) fn part_names(&self) -> impl Iterator<Item = &str> {
         self.parts.keys().map(String::as_str)
     }
+    pub(crate) fn scan_odf_xml(&mut self, control: &mut impl FnMut() -> Result<()>) -> Result<()> {
+        for (name, bytes) in &self.parts {
+            if name.ends_with(".xml") && name != "META-INF/manifest.xml" {
+                scan_xml(
+                    bytes,
+                    name,
+                    &mut self.work,
+                    &mut self.diagnostics,
+                    self.limits,
+                    control,
+                )?;
+            }
+        }
+        Ok(())
+    }
     pub fn work(&self) -> Work {
         self.work
     }
@@ -222,6 +237,9 @@ impl Package {
         &self.diagnostics
     }
 
+    pub(crate) fn raw_part(&self, name: &str) -> Option<&[u8]> {
+        self.parts.get(name).map(Vec::as_slice)
+    }
     pub fn part(&self, name: &str) -> Option<&[u8]> {
         if !name.ends_with(".xml")
             && !name.ends_with(".rels")
@@ -297,6 +315,14 @@ pub fn inspect(
     bytes: &[u8],
     limits: Budgets,
     mut control: impl FnMut() -> Result<()>,
+) -> Result<Package> {
+    inspect_archive(bytes, limits, &mut control, true)
+}
+pub(crate) fn inspect_archive(
+    bytes: &[u8],
+    limits: Budgets,
+    mut control: impl FnMut() -> Result<()>,
+    opc: bool,
 ) -> Result<Package> {
     control()?;
     let cap = Budgets::default();
@@ -398,7 +424,9 @@ pub fn inspect(
             if part.starts_with(b"PK\x03\x04") || part.starts_with(b"PK\x05\x06") {
                 return Err(Failure::new(Code::NestedPackage, &name));
             }
-            if name.ends_with(".xml") || name.ends_with(".rels") {
+            if (opc && (name.ends_with(".xml") || name.ends_with(".rels")))
+                || (!opc && name == "META-INF/manifest.xml")
+            {
                 scan_xml(
                     &part,
                     &name,
@@ -410,7 +438,9 @@ pub fn inspect(
             }
             package.parts.insert(name, part);
         }
-        validate_opc(&mut package, &mut control)?;
+        if opc {
+            validate_opc(&mut package, &mut control)?;
+        }
         Ok(())
     })();
     match result {
