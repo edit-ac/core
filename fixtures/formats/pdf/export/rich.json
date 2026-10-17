@@ -1,0 +1,178 @@
+{
+  "schemaVersion": 1,
+  "initialText": "base",
+  "blocks": [
+    {
+      "heading": 1,
+      "runs": [
+        {
+          "text": "Captured publication",
+          "marks": [
+            "bold"
+          ]
+        }
+      ]
+    },
+    {
+      "runs": [
+        {
+          "text": "Regular ",
+          "marks": []
+        },
+        {
+          "text": "bold ",
+          "marks": [
+            "bold"
+          ]
+        },
+        {
+          "text": "italic ",
+          "marks": [
+            "italic"
+          ]
+        },
+        {
+          "text": "both ",
+          "marks": [
+            "bold",
+            "italic"
+          ]
+        },
+        {
+          "text": "underlined ",
+          "marks": [
+            "underline"
+          ]
+        },
+        {
+          "text": "struck ",
+          "marks": [
+            "strike"
+          ]
+        },
+        {
+          "text": "literal {code} \\ path",
+          "marks": [
+            "code"
+          ]
+        }
+      ]
+    },
+    {
+      "runs": [
+        {
+          "text": "Safe link read more read more read more read more read more read more read more read more read more read more read more read more read more read more read more read more read more read more read more read more ",
+          "marks": [
+            "link"
+          ],
+          "href": "https://example.test/a?x=1&y=2"
+        }
+      ]
+    },
+    {
+      "path": [
+        [
+          "ordered-main",
+          3
+        ]
+      ],
+      "runs": [
+        {
+          "text": "Three: parent",
+          "marks": []
+        }
+      ]
+    },
+    {
+      "path": [
+        [
+          "ordered-main",
+          3
+        ],
+        [
+          "bullet-child",
+          null
+        ]
+      ],
+      "runs": [
+        {
+          "text": "Nested bullet: wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely ",
+          "marks": [
+            "italic"
+          ]
+        }
+      ]
+    },
+    {
+      "path": [
+        [
+          "ordered-main",
+          3
+        ]
+      ],
+      "runs": [
+        {
+          "text": "Four: parent resumes after child",
+          "marks": [
+            "bold"
+          ]
+        }
+      ]
+    },
+    {
+      "path": [
+        [
+          "ordered-new",
+          10
+        ]
+      ],
+      "runs": [
+        {
+          "text": "Ten: independent restart",
+          "marks": []
+        }
+      ]
+    },
+    {
+      "heading": 2,
+      "runs": [
+        {
+          "text": "Second section",
+          "marks": []
+        }
+      ]
+    },
+    {
+      "runs": [
+        {
+          "text": "Café stays exact; <script>literal()</script>",
+          "marks": [
+            "underline",
+            "strike"
+          ]
+        }
+      ]
+    },
+    {
+      "runs": [
+        {
+          "text": "Contact",
+          "marks": [
+            "link"
+          ],
+          "href": "mailto:reader@example.test"
+        }
+      ]
+    }
+  ],
+  "expectedLabels": [
+    "3.",
+    "•",
+    "4.",
+    "10."
+  ],
+  "expectedLinks": [
+    "https://example.test/a?x=1&y=2",
+    "mailto:reader@example.test"
+  ]
+}

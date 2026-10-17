@@ -1,0 +1,28 @@
+{
+  "repository": "notofonts/noto-fonts",
+  "revision": "ffebf8c1ee449e544955a7e813c54f9b73848eac",
+  "license": "OFL-1.1; see OFL.txt and existing provenance.json",
+  "purpose": "Optional PDF C4 rich font faces; no runtime fetch or host fallback",
+  "files": {
+    "NotoSans-Bold.ttf": {
+      "url": "https://raw.githubusercontent.com/notofonts/noto-fonts/ffebf8c1ee449e544955a7e813c54f9b73848eac/hinted/ttf/NotoSans/NotoSans-Bold.ttf",
+      "sha256": "c976e4b1b99edc88775377fcc21692ca4bfa46b6d6ca6522bfda505b28ff9d6a",
+      "bytes": 575740
+    },
+    "NotoSans-Italic.ttf": {
+      "url": "https://raw.githubusercontent.com/notofonts/noto-fonts/ffebf8c1ee449e544955a7e813c54f9b73848eac/hinted/ttf/NotoSans/NotoSans-Italic.ttf",
+      "sha256": "36cff144df01309dab648bea71baff9bb074026914afe63aeacc8bc90b67a28b",
+      "bytes": 552776
+    },
+    "NotoSans-BoldItalic.ttf": {
+      "url": "https://raw.githubusercontent.com/notofonts/noto-fonts/ffebf8c1ee449e544955a7e813c54f9b73848eac/hinted/ttf/NotoSans/NotoSans-BoldItalic.ttf",
+      "sha256": "6edf4227ef0fa846aca70e86a307804ca4401741830f5b3af0f2554abe2b8466",
+      "bytes": 555292
+    },
+    "NotoSansMono-Regular.ttf": {
+      "url": "https://raw.githubusercontent.com/notofonts/noto-fonts/ffebf8c1ee449e544955a7e813c54f9b73848eac/hinted/ttf/NotoSansMono/NotoSansMono-Regular.ttf",
+      "sha256": "d9e2b23d19f8230be7146f409a52b1d23117e635e28f2e2892cf91b7382f325b",
+      "bytes": 512836
+    }
+  }
+}

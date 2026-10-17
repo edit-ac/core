@@ -27,3 +27,9 @@ test('minimum registry still excludes optional converter and font dependencies',
  const r=run('cargo',['tree','--manifest-path','crates/editac-formats/Cargo.toml','--locked','--offline','-e','normal'],'pdf-export-disabled');
  assert.equal(r.stdout.trim(),'editac-formats v0.0.0 ('+resolve('crates/editac-formats')+')');
 });
+
+test('captured rich artifact preserves fonts, heading/list tags, decoration and safe associated links; four corruptions fail',()=>{
+ run(process.env.EDITAC_PDF_PYTHON,['tests/formats/inspect-pdf-rich.py',output,'fixtures/formats/pdf/export/rich.json'],'rich-independent');
+ const r=JSON.parse(readFileSync(resolve(output,'rich-inspection.json')));
+ assert.equal(r.rejectedMutations.length,4);assert.ok(r.inspection.pages>1);assert.equal(r.inspection.labels.length,4);
+});

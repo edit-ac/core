@@ -579,7 +579,7 @@
     },
     "pdf-export": {
       "gate": "CNV-1.9",
-      "qualification": "partial-text-layout-prerequisite; parent remains open",
+      "qualification": "partial-text-and-rich-prerequisites; parent remains open",
       "commands": [
         {
           "program": "cargo",
@@ -659,7 +659,14 @@
         "crates/editac-formats/src/pdf/mod.rs",
         "fixtures/formats/fonts/provenance.json",
         "tests/formats/run.mjs",
-        "fixtures/formats/pdf/export/profile.json"
+        "fixtures/formats/pdf/export/profile.json",
+        "tests/formats/inspect-pdf-rich.py",
+        "fixtures/formats/pdf/export/rich.json",
+        "fixtures/formats/fonts/rich-provenance.json",
+        "fixtures/formats/fonts/NotoSans-Bold.ttf",
+        "fixtures/formats/fonts/NotoSans-Italic.ttf",
+        "fixtures/formats/fonts/NotoSans-BoldItalic.ttf",
+        "fixtures/formats/fonts/NotoSansMono-Regular.ttf"
       ]
     }
   }

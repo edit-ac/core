@@ -236,68 +236,331 @@ fn unqualified_original_provenance_is_reported_and_recoverable_after_refusal() {
     assert_eq!(j.source().original(), original);
     assert_eq!(j.work().bytes, 0);
 }
+const BOLD: &[u8] = include_bytes!("../../../fixtures/formats/fonts/NotoSans-Bold.ttf");
+const ITALIC: &[u8] = include_bytes!("../../../fixtures/formats/fonts/NotoSans-Italic.ttf");
+const BOTH: &[u8] = include_bytes!("../../../fixtures/formats/fonts/NotoSans-BoldItalic.ttf");
+const MONO: &[u8] = include_bytes!("../../../fixtures/formats/fonts/NotoSansMono-Regular.ttf");
+fn rich_fonts() -> pdf::Fonts<'static> {
+    pdf::Fonts {
+        base: [LATIN, ARABIC],
+        rich: Some([BOLD, ITALIC, BOTH, MONO]),
+    }
+}
+fn rich_blocks() -> Vec<FragmentBlock> {
+    use editac_core::{
+        commands::{format::Mark, lists::ContainerStyle},
+        document::BlockAttributes,
+    };
+    let fixture: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../fixtures/formats/pdf/export/rich.json"
+    ))
+    .unwrap();
+    fixture["blocks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|b| FragmentBlock {
+            runs: b["runs"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|r| FragmentRun {
+                    text: r["text"].as_str().unwrap().into(),
+                    marks: r["marks"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .map(|m| match m.as_str().unwrap() {
+                            "bold" => (Mark::Bold, None),
+                            "italic" => (Mark::Italic, None),
+                            "underline" => (Mark::Underline, None),
+                            "strike" => (Mark::Strike, None),
+                            "code" => (Mark::Code, None),
+                            "link" => (Mark::Link, Some(r["href"].as_str().unwrap().into())),
+                            _ => panic!(),
+                        })
+                        .collect(),
+                })
+                .collect(),
+            attributes: b
+                .get("heading")
+                .map(|h| BlockAttributes::Heading(h.as_u64().unwrap() as u8)),
+            containers: b.get("path").map_or(vec![], |p| {
+                p.as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|c| {
+                        (
+                            c[0].as_str().unwrap().into(),
+                            if c[1].is_null() {
+                                ContainerStyle::Unordered
+                            } else {
+                                ContainerStyle::Ordered {
+                                    start: c[1].as_u64().unwrap() as u32,
+                                }
+                            },
+                        )
+                    })
+                    .collect()
+            }),
+            checked: None,
+        })
+        .collect()
+}
+fn insert(o: &mut Owner, content: &[FragmentBlock]) {
+    let mut j = job(o, "pdf-author", Direction::Import);
+    j.finish_import(o, content, 0).unwrap();
+}
 #[test]
-fn aggregate_pdf_remains_unavailable_and_rich_content_cannot_silently_flatten() {
+fn captured_rich_marks_headings_lists_and_links_generate_qualified_artifact() {
+    let (mut o, _) = owner();
+    let content = rich_blocks();
+    insert(&mut o, &content);
+    let revision = o.service().read(0).unwrap().revision;
+    let before = current(&o);
+    let mut j = begin(&o, "pdf-rich-captured", pdf::PROFILE.limits);
+    let captured = j
+        .source()
+        .export_blocks()
+        .iter()
+        .map(|(_, b)| {
+            b.as_ref()
+                .unwrap()
+                .runs
+                .iter()
+                .map(|r| r.text.as_str())
+                .collect::<String>()
+        })
+        .collect::<Vec<_>>();
+    let mut expected = content
+        .iter()
+        .map(|b| b.runs.iter().map(|r| r.text.as_str()).collect::<String>())
+        .collect::<Vec<_>>();
+    expected.last_mut().unwrap().push_str("base");
+    assert_eq!(captured, expected);
+    edit(&mut o, "LATER ");
+    let edited = current(&o);
+    let c = pdf::export_with_fonts(&mut j, rich_fonts(), false, || 1).unwrap();
+    assert_eq!(c.artifact.revision(), &revision);
+    assert_ne!(before, edited);
+    assert_eq!(current(&o), edited);
+    assert!(!c.report.diagnostics.iter().any(|d| d.lossy));
+    for (i, t) in expected.iter().enumerate() {
+        assert_eq!(
+            c.report
+                .lines
+                .iter()
+                .filter(|l| l.block == i)
+                .map(|l| l.text.as_str())
+                .collect::<String>(),
+            *t
+        );
+    }
+    let labels = c
+        .report
+        .lines
+        .iter()
+        .filter_map(|l| l.marker.as_deref())
+        .collect::<Vec<_>>();
+    assert_eq!(labels, ["3.", "•", "4.", "10."]);
+    assert!(c.report.pages > 1);
+    assert!(
+        c.report
+            .lines
+            .iter()
+            .all(|l| l.x >= 28.0 && l.x + l.width <= 392.1 && l.y <= 332.0)
+    );
+    let faces = c
+        .report
+        .lines
+        .iter()
+        .flat_map(|l| &l.runs)
+        .map(|r| r.style.face)
+        .collect::<BTreeSet<_>>();
+    assert_eq!(faces, [0, 2, 3, 4, 5].into());
+    if let Some(path) = std::env::var_os("EDITAC_FORMATS_OUTPUT") {
+        let root = std::path::PathBuf::from(path);
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("rich-publication.pdf"), c.artifact.bytes()).unwrap();
+        let lines=c.report.lines.iter().map(|l|serde_json::json!({"block":l.block,"page":l.page,"x":l.x,"y":l.y,"size":l.size,"text":l.text,"marker":l.marker,"runs":l.runs.iter().map(|r|serde_json::json!({"text":r.text,"width":r.width,"face":r.style.face,"link":r.style.link,"underline":r.style.underline,"strike":r.style.strike})).collect::<Vec<_>>()})).collect::<Vec<_>>();
+        std::fs::write(root.join("rich-layout.json"),serde_json::to_vec_pretty(&serde_json::json!({"pages":c.report.pages,"lines":lines,"shapedBytes":c.report.shaped_bytes,"bytes":c.artifact.bytes().len(),"revision":format!("{revision:?}")})).unwrap()).unwrap();
+    }
+}
+#[test]
+fn rich_fonts_are_explicit_pinned_and_never_replaced_by_host_fallback() {
+    use editac_core::commands::format::Mark;
+    let (mut o, _) = owner();
+    let mut content = blocks("bold text");
+    content[0].runs[0].marks = vec![(Mark::Bold, None)];
+    insert(&mut o, &content);
+    let mut j = begin(&o, "pdf-missing-rich", pdf::PROFILE.limits);
+    assert_eq!(failure(&mut j).reason, "RICH_FONT_UNAVAILABLE");
+    assert_eq!(j.work().bytes, 0);
+    let mut fonts = rich_fonts();
+    fonts.rich = Some([LATIN, ITALIC, BOTH, MONO]);
+    let mut j = begin(&o, "pdf-substitute-rich", pdf::PROFILE.limits);
+    assert_eq!(
+        pdf::export_with_fonts(&mut j, fonts, true, || 1)
+            .err()
+            .unwrap()
+            .reason,
+        "RICH_FONT_UNAVAILABLE"
+    );
+    assert_eq!(j.work().bytes, 0);
+}
+#[test]
+fn unsupported_structures_have_complete_diagnostics_even_with_approval() {
+    use editac_core::{
+        commands::{format::Mark, lists::ContainerStyle},
+        document::BlockAttributes,
+    };
+    let (mut o, _) = owner();
+    let mut content = blocks("code bold");
+    content[0].runs[0].marks = vec![];
+    content[0].attributes = Some(BlockAttributes::Code("rust".into()));
+    content[0].containers = vec![("quote".into(), ContainerStyle::Quote)];
+    insert(&mut o, &content);
+    let before = o.service().read(0).unwrap().revision;
+    let mut j = begin(&o, "pdf-rich-unsupported", pdf::PROFILE.limits);
+    let e = pdf::export_with_fonts(&mut j, rich_fonts(), true, || 1)
+        .err()
+        .unwrap();
+    assert_eq!(e.reason, "SEMANTIC_RENDERING_UNIMPLEMENTED");
+    for code in ["BLOCK_RENDERING_UNIMPLEMENTED", "UNSUPPORTED_LIST_CONTEXT"] {
+        assert!(
+            e.report.diagnostics.iter().any(|d| d.code == code),
+            "{code}"
+        );
+    }
+    assert_eq!(j.work().bytes, 0);
+    assert_eq!(before, o.service().read(0).unwrap().revision);
+}
+#[test]
+fn unsupported_arabic_style_boundaries_refuse_instead_of_breaking_joining() {
+    use editac_core::commands::format::Mark;
+    let mut o = document(&[String::new()]);
+    let mut content = blocks("لا");
+    content[0].runs = vec![
+        FragmentRun {
+            text: "ل".into(),
+            marks: vec![],
+        },
+        FragmentRun {
+            text: "ا".into(),
+            marks: vec![(Mark::Underline, None)],
+        },
+    ];
+    insert(&mut o, &content);
+    let mut j = begin(&o, "pdf-arabic-rich", pdf::PROFILE.limits);
+    assert_eq!(
+        pdf::export_with_fonts(&mut j, rich_fonts(), true, || 1)
+            .err()
+            .unwrap()
+            .reason,
+        "RTL_STYLE_BOUNDARY_UNAVAILABLE"
+    );
+    assert_eq!(j.work().bytes, 0);
+}
+#[test]
+fn split_combining_cluster_marks_refuse_but_identical_style_runs_coalesce() {
+    use editac_core::commands::format::Mark;
+    let mut o = document(&[String::new()]);
+    let mut content = blocks("e");
+    content[0].runs = vec![
+        FragmentRun {
+            text: "e".into(),
+            marks: vec![],
+        },
+        FragmentRun {
+            text: "\u{301}".into(),
+            marks: vec![(Mark::Bold, None)],
+        },
+    ];
+    insert(&mut o, &content);
+    let mut j = begin(&o, "pdf-cluster-mark", pdf::PROFILE.limits);
+    assert_eq!(
+        pdf::export_with_fonts(&mut j, rich_fonts(), false, || 1)
+            .err()
+            .unwrap()
+            .reason,
+        "MARK_CLUSTER_BOUNDARY_UNAVAILABLE"
+    );
+    let mut o = document(&[String::new()]);
+    content[0].runs[0].marks = vec![(Mark::Bold, None)];
+    insert(&mut o, &content);
+    let mut j = begin(&o, "pdf-cluster-same", pdf::PROFILE.limits);
+    let c = pdf::export_with_fonts(&mut j, rich_fonts(), false, || 1).unwrap();
+    assert_eq!(c.report.lines[0].text, "e\u{301}");
+}
+#[test]
+fn unsafe_link_schemes_are_rejected_by_shared_ingress_without_mutating_source() {
+    use editac_core::commands::format::Mark;
+    for url in [
+        "javascript:alert(1)",
+        "file:///private/secret",
+        "https://user:password@example.test/",
+        "https://example.test/%0a",
+    ] {
+        let (mut o, _) = owner();
+        let before = o.service().read(0).unwrap().revision;
+        let mut content = blocks("unsafe");
+        content[0].runs[0].marks = vec![(Mark::Link, Some(url.into()))];
+        let mut j = job(&o, "pdf-bad-link", Direction::Import);
+        assert!(j.finish_import(&mut o, &content, 0).is_err());
+        assert_eq!(before, o.service().read(0).unwrap().revision);
+    }
+}
+#[test]
+fn rich_export_cancel_timeout_page_and_output_failure_are_atomic_and_recoverable() {
+    let (mut o, _) = owner();
+    insert(&mut o, &rich_blocks());
+    let before = o.service().read(0).unwrap().revision;
+    for (id, limits) in [
+        (
+            "pdf-rich-pages",
+            Limits {
+                pages: 1,
+                ..pdf::PROFILE.limits
+            },
+        ),
+        (
+            "pdf-rich-output",
+            Limits {
+                output_bytes: 32,
+                ..pdf::PROFILE.limits
+            },
+        ),
+    ] {
+        let mut j = begin(&o, id, limits);
+        assert!(pdf::export_with_fonts(&mut j, rich_fonts(), false, || 1).is_err());
+        assert_eq!(j.work().bytes, 0);
+        assert_eq!(before, o.service().read(0).unwrap().revision);
+    }
+    let mut j = begin(&o, "pdf-rich-cancel", pdf::PROFILE.limits);
+    let cancel = j.cancellation();
+    let mut calls = 0;
+    let e = pdf::export_with_fonts(&mut j, rich_fonts(), false, || {
+        calls += 1;
+        if calls == 20 {
+            cancel.cancel();
+        }
+        1
+    })
+    .err()
+    .unwrap();
+    assert!(e.reason.contains("Cancelled"));
+    assert_eq!(j.work().bytes, 0);
+    let mut sibling = begin(&o, "pdf-rich-recovery", pdf::PROFILE.limits);
+    assert!(pdf::export_with_fonts(&mut sibling, rich_fonts(), false, || 1).is_ok());
+    assert_eq!(before, o.service().read(0).unwrap().revision);
+}
+#[test]
+fn aggregate_pdf_profile_stays_unavailable_until_tables_images_isolation_and_full_qualification() {
     assert!(
         !PROFILES
             .iter()
             .find(|p| p.format == "pdf")
             .unwrap()
             .available
-    );
-    let (mut o, _) = owner();
-    let mut rich = blocks("same plain text");
-    rich[0].attributes = Some(editac_core::document::BlockAttributes::Heading(2));
-    rich[0].runs[0].marks = vec![
-        (editac_core::commands::format::Mark::Bold, None),
-        (
-            editac_core::commands::format::Mark::Link,
-            Some("https://example.test".into()),
-        ),
-    ];
-    let mut insert = job(&o, "pdf-author-rich", Direction::Import);
-    insert.finish_import(&mut o, &rich, 0).unwrap();
-    let mut j = begin(&o, "pdf-rich", pdf::PROFILE.limits);
-    // Even approval cannot enable a structure that has no implemented renderer.
-    let e = pdf::export(&mut j, [LATIN, ARABIC], true, || 1)
-        .err()
-        .unwrap();
-    assert_eq!(e.reason, "SEMANTIC_RENDERING_UNIMPLEMENTED");
-    assert!(
-        e.report
-            .diagnostics
-            .iter()
-            .any(|d| d.code == "BLOCK_RENDERING_UNIMPLEMENTED")
-    );
-    assert!(
-        e.report
-            .diagnostics
-            .iter()
-            .any(|d| d.code.ends_with(":Bold"))
-    );
-    assert!(
-        e.report
-            .diagnostics
-            .iter()
-            .any(|d| d.code.ends_with(":Link"))
-    );
-    assert_eq!(j.work().bytes, 0);
-}
-#[test]
-fn mark_loss_requires_explicit_approval_and_diagnostics_survive_completion() {
-    let (mut o, _) = owner();
-    let mut rich = blocks("bold text");
-    rich[0].runs[0].marks = vec![(editac_core::commands::format::Mark::Bold, None)];
-    let mut insert = job(&o, "pdf-author-mark", Direction::Import);
-    insert.finish_import(&mut o, &rich, 0).unwrap();
-    let mut refused = begin(&o, "pdf-mark-refuse", pdf::PROFILE.limits);
-    assert_eq!(failure(&mut refused).reason, "LOSS_APPROVAL_REQUIRED");
-    let mut approved = begin(&o, "pdf-mark-approve", pdf::PROFILE.limits);
-    let c = pdf::export(&mut approved, [LATIN, ARABIC], true, || 1).unwrap();
-    assert!(
-        c.report
-            .diagnostics
-            .iter()
-            .any(|d| d.lossy && d.code.ends_with(":Bold"))
     );
 }
