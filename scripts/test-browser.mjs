@@ -19,6 +19,7 @@ suites['html-paste'] = ['tests/browser/html-paste.spec.ts'];
 suites['markdown-extensions'] = ['tests/browser/markdown-extensions.spec.ts'];
 suites['math'] = ['tests/browser/math.spec.ts'];
 suites['content-modules'] = ['tests/browser/content-modules.spec.ts'];
+suites['reorder-pointer'] = ['tests/browser/reorder-pointer.spec.ts'];
 suites['reorder'] = ['tests/browser/reorder.spec.ts'];
 suites['link-enrichment'] = ['tests/browser/link-enrichment.spec.ts'];
 suites['private-link-display'] = ['tests/browser/private-link-display.spec.ts'];
