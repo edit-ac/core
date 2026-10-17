@@ -36,7 +36,7 @@ export function auditConsumerGraph(sources, metafile, manifest, { markdown = fal
   }
 }
 
-export async function admitMeasuredConsumer(directory, { markdown = false } = {}) {
+export async function admitMeasuredConsumer(directory, { markdown = false, prerequisiteOnly = false } = {}) {
   const json = async path => JSON.parse(await readFile(join(directory, path), 'utf8'));
   const manifest = await json('manifest.json'), metafile = await json('metafile.json');
   assert.equal(manifest.schema, 1);
@@ -88,7 +88,7 @@ export async function admitMeasuredConsumer(directory, { markdown = false } = {}
     assert.deepEqual(manifest.required.map(a => a.name).sort(), assets.map(a => a.name).sort(), 'Delivered/countable resource inventory differs');
     const result = evaluateBudget(assets, manifest.required);
     assert.deepEqual(result, manifest.result, 'Budget result differs');
-    if (!markdown) assertBudget(result);
+    if (!markdown && !prerequisiteOnly) assertBudget(result);
     return { profile: manifest.profile, result, packs: manifest.packs, inputHashes: manifest.inputHashes, manifestHash: hash(await readFile(join(directory, 'manifest.json'))), assets };
   } finally { await rm(temp, { recursive: true, force: true }); }
 }

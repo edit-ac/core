@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { browserHarness } from './browser-harness.ts';
+import { sharedResourceSources } from '../../scripts/shared-resource-sources.mjs';
 import { prepareSharedSite } from '../consumers/shared-resources/production.mjs';
 import { auditSharedAssets, auditSharedGraph } from '../../scripts/shared-resource-contract.mjs';
-const sources = ['tests/consumers/shared-resources/site.mjs', 'tests/consumers/shared-resources/production.mjs',
+const sources = [...sharedResourceSources(), 'scripts/shared-resource-sources.mjs', 'tests/consumers/shared-resources/site.mjs', 'tests/consumers/shared-resources/production.mjs',
   'tests/browser/shared-site-resources.spec.ts', 'packages/core/src/index.ts', 'packages/markdown/src/index.ts',
   'packages/web/src/editor.ts', 'packages/react/src/index.ts', 'packages/astro/src/index.ts',
   'packages/astro/src/Editor.astro', 'tests/browser/fixture-server.mjs', 'scripts/shared-resource-contract.mjs'];

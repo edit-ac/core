@@ -6,7 +6,7 @@ import { sharedCases } from './shared-resource-contract.mjs';
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 if (process.argv[2] === '--consolidate') {
   const { collectSharedSite } = await import('./shared-site-receipt.mjs');
-  await collectSharedSite(process.argv.slice(3));
+  await collectSharedSite(process.argv.slice(3).filter(arg => arg !== '--prerequisite-only'), { prerequisiteOnly: process.argv.includes('--prerequisite-only') });
   process.exit(0);
 }
 const [directory] = process.argv.slice(2); assert(directory, 'Usage: node scripts/collect-shared-resources.mjs <browser-output>');

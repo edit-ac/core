@@ -52,6 +52,16 @@ test('default admission rejects the optional parser even as a static packed impo
 
 test('enabled graph cannot omit its parser or adapters',()=>{assert.throws(()=>auditTaskGraph(packedGraph(),{markdown:true}),/Missing enabled Markdown/);});
 
+test('explicit browser capabilities must be present in the measured bundled graph', () => {
+  const graph = packedGraph();
+  graph['node_modules/@edit-ac/web/dist/editor.js'] = "import('./platform/capabilities.js')";
+  assert.throws(() => auditTaskGraph(graph), /Uninventoried/);
+  graph['node_modules/@edit-ac/web/dist/platform/capabilities.js'] = 'export class BrowserCapabilities {}';
+  auditTaskGraph(graph);
+  graph['node_modules/@edit-ac/web/dist/editor.js'] += "; import('./unmeasured.js')";
+  assert.throws(() => auditTaskGraph(graph), /Uninventoried/);
+});
+
 test('narrow async SDK loader must resolve both its packed barrel and shared glue', () => {
   const graph = packedGraph();
   graph['node_modules/@edit-ac/core/dist/index.js'] = 'import("./wasm/editac_runtime.js")';

@@ -79,11 +79,11 @@ export function routeTransfers(cases, cacheProfile) {
 
 // Additional admission ties the consolidated summary to actual emitted bytes,
 // navigation observations and the existing measured-consumer counting harness.
-export async function admitSharedSite(directory, root) {
-  const receipt = await admitSharedReceipt(directory, root);
-  assert.equal(receipt.complete, true);
+export async function admitSharedSite(directory, root, { prerequisiteOnly = false } = {}) {
+  const receipt = await admitSharedReceipt(directory, root, { prerequisiteOnly });
+  assert.equal(receipt.complete, !prerequisiteOnly);
   assert.deepEqual(receipt.compression, compression);
-  const measured = await admitMeasuredConsumer(join(directory, 'default-task'));
+  const measured = await admitMeasuredConsumer(join(directory, 'default-task'), { prerequisiteOnly });
   const optional = await admitMeasuredConsumer(join(directory, 'markdown-enabled'), { markdown: true });
   assert.deepEqual(receipt.defaultGzip, totals(measured.assets));
   assert.deepEqual(receipt.optionalGzip, { combined: totals(optional.assets), incremental: { total: totals(optional.assets).total - totals(measured.assets).total, editorJs: totals(optional.assets).editorJs - totals(measured.assets).editorJs } });
@@ -147,13 +147,13 @@ export function auditSiteGraph(graph) {
   return result;
 }
 
-export async function collectSharedSite(args) {
+export async function collectSharedSite(args, { prerequisiteOnly = false } = {}) {
   assert.equal(args.length, 5, 'Expected same-page, production, default, Markdown and unique output directories');
   const [same, site, baseline, markdown, target] = args.map(value => resolve(value));
   await mkdir(target, { recursive: false });
   for (const [from, to] of [[same, 'same-page'], [site, 'production'], [baseline, 'default-task'], [markdown, 'markdown-enabled']]) await cp(from, join(target, to), { recursive: true });
   const partial = await json(join(target, 'same-page/same-page-receipt.json'));
-  const measured = await admitMeasuredConsumer(join(target, 'default-task'));
+  const measured = await admitMeasuredConsumer(join(target, 'default-task'), { prerequisiteOnly });
   const optional = await admitMeasuredConsumer(join(target, 'markdown-enabled'), { markdown: true });
   const sources = {}, browsers = [], costs = {}, transfers = { cold: {}, warm: {}, cacheDisabled: {} };
   sourcePins(sources, partial.sources);
@@ -190,13 +190,14 @@ export async function collectSharedSite(args) {
     return { name: metadata.name, version: metadata.version, file, sha256: pack.sha256 };
   });
   const build = first.production.build;
-  const receipt = { version: 1, kind: 'editac.shared-resources', complete: true, provenance: 'actual-packed-browser-runtime',
+  const receipt = { version: 1, kind: 'editac.shared-resources', complete: !prerequisiteOnly, provenance: 'actual-packed-browser-runtime',
+    ...(prerequisiteOnly ? { scope: 'packed-resource-prerequisite', prerequisiteComplete: true, budgetQualification: 'deferred; exact measured failures retained' } : {}),
     browsers, packages, sources, artifacts, compression, limits: { totalGzip: budgets.total.hard, editorJsGzip: budgets.js.hard },
     defaultGzip: totals(measured.assets), optionalGzip: { combined: totals(optional.assets), incremental: { total: totals(optional.assets).total - totals(measured.assets).total, editorJs: totals(optional.assets).editorJs - totals(measured.assets).editorJs } },
     preferred: { totalGzip: budgets.total.preferred, editorJsGzip: budgets.js.preferred, totalPass: totals(measured.assets).total <= budgets.total.preferred, editorJsPass: totals(measured.assets).editorJs <= budgets.js.preferred },
     graph: { default: 'default-task/metafile.json', enabled: 'production/chromium/production-graph.json' }, assets: first.production.inventory,
     defaultAssets: measured.assets.map(asset => ({ ...asset, bytes: asset.raw, url: `/standalone/${build.slice(0, 16)}/${asset.name}`, build, role: asset.name.endsWith('editac_wasm_bg.wasm') ? 'core-wasm' : 'standalone-' + asset.kind })), costs, transfers };
   await writeFile(join(target, 'shared-receipt.json'), JSON.stringify(receipt, null, 2) + '\n');
-  await admitSharedSite(target, process.cwd());
+  await admitSharedSite(target, process.cwd(), { prerequisiteOnly });
   console.log(JSON.stringify({ directory: relative(process.cwd(), target), cases: browsers.map(browser => ({ engine: browser.engine, passed: browser.cases.length, failed: 0, skipped: 0 })), defaultGzip: receipt.defaultGzip, optionalGzip: receipt.optionalGzip, preferred: receipt.preferred, artifacts: Object.keys(artifacts).length }));
 }

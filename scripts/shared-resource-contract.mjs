@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { resolve, relative, isAbsolute } from 'node:path';
 import { budgets } from './browser-size-contract.mjs';
+import { sharedResourceSources } from './shared-resource-sources.mjs';
 
 export const sharedCases = Object.freeze({
   'SHR-01': ['equal-description-first', 'equal-comment-first'],
@@ -44,8 +45,13 @@ export function auditSharedGraph(metafile, { defaultOnly = false } = {}) {
   if (defaultOnly) assert(!inputs.some(path => /node_modules\/@edit-ac\/(?:markdown|highlighting|conversion|cloud)\/|(?:^|\/)katex(?:[./-]|$)|modules\/vendor\/katex/.test(path)), 'Eager optional import in disabled graph');
   return { inputs: inputs.length, outputs: Object.keys(metafile.outputs).length };
 }
-export function assertSharedMatrix(receipt) {
+export function assertSharedMatrix(receipt, { prerequisiteOnly = false } = {}) {
   assert.equal(receipt.version, 1); assert.equal(receipt.kind, 'editac.shared-resources');
+  if (prerequisiteOnly) {
+    assert.equal(receipt.scope, 'packed-resource-prerequisite');
+    assert.equal(receipt.complete, false);
+    assert.equal(receipt.prerequisiteComplete, true);
+  } else assert.notEqual(receipt.scope, 'packed-resource-prerequisite', 'Prerequisite receipt cannot establish aggregate qualification');
   assert.equal(receipt.provenance, 'actual-packed-browser-runtime', 'Prepared fixtures cannot qualify runtime behavior');
   assert.deepEqual(receipt.browsers.map(value => value.engine).sort(), ['chromium', 'firefox', 'webkit']);
   for (const browser of receipt.browsers) {
@@ -59,8 +65,8 @@ export function assertSharedMatrix(receipt) {
     assert.equal(browser.failed, 0); assert.equal(browser.skipped, 0); assert.equal(browser.cancelled, 0);
   }
   assert.equal(receipt.limits?.totalGzip, budgets.total.hard); assert.equal(receipt.limits?.editorJsGzip, budgets.js.hard);
-  assert(receipt.defaultGzip?.total > 0 && receipt.defaultGzip.total <= budgets.total.hard);
-  assert(receipt.defaultGzip?.editorJs > 0 && receipt.defaultGzip.editorJs <= budgets.js.hard);
+  assert(receipt.defaultGzip?.total > 0 && (prerequisiteOnly || receipt.defaultGzip.total <= budgets.total.hard));
+  assert(receipt.defaultGzip?.editorJs > 0 && (prerequisiteOnly || receipt.defaultGzip.editorJs <= budgets.js.hard));
   assert(receipt.transfers?.cold && receipt.transfers?.warm && receipt.transfers?.cacheDisabled, 'Missing route/cache transfer evidence');
   assert(typeof receipt.graph?.enabled === 'string' && typeof receipt.graph?.default === 'string', 'Missing production graph artifacts');
   for (const name of ['core', 'web', 'react', 'astro', 'markdown']) {
@@ -74,12 +80,15 @@ export function assertSharedMatrix(receipt) {
 }
 // The canonical consumer must authenticate retained evidence and exact current
 // source/artifact pins, not trust a green summary or cache-hidden transfers.
-export async function admitSharedReceipt(directory, currentRoot) {
+export async function admitSharedReceipt(directory, currentRoot, options = {}) {
   const base = resolve(directory), root = resolve(currentRoot);
-  const receipt = assertSharedMatrix(JSON.parse(await readFile(resolve(base, 'shared-receipt.json'), 'utf8')));
+  const receipt = assertSharedMatrix(JSON.parse(await readFile(resolve(base, 'shared-receipt.json'), 'utf8')), options);
   const inside = (directory, path) => { const target = resolve(directory, path), rel = relative(directory, target); assert(rel && !rel.startsWith('..') && !isAbsolute(rel), 'Evidence escaped owner'); return target; };
   assert(Object.keys(receipt.sources ?? {}).length > 0, 'Missing current source identities');
   for (const [path, digest] of Object.entries(receipt.sources)) assert.equal(sha(await readFile(inside(root, path))), digest, `Stale shared-resource source: ${path}`);
+  for (const path of ['scripts/shared-resource-sources.mjs', ...sharedResourceSources(root)]) {
+    assert(receipt.sources[path], `Missing current production source: ${path}`);
+  }
   assert(Object.keys(receipt.artifacts ?? {}).length > 0, 'Missing retained artifact identities');
   for (const [path, digest] of Object.entries(receipt.artifacts)) assert.equal(sha(await readFile(inside(base, path))), digest, `Stale shared-resource artifact: ${path}`);
   for (const path of ['scripts/shared-resource-contract.mjs', 'packages/core/src/index.ts', 'packages/web/src/editor.ts', 'packages/markdown/src/index.ts']) assert(receipt.sources[path], `Missing current source: ${path}`);

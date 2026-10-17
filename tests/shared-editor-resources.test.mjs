@@ -23,6 +23,15 @@ test('same-page candidate is not a complete SHR-01–08 receipt', () => {
   assert.throws(() => assertSharedMatrix(receipt), /SHR-06/);
 });
 test('prepared evidence cannot manufacture qualification', () => assert.throws(() => assertSharedMatrix(preparedMatrix()), /Prepared fixtures/));
+test('prerequisite scope preserves budget failures without claiming aggregate completion', () => {
+  const receipt = preparedMatrix(); receipt.provenance = 'actual-packed-browser-runtime';
+  Object.assign(receipt, { scope: 'packed-resource-prerequisite', complete: false, prerequisiteComplete: true,
+    defaultGzip: { total: 599521, editorJs: 52215 } });
+  assert.throws(() => assertSharedMatrix(receipt), /cannot establish aggregate/);
+  assertSharedMatrix(receipt, { prerequisiteOnly: true });
+  receipt.browsers[0].cases = receipt.browsers[0].cases.filter(value => value.name !== 'warm-full-navigation');
+  assert.throws(() => assertSharedMatrix(receipt, { prerequisiteOnly: true }), /SHR-06/);
+});
 test('exact artifact inventory admits one compatible core owner', () => assert.equal(auditSharedAssets(assets()).coreBuild, 'prepared-contract-build'));
 test('duplicate bytes at another URL are detected independently of transfer/cache', () => {
   const values = assets(); values.push({ ...values[0], url: '/second/engine.wasm' }); assert.throws(() => auditSharedAssets(values), /Duplicate emitted bytes/);

@@ -41,6 +41,12 @@ export function auditTaskGraph(sources, {markdown = false} = {}) {
   const bundledGlue = inputs.some(p => p.endsWith('core/dist/wasm/editac_wasm.js'));
   for (const [name, source] of Object.entries(sources)) {
     const lazy = source.match(/\bimport\s*\(/g) || [];
+    // esbuild includes this explicit opt-in target in the non-split measured
+    // bundle. Admit it only when the exact package-relative target is counted.
+    const countedCapabilities = name.endsWith('web/dist/editor.js') && lazy.length === 1 &&
+      /\bimport\s*\(\s*(['"])\.\/platform\/capabilities\.js\1\s*\)/.test(source) &&
+      inputs.includes(name.replace(/editor\.js$/, 'platform/capabilities.js'));
+    if (countedCapabilities) continue;
     if (lazy.length && !(name.endsWith('core/dist/index.js') && lazy.length === 1 && ((source.includes('import(gluePath)') && source.includes('./wasm/editac_wasm.js')) || (bundledGlue && (source.includes('import("./wasm/editac_wasm.js")') || (inputs.some(p => p.endsWith('core/dist/wasm/editac_runtime.js')) && source.includes('import("./wasm/editac_runtime.js")')))))) && !(markdown && name.endsWith('markdown/dist/index.js') && lazy.length === 1 && bundledParser && source.includes("import('./wasm/editac_markdown_wasm.js')"))) throw new Error(`Uninventoried required lazy code: ${name}`);
   }
 }

@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { browserHarness } from './browser-harness.ts';
+import { sharedResourceSources } from '../../scripts/shared-resource-sources.mjs';
 
-const sources = ['tests/consumers/shared-resources/index.html', 'tests/consumers/shared-resources/session.mjs',
+const sources = [...sharedResourceSources(), 'scripts/shared-resource-sources.mjs', 'tests/consumers/shared-resources/index.html', 'tests/consumers/shared-resources/session.mjs',
   'packages/core/src/index.ts', 'packages/markdown/src/index.ts', 'packages/web/src/editor.ts',
   'packages/web/src/entry.ts', 'packages/web/src/modules/math.ts', 'packages/web/src/modules/math-renderer.ts',
   'tests/browser/fixture-server.mjs', 'scripts/shared-resource-contract.mjs'];
@@ -113,11 +114,15 @@ test('SHR-03 shared runtime failure settles both editors and explicit remount re
 test('SHR-03 repeated destroy/remount preserves flushed content with bounded live sessions', () => probe('SHR-03-remount', async (page, fact) => {
   fact.requirement = 'SHR-03'; await fresh(page);
   const survivor = await page.evaluate(() => window.shared.mount('comment')); await ready(page, [survivor]);
+  const baseline = (await counts(page)).sessions;
+  assert.equal(baseline.roots, 1); assert.equal(baseline.nativeHandles.live, 1);
   const samples = await page.evaluate(async () => { const f = window.shared, samples = []; for (let i = 0; i < 6; i++) { const key = f.mount('description'); await f.ready(key); f.append(key, String(i)); const report = await f.destroy(key, 'flush'); samples.push({ ...f.state(), unsaved: report.unsaved }); } return samples; });
-  fact.snapshots.push({ samples });
-  assert(samples.every(s => s.recovered - s.released === 1 && s.roots === 1 && s.domNodes === 3 && s.nativeHandles.live === 1 && !s.unsaved));
+  fact.snapshots.push({ baseline, samples });
+  // Current input controllers may own additional accessible sibling controls.
+  // Remount must return to the exact surviving editor footprint, then to zero.
+  assert(samples.every(s => s.recovered - s.released === 1 && s.roots === 1 && s.domNodes === baseline.domNodes && s.nativeHandles.live === 1 && !s.unsaved));
   const key = await page.evaluate(() => window.shared.mount('description')); await ready(page, [key]); assert.equal(await page.evaluate(key => window.shared.text(key), key), 'description012345');
-  await page.evaluate(key => window.shared.append(key, ' still live'), survivor); await page.evaluate(() => window.shared.cleanup()); const result = await counts(page); oneCore(result); assert.equal(result.sessions.recovered, result.sessions.released); assert.equal(result.sessions.nativeHandles.live, 0); assert.equal(result.sessions.nativeHandles.restored, result.sessions.nativeHandles.freed); fact.snapshots.push({ samples, result });
+  await page.evaluate(key => window.shared.append(key, ' still live'), survivor); await page.evaluate(() => window.shared.cleanup()); const result = await counts(page); oneCore(result); assert.equal(result.sessions.recovered, result.sessions.released); assert.equal(result.sessions.nativeHandles.live, 0); assert.equal(result.sessions.domNodes, 0); assert.equal(result.sessions.nativeHandles.restored, result.sessions.nativeHandles.freed); fact.snapshots.push({ samples, result });
 }));
 
 test('SHR-07 one generated owner rejects conflicting explicit core and Markdown URLs', () => probe('SHR-07-urls', async (page, fact) => {
