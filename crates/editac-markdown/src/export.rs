@@ -146,7 +146,8 @@ fn semantics(blocks: &[FragmentBlock]) -> Vec<SemanticBlock> {
             if let BlockAttributes::Unknown(tuple) = &attributes {
                 if let Ok(Some(mut content)) = Content::from_tuple(tuple) {
                     match &mut content {
-                        Content::Reference { .. }
+                        Content::Asset { .. }
+                        | Content::Reference { .. }
                         | Content::RichTable { .. }
                         | Content::InertExtension { .. } => {}
                         Content::Image { source, .. }
@@ -202,6 +203,13 @@ pub fn export(blocks: &[FragmentBlock]) -> ExportResult {
             }
             BlockAttributes::Separator => "---".into(),
             BlockAttributes::Unknown(tuple) => match Content::from_tuple(tuple) {
+                Ok(Some(Content::Asset { descriptor })) => {
+                    diagnostics.push(Diagnostic {
+                        code: "asset-binary-unavailable",
+                        range: 0..0,
+                    });
+                    escape(&descriptor.fallback)
+                }
                 Ok(Some(content @ Content::InertExtension { .. })) => {
                     diagnostics.push(Diagnostic {
                         code: "inert-extension-source-fallback",

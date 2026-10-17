@@ -362,7 +362,7 @@ impl Document {
                         crate::modules::content::Content::Reference { label, .. } => {
                             Some(label.as_str())
                         }
-                        _ => content.inert_source(),
+                        _ => content.asset_fallback().or_else(|| content.inert_source()),
                     };
                     if let Some(fallback) = fallback {
                         if block
@@ -2000,7 +2000,8 @@ impl Document {
                         .ok_or(EditorError::UnsupportedTarget)?;
                     if !matches!(
                         old,
-                        Content::Image { .. }
+                        Content::Asset { .. }
+                            | Content::Image { .. }
                             | Content::Reference { .. }
                             | Content::InertExtension { .. }
                     ) {
@@ -2018,7 +2019,8 @@ impl Document {
                     let (tuple, fallback) = if let Some(content) = replacement {
                         if !matches!(
                             (&old, content),
-                            (Content::Image { .. }, Content::Image { .. })
+                            (Content::Asset { .. }, Content::Asset { .. })
+                                | (Content::Image { .. }, Content::Image { .. })
                                 | (Content::Reference { .. }, Content::Reference { .. })
                                 | (
                                     Content::InertExtension { .. },
@@ -2058,6 +2060,7 @@ impl Document {
                             }
                         })?;
                         let fallback = match content {
+                            Content::Asset { descriptor } => descriptor.fallback.as_str(),
                             Content::Reference { label, .. } => label.as_str(),
                             Content::Image { source, .. } => source.as_str(),
                             Content::InertExtension { .. } => {
@@ -2135,6 +2138,22 @@ impl Document {
                             EditorError::InvalidCommand
                         }
                     })?;
+                    if let crate::modules::content::Content::Asset { descriptor } = content {
+                        let d = self.virtual_document(&stage)?;
+                        let n = d
+                            .inspect()
+                            .map_err(|_| EditorError::InvalidCommand)?
+                            .visible
+                            .into_iter()
+                            .find(|n| n.id == *id)
+                            .ok_or(EditorError::UnsupportedTarget)?;
+                        if n.runs.iter().map(|r| r.text.as_str()).collect::<String>()
+                            != descriptor.fallback
+                            || n.runs.iter().any(|r| !r.attributes.is_empty())
+                        {
+                            return Err(EditorError::InvalidCommand);
+                        }
+                    }
                     m::set(&stage, 4, id, tuple);
                     let after = target(&stage, stable, id)?;
                     if after.spans != o.spans

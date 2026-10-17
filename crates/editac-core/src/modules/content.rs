@@ -15,6 +15,9 @@ pub enum Alignment {
 }
 #[derive(Clone, Debug)]
 pub enum Content {
+    Asset {
+        descriptor: super::assets::AssetDescriptor,
+    },
     /// Validated inert transfer envelope, independent of optional codecs/presenters.
     InertExtension {
         data: Any,
@@ -165,6 +168,13 @@ fn alignment_name(a: Alignment) -> &'static str {
     }
 }
 impl Content {
+    pub fn asset_fallback(&self) -> Option<&str> {
+        if let Self::Asset { descriptor } = self {
+            Some(&descriptor.fallback)
+        } else {
+            None
+        }
+    }
     pub fn inert_source(&self) -> Option<&str> {
         if let Self::InertExtension {
             data: Any::Map(data),
@@ -190,6 +200,7 @@ impl Content {
     }
     pub fn validate(&self) -> Result<(), ContentError> {
         match self {
+            Self::Asset { descriptor } => descriptor.validate()?,
             Self::InertExtension { data } => super::inert_content::validate(data)?,
             Self::RichTable { data } => super::rich_table::validate(data)?,
             Self::Reference { target_id, label } => {
@@ -274,6 +285,13 @@ impl Content {
             ]));
         }
         let (tag, data) = match self {
+            Self::Asset { descriptor } => (
+                "module:editac.asset",
+                Any::from_json(
+                    &serde_json::to_string(descriptor).map_err(|_| ContentError::InvalidShape)?,
+                )
+                .map_err(|_| ContentError::InvalidShape)?,
+            ),
             Self::InertExtension { data } => ("module:editac.inert-extension", data.clone()),
             Self::RichTable { .. } => unreachable!(),
             Self::Reference { target_id, label } => (
@@ -380,7 +398,8 @@ impl Content {
         };
         if !matches!(
             tag.as_ref(),
-            "module:editac.image"
+            "module:editac.asset"
+                | "module:editac.image"
                 | "module:editac.table"
                 | "module:editac.callout"
                 | "module:editac.reference"
@@ -403,7 +422,15 @@ impl Content {
             return Err(ContentError::InvalidShape);
         };
         let get = |key: &str| data.get(key).ok_or(ContentError::InvalidShape);
-        let content = if tag.as_ref() == "module:editac.inert-extension" {
+        let content = if tag.as_ref() == "module:editac.asset" {
+            // Check bounds before allocating an additional JSON representation.
+            super::inert_content::bounded_asset_data(&v[2])?;
+            let mut json = String::new();
+            v[2].to_json(&mut json);
+            Self::Asset {
+                descriptor: serde_json::from_str(&json).map_err(|_| ContentError::InvalidShape)?,
+            }
+        } else if tag.as_ref() == "module:editac.inert-extension" {
             Self::InertExtension { data: v[2].clone() }
         } else if tag.as_ref() == "module:editac.reference" {
             if data.len() != 2 {

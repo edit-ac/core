@@ -90,6 +90,7 @@ pub fn validate(raw: &str, schema: &str) -> Result<()> {
                     && a["tuple"].as_array().is_some_and(|t| {
                         t.first().and_then(Value::as_str).is_some_and(|s| {
                             [
+                                "module:editac.asset",
                                 "module:editac.image",
                                 "module:editac.table",
                                 "module:editac.callout",

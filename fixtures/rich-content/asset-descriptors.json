@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "descriptors": [
+    {
+      "identity": {
+        "host": "fixture-host",
+        "key": "file-v1"
+      },
+      "kind": "file",
+      "metadata": {
+        "filename": "report.pdf",
+        "mediaType": "application/pdf",
+        "byteLength": 1024,
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "width": null,
+        "height": null,
+        "durationMs": null,
+        "alt": "Alt 😀 אב",
+        "caption": "caption"
+      },
+      "fallback": "<script>inert()</script> ![asset](javascript:noop) 😀",
+      "source": "unknown:::asset(report.pdf)\r\n<opaque key=\"future\"/>\u0000😀"
+    },
+    {
+      "identity": {
+        "host": "fixture-host",
+        "key": "image-v1"
+      },
+      "kind": "image",
+      "metadata": {
+        "filename": "image.png",
+        "mediaType": "image/png",
+        "byteLength": 1024,
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "width": 640,
+        "height": 480,
+        "durationMs": null,
+        "alt": "Alt 😀 אב",
+        "caption": "caption"
+      },
+      "fallback": "<script>inert()</script> ![asset](javascript:noop) 😀",
+      "source": "unknown:::asset(image.png)\r\n<opaque key=\"future\"/>\u0000😀"
+    },
+    {
+      "identity": {
+        "host": "fixture-host",
+        "key": "media-v1"
+      },
+      "kind": "media",
+      "metadata": {
+        "filename": "clip.mp4",
+        "mediaType": "video/mp4",
+        "byteLength": 1024,
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "width": 640,
+        "height": 480,
+        "durationMs": 3000,
+        "alt": "Alt 😀 אב",
+        "caption": "caption"
+      },
+      "fallback": "<script>inert()</script> ![asset](javascript:noop) 😀",
+      "source": "unknown:::asset(clip.mp4)\r\n<opaque key=\"future\"/>\u0000😀"
+    }
+  ],
+  "observations": [
+    {
+      "identity": {
+        "host": "fixture-host",
+        "key": "file-v1"
+      },
+      "state": "local"
+    },
+    {
+      "identity": {
+        "host": "fixture-host",
+        "key": "file-v1"
+      },
+      "state": "queued"
+    },
+    {
+      "identity": {
+        "host": "fixture-host",
+        "key": "file-v1"
+      },
+      "state": "available"
+    },
+    {
+      "identity": {
+        "host": "fixture-host",
+        "key": "file-v1"
+      },
+      "state": "failed"
+    },
+    {
+      "identity": {
+        "host": "fixture-host",
+        "key": "file-v1"
+      },
+      "state": "missing"
+    },
+    {
+      "identity": {
+        "host": "fixture-host",
+        "key": "file-v1"
+      },
+      "state": "revoked"
+    },
+    {
+      "identity": {
+        "host": "fixture-host",
+        "key": "file-v1"
+      },
+      "state": "locked"
+    }
+  ]
+}
