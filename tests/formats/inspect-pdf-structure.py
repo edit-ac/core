@@ -12,6 +12,8 @@ import unicodedata
 import pypdf
 from pypdf.generic import ContentStream, NameObject, TextStringObject, ArrayObject, DecodedStreamObject
 import fitz
+from importlib.machinery import SourceFileLoader
+stream_text = SourceFileLoader("pdf_logical_text", str(pathlib.Path(__file__).with_name("pdf-logical-text.py"))).load_module()
 
 
 def flat(text):
@@ -33,11 +35,7 @@ def logical(data, fixture):
     root = reader.trailer['/Root']
     assert '/StructTreeRoot' in root and root['/MarkInfo']['/Marked']
     assert not any(k in root for k in ('/AA', '/OpenAction', '/AcroForm'))
-    actual = {}
-    for page in reader.pages:
-        for operands, op in ContentStream(page['/Contents'], reader).operations:
-            if op == b'BDC' and hasattr(operands[1], 'get') and '/ActualText' in operands[1] and '/MCID' in operands[1]:
-                actual[(page.indirect_reference.idnum, int(operands[1]['/MCID']))] = str(operands[1]['/ActualText'])
+    _, actual = stream_text.marked_text(reader)
     def text(item, pg=None):
         item = item.get_object() if hasattr(item, 'get_object') else item
         if isinstance(item, int):

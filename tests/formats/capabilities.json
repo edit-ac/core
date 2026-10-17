@@ -579,7 +579,7 @@
     },
     "pdf-export": {
       "gate": "CNV-1.9",
-      "qualification": "partial-text-and-rich-prerequisites; parent remains open",
+      "qualification": "qualified-local-bounded-semantic-publication; isolated arm64 macOS deterministic documents, WASM compile only, MuPDF1.26.5 generated-artifact reader",
       "commands": [
         {
           "program": "cargo",
@@ -660,6 +660,7 @@
             "--test",
             "--test-reporter=tap",
             "tests/formats/pdf-export-targets.test.mjs",
+            "tests/formats/pdf-document.test.mjs",
             "tests/formats/dispatcher.test.mjs"
           ],
           "kind": "node-test"
@@ -689,7 +690,14 @@
         "tests/formats/inspect-pdf-structure.py",
         "crates/editac-formats/src/media.rs",
         "crates/editac-formats/src/container.rs",
-        "fixtures/formats/pdf/export/excess-inflate.png"
+        "fixtures/formats/pdf/export/excess-inflate.png",
+        "crates/editac-formats/examples/pdf_document.rs",
+        "tests/formats/pdf-document.test.mjs",
+        "tests/formats/pdf-process.py",
+        "crates/editac-formats/tests/support/jobs_harness.rs",
+        "tests/formats/inspect-pdf-arabic.py",
+        "fixtures/formats/pdf/export/arabic-glyphs.json",
+        "tests/formats/pdf-logical-text.py"
       ]
     }
   }

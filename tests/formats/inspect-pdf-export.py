@@ -8,6 +8,8 @@ import unicodedata
 import pypdf
 from pypdf.generic import ContentStream, DecodedStreamObject, NameObject, TextStringObject
 import fitz
+from importlib.machinery import SourceFileLoader
+stream_text = SourceFileLoader("pdf_logical_text", str(pathlib.Path(__file__).with_name("pdf-logical-text.py"))).load_module()
 
 
 def logical(data, expected):
@@ -16,8 +18,7 @@ def logical(data, expected):
     assert '/StructTreeRoot' in root and root['/MarkInfo']['/Marked']
     for key in ('/OpenAction', '/AA', '/AcroForm'):
         assert key not in root
-    actual = []
-    actual_by_id = {}
+    actual, actual_by_id = stream_text.marked_text(reader)
     paragraphs = []
     paragraph_count = 0
     def tags(item):
@@ -37,21 +38,6 @@ def logical(data, expected):
     assert paragraph_count == len(expected), (paragraph_count, len(expected))
     font_names = set()
     for page in reader.pages:
-        stack = []
-        for operands, op in ContentStream(page['/Contents'], reader).operations:
-            if op == b'BDC':
-                text = operands[1].get('/ActualText') if len(operands) == 2 and hasattr(operands[1], 'get') else None
-                if text is not None and not any(stack):
-                    actual.append(str(text))
-                    assert '/MCID' in operands[1], 'unmapped logical chunk'
-                    actual_by_id[(page.indirect_reference.idnum, int(operands[1]['/MCID']))] = str(text)
-                stack.append(text is not None)
-            elif op == b'BMC':
-                stack.append(False)
-            elif op == b'EMC':
-                assert stack
-                stack.pop()
-        assert not stack
         for ref in page['/Resources']['/Font'].values():
             font = ref.get_object()
             assert '/ToUnicode' in font

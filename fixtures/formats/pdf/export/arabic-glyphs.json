@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "text": "لا لَا العربية",
+  "fontSha256": "2f4b88e6ee50fa82c617e2d1d4ba18281cb1c6cd71c3af3ec64970c23995db4b",
+  "fontSizePt": 14,
+  "unitsPerEm": 1000,
+  "positionTolerancePt": 0.025,
+  "referenceTool": "hb-shape (HarfBuzz) 14.5.1",
+  "toolSha256": "1ba9f42f2b2881d50c7871f88607e02fdfd3efb40a027bca0c1887bc4b22f384",
+  "command": [
+    "hb-shape",
+    "fixtures/formats/fonts/NotoNaskhArabic-Regular.ttf",
+    "لا لَا العربية",
+    "--direction=rtl",
+    "--output-format=json"
+  ],
+  "glyphs": [
+    {
+      "g": "uniFE94",
+      "cl": 13,
+      "dx": 0,
+      "dy": 0,
+      "ax": 467,
+      "ay": 0
+    },
+    {
+      "g": "uniFEF4",
+      "cl": 12,
+      "dx": 0,
+      "dy": 0,
+      "ax": 360,
+      "ay": 0
+    },
+    {
+      "g": "uniFE91",
+      "cl": 11,
+      "dx": 0,
+      "dy": 0,
+      "ax": 275,
+      "ay": 0
+    },
+    {
+      "g": "uniFEAE",
+      "cl": 10,
+      "dx": 0,
+      "dy": 0,
+      "ax": 404,
+      "ay": 0
+    },
+    {
+      "g": "uniFECC",
+      "cl": 9,
+      "dx": 0,
+      "dy": 0,
+      "ax": 414,
+      "ay": 0
+    },
+    {
+      "g": "uni0644.init",
+      "cl": 8,
+      "dx": 0,
+      "dy": 0,
+      "ax": 212,
+      "ay": 0
+    },
+    {
+      "g": "uni0627",
+      "cl": 7,
+      "dx": 0,
+      "dy": 0,
+      "ax": 238,
+      "ay": 0
+    },
+    {
+      "g": "uni0020",
+      "cl": 6,
+      "dx": 0,
+      "dy": 0,
+      "ax": 221,
+      "ay": 0
+    },
+    {
+      "g": "uniFE8E.rlig",
+      "cl": 5,
+      "dx": 0,
+      "dy": 0,
+      "ax": 0,
+      "ay": 0
+    },
+    {
+      "g": "uni064E",
+      "cl": 3,
+      "dx": 285,
+      "dy": 295,
+      "ax": 0,
+      "ay": 0
+    },
+    {
+      "g": "uni0644.rlig",
+      "cl": 3,
+      "dx": 0,
+      "dy": 0,
+      "ax": 518,
+      "ay": 0
+    },
+    {
+      "g": "uni0020",
+      "cl": 2,
+      "dx": 0,
+      "dy": 0,
+      "ax": 221,
+      "ay": 0
+    },
+    {
+      "g": "uniFE8E.rlig",
+      "cl": 1,
+      "dx": 0,
+      "dy": 0,
+      "ax": 0,
+      "ay": 0
+    },
+    {
+      "g": "uni0644.rlig",
+      "cl": 0,
+      "dx": 0,
+      "dy": 0,
+      "ax": 518,
+      "ay": 0
+    }
+  ],
+  "scope": "Independent HarfBuzz14.5.1 shaping reference for pinned font. Generated-artifact glyph names and positions compared through fontTools and MuPDF. No runtime or imported-PDF capability."
+}

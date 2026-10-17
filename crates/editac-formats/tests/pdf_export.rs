@@ -134,6 +134,8 @@ fn unsupported_font_coverage_and_bidi_cannot_make_successful_empty_output() {
     for (text, reason) in [
         ("漢字", "FONT_COVERAGE_UNAVAILABLE"),
         ("Arabic العربية", "MIXED_BIDI_UNAVAILABLE"),
+        ("العربية 123", "MIXED_BIDI_UNAVAILABLE"),
+        ("RTL العربية Latin 123", "MIXED_BIDI_UNAVAILABLE"),
     ] {
         let o = document(&[text.into()]);
         let mut j = begin(&o, "pdf-coverage", pdf::PROFILE.limits);

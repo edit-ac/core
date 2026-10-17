@@ -34,6 +34,10 @@ name = "pdf_probe"
 required-features = ["pdf-probe"]
 
 [[example]]
+name = "pdf_document"
+required-features = ["pdf-export"]
+
+[[example]]
 name = "pdf_probe"
 required-features = ["pdf-probe"]
 

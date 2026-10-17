@@ -1,5 +1,6 @@
-//! Bounded captured text, rich, rectangular table and original PNG prerequisites;
-//! this module does not install or qualify the aggregate PDF publication profile.
+//! Optional captured semantic PDF publication subset with bounded layout.
+//! Qualified generated-artifact readers/targets are declared in the profile;
+//! host integration and PDF/UA/archival compliance remain separate gates.
 pub use super::export_assets::OriginalAssetHost;
 use crate::{Direction, Limits, Profile, job::*};
 use editac_core::{
@@ -23,20 +24,21 @@ use krilla::{
     image::Image,
     page::PageSettings,
     paint::{Fill, Stroke},
+    surface::Surface,
     tagging::{ContentTag, ListNumbering, Node, SpanTag, TableHeaderScope, Tag, TagGroup, TagTree},
-    text::{Font, TextDirection},
+    text::{Font, GlyphId, KrillaGlyph, TextDirection},
 };
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, num::NonZeroU16, ops::Range};
 
 pub const PROFILE: Profile = Profile {
-    id: "edit-ac-pdf-text-prerequisite-v1",
+    id: "edit-ac-pdf-publication-v1",
     format: "pdf",
     version: 1,
     import: false,
     export: true,
     available: true,
-    fidelity: "bounded-text-prerequisite",
+    fidelity: "bounded-semantic-publication",
     owner: "CNV-1.9",
     limits: Limits {
         input_bytes: 64 * 1024,
@@ -847,6 +849,95 @@ fn list_tree(
     }
     list
 }
+/// Emit the already-qualified single-script shaping clusters in source order.
+/// Positions still come from the selected shaper's visual sequence. PDF content
+/// order must not become visual RTL order: readers that fall back to ToUnicode
+/// otherwise copy/search reversed text even when the tag tree is correct.
+fn draw_rtl(
+    surface: &mut Surface<'_>,
+    start: Point,
+    font: Font,
+    bytes: &[u8],
+    text: &str,
+    size: f32,
+) -> Result<(), String> {
+    let face = rustybuzz::Face::from_slice(bytes, 0).ok_or("FONT_INVALID")?;
+    let mut buffer = rustybuzz::UnicodeBuffer::new();
+    let visible = text.strip_suffix('\n').unwrap_or(text);
+    buffer.push_str(visible);
+    buffer.guess_segment_properties();
+    buffer.set_direction(rustybuzz::Direction::RightToLeft);
+    let shaped = rustybuzz::shape(&face, &[], buffer);
+    let mut boundaries = shaped
+        .glyph_infos()
+        .iter()
+        .map(|g| g.cluster as usize)
+        .collect::<Vec<_>>();
+    boundaries.push(visible.len());
+    boundaries.sort_unstable();
+    boundaries.dedup();
+    let units = face.units_per_em() as f32;
+    let mut groups: BTreeMap<usize, (f32, Vec<KrillaGlyph>)> = BTreeMap::new();
+    let mut x = 0.0;
+    for (info, pos) in shaped.glyph_infos().iter().zip(shaped.glyph_positions()) {
+        let begin = info.cluster as usize;
+        let end = boundaries[boundaries
+            .binary_search(&begin)
+            .map_err(|_| "SHAPING_CLUSTER")?
+            + 1];
+        let group = groups.entry(begin).or_insert_with(|| (x, vec![]));
+        group.1.push(KrillaGlyph::new(
+            GlyphId::new(info.glyph_id),
+            pos.x_advance as f32 / units,
+            pos.x_offset as f32 / units,
+            pos.y_offset as f32 / units,
+            pos.y_advance as f32 / units,
+            begin..end,
+            None,
+        ));
+        x += pos.x_advance as f32 / units * size;
+    }
+    // Some Arabic fonts encode lam-alef as a base plus a zero-advance
+    // component in the next source cluster at the same visual origin. Emit
+    // that many-to-many mapping as one cluster, including combining marks.
+    let mut logical: Vec<(f32, Vec<KrillaGlyph>)> = vec![];
+    for (_, (offset, mut glyphs)) in groups {
+        if let Some((previous_offset, previous)) = logical.last_mut() {
+            if glyphs.iter().all(|g| g.x_advance == 0.0)
+                && (offset - *previous_offset).abs() < 0.0001
+            {
+                let begin = previous.iter().map(|g| g.text_range.start).min().unwrap();
+                let end = glyphs.iter().map(|g| g.text_range.end).max().unwrap();
+                glyphs.append(previous);
+                for glyph in &mut glyphs {
+                    glyph.text_range = begin..end;
+                }
+                *previous = glyphs;
+                continue;
+            }
+        }
+        logical.push((offset, glyphs));
+    }
+    if visible.len() != text.len() {
+        if let Some((_, glyphs)) = logical.last_mut() {
+            for glyph in glyphs {
+                glyph.text_range.end = text.len();
+            }
+        }
+    }
+    for (offset, glyphs) in logical {
+        surface.draw_glyphs(
+            Point::from_xy(start.x + offset, start.y),
+            &glyphs,
+            font.clone(),
+            text,
+            size,
+            false,
+        );
+    }
+    Ok(())
+}
+
 fn render(
     report: &Report,
     paragraphs: &[Paragraph],
@@ -948,20 +1039,27 @@ fn render(
                 let id = surface.start_tagged(ContentTag::Span(
                     SpanTag::empty()
                         .with_lang(Some(if line.rtl { "ar" } else { "en" }))
-                        .with_actual_text(Some(&run.text)),
+                        .with_actual_text((!line.rtl).then_some(run.text.as_str())),
                 ));
-                surface.draw_text(
-                    Point::from_xy(x, line.y),
-                    faces[run.style.face].clone(),
-                    line.size,
-                    run.text.strip_suffix('\n').unwrap_or(&run.text),
-                    false,
-                    if line.rtl {
-                        TextDirection::RightToLeft
-                    } else {
-                        TextDirection::LeftToRight
-                    },
-                );
+                if line.rtl {
+                    draw_rtl(
+                        &mut surface,
+                        Point::from_xy(x, line.y),
+                        faces[run.style.face].clone(),
+                        fonts.bytes(run.style.face)?,
+                        &run.text,
+                        line.size,
+                    )?;
+                } else {
+                    surface.draw_text(
+                        Point::from_xy(x, line.y),
+                        faces[run.style.face].clone(),
+                        line.size,
+                        run.text.strip_suffix('\n').unwrap_or(&run.text),
+                        false,
+                        TextDirection::LeftToRight,
+                    );
+                }
                 // Stroke decorations are part of the same marked semantic span.
                 for y in [
                     run.style.underline.then_some(line.y + 2.0),

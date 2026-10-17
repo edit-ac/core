@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""macOS candidate-only launcher. No download, shell, ambient credentials or
+"""macOS qualification launcher (candidate or semantic document). No download, shell, ambient credentials or
 production format route. Exact allowlisted executable, fonts and job directory.
 RSS is an observed watchdog with recorded sample latency, not an allocation-time
 hard limit. Unavailable enforcement fails closed; partial output is removed.
@@ -39,7 +39,7 @@ def run(config):
             raise ValueError('PDF_ENGINE_UNAVAILABLE')
         mode = config.get('mode', 'generate')
         fonts = pathlib.Path(config['fonts']).resolve()
-        if mode == 'generate':
+        if mode in ('generate', 'document'):
             manifest = json.loads(pathlib.Path(config['fontManifest']).read_text())
             for name, info in manifest['files'].items():
                 if not name.endswith('.ttf'):
@@ -47,7 +47,16 @@ def run(config):
                 p = fonts / name
                 if not p.is_file() or hashlib.sha256(p.read_bytes()).hexdigest() != info['sha256']:
                     raise ValueError('PDF_FONT_UNAVAILABLE')
-            args = ['generate', str(fonts), str(output)]
+            if mode == 'document':
+                kind = config.get('document')
+                if kind not in ('text', 'rich', 'structure'):
+                    raise ValueError('PDF_PROFILE_UNAVAILABLE')
+                args = [kind, str(output)]
+                receipt['document'] = kind
+                receipt['memoryEnforcement'] = 'sampled RSS watchdog only; not allocation-time hard memory'
+                receipt['internalJobPort'] = 'prepared fixture port; its memory field is not host enforcement'
+            else:
+                args = ['generate', str(fonts), str(output)]
         elif mode in ('read', 'write'):
             args = [mode, config['attemptPath']]
         elif mode == 'output':
@@ -128,9 +137,14 @@ def run(config):
                 time.sleep(0.01)
             receipt['exit'] = child.wait(timeout=2)
         if receipt['code'] is None:
-            if receipt['exit'] == 0 and mode == 'generate' and output.is_file():
+            if receipt['exit'] == 0 and mode in ('generate', 'document') and output.is_file():
                 if output.stat().st_size > out_limit:
                     raise ValueError('PDF_OUTPUT_LIMIT')
+                if mode == 'document':
+                    summary = json.loads(stdout.read_text())
+                    if summary.get('kind') != config['document'] or not summary.get('laterEditUnchanged') or not summary.get('ownedAssetCleanup'):
+                        raise ValueError('PDF_DOCUMENT_COMPLETION_INVALID')
+                    receipt['documentSummary'] = summary
                 receipt.update(state='passed', outputBytes=output.stat().st_size,
                                outputSha256=hashlib.sha256(output.read_bytes()).hexdigest())
             else:
@@ -138,7 +152,8 @@ def run(config):
                     receipt['code'] = 'PDF_ISOLATION_UNAVAILABLE'
                     receipt['state'] = 'unavailable'
                 else:
-                    receipt['code'] = 'PDF_OUTPUT_LIMIT' if receipt['exit'] == -signal.SIGXFSZ else 'PDF_PROCESS_REJECTED'
+                    receipt['code'] = ('PDF_OUTPUT_LIMIT' if receipt['exit'] == -signal.SIGXFSZ else
+                                       'PDF_CPU_LIMIT' if receipt['exit'] == -signal.SIGXCPU else 'PDF_PROCESS_REJECTED')
                     receipt['state'] = 'rejected'
         else:
             receipt['state'] = 'rejected'

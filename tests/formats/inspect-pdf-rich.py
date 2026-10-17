@@ -24,13 +24,10 @@ def inspect(data, fixture, root=None):
     tree = reader.trailer['/Root']['/StructTreeRoot']
     for key in ['/OpenAction', '/AA', '/AcroForm']:
         assert key not in reader.trailer['/Root'], 'active root action'
-    actual = {}
+    _, actual = base.stream_text.marked_text(reader)
     fonts = set()
     annotations = {}
     for number, page in enumerate(reader.pages):
-        for operands, op in ContentStream(page['/Contents'], reader).operations:
-            if op == b'BDC' and hasattr(operands[1], 'get') and '/ActualText' in operands[1]:
-                actual[(page.indirect_reference.idnum, int(operands[1]['/MCID']))] = str(operands[1]['/ActualText'])
         for font in page['/Resources']['/Font'].values():
             font = font.get_object()
             assert '/ToUnicode' in font

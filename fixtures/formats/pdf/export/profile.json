@@ -1,9 +1,8 @@
 {
   "schemaVersion": 1,
   "owner": "CNV-1.9",
-  "state": "text-rich-table-and-original-image-prerequisites-only",
-  "aggregateProfileAvailable": false,
-  "boundary": "Captured shared Session paragraphs, qualified six marks, headings, ordered/unordered nested lists and safe links; pinned explicit font faces; prepared execution ports; bounded v1 rectangular semantic tables and host-authorized original PNG images",
+  "state": "qualified-local-semantic-publication-subset",
+  "boundary": "Captured Session text, qualified rich marks/headings/lists/safe links, bounded v1 rectangular tables and authorized original PNGs; actual isolated arm64 macOS qualification executable with prepared internal job/asset transports and observed RSS watchdog",
   "layout": {
     "pageWidthPt": 420,
     "pageHeightPt": 360,
@@ -31,15 +30,29 @@
     "heterogeneous Arabic rich runs and styled Arabic faces",
     "code+bold/italic face combinations",
     "quote/checklist and empty/unmapped containers",
-    "native-isolated semantic document invocation",
-    "complete WCF-13/14 fixture matrix",
     "v2 rich/merged tables; nested cells; rows taller than a page",
     "remote/source-URL images, non-PNG, PNG ancillary/profile/animation/interlace or indexed/16-bit images"
   ],
   "unsupportedPolicy": "complete diagnostics and refusal for structural/shaping gaps; explicit approval for unknown mark/source-provenance loss; immutable source retained",
   "targets": {
-    "native": "real Session with prepared job port",
+    "native": "isolated deterministic semantic-document qualification on aarch64-apple-darwin; host wiring remains roadmaps31\u201336",
     "wasm": "compile only"
   },
-  "runtimePdfReaders": false
+  "runtimePdfReaders": false,
+  "optionalAdapterQualified": true,
+  "defaultRegistryEnabled": false,
+  "qualifiedReader": {
+    "name": "MuPDF",
+    "version": "1.26.5",
+    "scope": "generated artifact logical/glyph/layout, exact Arabic fixture copy, word/phrase search; no inference for other readers"
+  },
+  "readerLimitations": "Raw pypdf6.1.1, PDFium via pypdfium2 4.30.0 and macOS PDFKit26.4.1 exploratory extraction do not qualify exact Arabic phrase copy. Tagged logical text is checked separately through the generated Identity-H/bfchar mapping and nonnested ActualText.",
+  "executionResources": {
+    "wallMs": 5000,
+    "cpuSeconds": 2,
+    "outputBytes": 4194304,
+    "rssWatchdogBytes": 536870912,
+    "memoryModel": "observed watchdog, with peak and sample latency; not an allocation-time hard bound; prepared internal port fields are not host enforcement",
+    "fontsAndMedia": "approved bytes embedded in exact pinned qualification executable; no separate resource transfer; general host transport is unqualified"
+  }
 }
