@@ -3,6 +3,8 @@ export type { EditorOptions, DestroyResult, AttachSyncOptions, SyncAttachment } 
 export { createEditor, taskPreset } from './sdk.js';
 export type { TaskPresetOptions } from './sdk.js';
 export { CheckpointStorage } from './storage/checkpoint.js';
+export { openEditorStorage } from './storage/owner.js';
+export type { EditorStorageOwner } from './storage/owner.js';
 export { mountEditorSurface } from './surface.js';
 export type { EditorSurface, EditorSurfaceOptions } from './surface.js';
 export type { EditorState, PreviewTag } from './lifecycle.js';
@@ -75,6 +77,6 @@ export type { InputHints } from './input/hints.js';
 export { EXTENSION_DX_VERSION, defineExtensionContract, prepareEditorExtensionConfiguration, ExtensionConfigurationError } from './extensions/contract.js';
 export type { ExtensionReadonlyV1, ExtensionLoadPolicyV1, ExtensionStatusV1, ExtensionSemanticsV1, ExtensionInterestV1, ExtensionCallbackContextV1, ExtensionAuthoringV1, ExtensionDefinitionV1, ConfiguredExtensionV1, ExtensionFactoryV1, CoreFormattingMarkV1, CoreFormattingV1, PresenceConfigurationV1, CollaborationConfigurationV1, PlatformPreferencesV1, PlatformObservationV1, ExtensionAssetsV1, EditorExtensionConfigurationV1, PreparedEditorConfigurationV1 } from './extensions/contract.js';
 
-export { DocumentSearch, BlockReorder, defaultPreset, documentPreset } from './extensions/configuration.js';
-export type { EditorFacadeOptionsV1, ExtensionPresetOverridesV1 } from './extensions/configuration.js';
+export { DocumentSearch, BlockReorder, Images, Tables, MathNotation, References, SlashCommands, Markdown, defaultPreset, documentPreset } from './extensions/configuration.js';
+export type { EditorFacadeOptionsV1, ExtensionPresetOverridesV1, ReferenceConfigurationV1, SlashConfigurationV1 } from './extensions/configuration.js';
 export type { PresenceOptions, PresenceAttachment } from './sync/presence.js';

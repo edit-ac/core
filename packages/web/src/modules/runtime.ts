@@ -24,6 +24,8 @@ export interface ModuleView {
 export interface ModuleRenderer { mount(element: HTMLElement, content: ModuleViewContent): ModuleView }
 export interface ModuleRuntimeOptions {
   renderers?: Readonly<Record<string, ModuleRenderer>>;
+  /** Host view hints for already-admitted data; never registers or changes a definition. */
+  presentations?: Readonly<Record<string, { readonly tag: 'span' | 'mark' | 'code' }>>;
   onError?: (error: ModuleRuntimeError) => void;
 }
 const operations = ['Text', 'Format', 'Structure', 'Editor', 'Remote', 'Undo', 'Redo', 'Selection'] as const;
@@ -48,17 +50,24 @@ export class ModuleRuntime {
   readonly #selection = new Set<Listener>();
   readonly #views = new Set<ModuleView>();
   readonly #renderers: Readonly<Record<string, ModuleRenderer>>;
+  readonly #presentations: NonNullable<ModuleRuntimeOptions['presentations']>;
   readonly #onError: ModuleRuntimeOptions['onError'];
   readonly #errors: ModuleRuntimeError[] = [];
   #sequence = 0;
   #disposed = false;
   #selectionKey = 'null';
   constructor(engine: EngineHandle, options: ModuleRuntimeOptions = {}) {
+    const presentations = Object.entries(options.presentations ?? {}).map(([type, value]) => {
+      if (!value || !['span','mark','code'].includes(value.tag) || Object.keys(value).length !== 1) throw Error('Invalid module presentation');
+      return [type, Object.freeze({ tag: value.tag })] as const;
+    });
+    this.#presentations = Object.freeze(Object.fromEntries(presentations));
     this.#renderers = Object.freeze(Object.fromEntries(Object.entries(options.renderers ?? {}).map(([type, r]) => [type, { mount: r.mount.bind(r) }])));
     this.#onError = options.onError;
     this.#upstream = engine.subscribe({ type: 'all' }, patch => this.#dispatch(patch));
   }
   get active(): boolean { return !this.#disposed && this.#upstream.active; }
+  presentation(type: string) { return this.#presentations[type]; }
   takeErrors(): ModuleRuntimeError[] { return this.#errors.splice(0); }
   #report(phase: ModuleRuntimeError['phase'], error: unknown): void {
     // Error conversion and diagnostics must not let a hostile thrown object or

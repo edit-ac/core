@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { requireTestNode } from './test-toolchain.mjs';
 await requireTestNode();
 const args = process.argv.slice(2);
-const groups = { contract: { files: ['tests/extension-dx/contract.test.mjs'], minimumTests: 30 }, configuration: { files: ['tests/extension-dx/configuration.test.mjs'], minimumTests: 28 } };
+const groups = { contract: { files: ['tests/extension-dx/contract.test.mjs'], minimumTests: 30 }, configuration: { files: ['tests/extension-dx/configuration.test.mjs'], minimumTests: 45 } };
 if (args.length !== 2 || args[0] !== '--group' || !Object.hasOwn(groups, args[1])) {
   console.error('Specify exactly --group contract or --group configuration; unavailable/unimplemented groups fail closed.'); process.exit(2);
 }

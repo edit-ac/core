@@ -1,8 +1,8 @@
 import { init } from '@edit-ac/core';
-import { createEditor, mountEditorSurface, CheckpointStorage, DocumentSearch, BlockReorder, defaultPreset, documentPreset, taskPreset } from '@edit-ac/web';
+import { createEditor, mountEditorSurface, CheckpointStorage, openEditorStorage, DocumentSearch, BlockReorder, Images, Tables, MathNotation, References, SlashCommands, Markdown, defaultPreset, documentPreset, taskPreset } from '@edit-ac/web';
 const assetUrl = new URL('/core/wasm/editac_wasm_bg.wasm', location.href).href;
 const runtime = await init(assetUrl);
-const editors = [], surfaces = [], engines = [];
+const editors = [], surfaces = [], engines = [], storageOwners = [];
 function root(attributes = {}) {
   const element = document.createElement('div');
   element.style.cssText = 'min-height:40px;border:1px solid;padding:8px;margin:8px';
@@ -44,9 +44,21 @@ function replace(value, text, offset = 0) {
     if (result.selection) { value.releaseAnchor(result.selection.anchor); value.releaseAnchor(result.selection.focus); }
   } finally { value.releaseAnchor(at); }
 }
+function fill(value, blocks) {
+  const owner=value.read().visible.find(n=>n.kind==='block'),a=value.anchor(owner.id,0,'right'),b=value.anchor(owner.id,owner.runs.map(r=>r.text).join('').length,'left');
+  try { value.commit(value.prepare({kind:'fragment',origin:'local:fixture',range:{anchor:a,focus:b},blocks})); }
+  finally { value.releaseAnchor(a); value.releaseAnchor(b); }
+}
+async function paste(value, host, source) {
+  const n=value.read().visible.find(n=>n.kind==='block');select(host,0,n.runs.map(r=>r.text).join('').length);
+  const data=new DataTransfer();data.setData('text/plain',source);
+  const event=new ClipboardEvent('paste',{bubbles:true,cancelable:true,clipboardData:data});host.dispatchEvent(event);
+  await value.settle();return event.defaultPrevented;
+}
 async function close() {
   for (const value of editors) await value.destroy({ policy: 'report' });
   for (const value of surfaces) value.dispose();
+  for (const value of storageOwners) await value.destroy({ policy: 'report' });
   for (const value of engines) value.dispose();
 }
-window.configurationFixture = { runtime, root, engine, seed, open, surface, content, select, replace, close, createEditor, mountEditorSurface, DocumentSearch, BlockReorder, defaultPreset, documentPreset, taskPreset, editors };
+window.configurationFixture = { runtime, root, engine, seed, open, surface, content, select, replace, fill, paste, close, createEditor, mountEditorSurface, DocumentSearch, BlockReorder, Images, Tables, MathNotation, References, SlashCommands, Markdown, defaultPreset, documentPreset, taskPreset, openEditorStorage, storageOwners, surfaces, editors };

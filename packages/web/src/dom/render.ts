@@ -96,6 +96,15 @@ export class DOMRenderer {
       .sort((a, b) => a.node.order - b.node.order).map(entry => entry.node.id);
   }
   setReadOnly(value: boolean): void { if (!this.#disposed) { this.root.contentEditable = value ? "false" : "true"; for (const entry of this.#entries.values()) entry.contentView?.setReadOnly(value); } }
+  /** One-time optional presenter activation; canonical nodes and history stay unchanged. */
+  setContentFactory(factory: ContentFactory): void {
+    if (this.#disposed) throw Error('Renderer is disposed');
+    this.#options.content = factory;
+    this.patchBoundary?.before();
+    try {
+      for (const entry of this.#entries.values()) if (!this.#held.has(entry.node.id)) this.#update(entry.node, this.#entries.get(entry.node.parent)?.node);
+    } finally { this.patchBoundary?.after(); }
+  }
   dispose(): void {
     if (this.#disposed) return;
     this.#disposed = true; this.#code?.dispose(); this.#subscription.dispose(); this.root.contentEditable = "false";
@@ -273,12 +282,13 @@ export class DOMRenderer {
       // document strings as markup, URLs or executable behavior.
       let resolved: ReturnType<ModuleRegistry['resolve']>;
       try { resolved = this.#modules?.resolve(key, value, run.text); } catch { resolved = undefined; }
-      const wrapper = this.root.ownerDocument.createElement(resolved?.presentation?.tag ?? 'span');
+      const presentation = resolved?.presentation ?? (resolved ? this.moduleRuntime?.presentation(resolved.definition.type) : undefined);
+      const wrapper = this.root.ownerDocument.createElement(presentation?.tag ?? 'span');
       wrapper.dataset.moduleType = key.slice('module:'.length);
       if (!resolved?.presentation) wrapper.dataset.moduleFallback = 'text';
       if (resolved?.definition.kind === 'inline-atom' && resolved.presentation) wrapper.contentEditable = 'false';
       target.append(wrapper); target = wrapper;
-      if (resolved?.presentation && this.moduleRuntime) {
+      if (resolved && presentation && this.moduleRuntime) {
         const decoration = this.root.ownerDocument.createElement('span');
         decoration.dataset.moduleView = ''; decoration.contentEditable = 'false'; wrapper.append(decoration);
         const view = this.moduleRuntime.mountView(decoration, { type: resolved.definition.type, version: resolved.definition.version,

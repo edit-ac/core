@@ -3,8 +3,9 @@ import type { PreparedEditorConfigurationV1, PlatformObservationV1, ExtensionSta
 import { CommandControls } from './ui/commands.js';
 import { InputHintController, type InputHints } from './input/hints.js';
 import type { AnchorToken, Bias, CommitResult, DocumentIdentity, EditorCommand, Patch, PatchScope, PrepareRequest, Snapshot } from '@edit-ac/core';
-import { SyncSession, type SyncSessionOptions, type SyncTransport } from './sync/session.js';
-import { UpdateOutbox } from './storage/outbox.js';
+import { attachStoredSync, type AttachSyncOptions, type SyncAttachment } from './sync/attachment.js';
+import { connectConfiguredCollaboration } from './sync/configured.js';
+export type { AttachSyncOptions, SyncAttachment } from './sync/attachment.js';
 import { recoverLocalDocument } from './entry.js';
 import type { DOMRenderer } from './dom/render.js';
 import type { DOMSelection } from './dom/selection.js';
@@ -48,19 +49,6 @@ export interface EditorOptions extends RecoveryOptions, Partial<EditorFacadeOpti
   recover?: typeof recoverLocalDocument;
 }
 export interface DestroyResult { unsaved: boolean; recovery: RecoveryExport | null; provisional: readonly { text?: string; reason: string }[]; clipboard: readonly { mime: string; raw: string; reason: string }[] }
-export interface SyncAttachment {
-  readonly presence?: import('./sync/presence.js').PresenceAttachment;
-  readonly state: SyncSession['state'];
-  receive(frame: Uint8Array): void;
-  pump(now: number): Promise<void>;
-  detach(): void;
-}
-export interface AttachSyncOptions extends SyncSessionOptions {
-  presence?: import('./sync/presence.js').PresenceOptions;
-  transport: SyncTransport;
-  peerIdentity: DocumentIdentity;
-  authorized: boolean;
-}
 /** A chain is one Rust prepare/commit, never a loop of partially applied commands. */
 export class CommandChain {
   readonly #commands: EditorCommand[] = [];
@@ -95,9 +83,10 @@ export class BrowserEditor {
   #collaborationController: AbortController | undefined;
   #collaborationStatus: ExtensionStatusV1 = Object.freeze({ state: 'idle', generation: 0 });
   get extensionStatus(): Readonly<Record<string, ExtensionStatusV1>> {
-    const state = this.#closing || this.#destroyed ? 'cancelled' : this.state.ready ? 'ready' : 'loading';
-    if (this.state.phase === 'failed') return Object.freeze(Object.fromEntries((this.extensionConfiguration?.extensions ?? []).map(e => [e.feature.id, Object.freeze({ state: 'failed' as const, generation: 1, code: 'attachment-failed', retryable: false })])));
-    return Object.freeze(Object.fromEntries((this.extensionConfiguration?.extensions ?? []).map(e => [e.feature.id, Object.freeze({ state, generation: 1 })])));
+    if (this.#surface) return this.#surface.extensionStatus;
+    const state = this.#closing || this.#destroyed ? 'cancelled' : this.state.phase === 'failed' ? 'failed' : 'loading';
+    return Object.freeze(Object.fromEntries((this.extensionConfiguration?.extensions ?? []).map(e => [e.feature.id,
+      Object.freeze(state === 'failed' ? { state, generation: 1, code: 'attachment-failed', retryable: false } : { state, generation: 1 })])));
   }
   get collaborationStatus(): ExtensionStatusV1 { return this.#collaborationStatus; }
   get syncAttachment(): SyncAttachment | undefined { return this.#sync; }
@@ -121,6 +110,8 @@ export class BrowserEditor {
   };
   #session: LocalSession | undefined;
   readonly #recoveryOptions: RecoveryOptions;
+  readonly #options: EditorOptions;
+  #resuming: Promise<void> | undefined;
   #sync: SyncAttachment | undefined;
   #syncGeneration = 0;
   readonly #patchObservers = new Set<() => void>();
@@ -142,7 +133,7 @@ export class BrowserEditor {
     this.#releaseSurface = reserveEditorSurface(root);
     const captured: EditorOptions = { ...options, assetUrl: configuredEngineAsset(options.assetUrl, this.extensionConfiguration), identity: { ...options.identity },
       ...(options.preview ? { preview: { identity: { ...options.preview.identity }, revision: options.preview.revision } } : {}) };
-    this.#recoveryOptions = captured;
+    this.#recoveryOptions = captured; this.#options = captured;
     this.#readOnly = options.readOnly ?? false;
     this.lifecycle = new BrowserLifecycle(!!root.childNodes.length, this.#readOnly);
     root.contentEditable = 'false'; root.setAttribute('role', 'textbox'); root.setAttribute('aria-multiline', 'true');
@@ -187,8 +178,6 @@ export class BrowserEditor {
       this.#cancelActivation = undefined;
       if (this.#closing || this.#destroyed) { await session.storage.destroy({ policy: 'report' }); throw Error('Editor initialization canceled'); }
       this.#session = session;
-      const snapshot = session.writer.engine.read();
-      const preview = options.preview ? previewMatches(options.preview, snapshot.identity, snapshot.revision) ? 'matched' : 'replaced' : 'none';
       // Always bind fresh canonical mappings, including matching preview content.
       // Raw host DOM is never reused as an authoritative editable projection.
       this.#surface = bindEditorSurface(this.root, session.writer.engine, {
@@ -203,32 +192,12 @@ export class BrowserEditor {
         this.lifecycle.update({ localCommitted: state.localCommitted, error: state.error });
         if (state.phase === 'error') this.#status.textContent = 'Local save failed. Export recovery content before closing.';
       });
-      const collaboration = this.extensionConfiguration?.configuration.collaboration;
-      const remoteGate = !!collaboration && collaboration.readiness === 'remote';
-      this.#input.setReadOnly(this.#readOnly || remoteGate);
-      this.root.setAttribute('aria-readonly', String(this.#readOnly || remoteGate)); this.root.setAttribute('aria-busy', String(remoteGate));
-      this.#status.textContent = remoteGate ? 'Waiting for configured collaboration' : 'Document ready';
-      if (this.#plainButton) this.#plainButton.disabled = this.#readOnly || remoteGate;
-      this.lifecycle.update({ phase: remoteGate ? 'visible' : 'ready', ready: !remoteGate, readOnly: this.#readOnly || remoteGate, visible: true, preview });
-      this.#hints = new InputHintController(this.root);
-      if (options.inputHints) this.setInputHints(options.inputHints);
-      if (options.commandControls) this.#controls = new CommandControls(this);
-      if (collaboration) {
-        const pending = this.#connectConfiguredSync();
-        if (remoteGate) {
-          await pending;
-          if (this.#closing || this.#destroyed) throw Error('Editor initialization canceled');
-          this.#input.setReadOnly(this.#readOnly);
-          this.root.setAttribute('aria-readonly', String(this.#readOnly)); this.root.setAttribute('aria-busy', 'false');
-          this.#status.textContent = 'Document ready';
-          if (this.#plainButton) this.#plainButton.disabled = this.#readOnly;
-          this.lifecycle.update({ phase: 'ready', ready: true, readOnly: this.#readOnly });
-        }
-        else void pending.catch(() => {});
-      }
+      await this.#surface.ready;
+      if (this.#closing || this.#destroyed) throw Error('Editor initialization canceled');
+      await this.#finishAttachment(options);
     } catch (error) {
-      if (!this.#closing && !this.#destroyed) {
-        this.#input?.setReadOnly(true);
+      if (!this.#closing && !this.#destroyed && !this.state.ready) {
+        this.#surface?.setReadOnly(true);
         this.root.contentEditable = 'false'; this.root.setAttribute('aria-busy', 'false'); this.root.setAttribute('aria-readonly', 'true');
         this.#status.setAttribute('role', 'alert'); this.#status.textContent = 'Unable to open local document. Recovery content remains read-only.';
         this.lifecycle.update({ phase: 'failed', ready: false, readOnly: true, error });
@@ -237,6 +206,48 @@ export class BrowserEditor {
     } finally {
       this.#cancelActivation = undefined;
     }
+  }
+  async #finishAttachment(options: EditorOptions): Promise<void> {
+    this.#status.setAttribute('role', 'status');
+    const snapshot = this.#session!.writer.engine.read();
+    const preview = options.preview ? previewMatches(options.preview, snapshot.identity, snapshot.revision) ? 'matched' : 'replaced' : 'none';
+      const collaboration = this.extensionConfiguration?.configuration.collaboration;
+      const remoteGate = !!collaboration && collaboration.readiness === 'remote';
+      this.#surface!.setReadOnly(this.#readOnly || remoteGate);
+      this.root.setAttribute('aria-readonly', String(this.#readOnly || remoteGate)); this.root.setAttribute('aria-busy', String(remoteGate));
+      this.#status.textContent = remoteGate ? 'Waiting for configured collaboration' : 'Document ready';
+      if (this.#plainButton) this.#plainButton.disabled = this.#readOnly || remoteGate;
+      this.lifecycle.update({ phase: remoteGate ? 'visible' : 'ready', ready: !remoteGate, readOnly: this.#readOnly || remoteGate, visible: true, preview });
+      this.#hints ??= new InputHintController(this.root);
+      if (options.inputHints) this.setInputHints(options.inputHints);
+      if (options.commandControls) this.#controls ??= new CommandControls(this);
+      if (collaboration) {
+        const pending = this.#connectConfiguredSync();
+        if (remoteGate) {
+          await pending;
+          if (this.#closing || this.#destroyed) throw Error('Editor initialization canceled');
+          this.#surface!.setReadOnly(this.#readOnly);
+          this.root.setAttribute('aria-readonly', String(this.#readOnly)); this.root.setAttribute('aria-busy', 'false');
+          this.#status.textContent = 'Document ready';
+          if (this.#plainButton) this.#plainButton.disabled = this.#readOnly;
+          this.lifecycle.update({ phase: 'ready', ready: true, readOnly: this.#readOnly });
+        }
+        else void pending.catch(() => {});
+      }
+  }
+  /** Explicit retry after a required adapter failure resumes the same local replica/history. */
+  async loadExtension(id: string): Promise<void> {
+    if (this.#closing || this.#destroyed || !this.#surface) throw Error('Editor is not locally attached');
+    await this.#surface.loadExtension(id);
+    if (this.state.phase === 'failed' && this.extensionConfiguration?.requiredReady.every(name => this.extensionStatus[name]?.state === 'ready')) {
+      this.#resuming ??= this.#finishAttachment(this.#options).finally(() => { this.#resuming = undefined; });
+      await this.#resuming;
+    }
+  }
+  async exportMarkdown(blocks: readonly import('@edit-ac/core').FragmentBlock[]): Promise<import('@edit-ac/core').MarkdownExport> {
+    this.#requireReady();
+    if (!this.#surface) throw Error('Editor is not attached');
+    return this.#surface.exportMarkdown(blocks);
   }
   #requireReady(): LocalSession {
     if (this.#closing || this.#destroyed || !this.state.ready || !this.#session) throw Error('Editor is not ready'); return this.#session;
@@ -298,53 +309,38 @@ export class BrowserEditor {
       return this.#session;
     };
     const session = requireSession(), generation = ++this.#syncGeneration;
-    const { transport, authorized, peerIdentity, presence: presenceOptions, ...limits } = options;
-    const identity = { ...peerIdentity };
-    const outbox = await UpdateOutbox.open(this.#recoveryOptions.indexedDB, this.#recoveryOptions.databaseName);
-    let sync: SyncSession | undefined;
-    let presence: import('./sync/presence.js').EditorPresence | undefined;
-    try {
-      if (requireSession() !== session || generation !== this.#syncGeneration) throw Error('Sync attachment superseded');
-      sync = new SyncSession(session.writer.engine, outbox, limits);
-      sync.attach(transport, identity, authorized);
-      if (presenceOptions && authorized === true) {
-        const { EditorPresence } = await import('./sync/presence.js');
-        if (requireSession() !== session || generation !== this.#syncGeneration) throw Error('Sync attachment superseded');
-        presence = new EditorPresence(this.root, this.#selection!, session.writer.engine, presenceOptions);
-      }
-      const owned = sync;
-      let latest = session.storage.state.localCommitted?.updateId, detached = false;
-      const unsubscribe = session.storage.subscribe(state => {
-        if (state.localCommitted && state.localCommitted.updateId !== latest) {
-          latest = state.localCommitted.updateId;
-          // Re-read the durable outbox; SyncSession filters remote/restore origins.
-          owned.localCommitted('local:sdk');
+    const attachment = await attachStoredSync({ root: this.root, selection: this.#selection!, engine: session.writer.engine,
+      storage: session.storage, indexedDB: this.#recoveryOptions.indexedDB, databaseName: this.#recoveryOptions.databaseName,
+      current: () => requireSession() === session && generation === this.#syncGeneration,
+      onDetach: detached => {
+        if (this.#sync === detached) {
+          this.#sync = undefined; this.#collaborationController?.abort(); this.#collaborationController = undefined;
+          this.#collaborationStatus = Object.freeze({ state: 'cancelled', generation: ++this.#syncGeneration });
         }
-      });
-      const attachment: SyncAttachment = {
-        get state() { return owned.state; },
-        ...(presence ? { presence } : {}),
-        receive: frame => owned.receive(frame), pump: async now => { await owned.pump(now); presence?.pump(now); },
-        detach: () => {
-          if (detached) return; detached = true;
-          unsubscribe(); presence?.dispose(); owned.dispose(); outbox.close();
-          if (this.#sync === attachment) {
-            this.#sync = undefined; this.#collaborationController?.abort(); this.#collaborationController = undefined;
-            this.#collaborationStatus = Object.freeze({ state: 'cancelled', generation: ++this.#syncGeneration });
-          }
-        }
-      };
-      const previous = this.#sync; this.#sync = attachment; previous?.detach(); return attachment;
-    } catch (error) { presence?.dispose(); sync?.dispose(); outbox.close(); throw error; }
+      } }, options);
+    const previous = this.#sync; this.#sync = attachment; previous?.detach(); return attachment;
   }
+
   /** Cancel pending facade work and detach without replacing the local replica/history. */
   disconnectCollaboration(): void {
     this.#collaborationController?.abort(); this.#collaborationController = undefined;
     this.#syncGeneration++; this.#sync?.detach();
     this.#collaborationStatus = Object.freeze({ state: 'cancelled', generation: this.#syncGeneration });
   }
-  connectCollaboration(): Promise<void> {
-    this.#requireReady(); return this.#connectConfiguredSync();
+  async connectCollaboration(): Promise<void> {
+    const remoteGate = this.extensionConfiguration?.configuration.collaboration;
+    if (!this.state.ready) {
+      if (this.#closing || this.#destroyed || !this.#surface || !this.#session || !remoteGate || remoteGate.readiness !== 'remote' ||
+          !this.extensionConfiguration?.requiredReady.every(name => this.extensionStatus[name]?.state === 'ready')) throw Error('Editor is not locally ready');
+    } else this.#requireReady();
+    await this.#connectConfiguredSync();
+    if (!this.state.ready && remoteGate && remoteGate.readiness === 'remote') {
+      this.#surface!.setReadOnly(this.#readOnly);
+      this.root.setAttribute('aria-readonly', String(this.#readOnly)); this.root.setAttribute('aria-busy', 'false');
+      this.#status.setAttribute('role', 'status'); this.#status.textContent = 'Document ready';
+      if (this.#plainButton) this.#plainButton.disabled = this.#readOnly;
+      this.lifecycle.update({ phase: 'ready', ready: true, readOnly: this.#readOnly });
+    }
   }
   async #connectConfiguredSync(): Promise<void> {
     const policy = this.extensionConfiguration?.configuration.collaboration;
@@ -355,17 +351,8 @@ export class BrowserEditor {
     this.#collaborationStatus = Object.freeze({ state: 'loading', generation });
     const current = () => !controller.signal.aborted && this.#collaborationController === controller && !this.#closing && !this.#destroyed;
     try {
-      let cancel: (() => void) | undefined;
-      const cancelled = new Promise<never>((_, reject) => { cancel = () => reject(Error('Collaboration cancelled')); controller.signal.addEventListener('abort', cancel, { once: true }); });
-      let options: AttachSyncOptions;
-      try { options = await Promise.race([Promise.resolve().then(() => policy.connect({ signal: controller.signal, generation })), cancelled]); }
-      finally { if (cancel) controller.signal.removeEventListener('abort', cancel); }
-      if (!current()) throw Error('Collaboration superseded');
-      if (options.authorized !== true) throw Error('Collaboration authorization denied');
-      const { presence: hostPresence, ...syncOptions } = options;
-      if (policy.presence?.awareness && !hostPresence) throw Error('Configured awareness requires an explicit host presence transport and clientId');
-      const attachment = await this.#attachSync({ ...syncOptions, ...(policy.presence?.awareness ? { presence: { ...hostPresence!, peerCarets: policy.presence.peerCarets } } : {}) }, true);
-      if (!current()) { attachment.detach(); throw Error('Collaboration superseded'); }
+      await connectConfiguredCollaboration(policy, { signal: controller.signal, generation, current,
+        attach: options => this.#attachSync(options, true) });
       this.#collaborationStatus = Object.freeze({ state: 'ready', generation });
     } catch (error) {
       if (!current()) throw error;
@@ -380,7 +367,7 @@ export class BrowserEditor {
   }
   setReadOnly(value: boolean): void {
     if (this.#closing || this.#destroyed) throw Error('Editor is closing');
-    this.#readOnly = value; this.#input?.setReadOnly(value); this.root.setAttribute('aria-readonly', String(value || !this.state.ready));
+    this.#readOnly = value; this.#surface?.setReadOnly(value || !this.state.ready); this.root.setAttribute('aria-readonly', String(value || !this.state.ready));
     if (value) { this.#plainTarget?.dispose(); this.#plainTarget = undefined; }
     if (this.#plainButton) this.#plainButton.disabled = value || !this.state.ready;
     this.lifecycle.update({ readOnly: value });
