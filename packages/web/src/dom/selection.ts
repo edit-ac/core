@@ -1,3 +1,4 @@
+import { PointerSelection } from '../selection/pointer.js';
 import { errorMessage } from '../errors.js';
 import type { AnchorResolution, AnchorToken, Bias, EngineHandle, PatchSubscription, StableRange } from "@edit-ac/core";
 import type { DOMPosition, DOMRenderer } from "./render.js";
@@ -17,6 +18,7 @@ export type RestoreResult = { type: "restored" } | { type: "outside" | "empty" }
  * until the next capture/clear/dispose. No absolute target survives a patch.
  */
 export class DOMSelection {
+  readonly pointer: PointerSelection;
   #captured: CapturedSelection | undefined;
   readonly #retained = new Set<RetainedSelection>();
   readonly #subscription: PatchSubscription;
@@ -30,6 +32,7 @@ export class DOMSelection {
   readonly #engine: EngineHandle;
   constructor(readonly renderer: DOMRenderer, engine: EngineHandle) {
     this.#engine = engine;
+    this.pointer = new PointerSelection(this);
     renderer.root.ownerDocument.addEventListener("selectionchange", this.#changed);
     // Construct after the renderer: its synchronous subscription patches first.
     this.#subscription = engine.subscribe({ type: "all" }, patch => {
@@ -63,7 +66,7 @@ export class DOMSelection {
       return this.toModel(node.parentNode, Array.prototype.indexOf.call(node.parentNode.childNodes, node), bias);
     }
     const id = this.renderer.getNodeId(node);
-    const ids = id && this.renderer.positions(id).length ? [id] : this.#engine.read().visible.filter(node => node.kind === 'block' && this.renderer.getBlock(node.id)).map(node => node.id);
+    const ids = id && this.renderer.positions(id).length ? [id] : this.#engine.read().visible.filter(node => node.kind === 'block' && root.contains(this.renderer.getBlock(node.id) ?? null)).map(node => node.id);
     const point = doc.createRange(); point.setStart(node, offset); point.collapse(true);
     let previous: ModelPoint | undefined;
     for (const owner of ids) {
@@ -94,6 +97,11 @@ export class DOMSelection {
       }
     }
     return previous;
+  }
+  /** Resolve an owned stable target without changing the visible selection. */
+  resolvePoint(token: AnchorToken, bias: Bias): DOMPoint | undefined {
+    const point = this.#engine.resolve(token);
+    return point.type === 'position' ? this.toDOM({ ...point, bias }) : undefined;
   }
   toDOM(point: ModelPoint): DOMPoint | undefined {
     const positions = this.renderer.positions(point.node);
@@ -298,6 +306,7 @@ export class DOMSelection {
   dispose(): void {
     if (this.#disposed) return;
     this.#disposed = true; this.renderer.root.ownerDocument.removeEventListener("selectionchange", this.#changed);
+    this.pointer.dispose();
     this.#subscription.dispose(); this.clear();
     for (const selection of this.#retained) selection.dispose();
   }

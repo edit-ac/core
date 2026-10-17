@@ -27,6 +27,7 @@ suites['reorder'] = ['tests/browser/reorder.spec.ts'];
 suites['link-enrichment'] = ['tests/browser/link-enrichment.spec.ts'];
 suites['private-link-display'] = ['tests/browser/private-link-display.spec.ts'];
 suites['references'] = ['tests/browser/references.spec.ts'];
+suites['interaction-pointer-selection'] = ['tests/browser/interactions/pointer-selection.spec.ts'];
 suites['interaction-paste'] = ['tests/browser/interactions/paste.spec.ts', 'tests/browser/interactions/paste-tables.spec.ts'];
 suites['interaction-slash'] = ['tests/browser/interactions/slash.spec.ts'];
 suites['slash'] = ['tests/browser/slash.spec.ts'];

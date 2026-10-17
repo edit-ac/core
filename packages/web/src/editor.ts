@@ -14,6 +14,7 @@ import type { RetainedSelection } from './dom/selection.js';
 type LocalSession = Awaited<ReturnType<typeof recoverLocalDocument>>;
 type RecoveryOptions = Parameters<typeof recoverLocalDocument>[0];
 export interface EditorOptions extends RecoveryOptions {
+  selectionViewport?: import('./selection/pointer.js').PointerSelectionViewport;
   codeCommands?: import('./extensions/code.js').CodeCommandsFactory;
   search?: import('./modules/search.js').DocumentSearchFactory;
   markdown?: import('./input/shortcuts.js').MarkdownAdapter;
