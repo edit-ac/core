@@ -4,6 +4,10 @@ import { join } from 'node:path';
 // Explicit named suites: an unknown name must fail instead of matching zero tests.
 const [suite, ...options] = process.argv.slice(2);
 const suites = { keyboard: ['tests/browser/keyboard.spec.ts'], recovery: ['tests/browser/entry.spec.ts', 'tests/browser/recovery.spec.ts'], render: ['tests/browser/render.spec.ts'], selection: ['tests/browser/selection.spec.ts'], 'input-policy': ['tests/browser/input-policy.spec.ts'], input: ['tests/browser/input.spec.ts'], reconcile: ['tests/browser/reconcile.spec.ts'], composition: ['tests/browser/composition.spec.ts'], 'composition-remote': ['tests/browser/composition-remote.spec.ts'] };
+suites['document-search'] = ['tests/browser/document-search.spec.ts'];
+suites['reference-presenters'] = ['tests/browser/reference-presenters.spec.ts'];
+suites['controlled-embeds'] = ['tests/browser/controlled-embeds.spec.ts'];
+suites['attachment-actions'] = ['tests/browser/attachment-actions.spec.ts'];
 suites['image-lifecycle'] = ['tests/browser/image-lifecycle.spec.ts'];
 suites['table-selection'] = ['tests/browser/table-selection.spec.ts'];
 suites['table-command'] = ['tests/browser/table-command.spec.ts'];
@@ -17,6 +21,7 @@ suites['html-paste'] = ['tests/browser/html-paste.spec.ts'];
 suites['markdown-extensions'] = ['tests/browser/markdown-extensions.spec.ts'];
 suites['math'] = ['tests/browser/math.spec.ts'];
 suites['content-modules'] = ['tests/browser/content-modules.spec.ts'];
+suites['reorder-pointer'] = ['tests/browser/reorder-pointer.spec.ts'];
 suites['reorder'] = ['tests/browser/reorder.spec.ts'];
 suites['link-enrichment'] = ['tests/browser/link-enrichment.spec.ts'];
 suites['private-link-display'] = ['tests/browser/private-link-display.spec.ts'];

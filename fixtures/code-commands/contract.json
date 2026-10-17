@@ -1,0 +1,38 @@
+{
+  "profile": "editac.code-conveniences.v1",
+  "sourceLimit": {
+    "utf8Bytes": 102400,
+    "utf16Units": 102400
+  },
+  "indent": "two spaces",
+  "outdent": "one tab or up to two spaces",
+  "lineBoundary": "LF; half-open endpoint exclusion; terminal LF represents empty final line",
+  "comments": {
+    "rust": "//",
+    "typescript": "//",
+    "javascript": "//",
+    "python": "#",
+    "bash": "#"
+  },
+  "surround": [
+    "()",
+    "[]",
+    "{}",
+    "\"\"",
+    "''"
+  ],
+  "pairing": {
+    "default": false,
+    "trigger": "trusted direct key + matching cancelable insertText, collapsed code caret, whitespace/EOF/closing-delimiter suffix",
+    "ownership": "immediately owned empty pair at exact revision",
+    "overtype": "selection only",
+    "backspace": "one explicit group removing both"
+  },
+  "capabilities": {
+    "crossBlock": false,
+    "multiCursor": false,
+    "implicitProseCut": false,
+    "ast": false,
+    "nativePlatformWiring": "unqualified"
+  }
+}

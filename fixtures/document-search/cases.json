@@ -1,0 +1,12 @@
+{
+  "profile": "editac.document-search.literal.v1",
+  "cases": [
+    {"id":"FND-02", "text":"cat cat cat", "scope":[4,7], "query":"cat", "replacement":"dog", "expected":"cat dog cat"},
+    {"id":"FND-03-current", "text":"cat cat", "query":"cat", "replacement":"dog", "all":false, "expected":"dog cat"},
+    {"id":"FND-03-all", "text":"cat cat", "query":"cat", "replacement":"dog", "all":true, "expected":"dog dog"},
+    {"id":"FND-03-nonrecursive", "text":"cat cat", "query":"cat", "replacement":"cat cat", "all":true, "expected":"cat cat cat cat"},
+    {"id":"FND-06-Unicode", "text":"אב 😀é é SS ß cat", "query":"é", "replacement":"x", "all":true, "expected":"אב 😀x é SS ß cat"}
+  ],
+  "capabilities": {"literal":true,"caseSensitive":true,"normalization":"none","regex":false,"structural":false,"modulePayloads":false,"crossBlock":false,"crossAtom":false,"crossCell":false},
+  "limits": {"queryUnits":256,"documentUnits":1048576,"blocks":10000,"matches":256,"replacementBytes":1048576,"sliceBlocks":32}
+}

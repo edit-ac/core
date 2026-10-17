@@ -1,9 +1,11 @@
+import { embedPresenters, type EmbedOptions } from './embeds/presenter.js';
+import { attachmentPresenters, type AttachmentOptions } from './attachments/presenter.js';
 import { imagePresenters, type ImageOptions } from './images/presenter.js';
 import { decodeTableClipboard, encodeTableClipboard } from './tables/clipboard.js';
 import type { EditorCommand, CommitResult, EngineHandle, Json, PrepareRequest, ProjectedNode } from '@edit-ac/core';
 
 export interface ImageMetadata { url: string; alt: string; title: string; source: string }
-export interface ContentOptions extends ImageOptions {
+export interface ContentOptions extends ImageOptions, AttachmentOptions, EmbedOptions {
   /** Synchronous host asset policy. No URL is loaded when this port is absent. */
   imageUrl?: (metadata: Readonly<ImageMetadata>) => string | null;
   /** Host policy captured for each table action; coordinates are relative to the exact descriptor. */
@@ -52,8 +54,12 @@ export function contentModules(options: ContentOptions = {}): ContentFactory {
   const imageUrl = options.imageUrl;
   if (imageUrl !== undefined && typeof imageUrl !== 'function') throw Error('Invalid image policy');
   const images = imagePresenters(options);
+  const attachments = attachmentPresenters(options);
+  const embeds = embedPresenters(options);
   return context => {
+    const embed = embeds(context); if (embed) return embed;
     const image = images(context); if (image) return image;
+    const attachment = attachments(context); if (attachment) return attachment;
     const descriptor = parse(context.node);
     if (!descriptor || 'url' in descriptor) return;
     return new BasicContentView(context, descriptor, imageUrl, options.tableProtectedCells);

@@ -15,6 +15,10 @@ export type ReorderFactory = (context: ReorderContext) => ReorderPresenter;
 /** Optional UI only; the engine validates all topology and owns the one move. */
 export function reorderControls(): ReorderFactory { return context => new ReorderPresenter(context); }
 const blockDragMime = 'application/x-editac-block';
+interface PointerSession {
+  id: number; x: number; y: number; startX: number; startY: number; threshold: number;
+  active: boolean; sampled: boolean; destination?: { parent: MoveTarget; before: MoveTarget | null; hovered: MoveTarget; after: boolean } | undefined;
+}
 interface Target { target: MoveTarget; selection: RetainedSelection }
 
 export class ReorderPresenter {
@@ -22,6 +26,12 @@ export class ReorderPresenter {
   readonly status: HTMLElement;
   private readonly up: HTMLButtonElement;
   private readonly down: HTMLButtonElement;
+  private readonly grip: HTMLButtonElement;
+  private pointer: PointerSession | undefined;
+  private frame: number | undefined;
+  private readonly work = { frames: 0, hitTests: 0, geometryReads: 0, scrollWrites: 0 };
+  /** Derived interaction diagnostics; no document state or retained DOM references. */
+  get pointerState() { return { ...this.work, active: !!this.pointer?.active, pendingFrame: this.frame !== undefined, captured: !!this.pointer, retainedSelection: !!this.session?.selection.active, listeners: this.listeners.length, subscribed: !this.disposed }; }
   private readonly nodes = new Map<string, ProjectedNode>();
   private readonly subscription: PatchSubscription;
   private readonly listeners: [EventTarget, string, EventListener, boolean][] = [];
@@ -45,6 +55,51 @@ export class ReorderPresenter {
       button.type = 'button'; button.textContent = label; this.controls.append(button);
       this.listen(button, 'pointerdown', () => { this.begin(); });
     }
+    this.grip = doc.createElement('button'); this.grip.type = 'button';
+    this.grip.textContent = 'Drag selected block'; this.grip.setAttribute('aria-label', 'Drag selected block');
+    this.grip.style.touchAction = 'none'; this.controls.append(this.grip);
+    this.listen(this.grip, 'pointerdown', event => {
+      const e = event as PointerEvent;
+      if (e.button !== 0 || !e.isPrimary || this.pointer || !this.begin()) return;
+      e.preventDefault();
+      const box = this.grip.getBoundingClientRect();
+      this.pointer = { id: e.pointerId, x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY,
+        threshold: Math.max(4, Math.min(12, Math.min(box.width, box.height) / 4)), active: false, sampled: false };
+      try { this.grip.setPointerCapture(e.pointerId); } catch { this.cancel(); }
+    });
+    this.listen(this.grip, 'pointermove', event => {
+      const e = event as PointerEvent, p = this.pointer;
+      if (!p || p.id !== e.pointerId) return;
+      if (this.blocked()) { this.cancel(); return; }
+      p.x = e.clientX; p.y = e.clientY;
+      if (!p.active && Math.hypot(p.x - p.startX, p.y - p.startY) >= p.threshold) p.active = true;
+      if (p.active) { e.preventDefault(); this.schedulePointer(); }
+    });
+    this.listen(this.grip, 'pointerup', event => {
+      const e = event as PointerEvent, p = this.pointer;
+      if (!p || p.id !== e.pointerId) return;
+      e.preventDefault();
+      if (!p.active || this.blocked()) { this.restore(); this.cancel(); return; }
+      // Re-hit-test on release. A deleted/replaced captured target must never
+      // silently become its next neighbour even when layout moved underneath it.
+      const captured = p.destination, sampled = p.sampled;
+      p.x = e.clientX; p.y = e.clientY;
+      this.pointerFrame(false);
+      const current = p.destination;
+      if (!current || (sampled && JSON.stringify(captured) !== JSON.stringify(current))) {
+        this.restore(); this.cancel(); this.status.textContent = 'Move canceled. Destination changed.'; return;
+      }
+      if (current.after) {
+        const hovered = this.nodes.get(current.hovered.id);
+        if (!hovered?.editor || hovered.editor.version !== current.hovered.version) { this.restore(); this.cancel(); return; }
+        const next = [...this.nodes.values()].filter(n => n.parent === hovered.parent && n.order > hovered.order).sort((a,b) => a.order - b.order)[0];
+        this.moveCaptured(current.parent, next ? this.target(next.id) : null);
+      } else this.moveCaptured(current.parent, current.before);
+    });
+    for (const type of ['pointercancel', 'lostpointercapture']) this.listen(this.grip, type, () => {
+      if (this.pointer) { this.restore(); this.cancel(); this.status.textContent = 'Move canceled.'; }
+    });
+    this.listen(doc.defaultView!, 'blur', () => { if (this.pointer) { this.restore(); this.cancel(); } });
     this.up.setAttribute('aria-keyshortcuts', 'Alt+ArrowUp'); this.down.setAttribute('aria-keyshortcuts', 'Alt+ArrowDown');
     this.status = doc.createElement('span'); this.status.setAttribute('role', 'status');
     this.status.setAttribute('aria-live', 'polite'); this.controls.append(this.status); root.after(this.controls);
@@ -59,6 +114,7 @@ export class ReorderPresenter {
     this.listen(this.down, 'click', () => { this.moveBy(1); });
     const keyboard = (event: Event) => {
       const key = event as KeyboardEvent;
+      if (key.key === 'Escape' && this.pointer) { key.preventDefault(); key.stopImmediatePropagation(); this.restore(); this.cancel(); this.status.textContent = 'Move canceled.'; return; }
       if (this.composing || this.disposed || context.blocked?.()) return;
       const target = event.target as Element | null;
       if (target && root.contains(target) && target.closest('input, textarea, select, button, [contenteditable="false"]')) return;
@@ -138,6 +194,7 @@ export class ReorderPresenter {
       event.stopPropagation();
     }, true);
     this.listen(root, 'dragend', () => this.cancel(), true);
+    this.listen(doc, 'keydown', event => { if (this.pointer && (event as KeyboardEvent).key === 'Escape') keyboard(event); }, true);
     this.listen(root, 'keydown', keyboard, true); this.listen(this.controls, 'keydown', keyboard, true);
     this.listen(root, 'compositionstart', () => { this.composing = true; this.cancel(); this.updateDisabled(); }, true);
     this.listen(root, 'compositionend', () => { this.composing = false; this.updateDisabled(); }, true);
@@ -165,8 +222,20 @@ export class ReorderPresenter {
   /** Explicit host UI destination. Never repair or redirect an invalid target. */
   moveTo(parent: string, before?: string | null): boolean {
     if (this.blocked() || !this.session) return false;
+    try { return this.moveCaptured(this.target(parent), before == null ? null : this.target(before)); }
+    catch { this.restore(); this.cancel(); this.status.textContent = 'Block could not be moved. Document unchanged.'; return false; }
+  }
+  private moveCaptured(parent: MoveTarget, before: MoveTarget | null): boolean {
+    if (this.blocked() || !this.session) return false;
     try {
-      const command = { type: 'move' as const, target: this.session.target, parent: this.target(parent), before: before == null ? null : this.target(before) };
+      const source = this.nodes.get(this.session.target.id);
+      if (source?.parent === parent.id) {
+        const next = [...this.nodes.values()].filter(n => n.parent === parent.id && n.order > source.order).sort((a,b) => a.order - b.order)[0];
+        if (before?.id === source.id || (before?.id ?? null) === (next?.id ?? null)) {
+          this.restore(); this.status.textContent = 'Block is already at the boundary.'; return false;
+        }
+      }
+      const command = { type: 'move' as const, target: this.session.target, parent, before };
       this.context.engine.history({ type: 'boundary' });
       const result = this.context.commit({ kind: 'editor', origin: 'module-reorder', commands: [command] });
       if (result.caret) this.context.engine.releaseAnchor(result.caret);
@@ -197,8 +266,55 @@ export class ReorderPresenter {
     const focus = selection.toDOM({ ...f, bias: this.session.selection.focusBias });
     if (anchor && focus) { root.focus({ preventScroll: true }); root.ownerDocument.getSelection()?.setBaseAndExtent(anchor.node, anchor.offset, focus.node, focus.offset); selection.capture(); }
   }
-  cancel(): void { this.dragToken=undefined; this.session?.selection.dispose(); this.session = undefined; }
-  private updateDisabled(): void { this.up.disabled = this.down.disabled = this.readOnly || this.composing; }
+  private schedulePointer(): void {
+    if (this.frame !== undefined || !this.pointer?.active) return;
+    this.frame = this.context.root.ownerDocument.defaultView!.requestAnimationFrame(() => {
+      this.frame = undefined; this.pointerFrame(true);
+    });
+  }
+  private pointerFrame(scroll: boolean): void {
+    const p = this.pointer, { root, selection } = this.context;
+    if (!p?.active) return;
+    if (this.blocked()) { this.cancel(); return; }
+    p.sampled = true; this.work.frames++;
+    const doc = root.ownerDocument;
+    // elementFromPoint uses the browser's spatial index: no per-frame walk of
+    // the engine projection or all 2,000 block rectangles.
+    const element = doc.elementFromPoint(p.x, p.y); this.work.hitTests++;
+    p.destination = undefined;
+    if (element && root.contains(element) && !element.closest('input,textarea,select,button,[contenteditable="false"]')) {
+      const id = selection.renderer.getNodeId(element), node = id ? this.nodes.get(id) : undefined;
+      const block = id && selection.renderer.getBlock(id);
+      const source = this.session && this.nodes.get(this.session.target.id);
+      if (node?.editor && block && source && node.id !== source.id && node.parent === source.parent) {
+        const rect = block.getBoundingClientRect(); this.work.geometryReads++;
+        const after = p.y >= (rect.top + rect.bottom) / 2;
+        // Capture the hovered identity now; defer sibling lookup until release.
+        p.destination = { parent: this.target(node.parent), before: this.target(node.id), hovered: this.target(node.id), after };
+        this.status.textContent = `Move ${after ? 'after' : 'before'} block ${node.order + 1}.`;
+      }
+    }
+    if (!p.destination) this.status.textContent = 'No move destination.';
+    if (scroll) {
+      const scroller = root.scrollHeight > root.clientHeight ? root : doc.scrollingElement;
+      const bounds = scroller === root ? root.getBoundingClientRect() : { top: 0, bottom: doc.defaultView!.innerHeight, left: 0, right: doc.defaultView!.innerWidth };
+      this.work.geometryReads++;
+      const edge = Math.min(48, (bounds.bottom - bounds.top) / 4);
+      const delta = p.y < bounds.top + edge ? -16 : p.y > bounds.bottom - edge ? 16 : 0;
+      if (scroller && delta && p.y >= bounds.top && p.y <= bounds.bottom && p.x >= bounds.left && p.x <= bounds.right) {
+        const top = scroller.scrollTop; scroller.scrollTop += delta; this.work.scrollWrites++;
+        if (scroller.scrollTop !== top) this.schedulePointer();
+      }
+    }
+  }
+  cancel(): void {
+    const pointer = this.pointer; this.pointer = undefined;
+    if (this.frame !== undefined) this.context.root.ownerDocument.defaultView!.cancelAnimationFrame(this.frame);
+    this.frame = undefined;
+    if (pointer && this.grip.hasPointerCapture(pointer.id)) this.grip.releasePointerCapture(pointer.id);
+    this.dragToken=undefined; this.session?.selection.dispose(); this.session = undefined;
+  }
+  private updateDisabled(): void { this.up.disabled = this.down.disabled = this.grip.disabled = this.readOnly || this.composing; }
   setReadOnly(value: boolean): void { this.readOnly = value; if (value) this.cancel(); this.updateDisabled(); }
   private listen(target: EventTarget, type: string, listener: EventListener, capture = false): void {
     target.addEventListener(type, listener, capture); this.listeners.push([target, type, listener, capture]);

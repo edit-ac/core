@@ -77,7 +77,7 @@ export function browserHarness(suite, fixtureDirectory = 'fixtures/browser-input
   async function probe(name, action, text = 'alpha') {
     const persistent = options.usePersistentContext?.(name) ?? false;
     const profile = persistent ? await mkdtemp(join(consumer, 'http-cache-')) : undefined;
-    const context = persistent ? await browserType.launchPersistentContext(profile, { headless: true }) : await browser.newContext();
+    const context = persistent ? await browserType.launchPersistentContext(profile, { headless: true }) : await browser.newContext(options.contextOptions ?? {});
     const owned = profile ? spawnSync('ps', ['-axo', 'pid=,ppid=,command='], { encoding: 'utf8' }).stdout.split('\n').filter(line => line.includes(profile)).map(line => ({ pid: Number(line.trim().split(/\s+/)[0]), command: line.trim().replace(/^\d+\s+\d+\s+/, '') })) : [];
     facts.processes.push(...owned.map(value => ({ ...value, workspace: process.cwd(), purpose: suite + ' persistent HTTP cache', profile, log: output })));
 

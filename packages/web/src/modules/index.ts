@@ -9,8 +9,8 @@ export { ModuleRuntime } from './runtime.js';
 export type { ModuleEvent, ModuleScope, ModuleRuntimeOptions, ModuleRuntimeError, ModuleViewContent, ModuleView, ModuleRenderer } from './runtime.js';
 export { slashCommands, SlashPresenter } from './slash.js';
 export type { SlashAction, SlashCommand, SlashContext, SlashFactory } from './slash.js';
-export { referenceSuggestions, referenceBlock, ReferencePresenter, ReferenceLookupSession, privateReferenceDisplay, PrivateReferenceView } from './references.js';
-export type { ReferenceTarget, ReferenceQuery, ReferenceResolver, ReferenceFactory, ReferencePermissionV1, ReferenceCatalogResultV1, ReferenceHostV1, ReferenceLookupOptions } from './references.js';
+export { referenceSuggestions, referenceBlock, ReferencePresenter, ReferenceLookupSession, referenceDisplay, privateReferenceDisplay, PrivateReferenceView } from './references.js';
+export type { ReferenceSuggestionOptions, ReferenceTarget, ReferenceQuery, ReferenceResolver, ReferenceFactory, ReferencePermissionV1, ReferenceCatalogResultV1, ReferenceHostV1, ReferenceLookupOptions } from './references.js';
 export { reorderControls, ReorderPresenter } from './reorder.js';
 export type { ReorderContext, ReorderFactory } from './reorder.js';
 export { contentModules } from './content.js';
@@ -35,7 +35,7 @@ export type { ServiceScope, ServiceResult, ServiceFailure, ServiceLimits, Servic
 export { SupportDiagnostics, serviceDiagnostic, runWithDiagnostics, DIAGNOSTIC_LIMITS } from '../services/diagnostics.js';
 export type { DiagnosticSource, DiagnosticFailure, RecoveryAction } from '../services/diagnostics.js';
 
-export type { PrivateReferenceDisplayOptions } from './references/display.js';
+export type { ReferenceDisplayOptions, PrivateReferenceDisplayOptions } from './references/display.js';
 
 export { HighlightScheduler, HIGHLIGHT_BACKEND } from './code/scheduler.js';
 export type { HighlightInput, HighlightSpan, HighlightResult, HighlightTiming, HighlightSchedulerOptions, HighlightWorkerPort, HighlightClock } from './code/scheduler.js';
@@ -47,3 +47,12 @@ export type { CodeHighlightOptions, CodeHighlightFactory } from './code/presente
 export type { ImageOptions, ImageAssetPort, ImageAssetRequest, ImageAssetResolution, ImageAssetIdentity, ImageAssetDescriptor, ImageAvailability } from './images/presenter.js';
 export { DEFAULT_IMAGE_LIMITS } from './images/policy.js';
 export type { ImageLimits } from './images/policy.js';
+
+export { attachmentPresenters, attachmentClipboard, ATTACHMENT_CLIPBOARD_MIME } from './attachments/presenter.js';
+export type { AttachmentDescriptor, AttachmentState, AttachmentAction, AttachmentRequest, AttachmentAuthorization, AttachmentResult, AttachmentPort, AttachmentOptions, AttachmentClipboard } from './attachments/presenter.js';
+
+export { embedPresenters } from './embeds/presenter.js';
+export type { EmbedDescriptor, EmbedTemplate, EmbedOptions } from './embeds/presenter.js';
+
+export { documentSearch, DocumentSearchPresenter } from './search.js';
+export type { DocumentSearchContext, DocumentSearchOptions, DocumentSearchFactory } from './search.js';

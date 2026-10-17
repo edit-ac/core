@@ -1,0 +1,198 @@
+{
+  "profile": "editac.code-conveniences.v1",
+  "cases": [
+    {
+      "id": "IDE-01-up-backward-endpoint",
+      "text": "a\nb  \nc",
+      "a": 6,
+      "f": 2,
+      "action": "moveUp",
+      "expected": "b  \na\nc",
+      "selection": [
+        4,
+        0
+      ]
+    },
+    {
+      "id": "IDE-01-down",
+      "text": "a\nb\nc",
+      "a": 2,
+      "f": 4,
+      "action": "moveDown",
+      "expected": "a\nc\nb",
+      "selection": [
+        4,
+        5
+      ]
+    },
+    {
+      "id": "IDE-01-duplicate",
+      "text": "a\nb\nc",
+      "a": 4,
+      "f": 2,
+      "action": "duplicate",
+      "expected": "a\nb\nb\nc",
+      "selection": [
+        6,
+        4
+      ]
+    },
+    {
+      "id": "IDE-02-eof-tabs",
+      "text": "a\n\tb  ",
+      "a": 2,
+      "f": 6,
+      "action": "moveUp",
+      "expected": "\tb  \na",
+      "selection": [
+        0,
+        4
+      ]
+    },
+    {
+      "id": "IDE-02-blank",
+      "text": "a\n\nb",
+      "a": 2,
+      "f": 3,
+      "action": "duplicate",
+      "expected": "a\n\n\nb",
+      "selection": [
+        3,
+        4
+      ]
+    },
+    {
+      "id": "IDE-02-terminal-lf",
+      "text": "a\nb\n",
+      "a": 2,
+      "f": 4,
+      "action": "moveUp",
+      "expected": "b\na\n",
+      "selection": [
+        0,
+        2
+      ]
+    },
+    {
+      "id": "IDE-02-upper-boundary",
+      "text": "a\nb",
+      "a": 0,
+      "f": 1,
+      "action": "moveUp",
+      "expected": "a\nb",
+      "selection": [
+        0,
+        1
+      ]
+    },
+    {
+      "id": "IDE-02-lower-boundary",
+      "text": "a\nb",
+      "a": 2,
+      "f": 3,
+      "action": "moveDown",
+      "expected": "a\nb",
+      "selection": [
+        2,
+        3
+      ]
+    },
+    {
+      "id": "IDE-03-surround-backward",
+      "text": "אב 😀!",
+      "a": 5,
+      "f": 0,
+      "action": "surround",
+      "expected": "(אב 😀)!",
+      "selection": [
+        6,
+        1
+      ]
+    },
+    {
+      "id": "IDE-03-empty",
+      "text": "",
+      "a": 0,
+      "f": 0,
+      "action": "surround",
+      "expected": "()",
+      "selection": [
+        1,
+        1
+      ]
+    },
+    {
+      "id": "IDE-04-indent",
+      "text": "a\n\tb  \nc",
+      "a": 7,
+      "f": 2,
+      "action": "indent",
+      "expected": "a\n  \tb  \nc",
+      "selection": [
+        9,
+        4
+      ]
+    },
+    {
+      "id": "IDE-04-outdent",
+      "text": "  a\n\tb  \nc",
+      "a": 0,
+      "f": 9,
+      "action": "outdent",
+      "expected": "a\nb  \nc",
+      "selection": [
+        0,
+        6
+      ]
+    },
+    {
+      "id": "IDE-04-noop",
+      "text": "a",
+      "a": 0,
+      "f": 1,
+      "action": "outdent",
+      "expected": "a",
+      "selection": [
+        0,
+        1
+      ]
+    },
+    {
+      "id": "IDE-05-comment",
+      "text": "  a\n\tb  \nc",
+      "a": 0,
+      "f": 9,
+      "action": "comment",
+      "expected": "  // a\n\t// b  \nc",
+      "selection": [
+        0,
+        15
+      ]
+    },
+    {
+      "id": "IDE-05-uncomment",
+      "text": "  // a\n\t// b  \nc",
+      "a": 0,
+      "f": 15,
+      "action": "comment",
+      "expected": "  a\n\tb  \nc",
+      "selection": [
+        0,
+        9
+      ]
+    },
+    {
+      "id": "IDE-05-python",
+      "text": "\tx",
+      "a": 0,
+      "f": 2,
+      "action": "comment",
+      "language": "python",
+      "expected": "\t# x",
+      "selection": [
+        0,
+        4
+      ]
+    }
+  ]
+}

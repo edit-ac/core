@@ -17,3 +17,9 @@ export { prepareExtensionProfile, ExtensionProfileActivation, ProfileError, FIRS
 export type { ProfileFeature, ExtensionProfile, ProfileEnvironment, PreparedProfile, ProfileResource, ProfileLoader } from './profiles.js';
 export { EXTENSION_TRANSFER_VERSION, EXTENSION_TRANSFER_MIME, ExtensionTransferRegistry, ExtensionTransferError, exportExtensionTransfer, importExtensionTransfer, extensionTransferRequest } from './transfer.js';
 export type { ExtensionTransferDescriptor, ExtensionTransferEnvelope, ExtensionTransferCodec, PreparedExtensionTransfer, TransferMark } from './transfer.js';
+
+export { DocumentSearchSession, DocumentSearchError, DOCUMENT_SEARCH_PROFILE, DOCUMENT_SEARCH_LIMITS } from './search.js';
+export type { DocumentSearchMatch, DocumentSearchResult } from './search.js';
+
+export { CODE_COMMAND_PROFILE, CODE_COMMAND_LIMIT, CODE_PAIRS, CodeCommandError, codeContext, codeEdit, commitCodeEdit, executeCodeCommand } from './code.js';
+export type { CodeAction, CodeContext, CodeEdit } from './code.js';

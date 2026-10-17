@@ -122,6 +122,7 @@ export class TextInput {
     const eventTarget=event.target as Element | null;
     if (eventTarget!==this.#renderer.root && eventTarget?.closest?.('input, textarea, select, button, [contenteditable="false"]')) return;
     this.#flushNative();
+    if (['paste','cut','drop','compositionstart','compositionend','blur','keyup'].includes(event.type)) this.codeCommands?.handle(event);
     if (['compositionstart', 'paste', 'cut', 'beforeinput'].includes(event.type)) { this.slash?.handle(event); this.references?.handle(event); }
     if (this.clipboard.handle(event)) return;
     const input = event as InputEvent, key = event as KeyboardEvent;
@@ -170,11 +171,14 @@ export class TextInput {
       if (this.#key?.disposition === 'native-pending') this.#key.disposition = 'handled';
       this.#key = undefined; this.#pending = undefined; return;
     }
-    if (this.references?.handle(event) || this.slash?.handle(event)) {
+    if (this.codeCommands?.handle(event) || this.references?.handle(event) || this.slash?.handle(event)) {
       const intent = this.#create('key'); intent.disposition = 'handled';
       this.#events.set(event, intent); trace.intent = intent.id; this.#key = intent; this.#pending = intent; return;
     }
     const action = this.keyboard.action(event);
+    if ((action === 'indent' || action === 'outdent') && event.cancelable && this.codeCommands?.execute(action)) {
+      event.preventDefault(); return;
+    }
     if (action && (event.type === 'keydown' || event.type === 'beforeinput' && event.cancelable)) {
       this.#flushNative();
       const intent = event.type === 'beforeinput' ? this.#key ?? this.#create('beforeinput') : this.#create('key');
@@ -356,10 +360,25 @@ export class TextInput {
       }
       this.#selection.capture();
       this.slash?.typed(a.node, a.offset, text, !!slashEligible && a.offset === b.offset);
+      this.references?.typed(a.node, a.offset, text, shortcutEligible && a.offset === b.offset);
     } catch (error) { this.#reject(intent, errorMessage(error)); intent.text = text; }
     finally { this.#engine.releaseAnchor(caretAnchor); }
   }
   #release(range: StableRange): void { this.#engine.releaseAnchor(range.anchor); this.#engine.releaseAnchor(range.focus); }
+  codeCommands: import('../extensions/code.js').CodeCommandsPresenter | undefined;
+  attachCodeCommands(factory: import('../extensions/code.js').CodeCommandsFactory): void {
+    if (this.codeCommands || this.#disposed) throw Error('Code commands already attached or disposed');
+    this.codeCommands = factory({root:this.#renderer.root, selection:this.#selection, engine:this.#engine, commit:this.#commit,
+      blocked:()=>this.#composition.active || !!this.slash?.open || !!this.references?.open});
+    this.codeCommands.setReadOnly(this.#readOnly);
+  }
+  search: import('../modules/search.js').DocumentSearchPresenter | undefined;
+  attachSearch(factory: import('../modules/search.js').DocumentSearchFactory): void {
+    if (this.search || this.#disposed) throw Error('Search presenter already attached or disposed');
+    this.search = factory({ root: this.#renderer.root, selection: this.#selection, engine: this.#engine, commit: this.#commit,
+      blocked: () => this.#composition.active || !!this.slash?.open || !!this.references?.open });
+    this.search.setReadOnly(this.#readOnly);
+  }
   attachReorder(factory: import('../modules/reorder.js').ReorderFactory): void {
     if (this.reorder || this.#disposed) throw Error('Reorder presenter already attached or disposed');
     this.reorder = factory({ root: this.#renderer.root, selection: this.#selection, engine: this.#engine, commit: this.#commit, copyDrop: (event,target) => {
@@ -379,7 +398,7 @@ export class TextInput {
     this.slash.setReadOnly(this.#readOnly);
   }
   setReadOnly(value: boolean): void {
-    this.reorder?.setReadOnly(value); this.slash?.setReadOnly(value); this.references?.setReadOnly(value);
+    this.codeCommands?.setReadOnly(value); this.search?.setReadOnly(value); this.reorder?.setReadOnly(value); this.slash?.setReadOnly(value); this.references?.setReadOnly(value);
     if (value) {
       this.clipboard.cancel();
       const owner = this.#composition.owner;
@@ -401,7 +420,7 @@ export class TextInput {
   }
   dispose(): void {
     if (this.#disposed) return;
-    this.reorder?.dispose(); this.slash?.dispose(); this.references?.dispose();
+    this.codeCommands?.dispose(); this.search?.dispose(); this.reorder?.dispose(); this.slash?.dispose(); this.references?.dispose();
     this.#composition.finish('dispose'); this.#composition.dispose(); this.keyboard.dispose(); this.clipboard.dispose();
     this.#disposed = true; this.#generation++; this.#observer.disconnect(); this.#subscription.dispose();
     this.#renderer.patchBoundary = undefined; this.#renderer.setReadOnly(true);

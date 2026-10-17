@@ -1,16 +1,20 @@
 import type { ProjectedNode } from '@edit-ac/core';
 import type { ContentContext, ContentFactory, ContentView } from '../content.js';
+import { LinkActivation } from '../links/activation.js';
+import type { LinkActivationOptions } from '../links/activation.js';
 import { admitLinkRequest, captureLinkRequest, validateLinkResult } from '../links/contract.js';
-import type { LinkHostContext, LinkHostPorts, LinkRequest, LinkResult, LinkState } from '../links/contract.js';
+import type { LinkHostContext, LinkHostPorts, LinkRequest, LinkResult, LinkState, LinkTarget } from '../links/contract.js';
 
 export interface PrivateReferenceDisplayOptions {
   context(): Readonly<LinkHostContext>;
   /** Configured catalog parses identity/authority; never derive authority from metadata. */
-  target(targetId: string): { targetId: string; authority: string | null } | undefined;
+  target(targetId: string): { targetId: string; authority: string | null } | Readonly<LinkTarget> | undefined;
   /** Local-only host cache port, keyed by the complete viewer/target/policy envelope.
    * No IO, credential loading, or automatic resolution is permitted here. */
   cached(request: Readonly<LinkRequest>): Readonly<LinkResult> | undefined;
-  ports: Pick<LinkHostPorts, 'privateCatalog'>;
+  ports: Pick<LinkHostPorts, 'privateCatalog'> & Partial<Pick<LinkHostPorts, 'publicMetadata'>>;
+  /** Explicit host navigation through the existing portable authority boundary. */
+  activation?: Pick<LinkActivationOptions, 'catalog' | 'privateLocator' | 'dispatch'>;
   /** Includes logout, account/tenant/authority/policy changes, lock/revoke and lease expiry. */
   subscribe(invalidate: () => void): () => void;
   /** Already vetted, bounded raster bytes from the host cache; never a remote URL. */
@@ -41,6 +45,8 @@ export class PrivateReferenceView implements ContentView {
   private readonly preview: HTMLElement;
   private readonly status: HTMLElement;
   private readonly refresh: HTMLButtonElement;
+  private readonly activate: HTMLButtonElement;
+  private readonly activation: LinkActivation | undefined;
   private image: HTMLImageElement | undefined;
   private assetUrl: string | undefined;
   private timer: ReturnType<typeof setTimeout> | undefined;
@@ -60,7 +66,13 @@ export class PrivateReferenceView implements ContentView {
     this.status = doc.createElement('span'); this.status.setAttribute('role', 'status'); this.status.setAttribute('aria-live', 'polite');
     this.refresh = doc.createElement('button'); this.refresh.type = 'button'; this.refresh.textContent = 'Refresh reference';
     this.refresh.addEventListener('click', this.refreshClicked);
+    this.activate = doc.createElement('button'); this.activate.type = 'button'; this.activate.textContent = 'Open reference';
+    this.activate.hidden = !options.activation;
+    this.activate.addEventListener('click', this.activateClicked);
+    if (options.activation) this.activation = new LinkActivation({ ...options.activation, context: () => options.context(),
+      current: request => this.disposed ? undefined : this.request('render', request.requestId) });
     this.element.append(this.label, this.title, this.preview, this.status, this.refresh);
+    if (options.activation) this.element.append(this.activate);
     try {
       this.unsubscribe = options.subscribe(() => this.invalidate());
       if (typeof this.unsubscribe !== 'function') throw Error('Invalid private reference subscription');
@@ -72,13 +84,13 @@ export class PrivateReferenceView implements ContentView {
     const data = reference(this.node);
     if (!data) throw Error('Invalid reference');
     const target = this.options.target(data.targetId), host = this.options.context(), snapshot = this.context.engine.read();
-    if (!target || target.targetId !== data.targetId) throw Error('Reference unavailable');
+    if (!target || ('kind' in target ? target.kind === 'private' && target.targetId !== data.targetId : target.targetId !== data.targetId)) throw Error('Reference unavailable');
     return captureLinkRequest({ requestId: id, cancellationToken: id, node: this.node.id, epoch: snapshot.identity.epoch,
       labelRevision: String(this.nodeRevision), host: { ...host, readonly: this.readOnly || host.readonly },
-      target: { kind: 'private', ...target }, policy: 'explicit-refresh', origin });
+      target: 'kind' in target ? target : { kind: 'private', ...target }, policy: 'explicit-refresh', origin });
   }
   private check(result: Readonly<LinkResult>, request: Readonly<LinkRequest>): LinkState {
-    if (result.request.origin !== request.origin || result.outcome.status === 'available' && result.outcome.metadata.kind !== 'private') return 'unsupported';
+    if (result.request.origin !== request.origin || result.outcome.status === 'available' && result.outcome.metadata.kind !== request.target.kind) return 'unsupported';
     // Cache display is not lookup admission. Reuse the complete result/authority validator
     // with an enabled envelope without invoking either network port on render.
     return validateLinkResult({ ...result, request: { ...result.request, origin: 'explicit-refresh' } },
@@ -129,6 +141,15 @@ export class PrivateReferenceView implements ContentView {
       if (!this.disposed && generation === this.generation && result) this.display(result, this.request('render', request.requestId));
     } catch { if (!this.disposed) this.fallback(); }
   }
+  private activateClicked = (): void => {
+    if (this.disposed || !this.activation) return;
+    try {
+      // Capture the stored identity at the event. Displayed metadata is never an activation input.
+      const request = this.request('render', `activate-${++sequence}`);
+      const state = this.activation.perform({ kind: 'activate', request });
+      if (!this.disposed && state !== 'available') this.fallback(state);
+    } catch { if (!this.disposed) this.fallback(); }
+  };
   private refreshClicked = (): void => { void this.resolve(); };
   private async resolve(): Promise<void> {
     if (this.disposed) return;
@@ -141,7 +162,9 @@ export class PrivateReferenceView implements ContentView {
       if (admission.status !== 'ready') { this.fallback(admission.status); return; }
       this.status.textContent = 'Refreshing reference'; this.element.setAttribute('aria-busy', 'true');
       this.timer = setTimeout(() => { if (this.pending === controller) { this.cancel(); this.fallback(); this.element.removeAttribute('aria-busy'); } }, 10000);
-      const outcome = await this.options.ports.privateCatalog(request, controller.signal);
+      const port = admission.port === 'public' ? this.options.ports.publicMetadata : this.options.ports.privateCatalog;
+      if (!port) { this.fallback('unsupported'); return; }
+      const outcome = await port.call(this.options.ports, request, controller.signal);
       if (controller.signal.aborted || this.disposed || generation !== this.generation) return;
       this.display({ request, outcome }, this.request('explicit-refresh', request.requestId));
     } catch { if (!this.disposed && generation === this.generation) this.fallback(); }
@@ -157,6 +180,11 @@ export class PrivateReferenceView implements ContentView {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true; this.cancel(); this.refresh.removeEventListener('click', this.refreshClicked);
+    this.activate.removeEventListener('click', this.activateClicked); this.activation?.dispose();
     try { this.unsubscribe(); } finally { this.fallback(); this.element.removeAttribute('aria-busy'); }
   }
 }
+
+/** Public and private references share the same inert identity and host ports. */
+export const referenceDisplay = privateReferenceDisplay;
+export type ReferenceDisplayOptions = PrivateReferenceDisplayOptions;

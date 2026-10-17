@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "profile": "editac.document-search.literal.v1",
+  "coordinates": "UTF-16; text-owner local; opaque modules are boundaries",
+  "scope": "independently owned engine stable range captured before query focus",
+  "result": {"profile":"editac.document-search.literal.v1","revision":7,"status":"ready","matches":[{"owner":"captured-owner","from":4,"to":7}],"blocks":1,"units":11},
+  "replace": {"kind":"editor","origin":"search:replace-all","commands":[{"type":"replaceAt","owner":"captured-owner","from":4,"to":7,"text":"dog"},{"type":"selectionAt","anchor":{"owner":"captured-owner","offset":7,"bias":"right"},"focus":{"owner":"captured-owner","offset":7,"bias":"right"}}]},
+  "apply": "Revalidate captured revision, anchors and whole-set current host permission synchronously; prepare existing engine batch, commit once, release returned tokens. Never replay this example against a later revision.",
+  "history": "explicit single intent; one undo group; no recursive matching of replacement",
+  "native": "portable records only; platform focus/highlights/OS Find wiring remain unqualified"
+}
