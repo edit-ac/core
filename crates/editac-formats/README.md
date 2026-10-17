@@ -243,3 +243,17 @@ without docx-rs or PDF dependencies and returns one job-correlated prepared batc
 Original media enters the shared AssetWork service only after guarded validation;
 unsupported features require explicit loss approval and retain original bytes.
 The aggregate ODT registry remains unavailable until its consumer/platform gates.
+
+## Bounded RTF import
+
+Feature `rtf-import` exposes `rtf::import::{PROFILE, Budgets, prepare}`. See
+[the exact grammar/profile](../../fixtures/formats/rtf/profile.md). It maps
+Windows-1252/Unicode text, scoped marks, paragraphs and bounded rectangular text
+tables to one shared prepared Session insertion. Unsupported destinations remain
+inert with recoverable byte-offset reports; loss needs explicit approval. Font
+selection/alternate encodings and unsafe/malformed table structures fail before
+mutation. The caller retains original bytes. No parser dependency, OS control,
+network or attachment capability is added; the disabled crate graph stays empty.
+Run `node tests/formats/run.mjs rtf-import` for the canonical qualification.
+Native execution ports are prepared and WASM is compile-only; export and platform
+wiring qualify separately.

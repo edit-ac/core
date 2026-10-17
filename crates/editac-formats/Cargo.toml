@@ -22,6 +22,7 @@ container-codecs = ["dep:zip", "dep:quick-xml", "dep:flate2"]
 docx-codecs = ["container-codecs", "dep:docx-rs"]
 odt-import = ["container-codecs", "jobs"]
 odt-export = ["container-codecs", "jobs"]
+rtf-import = ["jobs"]
 jobs = ["dep:editac-core", "dep:editac-session", "dep:sha2"]
 
 [[test]]
@@ -114,3 +115,11 @@ sha2 = { version = "=0.10.9", optional = true }
 
 [dev-dependencies]
 serde_json = "=1.0.152"
+
+[[test]]
+name = "rtf_import"
+required-features = ["rtf-import"]
+
+[[example]]
+name = "rtf_import"
+required-features = ["rtf-import"]

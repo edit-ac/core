@@ -317,3 +317,6 @@ impl<'a> Output<'a> {
 
 #[cfg(any(feature = "odt-import", feature = "odt-export"))]
 pub mod odt;
+
+#[cfg(feature = "rtf-import")]
+pub mod rtf;
