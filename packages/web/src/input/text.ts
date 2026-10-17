@@ -1,4 +1,5 @@
 import { inputTextDiagnostic } from './characters.js';
+import { TextDrag } from './drag.js';
 import { errorMessage } from '../errors.js';
 import type { AnchorToken, CommitResult, EngineHandle, PatchSubscription, PrepareRequest, StableRange, EditorPosition, EditorCommand } from '@edit-ac/core';
 import type { DOMRenderer } from '../dom/render.js';
@@ -51,6 +52,7 @@ export class TextInput {
   readonly #composition: CompositionInput;
   readonly keyboard: KeyboardInput;
   readonly clipboard: ClipboardInput;
+  readonly textDrag: TextDrag;
   #rendering = false;
   #queued = false;
   #key: TextIntent | undefined;
@@ -93,6 +95,7 @@ export class TextInput {
     this.shortcuts = literalShortcuts();
     this.keyboard = new KeyboardInput(renderer, selection, engine, commit, () => this.#readOnly || this.#disposed || this.#composition.active);
     this.clipboard = new ClipboardInput(renderer, selection, engine, commit, () => this.#readOnly || this.#disposed || this.#composition.active, clipboardCodecs);
+    this.textDrag = new TextDrag(renderer, selection, engine, commit, () => this.#readOnly || this.#disposed || this.#composition.active);
     this.#observer = new MutationObserver(records => this.#mutations(records));
     this.#observer.observe(renderer.root, { subtree: true, childList: true, characterData: true });
     renderer.patchBoundary = {
@@ -149,6 +152,7 @@ export class TextInput {
         if (!owner || this.#renderer.getBlock(owner) !== editable || editable.contentEditable !== 'false' || this.#renderer.root.ownerDocument.activeElement !== this.#renderer.root) return;
       }
     }
+    this.textDrag.beforeEvent(event);
     this.#flushNative();
     if (['paste','cut','drop','compositionstart','compositionend','blur','keyup'].includes(event.type)) this.codeCommands?.handle(event);
     if (['compositionstart', 'paste', 'cut', 'beforeinput'].includes(event.type)) { this.slash?.handle(event); this.references?.handle(event); }
@@ -163,6 +167,7 @@ export class TextInput {
       if (this.#key === owner) this.#key = undefined;
       if (this.#pending === owner) this.#pending = undefined;
     }
+    if (this.textDrag.handle(event)) return;
     if (this.clipboard.handle(event)) return;
     const input = event as InputEvent, key = event as KeyboardEvent;
     const trace: Trace = { type: event.type, trusted: event.isTrusted, generation: this.#generation, inputType: input.inputType, cancelable: event.cancelable };
@@ -316,7 +321,7 @@ export class TextInput {
     finally { if (ownedRange) this.#release(ownedRange); target.dispose(); }
   }
   #mutations(records: MutationRecord[]): void {
-    if (this.clipboard.ownsMutations) return;
+    if (this.clipboard.ownsMutations || this.textDrag.ownsMutations) return;
     records = records.filter(record => !this.#renderer.ownsModuleDecoration(record.target));
     if (!records.length || this.#disposed || this.#rendering) return;
     if (this.#composition.active) {
@@ -526,7 +531,7 @@ export class TextInput {
   setReadOnly(value: boolean): void {
     this.codeCommands?.setReadOnly(value); this.search?.setReadOnly(value); this.reorder?.setReadOnly(value); this.slash?.setReadOnly(value); this.references?.setReadOnly(value);
     if (value) {
-      this.clipboard.cancel();
+      this.clipboard.cancel(); this.textDrag.cancel();
       const owner = this.#composition.owner;
       this.#composition.finish('readonly');
       // This terminal transition has no final event to release routing owners.
@@ -547,7 +552,7 @@ export class TextInput {
   dispose(): void {
     if (this.#disposed) return;
     this.codeCommands?.dispose(); this.search?.dispose(); this.reorder?.dispose(); this.slash?.dispose(); this.references?.dispose();
-    this.#composition.finish('dispose'); this.#composition.dispose(); this.keyboard.dispose(); this.clipboard.dispose();
+    this.#composition.finish('dispose'); this.#composition.dispose(); this.keyboard.dispose(); this.clipboard.dispose(); this.textDrag.dispose();
     this.#disposed = true; this.#generation++; this.#observer.disconnect(); this.#subscription.dispose();
     this.#renderer.patchBoundary = undefined; this.#renderer.setReadOnly(true);
     for (const [type, listener] of this.#listeners) this.#renderer.root.removeEventListener(type, listener);

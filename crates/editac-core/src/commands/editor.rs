@@ -2,7 +2,7 @@
 //! separate acceptance gates; all plans here stage the entire batch first.
 use super::text::{TextError, TextOrigin};
 use crate::{
-    document::{Document, DocumentError, DocumentIdentity, MAX_RESTORE_BYTES, ReplayUpdate},
+    document::{Document, DocumentError, DocumentIdentity, ReplayUpdate, MAX_RESTORE_BYTES},
     editor_mapping as m,
 };
 use std::collections::VecDeque;
@@ -250,6 +250,18 @@ impl Document {
         destination: &crate::anchors::Selection,
         origin: &TextOrigin,
     ) -> Result<PreparedEditorEdit, EditorError> {
+        self.prepare_fragment_transfer(source, destination, origin, false)
+    }
+
+    /// Copy/move uses the same owned fragment admission and returns the inserted
+    /// range. Pointer geometry and platform effect choice stay outside the engine.
+    pub fn prepare_fragment_transfer(
+        &self,
+        source: &crate::anchors::Selection,
+        destination: &crate::anchors::Selection,
+        origin: &TextOrigin,
+        copy: bool,
+    ) -> Result<PreparedEditorEdit, EditorError> {
         use crate::anchors::{Anchor, Resolution};
         let blocks = crate::transfer::range_blocks(self, source)?;
         let snapshot = self.inspect().map_err(|_| EditorError::InvalidCommand)?;
@@ -272,8 +284,25 @@ impl Document {
         let left = a.min(b);
         let right = a.max(b);
         let d = coordinate(&destination.anchor)?;
-        if d != coordinate(&destination.focus)? || left == right || (left..=right).contains(&d) {
+        if d != coordinate(&destination.focus)?
+            || left == right
+            || (!copy && (left..=right).contains(&d))
+        {
             return Err(EditorError::InvalidCommand);
+        }
+        let Resolution::Position(target) = self
+            .resolve_anchor(&destination.anchor)
+            .map_err(|_| EditorError::InvalidCommand)?
+        else {
+            return Err(EditorError::UnsupportedTarget);
+        };
+        let target_block = self.fragment_for_node(&target.node)?;
+        if matches!(
+            target_block.attributes,
+            Some(crate::document::BlockAttributes::Code(_))
+        ) && (blocks.len() != 1 || blocks[0].attributes != target_block.attributes)
+        {
+            return Err(EditorError::UnsupportedTarget);
         }
         let baseline = self.checkpoint();
         let mut stage =
@@ -288,8 +317,19 @@ impl Document {
             containers: vec![],
             checked: None,
         };
-        let deletion = stage.prepare_fragment(source, &[empty], origin)?;
-        stage.commit_editor(deletion)?;
+        if !copy {
+            let deletion = stage.prepare_fragment(source, &[empty], origin)?;
+            stage.commit_editor(deletion)?;
+        }
+        let Resolution::Position(start) = stage
+            .resolve_anchor(&destination.anchor)
+            .map_err(|_| EditorError::InvalidCommand)?
+        else {
+            return Err(EditorError::UnsupportedTarget);
+        };
+        let inserted_start = stage
+            .anchor(&start.node, start.offset, crate::anchors::Bias::Left)
+            .map_err(|_| EditorError::InvalidCommand)?;
         let insertion = stage.prepare_fragment(destination, &blocks, origin)?;
         let result_caret = insertion.result_caret.clone();
         stage.commit_editor(insertion)?;
@@ -308,8 +348,11 @@ impl Document {
                 .map_err(EditorError::Admission)?,
             origin: origin.clone(),
             next_operation: self.next_structure_counter,
+            result_selection: result_caret.as_ref().map(|end| crate::anchors::Selection {
+                anchor: inserted_start,
+                focus: end.clone(),
+            }),
             result_caret,
-            result_selection: None,
             entry_selection: Some(source.clone()),
         })
     }
@@ -326,7 +369,7 @@ impl Document {
             text::TextCommand,
         };
         use crate::anchors::{Bias, Resolution, Selection};
-        use crate::{Utf16Offset, document::BlockAttributes};
+        use crate::{document::BlockAttributes, Utf16Offset};
         super::fragment::validate(blocks).map_err(|_| EditorError::InvalidCommand)?;
         // Edge atoms need editable cuts around them. Otherwise assigning an
         // opaque tuple to the first/last destination could absorb unrelated
@@ -506,6 +549,13 @@ impl Document {
         // label or unknown tuple must never be flattened into editable text.
         let mut selected_atoms = Vec::new();
         for (index, node) in nodes.iter().enumerate().take(last + 1).skip(first) {
+            // A complete selected separator has no text payload. Admit its
+            // removal only on the disposable fragment stage, just like content
+            // atoms; ordinary Join still rejects structural separators.
+            if matches!(node.block_attributes, Some(BlockAttributes::Separator)) && index < last {
+                selected_atoms.push(node.id.clone());
+                continue;
+            }
             let Some(BlockAttributes::Unknown(tuple)) = &node.block_attributes else {
                 continue;
             };
@@ -2617,9 +2667,9 @@ mod transaction_tests {
     #[test]
     fn initial_text_reuses_read_only_plan_but_later_text_observes_staged_state() {
         use crate::{
-            Utf16Offset,
             anchors::{Bias, Selection},
             commands::text::TextCommand,
+            Utf16Offset,
         };
         for stable in [false, true] {
             let document_id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa68";
@@ -2867,8 +2917,8 @@ mod transaction_tests {
     fn v5_witnessed_cross_source_literal_conversion_is_silent_then_commits_once() {
         use super::super::blocks::BlockCommand;
         use super::super::text::TextCommand;
-        use crate::Utf16Offset;
         use crate::anchors::{Bias, Selection};
+        use crate::Utf16Offset;
         let identity = DocumentIdentity::v5(
             "cccccccc-cccc-4ccc-8ccc-cccccccccc55",
             "dddddddd-dddd-4ddd-8ddd-dddddddddd55",
@@ -2961,12 +3011,11 @@ mod transaction_tests {
             n.runs.iter().map(|r| r.text.as_str()).collect::<String>(),
             "a\n\nd"
         );
-        assert!(
-            n.runs
-                .iter()
-                .filter(|r| r.text.contains('\n'))
-                .all(|r| r.attributes.is_empty())
-        );
+        assert!(n
+            .runs
+            .iter()
+            .filter(|r| r.text.contains('\n'))
+            .all(|r| r.attributes.is_empty()));
         assert_eq!(
             d.read()
                 .state_vector()

@@ -60,3 +60,5 @@ export type { ToolbarTarget, MarkState, FormattingChanges } from './commands/for
 export type { HistoryTarget } from './input/keyboard.js';
 
 export type { PointerSelection, PointerSelectionViewport } from './selection/pointer.js';
+
+export type { TextTransferTarget } from './input/drag.js';
