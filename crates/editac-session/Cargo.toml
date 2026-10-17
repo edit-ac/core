@@ -41,6 +41,11 @@ name = "host-markdown-owner"
 path = "../../examples/host-mcp/session-owner.rs"
 required-features = ["native-store"]
 
+[[example]]
+name = "host-realtime-owner"
+path = "../../examples/host-mcp/realtime-owner.rs"
+required-features = ["native-store"]
+
 [[bin]]
 name = "editac-asset-crash-probe"
 path = "tests/support/asset_crash_probe.rs"

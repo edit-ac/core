@@ -46,6 +46,7 @@ suites['editing-presenters'] = ['tests/browser/editing-presenters.spec.ts'];
 suites['editing-lifetime'] = ['tests/browser/editing-lifetime.spec.ts'];
 suites['editing-input'] = ['tests/browser/editing-input.spec.ts'];
 suites['history-selection'] = ['tests/browser/history-selection.spec.ts'];
+suites['agent-realtime'] = ['tests/browser/agent-realtime.spec.ts'];
 suites.baseline = [...suites.render, ...suites.keyboard, ...suites.example];
 if (!suites[suite]) throw new Error(`Expected browser suite: ${Object.keys(suites).join(', ')}`);
 if (suite === 'baseline' && options.length) {
