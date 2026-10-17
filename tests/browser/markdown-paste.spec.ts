@@ -26,8 +26,8 @@ test('whole parser sees nested fences lists and reference definitions',()=>probe
   await replace(page,{'text/markdown':'> - [x] **task**\n>   ```js\n>   **literal**\n>   ```\n\n[late][id]\n\n[id]: https://example.com/a'});
   const s=await read(page,fact),blocks=s.nodes.filter(n=>n.kind==='block');assert.equal(s.result.disposition,'committed');assert.ok(blocks.some(n=>n.editor.checked===true));assert.ok(blocks.some(n=>n.blockAttributes[0]==='code'&&n.runs.map(r=>r.text).join('')==='**literal**\n'));assert.ok(blocks.some(n=>n.runs.some(r=>r.attributes.link==='https://example.com/a')));assert.equal(s.history.undoGroups,1);
 }));
-test('minimal and explicit plain preserve Unicode whitespace and Markdown',()=>probe('literal',async(page,fact)=>{
-  const raw='# 😀\n  **x**\t\r\n';await replace(page,{'text/plain':raw},'literal');let s=await read(page,fact);assert.deepEqual(s.text,[raw]);assert.deepEqual(s.nodes[0].blockAttributes,['paragraph']);await page.evaluate(()=>window.inputFixture.engine.history({type:'undo'}));await replace(page,{'text/markdown':'# wrong','text/plain':raw},'markdown',true);s=await read(page,fact);assert.deepEqual(s.text,[raw]);
+test('minimal and explicit plain normalize CRLF once and preserve Unicode spaces and Markdown',()=>probe('literal',async(page,fact)=>{
+  const raw='# 😀\n  **x**\t\r\n',expected='# 😀\n  **x**\t\n';await replace(page,{'text/plain':raw},'literal');let s=await read(page,fact);assert.deepEqual(s.text,[expected]);assert.deepEqual(s.nodes[0].blockAttributes,['paragraph']);await page.evaluate(()=>window.inputFixture.engine.history({type:'undo'}));await replace(page,{'text/markdown':'# wrong','text/plain':raw},'markdown',true);s=await read(page,fact);assert.deepEqual(s.text,[expected]);
 }));
 test('internal before Markdown before HTML before plain',()=>probe('precedence',async(page,fact)=>{
  const internal=JSON.stringify({version:1,schema:'editac.registry.editor.v5',blocks:[{attributes:{type:'paragraph'},runs:[{text:'internal',marks:[]}]}]});

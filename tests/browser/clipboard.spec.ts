@@ -17,12 +17,13 @@ async function select(page, first, start, last = first, end = start) {
 function fragment(blocks, schema = 'editac.registry.editor.v5', version = 1) { return JSON.stringify({version,schema,blocks}); }
 const rich = fragment([{ attributes: {type:'heading',level:2}, runs:[{text:'Bold',marks:[{mark:'bold'}]}] },{ attributes:{type:'paragraph'},runs:[{text:'Link',marks:[{mark:'link',href:'https://example.com/'}]}] }]);
 
-test('literal preserves Markdown, whitespace, Unicode and newlines in one undo group', () => probe('literal', async (page,fact) => {
+test('literal normalizes CRLF once and preserves Markdown, spaces, Unicode and one undo group', () => probe('literal', async (page,fact) => {
   const text = '# title\n\n  **literal**\t😀\r\n<script>x</script>';
+  const expected = '# title\n\n  **literal**\t😀\n<script>x</script>';
   await paste(page, {'text/plain':text},true); let s = await state(page,fact);
-  assert.equal(s.text[0], 'alpha'+text); assert.equal(s.history.undoGroups,1); assert.equal(s.journal.length,1);
+  assert.equal(s.text[0], 'alpha'+expected); assert.equal(s.history.undoGroups,1); assert.equal(s.journal.length,1);
   await page.evaluate(() => window.inputFixture.engine.history({type:'undo'})); s=await state(page,fact); assert.equal(s.text[0],'alpha');
-  await page.evaluate(() => window.inputFixture.engine.history({type:'redo'})); s=await state(page,fact); assert.equal(s.text[0],'alpha'+text);
+  await page.evaluate(() => window.inputFixture.engine.history({type:'redo'})); s=await state(page,fact); assert.equal(s.text[0],'alpha'+expected);
 }));
 test('cross-block fragment round-trips headings, marks and links atomically', () => probe('rich-fragment', async (page,fact) => {
   await select(page,0,0,1,11); await paste(page,{[MIME]:rich,'text/plain':'wrong'}); let s=await state(page,fact);

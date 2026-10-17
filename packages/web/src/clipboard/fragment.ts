@@ -1,3 +1,4 @@
+import { inputTextDiagnostic, literalLineEndings } from '../input/characters.js';
 import { errorMessage, rejected } from '../errors.js';
 import type { CommitResult, EngineHandle, FragmentBlock, FragmentRun, PrepareRequest, ProjectedNode, Snapshot } from '@edit-ac/core';
 import { PendingPaste } from './pending.js';
@@ -169,13 +170,16 @@ export class ClipboardInput {
         }
       }
       if (!blocks) {
-        const text = data.getData('text/plain');
+        const text = this.#literal(data.getData('text/plain'));
         if (!text) throw Error('clipboard-empty');
-        if (exceedsLimit(text)) throw Error('clipboard-limit');
         if (!literal && this.plainTextPolicy === 'markdown' && !this.#engine.markdownAvailable) {
           this.#diagnose('markdown-codec-unavailable'); this.#recoverSource('text/plain', text, 'markdown-codec-unavailable');
         }
         blocks = !literal && this.plainTextPolicy === 'markdown' && this.#engine.markdownAvailable ? this.#markdown(text, 'text/plain') : [{ runs: [{ text, marks: [] }], attributes: null }];
+      }
+      for (const block of blocks) for (const run of block.runs) {
+        const diagnostic = inputTextDiagnostic(run.text);
+        if (diagnostic) { this.#diagnose(diagnostic); this.#recoverSource('text/plain', run.text, diagnostic); throw Error(diagnostic); }
       }
       return blocks;
   }
@@ -216,7 +220,15 @@ export class ClipboardInput {
       this.recovery.push({ mime, raw, reason }); if (this.recovery.length > 4) this.recovery.shift();
     }
   }
+  #literal(raw: string): string {
+    if (exceedsLimit(raw)) throw Error('clipboard-limit');
+    const diagnostic = inputTextDiagnostic(raw);
+    if (diagnostic) { this.#diagnose(diagnostic); this.#recoverSource('text/plain', raw, diagnostic); throw Error(diagnostic); }
+    return literalLineEndings(raw);
+  }
   #markdown(raw: string, mime: string): readonly FragmentBlock[] {
+    const diagnostic = inputTextDiagnostic(raw);
+    if (diagnostic) { this.#diagnose(diagnostic); this.#recoverSource(mime, raw, diagnostic); throw Error(diagnostic); }
     const prepared = this.#engine.importMarkdown(raw, this.contentCodecs);
     for (const diagnostic of prepared.diagnostics) this.#diagnose(diagnostic.code);
     if (prepared.diagnostics.length) {
@@ -235,11 +247,12 @@ export class ClipboardInput {
     const cancellation = new Promise<never>((_, reject) => { cancel = () => reject(Error('clipboard-canceled')); });
     this.#reads.add(cancel);
     try {
-      const text = await Promise.race([Promise.resolve().then(() => {
+      const raw = await Promise.race([Promise.resolve().then(() => {
         if (generation !== this.#generation || this.#disposed) throw Error('clipboard-canceled'); return read();
       }), cancellation]);
       if (generation !== this.#generation || this.#disposed || this.#blocked() || !target.active) return this.last = rejected('clipboard-canceled');
-      if (!text || exceedsLimit(text)) return this.last = rejected(text ? 'clipboard-limit' : 'clipboard-empty');
+      const text = this.#literal(raw);
+      if (!text) return this.last = rejected('clipboard-empty');
       // Preserve a user's later selection for an asynchronous result.
       const current = this.#selection.retain();
       try { return this.last = this.#apply(target, [{ runs: [{ text, marks: [] }], attributes: null }]); }
