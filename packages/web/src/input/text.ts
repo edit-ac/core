@@ -259,7 +259,12 @@ export class TextInput {
     if (!target) { event.preventDefault(); this.#reject(intent, 'unmapped-selection'); return; }
     let range = target.range, ownedRange: StableRange | undefined;
     try {
-      if (insertion && reported.length) {
+      const directTyping = input.inputType === 'insertText' && event.isTrusted && this.#eligibleKey && input.data === this.#directKey && !input.isComposing;
+      const collapsedReport = reported.length === 1 && reported[0]!.startContainer === reported[0]!.endContainer && reported[0]!.startOffset === reported[0]!.endOffset;
+      // Chromium/WebKit may report a cut before an authored trailing BR. A
+      // positively correlated typing key owns the captured visible target;
+      // nonlocal/unclassified replacements still use their supplied range.
+      if (insertion && reported.length && !(directTyping && collapsedReport)) {
         const native = reported.length === 1 ? reported[0] : undefined;
         const start = native && this.#selection.toModel(native.startContainer, native.startOffset, 'right');
         const collapsed = native && native.startContainer === native.endContainer && native.startOffset === native.endOffset;
