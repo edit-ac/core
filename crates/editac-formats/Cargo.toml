@@ -16,8 +16,17 @@ unsafe_code = "forbid"
 
 [features]
 default = []
+pdf-probe = ["dep:krilla", "dep:rustybuzz"]
 docx-codecs = ["dep:docx-rs", "dep:zip", "dep:quick-xml", "dep:flate2"]
 jobs = ["dep:editac-core", "dep:editac-session", "dep:sha2"]
+
+[[test]]
+name = "pdf_probe"
+required-features = ["pdf-probe"]
+
+[[example]]
+name = "pdf_probe"
+required-features = ["pdf-probe"]
 
 [[test]]
 name = "docx_export"
@@ -60,6 +69,8 @@ name = "container_probe"
 required-features = ["docx-codecs", "jobs"]
 
 [dependencies]
+krilla = { version = "=0.8.2", default-features = false, features = ["simple-text"], optional = true }
+rustybuzz = { version = "=0.20.1", optional = true }
 # Reuse the already-qualified ZIP transitive codec with the same pure-Rust backend.
 flate2 = { version = "=1.1.10", default-features = false, features = ["zlib-rs"], optional = true }
 docx-rs = { version = "=0.4.22", default-features = false, optional = true }

@@ -518,6 +518,64 @@
         "tests/formats/docx-export-targets.test.mjs",
         "fixtures/formats/docx/export/profile.json"
       ]
+    },
+    "pdf-dependencies": {
+      "gate": "CNV-1.8",
+      "commands": [
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--features",
+            "pdf-probe",
+            "--test",
+            "pdf_probe"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--test",
+            "profiles"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/pdf-targets.test.mjs",
+            "tests/formats/dispatcher.test.mjs"
+          ],
+          "kind": "node-test"
+        }
+      ],
+      "inputs": [
+        "crates/editac-formats/src/pdf/mod.rs",
+        "crates/editac-formats/tests/pdf_probe.rs",
+        "crates/editac-formats/tests/support/pdf_probe.rs",
+        "crates/editac-formats/examples/pdf_probe.rs",
+        "tests/formats/pdf-process.py",
+        "tests/formats/pdf-targets.test.mjs",
+        "tests/formats/inspect-pdf-probe.py",
+        "fixtures/formats/pdf/profile.json",
+        "fixtures/formats/fonts/provenance.json",
+        "fixtures/formats/fonts/OFL.txt",
+        "fixtures/formats/fonts/NotoSans-Regular.ttf",
+        "fixtures/formats/fonts/NotoNaskhArabic-Regular.ttf",
+        "tests/formats/run.mjs"
+      ]
     }
   }
 }

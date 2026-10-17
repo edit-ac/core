@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "gate": "CNV-1.8",
+  "status": "candidate-only",
+  "engine": {
+    "name": "krilla",
+    "version": "0.8.2",
+    "features": [
+      "simple-text"
+    ],
+    "disabled": [
+      "pdf",
+      "raster-images",
+      "rayon",
+      "comemo"
+    ]
+  },
+  "fonts": "../fonts/provenance.json",
+  "targetClaims": {
+    "aarch64-apple-darwin": "isolated native qualification probe",
+    "wasm32-unknown-unknown": "compile only; execution unavailable without enforcing host"
+  },
+  "layout": "fixed trusted lines/two pages; single-script lines; no automatic BIDI resolution, wrapping, document tables or pagination",
+  "limits": {
+    "pages": 8,
+    "inputBytes": 65536,
+    "outputBytes": 4194304,
+    "wallMs": 5000,
+    "rssWatchdogBytes": 536870912
+  },
+  "rssEnforcement": "observed watchdog; records peak and sampling latency, may overshoot between samples; no allocation-time hard-memory guarantee",
+  "productionAvailable": false,
+  "pdfImport": "FORMAT_EXPORT_ONLY",
+  "fallback": "none; missing required face/hash/coverage => PDF_FONT_UNAVAILABLE or PDF_FONT_COVERAGE_UNAVAILABLE"
+}

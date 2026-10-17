@@ -8,6 +8,9 @@ pub mod container;
 #[cfg(feature = "jobs")]
 pub mod job;
 
+#[cfg(feature = "pdf-probe")]
+pub mod pdf;
+
 #[cfg(all(feature = "docx-codecs", feature = "jobs"))]
 pub mod docx;
 
