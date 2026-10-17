@@ -124,3 +124,30 @@ native clipboard/menu, BFCache eviction, OS/device/AT, performance, support or
 release evidence. Original MWB-1.1, MWB-1.9, MWB-1.10 and MWB-1.11 predicates
 remain open, along with all per-ID device observations. No publication, provider
 calls or permanent preview is part of this checkpoint.
+
+
+PIC-1.2 focuses the integrated post-return risks without repeating the portable
+matrix. From this core checkout, with Node 24.19.0 / npm 11.17.0 on PATH:
+
+```sh
+EDITAC_MOBILE_HARNESS_BROWSER=chromium EDITAC_MOBILE_HARNESS_OUTPUT="$(mktemp -d "$PWD/.tmp-product-chromium-XXXXXX")" node --test --test-reporter=tap tests/mobile-web/product.spec.ts
+EDITAC_MOBILE_HARNESS_BROWSER=webkit EDITAC_MOBILE_HARNESS_OUTPUT="$(mktemp -d "$PWD/.tmp-product-webkit-XXXXXX")" node --test --test-reporter=tap tests/mobile-web/product.spec.ts
+npm run preview:mobile-web -- --check
+```
+
+These commands pack the current production core/web/Markdown artifacts. Rebuild
+changed TypeScript with `npm run build`; rebuild changed engine/codec sources with
+`npm run build:wasm` / `npm run build:wasm:markdown` before checking. Each test run
+owns its browser, loopback listener and temporary packed consumer and tears them
+down. Use a fresh evidence directory when preserving an earlier run. For manual
+joint testing run `npm run preview:mobile-web`, open its printed URL, select text,
+apply formatting, undo/redo and try command search/block actions, then stop with
+Ctrl-C. No persistent preview is required or started by the one-shot check.
+
+The focused journeys compose ordered-list starts (including zero), directional
+formatting, remote anchor rebasing, Unicode clipboard replacement, semantic
+undo/redo, local durable recovery, disabled formatting preservation, and code
+extension cancellation/resume across prepared page lifecycle events. This uses the
+existing engine and browser adapters; new extension facade/authoring/lazy-loading
+DX work remains pending with PARALLEL. Desktop touch/clipboard/lifecycle traces
+remain portable mechanics, with original device/IME/AT/performance/release gates open.
