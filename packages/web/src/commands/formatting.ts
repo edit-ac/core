@@ -37,6 +37,7 @@ export class FormattingInput {
     if (a && b && (a.node !== b.node || a.offset !== b.offset || a.node !== this.#pending.point.node || a.offset !== this.#pending.point.offset)) this.reset();
   };
   readonly #targets = new Set<RetainedSelection>();
+  readonly #focusCleanup = new Map<RetainedSelection, () => void>();
   constructor(readonly renderer: DOMRenderer, readonly selection: DOMSelection,
     readonly engine: EngineHandle, readonly commit: (request: PrepareRequest) => CommitResult,
     readonly blocked: () => boolean) {
@@ -109,8 +110,16 @@ export class FormattingInput {
     if (this.#disposed || this.blocked()) return undefined;
     const target = this.selection.retain(); if (!target) return undefined;
     this.#targets.add(target);
+    let redirected = false;
+    const root = this.renderer.root, doc = root.ownerDocument;
+    const focus = (event: FocusEvent): void => {
+      const node = event.target;
+      if (node instanceof Element && !root.contains(node) && node.closest('[contenteditable="true"], [role="textbox"]')) redirected = true;
+    };
+    doc.addEventListener('focusin', focus);
+    this.#focusCleanup.set(target, () => doc.removeEventListener('focusin', focus));
     let revision = this.engine.read().revision;
-    const valid = () => !this.#disposed && !this.blocked() && target.active && this.engine.read().revision === revision && !!this.#points(target.range);
+    const valid = () => !redirected && !this.#disposed && !this.blocked() && target.active && this.engine.read().revision === revision && !!this.#points(target.range);
     const state = (mark: Mark): MarkState => {
       if (!valid()) return 'disabled';
       const p = this.#points(target.range)!;
@@ -184,7 +193,7 @@ export class FormattingInput {
     return { get active() { return valid(); }, state, applicable: mark => state(mark) !== 'disabled',
       format: mark => mark === 'link' ? rejected('link-requires-url') : apply({ [mark]: state(mark) !== 'on' }), apply,
       clear: () => apply(Object.fromEntries(presentation.map(mark => [mark, null]))),
-      dispose: () => { target.dispose(); this.#targets.delete(target); } };
+      dispose: () => { this.#focusCleanup.get(target)?.(); this.#focusCleanup.delete(target); target.dispose(); this.#targets.delete(target); } };
   }
-  dispose(): void { this.renderer.root.ownerDocument.removeEventListener('selectionchange', this.#selectionChanged); this.#disposed = true; this.reset(); for (const target of this.#targets) target.dispose(); this.#targets.clear(); }
+  dispose(): void { this.renderer.root.ownerDocument.removeEventListener('selectionchange', this.#selectionChanged); this.#disposed = true; this.reset(); for (const cleanup of this.#focusCleanup.values()) cleanup(); this.#focusCleanup.clear(); for (const target of this.#targets) target.dispose(); this.#targets.clear(); }
 }

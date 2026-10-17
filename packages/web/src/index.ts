@@ -57,5 +57,6 @@ export { codeCommands, CodeCommandsPresenter } from './extensions/code.js';
 export type { CodeBinding, CodeCommandsOptions, CodeCommandsFactory } from './extensions/code.js';
 
 export type { ToolbarTarget, MarkState, FormattingChanges } from './commands/formatting.js';
+export type { HistoryTarget } from './input/keyboard.js';
 
 export type { PointerSelection, PointerSelectionViewport } from './selection/pointer.js';

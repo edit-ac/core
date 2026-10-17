@@ -1,5 +1,10 @@
 import { FormattingInput, type ToolbarTarget } from '../commands/formatting.js';
 export type { ToolbarTarget } from '../commands/formatting.js';
+export interface HistoryTarget {
+  readonly active: boolean;
+  execute(action: 'undo' | 'redo'): CommandResult;
+  dispose(): void;
+}
 import { leaveEditor } from './focus.js';
 import { errorMessage, rejected } from '../errors.js';
 import type { AnchorToken, CommitResult, EditorCommand, EngineHandle, PrepareRequest, ProjectedNode, StableRange } from '@edit-ac/core';
@@ -24,6 +29,7 @@ export class KeyboardInput {
   readonly #description: string | null;
   static #helpId = 0;
   readonly formatting: FormattingInput;
+  readonly #historyTargets = new Set<HistoryTarget>();
   readonly #renderer: DOMRenderer;
   readonly #selection: DOMSelection;
   readonly #engine: EngineHandle;
@@ -99,6 +105,35 @@ export class KeyboardInput {
   }
 
   resetFocusEscape(): void { this.#escape = false; }
+
+  /** Capture before a host menu takes focus; never redirect a delayed intent. */
+  captureHistory(): HistoryTarget | undefined {
+    if (this.#disposed || this.#blocked()) return undefined;
+    const selection = this.#selection.retain(); if (!selection) return undefined;
+    const root = this.#renderer.root, doc = root.ownerDocument;
+    let revision = this.#engine.read().revision, disposed = false, redirected = false;
+    const focus = (event: FocusEvent): void => {
+      const node = event.target;
+      if (node instanceof Element && !root.contains(node) && node.closest('[contenteditable="true"], [role="textbox"], input, textarea')) redirected = true;
+    };
+    doc.addEventListener('focusin', focus);
+    const valid = () => !disposed && !redirected && !this.#disposed && !this.#blocked() && selection.active && this.#engine.read().revision === revision;
+    const target: HistoryTarget = {
+      get active() { return valid(); },
+      execute: action => {
+        if (!valid()) return rejected('stale-or-unavailable-history-target');
+        if (action !== 'undo' && action !== 'redo') return rejected('invalid-history-action');
+        root.focus(); this.#selection.restoreRetained(selection);
+        const result = this.execute(action)!; revision = this.#engine.read().revision;
+        return result;
+      },
+      dispose: () => {
+        if (disposed) return; disposed = true;
+        doc.removeEventListener('focusin', focus); selection.dispose(); this.#historyTargets.delete(target);
+      },
+    };
+    this.#historyTargets.add(target); return target;
+  }
 
   /** Undefined means native ownership: do not prevent the event. */
   execute(action: KeyboardAction, origin = `keyboard:${++this.#sequence}`): CommandResult | undefined {
@@ -331,6 +366,7 @@ export class KeyboardInput {
   #move(token: AnchorToken): void { this.#selection.move(token); }
   #restore(target: RetainedSelection): void { this.#selection.restoreRetained(target); }
   dispose(): void {
+    for (const target of this.#historyTargets) target.dispose();
     if (this.#disposed) return;
     this.#disposed = true; this.#closeLink(); this.#help.remove();
     const root = this.#renderer.root, current = root.getAttribute('aria-describedby');

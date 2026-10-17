@@ -39,6 +39,7 @@ export interface EditorSurface {
   readonly moduleRuntime: ModuleRuntime | undefined;
   readonly recovery: readonly { text: string; reason: string }[];
   captureToolbar(): import('./commands/formatting.js').ToolbarTarget | undefined;
+  captureHistory(): import('./input/keyboard.js').HistoryTarget | undefined;
   settle(): Promise<void>;
   setReadOnly(value: boolean): void;
   /** Detach the view and input handlers. The host still owns the engine. */
@@ -116,6 +117,7 @@ export function mountEditorSurface(root: HTMLElement, engine: EngineHandle, opti
       get moduleRuntime() { return binding.renderer.moduleRuntime; },
       get recovery() { return binding.input.recovery.map(({ text, reason }) => ({ text, reason })); },
       captureToolbar() { requireLive(); return binding.input.keyboard.captureToolbar(); },
+      captureHistory() { requireLive(); return binding.input.keyboard.captureHistory(); },
       settle() { requireLive(); return binding.input.settle(); },
       setReadOnly(value) { requireLive(); binding.input.setReadOnly(value); root.setAttribute('aria-readonly', String(value)); },
       dispose() { if (disposed) return; disposed = true; try { binding.dispose(); } finally { release(); } },
