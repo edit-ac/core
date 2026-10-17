@@ -2,6 +2,9 @@
 //! not convert documents, write a Session, fetch resources, or publish a file.
 //! Baseline formats continue through their existing shared adapters.
 
+#[cfg(feature = "jobs")]
+pub mod job;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Direction {
     Import,

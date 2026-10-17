@@ -43,6 +43,28 @@
           "kind": "node-test"
         }
       ]
+    },
+    "jobs": {
+      "gate": "CNV-1.2",
+      "commands": [
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats/Cargo.toml",
+            "--features",
+            "jobs",
+            "--locked",
+            "--offline",
+            "--test",
+            "jobs",
+            "--",
+            "--nocapture"
+          ],
+          "kind": "rust-test"
+        }
+      ]
     }
   }
 }

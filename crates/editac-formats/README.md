@@ -5,7 +5,7 @@ output builder. It installs no converter, font, network transport or filesystem
 writer. All seven new format records remain `planned-unavailable`; import and
 export qualification are separate. The crate is an independent Cargo workspace
 to avoid changing the common owner's workspace manifest/lock or the minimum
-editor graph. It has no runtime dependencies. Its only test dependency is the
+editor graph. Its default feature has no runtime dependencies. Its only test dependency is the
 already-used, exactly locked `serde_json` 1.0.152.
 
 `fixtures/formats/profiles.json` records version 1 profiles, limits, fidelity,
@@ -48,3 +48,47 @@ commands. Unknown, missing, failed, skipped and zero-case suites fail. Logs,
 counts, fixture/lock hashes and elapsed times are written below
 `EDITAC_FORMATS_OUTPUT` (default `.artifacts/formats/profiles`). Later parents add
 their real named suites before dispatch; names without implementation fail.
+
+CNV-1.2 adds the optional `jobs` feature. The default graph still has no runtime
+dependencies. Jobs reuse `EditService`/Session and `AssetWork`; no shared schema,
+wire, Cargo workspace or ABI changes are introduced. `ConversionOwner` pairs one
+Session with its exact asset store. A job freezes the selected installed profile,
+source SHA-256, owned input, observed revision, target anchors, snapshot, budgets
+and deadline. Registry profiles remain unavailable. Integration fixtures explicitly
+use a prepared available profile and do not qualify or install a converter.
+
+`ExecutionPort` is a trusted host enforcement contract for a browser worker or
+native process. It must install the input/output ceilings, hard memory limit,
+watchdog/cancellation monitor, restricted approved assets and no-network policy
+before work. Missing capabilities fail closed. `JobPool` bounds active jobs;
+`append` checks before allocation and poisons exhausted results. The shared
+fragment planner rechecks revision, target and current authority before a single
+Session commit. Full fragment metadata counts toward the output budget. Export
+captures one snapshot and never reads later edits. Source buffers remain available
+for recovery after cancellation/failure, within the original fixed input limit.
+
+Asset work uses identity/action grants, bounded cumulative byte reservations,
+fresh job-owned reference IDs and the existing durable intent protocol. Failure,
+cancel and drop fence only those references, queue cancel/release and retain
+cleanup handles if persistence fails. Hosts explicitly dispatch queued cleanup;
+no network is run on drop. A committed import returns `ImportCompletion` with
+its local journal receipt and transferred asset-reference bindings. The host must
+retain these bindings for its existing deletion/recovery hooks. Unused import
+staging and all export staging are retired. A local store failure during Session
+commit follows the Session's existing recoverable-state contract; conversion does
+not manufacture durability or discard the recovery export.
+
+`SaveTransition` accepts only its own completed artifact and captured revision,
+including a private per-instance correlation token. `ArtifactSink::write` stages;
+`close` atomically installs the output, preserving the prior artifact on failure.
+Picker cancellation, write/close failure and duplicate/foreign completions cannot
+permit New/Open. Successful N completion returns false for current N+1. Artifacts
+carry conversion work and revision, with no file or journal durability assertion.
+
+Run `node tests/formats/run.mjs jobs` using the manifest-pinned toolchains. Its
+real Rust integration suite uses Session/MemoryStore/AssetWork and prepared
+execution, asset and file-destination ports. WCF-03 fixtures are reusable by the
+platform owners. Roadmaps31–36 must implement and test real worker/process hard
+limits, cancellation termination, approved asset transfer, atomic destination
+writes and actual host transitions; compiling this portable boundary does not
+qualify any of that platform wiring.

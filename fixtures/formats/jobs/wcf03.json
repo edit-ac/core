@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "caseRevision": "WCF-03-local-jobs-v1",
+  "boundary": "real EditService/Session/MemoryStore and AssetWork; prepared enforcement, asset and destination transports",
+  "cases": ["picker-cancel", "write-failure", "close-failure", "revision-N-success", "revision-N-plus-one", "duplicate-completion", "other-job", "other-session"],
+  "limits": {"activeJobs": 2, "timeoutTicks": 100, "assetReferences": 64},
+  "claims": "No actual browser/native isolation, converter, journal durability or platform save wiring qualification. Platform owners31–36 must reuse these host cases."
+}

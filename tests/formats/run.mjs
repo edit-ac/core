@@ -72,9 +72,9 @@ export function main() {
     for (const [i, command] of suite.commands.entries()) checks.push(execute(command, root, resolve(output, `${i}-${command.kind}.log`)));
   } catch (e) { error = e; if (e.receipt) checks.push(e.receipt); }
   const hashes = {};
-  for (const path of ['tests/formats/capabilities.json', 'fixtures/formats/profiles.json', 'fixtures/formats/wcf05.json', 'crates/editac-formats/Cargo.lock'])
+  for (const path of ['tests/formats/capabilities.json', 'fixtures/formats/profiles.json', 'fixtures/formats/wcf05.json', 'fixtures/formats/jobs/wcf03.json', 'crates/editac-formats/Cargo.lock', 'crates/editac-formats/Cargo.toml', 'crates/editac-formats/src/job.rs', 'crates/editac-formats/tests/jobs.rs'])
     hashes[path] = createHash('sha256').update(readFileSync(resolve(root, path))).digest('hex');
-  const receipt = { schemaVersion: 1, scenario, gate: suite.gate, boundary: 'rust-local-boundary',
+  const receipt = { schemaVersion: 1, scenario, gate: suite.gate, boundary: scenario === 'jobs' ? 'real-session-asset-work-prepared-host-ports' : 'rust-local-boundary',
     state: error ? 'failed' : 'passed', checks, hashes, error: error?.message ?? null,
     claims: 'Local contract only; no converter, platform wiring, provider or release qualification.' };
   writeFileSync(resolve(output, 'receipt.json'), JSON.stringify(receipt, null, 2) + '\n');

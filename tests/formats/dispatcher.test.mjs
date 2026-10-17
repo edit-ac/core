@@ -8,7 +8,8 @@ import { counts, execute, select } from './run.mjs';
 test('unknown and absent suites fail instead of falling through', () => {
   const manifest = JSON.parse(readFileSync(new URL('./capabilities.json', import.meta.url)));
   assert.equal(select(manifest, 'profiles').gate, 'CNV-1.1');
-  for (const suite of ['no-such-suite', 'jobs', 'consumers', '__proto__']) assert.throws(() => select(manifest, suite), /unknown or absent/);
+  assert.equal(select(manifest, 'jobs').gate, 'CNV-1.2');
+  for (const suite of ['no-such-suite', 'consumers', '__proto__']) assert.throws(() => select(manifest, suite), /unknown or absent/);
   assert.throws(() => select({ schemaVersion: 1, scenarios: { empty: { commands: [] } } }, 'empty'));
 });
 
