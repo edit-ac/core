@@ -1,6 +1,6 @@
 import type { EngineHandle, StableRange } from '@edit-ac/core';
 import type { DOMRenderer } from '../dom/render.js';
-import type { DOMSelection, RetainedSelection } from '../dom/selection.js';
+import type { DOMSelection, RetainedSelection, ModelPoint } from '../dom/selection.js';
 import type { TextIntent } from './text.js';
 import { captureComposingBlock, type NativeRecovery } from './reconcile.js';
 
@@ -132,9 +132,22 @@ export class CompositionInput {
       if (text === session.selected) { intent.disposition = 'canceled'; return; }
       // Restore canonical mapping only at the finalization boundary. The engine
       // receives one prepared replace and one intentionally separate undo group.
+      let destination: { anchor: ModelPoint; focus: ModelPoint } | undefined;
+      const native = this.#renderer.root.ownerDocument.getSelection();
+      // The composing block's map is temporary, but a pointer destination in a
+      // different mapped block remains canonical. It is view state, never a new
+      // semantic target for the buffered composing text.
+      if (native?.anchorNode && native.focusNode && this.#renderer.getNodeId(native.anchorNode) !== node && this.#renderer.getNodeId(native.focusNode) !== node) {
+        const anchor = this.#selection.toModel(native.anchorNode, native.anchorOffset);
+        const focus = this.#selection.toModel(native.focusNode, native.focusOffset);
+        if (anchor && focus) destination = { anchor, focus };
+      }
       this.#renderer.resume(node, true); projected = true; this.#selection.suspended = false;
       this.#hooks.apply(intent, target.range, text);
       if (intent.disposition === 'rejected') this.#hooks.recovery(intent, { reason: intent.reason ?? 'composition-commit-failed', node, text, truncated: false });
+      else if (intent.disposition === 'committed' && destination && this.#selection.place(destination.anchor, destination.focus)) {
+        this.#selection.capture({ anchor: destination.anchor.bias, focus: destination.focus.bias });
+      }
     } finally {
       if (node && !projected) this.#renderer.resume(node, true);
       this.#selection.suspended = false;

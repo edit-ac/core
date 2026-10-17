@@ -2,6 +2,7 @@ import { embedPresenters, type EmbedOptions } from './embeds/presenter.js';
 import { extensionSourcePresenter } from './transfer.js';
 import { attachmentPresenters, type AttachmentOptions } from './attachments/presenter.js';
 import { imagePresenters, type ImageOptions } from './images/presenter.js';
+import { leaveEditor } from '../input/focus.js';
 import { decodeTableClipboard, encodeRichTableClipboard, decodeRichTableClipboard, validateRichTableCells, type TableRichCell, type TableCellBlock } from './tables/clipboard.js';
 import type { EditorCommand, CommitResult, EngineHandle, Json, PrepareRequest, ProjectedNode } from '@edit-ac/core';
 
@@ -89,6 +90,7 @@ class BasicContentView implements ContentView {
   private node: ProjectedNode;
   private readonly kind: 'image' | 'table';
   private readOnly: boolean;
+  private focusEscape = false;
   private disposed = false;
   private readonly controls: HTMLTextAreaElement[] = [];
   private readonly previews: HTMLElement[] = [];
@@ -113,14 +115,21 @@ class BasicContentView implements ContentView {
     } else {
       this.element.tabIndex=0;
       this.element.setAttribute('aria-label','Table cell selection');
+      const help=doc.createElement('p');help.textContent='Table keyboard help: Tab/Shift+Tab moves cells. Tab at the last cell adds one allowed row. Escape then Tab/Shift+Tab leaves the editor. Alt+Enter selects cells; arrows move the cell selection.';this.element.append(help);
+      this.listen(this.element,'focusout',()=>{this.focusEscape=false;});
+      this.listen(this.element,'beforeinput',()=>{this.focusEscape=false;});
+      this.listen(this.element,'compositionstart',()=>{this.focusEscape=false;});
       const toolbar=doc.createElement('div'); toolbar.setAttribute('role','group'); toolbar.setAttribute('aria-label','Table structure'); this.element.append(toolbar);
       for(const [label,action,after] of [
         ['Insert row before','insertRow',false],['Insert row after','insertRow',true],['Remove rows','deleteRow',false],
         ['Insert column before','insertColumn',false],['Insert column after','insertColumn',true],['Remove columns','deleteColumn',false],
       ] as const){const button=doc.createElement('button');button.type='button';button.textContent=label;this.actions.push(button);toolbar.append(button);this.listen(button,'click',()=>this.structure(action,after));}
       this.listen(this.element,'keydown',event=>{
-        const e=event as KeyboardEvent;if(e.target!==this.element||e.isComposing)return;
-        if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='z'){e.preventDefault();if(!this.readOnly)this.context.engine.history({type:e.shiftKey?'redo':'undo'});return;}
+        const e=event as KeyboardEvent;if(e.defaultPrevented)return;if(e.isComposing){this.focusEscape=false;return;}
+        if(e.target!==this.element){if(this.actions.includes(e.target as HTMLButtonElement)||this.cellButtons.includes(e.target as HTMLButtonElement))this.tableKey(e);return;}
+        if(this.tableKey(e))return;
+        if(this.tableHistory(e))return;
+        if(e.getModifierState('AltGraph')||e.key==='Dead'||e.key==='Process')return;
         if(!this.cells)return;
         if(this.navigateCells(e))return;
         if(e.key==='Escape'){e.preventDefault();this.leaveCells();return;}
@@ -168,9 +177,10 @@ class BasicContentView implements ContentView {
         this.listen(input,'compositionstart',()=>{this.compositions.set(input,this.node.blockAttributes);});
         this.listen(input,'compositionend',()=>{const expected=this.compositions.get(input);this.compositions.delete(input);this.edit(input,expected);});
         this.listen(input,'input',event=>{if(!(event as InputEvent).isComposing&&!this.compositions.has(input))this.edit(input);});
-        this.listen(input,'keydown',event=>{const e=event as KeyboardEvent;if(e.isComposing||this.compositions.has(input))return;
+        this.listen(input,'keydown',event=>{const e=event as KeyboardEvent;if(e.defaultPrevented)return;if(e.isComposing||this.compositions.has(input)){this.focusEscape=false;return;}
+          if(this.tableKey(e,input))return;
           if(e.altKey&&!e.ctrlKey&&!e.metaKey&&e.key==='Enter'){e.preventDefault();this.selectCells(r,c,false);return;}
-          if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='z'){e.preventDefault();if(!this.readOnly){context.engine.history({type:e.shiftKey?'redo':'undo'});} }
+          this.tableHistory(e);
         });
       });});
     }
@@ -238,13 +248,61 @@ class BasicContentView implements ContentView {
   }
   private paintCells():void {if(this.kind!=='table')return;const s=this.cells;for(let at=0;at<this.controls.length;at++){const input=this.controls[at]!,r=Number(input.dataset.row),c=Number(input.dataset.column);const selected=!!s&&r>=s.row&&r<s.row+s.rows&&c>=s.column&&c<s.column+s.columns;this.cellButtons[at]!.setAttribute('aria-pressed',String(selected));const td=input.closest('td,th') as HTMLElement;td.toggleAttribute('data-cell-selected',selected);td.style.outline=selected?'2px solid Highlight':'';}for(const button of this.actions)button.disabled=this.readOnly||!s;}
   private leaveCells():void {this.cells=undefined;this.firstCell=undefined;this.focusCell=undefined;this.paintCells();}
+  private tableHistory(event: KeyboardEvent): boolean {
+    const mac=/Mac|iPhone|iPad/.test(this.element.ownerDocument.defaultView?.navigator.platform??'');
+    const primary=mac?event.metaKey&&!event.ctrlKey:event.ctrlKey&&!event.metaKey;
+    if(event.defaultPrevented||!primary||event.altKey||event.isComposing||event.getModifierState('AltGraph'))return false;
+    const key=event.key.toLowerCase();
+    if(key!=='z' && !(!mac&&key==='y'&&!event.shiftKey))return false;
+    event.preventDefault();
+    if(!this.readOnly)this.context.engine.history({type:key==='y'||event.shiftKey?'redo':'undo'});
+    return true;
+  }
+  private tableKey(event: KeyboardEvent, input?: HTMLTextAreaElement): boolean {
+    if (event.defaultPrevented || ['Shift','Control','Alt','Meta'].includes(event.key)) return false;
+    const escape=this.focusEscape;this.focusEscape=false;
+    if(event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.getModifierState('AltGraph'))return false;
+    if(event.key==='Escape') {
+      const control=this.actions.includes(event.target as HTMLButtonElement)||this.cellButtons.includes(event.target as HTMLButtonElement);
+      this.leaveCells();if(control)this.element.focus();
+      this.focusEscape=true;event.preventDefault();return true;
+    }
+    if(event.key!=='Tab')return false;
+    const root=this.element.closest<HTMLElement>('[role="textbox"][aria-multiline="true"]') ?? this.element.closest<HTMLElement>('[contenteditable="true"]') ?? this.element.parentElement!;
+    if(escape) { if(leaveEditor(root,event.shiftKey)){event.preventDefault();return true;}return false; }
+    // The table selection/structure widget retains its native control order.
+    if(!input){
+      if(event.target===this.element && this.cells && !event.shiftKey){const action=this.actions.find(button=>!button.disabled);if(action){event.preventDefault();action.focus();return true;}}
+      return false;
+    }
+    const index=this.controls.indexOf(input),next=index+(event.shiftKey?-1:1);
+    if(next>=0 && next<this.controls.length){event.preventDefault();this.controls[next]!.focus();return true;}
+    if(!event.shiftKey && !event.repeat && !this.readOnly) {
+      const data=parse(this.node);
+      try {
+        if(data && 'rows' in data && data.rows.length<128 && !this.policy().length) {
+          const container=this.context.element, row=data.rows.length;
+          if(this.commitTable({type:'tableStructure',owner:this.node.id,expected:this.node.blockAttributes,action:'insertRow',index:row})) {
+            event.preventDefault();
+            queueMicrotask(()=>container.querySelector<HTMLTextAreaElement>(`textarea[data-row="${row}"][data-column="0"]`)?.focus());
+            return true;
+          }
+        }
+      } catch { this.status.textContent='Table action unavailable; leaving editor.'; }
+    }
+    if(leaveEditor(root,event.shiftKey)){event.preventDefault();return true;}
+    return false;
+  }
   private commitTable(command:EditorCommand):boolean {
     if(this.readOnly||this.disposed)return false;
+    const request:PrepareRequest={kind:'editor',origin:'module-table-command',commands:[command]};
+    if(!this.context.engine.can(request)){this.status.textContent='Table action rejected; current data preserved.';return false;}
     const selection=this.cells,first=this.firstCell,focus=this.focusCell;
-    try{this.context.engine.history({type:'explicit'});const result=this.context.commit({kind:'editor',origin:'module-table-command',commands:[command]});if(result.caret)this.context.engine.releaseAnchor(result.caret);
+    try{this.context.engine.history({type:'explicit'});const result=this.context.commit(request);if(result.caret)this.context.engine.releaseAnchor(result.caret);
       if(selection&&command.type!=='tableStructure'&&!this.disposed){const node=this.context.engine.read().visible.find(n=>n.id===this.node.id);if(node){this.cells={...selection,expected:node.blockAttributes};this.firstCell=first;this.focusCell=focus;this.paintCells();}}
       this.element.focus();this.status.textContent='Table updated.';return true;}
     catch{this.status.textContent='Table action rejected; current data preserved.';return false;}
+    finally{this.context.engine.history({type:'boundary'});}
   }
   private styleCells(style: (string | number)[]):void {
     const s=this.cells,data=parse(this.node);if(!s||!data||!('rows'in data))return;

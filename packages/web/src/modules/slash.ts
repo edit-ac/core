@@ -77,7 +77,11 @@ export class SlashPresenter {
       if (index >= 0) { this.active = index; this.announce(); }
     });
     this.listen(this.menu, 'keydown', event => {
-      if (!this.handle(event)) { this.restoreFocus(); this.context.route(event); }
+      if (!this.handle(event)) {
+        const key = event as KeyboardEvent;
+        if (key.defaultPrevented || key.isComposing || key.getModifierState('AltGraph') || ['Dead', 'Process'].includes(key.key)) return;
+        this.restoreFocus(); this.context.route(event);
+      }
     });
     // Explicit command access remains available when typing provenance is absent.
     this.listen(this.control, 'pointerdown', event => { this.captureTarget(); event.preventDefault(); });
@@ -186,6 +190,7 @@ export class SlashPresenter {
     (this.menu.children[this.active] as HTMLElement | undefined)?.focus(); this.announce();
   }
   handle(event: Event): boolean {
+    if (event.defaultPrevented) return false;
     if (event.type === 'keydown') {
       if ((event as KeyboardEvent).key === 'Tab') this.captureTarget(); else this.clearTarget();
     }
@@ -193,7 +198,7 @@ export class SlashPresenter {
     if (event.type === 'paste' || event.type === 'cut' || event.type === 'beforeinput' && ['insertFromPaste', 'insertReplacementText'].includes((event as InputEvent).inputType)) { this.dismiss(); return false; }
     if (!this.session || event.type !== 'keydown') return false;
     const key = event as KeyboardEvent;
-    if (key.isComposing || key.key === 'Process' || key.key === 'Dead' || key.ctrlKey || key.metaKey || key.altKey) return false;
+    if (key.isComposing || key.key === 'Process' || key.key === 'Dead' || key.ctrlKey || key.metaKey || key.altKey || key.getModifierState('AltGraph')) return false;
     if (key.key === 'Tab') { this.dismiss(true); return false; }
     if (key.key === 'Escape') { this.dismiss(true); this.context.focusEscape(key); event.preventDefault(); return true; }
     if (key.key === 'Enter' && key.shiftKey) { this.dismiss(true); return false; }

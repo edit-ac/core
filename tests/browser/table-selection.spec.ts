@@ -33,16 +33,17 @@ test('Keyboard rectangle focus and anchor extend/reverse independently; navigati
  await section(p).press('ArrowRight');await section(p).press('ArrowDown');assert.deepEqual(await selected(p),[[1,1]]);assert.match(await section(p).getByRole('status').textContent(),/Table edge; no row or column added/);
  unchanged(before,await state(p,f));await section(p).press('Enter');assert.equal(await input(p,2,2).evaluate(el=>el===document.activeElement),true);unchanged(before,await state(p,f));
 }));
-test('Native textarea Tab and boundary focus order survive; Alt+Enter explicitly selects a cell',()=>probe('native-tab',async(p,f)=>{
+test('Contextual textarea Tab preserves cells and appends one bounded final row; Alt+Enter selects a cell',()=>probe('native-tab',async(p,f)=>{
  const before=await state(p,f);await input(p).focus();await input(p).press('Tab');assert.equal(await input(p,2,2).evaluate(el=>el===document.activeElement),true);
  await input(p,2,2).press('Shift+Tab');assert.equal(await input(p).evaluate(el=>el===document.activeElement),true);
  await input(p).press('Alt+Enter');assert.deepEqual(await selected(p),[[1,0]]);await section(p).press('Escape');assert.deepEqual(await selected(p),[]);
  await input(p,2,2).focus();await section(p).evaluate(el=>{window.tabObservations=[];el.addEventListener('keydown',event=>{if(event.key==='Tab')window.tabObservations.push({prevented:event.defaultPrevented});});});
  await input(p,2,2).press('Tab');const boundary=await p.evaluate(()=>({events:window.tabObservations,active:document.activeElement?.outerHTML?.slice(0,300),leftLast:document.activeElement!==document.querySelector('[aria-label="Table row 2 column 2"]')}));f.nativeTabBoundary=boundary;
- // WebKit's default keyboard-access policy skips buttons; native traversal is
- // intentionally the browser's policy rather than an editor-owned Tab keymap.
- assert.deepEqual(boundary.events,[{prevented:false}]);assert.equal(boundary.leftLast,true);assert.deepEqual(await selected(p),[]);
- unchanged(before,await state(p,f));
+ // INT-1.6 owns cell Tab dispatch; ordinary table controls retain their native order.
+ assert.deepEqual(boundary.events,[{prevented:true}]);assert.equal(boundary.leftLast,true);assert.deepEqual(await selected(p),[]);
+ assert.equal(await input(p,3,1).evaluate(el=>el===document.activeElement),true);
+ const after=await state(p,f);oneEffect(before,after);assert.deepEqual(cells(after).slice(0,2),cells(before));assert.deepEqual(cells(after)[2],['','']);
+ await p.evaluate(()=>window.inputFixture.engine.history({type:'undo'}));assert.deepEqual((await state(p,f)).nodes,before.nodes);
 }));
 for(const mime of ['text/tab-separated-values','text/plain','text/html'])test(`Quoted literal tabs/quotes/empty/Unicode cells survive ${mime}, one history group and recovery`,()=>probe(`quoted-${mime.replaceAll('/','-')}`,async(p,f)=>{
  await choose(p,1,1);await choose(p,2,2,true);await clipboard(p,'paste',{'text/tab-separated-values':literal.tsv});const seeded=await state(p,f);assert.deepEqual(cells(seeded),literal.cells);

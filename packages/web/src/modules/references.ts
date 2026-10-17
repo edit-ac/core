@@ -273,13 +273,14 @@ export class ReferencePresenter {
     finally { this.committing = false; }
   }
   handle(event: Event): boolean {
+    if (event.defaultPrevented) return false;
     if (event.type === 'compositionstart' || event.type === 'paste' || event.type === 'cut' || event.type === 'beforeinput') { this.clearCapture(); this.dismiss(); return false; }
     if (event.type !== 'keydown') return false;
     const key = event as KeyboardEvent;
     if (!this.session) { if (key.key === 'Tab') this.capture(); else this.clearCapture(); return false; }
-    if (this.composing || key.isComposing || ['Process', 'Dead'].includes(key.key) || key.ctrlKey || key.metaKey || key.altKey) return false;
+    if (this.composing || key.isComposing || ['Process', 'Dead'].includes(key.key) || key.ctrlKey || key.metaKey || key.altKey || key.getModifierState('AltGraph')) return false;
     if (key.key === 'Tab') { this.dismiss(true); return false; }
-    if (key.key === 'Escape') { this.dismiss(true); event.preventDefault(); return true; }
+    if (key.key === 'Escape') { this.dismiss(true); this.context.focusEscape(key); event.preventDefault(); return true; }
     if (key.key === 'Enter') { event.preventDefault(); if (this.active >= 0) this.activate(this.active); return true; }
     if (['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(key.key) && this.results.length) {
       event.preventDefault(); this.active = key.key === 'Home' ? 0 : key.key === 'End' ? this.results.length - 1 : (this.active + (key.key === 'ArrowUp' ? -1 : 1) + this.results.length) % this.results.length;

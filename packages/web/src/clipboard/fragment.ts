@@ -301,7 +301,9 @@ export class ClipboardInput {
     if (event.type === 'keydown') {
       this.finish();
       const key = event as KeyboardEvent;
-      this.#literalNext = key.key.toLowerCase() === 'v' && key.shiftKey && (key.metaKey || key.ctrlKey && !key.altKey);
+      const mac = /Mac|iPhone|iPad/.test(this.#renderer.root.ownerDocument.defaultView?.navigator.platform ?? '');
+      const primary = mac ? key.metaKey && !key.ctrlKey : key.ctrlKey && !key.metaKey;
+      this.#literalNext = !key.defaultPrevented && !key.isComposing && (mac || !key.altKey) && !key.getModifierState('AltGraph') && key.key.toLowerCase() === 'v' && key.shiftKey && primary;
       return false;
     }
     if (event.type === 'blur') this.#literalNext = false;

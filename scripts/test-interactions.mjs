@@ -2,10 +2,10 @@ import { spawnSync } from 'node:child_process';
 import { requireTestNode } from './test-toolchain.mjs';
 await requireTestNode();
 const args = process.argv.slice(2);
-if (args.length !== 2 || args[0] !== '--group' || !['harness', 'breaks', 'formatting', 'deletion', 'navigation'].includes(args[1])) {
-  throw Error('Unknown or unimplemented interaction group. Qualified dispatcher: --group harness|breaks|formatting|deletion|navigation');
+if (args.length !== 2 || args[0] !== '--group' || !['harness', 'breaks', 'formatting', 'deletion', 'navigation', 'keyboard', 'replacement'].includes(args[1])) {
+  throw Error('Unknown or unimplemented interaction group. Qualified dispatcher: --group harness|breaks|formatting|deletion|navigation|keyboard|replacement');
 }
-for (const command of args[1] === 'navigation' ? [['scripts/test-browser.mjs', 'interaction-navigation']] : args[1] === 'deletion' ? [['scripts/test-browser.mjs', 'interaction-deletion']] : args[1] === 'formatting' ? [['scripts/test-browser.mjs', 'interaction-formatting']] : args[1] === 'breaks' ? [
+for (const command of args[1] === 'replacement' ? [['scripts/test-browser.mjs', 'interaction-replacement']] : args[1] === 'keyboard' ? [['scripts/test-browser.mjs', 'interaction-keyboard'], ['scripts/test-browser.mjs', 'interaction-keyboard-tables']] : args[1] === 'navigation' ? [['scripts/test-browser.mjs', 'interaction-navigation']] : args[1] === 'deletion' ? [['scripts/test-browser.mjs', 'interaction-deletion']] : args[1] === 'formatting' ? [['scripts/test-browser.mjs', 'interaction-formatting']] : args[1] === 'breaks' ? [
   ['scripts/test-browser.mjs', 'interaction-breaks'],
   ['scripts/test-browser.mjs', 'interaction-break-tables'],
 ] : [

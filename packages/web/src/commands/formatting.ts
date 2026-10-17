@@ -101,6 +101,8 @@ export class FormattingInput {
     // Remove incompatible marks before applying code/other intentional values.
     for (const mark of marks) if (!values[mark]) commands.push({ type: 'markAt', owner: p.start.node, from, to, mark, action: 'remove' });
     for (const mark of marks) if (values[mark]) commands.push({ type: 'markAt', owner: p.start.node, from, to, mark, action: 'apply', ...(mark === 'link' ? { href: String(values[mark]) } : {}) });
+    const point = { owner: p.start.node, offset: to, bias: 'right' as const };
+    commands.push({ type: 'selectionAt', anchor: point, focus: point });
     return { kind: 'editor', origin, commands };
   }
   capture(): ToolbarTarget | undefined {
