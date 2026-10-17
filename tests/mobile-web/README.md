@@ -17,3 +17,16 @@ The harness reuses the RGS/INT `browserHarness` packing, process, receipt and te
 The host snapshot uses owning-window CSS coordinates, the actual scroll root, observed layout/visual geometry, requested meta-viewport mode and actual focus. It does not infer keyboard visibility. Prepared capability objects test detection, denied/throwing/absent/changing paths and native-contenteditable fallback without modifying browser API globals or prompting on mount. Actual browser capability observations are separate. Resource accounting measures listener/observer/timer/frame/capture deltas and requires disposal to restore the pre-mount baseline.
 
 The mobile profile is desktop Chromium at 390×740 CSS pixels with touch emulation; geometry changes rotate those dimensions. It is prepared browser mechanics, never iOS/Android, native keyboard, API authorization, OS clipboard, AT, performance-budget or release evidence. All original mobile qualification gates stay open.
+
+The `--group touch` profile implements MWF-1.2 portable MBT-01–07 and
+SEL-06/SEL-07/XFR-07 coexistence. It uses the same production BrowserEditor,
+recovered Session, WASM and IndexedDB fixture with optional existing reorder
+controls. Native active pointer capture is real; touch/pen type and cancellation
+traces are prepared and explicitly labeled. The long-document host fixture places
+controls in a fixed panel and declares a scrollable editable region. A registered
+inert atom, hard break and marked/empty text use existing fragment/engine paths.
+The checks cover tracked and unrelated pointers, competing touch, exactly-once
+moves, cancellation, bounded autoscroll, mixed input, tap/keyboard access and
+resource disposal. Root defaults and native selection remain available. This is
+portable mechanics evidence; native handles, menus, pinch behavior and target
+platform/AT observations remain original MWB qualification work.

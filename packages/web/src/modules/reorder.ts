@@ -34,7 +34,7 @@ export class ReorderPresenter {
   get pointerState() { return { ...this.work, active: !!this.pointer?.active, pendingFrame: this.frame !== undefined, captured: !!this.pointer, retainedSelection: !!this.session?.selection.active, listeners: this.listeners.length, subscribed: !this.disposed }; }
   private readonly nodes = new Map<string, ProjectedNode>();
   private readonly subscription: PatchSubscription;
-  private readonly listeners: [EventTarget, string, EventListener, boolean][] = [];
+  private readonly listeners: [EventTarget, string, EventListener, boolean | AddEventListenerOptions][] = [];
   private session: Target | undefined;
   private readOnly = false;
   private composing = false;
@@ -52,15 +52,16 @@ export class ReorderPresenter {
     this.controls.contentEditable = 'false';
     this.up = doc.createElement('button'); this.down = doc.createElement('button');
     for (const [button, label] of [[this.up, 'Move block up'], [this.down, 'Move block down']] as const) {
-      button.type = 'button'; button.textContent = label; this.controls.append(button);
+      button.type = 'button'; button.style.minWidth = button.style.minHeight = '44px'; button.textContent = label; this.controls.append(button);
       this.listen(button, 'pointerdown', () => { this.begin(); });
     }
     this.grip = doc.createElement('button'); this.grip.type = 'button';
     this.grip.textContent = 'Drag selected block'; this.grip.setAttribute('aria-label', 'Drag selected block');
+    this.grip.style.minWidth = this.grip.style.minHeight = '44px';
     this.grip.style.touchAction = 'none'; this.controls.append(this.grip);
     this.listen(this.grip, 'pointerdown', event => {
       const e = event as PointerEvent;
-      if (e.button !== 0 || !e.isPrimary || this.pointer || !this.begin()) return;
+      if (e.defaultPrevented || e.button !== 0 || !e.isPrimary || this.pointer || !this.begin()) return;
       e.preventDefault();
       const box = this.grip.getBoundingClientRect();
       this.pointer = { id: e.pointerId, x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY,
@@ -96,9 +97,17 @@ export class ReorderPresenter {
         this.moveCaptured(current.parent, next ? this.target(next.id) : null);
       } else this.moveCaptured(current.parent, current.before);
     });
-    for (const type of ['pointercancel', 'lostpointercapture']) this.listen(this.grip, type, () => {
-      if (this.pointer) { this.restore(); this.cancel(); this.status.textContent = 'Move canceled.'; }
+    for (const type of ['pointercancel', 'lostpointercapture']) this.listen(this.grip, type, event => {
+      if (this.pointer?.id === (event as PointerEvent).pointerId) { this.restore(); this.cancel(); this.status.textContent = 'Move canceled.'; }
     });
+    // A competing touch hands scroll/pinch arbitration back to the browser.
+    // Observe it without canceling its default action or taking its capture.
+    this.listen(doc, 'pointerdown', event => {
+      const e = event as PointerEvent;
+      if (this.pointer && e.pointerId !== this.pointer.id && e.pointerType === 'touch') {
+        this.restore(); this.cancel(); this.status.textContent = 'Move canceled.';
+      }
+    }, { capture: true, passive: true });
     this.listen(doc.defaultView!, 'blur', () => { if (this.pointer) { this.restore(); this.cancel(); } });
     this.up.setAttribute('aria-keyshortcuts', 'Alt+ArrowUp'); this.down.setAttribute('aria-keyshortcuts', 'Alt+ArrowDown');
     this.status = doc.createElement('span'); this.status.setAttribute('role', 'status');
@@ -316,7 +325,7 @@ export class ReorderPresenter {
   }
   private updateDisabled(): void { this.up.disabled = this.down.disabled = this.grip.disabled = this.readOnly || this.composing; }
   setReadOnly(value: boolean): void { this.readOnly = value; if (value) this.cancel(); this.updateDisabled(); }
-  private listen(target: EventTarget, type: string, listener: EventListener, capture = false): void {
+  private listen(target: EventTarget, type: string, listener: EventListener, capture: boolean | AddEventListenerOptions = false): void {
     target.addEventListener(type, listener, capture); this.listeners.push([target, type, listener, capture]);
   }
   dispose(): void {

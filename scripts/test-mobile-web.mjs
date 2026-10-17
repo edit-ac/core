@@ -24,6 +24,6 @@ assertCounts(counts);
 const browser = JSON.parse(readFileSync(join(output, 'receipt.json'), 'utf8'));
 assertCounts(browser.counts);
 if (!browser.sourcesUnchanged || !browser.cleanup.browserExited || !browser.cleanup.serverClosed) throw Error('Missing immutable source/teardown proof');
-const receipt = { group: 'harness', counts, browserCounts: browser.counts, browserReceiptSha256: createHash('sha256').update(readFileSync(join(output, 'receipt.json'))).digest('hex'), qualification: 'prepared delivery through real packed BrowserEditor/WASM/IndexedDB; no device or performance admission' };
+const receipt = { group: process.argv[3], counts, browserCounts: browser.counts, browserReceiptSha256: createHash('sha256').update(readFileSync(join(output, 'receipt.json'))).digest('hex'), qualification: 'prepared delivery through real packed BrowserEditor/WASM/IndexedDB; no device or performance admission' };
 writeFileSync(join(output, 'dispatch-receipt.json'), JSON.stringify(receipt, null, 2));
 console.log(JSON.stringify({ ...receipt, output }));

@@ -1,24 +1,29 @@
 import { init } from '@edit-ac/core';
-import { BrowserEditor } from '/web/index.js';
+import { BrowserEditor, reorderControls, ModuleRegistry } from '/web/index.js';
 import { recoverLocalDocument } from '/web/entry.js';
 import { CheckpointStorage } from '/web/storage/checkpoint.js';
 import { UpdateJournal } from '/web/storage/journal.js';
 const identity={documentId:'45678901-4567-4567-8567-45678901abcd',epoch:'56789012-5678-4678-8678-56789012abcd',schema:'editac.registry.editor.v5',offsets:'utf16',profile:'editac.yrs-yjs.editor.v5',protocolVersion:1,updateEncoding:1};
 const root=document.querySelector('#projection'),databaseName='mobile-harness';
-let session,editor,subscription,ids,patches=[],disposed=false;
-async function mount(text){
- const runtime=await init('/core/wasm/editac_wasm_bg.wasm');
- const seed=runtime.createEngine({profile:'v5',documentId:identity.documentId,epoch:identity.epoch,nodes:[{text}]});
+let runtime,session,editor,subscription,ids,selection,patches=[],disposed=false;
+async function mount(value){
+ const options=typeof value==='string'?{text:value}:value;
+ runtime=await init('/core/wasm/editac_wasm_bg.wasm');
+ const seed=runtime.createEngine({profile:'v5',documentId:identity.documentId,epoch:identity.epoch,nodes:options.nodes??[{text:options.text}]});
+ let modules;
+ if(options.reorder){const first=seed.read().visible[0].id;seed.commit(seed.prepare({kind:'editor',origin:'mobile-seed',commands:[{type:'markAt',owner:first,from:0,to:5,mark:'bold',action:'apply'}]}));}
+ if(options.mapping){const nodes=seed.read().visible,at=seed.anchor(nodes[4].id,4,'right');try{seed.commit(seed.prepare({kind:'editor',origin:'mobile-seed',commands:[{type:'hardBreak',at}]}));}finally{seed.releaseAnchor(at);}const a=seed.anchor(nodes[5].id,0,'right'),b=seed.anchor(nodes[5].id,4,'left');try{seed.commit(seed.prepare({kind:'fragment',origin:'mobile-seed',range:{anchor:a,focus:b},blocks:[{attributes:{type:'paragraph'},runs:[{text:'atom',marks:[],attributes:{'module:fixture.atom':[1,{label:'atom'}]}}]}]}));}finally{seed.releaseAnchor(a);seed.releaseAnchor(b);}modules=new ModuleRegistry();modules.register({type:'fixture.atom',version:1,kind:'inline-atom',attributes:{label:{type:'string',required:true,maxUtf16:8}},content:{type:'text',maxUtf16:8},fallback:{type:'text',source:'content'}},{tag:'span'});}
  const store=await CheckpointStorage.open(indexedDB,databaseName);
  try{await store.publish(seed.checkpoint(),[]);}finally{store.close();seed.dispose();}
  session=await recoverLocalDocument({assetUrl:'/core/wasm/editac_wasm_bg.wasm',databaseName,identity,indexedDB,locks:navigator.locks});
  session.writer.engine.history({type:'clear'});ids=session.writer.engine.read().visible.map(n=>n.id);
  subscription=session.writer.engine.subscribe({type:'all'},p=>patches.push({origin:p.origin,update:!!p.update,revision:p.revision}));
- editor=new BrowserEditor(root,{assetUrl:'/core/wasm/editac_wasm_bg.wasm',databaseName,identity,indexedDB,locks:navigator.locks,plainPasteControl:false,recover:async()=>session});
+ editor=new BrowserEditor(root,{assetUrl:'/core/wasm/editac_wasm_bg.wasm',databaseName,identity,indexedDB,locks:navigator.locks,plainPasteControl:false,modules,...(options.reorder?{reorder:context=>{selection=context.selection;return reorderControls()(context);}}:{}),recover:async()=>session});
  await editor.ready;window.editor=editor;select(ids[0],0);return ids;
 }
-function select(id,a,b=a){root.focus();const node=root.querySelector(`[data-node-id="${id}"]`);const text=document.createTreeWalker(node,NodeFilter.SHOW_TEXT).nextNode();if(!text)throw Error('Missing native text');getSelection().setBaseAndExtent(text,a,text,b);}
+function select(id,a,b=a,focusId=id){root.focus();const point=(id,offset)=>{const block=root.querySelector(`[data-node-id="${id}"]`),walker=document.createTreeWalker(block,NodeFilter.SHOW_TEXT);let node;while(node=walker.nextNode()){if(offset<=node.length)return {node,offset};offset-=node.length;}return {node:block,offset:0};};const anchor=point(id,a),focus=point(focusId,b);getSelection().setBaseAndExtent(anchor.node,anchor.offset,focus.node,focus.offset);selection?.capture();}
 async function settle(){await editor.settle();await session.storage.flush({target:'local'});await editor.settle();}
+async function remote(index,offset,text){const local=session.writer.engine,peer=runtime.restoreEngine(identity,local.checkpoint()),vector=local.stateVector(),at=peer.anchor(ids[index],offset,'right');try{const result=peer.commit(peer.prepare({kind:'text',origin:'mobile-peer',command:{type:'insert',at,text}}));if(result.caret)peer.releaseAnchor(result.caret);local.applyUpdate(peer.encodeUpdate(vector));await settle();}finally{peer.releaseAnchor(at);peer.dispose();}}
 function point(node,offset){const el=node?.nodeType===1?node:node?.parentElement,block=el?.closest('[data-node-id]');if(!block)return null;const r=document.createRange();r.selectNodeContents(block);r.setEnd(node,offset);return {node:block.dataset.nodeId,offset:r.toString().length};}
 async function state(){await settle();const native=getSelection(),engine=session.writer.engine,journal=await UpdateJournal.open(indexedDB,databaseName);let entries;try{entries=await journal.read(identity);}finally{journal.close();}return {nodes:engine.read().visible,selection:{anchor:point(native.anchorNode,native.anchorOffset),focus:point(native.focusNode,native.focusOffset)},history:engine.history({type:'state'}),patches,journal:entries.map(e=>({origin:e.origin,bytes:e.bytes.length})),storage:session.storage.state.phase,errors:engine.takeObserverErrors(),focus:document.activeElement===root,dom:root.textContent,revision:engine.read().revision};}
 async function destroy(){if(disposed)return;disposed=true;subscription?.dispose();await editor?.destroy({policy:'flush'});window.fixtureDisposed=true;}
@@ -29,4 +34,4 @@ function host(){const w=root.ownerDocument.defaultView,v=w.visualViewport,r=root
 // replaced and no permission request is made during mount or detection.
 async function requestCapability(platform,key){try{const call=platform[key];if(typeof call!=='function')return {outcome:'unavailable',fallback:'native-contenteditable'};await call();return {outcome:'prepared-success',fallback:'native-contenteditable'};}catch{return {outcome:'denied',fallback:'native-contenteditable'};}}
 function capability(platform,key){try{const value=platform[key];return {available:typeof value==='function',fallback:'native-contenteditable'};}catch{return {available:false,fallback:'native-contenteditable'};}}
-window.inputFixture={mount,select,settle,state,destroy,host,capability,requestCapability,get engine(){return session?.writer.engine},get root(){return root},get ids(){return ids},get surface(){return editor}};
+window.inputFixture={mount,select,settle,state,destroy,host,capability,requestCapability,get engine(){return session?.writer.engine},get root(){return root},get ids(){return ids},remote,get selection(){return selection},get pointer(){return editor.reorder?.pointerState},get surface(){return editor}};
