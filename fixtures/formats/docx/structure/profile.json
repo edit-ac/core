@@ -1,0 +1,11 @@
+{
+ "version": 1,
+ "profile": "docx-structure-semantic-v1",
+ "owner": "CNV-1.6",
+ "available": "optional-portable-preparation-only",
+ "claims": ["direct numPr, explicit abstractNum/num definitions, decimal level-local labels and bullet U+2022, start and startOverride, maximum nine explicit ancestor levels", "numbering continues by numId; deeper levels restart after each ancestor", "rectangular simple-cell v1 tables: 128 rows, 32 columns, one unnumbered paragraph per cell, shared marks and links, no LF", "paragraph-isolated original PNG via guarded validation, pure digest identity and journaled host ingestion; exact alt and caption"],
+ "excludedWithDiagnostics": ["inherited/linked/style numbering, compound/custom numbering, custom restart/indentation", "table merges, floating layout, cell containers/blocks/breaks and layout properties", "inline/mixed/floating images, crop/rotation/display transforms and non-PNG media", "headers, footnotes, unsupported objects and parts"],
+ "dataSafety": ["no network access", "original input retained", "loss needs explicit approval", "one shared Session insertion", "no partial commit on asset rejection", "cleanup only job-owned staged references"],
+ "targets": {"native": "real prepared Session with mock host transport", "wasm32-unknown-unknown": "compile only"},
+ "dependencies": {"docx-rs":"0.4.22","zip":"8.6.0","quick-xml":"0.41.0","flate2":"1.1.10"}
+}

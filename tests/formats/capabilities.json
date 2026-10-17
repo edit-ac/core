@@ -262,6 +262,122 @@
         "fixtures/formats/docx/text/styles.xml",
         "fixtures/formats/docx/text/unsupported.xml"
       ]
+    },
+    "docx-import-structure": {
+      "gate": "CNV-1.6",
+      "commands": [
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats/Cargo.toml",
+            "--features",
+            "docx-codecs,jobs",
+            "--locked",
+            "--offline",
+            "--test",
+            "docx_import_structure",
+            "--",
+            "--nocapture"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats/Cargo.toml",
+            "--features",
+            "docx-codecs,jobs",
+            "--locked",
+            "--offline",
+            "--test",
+            "docx_import_text",
+            "--",
+            "--nocapture"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats/Cargo.toml",
+            "--features",
+            "docx-codecs,jobs",
+            "--locked",
+            "--offline",
+            "--test",
+            "container_limits",
+            "--",
+            "--nocapture"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats/Cargo.toml",
+            "--features",
+            "docx-codecs,jobs",
+            "--locked",
+            "--offline",
+            "--test",
+            "jobs",
+            "--test",
+            "profiles",
+            "--test",
+            "docx_probe",
+            "--",
+            "--nocapture"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/dispatcher.test.mjs",
+            "tests/formats/docx-targets.test.mjs",
+            "tests/formats/container-targets.test.mjs",
+            "tests/formats/docx-import-targets.test.mjs",
+            "tests/formats/docx-structure-targets.test.mjs"
+          ],
+          "kind": "node-test"
+        }
+      ],
+      "inputs": [
+        "crates/editac-formats/src/container.rs",
+        "crates/editac-formats/tests/container_limits.rs",
+        "crates/editac-formats/tests/support/container_job.rs",
+        "crates/editac-formats/tests/support/jobs_harness.rs",
+        "fixtures/formats/hostile/cases.json",
+        "fixtures/formats/docx/probe/pixel.png",
+        "crates/editac-formats/examples/container_probe.rs",
+        "tests/formats/container-targets.test.mjs",
+        "fixtures/formats/docx/probe/tiny.docx",
+        "crates/editac-formats/src/docx/mod.rs",
+        "crates/editac-formats/src/docx/import.rs",
+        "crates/editac-formats/tests/docx_import_text.rs",
+        "crates/editac-formats/examples/docx_import_text.rs",
+        "tests/formats/docx-import-targets.test.mjs",
+        "fixtures/formats/docx/text/supported.xml",
+        "fixtures/formats/docx/text/styles.xml",
+        "fixtures/formats/docx/text/unsupported.xml",
+        "crates/editac-formats/src/docx/import/structure.rs",
+        "crates/editac-formats/tests/docx_import_structure.rs",
+        "crates/editac-formats/examples/docx_import_structure.rs",
+        "tests/formats/docx-structure-targets.test.mjs",
+        "fixtures/formats/docx/structure/supported.xml",
+        "fixtures/formats/docx/structure/numbering.xml",
+        "fixtures/formats/docx/structure/profile.json"
+      ]
     }
   }
 }

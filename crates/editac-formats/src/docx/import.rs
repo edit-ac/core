@@ -28,6 +28,9 @@ pub const TEXT_PROFILE: crate::Profile = crate::Profile {
     owner: "CNV-1.5",
     limits: crate::LIMITS,
 };
+mod structure;
+pub use structure::{OriginalMediaHost, STRUCTURE_PROFILE, prepare_structure};
+
 const W: &str = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
 const R: &str = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
 const PR: &str = "http://schemas.openxmlformats.org/package/2006/relationships";
@@ -454,7 +457,8 @@ fn singletons(n: &Node) -> Result<()> {
         "p" => &["pPr"],
         "r" => &["rPr"],
         "style" => &["basedOn", "name", "pPr", "rPr"],
-        "pPr" => &["pStyle", "outlineLvl"],
+        "pPr" => &["pStyle", "outlineLvl", "numPr"],
+        "numPr" => &["numId", "ilvl"],
         "rPr" => &["rStyle"],
         _ => &[],
     };
@@ -830,10 +834,11 @@ fn hyperlinks(root: Option<Node>, report: &mut Report) -> Result<BTreeMap<String
     }
     Ok(links)
 }
-fn map(
+fn context(
     package: &mut Package,
     control: &mut impl FnMut() -> Result<()>,
-) -> Result<(Vec<AdapterParagraph>, Report)> {
+    structured: bool,
+) -> Result<(Node, Styles, BTreeMap<String, String>, Report)> {
     let mut report = Report::default();
     for d in package.diagnostics() {
         report.diagnostic(d.code, &d.part);
@@ -849,8 +854,23 @@ fn map(
         }
     }
     for part in package.part_names() {
-        if ![DOC, STYLES, RELS, "_rels/.rels", "[Content_Types].xml"].contains(&part) {
-            report.diagnostic("UNSUPPORTED_PART", part);
+        if ![DOC, STYLES, RELS, "_rels/.rels", "[Content_Types].xml"].contains(&part)
+            && !(structured && (part == "word/numbering.xml" || part.starts_with("word/media/")))
+        {
+            report.diagnostic(
+                if structured
+                    && (part.starts_with("word/header") || part.starts_with("word/footer"))
+                {
+                    "UNSUPPORTED_HEADER_FOOTER"
+                } else if structured
+                    && (part == "word/footnotes.xml" || part == "word/endnotes.xml")
+                {
+                    "UNSUPPORTED_FOOTNOTES"
+                } else {
+                    "UNSUPPORTED_PART"
+                },
+                part,
+            );
         }
     }
     let types = tree(package, "[Content_Types].xml", control)?
@@ -874,7 +894,12 @@ fn map(
     if let Some(root) = &relroot {
         for n in &root.children {
             if ![format!("{R}/styles"), format!("{R}/hyperlink")]
-                .iter()
+                .into_iter()
+                .chain(if structured {
+                    vec![format!("{R}/numbering"), format!("{R}/image")]
+                } else {
+                    vec![]
+                })
                 .any(|ty| n.attr("", "Type") == Some(ty.as_str()))
             {
                 report.diagnostic("UNSUPPORTED_RELATIONSHIP_TYPE", &n.location);
@@ -918,7 +943,78 @@ fn map(
             unknown(&mut report, n)
         }
     }
-    let body = bodies[0];
+    Ok((document, styles, links, report))
+}
+fn paragraph(
+    n: &Node,
+    styles: &Styles,
+    links: &BTreeMap<String, String>,
+    report: &mut Report,
+    control: &mut impl FnMut() -> Result<()>,
+) -> Result<AdapterParagraph> {
+    attrs(report, n, &[]);
+    if has_complex_field(n) {
+        field_diagnostics(n, report);
+        report.diagnostic("UNSUPPORTED_FIELD_PARAGRAPH_OMITTED", &n.location);
+        return Ok(AdapterParagraph {
+            runs: vec![],
+            heading: None,
+        });
+    }
+    let mut props = styles.defaults.clone();
+    let pp = n.child("pPr");
+    let style = style_reference(
+        pp.and_then(|n| n.child("pStyle")),
+        styles.default_p.as_deref(),
+        report,
+    );
+    if let Some(style) = style {
+        styles.apply(style, "paragraph", &mut props, report, &mut vec![])?;
+    }
+    if let Some(pp) = pp {
+        let mut pp = pp.clone();
+        pp.children.retain(|n| !n.is("pStyle"));
+        properties(&pp, &mut props, false, report)?;
+    }
+    let mut runs = vec![];
+    for c in &n.children {
+        control()?;
+        if c.is("pPr") {
+            continue;
+        }
+        if c.is("r") {
+            run(c, &props, None, styles, &mut runs, report)?;
+        } else if c.is("hyperlink") {
+            attrs(report, c, &[(R, "id"), (W, "history")]);
+            let link = c
+                .attr(R, "id")
+                .and_then(|id| links.get(id))
+                .map(String::as_str);
+            if link.is_none() {
+                report.diagnostic("UNSUPPORTED_LINK_TARGET", &c.location);
+            }
+            for r in &c.children {
+                if r.is("r") {
+                    run(r, &props, link, styles, &mut runs, report)?
+                } else {
+                    unknown(report, r)
+                }
+            }
+        } else {
+            unknown(report, c)
+        }
+    }
+    Ok(AdapterParagraph {
+        runs,
+        heading: props.heading,
+    })
+}
+fn map(
+    package: &mut Package,
+    control: &mut impl FnMut() -> Result<()>,
+) -> Result<(Vec<AdapterParagraph>, Report)> {
+    let (document, styles, links, mut report) = context(package, control, false)?;
+    let body = document.children.iter().find(|n| n.is("body")).unwrap();
     attrs(&mut report, body, &[]);
     let mut paragraphs = vec![];
     for n in &body.children {
@@ -927,66 +1023,11 @@ fn map(
             unknown(&mut report, n);
             continue;
         }
-        attrs(&mut report, n, &[]);
-        if has_complex_field(n) {
-            field_diagnostics(n, &mut report);
-            report.diagnostic("UNSUPPORTED_FIELD_PARAGRAPH_OMITTED", &n.location);
-            paragraphs.push(AdapterParagraph {
-                runs: vec![],
-                heading: None,
-            });
-            continue;
-        }
-        let mut props = styles.defaults.clone();
-        let pp = n.child("pPr");
-        let style = style_reference(
-            pp.and_then(|n| n.child("pStyle")),
-            styles.default_p.as_deref(),
-            &mut report,
-        );
-        if let Some(style) = style {
-            styles.apply(style, "paragraph", &mut props, &mut report, &mut vec![])?;
-        }
-        if let Some(pp) = pp {
-            let mut pp = pp.clone();
-            pp.children.retain(|n| !n.is("pStyle"));
-            properties(&pp, &mut props, false, &mut report)?;
-        }
-        let mut runs = vec![];
-        for c in &n.children {
-            control()?;
-            if c.is("pPr") {
-                continue;
-            }
-            if c.is("r") {
-                run(c, &props, None, &styles, &mut runs, &mut report)?;
-            } else if c.is("hyperlink") {
-                attrs(&mut report, c, &[(R, "id"), (W, "history")]);
-                let link = c
-                    .attr(R, "id")
-                    .and_then(|id| links.get(id))
-                    .map(String::as_str);
-                if link.is_none() {
-                    report.diagnostic("UNSUPPORTED_LINK_TARGET", &c.location);
-                }
-                for r in &c.children {
-                    if r.is("r") {
-                        run(r, &props, link, &styles, &mut runs, &mut report)?
-                    } else {
-                        unknown(&mut report, r)
-                    }
-                }
-            } else {
-                unknown(&mut report, c)
-            }
-        }
+        let p = paragraph(n, &styles, &links, &mut report, control)?;
         package
-            .charge_output_nodes(1 + runs.len())
+            .charge_output_nodes(1 + p.runs.len())
             .map_err(|_| fail(Code::Budget, "semantic-output"))?;
-        paragraphs.push(AdapterParagraph {
-            runs,
-            heading: props.heading,
-        });
+        paragraphs.push(p);
     }
     if paragraphs.is_empty() {
         let mut error = fail(Code::Profile, "no-supported-paragraphs");
