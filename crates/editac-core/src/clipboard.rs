@@ -120,11 +120,17 @@ pub fn validate(raw: &str, schema: &str) -> Result<()> {
             count += 1;
             require(
                 count <= 1024
-                    && keys(run, &["text", "marks", "opaqueMarks"])
+                    && keys(run, &["text", "marks", "opaqueMarks", "attributes"])
                     && run["text"].is_string()
                     && run["marks"].as_array().is_some_and(|m| m.len() <= 6),
                 "fragment-run",
             )?;
+            let mut combined = if let Some(attributes) = run.get("attributes") {
+                crate::commands::fragment::registered_attributes(attributes)
+                    .map_err(|_| "fragment-attributes")?
+            } else {
+                Vec::new()
+            };
             if let Some(raw) = run.get("opaqueMarks") {
                 require(
                     raw.as_array().is_some_and(|a| a.len() <= 32),
@@ -142,7 +148,8 @@ pub fn validate(raw: &str, schema: &str) -> Result<()> {
                         .map_err(|_| "fragment-opaque-mark")?;
                     marks.push((m["key"].as_str().unwrap().to_owned(), value));
                 }
-                crate::commands::fragment::validate_opaque_marks(&marks)
+                combined.extend(marks);
+                crate::commands::fragment::validate_opaque_marks(&combined)
                     .map_err(|_| "fragment-opaque-mark")?;
             }
             size += run["text"].as_str().unwrap().len();

@@ -440,6 +440,19 @@ impl<S: SessionStore> EditService<S> {
                     .to_string()
                     .len(),
             );
+            for run in &block.runs {
+                let attributes = run.opaque_marks.iter().cloned().collect();
+                self.registry
+                    .validate_run(&run.text, &attributes)
+                    .map_err(|_| ServiceError::Engine(EditorError::InvalidCommand))?;
+                if run
+                    .opaque_marks
+                    .iter()
+                    .any(|(key, _)| self.registry.definition(key).is_some())
+                {
+                    requirements.extensions = true;
+                }
+            }
             if let Some(editac_core::document::BlockAttributes::Unknown(tuple)) = &block.attributes
             {
                 match Content::from_tuple(tuple)

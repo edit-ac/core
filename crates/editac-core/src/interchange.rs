@@ -59,6 +59,8 @@ pub struct TransferContainer {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TransferRun {
+    #[serde(default)]
+    attributes: Option<Value>,
     text: String,
     marks: Vec<TransferMark>,
     #[serde(default, rename = "opaqueMarks")]
@@ -165,7 +167,17 @@ pub fn transfer_blocks(blocks: Vec<TransferBlock>) -> Result<Vec<FragmentBlock>>
                                             .map_err(|e| kernel("fragment", e))?,
                                     ))
                                 })
-                                .collect::<Result<Vec<_>>>()?,
+                                .collect::<Result<Vec<_>>>()?
+                                .into_iter()
+                                .chain(
+                                    r.attributes
+                                        .as_ref()
+                                        .map(crate::commands::fragment::registered_attributes)
+                                        .transpose()
+                                        .map_err(|e| kernel("fragment", e))?
+                                        .unwrap_or_default(),
+                                )
+                                .collect(),
                             text: r.text,
                             marks: r
                                 .marks

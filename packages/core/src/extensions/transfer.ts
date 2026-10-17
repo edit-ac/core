@@ -119,6 +119,12 @@ export class ExtensionTransferRegistry {
       if (!Array.isArray(blocks) || !blocks.length) throw new ExtensionTransferError('invalid-data');
       for (const block of blocks) {
         if (!block || typeof block !== 'object' || !Array.isArray(block.runs) || block.runs.some((r: FragmentBlock['runs'][number]) => !r || typeof r !== 'object' || !Array.isArray(r.marks) || r.marks.some((m: unknown) => !m || typeof m !== 'object'))) throw new ExtensionTransferError('invalid-data');
+        for (const run of block.runs) if (run.attributes) {
+          for (const [key, tuple] of Object.entries(run.attributes)) {
+            if (key !== `module:${e.type}` || !Array.isArray(tuple) || tuple[0] !== e.dataVersion)
+              throw new ExtensionTransferError('undeclared-formatting');
+          }
+        }
         const type = block.attributes?.type ?? 'paragraph';
         const tuple = block.attributes?.type === 'content' ? block.attributes.tuple : null;
         if (Array.isArray(tuple) && tuple[0] === 'module:editac.table') {

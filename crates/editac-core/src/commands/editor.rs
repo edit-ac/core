@@ -400,10 +400,6 @@ impl Document {
                             .map(|r| r.text.as_str())
                             .collect::<String>()
                             != fallback
-                            || block
-                                .runs
-                                .iter()
-                                .any(|r| !(r.marks.is_empty() && r.opaque_marks.is_empty()))
                         {
                             return Err(EditorError::InvalidCommand);
                         }
@@ -2334,7 +2330,6 @@ impl Document {
                             .ok_or(EditorError::UnsupportedTarget)?;
                         if n.runs.iter().map(|r| r.text.as_str()).collect::<String>()
                             != descriptor.fallback
-                            || n.runs.iter().any(|r| !r.attributes.is_empty())
                         {
                             return Err(EditorError::InvalidCommand);
                         }

@@ -141,6 +141,47 @@ pub fn validate_opaque_marks(marks: &[(String, yrs::Any)]) -> Result<(), ImportE
     Ok(())
 }
 
+/// Registered wire aliases use the same bounded inert carrier. They never
+/// register code or make an unknown/future envelope executable.
+pub fn registered_attributes(value: &serde_json::Value) -> Result<Vec<OpaqueMark>, ImportError> {
+    let object = value.as_object().ok_or(ImportError::InvalidStructure)?;
+    if object.len() > 32 {
+        return Err(ImportError::ResourceLimit);
+    }
+    let mut result = Vec::new();
+    for (key, value) in object {
+        let name = key
+            .strip_prefix("module:")
+            .ok_or(ImportError::InvalidStructure)?;
+        let segments: Vec<_> = name.split('.').collect();
+        if segments.len() != 2
+            || segments.iter().any(|s| {
+                !s.as_bytes().first().is_some_and(u8::is_ascii_lowercase)
+                    || !s
+                        .bytes()
+                        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'-')
+            })
+        {
+            return Err(ImportError::InvalidStructure);
+        }
+        let tuple = value.as_array().ok_or(ImportError::InvalidStructure)?;
+        if tuple.len() != 2
+            || !tuple[0]
+                .as_u64()
+                .is_some_and(|v| v > 0 && v <= u32::MAX as u64)
+            || !tuple[1].is_object()
+        {
+            return Err(ImportError::InvalidStructure);
+        }
+        result.push((
+            key.clone(),
+            yrs::Any::from_json(&value.to_string()).map_err(|_| ImportError::InvalidStructure)?,
+        ));
+    }
+    validate_opaque_marks(&result)?;
+    Ok(result)
+}
+
 #[cfg(test)]
 mod opaque_tests {
     use super::*;

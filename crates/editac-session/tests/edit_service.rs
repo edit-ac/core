@@ -888,3 +888,182 @@ fn native_service_lifecycle_preserves_replica_history_and_receipt_barrier() {
     let id = identity();
     lifecycle_case(native(&id), id);
 }
+
+// SFR-1.3: both original RCH-1.23 fingerprints through real SQLite Session admission.
+#[cfg(feature = "native-store")]
+fn registered_fragment_case(kind: u8) {
+    let atomic = kind != 0;
+    use editac_core::{interchange, modules::registry::Registry};
+    use serde_json::json;
+    let id = identity();
+    let store = native(&id);
+    let session = Session::create_local(store.clone(), id.clone(), &initial()).unwrap();
+    let mut registry = Registry::default();
+    registry.register(&serde_json::from_value(json!({"type":"editac.math","version":1,"kind":"inline-atom","attributes":{"latex":{"type":"string","required":true,"maxUtf16":64},"display":{"type":"boolean","required":true}},"content":{"type":"text","maxUtf16":128},"fallback":{"type":"text","source":"content"}})).unwrap()).unwrap();
+    let policy = HostPolicy {
+        references: true,
+        extensions: true,
+        ..HostPolicy::default()
+    };
+    let mut service = EditService::with_registry(session, policy.clone(), registry.freeze());
+    let input = match kind {
+        1 => {
+            json!([{"attributes":{"type":"content","tuple":["module:editac.reference",1,{"targetId":"host:opaque","label":"label"}]},"runs":[{"text":"label","marks":[{"mark":"bold"}]}]}])
+        }
+        2 => {
+            let corpus: serde_json::Value = serde_json::from_str(include_str!(
+                "../../../fixtures/rich-presenters/formatting/mixed-extensions.json"
+            ))
+            .unwrap();
+            let mut block = corpus["cases"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|c| c["id"] == "file-caption-bold")
+                .unwrap()["envelope"]["payload"][0]
+                .clone();
+            block["runs"][0]["marks"] = json!([{"mark":"bold"}]);
+            json!([block])
+        }
+        3 => {
+            json!([{"attributes":{"type":"content","tuple":["module:editac.inert-extension",1,{"version":1,"type":"vendor.atom","dataVersion":7,"source":"opaque 😀 source","payload":{"identity":"stable:atom","data":[true,42]}}]},"runs":[{"text":"opaque 😀 source","marks":[{"mark":"bold"}],"opaqueMarks":[{"key":"vendor-note","value":{"exact":true}}]}]}])
+        }
+        _ => {
+            json!([{"attributes":{"type":"paragraph"},"runs":[{"text":"LaTeX source: x^2","marks":[{"mark":"bold"}],"attributes":{"module:editac.math":[1,{"latex":"x^2","display":false}]}}]}])
+        }
+    };
+    let blocks = interchange::transfer_blocks(serde_json::from_value(input).unwrap()).unwrap();
+    let doc = service.session().document();
+    let selection = doc
+        .selection(
+            (&owner(doc), Utf16Offset(0), Bias::Right),
+            (&owner(doc), Utf16Offset(6), Bias::Left),
+        )
+        .unwrap();
+    let revision = service.read(0).unwrap().revision;
+    let baseline = doc.checkpoint().bytes;
+    let plan = service
+        .prepare_fragment(&revision, &selection, &blocks, &origin(), 0)
+        .unwrap();
+    assert_eq!(service.session().document().checkpoint().bytes, baseline);
+    // Dropping a prepared edit is cancellation; no journal, history or checkpoint drift.
+    drop(plan);
+    assert!(store.pending(&id).unwrap().is_empty());
+    assert_eq!(service.session().document().history_state().undo_groups, 0);
+    let plan = service
+        .prepare_fragment(&revision, &selection, &blocks, &origin(), 0)
+        .unwrap();
+    // Permission revocation is rechecked at application, including registered tuples.
+    let mut denied = policy.clone();
+    match kind {
+        1 => denied.references = false,
+        3 => denied.writable = false,
+        _ => denied.extensions = false,
+    };
+    service.set_policy(denied);
+    assert!(service.apply(plan, 0).is_err());
+    assert_eq!(service.session().document().checkpoint().bytes, baseline);
+    assert!(store.pending(&id).unwrap().is_empty());
+    service.set_policy(policy);
+    if !atomic {
+        let mut bad = blocks.clone();
+        bad[0].runs[0].opaque_marks[0].1 =
+            serde_json::from_value(json!([1,{"latex":42,"display":false}])).unwrap();
+        assert!(
+            service
+                .prepare_fragment(&revision, &selection, &bad, &origin(), 0)
+                .is_err()
+        );
+        assert_eq!(service.session().document().checkpoint().bytes, baseline);
+    }
+    let stale = service
+        .prepare_fragment(&revision, &selection, &blocks, &origin(), 0)
+        .unwrap();
+    let plan = service
+        .prepare_fragment(&revision, &selection, &blocks, &origin(), 0)
+        .unwrap();
+    service.apply(plan, 0).unwrap().unwrap();
+    let committed = service.session().document().checkpoint().bytes;
+    assert!(service.apply(stale, 0).is_err());
+    assert_eq!(service.session().document().checkpoint().bytes, committed);
+    assert_eq!(service.session().document().history_state().undo_groups, 1);
+    assert_eq!(store.pending(&id).unwrap().len(), 1);
+    let projection = |d: &editac_core::document::Document| {
+        d.snapshot()
+            .unwrap()
+            .visible
+            .iter()
+            .filter(|n| n.kind == "block")
+            .map(|n| interchange::transfer_value(&d.fragment_for_node(&n.id).unwrap()))
+            .collect::<Vec<_>>()
+    };
+    let expected = projection(service.session().document());
+    let imported = service
+        .session()
+        .document()
+        .snapshot()
+        .unwrap()
+        .visible
+        .into_iter()
+        .find(|n| n.runs.iter().any(|r| r.text == blocks[0].runs[0].text))
+        .unwrap();
+    let fragment = service
+        .session()
+        .document()
+        .fragment_for_node(&imported.id)
+        .unwrap();
+    assert_eq!(
+        interchange::transfer_value(&fragment),
+        interchange::transfer_value(&blocks[0])
+    );
+    let recovered = editac_markdown::export::export(&[fragment]);
+    assert!(!recovered.diagnostics.is_empty());
+    assert!(!recovered.recovery.is_empty());
+    let rev = service.read(0).unwrap().revision;
+    service.undo(&rev, 0).unwrap();
+    assert_eq!(text(service.session().document()), "abcdef");
+    let rev = service.read(0).unwrap().revision;
+    service.redo(&rev, 0).unwrap();
+    assert_eq!(projection(service.session().document()), expected);
+    let doc = service.session().document();
+    let partial = doc
+        .selection(
+            (&imported.id, Utf16Offset(1), Bias::Right),
+            (&imported.id, Utf16Offset(2), Bias::Left),
+        )
+        .unwrap();
+    if atomic {
+        assert!(editac_core::transfer::range_blocks(doc, &partial).is_err());
+    }
+    let path = store.path().to_owned();
+    drop(service);
+    drop(store);
+    let reopened_store = Arc::new(
+        editac_session::store::NativeStore::open_existing(path, id.clone(), StoreLimits::default())
+            .unwrap(),
+    );
+    let reopened = Session::open(reopened_store, &id, CachedPermission::LOCAL).unwrap();
+    assert_eq!(reopened.document().identity(), &id);
+    assert_eq!(projection(reopened.document()), expected);
+}
+#[cfg(feature = "native-store")]
+#[test]
+fn registered_inline_math_tuple_sqlite_transfer() {
+    registered_fragment_case(0);
+}
+#[cfg(feature = "native-store")]
+#[test]
+fn marked_atomic_reference_label_sqlite_transfer() {
+    registered_fragment_case(1);
+}
+
+#[cfg(feature = "native-store")]
+#[test]
+fn marked_atomic_asset_fallback_sqlite_transfer() {
+    registered_fragment_case(2);
+}
+#[cfg(feature = "native-store")]
+#[test]
+fn marked_atomic_inert_source_sqlite_transfer() {
+    registered_fragment_case(3);
+}

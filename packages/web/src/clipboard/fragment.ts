@@ -329,7 +329,9 @@ export class ClipboardInput {
               else throw Error('unsupported-fragment-container');
               containers.unshift({ key: container.id, style }); parent = container.parent;
             }
-            return { runs: clipRuns(node, start, end), attributes: blockStyle(node), containers, checked: node.editor?.checked ?? null };
+            const attributes = blockStyle(node);
+            if (attributes?.type === 'content' && (start !== 0 || end !== node.runs.reduce((n,r)=>n+r.text.length,0))) throw Error('partial-atomic-fragment');
+            return { runs: clipRuns(node, start, end), attributes, containers, checked: node.editor?.checked ?? null };
           }) };
         const raw = JSON.stringify(fragment); decodeFragment(raw, this.#engine); data.setData(FRAGMENT_MIME, raw);
         if (inert) this.#diagnose('inert-extension-source-fallback');

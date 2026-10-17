@@ -199,3 +199,126 @@ fn markdown_retains_opaque_recovery_and_never_claims_named_only_equivalence() {
     assert!(baseline.prepare(&d, "**changed**", &origin()).is_err());
     assert_eq!(d.checkpoint().bytes, before.bytes);
 }
+
+#[test]
+fn registered_alias_wire_and_prepared_bounds_are_atomic_and_canonical() {
+    use serde_json::json;
+    let d = fixture();
+    let valid = json!({"version":1,"schema":d.identity().schema,"blocks":[{"attributes":{"type":"paragraph"},"runs":[{"text":"LaTeX source: x^2","marks":[{"mark":"bold"}],"attributes":{"module:editac.math":[1,{"latex":"x^2","display":false}]}}]}]});
+    assert!(editac_core::clipboard::validate(&valid.to_string(), &d.identity().schema).is_ok());
+    let converted = editac_core::interchange::transfer_blocks(
+        serde_json::from_value(valid["blocks"].clone()).unwrap(),
+    )
+    .unwrap();
+    let exported = editac_core::interchange::transfer_value(&converted[0]);
+    assert_eq!(
+        exported["runs"][0]["opaqueMarks"][0]["value"],
+        valid["blocks"][0]["runs"][0]["attributes"]["module:editac.math"]
+    );
+    assert!(exported["runs"][0].get("attributes").is_none());
+    let baseline = d.checkpoint().bytes;
+    let history = d.history_state();
+    let mut invalid = Vec::new();
+    for attributes in [
+        json!([]),
+        json!({"bold":[1,{}]}),
+        json!({"module:Bad.math":[1,{}]}),
+        json!({"module:editac.math":[0,{}]}),
+        json!({"module:editac.math":[1,[]]}),
+        json!({"module:editac.math":[1,{},true]}),
+        json!({"module:editac.math":[1,{"data":"x".repeat(16385)}]}),
+        json!({"module:editac.math":[4294967296u64,{}]}),
+    ] {
+        let mut value = valid.clone();
+        value["blocks"][0]["runs"][0]["attributes"] = attributes;
+        invalid.push(value);
+    }
+    let mut duplicate = valid.clone();
+    duplicate["blocks"][0]["runs"][0]["opaqueMarks"] =
+        json!([{"key":"module:editac.math","value":[1,{}]}]);
+    invalid.push(duplicate);
+    for input in invalid {
+        assert!(
+            editac_core::clipboard::validate(&input.to_string(), &d.identity().schema).is_err()
+        );
+        assert!(
+            editac_core::interchange::transfer_blocks(
+                serde_json::from_value(input["blocks"].clone()).unwrap()
+            )
+            .is_err()
+        );
+        assert_eq!(d.checkpoint().bytes, baseline);
+        assert_eq!(d.history_state(), history);
+    }
+    assert!(editac_core::clipboard::validate(&valid.to_string(), "foreign-profile").is_err());
+}
+
+#[test]
+fn declared_atomic_fallbacks_preserve_each_of_the_six_marks_and_mixed_opaque_spans() {
+    use serde_json::json;
+    let corpus: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../fixtures/rich-presenters/formatting/mixed-extensions.json"
+    ))
+    .unwrap();
+    let asset = corpus["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["id"] == "file-caption-bold")
+        .unwrap()["envelope"]["payload"][0]
+        .clone();
+    let reference = json!({"attributes":{"type":"content","tuple":["module:editac.reference",1,{"targetId":"host:opaque","label":"label"}]},"runs":[{"text":"label","marks":[]}]});
+    let inert = json!({"attributes":{"type":"content","tuple":["module:editac.inert-extension",1,{"version":1,"type":"vendor.atom","dataVersion":7,"source":"opaque 😀 source","payload":{"identity":"stable:atom"}}]},"runs":[{"text":"opaque 😀 source","marks":[]}]});
+    for original in [reference, asset, inert] {
+        for mark in ["bold", "italic", "strike", "underline", "code", "link"] {
+            let mut d = fixture();
+            let mut input = original.clone();
+            input["runs"][0]["marks"] = json!([if mark == "link" {
+                json!({"mark":mark,"href":"https://example.invalid/exact"})
+            } else {
+                json!({"mark":mark})
+            }]);
+            // Two differently attributed spans must not coalesce or lose data.
+            let text = input["runs"][0]["text"].as_str().unwrap().to_owned();
+            let mut tail = input["runs"][0].clone();
+            input["runs"][0]["text"] = json!(&text[..1]);
+            tail["text"] = json!(&text[1..]);
+            tail["opaqueMarks"] = json!([{"key":"vendor-note","value":{"identity":"stable:span","nested":[true,42]}}]);
+            input["runs"].as_array_mut().unwrap().push(tail);
+            let blocks = editac_core::interchange::transfer_blocks(
+                serde_json::from_value(json!([input])).unwrap(),
+            )
+            .unwrap();
+            let prepared = d.prepare_fragment(&all(&d), &blocks, &origin()).unwrap();
+            d.commit_editor(prepared).unwrap();
+            let snapshot = d.snapshot().unwrap();
+            let node = snapshot
+                .visible
+                .iter()
+                .find(|n| matches!(n.block_attributes, Some(BlockAttributes::Unknown(_))))
+                .unwrap();
+            let actual = d.fragment_for_node(&node.id).unwrap();
+            assert_eq!(
+                editac_core::interchange::transfer_value(&actual),
+                editac_core::interchange::transfer_value(&blocks[0]),
+                "{mark}"
+            );
+            assert_eq!(d.history_state().undo_groups, 1);
+            let checkpoint = d.checkpoint();
+            let restored = Document::restore(d.identity(), &checkpoint, &[]).unwrap();
+            assert_eq!(
+                editac_core::interchange::transfer_value(
+                    &restored.fragment_for_node(&node.id).unwrap()
+                ),
+                editac_core::interchange::transfer_value(&actual)
+            );
+            d.undo().unwrap();
+            assert_eq!(d.snapshot().unwrap().visible[0].runs[0].text, "original");
+            d.redo().unwrap();
+            assert_eq!(
+                editac_core::interchange::transfer_value(&d.fragment_for_node(&node.id).unwrap()),
+                editac_core::interchange::transfer_value(&actual)
+            );
+        }
+    }
+}

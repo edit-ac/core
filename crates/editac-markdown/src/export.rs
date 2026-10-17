@@ -282,6 +282,12 @@ pub fn export(blocks: &[FragmentBlock]) -> ExportResult {
                     escape(content.inert_source().unwrap())
                 }
                 Ok(Some(Content::Reference { label, .. })) => {
+                    if block.runs.iter().any(|r| !r.marks.is_empty()) {
+                        diagnostics.push(Diagnostic {
+                            code: "marked-atom-internal-only",
+                            range: 0..0,
+                        });
+                    }
                     diagnostics.push(Diagnostic {
                         code: "reference-identity-not-exported",
                         range: 0..0,
