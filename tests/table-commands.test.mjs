@@ -70,7 +70,13 @@ for(const v2 of [false,true]) {
    for(const rest of [{action:'insertRow',index:3},{action:'deleteColumn',index:2},{action:'merge',index:0}]){
     const c=command(e,'tableStructure',rest);assert.throws(()=>e.prepare(c));assert.deepEqual(e.checkpoint().bytes,before.bytes);
    }
-   const c=command(e,'tableCell',{row:0,column:0,text:'no\nflatten'});assert.throws(()=>e.prepare(c));assert.deepEqual(e.checkpoint().bytes,before.bytes);
+   const history=e.history({type:'state'});
+   for(const text of ['no\nflatten','no\rflatten','no\r\nflatten']) {
+    const c=command(e,'tableCell',{row:0,column:0,text});
+    assert.equal(e.can(c),false);assert.throws(()=>e.prepare(c));
+    assert.deepEqual(e.checkpoint().bytes,before.bytes);
+    assert.deepEqual(e.history({type:'state'}),history);
+   }
   }finally{e.dispose();}
  });
 }
