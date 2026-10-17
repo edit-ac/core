@@ -29,3 +29,6 @@ export type { AiOperation, AiScope, AiLimits, AiDescriptor, AiTarget, AiRequest,
 
 export { AiSession, captureAiTarget } from './ai-session.js';
 export type { AiSessionStatus, AiReviewTarget } from './ai-session.js';
+
+export { AI_ACTION_PROFILE, AI_ACTIONS, AI_TONES, prepareAiAction } from './ai-actions.js';
+export type { AiActionId, AiTone, AiActionOptions, PreparedAiAction } from './ai-actions.js';

@@ -226,7 +226,7 @@ does not substitute Unicode characters or claim lossless Markdown serialization.
 ## Optional AI writing actions
 
 The private `@edit-ac/web/ai` entry supplies `aiActions(host, options)` for explicit
-Ask AI, fill and continue flows. Configure it once through the existing slash
+Ask AI, fill, continue and selected-text rewrite flows. Configure it once through the existing slash
 presenter port:
 
 ```ts
@@ -266,6 +266,25 @@ accessibility semantics have local evidence. Actual screen-reader mechanics rema
 unqualified because the test host reports Accessibility scripting disabled. These
 fixtures make no provider, model-quality or all-platform support claim.
 
+
+### Selected-text writing profile
+
+`Rewrite selection` uses the same `aiActions` panel with host capability `rewrite`.
+Choose spelling/grammar, rephrase, simplify, shorten, extend, tone, summarize,
+key points or translation. Translation requires an explicit target language;
+tone offers neutral, formal, friendly and professional. Every action declares
+selection scope and plain-text output in the immutable
+`AI_ACTIONS` / `AI_ACTION_PROFILE` metadata from `@edit-ac/core/extensions`.
+The host receives deterministic instructions and selected text as separate fields.
+
+The initial profile retains uniform bold, italic, strike, underline, code and
+safe-link marks on one nonempty paragraph selection. Mixed selected formatting,
+unknown marks, protected atoms and other structures report unavailable before
+transport. Unselected marks and unrelated atoms remain unchanged. Responses are
+inert literal text; rich response objects and fabricated atom/control characters
+are rejected. No transformation applies until Accept; all use the existing
+captured-target review, storage and undo path. Prepared results describe plumbing,
+not model accuracy. Local proof: `npm run test:web -- ai-transformations`.
 
 ### Optional writing completion
 
