@@ -334,7 +334,7 @@ class BasicContentView implements ContentView {
   private pasteCells(data:DataTransfer):void {
     try{const rich=this.literalPaste?undefined:decodeRichTableClipboard(data);
       if(rich){const s=this.cells;if(s)this.commitTable({type:'tableRichRectangle',owner:this.node.id,...s,cells:(Array.isArray(rich[0]?.[0]) && (parse(this.node) as Table)?.cells ? (rich as Run[][][]).map((row,r)=>row.map((runs,c)=>({...((parse(this.node) as Table).cells![s.row+r]![s.column+c]!),paragraphs:[{style:['paragraph'],runs}]}))) : rich) as unknown as Json,protected:this.policy()});}
-      else this.rectangle(decodeTableClipboard(this.element.ownerDocument,data));}
+      else this.rectangle(decodeTableClipboard(this.element.ownerDocument,data,this.literalPaste));}
     catch{this.status.textContent='Unsupported table clipboard; dimensions and simple unmerged literal cells are required.';}
   }
   private edit(input: HTMLTextAreaElement, expected: Json = this.node.blockAttributes): void {

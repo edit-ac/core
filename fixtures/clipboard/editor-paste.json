@@ -1,0 +1,12 @@
+{
+  "revision": 1,
+  "provenance": "Authored synthetic interoperability examples; no private clipboard captures or proprietary application fidelity claim.",
+  "cases": [
+    {"id":"word","source":"Synthetic Word-style HTML","flavors":{"text/html":"<p class=\"MsoNormal\"><b>Word</b> <i>text</i></p>","text/plain":"Word text"},"text":["Word text"],"mark":"bold"},
+    {"id":"docs","source":"Synthetic Google Docs-style HTML","flavors":{"text/html":"<b id=\"docs-internal-guid-synthetic\"><span style=\"font-weight:700\">Docs</span></b>","text/plain":"Docs"},"text":["Docs"],"mark":"bold"},
+    {"id":"notes","source":"Synthetic Apple Notes-style HTML","flavors":{"text/html":"<div><b>Notes</b><br>tail</div>","text/plain":"Notes\ntail"},"text":["Notes\ntail"],"mark":"bold"},
+    {"id":"pdf","source":"Synthetic PDF-extraction plain text","flavors":{"text/plain":"  PDF é\n\n tail  "},"text":["  PDF é\n\n tail  "]},
+    {"id":"terminal","source":"Synthetic terminal plain text","flavors":{"text/plain":"\t$ echo **literal**\r\n  tail\r"},"text":["\t$ echo **literal**\n  tail\n"]},
+    {"id":"tsv","source":"Synthetic spreadsheet TSV with literal fallback","flavors":{"text/tab-separated-values":"one\ttwo\nthree\tfour","text/plain":"one\ttwo\nthree\tfour"},"text":["one\ttwo\nthree\tfour"],"diagnostic":"text/tab-separated-values-codec-unavailable"}
+  ]
+}
