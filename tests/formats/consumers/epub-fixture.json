@@ -1,0 +1,312 @@
+{
+  "version": 1,
+  "descriptor": {
+    "identity": {
+      "host": "fixture-host",
+      "key": "docx-original"
+    },
+    "kind": "image",
+    "metadata": {
+      "filename": "pixel.png",
+      "mediaType": "image/png",
+      "byteLength": 70,
+      "sha256": "4ff6ab670a58c14270e034e2090d9a432caa263a14e0a25785386b0c12f880b5",
+      "width": 1,
+      "height": 1,
+      "durationMs": null,
+      "alt": "Original pixel 🙂",
+      "caption": "local original"
+    },
+    "fallback": "Original pixel 🙂",
+    "source": ""
+  },
+  "blocks": [
+    {
+      "runs": [
+        {
+          "text": "EPUB 🙂 heading",
+          "marks": []
+        }
+      ],
+      "attributes": {
+        "type": "heading",
+        "level": 2
+      }
+    },
+    {
+      "runs": [
+        {
+          "text": "Bold & <literal>",
+          "marks": [
+            {
+              "mark": "bold"
+            }
+          ]
+        },
+        {
+          "text": " linked",
+          "marks": [
+            {
+              "mark": "link",
+              "href": "https://example.test/safe"
+            }
+          ]
+        }
+      ],
+      "attributes": null
+    },
+    {
+      "runs": [
+        {
+          "text": "Unicode é العربية\tline\nlast\rreturn",
+          "marks": [
+            {
+              "mark": "italic"
+            },
+            {
+              "mark": "underline"
+            },
+            {
+              "mark": "strike"
+            }
+          ]
+        },
+        {
+          "text": " code literal",
+          "marks": [
+            {
+              "mark": "code"
+            }
+          ]
+        }
+      ],
+      "attributes": null
+    },
+    {
+      "runs": [
+        {
+          "text": "First item",
+          "marks": []
+        }
+      ],
+      "attributes": null,
+      "containers": [
+        {
+          "key": "list",
+          "style": {
+            "type": "ordered",
+            "start": 3
+          }
+        }
+      ]
+    },
+    {
+      "runs": [
+        {
+          "text": "Nested bullet 🙂",
+          "marks": []
+        }
+      ],
+      "attributes": null,
+      "containers": [
+        {
+          "key": "list",
+          "style": {
+            "type": "ordered",
+            "start": 3
+          }
+        },
+        {
+          "key": "nested",
+          "style": {
+            "type": "unordered"
+          }
+        }
+      ]
+    },
+    {
+      "runs": [
+        {
+          "text": "Second item",
+          "marks": []
+        }
+      ],
+      "attributes": null,
+      "containers": [
+        {
+          "key": "list",
+          "style": {
+            "type": "ordered",
+            "start": 3
+          }
+        }
+      ]
+    },
+    {
+      "runs": [
+        {
+          "text": "Original pixel 🙂",
+          "marks": []
+        }
+      ],
+      "attributes": {
+        "type": "content",
+        "tuple": [
+          "module:editac.asset",
+          1,
+          {
+            "identity": {
+              "host": "fixture-host",
+              "key": "docx-original"
+            },
+            "kind": "image",
+            "metadata": {
+              "filename": "pixel.png",
+              "mediaType": "image/png",
+              "byteLength": 70,
+              "sha256": "4ff6ab670a58c14270e034e2090d9a432caa263a14e0a25785386b0c12f880b5",
+              "width": 1,
+              "height": 1,
+              "durationMs": null,
+              "alt": "Original pixel 🙂",
+              "caption": "local original"
+            },
+            "fallback": "Original pixel 🙂",
+            "source": ""
+          }
+        ]
+      }
+    },
+    {
+      "runs": [
+        {
+          "text": "table",
+          "marks": []
+        }
+      ],
+      "attributes": {
+        "type": "content",
+        "tuple": [
+          "module:editac.table",
+          1,
+          {
+            "alignments": [
+              "none",
+              "none"
+            ],
+            "rows": [
+              [
+                [
+                  [
+                    "Cell A",
+                    []
+                  ]
+                ],
+                [
+                  [
+                    "Cell 🙂",
+                    []
+                  ]
+                ]
+              ]
+            ],
+            "source": ""
+          }
+        ]
+      }
+    },
+    {
+      "runs": [
+        {
+          "text": "Second chapter <literal>",
+          "marks": []
+        }
+      ],
+      "attributes": {
+        "type": "heading",
+        "level": 1
+      }
+    },
+    {
+      "runs": [
+        {
+          "text": "Final chapter text",
+          "marks": []
+        }
+      ],
+      "attributes": null
+    }
+  ],
+  "pixel": [
+    137,
+    80,
+    78,
+    71,
+    13,
+    10,
+    26,
+    10,
+    0,
+    0,
+    0,
+    13,
+    73,
+    72,
+    68,
+    82,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    1,
+    8,
+    6,
+    0,
+    0,
+    0,
+    31,
+    21,
+    196,
+    137,
+    0,
+    0,
+    0,
+    13,
+    73,
+    68,
+    65,
+    84,
+    120,
+    156,
+    99,
+    248,
+    207,
+    192,
+    240,
+    31,
+    0,
+    5,
+    0,
+    1,
+    255,
+    137,
+    153,
+    61,
+    29,
+    0,
+    0,
+    0,
+    0,
+    73,
+    69,
+    78,
+    68,
+    174,
+    66,
+    96,
+    130
+  ]
+}

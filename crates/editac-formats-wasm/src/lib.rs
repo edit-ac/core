@@ -6,7 +6,7 @@ use editac_core::{
     document::{DocumentIdentity, InitializedCheckpoint},
     interchange::{identity, transfer_value},
 };
-use editac_formats::{Direction, LIMITS, Profile, docx, job::*, odt, rtf, table_text};
+use editac_formats::{Direction, LIMITS, Profile, docx, epub, job::*, odt, rtf, table_text};
 use editac_session::{
     assets::{AssetHost, HostOutcome},
     ports::PortError,
@@ -130,6 +130,11 @@ impl odt::export::OriginalAssetHost for ApprovedAssets<'_> {
         docx::export::OriginalAssetHost::read_original(self, request)
     }
 }
+impl epub::export::OriginalAssetHost for ApprovedAssets<'_> {
+    fn read_original(&mut self, request: &AssetRequest) -> Result<Vec<u8>, PortError> {
+        docx::export::OriginalAssetHost::read_original(self, request)
+    }
+}
 // The public browser attachment owner currently requires a live node before
 // ingest. Never pretend worker-local staging is durable host ingestion and never
 // insert a descriptor before its originals are admitted. This explicit port
@@ -203,6 +208,7 @@ fn profile(format: &str, import: bool, safe: bool) -> Result<Profile, Value> {
     Ok(match (format, import, safe) {
         ("docx", false, false) => docx::export::PROFILE,
         ("odt", false, false) => odt::export::PROFILE,
+        ("epub", false, false) => epub::export::PROFILE,
         ("docx", true, false) => docx::import::STRUCTURE_PROFILE,
         ("rtf", true, false) => rtf::import::PROFILE,
         ("rtf", false, false) => rtf::export::PROFILE,
@@ -462,6 +468,14 @@ pub fn convert_value_with_assets(
         let c = odt::export::export(&mut job, None, approve, &mut host, || 0)
             .map_err(|e|json!({"ok":false,"code":"ConversionRejected","reason":e.reason,"diagnostics":e.report.diagnostics.iter().map(|d|json!({"code":d.code,"location":d.location,"lossy":d.lossy})).collect::<Vec<_>>(),"action":"Retain the captured checkpoint; supply explicitly granted original assets or review loss diagnostics."}))?;
         json!({"ok":true,"bytes":c.artifact.bytes(),"diagnostics":c.report.diagnostics.iter().map(|d|json!({"code":d.code,"location":d.location,"lossy":d.lossy})).collect::<Vec<_>>(),"assetCount":c.report.assets,"originalAssetBytes":c.report.original_bytes})
+    } else if r.format == "epub" {
+        let mut host = ApprovedAssets {
+            records: &r.assets,
+            bytes: assets,
+        };
+        let c = epub::export::export(&mut job, None, approve, &mut host, || 0)
+            .map_err(|e|json!({"ok":false,"code":"ConversionRejected","reason":e.reason,"diagnostics":e.report.diagnostics.iter().map(|d|json!({"code":d.code,"location":d.location,"lossy":d.lossy})).collect::<Vec<_>>(),"action":"Retain the captured checkpoint; supply explicitly granted original assets or review loss diagnostics."}))?;
+        json!({"ok":true,"bytes":c.artifact.bytes(),"diagnostics":c.report.diagnostics.iter().map(|d|json!({"code":d.code,"location":d.location,"lossy":d.lossy})).collect::<Vec<_>>(),"assetCount":c.report.assets,"originalAssetBytes":c.report.original_bytes})
     } else if r.format == "rtf" {
         let c = rtf::export::export(&mut job, None, approve, || 0).map_err(|e|json!({"ok":false,"code":"ConversionRejected","reason":e.reason,"diagnostics":e.report.diagnostics.iter().map(|d|json!({"code":d.code,"location":d.location,"lossy":d.lossy})).collect::<Vec<_>>(),"action":"Review representability diagnostics; retain the captured source."}))?;
         json!({"ok":true,"bytes":c.artifact.bytes(),"diagnostics":c.report.diagnostics.iter().map(|d|json!({"code":d.code,"location":d.location,"lossy":d.lossy})).collect::<Vec<_>>()})
@@ -557,6 +571,27 @@ mod tests {
         r["format"] = json!("odt");
         let v = convert_value(&r.to_string(), &[], &c).unwrap();
         assert_eq!(v["profile"], "edit-ac-odt-v1");
+        assert!(v["bytes"].as_array().unwrap().len() > 100);
+        assert!(
+            v["diagnostics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|d| d["code"] == "PACKAGE_REGENERATED")
+        );
+        r["direction"] = json!("import");
+        assert_eq!(
+            convert_value(&r.to_string(), b"PK", &c).unwrap_err()["code"],
+            "FORMAT_UNAVAILABLE"
+        );
+    }
+    #[test]
+    fn public_epub_export_uses_captured_writer_and_keeps_import_unavailable() {
+        let (mut r, c) = fixture();
+        r["direction"] = json!("export");
+        r["format"] = json!("epub");
+        let v = convert_value(&r.to_string(), &[], &c).unwrap();
+        assert_eq!(v["profile"], "edit-ac-epub-v1");
         assert!(v["bytes"].as_array().unwrap().len() > 100);
         assert!(
             v["diagnostics"]

@@ -1,5 +1,5 @@
 import type { EngineHandle, StableRange, FragmentBlock, CommitResult, Checkpoint } from '@edit-ac/core';
-export type Format = 'rtf' | 'csv' | 'tsv' | 'docx' | 'odt';
+export type Format = 'rtf' | 'csv' | 'tsv' | 'docx' | 'odt' | 'epub';
 export interface Options {
   format: Format; source?: Uint8Array; filename?: string; mediaType?: string; range?: StableRange; selected?: string;
   /** Mandatory for CSV/TSV. */ newline?: 'lf' | 'crlf';

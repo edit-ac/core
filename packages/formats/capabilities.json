@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "owner": "CNV-1.18-C1/C2-DX/C2-DI-T",
+  "owner": "CNV-1.18-C1/C2-DX/C2-DI-T / C2-EX",
   "state": "implementation-pending-qualification",
   "directions": [
     {
@@ -97,6 +97,19 @@
         "odt-export",
         "jobs"
       ]
+    },
+    {
+      "format": "epub",
+      "direction": "export",
+      "profile": "edit-ac-epub-v1",
+      "target": "browser-worker-wasm32",
+      "fixture": "tests/formats/consumers/epub-fixture.json",
+      "fidelity": "epub33-reflowable-export-v1",
+      "feature": "epub-export",
+      "requiredFeatures": [
+        "epub-export",
+        "jobs"
+      ]
     }
   ],
   "additionalProfiles": [
@@ -107,7 +120,6 @@
     "docx-import-media",
     "odt-import",
     "epub-import",
-    "epub-export",
     "pdf-export"
   ],
   "pdfImport": "FORMAT_EXPORT_ONLY",

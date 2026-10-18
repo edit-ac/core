@@ -9,7 +9,7 @@ publish = false
 [lib]
 crate-type = ["cdylib", "rlib"]
 [dependencies]
-editac-formats = { path = "../editac-formats", features = ["rtf-import", "rtf-export", "table-text-import", "table-text-export", "docx-codecs", "odt-export"] }
+editac-formats = { path = "../editac-formats", features = ["rtf-import", "rtf-export", "table-text-import", "table-text-export", "docx-codecs", "odt-export", "epub-export"] }
 editac-core = { path = "../editac-core" }
 editac-session = { path = "../editac-session" }
 serde = { version = "=1.0.229", features = ["derive"] }
