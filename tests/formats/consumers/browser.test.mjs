@@ -10,6 +10,7 @@ const output=resolve(process.env.EDITAC_FORMATS_OUTPUT);
 const packed=JSON.parse(readFileSync(resolve(output,'packed-artifacts.json')));
 const root=resolve(packed.consumer,'node_modules');
 const docxFixture=JSON.parse(readFileSync('tests/formats/consumers/docx-fixture.json'));
+const odtFixture=JSON.parse(readFileSync('tests/formats/consumers/odt-fixture.json'));
 let server,controller,browser,url;
 function sampleMemory(){
  if(!controller)return null;
@@ -18,7 +19,7 @@ function sampleMemory(){
  const ids=new Set([controller.process().pid]);let more=true;while(more){more=false;for(const p of rows)if(ids.has(p.ppid)&&!ids.has(p.pid)){ids.add(p.pid);more=true;}}
  const processes=rows.filter(p=>ids.has(p.pid));return {time:Date.now(),sumRssBytes:processes.reduce((n,p)=>n+p.bytes,0),processes};
 }
-const evidence={cases:[],processes:[],resources:[],remoteRequests:[],workers:0,cleanup:{},scope:'CNV-1.18-C1 RTF/CSV/TSV actual packed Chromium worker; original parent remains open for other directions and targets'};
+const evidence={cases:[],processes:[],resources:[],remoteRequests:[],workers:0,cleanup:{},scope:'CNV-1.18 C1/DI-T/DX/OX actual packed Chromium workers and live shared Session/AssetSession; original parent remains open for missing directions and targets'};
 const save=()=>writeFileSync(resolve(output,'browser-receipt.json'),JSON.stringify(evidence,null,2)+'\n');
 before(async()=>{
  server=createServer((req,res)=>{
@@ -179,6 +180,59 @@ test('DOCX complete cold/warm snapshot/worker/artifact/reopen costs include orig
   for(const phase of ['cold','warm']){const start=performance.now(),heapBefore=performance.memory.usedJSHeapSize;const assets=await AssetSession.open(engine,indexedDB,databaseName);const bytes=await assets.retainedSource(image.id,{identity:f.descriptor.identity,actions:['read']});const p=await client.export(engine,{format:'docx',approveLoss:true,originalAssets:[{identity:f.descriptor.identity,actions:['read'],bytes}]});const reopened=runtime.restoreEngine(p.recovery.identity,p.recovery);const captured=text(reopened);reopened.dispose();await assets.dispose('suspend');values.push({phase,completeMs:performance.now()-start,heapBefore,heapAfter:performance.memory.usedJSHeapSize,metrics:p.metrics,artifactBytes:p.bytes.length,captured,scope:'AssetSession open/reconcile/read authorization + retained byte read + immutable source capture + worker bootstrap/Session/writer/package/transfer + checkpoint reopen + service suspension; excludes preexisting document/asset authoring and independent validation'});}
   client.dispose();engine.dispose();return values;
  },docxFixture));for(const m of r){assert.ok(m.completeMs>0);assert.ok(m.artifactBytes>0);assert.match(m.captured,/DOCX 🙂 heading/);assert.ok(m.metrics.wasmLinearBytes<=67108864);}evidence.docxResources=r;save();
+});
+
+test('packed ODT export uses captured rich semantics and AssetSession-authorized exact originals',async()=>{
+ const r=await check('odt-export-assets',page=>page.evaluate(async f=>{
+  const {engine,client,range}=make();
+  engine.commit(engine.prepare({kind:'fragment',origin:'odt-fixture',range,blocks:f.blocks}));
+  const image=engine.read().visible.find(n=>n.blockAttributes?.[0]==='module:editac.asset');
+  const {AssetSession}=await import('@edit-ac/web/assets');
+  const databaseName='odt-'+crypto.randomUUID();const session=await AssetSession.open(engine,indexedDB,databaseName);
+  const grant={identity:f.descriptor.identity,actions:['ingest','read']};
+  const request={version:1,operationId:'retain_docx_original',identity:f.descriptor.identity,action:'ingest',byteLimit:f.pixel.length};
+  const receipt=await session.enqueue(image.id,request,grant,Uint8Array.from(f.pixel));
+  const bytes=await session.retainedSource(image.id,{identity:f.descriptor.identity,actions:['read']});
+  let deniedRead=false;try{await session.retainedSource(image.id,{identity:f.descriptor.identity,actions:[]});}catch{deniedRead=true;}
+  const start=performance.now();const originalAssets=[{identity:f.descriptor.identity,actions:['read'],bytes}];
+  const pending=client.export(engine,{format:'odt',approveLoss:true,originalAssets});
+  bytes.fill(0);originalAssets[0].identity={host:'changed',key:'changed'};
+  const node=engine.read().visible[0].id;const a=engine.anchor(node,0,'right');engine.commit(engine.prepare({kind:'editor',origin:'later',commands:[{type:'insert',at:a,text:'LATER'}]}));engine.releaseAnchor(a);
+  const result=await pending;const reopened=runtime.restoreEngine(result.recovery.identity,result.recovery);const captured=text(reopened);reopened.dispose();
+  const value={bytes:Array.from(result.bytes),diagnostics:result.diagnostics,metrics:result.metrics,completeMs:performance.now()-start,deniedRead,receipt,captured,current:text(engine),oldRevision:result.revision,newRevision:engine.read().revision,linearBytes:result.metrics.wasmLinearBytes,assetCount:result.assetCount,originalAssetBytes:result.originalAssetBytes};
+  await session.dispose('suspend');const recovered=await AssetSession.open(engine,indexedDB,databaseName);value.retainedAfterSuspend=Array.from(await recovered.retainedSource(image.id,{identity:f.descriptor.identity,actions:['read']}));value.recoveredIntents=(await recovered.inspect()).intents;await recovered.dispose('retire');client.dispose();engine.dispose();return value;
+ },odtFixture));
+ assert.deepEqual(r.retainedAfterSuspend,odtFixture.pixel);assert.ok(r.recoveredIntents.every(i=>i.status==='Pending'));assert.equal(r.deniedRead,true);assert.equal(r.receipt.kind,'assetOperation');assert.ok(r.current.includes('LATER'));assert.ok(!r.captured.includes('LATER'));assert.ok(r.newRevision>r.oldRevision);assert.equal(r.assetCount,1);assert.equal(r.originalAssetBytes,odtFixture.pixel.length);assert.ok(r.linearBytes<=67108864);assert.ok(r.diagnostics.some(d=>d.code==='PACKAGE_REGENERATED'));assert.deepEqual(r.diagnostics.filter(d=>d.lossy).map(d=>d.code).sort(),[]);
+ writeFileSync(resolve(output,'browser-supported.odt'),Buffer.from(r.bytes));
+});
+test('ODT missing/denied/corrupt assets, loss reports and cancelled work retain the captured source',async()=>{
+ const r=await check('odt-export-failures',page=>page.evaluate(async f=>{
+  const {engine,client,range}=make();engine.commit(engine.prepare({kind:'fragment',origin:'odt-fixture',range,blocks:f.blocks}));
+  const before=text(engine),revision=engine.read().revision,results=[];
+  for(const mode of ['missing','denied','corrupt','foreign','excess']){
+   let assets=mode==='missing'?[]:[{identity:mode==='foreign'?{host:'fixture-host',key:'foreign'}:f.descriptor.identity,actions:mode==='denied'?[]:['read'],bytes:mode==='excess'?new Uint8Array(1048577):mode==='corrupt'?new Uint8Array(f.pixel.length):Uint8Array.from(f.pixel)}];
+   try{await client.export(engine,{format:'odt',approveLoss:true,originalAssets:assets});results.push({mode,unexpected:true});}catch(e){results.push({mode,code:e.code,reason:e.report.reason,recoverable:!!e.recovery});}
+  }
+  const abort=new AbortController();const pending=client.export(engine,{format:'odt',approveLoss:true,signal:abort.signal,originalAssets:[{identity:f.descriptor.identity,actions:['read'],bytes:Uint8Array.from(f.pixel)}]});abort.abort();let cancel;try{await pending;}catch(e){cancel={code:e.code,recoverable:!!e.recovery};}
+  const unchanged=before===text(engine)&&revision===engine.read().revision;
+  client.dispose();engine.dispose();
+  const plain=make();const node=plain.engine.read().visible[0].id;const a=plain.engine.anchor(node,0,'right'),z=plain.engine.anchor(node,4,'left');
+  plain.engine.commit(plain.engine.prepare({kind:'fragment',origin:'unsupported-code-block',range:{anchor:a,focus:z},blocks:[{runs:[{text:'literal code',marks:[]}],attributes:{type:'code',language:'rust'}}]}));
+  let loss;try{await plain.client.export(plain.engine,{format:'odt'});}catch(e){loss={code:e.code,diagnostics:e.report.diagnostics,recoverable:!!e.recovery};}
+  const approved=await plain.client.export(plain.engine,{format:'odt',approveLoss:true});plain.client.dispose();plain.engine.dispose();
+  const rich=make();const table=await rich.client.prepareImport(rich.engine,{format:'csv',source:enc('A,B\n'),range:rich.range,newline:'lf',header:false});table.commit();let richLoss;try{await rich.client.export(rich.engine,{format:'odt'});}catch(e){richLoss={diagnostics:e.report.diagnostics,recoverable:!!e.recovery};}rich.client.dispose();rich.engine.dispose();
+  return {results,cancel,unchanged,loss,richLoss,approvedDiagnostics:approved.diagnostics};
+ },odtFixture));
+ assert.equal(r.unchanged,true);assert.deepEqual(r.results.map(x=>x.code),['ConversionRejected','ConversionRejected','ConversionRejected','ConversionRejected','ResourceLimit']);assert.ok(r.results.every(x=>x.recoverable));assert.equal(r.cancel.code,'Cancelled');assert.equal(r.cancel.recoverable,true);assert.ok(r.loss.diagnostics.some(d=>d.lossy));assert.ok(r.approvedDiagnostics.some(d=>d.lossy));assert.equal(r.richLoss.recoverable,true);assert.ok(r.richLoss.diagnostics.some(d=>d.code==='UNSUPPORTED_CONTENT'&&d.lossy));
+});
+test('ODT complete cold/warm snapshot/worker/artifact/reopen costs include original assets',async()=>{
+ const r=await check('odt-export-costs',page=>page.evaluate(async f=>{
+  const values=[];const {engine,client,range}=make();engine.commit(engine.prepare({kind:'fragment',origin:'odt-fixture',range,blocks:f.blocks}));
+  const {AssetSession}=await import('@edit-ac/web/assets');const databaseName='odt-cost-'+crypto.randomUUID();const image=engine.read().visible.find(n=>n.blockAttributes?.[0]==='module:editac.asset');
+  const initial=await AssetSession.open(engine,indexedDB,databaseName);await initial.enqueue(image.id,{version:1,operationId:'retain_cost_original',identity:f.descriptor.identity,action:'ingest',byteLimit:f.pixel.length},{identity:f.descriptor.identity,actions:['ingest']},Uint8Array.from(f.pixel));await initial.dispose('suspend');
+  for(const phase of ['cold','warm']){const start=performance.now(),heapBefore=performance.memory.usedJSHeapSize;const assets=await AssetSession.open(engine,indexedDB,databaseName);const bytes=await assets.retainedSource(image.id,{identity:f.descriptor.identity,actions:['read']});const p=await client.export(engine,{format:'odt',approveLoss:true,originalAssets:[{identity:f.descriptor.identity,actions:['read'],bytes}]});const reopened=runtime.restoreEngine(p.recovery.identity,p.recovery);const captured=text(reopened);reopened.dispose();await assets.dispose('suspend');values.push({phase,completeMs:performance.now()-start,heapBefore,heapAfter:performance.memory.usedJSHeapSize,metrics:p.metrics,artifactBytes:p.bytes.length,captured,scope:'AssetSession open/reconcile/read authorization + retained byte read + immutable source capture + worker bootstrap/Session/writer/package/transfer + checkpoint reopen + service suspension; excludes preexisting document/asset authoring and independent validation'});}
+  client.dispose();engine.dispose();return values;
+ },odtFixture));for(const m of r){assert.ok(m.completeMs>0);assert.ok(m.artifactBytes>0);assert.match(m.captured,/ODT 🙂 heading/);assert.ok(m.metrics.wasmLinearBytes<=67108864);}evidence.odtResources=r;save();
 });
 
 const importFixtures=()=>Object.fromEntries(['supported','loss','media','corrupt','hostile','nodes'].map(name=>[name,Array.from(readFileSync(resolve(output,'docx-import-fixtures',name+'.docx')))]));

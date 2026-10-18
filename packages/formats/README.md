@@ -6,7 +6,7 @@ The base editor does not depend on this package. Build with
 `node scripts/build-formats.mjs` using the locked Node/Rust/bindgen toolchains.
 
 The initial public worker return covers the existing bounded RTF 1.9.1 profile and
-explicit UTF-8 CSV/TSV table dialects and semantic DOCX export and DOCX text/list/simple-table import. DOCX media import, ODT, EPUB and PDF export are unavailable
+explicit UTF-8 CSV/TSV table dialects and semantic DOCX/ODT export and DOCX text/list/simple-table import. DOCX media import, ODT import, EPUB and PDF export are unavailable
 at this package boundary until separately packaged and qualified. PDF import is
 always export-only, including a PDF signature mislabeled as another supported
 format. Existing native adapters retain their own evidence and limitations.
@@ -51,7 +51,7 @@ credentials or network fallback are included. Costs reported by tests include
 checkpoint capture, worker startup/load, Session restore, conversion, transfer,
 live commit/reopen and worker termination; memory samples state their limits.
 
-DOCX export uses the existing optional semantic writer and captured checkpoint.
+DOCX and ODT export use the existing optional semantic writer and captured checkpoint.
 Supply `originalAssets: [{identity, actions: ['read'], bytes}]` for each admitted
 PNG. Obtain bytes through the owning attachment service (for example
 `AssetSession.retainedSource(reference, grant)`), with explicit host permission.
@@ -71,3 +71,5 @@ checkpoint with no live mutation. The shared browser attachment API currently
 requires a live descriptor before ingest; its prepared-import staging/adoption
 transaction is still required. This package does not insert first and compensate,
 silently drop images or claim the full DOCX import direction is qualified.
+
+ODT export uses the qualified ODF 1.3 semantic writer with the same approved original PNG transport. It preserves the declared text/marks/headings/lists/v1 tables/links and image accessibility labels, reports regenerated package/style/metadata defaults, and rejects unapproved loss. ODT import remains unavailable in this public worker. Independent reader/schema qualification covers generated artifacts, not arbitrary suite layout or native platform wiring.

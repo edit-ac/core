@@ -2,7 +2,7 @@
   "name": "@edit-ac/formats",
   "version": "0.0.0",
   "private": true,
-  "description": "Optional local RTF, CSV/TSV and semantic DOCX worker (media import unavailable)",
+  "description": "Optional local RTF, CSV/TSV and semantic DOCX/ODT worker (media import unavailable)",
   "license": "Apache-2.0",
   "type": "module",
   "files": [

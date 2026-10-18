@@ -23,7 +23,7 @@ export function createFormatClient() {
     const signal = options.signal;
     if(signal!==undefined && !(signal instanceof AbortSignal))throw reject('InvalidInput',original);
     if (signal?.aborted) throw reject('Cancelled', original);
-    if (!['rtf','csv','tsv','pdf','docx'].includes(options.format)) throw reject('FORMAT_UNAVAILABLE',original);
+    if (!['rtf','csv','tsv','pdf','docx','odt'].includes(options.format)) throw reject('FORMAT_UNAVAILABLE',original);
     if (options.timeoutMs !== undefined && (!Number.isInteger(options.timeoutMs) || options.timeoutMs < 1 || options.timeoutMs > 10000)) throw reject('InvalidTimeout',original);
     if (direction === 'import' && !options.range) throw reject('MissingTarget',original);
     const start=performance.now();

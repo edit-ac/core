@@ -84,6 +84,19 @@
         "jobs"
       ],
       "complete": false
+    },
+    {
+      "format": "odt",
+      "direction": "export",
+      "profile": "edit-ac-odt-v1",
+      "target": "browser-worker-wasm32",
+      "fixture": "tests/formats/consumers/odt-fixture.json",
+      "fidelity": "odf13-export-semantic-v1",
+      "feature": "odt-export",
+      "requiredFeatures": [
+        "odt-export",
+        "jobs"
+      ]
     }
   ],
   "additionalProfiles": [
@@ -93,7 +106,6 @@
   "unavailable": [
     "docx-import-media",
     "odt-import",
-    "odt-export",
     "epub-import",
     "epub-export",
     "pdf-export"

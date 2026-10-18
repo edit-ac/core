@@ -24,7 +24,7 @@ test('default Rust graph and packed base editor omit optional converters and fon
  writeFileSync(resolve(output,'size-receipt.json'),JSON.stringify({baseArchive:base.bytes,baseUnpacked:base.unpackedSize,formatsArchive:packed.archives.find(a=>a.name==='formats').bytes,formatsUnpacked:packed.archives.find(a=>a.name==='formats').unpackedSize,disabledScope:'packed core package + no-feature Rust format graph; format package is not a base dependency'},null,2)+'\n');
 });
 test('installed public declarations typecheck against the packed SDK',()=>{
- const path=resolve(packed.consumer,'consumer.ts');writeFileSync(path,`import {createFormatClient, type Options} from '@edit-ac/formats';\nimport type {EngineHandle, StableRange} from '@edit-ac/core';\ndeclare const e:EngineHandle;declare const range:StableRange;const o:Options={format:'csv',newline:'lf',header:true};\nconst client=createFormatClient();const p=await client.prepareImport(e,{...o,range,source:new Uint8Array()});p.commit();const exported=await client.export(e,{format:'rtf'});exported.bytes.byteLength;const docx=await client.export(e,{format:'docx',originalAssets:[{identity:{host:'local',key:'image'},actions:['read'],bytes:new Uint8Array(70)}]});docx.bytes.byteLength;client.dispose();\n`);
+ const path=resolve(packed.consumer,'consumer.ts');writeFileSync(path,`import {createFormatClient, type Options} from '@edit-ac/formats';\nimport type {EngineHandle, StableRange} from '@edit-ac/core';\ndeclare const e:EngineHandle;declare const range:StableRange;const o:Options={format:'csv',newline:'lf',header:true};\nconst client=createFormatClient();const p=await client.prepareImport(e,{...o,range,source:new Uint8Array()});p.commit();const exported=await client.export(e,{format:'rtf'});exported.bytes.byteLength;const docx=await client.export(e,{format:'docx',originalAssets:[{identity:{host:'local',key:'image'},actions:['read'],bytes:new Uint8Array(70)}]});docx.bytes.byteLength;const odt=await client.export(e,{format:'odt'});odt.bytes.byteLength;client.dispose();\n`);
  run(process.execPath,[resolve('node_modules/typescript/bin/tsc'),'--noEmit','--strict','--module','nodenext','--moduleResolution','nodenext','--target','es2022','--lib','es2022,dom',path],'consumer-types');
 });
 test('independent readers inspect actual browser-produced RTF and exact/safe CSV/TSV artifacts',()=>{
@@ -39,4 +39,11 @@ test('partial DOCX import independently matches original XML semantics and rejec
  const capabilities=JSON.parse(readFileSync(resolve(packed.consumer,'node_modules/@edit-ac/formats/capabilities.json')));
  const direction=capabilities.directions.find(d=>d.format==='docx'&&d.direction==='import');assert.equal(direction.complete,false);assert.match(direction.media,/AssetStagingUnavailable/);assert.ok(capabilities.unavailable.includes('docx-import-media'));
  run('python3',['tests/formats/consumers/inspect-docx-import.py',output],'browser-docx-import-independent');
+});
+
+
+test('independent ODT schema/reader verifies rich semantics and rejects package/semantic mutations',()=>{
+ assert.ok(process.env.EDITAC_ODT_READER_PYTHON,'explicit offline odfpy1.4.1/lxml6.0.2 reader required');
+ const r=JSON.parse(run(process.env.EDITAC_ODT_READER_PYTHON,['tests/formats/consumers/inspect-odt.py',output],'browser-odt-independent'));
+ assert.equal(r.failed,0);assert.equal(r.skipped,0);assert.equal(r.negativeMutations.length,8);
 });
