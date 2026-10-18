@@ -8,6 +8,7 @@ npm run test:mobile-extensions -- --group capabilities
 npm run test:mobile-extensions -- --group menus
 npm run test:mobile-extensions -- --group content-controls
 npm run test:mobile-extensions -- --group formats
+npm run test:mobile-extensions -- --group assistance
 node --test tests/consumers/mobile-extensions/disabled.test.mjs
 ```
 
@@ -193,3 +194,5 @@ These are raw provenance/cost observations, not timing or budget qualification.
 Actual phone/tablet/OS file, share and clipboard outcomes, native selection handles,
 IME/dictation/voice control/screen-reader observations, performance and release
 predicates remain pending under the original platform owners (MWX-1.8/roadmap43).
+
+The assistance group uses the canonical prepared transport with the installed BrowserEditor, Session, production WASM and IndexedDB. MWX-C25–28 portable mechanics cover narrow touch/keyboard controls, lifecycle fencing, recovery, history and save/reopen; device, OS dictation and assistive technology predicates remain pending.

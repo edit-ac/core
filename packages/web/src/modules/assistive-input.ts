@@ -2,6 +2,7 @@ import { AssistiveInputSession, captureAssistiveTarget, type AssistiveTransport,
 import type { EngineHandle, PrepareRequest, CommitResult } from '@edit-ac/core';
 import type { DOMSelection, RetainedSelection } from '../dom/selection.js';
 import { commandCatalog, type CapturedCommand } from '../commands/catalog.js';
+import { touchPanel, touchTarget } from './touch-controls.js';
 
 export interface AssistivePresenterContext {
   root: HTMLElement; engine: EngineHandle; selection: DOMSelection;
@@ -54,17 +55,24 @@ export class AssistiveInputPresenter {
     registration.supports('commands') && registration.validateCommands(commands);
     const doc = context.root.ownerDocument;
     this.element = doc.createElement('div'); this.element.contentEditable = 'false'; this.element.dataset.assistiveInput = '';
+    this.element.style.minWidth = '0'; this.element.style.maxWidth = '100%';
     this.element.setAttribute('role','group'); this.element.setAttribute('aria-label','Editing assistance');
     const button = (label: string, action: () => void) => {
       const b = doc.createElement('button'); b.type = 'button'; b.textContent = label;
+      touchTarget(b, true);
+      // Preserve the native hidden attribute used by command filtering.
+      b.style.removeProperty('display');
       this.#listen(b,'click',action); return b;
     };
     this.button = button('Editing assistance', () => this.show());
     this.panel = doc.createElement('section'); this.panel.hidden = true; this.panel.id = `editac-assistance-${++nextId}`;
+    touchPanel(this.panel); this.panel.style.overflowWrap = 'anywhere';
     this.panel.setAttribute('aria-label','Assistance commands');
     this.button.setAttribute('aria-expanded','false'); this.button.setAttribute('aria-controls',this.panel.id);
     const label = doc.createElement('label'); label.textContent = 'Search assistance commands';
+    label.style.display = 'block'; label.style.minWidth = '0';
     this.query = doc.createElement('input'); this.query.type = 'search'; this.query.maxLength = 128;
+    touchTarget(this.query, true); this.query.style.minWidth = '0'; this.query.style.maxWidth = '100%';
     label.append(this.query); this.panel.append(label);
     const results = doc.createElement('div'); results.setAttribute('role','group'); results.setAttribute('aria-label','Available assistance commands');
     for (const command of commands) {
@@ -76,6 +84,7 @@ export class AssistiveInputPresenter {
     this.panel.append(results);
     this.status = doc.createElement('p'); this.status.setAttribute('role','status'); this.status.setAttribute('aria-live','polite'); this.status.setAttribute('aria-atomic','true');
     this.preview=doc.createElement('p');this.preview.dataset.assistivePreview='';this.preview.setAttribute('aria-live','off');this.preview.hidden=true;
+    this.preview.style.whiteSpace = 'pre-wrap'; this.preview.style.userSelect = 'text';
     const availability = doc.createElement('p');
     availability.textContent = !registration.supports('commands') ? 'Editing commands are unavailable in this extension.' : 'Choose commands for the captured editor selection.';
     const transport = descriptor.transport;
@@ -107,9 +116,10 @@ export class AssistiveInputPresenter {
     });
     this.#listen(this.element,'pointerdown',event => {
       this.#capture();
-      // Safari does not focus buttons on pointer activation. Keep the current
-      // owned focus until the action decides whether to restore the editor.
-      if ((event.target as Element).closest('button')) event.preventDefault();
+      // Keep mouse focus owned until the action restores the editor. Cancelling
+      // a touch pointerdown suppresses WebKit's subsequent button activation;
+      // capture above retains the selection while native touch focus proceeds.
+      if ((event as PointerEvent).pointerType !== 'touch' && (event.target as Element).closest('button')) event.preventDefault();
     });
     this.#listen(context.root,'keydown',event => { if ((event as KeyboardEvent).key === 'Tab' && !(event as KeyboardEvent).isComposing) this.#capture(); },true);
     this.#listen(context.root,'focusout',() => this.#capture());
