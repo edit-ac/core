@@ -269,4 +269,121 @@ final class SessionTests: XCTestCase {
         }
         let restored = NativeSessionExecutor(); _ = try await open(restored, options, create: false); await close(restored)
     }
+
+    private func reviewCapture(_ owner: NativeSessionExecutor, _ revision: Data,
+                               key: String? = nil) async throws -> NativeReviewRevision {
+        guard case let .reviewRevision(value) = try await send(owner,
+            .captureReviewRevision(revision: revision, name: "untrusted-host-label", requiredKeyProfile: key))
+        else { throw TestFailure() }
+        return value
+    }
+
+    private func reviewBytes(_ owner: NativeSessionExecutor, _ revision: NativeReviewRevision) async throws -> Data {
+        guard case let .reviewRead(.available(_, bytes)) = try await send(owner,
+            .readReviewRevision(revision: revision, availableKeyProfile: nil)) else { throw TestFailure() }
+        return bytes
+    }
+
+    func testReviewReadOnlyRoundTripUsesActualSessionAndOwnedModel() async throws {
+        let (directory, options) = try fixture(); defer { try? FileManager.default.removeItem(at: directory) }
+        let owner = NativeSessionExecutor(); let initial = try await open(owner, options)
+        _ = try await send(owner, .permission(writable: false, expiresAt: nil))
+        let before = try await read(owner)
+        var projections = 0; owner.onProjection = { _ in projections += 1 }
+        let revision = try await reviewCapture(owner, initial.revision!)
+        let bytes = try await reviewBytes(owner, revision)
+        guard case let .reviewComparison(.available(model)) = try await send(owner,
+            .compareReviewRevisions(before: revision, after: revision, beforeKeyProfile: nil,
+                                    afterKeyProfile: nil, maxBytes: 16 * 1024 * 1024)) else { throw TestFailure() }
+        guard case let .changeModel(validated) = try await send(owner,
+            .validateChangeModel(bytes: model.json, maxBytes: 16 * 1024 * 1024)) else { throw TestFailure() }
+        XCTAssertEqual(validated, model)
+        let after = try await read(owner)
+        XCTAssertEqual(before, after); XCTAssertEqual(projections, 1) // Only the explicit read projects.
+        await close(owner)
+        XCTAssertFalse(bytes.isEmpty); XCTAssertFalse(model.json.isEmpty)
+        let reopened = NativeSessionExecutor(); let restored = try await open(reopened, options, create: false)
+        XCTAssertEqual(restored.nodes, initial.nodes); await close(reopened)
+    }
+
+    func testReviewErrorsAndUnavailableStatesPreserveTypedResults() async throws {
+        let (directory, options) = try fixture(); defer { try? FileManager.default.removeItem(at: directory) }
+        let owner = NativeSessionExecutor(); let before = try await open(owner, options)
+        let locked = try await reviewCapture(owner, before.revision!, key: "key-v1")
+        guard case .reviewRead(.unavailable(.keyUnavailable)) = try await send(owner,
+            .readReviewRevision(revision: locked, availableKeyProfile: "key-v2")) else { throw TestFailure() }
+        let token = try await plan(owner, before)
+        _ = try await send(owner, .commit(token: token, now: 0))
+        do { _ = try await reviewCapture(owner, before.revision!); XCTFail("stale capture accepted") }
+        catch NativeSessionFailure.native(.Revision(reason: .stale, message: _)) {}
+        do { _ = try await send(owner, .validateChangeModel(bytes: Data("invalid".utf8), maxBytes: 1024)); XCTFail("malformed accepted") }
+        catch NativeSessionFailure.native(.ReviewInput(reason: .invalid)) {}
+        do { _ = try await send(owner, .compareReviewRevisions(before: locked, after: locked,
+            beforeKeyProfile: "key-v1", afterKeyProfile: "key-v1", maxBytes: 1)); XCTFail("limit ignored") }
+        catch NativeSessionFailure.native(.ResourceLimit) {}
+        _ = try await send(owner, .setReviewRetention(maxRevisions: 0, maxTotalBytes: 0))
+        guard case .reviewRead(.unavailable(.pruned)) = try await send(owner,
+            .readReviewRevision(revision: locked, availableKeyProfile: "key-v1")) else { throw TestFailure() }
+        await close(owner)
+    }
+
+    func testReviewTwoSessionIsolationRejectsForeignBindings() async throws {
+        let (directoryA, optionsA) = try fixture(); defer { try? FileManager.default.removeItem(at: directoryA) }
+        let (directoryB, optionsB) = try fixture(); defer { try? FileManager.default.removeItem(at: directoryB) }
+        let a = NativeSessionExecutor(), b = NativeSessionExecutor()
+        let beforeA = try await open(a, optionsA), beforeB = try await open(b, optionsB)
+        let revisionA = try await reviewCapture(a, beforeA.revision!)
+        let revisionB = try await reviewCapture(b, beforeB.revision!)
+        let ownedA = try await reviewBytes(a, revisionA), ownedB = try await reviewBytes(b, revisionB)
+        guard case .reviewRead(.unavailable(.missing)) = try await send(b,
+            .readReviewRevision(revision: revisionA, availableKeyProfile: nil)) else { throw TestFailure() }
+        guard case .reviewComparison(.unavailable(.after, .missing)) = try await send(a,
+            .compareReviewRevisions(before: revisionA, after: revisionB, beforeKeyProfile: nil,
+                                    afterKeyProfile: nil, maxBytes: 16 * 1024 * 1024)) else { throw TestFailure() }
+        let afterA = try await read(a), afterB = try await read(b)
+        XCTAssertEqual(beforeA, afterA); XCTAssertEqual(beforeB, afterB)
+        await close(a)
+        let stillOwnedB = try await reviewBytes(b, revisionB)
+        XCTAssertEqual(stillOwnedB, ownedB); XCTAssertFalse(ownedA.isEmpty)
+        await close(b)
+    }
+
+    func testQueuedReviewCancellationPreventsRetentionWork() async throws {
+        let (directory, options) = try fixture(); defer { try? FileManager.default.removeItem(at: directory) }
+        let owner = NativeSessionExecutor(); let before = try await open(owner, options)
+        let revision = try await reviewCapture(owner, before.revision!)
+        let bytes = try await reviewBytes(owner, revision)
+        let gate = DispatchSemaphore(value: 0); owner.enqueueBarrier { gate.wait() }
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            do {
+                let operation = try owner.submit(.setReviewRetention(maxRevisions: 0, maxTotalBytes: 0)) { result in
+                    if case .failure(.cancelled) = result {} else { XCTFail("cancelled review executed") }
+                    continuation.resume()
+                }
+                XCTAssertTrue(operation.cancel()); gate.signal()
+            } catch { gate.signal(); continuation.resume(throwing: error) }
+        }
+        let retained = try await reviewBytes(owner, revision)
+        XCTAssertEqual(retained, bytes); await close(owner)
+    }
+
+    func testReviewDisposalSuppressesDeliveryAndRejectsAdmission() async throws {
+        let (directory, options) = try fixture(); defer { try? FileManager.default.removeItem(at: directory) }
+        let owner = NativeSessionExecutor()
+        do { _ = try await send(owner, .validateChangeModel(bytes: Data(), maxBytes: 1)); XCTFail("unopened owner accepted") }
+        catch NativeSessionFailure.notOpen {}
+        let before = try await open(owner, options)
+        let revision = try await reviewCapture(owner, before.revision!)
+        let owned = try await reviewBytes(owner, revision)
+        let gate = DispatchSemaphore(value: 0); owner.enqueueBarrier { gate.wait() }
+        try owner.submit(.readReviewRevision(revision: revision, availableKeyProfile: nil)) { _ in XCTFail("disposed completion") }
+        await withCheckedContinuation { continuation in
+            owner.dispose { continuation.resume() }; gate.signal()
+        }
+        XCTAssertThrowsError(try owner.submit(.readReviewRevision(revision: revision, availableKeyProfile: nil))) {
+            guard case NativeSessionFailure.disposed = $0 else { return XCTFail("\($0)") }
+        }
+        XCTAssertFalse(owned.isEmpty); await close(owner)
+    }
+
 }

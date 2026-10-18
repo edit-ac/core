@@ -33,7 +33,7 @@ SUITES = {
     "edits": ("EditacMacOSEditsTests.EditsTests", 10),
     "projection": ("EditacMacOSProjectionTests.ProjectionTests", 22),
     "bootstrap": ("EditacMacOSBootstrapTests.BootstrapTests", 1),
-    "session": ("EditacMacOSSessionTests.SessionTests", 12),
+    "session": ("EditacMacOSSessionTests.SessionTests", 17),
     "toolkit": ("EditacMacOSToolkitTests.ToolkitTests", 6),
 }
 

@@ -14,6 +14,12 @@ public enum NativeSessionFailure: Error, Sendable {
 /// Requests reuse the shared Session's owned values, revision and admission rules.
 public enum NativeSessionRequest: Sendable {
     case read(now: UInt64)
+    case validateChangeModel(bytes: Data, maxBytes: UInt64)
+    case captureReviewRevision(revision: Data, name: String, requiredKeyProfile: String?)
+    case readReviewRevision(revision: NativeReviewRevision, availableKeyProfile: String?)
+    case compareReviewRevisions(before: NativeReviewRevision, after: NativeReviewRevision,
+                                beforeKeyProfile: String?, afterKeyProfile: String?, maxBytes: UInt64)
+    case setReviewRetention(maxRevisions: UInt32, maxTotalBytes: UInt64)
     case retainSelection(revision: Data, inputs: [AnchorInput])
     case releaseSelection
     case resyncProjection
@@ -56,6 +62,10 @@ public enum NativeSessionRequest: Sendable {
 
 public enum NativeSessionResponse: Sendable {
     case snapshot(NativeSessionRead)
+    case changeModel(NativeChangeModel)
+    case reviewRevision(NativeReviewRevision)
+    case reviewRead(NativeReviewRead)
+    case reviewComparison(NativeReviewComparison)
     case inputCommitted(NativeSessionRead, node: String, caret: UInt32)
     case inputRestored(NativeSessionRead, node: String?, start: UInt32, end: UInt32)
     case prepared(String)
@@ -224,6 +234,20 @@ public final class NativeSessionExecutor {
             default: break
             }
             switch request {
+            // Review uses the same worker/owner and owned generated values as edits.
+            // It neither advances the live projection nor creates a commit receipt.
+            case let .validateChangeModel(bytes, maxBytes):
+                return .changeModel(try session.validateChangeModel(bytes: bytes, maxBytes: maxBytes))
+            case let .captureReviewRevision(revision, name, key):
+                return .reviewRevision(try session.captureReviewRevision(revision: revision, name: name, requiredKeyProfile: key))
+            case let .readReviewRevision(revision, key):
+                return .reviewRead(try session.readReviewRevision(revision: revision, availableKeyProfile: key))
+            case let .compareReviewRevisions(before, after, beforeKey, afterKey, maxBytes):
+                return .reviewComparison(try session.compareReviewRevisions(before: before, after: after,
+                    beforeKeyProfile: beforeKey, afterKeyProfile: afterKey, maxBytes: maxBytes))
+            case let .setReviewRetention(maxRevisions, maxTotalBytes):
+                try session.setReviewRetention(maxRevisions: maxRevisions, maxTotalBytes: maxTotalBytes)
+                return .completed
             case let .read(now): return .snapshot(try session.read(now: now))
             case let .captureInput(id, revision, inputs):
                 guard inputs.count == 2, state.inputTargets[id] == nil else { throw NativeSessionFailure.cancelled }
