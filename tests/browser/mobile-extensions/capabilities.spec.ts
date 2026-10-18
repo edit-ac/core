@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { registerContentHostMatrix } from './content-host-matrix.ts';
+import { registerCommandMatrix } from './command-matrix.ts';
 import { test } from 'node:test';
 import { browserHarness } from '../browser-harness.ts';
 import { browserInputSources } from '../../editing/browser-driver.ts';
@@ -8,8 +10,21 @@ import { installResourceCounters } from '../../mobile-web/resources.mjs';
 const { probe, facts } = browserHarness('mobile-extensions', 'fixtures/browser-mobile-extensions', {
   autoMount: false, testFile: 'tests/browser/mobile-extensions/capabilities.spec.ts', assertSourcesUnchanged: true,
   contextOptions: { viewport: { width: 390, height: 740 }, hasTouch: true, isMobile: true },
-  serverOptions: { recordRequests: true }, beforeNavigate: async page => { await page.addInitScript(installResourceCounters); await page.addInitScript(installExtensionCounters); },
+  serverOptions: { recordRequests: true }, beforeNavigate: async (page, fact) => {
+    fact.unexpectedRequests=[];fact.unexpectedPages=[];
+    page.context().on('page',p=>fact.unexpectedPages.push(p.url()));
+    await page.addInitScript(()=>{
+      (window as any).mobileAuthorityProbes={permissions:0,capture:0,open:0};
+      window.open=()=>{(window as any).mobileAuthorityProbes.open++;return null;};
+      if(navigator.permissions)navigator.permissions.query=()=>{(window as any).mobileAuthorityProbes.permissions++;return Promise.reject(Error('No real permission probing in prepared checks'));};
+      if(navigator.mediaDevices)navigator.mediaDevices.getUserMedia=()=>{(window as any).mobileAuthorityProbes.capture++;return Promise.reject(Error('No capture in prepared checks'));};
+    });
+    await page.route('**/*',route=>{const url=route.request().url();if(new URL(url).origin!==new URL(fact.origin).origin){fact.unexpectedRequests.push(url);return route.abort();}return route.continue();});
+    await page.addInitScript(installResourceCounters); await page.addInitScript(installExtensionCounters); },
   sourcePaths: [...browserInputSources, 'fixtures/browser-mobile-extensions/session.mjs', 'fixtures/browser-mobile-extensions/index.html',
+    'tests/browser/mobile-extensions/content-host-matrix.ts', 'tests/browser/mobile-extensions/command-matrix.ts', 'tests/browser/mobile-extensions/command-inventory.mjs',
+    'fixtures/rich-content/asset-descriptors.json', 'packages/core/src/extensions/profiles.ts', 'packages/web/src/commands/catalog.ts',
+    ...['modules/images/presenter','modules/attachments/presenter','modules/embeds/presenter','modules/content','modules/reorder','modules/search','modules/references','modules/slash','extensions/code'].flatMap(n=>[`packages/web/src/${n}.ts`,`packages/web/dist/${n}.js`]),
     'tests/browser/mobile-extensions/index.mjs', 'tests/browser/mobile-extensions/case-index.json',
     'tests/mobile-web/resources.mjs', 'tests/browser/mobile-extensions/resources.mjs', 'scripts/test-mobile-extensions.mjs', 'packages/web/package.json',
     '../architecture/tests/mobile-extension-cases.md', '../architecture/specs/mobile-web.md',
@@ -39,6 +54,12 @@ async function finish(page, baseline, fact) {
   assert.deepEqual(changes, [], 'teardown emits no semantic transactions'); fact.teardownUpdates = changes; await frame(page);
   const after = await page.evaluate(() => (window as any).mobileResources());
   fact.resources = { baseline, after }; assert.deepEqual(after, baseline, 'all mounted resource ownership released');
+  fact.optionalAfter=await page.evaluate(()=>(window as any).mobileExtensionResources());
+  assert.equal(fact.optionalAfter.listeners,0,'optional listeners released separately from baseline');
+  assert.deepEqual(fact.unexpectedRequests,[],'no unsolicited network work');
+  assert.deepEqual(fact.unexpectedPages,[],'no unsolicited browser context');
+  fact.authorityProbes=await page.evaluate(()=>(window as any).mobileAuthorityProbes);
+  assert.deepEqual(fact.authorityProbes,{permissions:0,capture:0,open:0},'no real permission/capture/open work');
 }
 for (const feature of ['search', 'reorder', 'images', 'tables', 'references', 'slash', 'math', 'markdown'])
 test(`MWX-C02 current configured ${feature} mounts only the selected profile`, () => probe(`MWX-C02-facade-${feature}`, async (page, fact) => {
@@ -149,3 +170,6 @@ test('MWX-C04 empty registration, viewport updates and popup geometry emit zero 
   await page.evaluate(() => (window as any).inputFixture.surface.slash.dismiss()); await frame(page);
   assert.deepEqual(await snapshot(page), before); fact.snapshots.push(before); await finish(page, baseline, fact);
 }));
+
+registerCommandMatrix({ probe, mount, snapshot, finish, frame });
+registerContentHostMatrix({ probe, mount, snapshot, finish, frame });

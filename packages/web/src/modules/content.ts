@@ -66,8 +66,10 @@ export function contentModules(options: ContentOptions = {}): ContentFactory {
   const attachments = attachmentPresenters(options);
   const embeds = embedPresenters(options);
   return context => {
-    const fallback = extensionSourcePresenter(context); if (fallback) return fallback;
+    // Known inert envelopes must reach their owning presenter before the generic
+    // source-only fallback. Neither path grants permission or activates content.
     const embed = embeds(context); if (embed) return embed;
+    const fallback = extensionSourcePresenter(context); if (fallback) return fallback;
     const image = images(context); if (image) return image;
     const attachment = attachments(context); if (attachment) return attachment;
     const descriptor = parse(context.node);
