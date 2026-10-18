@@ -27,7 +27,7 @@ test('MWF-1.1 zero, failed, skipped or cancelled required checks cannot qualify'
 });
 
 test('MWF-1.9 portable dispatch contains every delivered group and the integrated checkpoint', () => {
- assert.deepEqual(portableGroups, ['harness','touch','input','viewport','focus','lifecycle','capabilities','modules','checkpoint']);
+ assert.deepEqual(portableGroups, ['harness','touch','input','viewport','focus','lifecycle','capabilities','modules','checkpoint','toolbar']);
  assert.deepEqual(selectGroup(['--group','portable']), portableGroups.flatMap(g => selectGroup(['--group',g])));
  const mapping=JSON.parse(readFileSync(new URL('./portable-cases.json',import.meta.url),'utf8'));
  for(const row of catalogRows().filter(r=>r.projectedParent)) assert.ok(mapping[row.id]?.length, row.id);

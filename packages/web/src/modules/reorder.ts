@@ -22,6 +22,11 @@ interface PointerSession {
   observedDestination?: MoveTarget;
 }
 interface Target { target: MoveTarget; selection: RetainedSelection }
+function eventElement(event: Event): Element | undefined {
+  const target = event.target as Node | null;
+  return target?.nodeType === 1 ? target as Element : target?.parentElement ?? undefined;
+}
+
 
 export class ReorderPresenter {
   readonly controls: HTMLElement;
@@ -43,6 +48,10 @@ export class ReorderPresenter {
   private escapeFocus = false;
   private disposed = false;
   private committing = false;
+  private viewportManaged = false;
+  /** The surface's shared viewport coordinator validates resize geometry.
+   * Standalone presenters retain conservative cancellation. */
+  setViewportManaged(value: boolean): void { this.viewportManaged = value; }
   private readonly dragScope: string;
   private dragSequence = 0;
   private dragToken: string | undefined;
@@ -122,8 +131,10 @@ export class ReorderPresenter {
     }, { capture: true, passive: true });
     this.listen(doc.defaultView!, 'blur', () => { if (this.pointer) { this.restore(); this.cancel(); } });
     const cancelGeometry = () => { if (this.pointer) { this.cancel(); this.status.textContent = 'Move canceled. Viewport changed.'; } };
-    for (const type of ['resize', 'orientationchange', 'pagehide']) this.listen(doc.defaultView!, type, cancelGeometry, { passive: true });
-    if (doc.defaultView!.visualViewport) this.listen(doc.defaultView!.visualViewport, 'resize', cancelGeometry, { passive: true });
+    const resizeGeometry = () => { if (!this.viewportManaged) cancelGeometry(); };
+    this.listen(doc.defaultView!, 'resize', resizeGeometry, { passive: true });
+    for (const type of ['orientationchange', 'pagehide']) this.listen(doc.defaultView!, type, cancelGeometry, { passive: true });
+    if (doc.defaultView!.visualViewport) this.listen(doc.defaultView!.visualViewport, 'resize', resizeGeometry, { passive: true });
     this.up.setAttribute('aria-keyshortcuts', 'Alt+ArrowUp'); this.down.setAttribute('aria-keyshortcuts', 'Alt+ArrowDown');
     this.status = doc.createElement('span'); this.status.setAttribute('role', 'status');
     this.status.setAttribute('aria-live', 'polite'); this.controls.append(this.status); root.after(this.controls);
@@ -150,7 +161,7 @@ export class ReorderPresenter {
       const key = event as KeyboardEvent;
       if (key.key === 'Escape' && this.pointer) { key.preventDefault(); key.stopImmediatePropagation(); this.restore(); this.cancel(); this.status.textContent = 'Move canceled.'; return; }
       if (this.composing || this.disposed || context.blocked?.()) return;
-      const target = event.target as Element | null;
+      const target = eventElement(event);
       if (target && root.contains(target) && target.closest('input, textarea, select, button, [contenteditable="false"]')) return;
       if (key.isComposing || key.key === 'Process' || key.getModifierState('AltGraph')) return;
       const escape = this.escapeFocus;
@@ -178,7 +189,7 @@ export class ReorderPresenter {
       }
     };
     const nodeAt = (event: Event, allowHandle = false): string | undefined => {
-      const target = event.target as Element | null;
+      const target = eventElement(event);
       if (!target || !root.contains(target) || target.closest('input, textarea, select, button')) return undefined;
       const control = target.closest('[contenteditable="false"]');
       // Native HTML drag in an editing host needs an explicit noneditable grip.
@@ -188,7 +199,7 @@ export class ReorderPresenter {
       return context.selection.renderer.getNodeId(target);
     };
     this.listen(root, 'pointerdown', event => {
-      const target = event.target as Element | null;
+      const target = eventElement(event);
       if (target?.closest('[data-editac-reorder-handle]')) {
         const id = nodeAt(event, true);
         if (id) this.begin(id);
@@ -197,7 +208,7 @@ export class ReorderPresenter {
     this.listen(root, 'dragstart', event => {
       // Native selected-text dragging belongs to the input/clipboard owner.
       // Only an explicitly mapped module handle opts into block dragging.
-      const handle = (event.target as Element | null)?.closest('[data-editac-reorder-handle][draggable="true"]');
+      const handle = eventElement(event)?.closest('[data-editac-reorder-handle][draggable="true"]');
       if (!handle || !context.selection.renderer.ownsModuleDecoration(handle)) return;
       const drag = event as DragEvent, id = nodeAt(event, true), node = id && this.nodes.get(id);
       if (event.defaultPrevented || !drag.dataTransfer || !node || this.blocked() || !(this.session?.target.id === id || this.begin(id))) return;
@@ -216,7 +227,7 @@ export class ReorderPresenter {
       const drag=event as DragEvent, token=drag.dataTransfer?.getData(blockDragMime);
       if (!this.dragToken || token !== this.dragToken) return;
       if (event.defaultPrevented) { this.cancel(); return; }
-      const element=event.target as Element | null;
+      const element=eventElement(event);
       if (element?.closest('input, textarea, select, button, [contenteditable="false"]')) { this.cancel(); return; }
       const id=nodeAt(event), destination=id && this.nodes.get(id);
       if (!event.cancelable || !destination || this.blocked()) {
