@@ -28,14 +28,14 @@ export interface EditorSurfaceOptions extends Partial<EditorFacadeOptionsV1> {
   commandAllowed?: (command: import('./commands/catalog.js').PortableCommand) => boolean;
   selectionViewport?: import('./selection/pointer.js').PointerSelectionViewport;
   codeCommands?: import('./extensions/code.js').CodeCommandsFactory;
-  search?: import('./modules/search.js').DocumentSearchFactory;
+  search?: import('./extensions/runtime/search.js').DocumentSearchFactory;
   markdown?: import('./input/shortcuts.js').MarkdownAdapter;
   codeHighlight?: import("./modules/code/presenter.js").CodeHighlightFactory | import('./extensions/highlighting.js').ManagedCodeHighlightFactory;
-  content?: import('./modules/content.js').ContentFactory;
-  reorder?: import('./modules/reorder.js').ReorderFactory;
+  content?: import('./extensions/runtime/content.js').ContentFactory;
+  reorder?: import('./extensions/runtime/reorder.js').ReorderFactory;
   links?: LinkEnrichmentFactory;
-  references?: import('./modules/references.js').ReferenceFactory;
-  slash?: import('./modules/slash.js').SlashFactory;
+  references?: import('./extensions/runtime/references.js').ReferenceFactory;
+  slash?: import('./extensions/runtime/slash.js').SlashFactory;
   moduleRuntime?: ModuleRuntimeOptions;
   modules?: import('./modules/registry.js').ModuleRegistry;
   readOnly?: boolean;
@@ -64,10 +64,10 @@ export interface EditorSurface {
   readonly viewport: EditorViewport;
   readonly pointerSelection: import('./selection/pointer.js').PointerSelection;
   readonly codeCommands: import('./extensions/code.js').CodeCommandsPresenter | undefined;
-  readonly search: import('./modules/search.js').DocumentSearchPresenter | undefined;
-  readonly reorder: import('./modules/reorder.js').ReorderPresenter | undefined;
-  readonly references: import('./modules/references.js').ReferencePresenter | undefined;
-  readonly slash: import('./modules/slash.js').SlashPresenter | undefined;
+  readonly search: import('./extensions/runtime/search.js').DocumentSearchPresenter | undefined;
+  readonly reorder: import('./extensions/runtime/reorder.js').ReorderPresenter | undefined;
+  readonly references: import('./extensions/runtime/references.js').ReferencePresenter | undefined;
+  readonly slash: import('./extensions/runtime/slash.js').SlashPresenter | undefined;
   readonly moduleRuntime: ModuleRuntime | undefined;
   readonly recovery: readonly { text: string; reason: string }[];
   captureTextTransfer(): import('./input/drag.js').TextTransferTarget | undefined;
@@ -121,9 +121,9 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
       if (input && enableInput) { input.shortcuts = literalShortcuts(); input.clipboard.plainTextPolicy = 'literal'; }
     };
   });
-  const contentFactories = new Map<string, import('./modules/content.js').ContentFactory>();
+  const contentFactories = new Map<string, import('./extensions/runtime/content.js').ContentFactory>();
   const contentResources = ['editac.images', 'editac.tables'].map(id => configuredResource(prepared, id, async signal => {
-    const { contentModules } = await import('./modules/content.js');
+    const { contentModules } = await import('./extensions/runtime/content.js');
     if (signal.aborted) return { dispose() {} };
     const factory = contentModules();
     contentFactories.set(id, context => {
@@ -145,21 +145,21 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
   const presenterResources = ['editac.search', 'editac.reorder', 'editac.slash', 'editac.references'].map(id => configuredResource(prepared, id, async signal => {
     const hosts = prepared && configuredHostAdapters(prepared);
     if (id === 'editac.search') {
-      const { documentSearch } = await import('./modules/search.js');
+      const { documentSearch } = await import('./extensions/runtime/search.js');
       if (signal.aborted) return { dispose() {} };
       input!.attachSearch(documentSearch());
     } else if (id === 'editac.reorder') {
-      const { reorderControls } = await import('./modules/reorder.js');
+      const { reorderControls } = await import('./extensions/runtime/reorder.js');
       if (signal.aborted) return { dispose() {} };
       input!.attachReorder(reorderControls()); viewport!.addControls(input!.reorder!.controls);
     } else if (id === 'editac.slash') {
-      const { slashCommands } = await import('./modules/slash.js');
+      const { slashCommands } = await import('./extensions/runtime/slash.js');
       if (signal.aborted) return { dispose() {} };
       if (!hosts?.slash) throw Error('Missing admitted slash host');
       input!.attachSlash(slashCommands(hosts.slash.commands, { literal: hosts.slash.literal }));
       viewport!.addControls(input!.slash!.control); viewport!.addControls(input!.slash!.menu);
     } else {
-      const { referenceSuggestions } = await import('./modules/references.js');
+      const { referenceSuggestions } = await import('./extensions/runtime/references.js');
       if (signal.aborted) return { dispose() {} };
       if (!hosts?.references) throw Error('Missing admitted reference host');
       input!.attachReferences(referenceSuggestions(hosts.references.host, { triggers: hosts.references.triggers }));

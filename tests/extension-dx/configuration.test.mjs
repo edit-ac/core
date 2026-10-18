@@ -11,7 +11,7 @@ process.env.EDITAC_CONFIGURATION_OUTPUT = join(evidence, 'browser');
 const fixtureDirectory = resolve('tests/extension-dx/configuration-consumer');
 const { probe } = browserHarness('configuration', fixtureDirectory, {
   autoMount: false, markdown: true, serverOptions: { recordRequests: true }, testFile: 'tests/extension-dx/configuration.test.mjs', assertSourcesUnchanged: true,
-  sourcePaths: ['packages/web/src/modules/runtime.ts','packages/web/src/storage/owner.ts','packages/web/src/sync/attachment.ts','packages/web/src/sync/configured.ts','packages/web/src/index.ts','packages/web/src/modules/math.ts','packages/web/src/extensions/resource.ts','packages/web/src/extensions/markdown-resource.ts','packages/web/src/dom/render.ts','packages/markdown/src/web.ts','packages/web/src/extensions/contract.ts','packages/web/src/extensions/configuration.ts','packages/web/src/platform/preferences.ts','packages/web/src/sync/presence.ts','packages/web/src/sdk.ts','packages/web/src/editor.ts','packages/web/src/surface.ts','packages/web/src/input/keyboard.ts','packages/web/src/commands/catalog.ts','packages/web/src/ui/commands.ts','tests/extension-dx/configuration-consumer/session.mjs','tests/extension-dx/configuration-consumer/public-smoke.ts'],
+  sourcePaths: ['packages/web/src/extensions/authoring-metadata.ts','packages/web/src/extensions/spelling-metadata.ts','packages/web/src/modules/slash-metadata.ts','packages/web/src/dom/pattern-text.ts','packages/web/package.json','packages/web/src/modules/runtime.ts','packages/web/src/storage/owner.ts','packages/web/src/sync/attachment.ts','packages/web/src/sync/configured.ts','packages/web/src/index.ts','packages/web/src/modules/math.ts','packages/web/src/extensions/resource.ts','packages/web/src/extensions/markdown-resource.ts','packages/web/src/dom/render.ts','packages/markdown/src/web.ts','packages/web/src/extensions/contract.ts','packages/web/src/extensions/configuration.ts','packages/web/src/platform/preferences.ts','packages/web/src/sync/presence.ts','packages/web/src/sdk.ts','packages/web/src/editor.ts','packages/web/src/surface.ts','packages/web/src/input/keyboard.ts','packages/web/src/commands/catalog.ts','packages/web/src/ui/commands.ts','tests/extension-dx/configuration-consumer/session.mjs','tests/extension-dx/configuration-consumer/public-smoke.ts'],
   cleanup: page => page.evaluate(() => window.configurationFixture?.close()),
   async prepareConsumer(consumer, { output, facts, run }) {
     const packs = ['core','web','markdown'].map(name => join(consumer, name, facts.packs.find(p => p.name === name).file));
@@ -262,7 +262,7 @@ browserCase('borrowed-storage-identity-and-commit-conflicts-fail-before-attachme
 });
 
 browserCase('facade-reference-host-is-explicit-isolated-and-uses-existing-insertion-history',async(page,fact)=>{
-  const initial=await page.evaluate(async()=>{const f=window.configurationFixture;window.referenceCalls=[];const configured=f.References.configure({host:request=>{window.referenceCalls.push(request.query);return[{targetId:'doc-42',label:'Verified reference'}];},triggers:['@']});const a=await f.open({extensions:[configured]}),b=f.surface({extensions:[f.References.configure({host:()=>{throw Error('Sibling resolver must stay idle');}})],readOnly:true});window.referenceEditor=a;window.referenceSibling=b;const count=window.referenceCalls.length;f.select(a.root,0,5);a.references.openExplicit();return{count,a:!!a.references,b:!!b.surface.references,isolated:a.references!==b.surface.references};});
+  const initial=await page.evaluate(async()=>{const f=window.configurationFixture;window.referenceCalls=[];const configured=f.References.configure({host:request=>{window.referenceCalls.push(request.query);return[{targetId:'doc-42',label:'Verified reference'}];},triggers:['@']});const a=await f.open({extensions:[configured]}),b=f.surface({extensions:[f.References.configure({host:()=>{throw Error('Sibling resolver must stay idle');}})],readOnly:true});await b.surface.ready;window.referenceEditor=a;window.referenceSibling=b;const count=window.referenceCalls.length;f.select(a.root,0,5);a.references.openExplicit();return{count,a:!!a.references,b:!!b.surface.references,isolated:a.references!==b.surface.references};});
   assert.deepEqual(initial,{count:0,a:true,b:true,isolated:true});
   await page.waitForFunction(()=>window.referenceEditor.references.menu.getAttribute('aria-busy')==='false');
   const result=await page.evaluate(()=>{const f=window.configurationFixture,a=window.referenceEditor,b=window.referenceSibling;a.references.activate(0);const atom=a.read().visible.find(n=>n.blockAttributes?.[0]==='module:editac.reference');f.select(a.root,0);const h=a.captureHistory();h.execute('undo');h.dispose();b.surface.references.openExplicit();return{atom:{attributes:atom.blockAttributes,runs:atom.runs},undone:f.content(a),sibling:f.content(b.engine),siblingOpen:b.surface.references.open,requests:window.referenceCalls};});
@@ -286,4 +286,26 @@ browserCase('one-config-composes-markdown-image-and-table-codecs-with-their-pres
 
 browserCase('managed-remote-gate-can-retry-denial-without-recovery-or-readonly-bypass',async(page,fact)=>{
   const result=await page.evaluate(async()=>{const f=window.configurationFixture,record=await f.seed();let resolve,allowed=false;const pending=new Promise(r=>{resolve=r;}),a=f.createEditor(f.root(),{...record,extensions:[],commandControls:true,collaboration:{readiness:'remote',connect:()=>allowed?{peerIdentity:record.identity,authorized:true,transport:{send:()=>true}}:pending}});f.editors.push(a);while(a.collaborationStatus.state!=='loading')await new Promise(r=>setTimeout(r,0));a.setReadOnly(false);const gated=a.root.contentEditable;resolve({peerIdentity:record.identity,authorized:false,transport:{send:()=>{throw Error('Denied send');}}});let rejected=false;try{await a.ready;}catch{rejected=true;}const failure={rejected,ready:a.state.ready,status:a.collaborationStatus.state};allowed=true;await a.connectCollaboration();f.select(a.root,0);f.replace(a,'Resumed ');const h=a.captureHistory();h.execute('undo');h.dispose();return{gated,failure,ready:a.state.ready,status:a.collaborationStatus.state,text:f.content(a),same:JSON.stringify(record.identity)===JSON.stringify(a.read().identity),controls:!!a.commandControls};});fact.snapshots.push(result);assert.deepEqual(result,{gated:'false',failure:{rejected:true,ready:false,status:'failed'},ready:true,status:'ready',text:'Alpha beta',same:true,controls:true});
+});
+
+for (const feature of ['search', 'reorder', 'slash', 'references']) browserCase(`required-${feature}-keeps-synchronous-mount-and-cancels-before-attachment`, async (page, fact) => {
+  const result = await page.evaluate(async feature => {
+    const f = window.configurationFixture;
+    let calls = 0;
+    const extension = feature === 'search' ? f.DocumentSearch.configure() : feature === 'reorder' ? f.BlockReorder.configure() : feature === 'slash' ? f.SlashCommands.configure({ commands: [{ id: 'safe', label: 'Safe', prepare() { calls++; return undefined; } }] }) : f.References.configure({ host() { calls++; return []; } });
+    const mounted = f.surface({ extensions: [extension] });
+    const synchronous = typeof mounted.surface.dispose === 'function' && !('then' in mounted.surface);
+    const loading = mounted.surface.extensionStatus[extension.feature.id].state;
+    const before = f.content(mounted.engine);
+    mounted.surface.dispose();
+    const rejected = await mounted.surface.ready.then(() => false, () => true);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const absent = !mounted.surface[feature];
+    const remounted = f.mountEditorSurface(mounted.host, mounted.engine, { extensions: [extension] });
+    f.surfaces.push(remounted); await remounted.ready;
+    const enabled = !!remounted[feature], state = remounted.extensionStatus[extension.feature.id].state;
+    return { synchronous, loading, rejected, absent, enabled, state, calls, before, after: f.content(mounted.engine) };
+  }, feature);
+  assert.deepEqual(result, { synchronous: true, loading: 'loading', rejected: true, absent: true, enabled: true, state: 'ready', calls: 0, before: 'Alpha beta', after: 'Alpha beta' });
+  fact.requiredPresenterLifecycle = result;
 });

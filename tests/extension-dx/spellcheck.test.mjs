@@ -8,7 +8,7 @@ process.env.EDITAC_SPELLCHECK_OUTPUT = join(output, 'browser');
 const { probe } = browserHarness('spellcheck', resolve('tests/extension-dx/spellcheck-consumer'), {
   autoMount: false, markdown: false, prepareConsumer: prepareSpellingConsumer,
   testFile: 'tests/extension-dx/spellcheck.test.mjs', assertSourcesUnchanged: true,
-  sourcePaths: ['examples/extensions/spellcheck/spellcheck.ts', 'examples/extensions/spellcheck/README.md',
+  sourcePaths: ['packages/web/src/extensions/authoring-metadata.ts','packages/web/src/extensions/spelling-metadata.ts','packages/web/src/modules/slash-metadata.ts','packages/web/src/dom/pattern-text.ts','packages/web/package.json','examples/extensions/spellcheck/spellcheck.ts', 'examples/extensions/spellcheck/README.md',
     'tests/extension-dx/spellcheck-consumer.mjs', 'tests/extension-dx/matching-consumer.mjs',
     'tests/extension-dx/spellcheck-consumer/session.mjs', 'tests/extension-dx/spellcheck-consumer/index.html', 'tests/extension-dx/spellcheck-consumer/public-smoke.ts',
     'packages/web/src/extensions/spelling.ts', 'packages/web/src/extensions/spelling-runtime.ts',
