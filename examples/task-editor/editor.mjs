@@ -1,54 +1,28 @@
-import {markdownOptions} from './markdown.mjs';
-import {retainRecovery,recoveryReports,downloadRecovery} from './recovery.mjs';
-import { init } from '@edit-ac/core';
-import { CheckpointStorage, createEditor, taskPreset } from '@edit-ac/web';
+import {mountWorkspaceEditor} from './workspace.mjs';
+import {retainRecovery,downloadRecovery} from './recovery.mjs';
 
-// This example owns one explicit local document. Recovery never seeds content.
-const identity = { documentId: '', epoch: '', schema: 'editac.registry.editor.v5', offsets: 'utf16', profile: 'editac.yrs-yjs.editor.v5', protocolVersion: 1, updateEncoding: 1 };
-const options = { assetUrl: '/core/wasm/editac_wasm_bg.wasm', databaseName: 'standalone-task', identity, indexedDB, locks: navigator.locks, ...taskPreset() };
-const root = document.querySelector('#editor'), message = document.querySelector('#message');
-const save = document.querySelector('#save'), reopen = document.querySelector('#reopen');
-let unsubscribe;
-export let editor;
-async function open() {
-  editor = createEditor(root, {...options, ...await markdownOptions()});
-  unsubscribe = editor.subscribe(state => {
-    if (state.error) message.textContent = 'Local save failed. Keep this tab open and export recovery content.';
-    else if (state.localCommitted) message.textContent = 'Saved locally. Remote durability is not confirmed.';
-  });
-  await editor.ready;
-  save.disabled = reopen.disabled = false;
-  message.textContent = 'Task ready offline';
-  return editor;
-}
-async function start() {
-  // Persist creation intent before publishing. Subsequent opening never
-  // re-seeds a missing/corrupt checkpoint; a new document uses a fresh identity.
-  await navigator.locks.request('standalone-task-creation', async () => {
-    const saved = localStorage.getItem('standalone-task-identity');
-    if (saved) { Object.assign(identity, JSON.parse(saved)); return; }
-    identity.documentId = crypto.randomUUID(); identity.epoch = crypto.randomUUID();
-    localStorage.setItem('standalone-task-identity', JSON.stringify(identity));
-    const runtime = await init(options.assetUrl);
-    const engine = runtime.createEngine({ profile: 'v5', documentId: identity.documentId, epoch: identity.epoch, nodes: [{ text: 'Plan the task' }] });
-    let checkpoints;
-    try { checkpoints = await CheckpointStorage.open(indexedDB, options.databaseName); await checkpoints.publish(engine.checkpoint(), []); }
-    finally { checkpoints?.close(); engine.dispose(); }
-  });
-  return open();
-}
-export const ready = start();
-export async function saveLocally() { await editor.flush({ target: 'local' }); message.textContent = 'Saved locally. Remote durability is not confirmed.'; }
-export async function reopenOffline() {
-  save.disabled = reopen.disabled = true;
-  unsubscribe?.();
-  await editor.destroy({ policy: 'flush' });
-  return open();
-}
-export function attachTaskSync(authorizedHostOptions) { return editor.attachSync(authorizedHostOptions); }
-export async function close() { unsubscribe?.(); try { return await editor.destroy({policy:'flush'}); } catch(error) { const result=await editor.destroy({policy:'report'});retainRecovery(result);report(error);return result; } }
-document.querySelector('#export-recovery').onclick=()=>downloadRecovery([...recoveryReports,...(editor?.state.ready?[editor.recoveryExport()]:[])]);
-function report(error) { message.textContent = `Unable to open or save task: ${error.message}`; }
-save.addEventListener('click', () => { void saveLocally().catch(report); });
-reopen.addEventListener('click', () => { void reopenOffline().catch(report); });
+export let editor, task, comment;
+const slot = (name, id) => ({root:document.querySelector(id),status:document.querySelector(name==='task'?'#message':'#comment-message')});
+const report = error => {document.querySelector('#message').textContent=`Unable to open or save task: ${error.message}`;};
+const readOnly = new URLSearchParams(location.search).has('readonly');
+export const ready = (async()=>{
+  // Retain the original standalone identity and namespace, including failed creation intent.
+  task = await mountWorkspaceEditor('task',{...slot('task','#editor'),readOnly,creation:{databaseName:'standalone-task',key:'standalone-task-identity',text:'Plan the task'}});
+  editor=task.editor;
+  comment = await mountWorkspaceEditor('comment',{...slot('comment','#comment'),readOnly,creation:{text:'Add a comment'}});
+  document.querySelector('#save').disabled=document.querySelector('#reopen').disabled=false;
+  document.querySelector('#comment-save').disabled=false;
+  return {task,comment};
+})();
+export async function saveLocally(){return task.save();}
+export async function reopenOffline(){await task.close();task=await mountWorkspaceEditor('task',{...slot('task','#editor'),readOnly,creation:{databaseName:'standalone-task',key:'standalone-task-identity'}});editor=task.editor;return editor;}
+export function attachTaskSync(authorizedHostOptions){return editor.attachSync(authorizedHostOptions);}
+export async function close(){const results=await Promise.all([task?.close(),comment?.close()]);for(const result of results)if(result)retainRecovery(result);return results[0];}
+// Recovery is deliberately per document: exporting task never includes comment content.
+document.querySelector('#export-recovery').onclick=()=>downloadRecovery(editor?.state.ready?[editor.recoveryExport()]:[]);
+document.querySelector('#comment-export-recovery').onclick=()=>downloadRecovery(comment?.editor.state.ready?[comment.editor.recoveryExport()]:[]);
+document.querySelector('#save').onclick=()=>void saveLocally().catch(report);
+document.querySelector('#reopen').onclick=()=>void reopenOffline().catch(report);
+document.querySelector('#comment-save').onclick=()=>void comment.save().catch(error=>{document.querySelector('#comment-message').textContent=error.message;});
+document.querySelector('#dispose-task').onclick=()=>void task.close().catch(report);
 void ready.catch(report);

@@ -59,11 +59,11 @@ try {
     assert.ok(identity.documentId); assert.ok(identity.epoch);
     assert.ok((await page.evaluate(() => indexedDB.databases())).some(db => db.name === 'standalone-task'));
     assert.ok(server.requests.some(r => r.url.endsWith('.wasm') && r.status === 200));
-    assert.equal(await page.locator('[contenteditable="true"]').count(), 1);
+    assert.equal(await page.locator('[contenteditable="true"]').count(), 2);
   });
   const expected = 'Plan the task persisted product edit';
   await check('local-commit-reload', async () => {
-    await page.locator('[contenteditable="true"]').click(); await page.keyboard.press('End'); await page.keyboard.type(' persisted product edit');
+    await page.locator('#editor').click(); await page.keyboard.press('End'); await page.keyboard.type(' persisted product edit');
     await page.evaluate(async () => (await import('/fixture/editor.mjs')).saveLocally());
     assert.equal(await text(page), expected);
     await page.evaluate(async () => (await import('/fixture/editor.mjs')).close());
@@ -84,7 +84,7 @@ try {
     });
     await page.goto(server.url);
     await page.waitForFunction(() => document.querySelector('#message').textContent.startsWith('Unable to open or save task:'));
-    assert.equal(await page.evaluate(async () => (await import('/fixture/editor.mjs')).editor.state.ready), false);
+    assert.equal(await page.evaluate(async () => (await import('/fixture/editor.mjs')).editor?.state.ready ?? false), false);
     assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('standalone-task-identity'))), identity);
     assert.doesNotMatch(await page.locator('#message').textContent(), /Saved locally/);
     await page.screenshot({ path: join(output, 'missing-checkpoint.png'), fullPage: true });

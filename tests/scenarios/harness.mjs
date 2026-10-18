@@ -20,8 +20,12 @@ export async function prepareProductHarness(output, facts, scenario) {
   const reusePath = process.env.EDITAC_PRODUCT_PACK_RECEIPT;
   if (reusePath) {
     const bytes = await readFile(resolve(reusePath)), prior = JSON.parse(bytes);
-    assert.equal(prior.sourceRevision, facts.sourceRevision, 'Reused package source revision changed');
-    assert.equal(prior.sourceTree, facts.sourceTree, 'Reused package source tree changed');
+    const sdkPaths = ['Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml', 'package.json', 'package-lock.json', 'tsconfig.base.json', '.node-version', 'crates', 'packages', 'scripts', 'fixtures', 'licenses', 'LICENSE', 'README.md'];
+    const packageRevision = prior.packageSourceRevision ?? prior.sourceRevision;
+    // Product fixtures are captured separately; they do not enter SDK compilation.
+    const sdkPathspec = [...sdkPaths, ':(exclude)fixtures/product-scenarios'];
+    await run('git', ['diff', '--exit-code', packageRevision, facts.sourceRevision, '--', ...sdkPathspec], root, 'reuse-sdk-committed-inputs');
+    facts.packageSourceRevision = packageRevision;
     assert.equal(prior.toolchains.node, process.versions.node);
     assert.deepEqual(prior.packs.map(pack => pack.name), ['core', 'web']);
     facts.toolchains = prior.toolchains;
@@ -51,7 +55,7 @@ export async function prepareProductHarness(output, facts, scenario) {
   for (const pack of facts.packs) assert.equal(await realpath(join(consumer, 'node_modules/@edit-ac', pack.name)), join(consumer, 'node_modules/@edit-ac', pack.name));
   const site = join(output, 'site'); await mkdir(site);
   facts.sources = [];
-  for (const path of [...scenario.fixtures, 'fixtures/product-scenarios/web/manifest.json', 'tests/scenarios/run.mjs', 'tests/scenarios/harness.mjs', 'tests/scenarios/bootstrap.mjs', 'tests/browser/fixture-server.mjs']) {
+  for (const path of [...scenario.fixtures, 'fixtures/product-scenarios/web/manifest.json', 'tests/scenarios/run.mjs', 'tests/scenarios/harness.mjs', scenario.command[1], 'tests/browser/fixture-server.mjs']) {
     const bytes = await readFile(join(root, path)); facts.sources.push({ path, sha256: sha(bytes) });
     if (scenario.fixtures.includes(path)) { await mkdir(join(site, 'fixture'), { recursive: true }); await writeFile(join(site, 'fixture', path.split('/').at(-1)), bytes); }
   }
