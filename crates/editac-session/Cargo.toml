@@ -13,7 +13,8 @@ workspace = true
 
 [features]
 default = []
-native-store = ["dep:rusqlite", "dep:serde", "dep:serde_json"]
+asset-serde = ["dep:serde", "dep:serde_json"]
+native-store = ["dep:rusqlite", "asset-serde"]
 
 [[test]]
 name = "native_store"

@@ -39,6 +39,14 @@ impl Engine {
             .map(|b| Self { inner: Some(b) })
             .map_err(error_value)
     }
+    pub fn asset_work(&self, input: &str) -> Result<String, JsValue> {
+        output(
+            self.inner
+                .as_ref()
+                .ok_or_else(|| disposed("assetWork"))
+                .and_then(|b| b.asset_work(input)),
+        )
+    }
     pub fn checkpoint_metadata(&self) -> Result<String, JsValue> {
         output(
             self.inner
@@ -163,6 +171,18 @@ impl Engine {
                 .as_ref()
                 .ok_or_else(|| disposed("resolve"))
                 .and_then(|b| b.resolve(token)),
+        )
+    }
+    pub fn prepare_table_source(
+        &mut self,
+        input: &str,
+        checkpoint: &[u8],
+    ) -> Result<String, JsValue> {
+        output(
+            self.inner
+                .as_mut()
+                .ok_or_else(|| disposed("prepareTableSource"))
+                .and_then(|b| b.prepare_table_source(input, checkpoint)),
         )
     }
     pub fn prepare(&mut self, input: &str) -> Result<String, JsValue> {

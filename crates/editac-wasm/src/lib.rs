@@ -1,4 +1,5 @@
 //! Semantic engine handles and the preserved foundation fixture bridge.
+mod assets;
 mod bridge;
 #[cfg(test)]
 mod cases;

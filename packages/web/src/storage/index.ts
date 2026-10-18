@@ -1,3 +1,4 @@
+import type { AssetSession } from "../sync/assets.js";
 import type { Checkpoint, CommitResult, EngineRuntime, PatchSubscription, PrepareRequest, PlanToken } from "@edit-ac/core";
 import type { JournalUpdate, LocalCommit } from "./journal.js";
 import { UpdateJournal } from "./journal.js";
@@ -41,6 +42,18 @@ export class LocalStorageLifecycle {
   #closing = false;
   #destroyed = false;
 
+  #assets: Promise<AssetSession> | undefined;
+  /** Optional AssetWork companion over this same per-document database. */
+  enableAssets(factory: IDBFactory, databaseName: string): Promise<AssetSession> {
+    this.#requireLive();
+    if (this.#closing) throw new Error("Storage lifecycle is closing");
+    if (!this.#assets) {
+      const opening = import("../sync/assets.js").then(({ AssetSession }) => AssetSession.open(this.#writer.engine, factory, databaseName));
+      this.#assets = opening;
+      void opening.catch(() => { if (this.#assets === opening) this.#assets = undefined; });
+    }
+    return this.#assets;
+  }
   readonly #writer: StorageWriter;
   readonly #journal: UpdateJournal;
   readonly #policy: { afterStorageFailure: "continue" | "reject" };
@@ -159,7 +172,7 @@ export class LocalStorageLifecycle {
   }
 
   /** Flush failure keeps the live replica available. Report mode exports before releasing it. */
-  async destroy(options: { policy: "flush" | "report" }): Promise<{ unsaved: boolean; recovery: RecoveryExport }> {
+  async destroy(options: { policy: "flush" | "report"; assetPolicy?: "retire" | "suspend" }): Promise<{ unsaved: boolean; recovery: RecoveryExport }> {
     this.#requireLive();
     if (this.#closing) throw new Error("Storage lifecycle is already closing");
     if (options.policy !== "flush" && options.policy !== "report") throw new Error("Explicit destroy policy required");
@@ -168,6 +181,7 @@ export class LocalStorageLifecycle {
       if (options.policy === "flush") await this.flush({ target: "local" });
       const recovery = this.recoveryExport();
       const unsaved = this.#updates.size !== 0;
+      if (this.#assets) await (await this.#assets).dispose(options.assetPolicy ?? "retire");
       this.#subscription.dispose();
       this.#writer.dispose();
       this.#journal.close();
