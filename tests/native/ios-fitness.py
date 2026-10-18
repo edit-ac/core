@@ -156,8 +156,18 @@ def main():
         installerPids = [line.strip() for line in installerPid.splitlines() if line.strip().isdigit()]
         assert len(installerPids)==1 and int(installerPids[0])>0, installerPid
         installerPid = installerPids[0]
-        installerState = run('installer-ready',['xcrun','simctl','spawn',simulator,'launchctl','print','user/foreground/com.apple.installcoordinationd'])
-        assert 'state = running' in installerState, installerState
+        # kickstart may return while launchd still reports xpcproxy. Observe the
+        # actual state with a bounded setup wait; never restart/reinstall in a loop.
+        installerDeadline = time.monotonic() + 60
+        installerObservation = 0
+        while True:
+            installerObservation += 1
+            installerState = run('installer-observation-'+str(installerObservation),['xcrun','simctl','spawn',simulator,'launchctl','print','user/foreground/com.apple.installcoordinationd'],timeout=10)
+            if 'state = running' in installerState: break
+            assert time.monotonic() < installerDeadline, 'Installer did not reach running state; see retained installer observations'
+            time.sleep(2)
+        installerState = run('installer-ready',['xcrun','simctl','spawn',simulator,'launchctl','print','user/foreground/com.apple.installcoordinationd'],timeout=10)
+        assert 'state = running' in installerState, 'Installer stopped before admission; see installer-ready.log'
         record['installerPreflight'] = {'label':'com.apple.installcoordinationd','pid':int(installerPid),'state':'running'}
         # Observe one real foreground UIKit turn before starting the AX client.
         # Boot completion alone previously preceded an AX initialization timeout.
