@@ -6,6 +6,8 @@ mod docx;
 mod docx_import;
 #[cfg(feature = "epub-export")]
 mod epub;
+#[cfg(feature = "epub-import")]
+mod epub_import;
 mod export;
 #[cfg(feature = "qualification")]
 mod fixture;
@@ -241,6 +243,7 @@ fn main() {
         && mode != "odt-import"
         && mode != "docx-import"
         && mode != "docx-export"
+        && mode != "epub-import"
         && mode != "epub-export"
         && mode != "pdf-export"
     {
@@ -255,7 +258,16 @@ fn main() {
     let mut result = if input.len() > LIMITS.input_bytes {
         json!({"state":"rejected","code":"FORMAT_INPUT_LIMIT","liveUnchanged":true})
     } else {
-        if mode == "docx-import" {
+        if mode == "epub-import" {
+            #[cfg(feature = "epub-import")]
+            {
+                epub_import::convert(&input, &std::env::args().skip(2).collect::<Vec<_>>())
+            }
+            #[cfg(not(feature = "epub-import"))]
+            {
+                json!({"state":"rejected","code":"FORMAT_PROFILE_UNAVAILABLE","liveUnchanged":true})
+            }
+        } else if mode == "docx-import" {
             #[cfg(feature = "docx-import")]
             {
                 docx_import::convert(&input, &std::env::args().skip(2).collect::<Vec<_>>())

@@ -210,3 +210,21 @@ notices and disabled graphs. PDF remains export-only. No PDF/UA, archival,
 reading-system/viewer UI, host wiring, platform or release qualification is added.
 
 Native DOCX import prerequisite (`docx-import` feature, `run_docx_import`) uses the guarded structure mapper in a new private Session. Text/marks/lists/v1 tables commit once with undo/redo/reopen. Inert external relationships retain actionable diagnostics without requiring loss approval. Unsupported content requires explicit loss approval. Media candidates always return FORMAT_NATIVE_ASSET_ADOPTION_UNAVAILABLE before insertion until the shared native atomic original-adoption transaction is qualified. The complete original input remains in Result.original on every outcome. This does not qualify full DOCX import or platform wiring.
+
+### Native EPUB import prerequisite
+
+Build with `--features epub-import` and call `runner.run_epub_import(binary,
+reviewed_sha256, original_bytes, approve_loss=False)`. The optional EPUB3.3 mapper
+reads the bounded container, package, spine, navigation and sanitized XHTML into a
+new private shared Session. Chapter part names, boundaries and source hashes,
+navigation order and metadata accompany the diagnostic report. Supported text,
+marks, headings and lists commit once with undo, redo and reopen checks.
+
+Unsupported active content remains inert and requires explicit loss approval.
+Media candidates return `FORMAT_NATIVE_ASSET_ADOPTION_UNAVAILABLE` before insertion,
+including after loss approval, until the shared native atomic original-adoption
+transaction is qualified. The host must retain `Result.original` on every outcome.
+A failed or ambiguous storage completion discards the private candidate without
+publishing its checkpoint or retrying the write. The canonical
+`consumers-native-epub-import-text` suite qualifies this prerequisite; full native
+EPUB/media, host wiring, crash durability and release acceptance remain separate.
