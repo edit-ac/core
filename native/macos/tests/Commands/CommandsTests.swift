@@ -144,6 +144,41 @@ final class CommandsTests: XCTestCase {
             XCTAssertFalse(v.textView.allowsUndo)
         }
     }
+    func testNativeUndoManagerForwardsSharedHistoryWithoutRegisteringProjection() async throws {
+        try await fixture(["start"]) { v, _ in
+            let manager = try XCTUnwrap(v.textView.undoManager)
+            XCTAssertTrue(manager === v.commandUndoManager)
+            XCTAssertFalse(manager.isUndoRegistrationEnabled)
+            XCTAssertFalse(manager.canUndo); XCTAssertFalse(manager.canRedo)
+            try await edit(v, "changed")
+            XCTAssertTrue(manager.canUndo); XCTAssertFalse(manager.canRedo)
+            good(await command(v) { manager.undo() })
+            XCTAssertEqual(v.textView.string, "start")
+            XCTAssertFalse(manager.canUndo); XCTAssertTrue(manager.canRedo)
+            good(await command(v) { manager.redo() })
+            XCTAssertEqual(v.textView.string, "changed")
+            XCTAssertTrue(manager.canUndo); XCTAssertFalse(manager.canRedo)
+            XCTAssertEqual(manager.groupingLevel, 0)
+            XCTAssertFalse(v.textView.allowsUndo)
+            v.window?.makeFirstResponder(nil)
+            XCTAssertFalse(manager.canUndo); XCTAssertFalse(manager.canRedo)
+            v.window?.makeFirstResponder(v.textView)
+            XCTAssertTrue(manager.canUndo)
+            let host = NSTextView(frame: NSRect(x: 0, y: 0, width: 100, height: 40))
+            host.allowsUndo = true; v.addSubview(host)
+            v.window?.makeFirstResponder(host)
+            host.insertText("host edit", replacementRange: NSRange(location: 0, length: 0))
+            XCTAssertFalse(manager.canUndo)
+            XCTAssertFalse(host.undoManager === manager)
+            XCTAssertTrue(host.undoManager?.canUndo == true)
+            host.undoManager?.undo()
+            XCTAssertEqual(host.string, "")
+            XCTAssertEqual(v.textView.string, "changed")
+            host.removeFromSuperview()
+            v.window?.makeFirstResponder(v.textView)
+            XCTAssertTrue(manager.canUndo)
+        }
+    }
     func testKeyboardUndoRedoUsesSameHistory() async throws {
         try await fixture(["one"]) { v, _ in
             try await edit(v, "two")

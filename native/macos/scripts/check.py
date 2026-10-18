@@ -214,7 +214,7 @@ def main():
             env["EDITAC_MACOS_FFI_LIBRARY_DIR"] = str(library.parent)
             run(f"build-{cpu}", ["xcrun", "swift", "build", "--package-path", str(ROOT),
                                 "--scratch-path", str(scratch / cpu), "--arch", cpu,
-                                "--sdk", actual["sdkPath"], "--build-tests"], timeout=300)
+                                "--sdk", actual["sdkPath"], "--jobs", "2", "--build-tests"], timeout=300)
         receipt["ffiLibraries"] = ffi_libraries
         receipt["generatedBindings"] = {str(p.relative_to(CORE)): hashlib.sha256(p.read_bytes()).hexdigest()
             for p in (CORE / "crates/editac-ffi/generated").glob("EditacNative*") if p.is_file()}
