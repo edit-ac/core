@@ -10,9 +10,14 @@ publish = false
 
 [features]
 qualification = []
+odt-import = ["editac-formats/odt-import"]
+odt-export = ["editac-formats/odt-export"]
+pdf-export = ["editac-formats/pdf-export"]
+epub-export = ["editac-formats/epub-export"]
+docx-export = ["editac-formats/docx-codecs", "editac-formats/jobs"]
 
 [dependencies]
-editac-formats = { path = "../editac-formats", default-features = false, features = ["rtf-import", "rtf-export", "table-text-import"] }
+editac-formats = { path = "../editac-formats", default-features = false, features = ["rtf-import", "rtf-export", "table-text-import", "table-text-export"] }
 editac-core = { path = "../editac-core" }
 editac-session = { path = "../editac-session" }
 serde_json = "=1.0.152"

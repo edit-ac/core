@@ -1,9 +1,28 @@
 //! Private worker for runner.py. Public conversion semantics come exclusively
 //! from editac-formats and the shared Session; no independent writable model.
+#[cfg(feature = "docx-export")]
+mod docx;
+#[cfg(feature = "epub-export")]
+mod epub;
 mod export;
 #[cfg(feature = "qualification")]
 mod fixture;
 mod heap;
+#[cfg(any(
+    feature = "odt-export",
+    feature = "docx-export",
+    feature = "epub-export",
+    feature = "pdf-export"
+))]
+mod media;
+#[cfg(feature = "odt-export")]
+mod odt;
+#[cfg(feature = "odt-import")]
+mod odt_import;
+#[cfg(feature = "pdf-export")]
+mod pdf;
+#[cfg(feature = "qualification")]
+mod pdf_fixture;
 mod table;
 #[cfg(feature = "qualification")]
 use std::io::Write;
@@ -211,7 +230,16 @@ fn main() {
         println!("{v}");
         return;
     }
-    if mode != "rtf-import" && mode != "rtf-export" && mode != "csv-import" && mode != "tsv-import"
+    if mode != "rtf-import"
+        && mode != "rtf-export"
+        && mode != "csv-import"
+        && mode != "tsv-import"
+        && mode != "table-export"
+        && mode != "odt-export"
+        && mode != "odt-import"
+        && mode != "docx-export"
+        && mode != "epub-export"
+        && mode != "pdf-export"
     {
         eprintln!("FORMAT_PROFILE_UNAVAILABLE");
         std::process::exit(78);
@@ -224,8 +252,55 @@ fn main() {
     let mut result = if input.len() > LIMITS.input_bytes {
         json!({"state":"rejected","code":"FORMAT_INPUT_LIMIT","liveUnchanged":true})
     } else {
-        if mode == "rtf-export" {
+        if mode == "odt-import" {
+            #[cfg(feature = "odt-import")]
+            {
+                odt_import::convert(&input, &std::env::args().skip(2).collect::<Vec<_>>())
+            }
+            #[cfg(not(feature = "odt-import"))]
+            {
+                json!({"state":"rejected","code":"FORMAT_PROFILE_UNAVAILABLE","liveUnchanged":true})
+            }
+        } else if mode == "odt-export" {
+            #[cfg(feature = "odt-export")]
+            {
+                export::convert_odt(&input)
+            }
+            #[cfg(not(feature = "odt-export"))]
+            {
+                json!({"state":"rejected","code":"FORMAT_PROFILE_UNAVAILABLE","liveUnchanged":true})
+            }
+        } else if mode == "pdf-export" {
+            #[cfg(feature = "pdf-export")]
+            {
+                export::convert_pdf(&input)
+            }
+            #[cfg(not(feature = "pdf-export"))]
+            {
+                json!({"state":"rejected","code":"FORMAT_PROFILE_UNAVAILABLE","liveUnchanged":true})
+            }
+        } else if mode == "epub-export" {
+            #[cfg(feature = "epub-export")]
+            {
+                export::convert_epub(&input)
+            }
+            #[cfg(not(feature = "epub-export"))]
+            {
+                json!({"state":"rejected","code":"FORMAT_PROFILE_UNAVAILABLE","liveUnchanged":true})
+            }
+        } else if mode == "docx-export" {
+            #[cfg(feature = "docx-export")]
+            {
+                export::convert_docx(&input)
+            }
+            #[cfg(not(feature = "docx-export"))]
+            {
+                json!({"state":"rejected","code":"FORMAT_PROFILE_UNAVAILABLE","liveUnchanged":true})
+            }
+        } else if mode == "rtf-export" {
             export::convert(&input)
+        } else if mode == "table-export" {
+            export::convert_table(&input)
         } else if mode == "csv-import" || mode == "tsv-import" {
             table::convert(&input, &mode, &std::env::args().skip(2).collect::<Vec<_>>())
         } else {

@@ -8,6 +8,7 @@ import { counts, execute, select } from './run.mjs';
 test('unknown and absent suites fail instead of falling through', () => {
   const manifest = JSON.parse(readFileSync(new URL('./capabilities.json', import.meta.url)));
   assert.equal(select(manifest, 'profiles').gate, 'CNV-1.1');
+  for (const name of ['consumers-native-epub-export','consumers-native-epub-export-runtime-repair']) assert.equal(select(manifest,name).gate,'CNV-1.18-C2-N-EX');
   assert.equal(select(manifest, 'jobs').gate, 'CNV-1.2');
   assert.equal(select(manifest, 'rtf-import').gate, 'CNV-1.12');
   assert.equal(select(manifest, 'rtf-export').gate, 'CNV-1.13');

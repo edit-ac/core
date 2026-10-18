@@ -95,5 +95,116 @@ exact scanned bytes/dimensions/UTF-16 units/BOM handling. The runner validates
 profile/input/dialect/checkpoint/report correlation before returning completion.
 Cold/warm measurements include process bootstrap, sandbox, parse, mapping, commit,
 undo/redo, reopen, checkpoint and result transfer. Codec notices are in the native
-source-package receipt; this route has no fonts/media assets. CSV/TSV export,
-native host wiring and release remain separate unfinished gates.
+source-package receipt; this import route has no fonts/media assets. Native host
+wiring and release remain separate unfinished gates.
+
+Selected-table export: `runner.run_table_export(binary, reviewed_sha256, request_bytes)`
+accepts the initialized checkpoint envelope with an explicit `selectedTable` block
+ID, `profile` (`edit-ac-csv-v1`, `edit-ac-tsv-v1`, or separately named
+`edit-ac-{csv,tsv}-spreadsheet-safe-v1`), and `newline` (`lf`/`crlf`).
+UTF-8 without BOM, all fields quoted with doubled quotes, a final newline and
+all rows retained are fixed policies. Rich-format loss requires `approveLoss: true`.
+Spreadsheet-safe profiles prefix dangerous text and report each transform; exact
+profiles preserve formula-like strings. Missing selections reject and outside
+content has diagnostics. Retain Result.original (checkpoint envelope) for recovery.
+Output completion never marks a host revision saved. Native UI, file saves,
+independent viewer qualification and release support remain platform-owner gates.
+
+
+ODF1.3 export is an independent optional native build: `cargo build --locked
+--offline --features odt-export --manifest-path crates/editac-formats-native/Cargo.toml`.
+`runner.run_odt_export(binary, reviewed_sha256, request_bytes)` accepts the same
+initialized checkpoint envelope, explicit `profile: "edit-ac-odt-v1"` and optional
+`approveLoss`. The trusted caller may add `approvedAssets`, at most64 records
+`{host,key,bytes}` granting read access to those exact local originals. A document
+asset descriptor is never a grant. No path, URL, network or ambient asset lookup
+is accepted. Missing grants/read failures/hash or media mismatches reject the
+whole output and preserve the checkpoint request. Keep `Result.original` under
+the caller's retention policy; it includes explicitly supplied approved bytes.
+The shared ODT writer and AssetWork authorization produce the artifact; no new
+semantic serializer or persistence model is introduced. Fixed captured revision,
+complete loss reports, original PNGs, local schema/independent reader validation,
+resource enforcement and cold/repeat costs qualify this native adapter only.
+Other directions, OS viewer/UI/save integration and release remain independent.
+The default native build excludes the ODT ZIP/XML codecs; all codecs/fonts remain
+absent from the minimum editor and disabled formats graph.
+
+### ODT import prerequisite
+
+Build with optional `odt-import`. `run_odt_import(binary, binary_sha256,
+original, *, approve_loss=False, wall_ms=4000, output_bytes=4194304, cancel=None)`
+imports the qualified ODF1.3 text, marks, nested lists and v1 table subset into a
+new in-memory shared Session. The same native sandbox/resource launcher authenticates
+the executable and correlates the complete checkpoint/result. Lossy constructs
+require explicit approval and retain complete diagnostics. Keep `Result.original`
+under host retention policy for every outcome; a CRDT checkpoint is not the original
+ODT package. No live host document, save state or journal durability is implied.
+
+**Media-bearing ODT is unavailable on this native route.** After guarded mapping,
+it returns `FORMAT_NATIVE_ASSET_ADOPTION_UNAVAILABLE`, no content commit, complete
+diagnostics and exact original-media candidates. These candidates are recovery
+output, not adopted/live asset references. The complete source remains in
+`Result.original`. Shared native `PreparedJob::finish_import` currently commits
+content without atomically adopting prepared originals; browser storage proof does
+not establish this native contract. The shared owner must supply that boundary
+before full native ODT import can be qualified. No lossy approval bypasses it.
+
+`consumers-native-odt-import-text` qualifies only this prerequisite. It cannot close
+N-OI, the complete native/profile/target matrix or downstream platform/release gates.
+
+### Optional native DOCX export
+
+Build with `--features docx-export` and call `runner.run_docx_export` with the
+reviewed executable hash and a serialized initialized Session checkpoint request.
+The explicit `edit-ac-docx-v1` profile accepts caller-approved `{host,key,bytes}`
+originals independently of document metadata. The sandbox denies ambient files,
+network and child processes. Missing grants reject; there is no remote fallback.
+The writer reports package/page/metadata defaults and unsupported image alt/caption
+or code-mark fidelity. Loss requires explicit `approveLoss: true`. Keep the exact
+`Result.original` envelope (checkpoint plus approved originals) for recovery on
+every outcome. Completion identifies the captured revision and never marks a
+host document saved. Qualification uses immutable local source packages, actual
+Session/job/AssetWork conversion, independent generated-package/textutil checks
+and complete caller costs; this adds no native host UI, Word layout, crash
+durability, platform support or release claim.
+
+### Optional native EPUB export
+
+Build with `--features epub-export` and call `runner.run_epub_export` using the
+reviewed executable hash and serialized initialized Session checkpoint request
+with explicit `edit-ac-epub-v1` profile. Caller-approved `{host,key,bytes}`
+originals grant access independently of document metadata. Missing grants reject
+the complete output. Keep `Result.original`, including checkpoint and originals,
+for recovery on every outcome. The shared EPUB3.3 writer preserves its qualified
+semantic XHTML, chapter/spine/navigation, metadata policy and accessibility labels;
+package/style/metadata defaults and unsupported content have complete diagnostics.
+Loss requires explicit approval. The existing native sandbox/resource runner
+denies ambient files, network and child processes, authenticates completion and
+keeps later edits separate from the captured revision. This consumer adds no
+reading-system UI, host-save, exact pagination, platform or release claim.
+
+### Optional native PDF publication export
+
+Build with `--release --features pdf-export` and call `runner.run_pdf_export` using the
+reviewed binary hash and a serialized initialized Session checkpoint request.
+Set `profile: "edit-ac-pdf-publication-v1"` and `fontSet: "noto-pinned-v1"`.
+Only this optional executable embeds the six exact OFL Noto font assets; no
+host-font lookup, document-selected font, or download is allowed. A missing or
+unknown font set returns `FORMAT_FONT_SET_UNAVAILABLE` with the source retained.
+
+The qualified bounded writer supports text, direct marks, headings/nested lists,
+v1 rectangular tables and authorized original PNG images. Supply original bytes
+only through explicit caller-approved `{host,key,bytes}` capabilities. The shared
+Session/AssetWork validates authority, identity, size, pixels and cancellation.
+Unsupported structures are diagnosed and refused even with loss approval when
+rendering is unavailable. All outcomes retain the exact `Result.original`
+checkpoint/approved-original envelope for host recovery. Keep it under host
+retention policy. No conversion completion acknowledges save or journal durability.
+
+The existing native sandbox denies ambient file/network/child authority and
+bounds wall time, Rust requested heap, output and sampled process RSS. The
+captured-revision artifact/report is authenticated and correlated before acceptance.
+Qualification covers independent generated-artifact text/Arabic glyph/copy/search,
+semantic tags and visual/layout negatives, complete first/repeat caller costs,
+notices and disabled graphs. PDF remains export-only. No PDF/UA, archival,
+reading-system/viewer UI, host wiring, platform or release qualification is added.
