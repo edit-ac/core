@@ -422,9 +422,20 @@ export class BrowserEditor {
   pasteDeferred(data: Pick<ClipboardData, 'getData'>, options: {literal?:boolean; schedule?:()=>Promise<void>} = {}): import('./clipboard/pending.js').PendingPaste {
     this.#requireReady(); return this.#input!.clipboard.pasteDeferred(data,options);
   }
-  /** Capture an explicit literal-paste intent before its owning control focuses.
+  /** Capture an explicit paste intent before its owning control focuses.
    * The existing clipboard owner supplies limits, diagnostics and cancellation. */
   capturePlainPaste(focusOwner?: HTMLElement) {
+    const target = this.capturePaste(focusOwner, { literal: true });
+    if (!target) return undefined;
+    return { get active() { return target.active; }, dispose: target.dispose,
+      paste: (read?: () => Promise<string>) => target.paste(async () => {
+        const clipboard = this.root.ownerDocument.defaultView?.navigator.clipboard;
+        const text = await (read ? read() : clipboard?.readText ? clipboard.readText() : Promise.reject(Error('Use native Paste')));
+        return { getData: mime => mime === 'text/plain' ? text : '' };
+      }),
+    };
+  }
+  capturePaste(focusOwner?: HTMLElement, options: { literal?: boolean } = {}) {
     this.#requireReady();
     const guard = this.captureCommand('replace', undefined, focusOwner);
     if (!guard) return undefined; // composition/read-only must not map provisional DOM
@@ -436,15 +447,14 @@ export class BrowserEditor {
     this.#pasteTargets.add(dispose);
     return {
       get active() { return active(); }, dispose,
-      paste: (read?: () => Promise<string>): Promise<ClipboardOutcome> => {
+      paste: (read?: () => Promise<Pick<ClipboardData, 'getData'>>): Promise<ClipboardOutcome> => {
         if (!active()) { dispose(); return Promise.resolve({ disposition: 'rejected', reason: 'stale-paste-intent' }); }
         consumed = true;
-        return this.#plainPaste(async () => {
-          const clipboard = this.root.ownerDocument.defaultView?.navigator.clipboard;
-          const text = await (read ? read() : clipboard?.readText ? clipboard.readText() : Promise.reject(Error('Use native Paste')));
+        return this.#input!.clipboard.pasteFromClipboard(async () => {
+          const data = await (read ? read() : this.#input!.clipboard.readClipboard());
           if (disposed || !guard.active) throw Error('stale-paste-intent');
-          return text;
-        }, target).finally(dispose);
+          return data;
+        }, target, options).finally(dispose);
       },
     };
   }

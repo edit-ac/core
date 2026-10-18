@@ -9,6 +9,7 @@ export class CommandControls {
   readonly status: HTMLElement;
   #targets = new Map<string, CapturedCommand>();
   #pasteTarget: ReturnType<BrowserEditor['capturePlainPaste']>;
+  #formattedTarget: ReturnType<BrowserEditor['capturePaste']>;
   #disposed = false;
   #pending = false;
   readonly #buttons = new Map<string, HTMLButtonElement>();
@@ -18,11 +19,12 @@ export class CommandControls {
     if (event.type === 'keydown' && (event as KeyboardEvent).key !== 'Tab') return;
     if (this.editor.root.ownerDocument.activeElement !== this.editor.root) return;
     this.#release();
-    for (const id of [...this.#buttons.keys()].filter(id => id !== 'search' && id !== 'paste')) {
+    for (const id of [...this.#buttons.keys()].filter(id => id !== 'search' && id !== 'paste' && id !== 'paste-formatted')) {
       const target = this.editor.captureCommand(id, undefined, this.element);
       if (target) this.#targets.set(id, target);
     }
     this.#pasteTarget = this.editor.capturePlainPaste(this.element);
+    this.#formattedTarget = this.editor.capturePaste(this.element);
   };
   readonly #click = (event: Event) => {
     const button = (event.target as Element).closest<HTMLButtonElement>('button[data-command]');
@@ -56,7 +58,7 @@ export class CommandControls {
     this.search = doc.createElement('input'); this.search.type = 'search'; this.search.hidden = true;
     this.search.setAttribute('aria-label', 'Search editing commands'); this.search.inputMode = 'search'; this.search.enterKeyHint = 'search';
     this.search.addEventListener('input', this.#query); this.search.addEventListener('keydown', this.#dismiss);
-    for (const [id, label] of [['search', 'Search commands'], ...commandCatalog.filter(c => ['enter','break','undo','redo','indent','outdent','bold','italic','underline','link','strike','code'].includes(c.id)).filter(c => editor.extensionConfiguration?.configuration.formatting?.marks?.[c.id as import('../extensions/contract.js').CoreFormattingMarkV1]?.controls !== false).map(c => [c.id, c.label]), ['paste', 'Paste without formatting']]) {
+    for (const [id, label] of [['search', 'Search commands'], ...commandCatalog.filter(c => ['enter','break','undo','redo','indent','outdent','bold','italic','underline','link','strike','code'].includes(c.id)).filter(c => editor.extensionConfiguration?.configuration.formatting?.marks?.[c.id as import('../extensions/contract.js').CoreFormattingMarkV1]?.controls !== false).map(c => [c.id, c.label]), ['paste-formatted', 'Paste with formatting'], ['paste', 'Paste without formatting']]) {
       const button = doc.createElement('button'); button.type = 'button'; button.dataset.command = id;
       button.disabled = editor.state.readOnly; button.textContent = label!; if (id === 'search') button.setAttribute('aria-expanded', 'false'); button.style.cssText = 'min-width:44px;min-height:44px'; this.#buttons.set(id!, button); this.element.append(button);
     }
@@ -70,19 +72,24 @@ export class CommandControls {
       for (const button of this.#buttons.values()) button.disabled = !state.ready || state.readOnly;
     });
   }
-  #release(): void { this.#pasteTarget?.dispose(); this.#pasteTarget = undefined; for (const target of this.#targets.values()) target.dispose(); this.#targets.clear(); }
+  #release(): void { this.#formattedTarget?.dispose(); this.#formattedTarget = undefined; this.#pasteTarget?.dispose(); this.#pasteTarget = undefined; for (const target of this.#targets.values()) target.dispose(); this.#targets.clear(); }
   /** Explicit activation can be supplied a host clipboard reader; completion
    * revalidates the captured intent and never restores focus asynchronously. */
-  async activate(id: string, read?: () => Promise<string>): Promise<void> {
+  async activate(id: string, read?: () => Promise<string | Pick<import('../clipboard/fragment.js').ClipboardData, 'getData'>>): Promise<void> {
     if (this.#disposed || this.#pending) return;
-    const target = id === 'paste' ? this.#pasteTarget : this.#targets.get(id);
+    const isPaste = id === 'paste' || id === 'paste-formatted';
+    const target = id === 'paste' ? this.#pasteTarget : id === 'paste-formatted' ? this.#formattedTarget : this.#targets.get(id);
     if (!target?.active) { this.status.textContent = 'Select text in the editor, then choose a command.'; this.#release(); return; }
     try {
-      this.#pending = id === 'paste';
-      if (id === 'paste') {
-        const result = await this.#pasteTarget!.paste(read);
+      this.#pending = isPaste;
+      if (isPaste) {
+        const data = read ? async () => {
+          const value = await read();
+          return typeof value === 'string' ? { getData: (mime: string) => mime === 'text/plain' ? value : '' } : value;
+        } : undefined;
+        const result = id === 'paste' ? await this.#pasteTarget!.paste(data ? async () => (await data()).getData('text/plain') : undefined) : await this.#formattedTarget!.paste(data);
         if (this.#disposed) return;
-        this.status.textContent = result.disposition === 'rejected' ? 'Paste canceled or clipboard unavailable. Select text and try again, or use native Paste.' : 'Pasted without formatting. Tap the editor to continue typing.';
+        this.status.textContent = result.disposition === 'rejected' ? 'Paste canceled or clipboard unavailable. Select text and try again, or use native Paste.' : id === 'paste' ? 'Pasted without formatting. Tap the editor to continue typing.' : 'Pasted with formatting. Tap the editor to continue typing.';
       } else {
         const result = this.#targets.get(id)!.execute();
         this.status.textContent = result.reason === 'editor-focus-declined' ? 'Tap the editor to continue typing.' : result.disposition === 'rejected' ? 'Command unavailable for this selection.' : '';

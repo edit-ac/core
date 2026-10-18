@@ -202,7 +202,7 @@ export class ClipboardInput {
       const inlineCode = node?.runs.some(run => { const start = runOffset; runOffset += run.text.length; return run.attributes.code === true && a.offset >= start && a.offset < runOffset; });
       const literal = options.literal || (Array.isArray(node?.blockAttributes) && node.blockAttributes[0] === 'code') || inlineCode;
       let blocks: readonly FragmentBlock[] | undefined;
-      if(!literal)for(const mime of ['text/rtf','application/rtf','text/tab-separated-values']){
+      if(!literal)for(const mime of [EXTENSION_TRANSFER_MIME,'text/rtf','application/rtf','text/tab-separated-values']){
         const raw=data.getData(mime);if(raw&&!this.#codecs.some(c=>c.mime===mime)&&!exceedsLimit(raw)){this.#diagnose(`${mime}-codec-unavailable`);this.#recoverSource(mime,raw,`${mime}-codec-unavailable`);}
       }
       if (!literal) {
@@ -327,33 +327,64 @@ export class ClipboardInput {
   /** Explicit activated plain-paste command. Stable target is captured before
    * permission/OS work; late results cannot follow navigation or a new session. */
   async pastePlainText(read: () => Promise<string>, captured?: RetainedSelection): Promise<ClipboardOutcome> {
+    return this.pasteFromClipboard(async () => {
+      const text = await read();
+      return { getData: mime => mime === 'text/plain' ? text : '' };
+    }, captured, { literal: true });
+  }
+  /** Activated rich clipboard read, sharing cancellation, target revalidation,
+   * preparation, recovery and history with ordinary native paste. */
+  async pasteFromClipboard(read: () => Promise<Pick<ClipboardData, 'getData'>>, captured?: RetainedSelection, options: { literal?: boolean } = {}): Promise<ClipboardOutcome> {
     if (this.#disposed || this.#blocked()) { captured?.dispose(); return this.last = rejected('clipboard-unavailable'); }
     const target = captured ?? this.#selection.retain(), generation = this.#generation;
     if (!target) return this.last = rejected('clipboard-selection');
     let cancel!: () => void;
     const cancellation = new Promise<never>((_, reject) => { cancel = () => reject(Error('clipboard-canceled')); });
     this.#reads.add(cancel);
-    let source: string | undefined;
+    let source: Record<string, string> | undefined;
     try {
       const opening = this.#targetContext(target, this.#engine.read());
-      const raw = await Promise.race([Promise.resolve().then(() => {
-        if (generation !== this.#generation || this.#disposed) throw Error('clipboard-canceled'); return read();
+      source = await Promise.race([Promise.resolve().then(async () => {
+        if (generation !== this.#generation || this.#disposed) throw Error('clipboard-canceled');
+        return this.#captureData(await read(), true);
       }), cancellation]);
-      source = raw;
       if (generation !== this.#generation || this.#disposed || this.#blocked() || !target.active) throw Error('clipboard-canceled');
-      this.#revalidateTarget(target, opening, this.#engine.read());
-      const text = this.#literal(raw);
-      if (!text) return this.last = rejected('clipboard-empty');
-      // Preserve a user's later selection for an asynchronous result.
+      const snapshot = this.#engine.read();
+      this.#revalidateTarget(target, opening, snapshot);
+      const blocks = this.#prepareData(target, { getData: mime => source![mime] ?? '' }, options, snapshot);
+      // Preserve later user selection and never focus a control asynchronously.
       const current = this.#renderer.root.ownerDocument.activeElement === this.#renderer.root ? this.#selection.retain() : undefined;
-      try { return this.last = this.#apply(target, [{ runs: [{ text, marks: [] }], attributes: null }],!!current,undefined,true); }
+      try { return this.last = this.#apply(target, blocks, !!current, undefined, options.literal === true); }
       finally { if (current) { this.#restore(current); current.dispose(); } }
     } catch (error) {
       const reason = errorMessage(error);
-      if (source !== undefined && !exceedsLimit(source)) this.#recoverSource('text/plain', source, reason);
+      for (const [mime, raw] of Object.entries(source ?? {})) if (!exceedsLimit(raw)) this.#recoverSource(mime, raw, reason);
       return this.last = rejected(reason);
     }
     finally { this.#reads.delete(cancel); target.dispose(); }
+  }
+  /** Read only understood flavors; browsers may expose custom MIME with a web
+   * prefix. No permission probing or read occurs until explicit activation. */
+  async readClipboard(): Promise<Pick<ClipboardData, 'getData'>> {
+    const clipboard = this.#renderer.root.ownerDocument.defaultView?.navigator.clipboard;
+    if (!clipboard?.read) throw Error('Use native Paste');
+    const items = await clipboard.read();
+    if (items.length > 32) throw Error('clipboard-limit');
+    const allowed = new Set([FRAGMENT_MIME, EXTENSION_TRANSFER_MIME, 'text/plain', 'text/html', 'text/markdown', 'text/x-markdown', 'text/rtf', 'application/rtf', 'text/tab-separated-values', ...this.#codecs.map(c => c.mime)]);
+    const source: Record<string, string> = {};
+    for (const item of items) {
+      if (item.types.length > 32) throw Error('clipboard-limit');
+      for (const type of item.types) {
+        const mime = type.startsWith('web ') ? type.slice(4) : type;
+        if (!allowed.has(mime) || source[mime] !== undefined) continue;
+        const blob = await item.getType(type);
+        if (blob.size > LIMIT) throw Error('clipboard-limit');
+        const raw = await blob.text();
+        if (exceedsLimit(raw)) throw Error('clipboard-limit');
+        source[mime] = raw;
+      }
+    }
+    return { getData: mime => source[mime] ?? '' };
   }
   #restore(target: RetainedSelection): void { this.#selection.restoreRetained(target); }
   cancel(): void { this.pendingPaste?.cancel(); this.#generation++; for (const cancel of this.#reads) cancel(); this.#reads.clear(); this.finish(); this.#literalNext = false; }
