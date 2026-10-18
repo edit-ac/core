@@ -53,6 +53,13 @@ for(const change of ['read-only','permission','cancel','foreign-focus','close-re
  const before=await state(page,fact);assert.equal((await run(page)).disposition,'rejected');unchanged(before,await state(page,fact));
  if(change==='close-reopen'){await select(page,0,1);assert.equal(await capture(page),true);assert.equal((await run(page)).disposition,'committed');delta(before,await state(page,fact),1);}
 },'alpha'));
+for(const owner of ['input','textarea','select','contenteditable','textbox'])for(const command of ['bold','replace'])test(`CMD-04 delayed ${command} rejects after nested ${owner} returns focus`,()=>probe(`CMD-04-nested-${owner}-${command}`,async(page,fact)=>{
+ await select(page,1,4);const original=await state(page,fact);assert.equal(await capture(page,command),true);
+ // Observe focus and execute before mutation recovery can invalidate the target
+ // for an unrelated reason. Root structure recovery is covered separately.
+ const result=await page.evaluate(owner=>{const f=window.inputFixture;const control=document.createElement(['contenteditable','textbox'].includes(owner)?'div':owner);if(owner==='contenteditable'){control.contentEditable='true';control.tabIndex=0;}if(owner==='textbox'){control.setAttribute('role','textbox');control.tabIndex=0;}f.root.append(control);control.focus();const focused=document.activeElement===control;f.root.focus();return {focused,active:window.target.active,result:window.target.execute('late')};},owner);
+ assert.equal(result.focused,true);assert.equal(result.active,false);assert.equal(result.result.disposition,'rejected');const after=await state(page,fact);for(const key of ['nodes','revision','history','journal','patches'])assert.deepEqual(after[key],original[key],key);
+},'alpha'));
 test('CMD-05 save retains undo and empty redo never repeats',()=>probe('CMD-05-save',async(page,fact)=>{
  await select(page,1,4);const before=await state(page,fact);await page.keyboard.press(`${mod}+b`);await page.evaluate(()=>window.editor.flush({target:'local'}));const edited=await state(page,fact);delta(before,edited,1);await page.keyboard.press(`${mod}+z`);assert.deepEqual((await state(page,fact)).nodes,before.nodes);await page.keyboard.press(`${mod}+Shift+z`);assert.deepEqual((await state(page,fact)).nodes,edited.nodes);await page.keyboard.press(`${mod}+Shift+z`);const final=await state(page,fact);assert.deepEqual(final.nodes,edited.nodes);assert.equal(final.journal.length,edited.journal.length+2);assert.equal(await capture(page,'repeat'),false);
 },'alpha'));
@@ -69,7 +76,7 @@ for(const profile of [{reserved:['Primary+b']},{remap:{'Primary+b':null,'Primary
  }delta(before,await state(page,fact),1);
 },{text:'alpha',shortcutProfile:profile}));
 
-for(const [name,mark] of [['toggleItalic','italic'],['toggleUnderline','underline'],['toggleStrike','strike']])test(`CMD-01 registered alias ${name}`,()=>probe(`CMD-01-alias-${name}`,async(page,fact)=>{
+for(const [name,mark] of [['toggleItalic','italic'],['toggleUnderline','underline'],['toggleStrike','strike'],['toggleCode','code']])test(`CMD-01 registered alias ${name}`,()=>probe(`CMD-01-alias-${name}`,async(page,fact)=>{
  await select(page,4,1);const before=await state(page,fact);assert.equal(await capture(page,name),true);assert.equal((await run(page)).disposition,'committed');const after=await state(page,fact);delta(before,after,1);assert.deepEqual(after.selection,before.selection);assert.equal(after.nodes[0].runs.find(r=>r.text==='lph').attributes[mark],true);
 },'alpha'));
 for(const [name,expected] of [['insertParagraph',['a','a','independent']],['insertLineBreak',['a\na','independent']],['deleteContentBackward',['aa','independent']],['deleteContentForward',['aa','independent']]])test(`CMD-01 registered alias ${name}`,()=>probe(`CMD-01-alias-${name}`,async(page,fact)=>{
