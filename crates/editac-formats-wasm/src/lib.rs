@@ -1,11 +1,16 @@
 //! Optional worker transport. Shared Session/jobs own all semantics.
+use editac_core::modules::assets::{AssetAction, AssetGrant, AssetIdentity, AssetRequest};
 use editac_core::{
     Utf16Offset,
     anchors::{Bias, Selection},
     document::{DocumentIdentity, InitializedCheckpoint},
     interchange::{identity, transfer_value},
 };
-use editac_formats::{Direction, LIMITS, Profile, job::*, rtf, table_text};
+use editac_formats::{Direction, LIMITS, Profile, docx, job::*, rtf, table_text};
+use editac_session::{
+    assets::{AssetHost, HostOutcome},
+    ports::PortError,
+};
 use editac_session::{
     edit_service::HostPolicy,
     ports::{CheckpointRecord, LocalStore, StoreLimits, memory::MemoryStore},
@@ -57,6 +62,79 @@ struct Request {
     header: Option<bool>,
     safe: Option<bool>,
     approve_loss: Option<bool>,
+    #[serde(default)]
+    assets: Vec<ApprovedAsset>,
+}
+// Explicit caller-held read grants and immutable bytes only. No locators,
+// implicit fetches or descriptor-derived authority enter this transport.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ApprovedAsset {
+    identity: AssetIdentity,
+    actions: Vec<AssetAction>,
+    offset: usize,
+    length: usize,
+}
+struct ApprovedAssets<'a> {
+    records: &'a [ApprovedAsset],
+    bytes: &'a [u8],
+}
+impl AssetHost for ApprovedAssets<'_> {
+    fn authorize(&mut self, request: &AssetRequest) -> Result<AssetGrant, PortError> {
+        if request.action != AssetAction::Read {
+            return Err(PortError::Unavailable);
+        }
+        let record = self
+            .records
+            .iter()
+            .find(|r| r.identity == request.identity)
+            .ok_or(PortError::Unavailable)?;
+        let grant = AssetGrant {
+            identity: record.identity.clone(),
+            actions: record.actions.clone(),
+        };
+        request
+            .validate(&grant)
+            .map_err(|_| PortError::Unavailable)?;
+        Ok(grant)
+    }
+    fn execute(&mut self, _: &str, request: &AssetRequest) -> Result<HostOutcome, PortError> {
+        self.authorize(request)?;
+        Ok(HostOutcome::Complete)
+    }
+}
+impl docx::export::OriginalAssetHost for ApprovedAssets<'_> {
+    fn read_original(&mut self, request: &AssetRequest) -> Result<Vec<u8>, PortError> {
+        self.authorize(request)?;
+        let record = self
+            .records
+            .iter()
+            .find(|r| r.identity == request.identity)
+            .ok_or(PortError::Unavailable)?;
+        if record.length as u64 > request.byte_limit {
+            return Err(PortError::Quota);
+        }
+        let end = record
+            .offset
+            .checked_add(record.length)
+            .ok_or(PortError::Quota)?;
+        Ok(self
+            .bytes
+            .get(record.offset..end)
+            .ok_or(PortError::Quota)?
+            .to_vec())
+    }
+}
+#[wasm_bindgen]
+pub fn convert_with_assets(
+    request: &str,
+    original: &[u8],
+    checkpoint: &[u8],
+    assets: &[u8],
+) -> String {
+    match convert_value_with_assets(request, original, checkpoint, assets) {
+        Ok(v) | Err(v) => v.to_string(),
+    }
 }
 fn error(code: &str) -> Value {
     json!({"ok":false,"code":code,"action":"Retain the original input; review the report or choose an available profile."})
@@ -88,6 +166,7 @@ pub fn convert(request: &str, original: &[u8], checkpoint: &[u8]) -> String {
 }
 fn profile(format: &str, import: bool, safe: bool) -> Result<Profile, Value> {
     Ok(match (format, import, safe) {
+        ("docx", false, false) => docx::export::PROFILE,
         ("rtf", true, false) => rtf::import::PROFILE,
         ("rtf", false, false) => rtf::export::PROFILE,
         ("csv", true, false) => table_text::import::PROFILE,
@@ -104,13 +183,43 @@ fn fail(e: impl std::fmt::Debug) -> Value {
     json!({"ok":false,"code":"ConversionRejected","detail":format!("{e:?}"),"action":"Retain original input and review diagnostics before any lossy action."})
 }
 pub fn convert_value(request: &str, original: &[u8], checkpoint: &[u8]) -> Result<Value, Value> {
-    if request.len() > 16384
+    convert_value_with_assets(request, original, checkpoint, &[])
+}
+pub fn convert_value_with_assets(
+    request: &str,
+    original: &[u8],
+    checkpoint: &[u8],
+    assets: &[u8],
+) -> Result<Value, Value> {
+    if assets.len() > LIMITS.input_bytes
+        || request.len() > 16384
         || original.len() > LIMITS.input_bytes
         || checkpoint.len() > LIMITS.input_bytes
     {
         return Err(error("ResourceLimit"));
     }
     let r: Request = serde_json::from_str(request).map_err(|_| error("InvalidInput"))?;
+    if r.assets.len() > 64 {
+        return Err(error("ResourceLimit"));
+    }
+    let mut offset = 0usize;
+    for (index, a) in r.assets.iter().enumerate() {
+        if a.offset != offset
+            || a.length == 0
+            || r.assets[..index]
+                .iter()
+                .any(|old| old.identity == a.identity)
+        {
+            return Err(error("InvalidAssets"));
+        }
+        offset = offset
+            .checked_add(a.length)
+            .filter(|end| *end <= assets.len())
+            .ok_or_else(|| error("ResourceLimit"))?;
+    }
+    if offset != assets.len() {
+        return Err(error("InvalidAssets"));
+    }
     let import = match r.direction.as_str() {
         "import" => true,
         "export" => false,
@@ -269,6 +378,14 @@ pub fn convert_value(request: &str, original: &[u8], checkpoint: &[u8]) -> Resul
             .map_err(fail)?
             .is_some();
         json!({"ok":true,"blocks":blocks,"report":report,"diagnostics":[],"sessionCommitted":committed})
+    } else if r.format == "docx" {
+        let mut host = ApprovedAssets {
+            records: &r.assets,
+            bytes: assets,
+        };
+        let c = docx::export::export(&mut job, None, approve, &mut host, || 0)
+            .map_err(|e|json!({"ok":false,"code":"ConversionRejected","reason":e.reason,"diagnostics":e.report.diagnostics.iter().map(|d|json!({"code":d.code,"location":d.location,"lossy":d.lossy,"action":d.action})).collect::<Vec<_>>(),"action":"Retain the captured checkpoint; supply explicitly granted original assets or review loss diagnostics."}))?;
+        json!({"ok":true,"bytes":c.artifact.bytes(),"diagnostics":c.report.diagnostics.iter().map(|d|json!({"code":d.code,"location":d.location,"lossy":d.lossy,"action":d.action})).collect::<Vec<_>>(),"assetCount":c.report.assets,"originalAssetBytes":c.report.original_bytes})
     } else if r.format == "rtf" {
         let c = rtf::export::export(&mut job, None, approve, || 0).map_err(|e|json!({"ok":false,"code":"ConversionRejected","reason":e.reason,"diagnostics":e.report.diagnostics.iter().map(|d|json!({"code":d.code,"location":d.location,"lossy":d.lossy})).collect::<Vec<_>>(),"action":"Review representability diagnostics; retain the captured source."}))?;
         json!({"ok":true,"bytes":c.artifact.bytes(),"diagnostics":c.report.diagnostics.iter().map(|d|json!({"code":d.code,"location":d.location,"lossy":d.lossy})).collect::<Vec<_>>()})
@@ -327,6 +444,82 @@ mod tests {
             json!({"identity":identity(&i),"initialized":true,"writerId":c.writer_id,"direction":"import","format":"rtf"}),
             c.bytes,
         )
+    }
+    #[test]
+    fn public_docx_export_uses_existing_captured_writer() {
+        let (mut r, c) = fixture();
+        r["direction"] = json!("export");
+        r["format"] = json!("docx");
+        let v = convert_value(&r.to_string(), &[], &c).unwrap();
+        assert!(v["bytes"].as_array().unwrap().len() > 100);
+        assert!(
+            v["diagnostics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|d| d["code"] == "PACKAGE_REGENERATED")
+        );
+        r["direction"] = json!("import");
+        assert_eq!(
+            convert_value(&r.to_string(), b"PK", &c).unwrap_err()["code"],
+            "FORMAT_UNAVAILABLE"
+        );
+    }
+    #[test]
+    fn asset_transport_rejects_alias_ranges_duplicates_and_exhaustion() {
+        let (mut r, c) = fixture();
+        r["direction"] = json!("export");
+        r["format"] = json!("docx");
+        r["assets"] = json!([{"identity":{"host":"local","key":"image"},"actions":["read"],"offset":1,"length":1}]);
+        assert_eq!(
+            convert_value_with_assets(&r.to_string(), &[], &c, &[1]).unwrap_err()["code"],
+            "InvalidAssets"
+        );
+        r["assets"][0]["offset"] = json!(0);
+        let duplicate = r["assets"][0].clone();
+        r["assets"].as_array_mut().unwrap().push(duplicate);
+        assert_eq!(
+            convert_value_with_assets(&r.to_string(), &[], &c, &[1, 2]).unwrap_err()["code"],
+            "InvalidAssets"
+        );
+        assert_eq!(
+            convert_value_with_assets(&r.to_string(), &[], &c, &vec![0; LIMITS.input_bytes + 1])
+                .unwrap_err()["code"],
+            "ResourceLimit"
+        );
+    }
+    #[test]
+    fn approved_asset_port_requires_exact_read_grant_and_preallocation_budget() {
+        let identity = AssetIdentity {
+            host: "local".into(),
+            key: "image".into(),
+        };
+        let records = [ApprovedAsset {
+            identity: identity.clone(),
+            actions: vec![AssetAction::Read],
+            offset: 0,
+            length: 3,
+        }];
+        let mut host = ApprovedAssets {
+            records: &records,
+            bytes: &[1, 2, 3],
+        };
+        let mut request = AssetRequest {
+            version: 1,
+            operation_id: "read1".into(),
+            identity,
+            action: AssetAction::Read,
+            byte_limit: 2,
+        };
+        use docx::export::OriginalAssetHost;
+        assert!(host.read_original(&request).is_err());
+        request.byte_limit = 3;
+        assert_eq!(host.read_original(&request).unwrap(), vec![1, 2, 3]);
+        request.action = AssetAction::Ingest;
+        assert!(host.authorize(&request).is_err());
+        request.action = AssetAction::Read;
+        request.identity.key = "foreign".into();
+        assert!(host.authorize(&request).is_err());
     }
     #[test]
     fn actual_session_rtf_unicode_marks_and_unknown_destination() {

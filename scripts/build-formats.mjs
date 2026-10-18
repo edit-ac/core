@@ -19,7 +19,15 @@ for(const p of md.packages.filter(p=>p.source).sort((a,b)=>a.name.localeCompare(
  const directory=dirname(p.manifest_path);
  const names=readdirSync(directory).filter(n=>/^(LICENSE|COPYING|NOTICE)/i.test(n)&&statSync(resolve(directory,n)).isFile()).sort();
  licenseText.push(`\n${p.name} ${p.version}: ${p.license}\n${p.repository??''}\n`);
- if(!names.length){if(p.name!=='yrs'||p.version!=='0.28.0')throw Error(`Missing license: ${p.name}`);licenseText.push(readFileSync(resolve(root,'scripts/licenses/yrs-0.28.0.LICENSE'),'utf8'));}
+ if(!names.length){
+  if(p.name==='yrs'&&p.version==='0.28.0')licenseText.push(readFileSync(resolve(root,'scripts/licenses/yrs-0.28.0.LICENSE'),'utf8'));
+  else if(p.name==='docx-rs'&&p.version==='0.4.22'){
+   const provenance=JSON.parse(readFileSync(resolve(root,'scripts/licenses/docx-rs-0.4.22.source.json'),'utf8'));
+   const license=readFileSync(resolve(root,'scripts/licenses/docx-rs-0.4.22.LICENSE'));
+   if(createHash('sha256').update(license).digest('hex')!==provenance.sha256)throw Error('DOCX license provenance mismatch');
+   licenseText.push(provenance.source+'\n'+license.toString('utf8'));
+  } else throw Error(`Missing license: ${p.name}`);
+ }
  for(const n of names)licenseText.push(n+'\n'+readFileSync(resolve(directory,n),'utf8')+'\n');
 }
 writeFileSync(resolve(root,'packages/formats/THIRD-PARTY-NOTICES.txt'),licenseText.join(''));
@@ -27,6 +35,6 @@ const assets={};for(const name of readdirSync(resolve(out,'runtime'))){const p=r
 const sourcePins={};
 function pinTree(directory){for(const name of readdirSync(resolve(root,directory))){const path=directory+'/'+name;if(name==='target')continue;const info=statSync(resolve(root,path));if(info.isDirectory())pinTree(path);else if(/\.rs$|Cargo\.(toml|lock)$/.test(name))sourcePins[path]=createHash('sha256').update(readFileSync(resolve(root,path))).digest('hex');}}
 for(const crate of ['editac-formats-wasm','editac-formats','editac-core','editac-session','editac-diff','editac-markdown'])pinTree('crates/'+crate);
-for(const path of ['scripts/build-formats.mjs','packages/formats/src/index.js','packages/formats/src/worker.js','packages/formats/src/index.d.ts','packages/formats/capabilities.json'])sourcePins[path]=createHash('sha256').update(readFileSync(resolve(root,path))).digest('hex');
+for(const path of ['scripts/build-formats.mjs','scripts/licenses/docx-rs-0.4.22.LICENSE','scripts/licenses/docx-rs-0.4.22.source.json','packages/formats/src/index.js','packages/formats/src/worker.js','packages/formats/src/index.d.ts','packages/formats/capabilities.json'])sourcePins[path]=createHash('sha256').update(readFileSync(resolve(root,path))).digest('hex');
 writeFileSync(resolve(out,'build-receipt.json'),JSON.stringify({schemaVersion:1,sourcePins,toolchain:'1.97.1',bindgen:'0.2.129',maximumLinearMemoryBytes:67108864,assets,dependencies:notices.map(({manifest,...p})=>p)},null,2)+'\n');
 console.log(JSON.stringify({assets,dependencies:notices.length}));

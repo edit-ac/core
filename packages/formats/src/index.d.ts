@@ -1,9 +1,12 @@
 import type { EngineHandle, StableRange, FragmentBlock, CommitResult, Checkpoint } from '@edit-ac/core';
-export type Format = 'rtf' | 'csv' | 'tsv';
+export type Format = 'rtf' | 'csv' | 'tsv' | 'docx';
 export interface Options {
   format: Format; source?: Uint8Array; filename?: string; mediaType?: string; range?: StableRange; selected?: string;
   /** Mandatory for CSV/TSV. */ newline?: 'lf' | 'crlf';
   /** Mandatory on CSV/TSV import; does not infer types. */ header?: boolean;
+  /** Caller-authorized original bytes (for example AssetSession.retainedSource).
+   * Captured immutably with the checkpoint; aggregate maximum 1 MiB. */
+  originalAssets?: readonly {identity:{host:string;key:string};actions:readonly 'read'[];bytes:Uint8Array}[];
   safe?: boolean; approveLoss?: boolean; signal?: AbortSignal; timeoutMs?: number;
 }
 export interface Result {

@@ -9,6 +9,7 @@ import {spawnSync} from 'node:child_process';
 const output=resolve(process.env.EDITAC_FORMATS_OUTPUT);
 const packed=JSON.parse(readFileSync(resolve(output,'packed-artifacts.json')));
 const root=resolve(packed.consumer,'node_modules');
+const docxFixture=JSON.parse(readFileSync('tests/formats/consumers/docx-fixture.json'));
 let server,controller,browser,url;
 function sampleMemory(){
  if(!controller)return null;
@@ -22,7 +23,7 @@ const save=()=>writeFileSync(resolve(output,'browser-receipt.json'),JSON.stringi
 before(async()=>{
  server=createServer((req,res)=>{
   let name=decodeURIComponent(new URL(req.url,'http://localhost').pathname);
-  if(name==='/'||name==='/disabled/'){const prefix=name==='/disabled/'?'/disabled':'';res.setHeader('Content-Type','text/html');res.end(`<script type="importmap">{"imports":{"@edit-ac/core":"${prefix}/@edit-ac/core/dist/index.js","@edit-ac/formats":"${prefix}/@edit-ac/formats/dist/index.js"}}</script><body>Local packed format consumer</body>`);return;}
+  if(name==='/'||name==='/disabled/'){const prefix=name==='/disabled/'?'/disabled':'';res.setHeader('Content-Type','text/html');res.end(`<script type="importmap">{"imports":{"@edit-ac/core":"${prefix}/@edit-ac/core/dist/index.js","@edit-ac/formats":"${prefix}/@edit-ac/formats/dist/index.js","@edit-ac/web/assets":"${prefix}/@edit-ac/web/dist/sync/assets.js"}}</script><body>Local packed format consumer</body>`);return;}
   const directory=name.startsWith('/disabled/')?resolve(packed.disabled,'node_modules'):root;if(name.startsWith('/disabled/'))name=name.slice('/disabled'.length);
   const file=resolve(directory,'.'+name);if(!file.startsWith(directory+sep)){res.writeHead(403).end();return;}
   try{const b=readFileSync(file);res.setHeader('Content-Type',extname(file)==='.wasm'?'application/wasm':extname(file)==='.js'?'text/javascript':'application/octet-stream');
@@ -124,4 +125,58 @@ test('packed disabled consumer executes the SDK without format workers, runtime 
  const context=await browser.newContext();const page=await context.newPage();const requests=[];let workers=0;page.on('request',r=>requests.push(r.url()));page.on('worker',()=>workers++);
  try{await page.goto(url+'/disabled/');const value=await page.evaluate(async()=>{const {init}=await import('@edit-ac/core');const r=await init(new URL('/disabled/@edit-ac/core/dist/wasm/editac_wasm_bg.wasm',location.href).href);const e=r.createEngine({profile:'v5',documentId:'27000000-0000-4000-8000-000000000099',epoch:'27000000-0000-4000-8000-000000000000',nodes:[{text:'disabled'}]});const v=e.read().visible[0].runs[0].text;e.dispose();return v;});assert.equal(value,'disabled');assert.equal(workers,0);assert.ok(!requests.some(r=>/formats|\.(?:ttf|otf)$/.test(r)));evidence.disabled={requests,workers,passed:true};}
  finally{await context.close();save();}
+});
+
+
+test('packed DOCX export uses captured rich semantics and AssetSession-authorized exact originals',async()=>{
+ const r=await check('docx-export-assets',page=>page.evaluate(async f=>{
+  const {engine,client,range}=make();
+  engine.commit(engine.prepare({kind:'fragment',origin:'docx-fixture',range,blocks:f.blocks}));
+  const image=engine.read().visible.find(n=>n.blockAttributes?.[0]==='module:editac.asset');
+  const {AssetSession}=await import('@edit-ac/web/assets');
+  const databaseName='docx-'+crypto.randomUUID();const session=await AssetSession.open(engine,indexedDB,databaseName);
+  const grant={identity:f.descriptor.identity,actions:['ingest','read']};
+  const request={version:1,operationId:'retain_docx_original',identity:f.descriptor.identity,action:'ingest',byteLimit:f.pixel.length};
+  const receipt=await session.enqueue(image.id,request,grant,Uint8Array.from(f.pixel));
+  const bytes=await session.retainedSource(image.id,{identity:f.descriptor.identity,actions:['read']});
+  let deniedRead=false;try{await session.retainedSource(image.id,{identity:f.descriptor.identity,actions:[]});}catch{deniedRead=true;}
+  const start=performance.now();const originalAssets=[{identity:f.descriptor.identity,actions:['read'],bytes}];
+  const pending=client.export(engine,{format:'docx',approveLoss:true,originalAssets});
+  bytes.fill(0);originalAssets[0].identity={host:'changed',key:'changed'};
+  const node=engine.read().visible[0].id;const a=engine.anchor(node,0,'right');engine.commit(engine.prepare({kind:'editor',origin:'later',commands:[{type:'insert',at:a,text:'LATER'}]}));engine.releaseAnchor(a);
+  const result=await pending;const reopened=runtime.restoreEngine(result.recovery.identity,result.recovery);const captured=text(reopened);reopened.dispose();
+  const value={bytes:Array.from(result.bytes),diagnostics:result.diagnostics,metrics:result.metrics,completeMs:performance.now()-start,deniedRead,receipt,captured,current:text(engine),oldRevision:result.revision,newRevision:engine.read().revision,linearBytes:result.metrics.wasmLinearBytes,assetCount:result.assetCount,originalAssetBytes:result.originalAssetBytes};
+  await session.dispose('suspend');const recovered=await AssetSession.open(engine,indexedDB,databaseName);value.retainedAfterSuspend=Array.from(await recovered.retainedSource(image.id,{identity:f.descriptor.identity,actions:['read']}));value.recoveredIntents=(await recovered.inspect()).intents;await recovered.dispose('retire');client.dispose();engine.dispose();return value;
+ },docxFixture));
+ assert.deepEqual(r.retainedAfterSuspend,docxFixture.pixel);assert.ok(r.recoveredIntents.every(i=>i.status==='Pending'));assert.equal(r.deniedRead,true);assert.equal(r.receipt.kind,'assetOperation');assert.ok(r.current.includes('LATER'));assert.ok(!r.captured.includes('LATER'));assert.ok(r.newRevision>r.oldRevision);assert.equal(r.assetCount,1);assert.equal(r.originalAssetBytes,docxFixture.pixel.length);assert.ok(r.linearBytes<=67108864);assert.ok(r.diagnostics.some(d=>d.code==='PACKAGE_REGENERATED'));assert.deepEqual(r.diagnostics.filter(d=>d.lossy).map(d=>d.code).sort(),['IMAGE_ALT','IMAGE_CAPTION']);
+ writeFileSync(resolve(output,'browser-supported.docx'),Buffer.from(r.bytes));
+});
+test('DOCX missing/denied/corrupt assets, loss reports and cancelled work retain the captured source',async()=>{
+ const r=await check('docx-export-failures',page=>page.evaluate(async f=>{
+  const {engine,client,range}=make();engine.commit(engine.prepare({kind:'fragment',origin:'docx-fixture',range,blocks:f.blocks}));
+  const before=text(engine),revision=engine.read().revision,results=[];
+  for(const mode of ['missing','denied','corrupt','foreign','excess']){
+   let assets=mode==='missing'?[]:[{identity:mode==='foreign'?{host:'fixture-host',key:'foreign'}:f.descriptor.identity,actions:mode==='denied'?[]:['read'],bytes:mode==='excess'?new Uint8Array(1048577):mode==='corrupt'?new Uint8Array(f.pixel.length):Uint8Array.from(f.pixel)}];
+   try{await client.export(engine,{format:'docx',approveLoss:true,originalAssets:assets});results.push({mode,unexpected:true});}catch(e){results.push({mode,code:e.code,reason:e.report.reason,recoverable:!!e.recovery});}
+  }
+  const abort=new AbortController();const pending=client.export(engine,{format:'docx',approveLoss:true,signal:abort.signal,originalAssets:[{identity:f.descriptor.identity,actions:['read'],bytes:Uint8Array.from(f.pixel)}]});abort.abort();let cancel;try{await pending;}catch(e){cancel={code:e.code,recoverable:!!e.recovery};}
+  const unchanged=before===text(engine)&&revision===engine.read().revision;
+  client.dispose();engine.dispose();
+  const plain=make();const node=plain.engine.read().visible[0].id;const a=plain.engine.anchor(node,0,'right'),z=plain.engine.anchor(node,4,'left');
+  plain.engine.commit(plain.engine.prepare({kind:'format',origin:'unsupported-mark',marks:[{mark:'code',action:'apply',range:{anchor:a,focus:z}}],blocks:[]}));
+  let loss;try{await plain.client.export(plain.engine,{format:'docx'});}catch(e){loss={code:e.code,diagnostics:e.report.diagnostics,recoverable:!!e.recovery};}
+  const approved=await plain.client.export(plain.engine,{format:'docx',approveLoss:true});plain.client.dispose();plain.engine.dispose();
+  const rich=make();const table=await rich.client.prepareImport(rich.engine,{format:'csv',source:enc('A,B\n'),range:rich.range,newline:'lf',header:false});table.commit();let richLoss;try{await rich.client.export(rich.engine,{format:'docx'});}catch(e){richLoss={diagnostics:e.report.diagnostics,recoverable:!!e.recovery};}rich.client.dispose();rich.engine.dispose();
+  return {results,cancel,unchanged,loss,richLoss,approvedDiagnostics:approved.diagnostics};
+ },docxFixture));
+ assert.equal(r.unchanged,true);assert.deepEqual(r.results.map(x=>x.code),['ConversionRejected','ConversionRejected','ConversionRejected','ConversionRejected','ResourceLimit']);assert.ok(r.results.every(x=>x.recoverable));assert.equal(r.cancel.code,'Cancelled');assert.equal(r.cancel.recoverable,true);assert.ok(r.loss.diagnostics.some(d=>d.lossy));assert.ok(r.approvedDiagnostics.some(d=>d.lossy));assert.equal(r.richLoss.recoverable,true);assert.ok(r.richLoss.diagnostics.some(d=>d.code==='UNSUPPORTED_CONTENT'&&d.lossy));
+});
+test('DOCX complete cold/warm snapshot/worker/artifact/reopen costs include original assets',async()=>{
+ const r=await check('docx-export-costs',page=>page.evaluate(async f=>{
+  const values=[];const {engine,client,range}=make();engine.commit(engine.prepare({kind:'fragment',origin:'docx-fixture',range,blocks:f.blocks}));
+  const {AssetSession}=await import('@edit-ac/web/assets');const databaseName='docx-cost-'+crypto.randomUUID();const image=engine.read().visible.find(n=>n.blockAttributes?.[0]==='module:editac.asset');
+  const initial=await AssetSession.open(engine,indexedDB,databaseName);await initial.enqueue(image.id,{version:1,operationId:'retain_cost_original',identity:f.descriptor.identity,action:'ingest',byteLimit:f.pixel.length},{identity:f.descriptor.identity,actions:['ingest']},Uint8Array.from(f.pixel));await initial.dispose('suspend');
+  for(const phase of ['cold','warm']){const start=performance.now(),heapBefore=performance.memory.usedJSHeapSize;const assets=await AssetSession.open(engine,indexedDB,databaseName);const bytes=await assets.retainedSource(image.id,{identity:f.descriptor.identity,actions:['read']});const p=await client.export(engine,{format:'docx',approveLoss:true,originalAssets:[{identity:f.descriptor.identity,actions:['read'],bytes}]});const reopened=runtime.restoreEngine(p.recovery.identity,p.recovery);const captured=text(reopened);reopened.dispose();await assets.dispose('suspend');values.push({phase,completeMs:performance.now()-start,heapBefore,heapAfter:performance.memory.usedJSHeapSize,metrics:p.metrics,artifactBytes:p.bytes.length,captured,scope:'AssetSession open/reconcile/read authorization + retained byte read + immutable source capture + worker bootstrap/Session/writer/package/transfer + checkpoint reopen + service suspension; excludes preexisting document/asset authoring and independent validation'});}
+  client.dispose();engine.dispose();return values;
+ },docxFixture));for(const m of r){assert.ok(m.completeMs>0);assert.ok(m.artifactBytes>0);assert.match(m.captured,/DOCX 🙂 heading/);assert.ok(m.metrics.wasmLinearBytes<=67108864);}evidence.docxResources=r;save();
 });

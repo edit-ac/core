@@ -6,7 +6,7 @@ The base editor does not depend on this package. Build with
 `node scripts/build-formats.mjs` using the locked Node/Rust/bindgen toolchains.
 
 The initial public worker return covers the existing bounded RTF 1.9.1 profile and
-explicit UTF-8 CSV/TSV table dialects. DOCX, ODT, EPUB and PDF export are unavailable
+explicit UTF-8 CSV/TSV table dialects and semantic DOCX export. DOCX import, ODT, EPUB and PDF export are unavailable
 at this package boundary until separately packaged and qualified. PDF import is
 always export-only, including a PDF signature mislabeled as another supported
 format. Existing native adapters retain their own evidence and limitations.
@@ -50,3 +50,15 @@ remain explicit roadmap31–36/37 work. No fonts, remote converter, provider,
 credentials or network fallback are included. Costs reported by tests include
 checkpoint capture, worker startup/load, Session restore, conversion, transfer,
 live commit/reopen and worker termination; memory samples state their limits.
+
+DOCX export uses the existing optional semantic writer and captured checkpoint.
+Supply `originalAssets: [{identity, actions: ['read'], bytes}]` for each admitted
+PNG. Obtain bytes through the owning attachment service (for example
+`AssetSession.retainedSource(reference, grant)`), with explicit host permission.
+Descriptors grant no authority. The client copies grants and bytes with the
+checkpoint; the worker validates shared read requests, exact digest/length/PNG
+identity and budgets. Missing or denied assets fail without a partial artifact.
+No host operation, URL resolution, upload or lifecycle mutation occurs in export.
+The aggregate original-byte allowance is 1 MiB, with at most 64 unique assets.
+DOCX output reports regenerated package/page/style/metadata defaults. Unsupported
+semantics require explicit loss approval; results and failures retain recovery.

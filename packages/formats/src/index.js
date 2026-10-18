@@ -23,7 +23,7 @@ export function createFormatClient() {
     const signal = options.signal;
     if(signal!==undefined && !(signal instanceof AbortSignal))throw reject('InvalidInput',original);
     if (signal?.aborted) throw reject('Cancelled', original);
-    if (!['rtf','csv','tsv','pdf'].includes(options.format)) throw reject('FORMAT_UNAVAILABLE',original);
+    if (!['rtf','csv','tsv','pdf','docx'].includes(options.format)) throw reject('FORMAT_UNAVAILABLE',original);
     if (options.timeoutMs !== undefined && (!Number.isInteger(options.timeoutMs) || options.timeoutMs < 1 || options.timeoutMs > 10000)) throw reject('InvalidTimeout',original);
     if (direction === 'import' && !options.range) throw reject('MissingTarget',original);
     const start=performance.now();
@@ -31,7 +31,18 @@ export function createFormatClient() {
     const checkpoint=engine.checkpoint();
     const failure=(code,detail)=>{const e=reject(code,original,detail);e.recovery=checkpoint;return e;};
     if (checkpoint.bytes.byteLength > MAX_INPUT) throw failure('ResourceLimit');
-    const request={direction,format:options.format,identity:checkpoint.identity,initialized:checkpoint.initialized,writerId:checkpoint.writerId,
+    // Copy the entire capability at capture time. Descriptors alone grant no read.
+    const supplied=options.originalAssets ?? [];
+    if(!Array.isArray(supplied)||supplied.length>64)throw failure('InvalidAssets');
+    const assets=[];const chunks=[];let assetLength=0;
+    for(const a of supplied){
+      if(!a || !(a.bytes instanceof Uint8Array) || a.bytes.length===0 || !a.identity || typeof a.identity.host!=='string' || typeof a.identity.key!=='string' || !Array.isArray(a.actions) || a.actions.length>10 || a.actions.some(action=>action!=='read') || a.actions.length!==new Set(a.actions).size)throw failure('InvalidAssets');
+      if(assetLength+a.bytes.length>MAX_INPUT)throw failure('ResourceLimit');
+      assets.push({identity:{host:a.identity.host,key:a.identity.key},actions:[...a.actions],offset:assetLength,length:a.bytes.length});
+      chunks.push(a.bytes.slice());assetLength+=a.bytes.length;
+    }
+    const assetBytes=new Uint8Array(assetLength);let assetOffset=0;for(const chunk of chunks){assetBytes.set(chunk,assetOffset);assetOffset+=chunk.length;}
+    const request={assets,direction,format:options.format,identity:checkpoint.identity,initialized:checkpoint.initialized,writerId:checkpoint.writerId,
       selected:options.selected ?? null,filename:options.filename ?? null,mediaType:options.mediaType ?? null,newline:options.newline ?? null,header:options.header ?? null,safe:options.safe ?? false,approveLoss:options.approveLoss ?? false};
     if (JSON.stringify(request).length > 16384) throw failure('ResourceLimit');
     let worker;
@@ -69,7 +80,7 @@ export function createFormatClient() {
           const bytes=new Uint8Array(length);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}
           const module=await WebAssembly.compile(bytes);if(settled)return;compiledModule=module;
         }
-        if(!settled)worker.postMessage({kind:'convert',module:compiledModule,request:JSON.stringify(request),source:original.slice(),checkpoint:checkpoint.bytes});
+        if(!settled)worker.postMessage({kind:'convert',module:compiledModule,request:JSON.stringify(request),source:original.slice(),checkpoint:checkpoint.bytes,assets:assetBytes});
       })().catch(()=>finish(failure('IsolationUnavailable')));
       // An abort between the initial check and handler registration is fenced.
       if(signal?.aborted)cancel();
