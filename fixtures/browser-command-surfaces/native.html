@@ -1,0 +1,21 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>edit.ac macOS command qualification</title>
+<script type="importmap">{"imports":{"@edit-ac/core":"/core/index.js","@edit-ac/core/extensions":"/core/extensions/index.js"}}</script>
+<style>body{font:18px system-ui;margin:24px;max-width:1000px}#projection,#second{border:2px solid #168;padding:16px;margin:16px 0;min-height:80px}button,input{font:inherit;margin:4px}pre{font:13px monospace;white-space:pre-wrap;max-height:240px;overflow:auto}#projection p{margin:8px 0}</style>
+<h1>macOS command qualification</h1>
+<p>Local fixture text only. Use native Edit and spelling menus; the receipt records trusted input and shared Session state.</p>
+<p id="status" role="status">Recovery pending</p>
+<label>Host field <input id="host" value="host text"></label>
+<div id="projection" aria-label="Protocol document" contenteditable="false"></div>
+<div id="toolbar" role="toolbar" aria-label="Editor commands">
+<button id="bold">Bold selection</button><button id="undo">Undo edit</button><button id="redo">Redo edit</button>
+<button id="snapshot">Record checkpoint</button><button id="reopen">Verify stored document</button>
+<button id="second-editor">Add second editor</button>
+</div>
+<p><label>Checkpoint name <input id="case" value="native-start"></label></p>
+<pre id="evidence" aria-label="Observed shared document state"></pre>
+<script>
+for(const type of ['error','unhandledrejection'])window.addEventListener(type,event=>{const reason=String(event.reason?.stack??event.error?.stack??event.message);document.querySelector('#status').textContent=reason;fetch('/native-evidence',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({case:'fixture-error',at:new Date().toISOString(),reason})});});
+</script>
+<script type="module" src="/fixture/native.mjs"></script>
