@@ -6,6 +6,24 @@ import { spawnSync } from 'node:child_process';
 import { root } from './run.mjs';
 export const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 export async function prepareProductHarness(output, facts, scenario) {
+  if (process.env.EDITAC_PRODUCT_SITE_RECEIPT) {
+    const path = resolve(process.env.EDITAC_PRODUCT_SITE_RECEIPT);
+    const bytes = await readFile(path), shared = JSON.parse(bytes);
+    assert.equal(shared.prepared, true, 'Shared site was not fully prepared');
+    assert.equal(shared.toolchains.node, process.versions.node);
+    for (const source of shared.sources) assert.equal(sha(await readFile(join(root, source.path))), source.sha256, 'Shared source changed: ' + source.path);
+    for (const path of [...scenario.fixtures, ...(scenario.supportingSources ?? []), scenario.command[1]]) assert.ok(shared.sources.some(source => source.path === path), 'Unpinned scenario source: ' + path);
+    for (const artifact of shared.artifacts) assert.equal(sha(await readFile(join(shared.output, artifact.path))), artifact.sha256, 'Shared installed artifact changed: ' + artifact.path);
+    for (const pack of shared.packs) assert.equal(sha(await readFile(join(shared.output, pack.file))), pack.sha256, 'Shared package changed');
+    Object.assign(facts, Object.fromEntries(['sourceRevision','sourceTree','packageSourceRevision','toolchains','packs','sources','artifacts','packageLockSha256','reactGraphSha256'].map(key => [key, shared[key]])));
+    if (scenario.packages?.includes('react')) {
+      const graph = await readFile(join(shared.output, 'react-graph.json'));
+      assert.equal(sha(graph), shared.reactGraphSha256, 'Shared React graph changed');
+      await writeFile(join(output, 'react-graph.json'), graph);
+    }
+    facts.sharedSite = { path, sha256: sha(bytes), scope: 'Authenticated installed site only; each case executes afresh' };
+    return { site: join(shared.output, 'site'), build: join(shared.output, 'build'), consumer: join(shared.output, 'consumer') };
+  }
   const build = join(output, 'build'), consumer = join(output, 'consumer');
   await mkdir(build, { recursive: true }); await mkdir(consumer);
   async function run(command, args, cwd, label, env = {}) {
@@ -53,13 +71,35 @@ export async function prepareProductHarness(output, facts, scenario) {
   await writeFile(join(consumer, 'package.json'), JSON.stringify({ private: true, type: 'module', dependencies: Object.fromEntries(facts.packs.map(p => ['@edit-ac/' + p.name, 'file:' + join(output, p.file)])) }));
   await run('npm', ['install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund'], consumer, 'consumer-install');
   for (const pack of facts.packs) assert.equal(await realpath(join(consumer, 'node_modules/@edit-ac', pack.name)), join(consumer, 'node_modules/@edit-ac', pack.name));
+  if (scenario.packages?.includes('react')) {
+    // Build the actual public React wrapper from an immutable committed archive,
+    // using the same installed core/web declarations and pinned lock/toolchain.
+    if (reusePath) {
+      await run('git', ['archive', '--format=tar', '--output=' + join(output, 'react-source.tar'), facts.sourceRevision, 'package.json', 'package-lock.json', 'tsconfig.base.json', 'packages', 'licenses', 'LICENSE', 'README.md'], root, 'react-source-archive');
+      await run('tar', ['-xf', join(output, 'react-source.tar'), '-C', build], root, 'react-source-extract');
+      await run('npm', ['ci', '--offline', '--ignore-scripts', '--no-audit', '--no-fund'], build, 'react-build-install');
+      for (const name of ['core','web']) await cp(join(consumer,'node_modules/@edit-ac',name,'dist'),join(build,'packages',name,'dist'),{recursive:true});
+    }
+    await run('npm', ['run','build','--workspace=@edit-ac/react'], build, 'build-react');
+    const [pack]=JSON.parse(await run('npm',['pack','--workspace=@edit-ac/react','--pack-destination='+output,'--json'],build,'pack-react'));
+    facts.packs.push({name:'react',file:pack.filename,sha256:sha(await readFile(join(output,pack.filename)))});
+    await writeFile(join(consumer,'package.json'),JSON.stringify({private:true,type:'module',dependencies:{...Object.fromEntries(facts.packs.map(p=>['@edit-ac/'+p.name,'file:'+join(output,p.file)])),react:'19.3.0','react-dom':'19.3.0',esbuild:'0.25.12'}}));
+    await run('npm',['install','--offline','--ignore-scripts','--no-audit','--no-fund'],consumer,'react-consumer-install');
+    for(const name of ['core','web','react']) assert.equal(await realpath(join(consumer,'node_modules/@edit-ac',name)),join(consumer,'node_modules/@edit-ac',name));
+  }
   const site = join(output, 'site'); await mkdir(site);
   facts.sources = [];
-  for (const path of [...scenario.fixtures, 'fixtures/product-scenarios/web/manifest.json', 'tests/scenarios/run.mjs', 'tests/scenarios/harness.mjs', scenario.command[1], 'tests/browser/fixture-server.mjs']) {
+  for (const path of [...scenario.fixtures, ...(scenario.supportingSources??[]), 'fixtures/product-scenarios/web/manifest.json', 'tests/scenarios/run.mjs', 'tests/scenarios/harness.mjs', scenario.command[1], 'tests/browser/fixture-server.mjs']) {
     const bytes = await readFile(join(root, path)); facts.sources.push({ path, sha256: sha(bytes) });
     if (scenario.fixtures.includes(path)) { await mkdir(join(site, 'fixture'), { recursive: true }); await writeFile(join(site, 'fixture', path.split('/').at(-1)), bytes); }
   }
   for (const pack of facts.packs) await cp(join(consumer, 'node_modules/@edit-ac', pack.name, 'dist'), join(site, pack.name), { recursive: true });
+  if(scenario.packages?.includes('react')) {
+    const source=join(consumer,'product');await cp(join(site,'fixture'),source,{recursive:true});
+    await run(process.execPath,[join(consumer,'node_modules/esbuild/bin/esbuild'),'product/react.mjs','product/react-lifecycle.mjs','--bundle','--format=esm','--splitting','--outdir='+join(site,'fixture'),'--entry-names=[name]-built','--out-extension:.js=.mjs','--chunk-names=chunks/[name]-[hash]','--external:@edit-ac/markdown','--external:@edit-ac/markdown/web','--metafile='+join(output,'react-graph.json')],consumer,'bundle-react');
+    facts.reactGraphSha256=sha(await readFile(join(output,'react-graph.json')));
+    facts.sources.push({path:'packages/react/src/index.ts',sha256:sha(await readFile(join(build,'packages/react/src/index.ts')))});
+  }
   facts.artifacts = [];
   async function inventory(directory) {
     for (const entry of await readdir(directory, { withFileTypes: true })) {
