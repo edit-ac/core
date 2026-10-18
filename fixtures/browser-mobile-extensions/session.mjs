@@ -154,4 +154,4 @@ async function remoteStructure(index,wrap=false){
   local.applyUpdate(peer.encodeUpdate(vector));await settle();
  }finally{peer.dispose();}
 }
-window.inputFixture={retireContent,remoteStructure,remoteJoin,recover,sibling,deliver,mutate,mount,select,settle,state,destroy,host,capability,requestCapability,get engine(){return session?.writer.engine},get root(){return root},get ids(){return ids},remote,get selection(){return selection},get pointer(){return editor.reorder?.pointerState},get surface(){return editor}};
+window.inputFixture={retireContent,remoteStructure,remoteJoin,recover,sibling,deliver,mutate,mount,select,settle,state,destroy,host,capability,requestCapability,get storage(){return session?.storage},get engine(){return session?.writer.engine},get root(){return root},get ids(){return ids},remote,get selection(){return selection},get pointer(){return editor.reorder?.pointerState},get surface(){return editor}};
