@@ -1,3 +1,4 @@
+import { assertDisabledPresenters } from './graph.mjs';
 import assert from 'node:assert/strict';
 import { before, after, test } from 'node:test';
 import { spawnSync } from 'node:child_process';
@@ -10,11 +11,7 @@ import { assertLightweight, eagerInputs } from '../../extension-dx/loading-consu
 import { requireTestNode } from '../../../scripts/test-toolchain.mjs';
 
 // Limits are declared before measurement; no timing or device qualification.
-const forbidden = /\/(?:modules\/(?:slash|references|reorder|search|content|math|images|embeds|assets|formats)(?:\/|\.js)|extensions\/(?:(?:spelling|authoring|matching|parsing)\.js|runtime\/))/;
-export function assertDisabledGraph(inputs) {
-  assertLightweight(inputs);
-  assert.deepEqual(inputs.filter(path => forbidden.test('/' + path)), [], 'disabled optional presenter implementation in minimal consumer');
-}
+export function assertDisabledGraph(inputs) { assertLightweight(inputs); assertDisabledPresenters(inputs); }
 const sha = value => createHash('sha256').update(value).digest('hex');
 let consumer, output, manifest;
 async function run(command, args, log) {

@@ -1,3 +1,4 @@
+import { assertDisabledPresenters } from '../consumers/mobile-extensions/graph.mjs';
 import assert from 'node:assert/strict';
 import { build } from 'esbuild';
 import { readFile, writeFile, mkdir, cp, readdir } from 'node:fs/promises';
@@ -81,6 +82,14 @@ export async function prepareLoadingConsumer(consumer, { output, facts, run }) {
   // it has no static edge from the ordinary facade/consumer entry.
   const markdownEntry=join(consumer,'markdown-entry.mjs');
   await writeFile(markdownEntry,`export {loadMarkdownAdapter} from ${JSON.stringify(join(consumer,'markdown/package/dist/web.js'))};`);
+  const minimalSource=(await readFile(join(fixture,'minimal.mjs'),'utf8')).replace("new URL('/core/wasm/editac_wasm_bg.wasm', location.href)",`new URL('${paths.core}/wasm/editac_wasm_bg.wasm', location.href)`);
+  await writeFile(join(consumer,'minimal.mjs'),minimalSource);
+  const minimal=await build({absWorkingDir:consumer,entryPoints:{minimal:join(consumer,'minimal.mjs')},outdir:join(version,'minimal'),bundle:true,splitting:true,format:'esm',platform:'browser',target:'es2022',metafile:true,logLevel:'silent',chunkNames:'chunks/[name]-[hash]'});
+  const minimalEntry=Object.keys(minimal.metafile.outputs).find(key=>minimal.metafile.outputs[key].entryPoint==='minimal.mjs');
+  const minimalEager=eagerInputs(minimal.metafile,minimalEntry);assertLightweight(minimalEager);assertDisabledPresenters(minimalEager);
+  facts.minimalGraph={entry:minimalEntry,eager:minimalEager,optionalOutputs:Object.entries(minimal.metafile.outputs).filter(([,value])=>Object.keys(value.inputs).some(input=>/\/extensions\/runtime\/|\/extensions\/(authoring|matching|spelling)\.js|\/modules\/(search|reorder|references|slash|content)\.js/.test(input))).map(([path])=>path.slice(path.indexOf('/minimal/')+1))};
+  await writeFile(join(output,'minimal-metafile.json'),JSON.stringify(minimal.metafile,null,2));
+  await writeFile(join(site,'minimal-default.html'),`<!doctype html><html lang="en"><title>Minimal installed default</title><script type="module" src="${base}/minimal/minimal.js"></script></html>`);
   const result=await build({absWorkingDir:consumer,entryPoints:{session:join(consumer,'session.mjs'),markdown:markdownEntry},
     outdir:join(version,'bundle'),bundle:true,splitting:true,format:'esm',platform:'browser',target:'es2022',metafile:true,logLevel:'silent',
     chunkNames:'chunks/[name]-[hash]',assetNames:'assets/[name]-[hash]'});

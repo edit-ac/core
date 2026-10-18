@@ -309,3 +309,15 @@ for (const feature of ['search', 'reorder', 'slash', 'references']) browserCase(
   assert.deepEqual(result, { synchronous: true, loading: 'loading', rejected: true, absent: true, enabled: true, state: 'ready', calls: 0, before: 'Alpha beta', after: 'Alpha beta' });
   fact.requiredPresenterLifecycle = result;
 });
+
+browserCase('mixed-legacy-and-managed-presenters-share-unique-ids-and-one-engine-owner', async page => {
+  const observed = await page.evaluate(async () => {
+    const f = window.configurationFixture, host = () => [], commands = [{ id: 'safe', label: 'Safe', prepare: () => undefined }];
+    const legacy = f.surface({ search: f.documentSearch(), slash: f.slashCommands(commands), references: f.referenceSuggestions(host) });
+    const managed = f.surface({ extensions: [f.DocumentSearch.configure(), f.SlashCommands.configure({ commands }), f.References.configure({ host })] });
+    await Promise.all([legacy.surface.ready, managed.surface.ready]);
+    const ids = [legacy.surface.slash.menu.id, legacy.surface.references.menu.id, managed.surface.slash.menu.id, managed.surface.references.menu.id];
+    return { ids, texts: [f.content(legacy.engine), f.content(managed.engine)], same: legacy.surface.search === managed.surface.search };
+  });
+  assert.equal(new Set(observed.ids).size, 4); assert.deepEqual(observed.texts, ['Alpha beta', 'Alpha beta']); assert.equal(observed.same, false);
+});

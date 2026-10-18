@@ -1,5 +1,5 @@
 import { init } from '@edit-ac/core';
-import { createEditor, mountEditorSurface, CheckpointStorage, openEditorStorage, DocumentSearch, BlockReorder, Images, Tables, MathNotation, References, SlashCommands, Markdown, defaultPreset, documentPreset, taskPreset } from '@edit-ac/web';
+import { documentSearch, slashCommands, referenceSuggestions, createEditor, mountEditorSurface, CheckpointStorage, openEditorStorage, DocumentSearch, BlockReorder, Images, Tables, MathNotation, References, SlashCommands, Markdown, defaultPreset, documentPreset, taskPreset } from '@edit-ac/web';
 const assetUrl = new URL('/core/wasm/editac_wasm_bg.wasm', location.href).href;
 const runtime = await init(assetUrl);
 const editors = [], surfaces = [], engines = [], storageOwners = [];
@@ -61,4 +61,4 @@ async function close() {
   for (const value of storageOwners) await value.destroy({ policy: 'report' });
   for (const value of engines) value.dispose();
 }
-window.configurationFixture = { runtime, root, engine, seed, open, surface, content, select, replace, fill, paste, close, createEditor, mountEditorSurface, DocumentSearch, BlockReorder, Images, Tables, MathNotation, References, SlashCommands, Markdown, defaultPreset, documentPreset, taskPreset, openEditorStorage, storageOwners, surfaces, editors };
+window.configurationFixture = { documentSearch, slashCommands, referenceSuggestions, runtime, root, engine, seed, open, surface, content, select, replace, fill, paste, close, createEditor, mountEditorSurface, DocumentSearch, BlockReorder, Images, Tables, MathNotation, References, SlashCommands, Markdown, defaultPreset, documentPreset, taskPreset, openEditorStorage, storageOwners, surfaces, editors };
