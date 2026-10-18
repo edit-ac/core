@@ -199,6 +199,19 @@ export class DOMSelection {
     if (anchor.type !== "position" || focus.type !== "position") return undefined;
     return this.#retainPoints({...anchor,bias:result.selection.anchorBias},{...focus,bias:result.selection.focusBias});
   }
+  /** Formatting and its history controls may retain the complete backing text
+   * of a selected node. Ordinary capture/clipboard keep node-action ownership. */
+  retainSelectedText(): RetainedSelection | undefined {
+    const id = this.selectedNode(), native = this.#native();
+    const node = id && this.#engine.read().visible.find(n => n.id === id);
+    if (!node || !native || !this.#inside(native)) return undefined;
+    const length = node.runs.reduce((n, run) => n + run.text.length, 0);
+    if (!length) return undefined;
+    const backward = native.anchorOffset > native.focusOffset;
+    return this.#retainPoints(
+      { node: node.id, offset: backward ? length : 0, bias: backward ? 'left' : 'right' },
+      { node: node.id, offset: backward ? 0 : length, bias: backward ? 'right' : 'left' });
+  }
   /** Retain a hit-tested destination without changing native selection/focus. */
   retainPoint(point: ModelPoint): RetainedSelection | undefined {
     if(this.#disposed || !this.toDOM(point))return undefined;

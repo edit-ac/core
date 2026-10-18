@@ -1,0 +1,279 @@
+{
+  "schemaVersion": 1,
+  "gate": "MTF-1.3",
+  "original": [
+    "MEX-1.9",
+    "MEX-1.9-I1",
+    "MEX-1.9-V1",
+    "MWX-1.9"
+  ],
+  "scope": "portable production-browser mechanics",
+  "platform": "pending-original-MWX-1.8",
+  "predicates": [
+    {
+      "id": "MTF-1.3/text-families",
+      "catalogIds": [
+        "MWX-C05"
+      ],
+      "expected": "Six advertised inline marks on text, captions, reference labels and extension carriers, including enabled atomic presenters; exact opaque data, directional selection, undo/redo and one history effect",
+      "cases": [
+        "text-bold",
+        "text-italic",
+        "text-underline",
+        "text-strike",
+        "text-code",
+        "text-link",
+        "image-caption-bold",
+        "image-caption-italic",
+        "image-caption-underline",
+        "image-caption-strike",
+        "image-caption-code",
+        "image-caption-link",
+        "file-caption-bold",
+        "file-caption-italic",
+        "file-caption-underline",
+        "file-caption-strike",
+        "file-caption-code",
+        "file-caption-link",
+        "reference-bold",
+        "reference-italic",
+        "reference-underline",
+        "reference-strike",
+        "reference-code",
+        "reference-link",
+        "extension-bold",
+        "extension-italic",
+        "extension-underline",
+        "extension-strike",
+        "extension-code",
+        "extension-link",
+        "file-bold",
+        "file-italic",
+        "file-underline",
+        "file-strike",
+        "file-code",
+        "file-link",
+        "image-asset-bold",
+        "image-asset-italic",
+        "image-asset-underline",
+        "image-asset-strike",
+        "image-asset-code",
+        "image-asset-link",
+        "math-bold",
+        "math-italic",
+        "math-underline",
+        "math-strike",
+        "math-code",
+        "math-link",
+        "inert-bold",
+        "inert-italic",
+        "inert-underline",
+        "inert-strike",
+        "inert-code",
+        "inert-link",
+        "presented-reference-bold",
+        "presented-reference-italic",
+        "presented-reference-underline",
+        "presented-reference-strike",
+        "presented-reference-code",
+        "presented-reference-link",
+        "presented-file-bold",
+        "presented-file-italic",
+        "presented-file-underline",
+        "presented-file-strike",
+        "presented-file-code",
+        "presented-file-link",
+        "presented-image-asset-bold",
+        "presented-image-asset-italic",
+        "presented-image-asset-underline",
+        "presented-image-asset-strike",
+        "presented-image-asset-code",
+        "presented-image-asset-link",
+        "presented-math-bold",
+        "presented-math-italic",
+        "presented-math-underline",
+        "presented-math-strike",
+        "presented-math-code",
+        "presented-math-link",
+        "presented-inert-bold",
+        "presented-inert-italic",
+        "presented-inert-underline",
+        "presented-inert-strike",
+        "presented-inert-code",
+        "presented-inert-link"
+      ]
+    },
+    {
+      "id": "MTF-1.3/table-actions",
+      "catalogIds": [
+        "MWX-C10"
+      ],
+      "expected": "Every advertised cell inline/style/header/alignment action retains the captured rectangle and unchanged source/untouched cells",
+      "cases": [
+        "cells-Bold cells",
+        "cells-Italic cells",
+        "cells-Underline cells",
+        "cells-Strike cells",
+        "cells-Code cells",
+        "cells-Link cells",
+        "cells-Paragraph cells",
+        "cells-Heading 1 cells",
+        "cells-Heading 2 cells",
+        "cells-Heading 3 cells",
+        "cells-Heading 4 cells",
+        "cells-Heading 5 cells",
+        "cells-Heading 6 cells",
+        "cells-Code block cells",
+        "cells-Header cells",
+        "cells-Body cells",
+        "cells-Align cells none",
+        "cells-Align cells left",
+        "cells-Align cells center",
+        "cells-Align cells right",
+        "cells-remove-link"
+      ]
+    },
+    {
+      "id": "MTF-1.3/target-guards",
+      "catalogIds": [
+        "MWX-C05",
+        "MWX-C10"
+      ],
+      "expected": "Read-only, denied, disabled, stale, foreign-editor, absent target and canceled/no-op links do not mutate",
+      "cases": [
+        "guard-readonly",
+        "guard-denied",
+        "guard-disabled-controls",
+        "guard-stale",
+        "guard-foreign-editor",
+        "guard-no-target",
+        "guard-link-cancel",
+        "guard-link-noop",
+        "cells-guard-readonly",
+        "cells-guard-protected",
+        "cells-guard-foreign-editor",
+        "cells-guard-stale",
+        "presented-guard-readonly",
+        "presented-guard-stale",
+        "presented-guard-foreign-editor",
+        "text-remove-link"
+      ]
+    },
+    {
+      "id": "MTF-1.3/search-focus",
+      "catalogIds": [
+        "MWX-C05"
+      ],
+      "expected": "Search input focus preserves captured text target",
+      "cases": [
+        "search-menu-bold",
+        "search-menu-italic",
+        "search-menu-underline",
+        "search-menu-strike",
+        "search-menu-code",
+        "search-menu-link"
+      ]
+    },
+    {
+      "id": "MTF-1.3/paste-flavors",
+      "catalogIds": [
+        "MWX-C05",
+        "MWX-C24"
+      ],
+      "expected": "Explicit formatted/literal choices use internal precedence and source-preserving fallback",
+      "cases": [
+        "paste-formatted-structured-precedence",
+        "paste-formatted-html",
+        "paste-formatted-disabled-codec",
+        "paste-formatted-unsupported-html",
+        "paste-formatted-disabled-extension",
+        "paste-formatted-malformed-fragment",
+        "paste-formatted-plain",
+        "paste-literal-structured-precedence",
+        "paste-literal-html",
+        "paste-literal-disabled-codec",
+        "paste-literal-unsupported-html",
+        "paste-literal-disabled-extension",
+        "paste-literal-malformed-fragment",
+        "paste-literal-plain"
+      ]
+    },
+    {
+      "id": "MTF-1.3/native-event-replay",
+      "catalogIds": [
+        "MWX-C05"
+      ],
+      "expected": "Prepared native-menu, beforeinput-only and noncancelable event sequences replace once; no actual OS menu observation",
+      "cases": [
+        "paste-event-native-menu",
+        "paste-event-beforeinput-only",
+        "paste-event-noncancelable",
+        "paste-event-menu-noncancelable"
+      ]
+    },
+    {
+      "id": "MTF-1.3/async-fences",
+      "catalogIds": [
+        "MWX-C05",
+        "MWX-C24"
+      ],
+      "expected": "Async clipboard intent preserves anchors, later selection and editor identity; rejects canceled/denied/stale results",
+      "cases": [
+        "paste-guard-false-stale",
+        "paste-guard-false-foreign-editor",
+        "paste-guard-false-readonly",
+        "paste-guard-false-background",
+        "paste-guard-false-dismiss",
+        "paste-guard-false-dispose",
+        "paste-guard-false-permission",
+        "paste-guard-false-empty",
+        "paste-guard-false-duplicate",
+        "paste-guard-false-later-selection",
+        "paste-guard-true-stale",
+        "paste-guard-true-foreign-editor",
+        "paste-guard-true-readonly",
+        "paste-guard-true-background",
+        "paste-guard-true-dismiss",
+        "paste-guard-true-dispose",
+        "paste-guard-true-permission",
+        "paste-guard-true-empty",
+        "paste-guard-true-duplicate",
+        "paste-guard-true-later-selection"
+      ]
+    },
+    {
+      "id": "MTF-1.3/table-paste",
+      "catalogIds": [
+        "MWX-C10"
+      ],
+      "expected": "Rich rectangle, exact literal single-cell and incompatible literal rectangle rejection",
+      "cases": [
+        "paste-table-formatted",
+        "paste-table-literal",
+        "paste-table-literal-rectangle"
+      ]
+    },
+    {
+      "id": "MTF-1.3/search-paste",
+      "catalogIds": [
+        "MWX-C05"
+      ],
+      "expected": "Formatted/literal actions remain reachable through search with captured target",
+      "cases": [
+        "paste-search-false",
+        "paste-search-true"
+      ]
+    },
+    {
+      "id": "MTF-1.3/code-paste",
+      "catalogIds": [
+        "MWX-C05"
+      ],
+      "expected": "Code block and inline-code contexts retain literal policy",
+      "cases": [
+        "paste-code-false",
+        "paste-code-true"
+      ]
+    }
+  ]
+}

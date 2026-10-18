@@ -360,10 +360,22 @@ impl Document {
                     return Err(TextError::UnsupportedKind.into());
                 }
                 if self.identity().has_editor()
-                    && !matches!(
-                        node.block_attributes,
-                        Some(BlockAttributes::Paragraph | BlockAttributes::Heading(_))
-                    )
+                    && !match &node.block_attributes {
+                        Some(BlockAttributes::Paragraph | BlockAttributes::Heading(_)) => true,
+                        Some(BlockAttributes::Unknown(tuple))
+                            if self.identity().has_stable_presentation() =>
+                        {
+                            matches!(
+                                crate::modules::content::Content::from_tuple(tuple),
+                                Ok(Some(
+                                    crate::modules::content::Content::Reference { .. }
+                                        | crate::modules::content::Content::Asset { .. }
+                                        | crate::modules::content::Content::InertExtension { .. }
+                                ))
+                            )
+                        }
+                        _ => false,
+                    }
                 {
                     return Err(FormatError::UnsupportedBlockTarget);
                 }

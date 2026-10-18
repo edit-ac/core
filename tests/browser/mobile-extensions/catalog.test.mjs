@@ -28,3 +28,19 @@ test('MWX-C21–C24 registration requires every named executed case and rejects 
   assert.throws(() => reconcileFormats({cases:cases.map((row,i)=>i ? row : {...row,passed:false})}), /failed case/);
   assert.throws(() => reconcileFormats({cases:cases.map((row,i)=>i ? row : {...row,errors:['error']})}), /browser errors/);
 });
+
+test('MEX-1.9 touch registration rejects incomplete or unsuccessful portable evidence', async () => {
+  const { reconcileTouch } = await import('./touch-contract.mjs');
+  const registry = JSON.parse(readFileSync(new URL('./touch-predicates.json', import.meta.url)));
+  const cases = registry.predicates.flatMap(row => row.cases).map(name => ({ name, passed: true, errors: [] }));
+  const result = reconcileTouch({ cases });
+  assert.equal(result.executed, 172);
+  assert.equal(result.predicates.length, 10);
+  assert.deepEqual([...new Set(result.predicates.flatMap(row => row.catalogIds))], ['MWX-C05', 'MWX-C10', 'MWX-C24']);
+  assert.throws(() => reconcileTouch({ cases: cases.slice(1) }), /missing case/);
+  assert.throws(() => reconcileTouch({ cases: [...cases, cases[0]] }), /duplicate executed/);
+  assert.throws(() => reconcileTouch({ cases: [...cases, { name: 'unregistered', passed: true, errors: [] }] }), /unregistered case/);
+  assert.throws(() => reconcileTouch({ cases: cases.map((row, i) => i ? row : { ...row, passed: false }) }), /failed case/);
+  assert.throws(() => reconcileTouch({ cases: cases.map((row, i) => i ? row : { ...row, errors: ['uncaught'] }) }), /browser errors/);
+  assert.equal(result.platform, 'pending-original-MWX-1.8');
+});

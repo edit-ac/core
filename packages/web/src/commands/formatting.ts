@@ -108,7 +108,7 @@ export class FormattingInput {
   }
   capture(): ToolbarTarget | undefined {
     if (this.#disposed || this.blocked() || this.renderer.root.ownerDocument.activeElement !== this.renderer.root) return undefined;
-    const target = this.selection.retain(); if (!target) return undefined;
+    const target = this.selection.retain() ?? this.selection.retainSelectedText(); if (!target) return undefined;
     this.#targets.add(target);
     let redirected = false;
     const root = this.renderer.root, doc = root.ownerDocument;

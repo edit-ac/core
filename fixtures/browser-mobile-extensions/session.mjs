@@ -10,7 +10,7 @@ const viewportGeometry=()=>{if(window.mobileGeometryError)throw Error("prepared 
 async function mount(value){
  const options=typeof value==='string'?{text:value}:value;preparedViewport=!!options.viewport;
  runtime=await init('/core/wasm/editac_wasm_bg.wasm');
- const seed=runtime.createEngine({profile:'v5',documentId:identity.documentId,epoch:identity.epoch,nodes:options.nodes??[{text:(options.embed||options.tableSource)?'':options.text}]});
+ const seed=runtime.createEngine({profile:'v5',documentId:identity.documentId,epoch:identity.epoch,nodes:options.nodes??[{text:(options.embed||options.tableSource||options.formattingBlocks)?'':options.text}]});
  if(options.tableSource){
   const {initMarkdown}=await import('/markdown/index.js');
   const registration=seed.registerMarkdown(await initMarkdown('/markdown/wasm/editac_markdown_wasm_bg.wasm'));
@@ -28,6 +28,7 @@ async function mount(value){
  if(options.code){const plan=seed.prepare({kind:'editor',origin:'mobile-seed-code',commands:[{type:'setCode',owner:seed.read().visible[0].id,language:options.language??'typescript'}]});try{seed.commit(plan);}finally{seed.releasePlan(plan);}}
  if(options.table&&!options.tableSource){for(const tableNode of seed.read().visible.slice(0,options.tableCopies??1)){const owner=tableNode.id,at=seed.anchor(owner,0,'right');try{seed.commit(seed.prepare({kind:'fragment',origin:'mobile-seed-table',range:{anchor:at,focus:at},blocks:[{attributes:{type:'content',tuple:['module:editac.table',1,{alignments:['none','none','none','none'],rows:(options.tableRows??[['one','two','three','four'],['alpha','beta','gamma','delta']]).map(row=>row.map(t=>[[t,[]]])),source:'prepared table source'}]},runs:[{text:'prepared table source',marks:[]}]}]}));}finally{seed.releaseAnchor(at);}}}
  if(options.asset||options.embed){const owner=seed.read().visible[0].id,at=seed.anchor(owner,0,'right');const payload=options.asset??{type:options.inertType??'editac.embed',version:1,dataVersion:1,source:options.embed.source,payload:{url:options.embed.url,provider:options.embed.provider,fallback:options.embed.fallback}};try{const plan=seed.prepare({kind:'fragment',origin:'mobile-seed-host-content',range:{anchor:at,focus:at},blocks:[{attributes:{type:'content',tuple:[options.asset?'module:editac.asset':'module:editac.inert-extension',1,payload]},runs:[{text:options.asset?.fallback??options.embed.source,marks:[]}]}]});try{seed.commit(plan);}finally{seed.releasePlan(plan);}}finally{seed.releaseAnchor(at);}}
+ if(options.formattingBlocks){const at=seed.anchor(seed.read().visible[0].id,0,'right');try{const plan=seed.prepare({kind:'fragment',origin:'mobile-format-seed',range:{anchor:at,focus:at},blocks:options.formattingBlocks});try{seed.commit(plan);}finally{seed.releasePlan(plan);}}finally{seed.releaseAnchor(at);}}
  let modules;
  if(options.marks){for(const mark of options.marks){const owner=seed.read().visible[mark.node??0].id;seed.commit(seed.prepare({kind:'editor',origin:'mobile-seed',commands:[{type:'markAt',owner,from:mark.from,to:mark.to,mark:mark.type,action:'apply'}]}));}}
  if(options.reorder){const first=seed.read().visible[0].id;seed.commit(seed.prepare({kind:'editor',origin:'mobile-seed',commands:[{type:'markAt',owner:first,from:0,to:5,mark:'bold',action:'apply'}]}));}
@@ -67,7 +68,7 @@ async function bind(options={},modules){
    ...Array.from({length:24},(_,i)=>({id:'extra'+i,label:'Extra command '+i,prepare:()=>undefined})),
   ]);
  }
- if((options.table||options.asset||options.embed)&&!options.presentersDisabled){
+ if((options.table||options.asset||options.embed||options.formattingPresenters)&&!options.presentersDisabled){
   const {contentModules}=await import('/web/modules/content.js');const contentOptions={};
   if(options.protectedCells)contentOptions.tableProtectedCells=()=>options.protectedCells;
   if(options.tableSource&&!options.sourcePortAbsent)contentOptions.tableSource={
@@ -110,7 +111,7 @@ async function bind(options={},modules){
   if(options.facade==='tables')extensions.push(factories.Tables.configure());
   if(options.facade==='references')extensions.push(factories.References.configure({host:async()=>[]}));
   if(options.facade==='slash')extensions.push(factories.SlashCommands.configure({commands:[{id:'code',label:'Make code block',prepare:({node})=>({type:'editor',commands:[{type:'setCode',owner:node,language:'js'}]})}]}));
-  editorOptions={assetUrl:'/core/wasm/editac_wasm_bg.wasm',databaseName,identity,indexedDB,locks:navigator.locks,extensions,plainPasteControl:false,readOnly:options.readOnly,formatting:options.formatting,viewport:options.viewport?{geometry:viewportGeometry}:undefined,recover:async()=>session};
+  editorOptions={assetUrl:'/core/wasm/editac_wasm_bg.wasm',databaseName,identity,indexedDB,locks:navigator.locks,extensions,plainPasteControl:false,commandControls:options.commandControls,readOnly:options.readOnly,formatting:options.formatting,viewport:options.viewport?{geometry:viewportGeometry}:undefined,recover:async()=>session};
  }
  editor=new BrowserEditor(root,editorOptions);
  await editor.ready;window.editor=editor;select(ids[0],0);return ids;
@@ -120,7 +121,7 @@ async function settle(){await editor.settle();await session.storage.flush({targe
 async function remote(index,offset,text){const local=session.writer.engine,peer=runtime.restoreEngine(identity,local.checkpoint()),vector=local.stateVector(),at=peer.anchor(ids[index],offset,'right');try{const result=peer.commit(peer.prepare({kind:'text',origin:'mobile-peer',command:{type:'insert',at,text}}));if(result.caret)peer.releaseAnchor(result.caret);local.applyUpdate(peer.encodeUpdate(vector));await settle();}finally{peer.releaseAnchor(at);peer.dispose();}}
 async function retireContent(){const local=session.writer.engine,peer=runtime.restoreEngine(identity,local.checkpoint()),vector=local.stateVector(),node=peer.read().visible.find(n=>['module:editac.asset','module:editac.inert-extension'].includes(n.blockAttributes?.[0])),at=peer.anchor(node.id,0,'right');try{const plan=peer.prepare({kind:'editor',origin:'mobile-peer-retire-content',commands:[{type:'atomicContent',owner:node.id,expected:node.blockAttributes,at,replacement:null}]});try{peer.commit(plan);}finally{peer.releasePlan(plan);}local.applyUpdate(peer.encodeUpdate(vector));await settle();}finally{peer.releaseAnchor(at);peer.dispose();}}
 async function remoteJoin(first,second){const local=session.writer.engine,peer=runtime.restoreEngine(identity,local.checkpoint()),vector=local.stateVector();try{const plan=peer.prepare({kind:'editor',origin:'mobile-peer-delete-owner',commands:[{type:'join',first:ids[first],second:ids[second]}]});try{const result=peer.commit(plan);if(result.caret)peer.releaseAnchor(result.caret);}finally{peer.releasePlan(plan);}local.applyUpdate(peer.encodeUpdate(vector));await settle();}finally{peer.dispose();}}
-function point(node,offset){const el=node?.nodeType===1?node:node?.parentElement,block=el?.closest('[data-node-id]');if(!block)return null;const r=document.createRange();r.selectNodeContents(block);r.setEnd(node,offset);return {node:block.dataset.nodeId,offset:r.toString().length};}
+function point(node,offset){const el=node?.nodeType===1?node:node?.parentElement,block=el?.closest('[data-node-id]');if(!block)return null;const r=document.createRange();r.selectNodeContents(block);r.setEnd(node,offset);const contents=r.cloneContents();for(const view of contents.querySelectorAll('[data-module-view]'))view.remove();return {node:block.dataset.nodeId,offset:contents.textContent.length};}
 async function state(){await settle();const native=getSelection(),engine=session.writer.engine,journal=await UpdateJournal.open(indexedDB,databaseName);let entries;try{entries=await journal.read(identity);}finally{journal.close();}return {nodes:engine.read().visible,selection:{anchor:point(native.anchorNode,native.anchorOffset),focus:point(native.focusNode,native.focusOffset)},history:engine.history({type:'state'}),patches,journal:entries.map(e=>({origin:e.origin,bytes:e.bytes.length})),storage:session.storage.state.phase,errors:engine.takeObserverErrors(),focus:document.activeElement===root,dom:root.textContent,revision:engine.read().revision,recovery:editor.inputRecovery};}
 async function destroy(policy='flush'){if(disposed)return;disposed=true;subscription?.dispose();const report=await editor?.destroy({policy});window.fixtureDisposed=true;return report;}
 // Host contract records observed CSS coordinates, owning window/root and requested
