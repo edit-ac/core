@@ -167,12 +167,20 @@ export class ClipboardInput {
     if (this.#disposed || this.#blocked()) return this.last = rejected('clipboard-unavailable');
     const target=this.#selection.retain();
     if (!target) return this.last=rejected('clipboard-selection');
+    let source: Record<string,string> = {};
     try {
-      const source=this.#captureData(data);
-      return this.last=this.#apply(target,this.#prepareData(target,{getData:mime=>source[mime]??''},options),true,undefined,options.literal === true);
+      source=this.#captureData(data);
+      this.last=this.#apply(target,this.#prepareData(target,{getData:mime=>source[mime]??''},options),true,undefined,options.literal === true);
     }
-    catch(error) { return this.last=rejected(errorMessage(error)); }
+    catch(error) { this.last=rejected(errorMessage(error)); }
     finally {target.dispose();}
+    // Final admission/commit can reject after successful decoding. Preserve the
+    // captured original, just as deferred paste does, without rerunning codecs.
+    // Keep structured flavors last in the bounded recovery list.
+    if(this.last.disposition!=='committed')for(const [mime,raw] of Object.entries(source).reverse()) {
+      if(!exceedsLimit(raw))this.#recoverSource(mime,raw,this.last.reason??'clipboard-rejected');
+    }
+    return this.last;
   }
   /** Host data-provider fallback. Capture the hit-tested target before async
    * work; the existing plain-paste lifecycle owns permission and session checks. */
