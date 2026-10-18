@@ -420,15 +420,24 @@ export class FormatControls {
     const job = this.#begin(); if (!job) return;
     this.#message('Preparing captured export. Cancel preparation is available; no file or share request has started.');
     try {
+      const captured = this.context.engine.read();
+      const identity = JSON.stringify(captured.identity), revision = captured.revision;
       const format = this.exportFormat.value, filename = this.filename.value;
       if (!filename || filename.length > 255 || /[\x00-\x1f\x7f/\\]/.test(filename)) throw Error('invalid-output-filename');
       if (format !== 'text' && format !== 'markdown') {
         const row = this.#profile(format, 'export'), request = this.#request(format, job, filename, documentMediaTypes[format as DocumentFormat]);
         if ((format === 'csv' || format === 'tsv') && !request.selected) throw Error('Choose one table explicitly');
         const client = await this.#formatClient(job); if (!client || !this.#active(job)) return;
+        // The public client captures synchronously when export is invoked. A lazy
+        // load must not silently move the user's requested revision forward.
+        const current = this.context.engine.read();
+        if (JSON.stringify(current.identity) !== identity) throw Error('export-session-changed');
+        if (current.revision !== revision) throw Error('export-revision-changed; prepare again');
         const result = await client.export(this.context.engine, request); if (!this.#active(job)) return;
+        if (JSON.stringify(this.context.engine.read().identity) !== identity) throw Error('export-session-changed');
+        if (result.revision !== revision) throw Error('export-revision-mismatch');
         if (result.profile !== row.profile) throw Error('format-profile-mismatch');
-        if (result.bytes.length > 8 * 1048576) throw Error('format-byte-limit');
+        if (result.bytes.length > Math.min(8 * 1048576, this.options.maxBytes ?? 8 * 1048576)) throw Error('format-byte-limit');
         const text = ['rtf','csv','tsv'].includes(format) ? new TextDecoder('utf-8', {fatal:true}).decode(result.bytes) : '';
         this.#revoke(); this.#artifact = {format:format as DocumentFormat, filename, mediaType:request.mediaType, revision:result.revision, text, bytes:result.bytes.slice(), diagnostics:result.diagnostics.map(d => String(d.code))};
         this.output.value = text; this.#refreshTables();
@@ -493,7 +502,8 @@ export class FormatControls {
         if (typeof picker !== 'function') throw Error('file-save-unavailable');
         const handle = await picker.call(w, { suggestedName: artifact.filename }); if (!this.#active(job)) return;
         const writer = await handle.createWritable();
-        const abort = () => { void writer.abort().catch(() => {}); };
+        let aborted = false;
+        const abort = () => { if (!aborted) { aborted = true; void writer.abort().catch(() => {}); } };
         if (!this.#active(job)) { abort(); return; }
         job.signal.addEventListener('abort', abort, { once: true });
         try { await writer.write(file); if (!this.#active(job)) return; await writer.close(); }
