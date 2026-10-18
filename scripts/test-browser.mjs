@@ -13,6 +13,8 @@ suites['attachment-actions'] = ['tests/browser/attachment-actions.spec.ts'];
 suites['image-lifecycle'] = ['tests/browser/image-lifecycle.spec.ts'];
 suites['mobile-extension-formatting'] = ['tests/browser/mobile-extension-formatting.spec.ts'];
 suites['extension-formatting'] = ['tests/browser/extension-formatting.spec.ts','tests/browser/extension-formatting-mixed.spec.ts'];
+suites['registered-inline-transfer'] = ['tests/browser/registered-inline-transfer.spec.ts'];
+suites['shared-rich-transfer'] = [...suites['extension-formatting'], ...suites['registered-inline-transfer']];
 suites['table-selection'] = ['tests/browser/table-selection.spec.ts'];
 suites['table-command'] = ['tests/browser/table-command.spec.ts'];
 suites['code-highlight'] = ['tests/browser/code-highlight.spec.ts'];
@@ -86,11 +88,12 @@ const engines = !['recovery', 'offline-collaboration'].includes(suite) ? ['chrom
 for (const engine of engines) {
   const env = { ...process.env };
   if (engine) {
-    for (const group of suite === 'baseline' ? ['render', 'keyboard', 'example'] : suite === 'interaction-paste' ? [suite,'interaction-paste-tables'] : suite === 'extension-formatting' ? [suite,'extension-formatting-mixed'] : suite === 'slash-context' ? [suite,'interaction-slash'] : [suite]) {
+    for (const group of suite === 'baseline' ? ['render', 'keyboard', 'example'] : suite === 'interaction-paste' ? [suite,'interaction-paste-tables'] : ['extension-formatting','shared-rich-transfer'].includes(suite) ? ['extension-formatting','extension-formatting-mixed',...(suite==='shared-rich-transfer'?['registered-inline-transfer']:[])] : suite === 'slash-context' ? [suite,'interaction-slash'] : [suite]) {
       const key = `EDITAC_${group.toUpperCase().replaceAll("-", "_")}`;
       env[`${key}_BROWSER`] = engine;
       if (suite === 'baseline' && env.EDITAC_BASELINE_OUTPUT) env[`${key}_OUTPUT`] = join(env.EDITAC_BASELINE_OUTPUT, engine, group);
       else if (group === 'interaction-slash' && suite === 'slash-context' && env.EDITAC_SLASH_CONTEXT_OUTPUT) env[`${key}_OUTPUT`] = join(process.env.EDITAC_SLASH_CONTEXT_OUTPUT, engine, 'baseline');
+      else if (suite === 'shared-rich-transfer' && env.EDITAC_SHARED_RICH_TRANSFER_OUTPUT) env[`${key}_OUTPUT`] = join(process.env.EDITAC_SHARED_RICH_TRANSFER_OUTPUT, engine, group);
       else if (group === 'extension-formatting-mixed' && env.EDITAC_EXTENSION_FORMATTING_OUTPUT) env[`${key}_OUTPUT`] = join(process.env.EDITAC_EXTENSION_FORMATTING_OUTPUT, engine, 'mixed');
       else if (env[`${key}_OUTPUT`]) env[`${key}_OUTPUT`] = join(env[`${key}_OUTPUT`], engine);
     }
