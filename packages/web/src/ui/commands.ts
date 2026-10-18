@@ -13,6 +13,7 @@ export class CommandControls {
   #pending = false;
   readonly #buttons = new Map<string, HTMLButtonElement>();
   readonly #unsubscribe: () => void;
+  readonly #releaseViewport: (() => void) | undefined;
   readonly #capture = (event: Event) => {
     if (event.type === 'keydown' && (event as KeyboardEvent).key !== 'Tab') return;
     if (this.editor.root.ownerDocument.activeElement !== this.editor.root) return;
@@ -60,6 +61,7 @@ export class CommandControls {
     }
     this.status = doc.createElement('span'); this.status.setAttribute('role', 'status');
     this.element.append(this.search, this.status); editor.root.after(this.element);
+    this.#releaseViewport = editor.viewport?.addControls(this.element);
     this.element.addEventListener('pointerdown', this.#capture); editor.root.addEventListener('keydown', this.#capture, true);
     this.element.addEventListener('click', this.#click);
     this.#unsubscribe = editor.subscribe(state => {
@@ -88,7 +90,7 @@ export class CommandControls {
     finally { this.#pending = false; this.#release(); }
   }
   dispose(): void {
-    if (this.#disposed) return; this.#disposed = true; this.#release(); this.#unsubscribe();
+    if (this.#disposed) return; this.#disposed = true; this.#release(); this.#unsubscribe(); this.#releaseViewport?.();
     this.element.removeEventListener('pointerdown', this.#capture); this.editor.root.removeEventListener('keydown', this.#capture, true);
     this.element.removeEventListener('click', this.#click); this.search.removeEventListener('input', this.#query); this.search.removeEventListener('keydown', this.#dismiss);
     this.element.remove();

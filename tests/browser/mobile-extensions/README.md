@@ -5,6 +5,7 @@ Run from core with the repository's Node/npm toolchain:
 ```sh
 npm run build
 npm run test:mobile-extensions -- --group capabilities
+npm run test:mobile-extensions -- --group menus
 node --test tests/consumers/mobile-extensions/disabled.test.mjs
 ```
 
@@ -62,3 +63,15 @@ View/request IDs remain unique across legacy bundled and separately loaded
 presenters without a shared global counter or document-state mutation.
 The installed loading consumer supplies and exercises these URLs separately from
 the minimal consumer, which emits and requests none of those optional artifacts.
+
+The `menus` group exercises MWX-C05–C08 with the same packed production
+BrowserEditor/Session/WASM/IndexedDB harness. Intrinsic 44 CSS px action targets
+are measured without the fixture's button sizing. Prepared viewport geometry
+covers keyboard-sized layouts, rotation, magnification and floating occlusion;
+actual OS selection menus, pinch gestures, IME and AT remain unqualified here.
+The owning command, reference lookup, private reference display and link activation
+ports retain all selection/history, cancellation and permission decisions. Preview
+and navigation hosts are deterministic callbacks; no external requests are allowed.
+`EDITAC_MOBILE_EXTENSIONS_BROWSER` selects Chromium, Firefox or WebKit. Firefox
+uses a desktop viewport with touch enabled because Playwright does not support
+its `isMobile` option. Every result keeps that provenance and source/package hashes.

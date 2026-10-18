@@ -1,4 +1,5 @@
 import { nextPresenterSequence } from './presenter-sequence.js';
+import { touchPanel, touchTarget } from './touch-controls.js';
 import { prepareSlashCommands } from './slash-metadata.js';
 import type { CommitResult, EditorCommand, EngineHandle, FragmentBlock, PrepareRequest, ProjectedNode, StableRange } from '@edit-ac/core';
 import type { DOMSelection, RetainedSelection } from '../dom/selection.js';
@@ -60,6 +61,7 @@ export class SlashPresenter {
     this.status = doc.createElement('div'); this.status.setAttribute('role', 'status'); this.status.setAttribute('aria-live', 'polite');
     this.control = doc.createElement('button'); this.control.type = 'button'; this.control.tabIndex = 0; this.control.textContent = 'Slash commands';
     this.control.setAttribute('aria-haspopup', 'menu'); this.control.setAttribute('aria-controls', this.menu.id); this.control.setAttribute('aria-expanded', 'false');
+    touchTarget(this.control); touchPanel(this.menu);
     for (const element of [this.menu, this.control, this.status]) element.dataset.editacUi = '';
     this.status.setAttribute('aria-atomic', 'true');
     root.after(this.control, this.menu, this.status);
@@ -91,7 +93,12 @@ export class SlashPresenter {
       }
     });
     // Explicit command access remains available when typing provenance is absent.
-    this.listen(this.control, 'pointerdown', event => { this.captureTarget(); this.focusPointer(event, this.control); });
+    this.listen(this.control, 'pointerdown', event => {
+      // A touch must not blur the native composing editor just to discover that
+      // command admission is blocked. The input owner finishes composition.
+      if (this.context.blocked?.()) { event.preventDefault(); return; }
+      this.captureTarget(); this.focusPointer(event, this.control);
+    });
     this.listen(this.control, 'click', () => { this.openExplicit(); if (this.session) this.focusActive(); });
     for (const node of engine.read().visible) this.nodes.set(node.id, node);
     this.subscription = engine.subscribe({ type: 'all' }, patch => {
@@ -203,9 +210,11 @@ export class SlashPresenter {
       const item = doc.createElement('button'); item.type = 'button'; item.textContent = command.label; item.setAttribute('role', 'menuitem');
       item.dataset.command = command.id; item.tabIndex = index === this.active ? 0 : -1;
       item.setAttribute('aria-disabled', String(!!command.disabled)); if (command.disabled) item.title = command.disabled;
+      touchTarget(item, true);
       return item;
     }));
     const close = doc.createElement('button'); close.type = 'button'; close.textContent = 'Close commands'; close.dataset.dismiss = ''; close.setAttribute('role', 'menuitem'); this.menu.append(close);
+    touchTarget(close, true);
     this.menu.hidden = false; this.context.root.setAttribute('aria-expanded', 'true'); this.control.setAttribute('aria-expanded', 'true');
     this.updateActive();
   }

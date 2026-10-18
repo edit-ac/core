@@ -1,4 +1,5 @@
 import { nextPresenterSequence } from './presenter-sequence.js';
+import { touchPanel, touchTarget } from './touch-controls.js';
 import { ServiceLifecycle } from '../services/lifecycle.js';
 import type { ServiceClock, ServiceScope, ServiceFailure } from '../services/lifecycle.js';
 import type { FragmentBlock, PrepareRequest } from '@edit-ac/core';
@@ -160,9 +161,14 @@ export class ReferencePresenter {
     this.status = doc.createElement('div'); this.status.setAttribute('role', 'status'); this.status.setAttribute('aria-live', 'polite');
     this.control = doc.createElement('button'); this.control.type = 'button'; this.control.tabIndex = 0; this.control.textContent = 'Insert reference';
     this.control.setAttribute('aria-haspopup', 'dialog'); this.control.setAttribute('aria-controls', this.menu.id); this.control.setAttribute('aria-expanded', 'false');
-    const close=doc.createElement('button');close.type='button';close.textContent='Close references';this.listen(close,'pointerdown',event=>event.preventDefault());this.listen(close,'click',event=>{event.preventDefault();this.dismiss(true);});
+    touchTarget(this.control); touchTarget(this.search, true); touchPanel(this.menu);
+    const close=doc.createElement('button');close.type='button';close.textContent='Close references';this.listen(close,'pointerdown',event=>this.focusPointer(event,close));this.listen(close,'click',event=>{event.preventDefault();this.dismiss(true);});
+    touchTarget(close, true);
     this.menu.append(this.search, this.items, this.status, close); context.root.after(this.control, this.menu);
-    this.listen(this.control, 'pointerdown', event => { this.capture(); event.preventDefault(); });
+    this.listen(this.control, 'pointerdown', event => {
+      if (this.context.blocked?.()) { event.preventDefault(); return; }
+      this.capture(); this.focusPointer(event, this.control);
+    });
     this.listen(this.control, 'click', () => this.openExplicit());
     this.listen(this.menu, 'keydown', event => this.handle(event));
     this.listen(this.search, 'input', event => { if (!(event as InputEvent).isComposing) void this.query(); });
@@ -181,6 +187,12 @@ export class ReferencePresenter {
     this.resolve = this.lookup ? request => this.lookup!.search(request) : resolve as ReferenceResolver;
   }
   private listen(target: EventTarget, type: string, listener: EventListener): void { target.addEventListener(type, listener); this.listeners.push([target, type, listener]); }
+  private focusPointer(event: Event, target: HTMLElement): void {
+    // Keep touch focus in the composite without suppressing WebKit's native
+    // compatibility click. Mouse selection retention still cancels pointerdown.
+    if ((event as PointerEvent).pointerType === 'touch') target.focus({ preventScroll: true });
+    else event.preventDefault();
+  }
   private inside(element: Element | null): boolean { return !!element && (this.context.root.contains(element) || this.menu.contains(element) || element === this.control); }
   get open(): boolean { return !!this.session; }
   private clearCapture(): void { this.captured?.dispose(); this.captured = undefined; }
@@ -239,6 +251,7 @@ export class ReferencePresenter {
       this.results = results; this.active = results.length ? 0 : -1;
       this.items.replaceChildren(...results.map((target, index) => {
         const item = this.menu.ownerDocument.createElement('button'); item.type = 'button'; item.setAttribute('role', 'menuitem'); item.textContent = target.label;
+        touchTarget(item, true);
         item.dataset.reference = String(index); item.tabIndex = index === this.active ? 0 : -1; return item;
       }));
       this.status.textContent = results.length ? `${results.length} reference suggestions` : 'No reference suggestions';
@@ -247,7 +260,7 @@ export class ReferencePresenter {
   }
   activate(index: number): void {
     const session = this.session, target = this.results[index];
-    if (!session || !target || this.pending || this.disposed || this.readOnly) return;
+    if (!session || !target || this.pending || this.disposed || this.readOnly || this.composing || this.context.blocked?.()) return;
     try {
       const admitted = this.lookup ? this.lookup.admit(target) : target;
       if (!admitted || this.session !== session || this.readOnly || this.disposed) { this.dismiss(); return; }

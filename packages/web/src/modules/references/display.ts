@@ -1,4 +1,5 @@
 import { nextPresenterSequence } from '../presenter-sequence.js';
+import { touchTarget } from '../touch-controls.js';
 import type { ProjectedNode } from '@edit-ac/core';
 import type { ContentContext, ContentFactory, ContentView } from '../content.js';
 import { LinkActivation } from '../links/activation.js';
@@ -67,6 +68,7 @@ export class PrivateReferenceView implements ContentView {
     this.refresh = doc.createElement('button'); this.refresh.type = 'button'; this.refresh.textContent = 'Refresh reference';
     this.refresh.addEventListener('click', this.refreshClicked);
     this.activate = doc.createElement('button'); this.activate.type = 'button'; this.activate.textContent = 'Open reference';
+    touchTarget(this.refresh); touchTarget(this.activate);
     this.activate.hidden = !options.activation;
     this.activate.addEventListener('click', this.activateClicked);
     if (options.activation) this.activation = new LinkActivation({ ...options.activation, context: () => options.context(),

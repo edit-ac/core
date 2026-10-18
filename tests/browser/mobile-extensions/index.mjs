@@ -23,6 +23,8 @@ export function assertIndex(index) {
   assert.deepEqual(index.cases, rows, 'catalog IDs, ownership, requirements and hashes must match');
 }
 export function selectGroup(args) {
-  assert.deepEqual(args, ['--group', 'capabilities'], 'Unknown or unimplemented mobile-extension group');
-  return ['tests/browser/mobile-extensions/catalog.test.mjs', 'tests/browser/mobile-extensions/capabilities.spec.ts'];
+  assert.equal(args.length, 2, 'Expected --group and a supported group');
+  assert.equal(args[0], '--group');
+  assert.ok(['capabilities', 'menus'].includes(args[1]), 'Unknown or unimplemented mobile-extension group');
+  return ['tests/browser/mobile-extensions/catalog.test.mjs', `tests/browser/mobile-extensions/${args[1] === 'menus' ? 'menus' : 'capabilities'}.spec.ts`];
 }
