@@ -11,13 +11,18 @@ mod heap;
 #[cfg(any(
     feature = "odt-export",
     feature = "docx-export",
-    feature = "epub-export"
+    feature = "epub-export",
+    feature = "pdf-export"
 ))]
 mod media;
 #[cfg(feature = "odt-export")]
 mod odt;
 #[cfg(feature = "odt-import")]
 mod odt_import;
+#[cfg(feature = "pdf-export")]
+mod pdf;
+#[cfg(feature = "qualification")]
+mod pdf_fixture;
 mod table;
 #[cfg(feature = "qualification")]
 use std::io::Write;
@@ -234,6 +239,7 @@ fn main() {
         && mode != "odt-import"
         && mode != "docx-export"
         && mode != "epub-export"
+        && mode != "pdf-export"
     {
         eprintln!("FORMAT_PROFILE_UNAVAILABLE");
         std::process::exit(78);
@@ -261,6 +267,15 @@ fn main() {
                 export::convert_odt(&input)
             }
             #[cfg(not(feature = "odt-export"))]
+            {
+                json!({"state":"rejected","code":"FORMAT_PROFILE_UNAVAILABLE","liveUnchanged":true})
+            }
+        } else if mode == "pdf-export" {
+            #[cfg(feature = "pdf-export")]
+            {
+                export::convert_pdf(&input)
+            }
+            #[cfg(not(feature = "pdf-export"))]
             {
                 json!({"state":"rejected","code":"FORMAT_PROFILE_UNAVAILABLE","liveUnchanged":true})
             }

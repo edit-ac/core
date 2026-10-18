@@ -7,14 +7,14 @@ use editac_core::{
     },
     modules::content::{Alignment, Content},
 };
-fn run(text: &str, marks: Vec<(Mark, Option<String>)>) -> FragmentRun {
+pub(super) fn run(text: &str, marks: Vec<(Mark, Option<String>)>) -> FragmentRun {
     FragmentRun {
         opaque_marks: vec![],
         text: text.into(),
         marks,
     }
 }
-fn para(rs: Vec<FragmentRun>) -> FragmentBlock {
+pub(super) fn para(rs: Vec<FragmentRun>) -> FragmentBlock {
     FragmentBlock {
         runs: rs,
         attributes: Some(BlockAttributes::Paragraph),
@@ -67,6 +67,9 @@ fn fixture() -> Vec<FragmentBlock> {
 
 pub fn make() -> Value {
     let kind = std::env::args().nth(2).unwrap_or_default();
+    if kind == "pdf-text" || kind == "pdf-overflow" {
+        return super::pdf_fixture::initial_checkpoint(&kind);
+    }
     let id = DocumentIdentity::v5(
         "27000000-0000-4000-8000-000000000099",
         "27000000-0000-4000-8000-000000000000",
@@ -82,7 +85,13 @@ pub fn make() -> Value {
         id.clone(),
         &[InitialNode {
             kind: "block".into(),
-            text: if kind == "odt" || kind == "docx" || kind == "epub" {
+            text: if kind == "odt"
+                || kind == "docx"
+                || kind == "epub"
+                || matches!(
+                    kind.as_str(),
+                    "pdf-text" | "pdf-structure" | "pdf-overflow" | "pdf-loss"
+                ) {
                 ""
             } else {
                 "base"
@@ -112,7 +121,9 @@ pub fn make() -> Value {
     };
     let mut j =
         PreparedJob::begin(&o, spec, &JobPool::new(1).unwrap(), Box::new(NativePort), 0).unwrap();
-    let bs = if kind == "docx" {
+    let bs = if kind.starts_with("pdf-") {
+        super::pdf_fixture::blocks(&kind)
+    } else if kind == "docx" {
         let mut blocks = odt_fixture();
         blocks[0].runs[0].text = "DOCX 🙂 heading".into();
         blocks

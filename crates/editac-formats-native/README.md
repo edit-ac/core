@@ -182,3 +182,29 @@ Loss requires explicit approval. The existing native sandbox/resource runner
 denies ambient files, network and child processes, authenticates completion and
 keeps later edits separate from the captured revision. This consumer adds no
 reading-system UI, host-save, exact pagination, platform or release claim.
+
+### Optional native PDF publication export
+
+Build with `--release --features pdf-export` and call `runner.run_pdf_export` using the
+reviewed binary hash and a serialized initialized Session checkpoint request.
+Set `profile: "edit-ac-pdf-publication-v1"` and `fontSet: "noto-pinned-v1"`.
+Only this optional executable embeds the six exact OFL Noto font assets; no
+host-font lookup, document-selected font, or download is allowed. A missing or
+unknown font set returns `FORMAT_FONT_SET_UNAVAILABLE` with the source retained.
+
+The qualified bounded writer supports text, direct marks, headings/nested lists,
+v1 rectangular tables and authorized original PNG images. Supply original bytes
+only through explicit caller-approved `{host,key,bytes}` capabilities. The shared
+Session/AssetWork validates authority, identity, size, pixels and cancellation.
+Unsupported structures are diagnosed and refused even with loss approval when
+rendering is unavailable. All outcomes retain the exact `Result.original`
+checkpoint/approved-original envelope for host recovery. Keep it under host
+retention policy. No conversion completion acknowledges save or journal durability.
+
+The existing native sandbox denies ambient file/network/child authority and
+bounds wall time, Rust requested heap, output and sampled process RSS. The
+captured-revision artifact/report is authenticated and correlated before acceptance.
+Qualification covers independent generated-artifact text/Arabic glyph/copy/search,
+semantic tags and visual/layout negatives, complete first/repeat caller costs,
+notices and disabled graphs. PDF remains export-only. No PDF/UA, archival,
+reading-system/viewer UI, host wiring, platform or release qualification is added.

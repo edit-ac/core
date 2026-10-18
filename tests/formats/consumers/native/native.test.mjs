@@ -27,7 +27,9 @@ test('exact preflight packages local sources, notices and compiled production/pr
  for(const [path,pin]of Object.entries(p.noticePins))assert.equal(hash(path),pin);
  assert.equal(hash(resolve(output,'THIRD-PARTY-NOTICES.txt')),p.noticesSha256);
  assert.ok(p.dependencies.length>50);
- assert.ok(!p.dependencies.some(d=>/krilla|rustybuzz|image|reqwest/.test(d.name)));
+ assert.ok(!p.dependencies.some(d=>/reqwest/.test(d.name)));
+ if(process.env.EDITAC_NATIVE_PDF==='1')assert.ok(p.dependencies.some(d=>d.name==='krilla'));
+ else assert.ok(!p.dependencies.some(d=>/krilla|rustybuzz|image/.test(d.name)));
  assert.ok(p.dependencies.some(d=>d.name==='zip'));
  assert.ok(p.dependencies.some(d=>d.name==='docx-rs' && d.version==='0.4.22'));
  for(const b of Object.values(p.binaries))assert.equal(hash(b.path),b.sha256);
