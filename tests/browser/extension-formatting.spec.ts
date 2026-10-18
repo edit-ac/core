@@ -137,3 +137,88 @@ for(const version of [1,2])test(`v${version} rich LF cell retains marks metadata
  const copied=await clip(p,'copy');assert.deepEqual(JSON.parse(copied.data[mime]),{version,cells:[[cell]]});assert.equal(copied.data['text/plain'],'"é😀\nאב"');
  await history(p,'undo');assert.deepEqual((await state(p,f)).nodes,before.nodes);await history(p,'redo');await p.evaluate(()=>window.inputFixture.reopen());assert.deepEqual((await state(p,f)).nodes,after.nodes);
 },{tableTuple:version===1?fixture.tuple:v2}));
+
+for(const version of [1,2])for(const startedReadonly of [false,true])test(`v${version} canceled composition cannot commit after readonly returns (${startedReadonly?'readonly start':'revoked edit'})`,()=>probe(`v${version}-composition-${startedReadonly?'readonly-start':'revoked'}`,async(p,f)=>{
+ const before=await state(p,f);
+ await p.evaluate(startedReadonly=>{
+  const f=window.inputFixture,input=document.querySelector('textarea[data-row="1"][data-column="0"]');
+  input.focus();if(startedReadonly)f.surface.setReadOnly(true);
+  input.dispatchEvent(new CompositionEvent('compositionstart',{bubbles:true}));input.value='uncommitted 😀';
+  input.dispatchEvent(new InputEvent('input',{bubbles:true,isComposing:true,inputType:'insertCompositionText'}));
+  f.surface.setReadOnly(true);f.surface.setReadOnly(false);
+  input.value='late canceled 😀';input.dispatchEvent(new InputEvent('input',{bubbles:true,isComposing:true,inputType:'insertCompositionText'}));
+ },startedReadonly);
+ unchanged(before,await state(p,f));
+ const original=version===1?rows(before)[1][0].map(r=>r[0]).join(''):rows(before)[1][0].paragraphs[0].runs.map(r=>r[0]).join('');
+ assert.equal(await p.getByRole('textbox',{name:'Table row 2 column 1',exact:true}).inputValue(),original);
+ await p.evaluate(()=>{
+  const input=document.querySelector('textarea[data-row="1"][data-column="0"]');input.value='late final 😀';
+  input.dispatchEvent(new CompositionEvent('compositionend',{bubbles:true,data:'late final 😀'}));
+  input.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText'}));
+ });
+ const canceled=await state(p,f);unchanged(before,canceled);assert.equal(canceled.commands.length,before.commands.length);
+ assert.equal(await p.getByRole('textbox',{name:'Table row 2 column 1',exact:true}).inputValue(),original);
+ // A fresh native composition remains admitted after revocation is settled.
+ await p.evaluate(()=>{
+  const input=document.querySelector('textarea[data-row="1"][data-column="0"]');
+  input.dispatchEvent(new CompositionEvent('compositionstart',{bubbles:true}));input.value='fresh é😀';
+  input.dispatchEvent(new InputEvent('input',{bubbles:true,isComposing:true,inputType:'insertCompositionText'}));
+  input.dispatchEvent(new CompositionEvent('compositionend',{bubbles:true,data:'fresh é😀'}));
+ });
+ const after=await state(p,f);one(before,after);assert.equal(after.commands.length,before.commands.length+1);
+ const expected=structuredClone(tuple(before));if(version===1)expected[2].rows[1][0]=[['fresh é😀',rows(before)[1][0][0][1]]];else expected[2].rows[1][0].paragraphs[0].runs=[['fresh é😀',rows(before)[1][0].paragraphs[0].runs[0][1]]];
+ assert.deepEqual(tuple(after),expected);await history(p,'undo');assert.deepEqual((await state(p,f)).nodes,before.nodes);await history(p,'redo');await p.evaluate(()=>window.inputFixture.reopen());assert.deepEqual((await state(p,f)).nodes,after.nodes);
+},{tableTuple:version===1?fixture.tuple:v2}));
+
+for(const version of [1,2])test(`v${version} disposed formatting and composition controls have no late effects`,()=>probe(`v${version}-disposed-controls`,async(p,f)=>{
+ const before=await state(p,f);await choose(p,2,1);
+ await p.evaluate(()=>{
+  const input=document.querySelector('textarea[data-row="1"][data-column="0"]'),button=[...document.querySelectorAll('button')].find(b=>b.textContent==='Bold cells');
+  input.dispatchEvent(new CompositionEvent('compositionstart',{bubbles:true}));window.inputFixture.disposeSurface();
+  input.value='late detached text';input.dispatchEvent(new CompositionEvent('compositionend',{bubbles:true,data:input.value}));input.dispatchEvent(new InputEvent('input',{bubbles:true}));button.click();
+ });
+ const after=await state(p,f);unchanged(before,after);assert.equal(after.commands.length,before.commands.length);await p.evaluate(()=>window.inputFixture.reopen());assert.deepEqual((await state(p,f)).nodes,before.nodes);
+},{tableTuple:version===1?fixture.tuple:v2}));
+
+for(const reverse of [false,true])test(`directional rectangle survives formatting and rich paste (${reverse?'reverse':'forward'})`,()=>probe(`direction-${reverse?'reverse':'forward'}`,async(p,f)=>{
+ const before=await state(p,f);await choose(p,reverse?2:1,reverse?2:1);await choose(p,reverse?1:2,reverse?1:2,true);
+ await p.getByRole('button',{name:'Italic cells',exact:true}).click();const formatted=await state(p,f);one(before,formatted);
+ const copied=await clip(p,'copy');assert.deepEqual(JSON.parse(copied.data[mime]).cells,rows(formatted));
+ // Collapse one axis from the original focus. A normalized/reversed anchor
+ // would select the opposite row, despite painting the same original rectangle.
+ await section(p).press(reverse?'Shift+ArrowDown':'Shift+ArrowUp');
+ const selected=await p.locator('textarea').evaluateAll(inputs=>inputs.filter(i=>i.parentElement.hasAttribute('data-cell-selected')).map(i=>[Number(i.dataset.row),Number(i.dataset.column)]));
+ const row=reverse?1:0;assert.deepEqual(selected,[[row,0],[row,1]]);
+ const offer={[mime]:JSON.stringify({version:1,cells:[[[['one',[['bold']]]],[['two',[['link','https://example.test/']]]]]]}),'text/plain':'must not flatten'};
+ await clip(p,'paste',offer);const after=await state(p,f);one(formatted,after);const expected=structuredClone(tuple(formatted));expected[2].rows[row]=JSON.parse(offer[mime]).cells[0];assert.deepEqual(tuple(after),expected);
+ await section(p).press(reverse?'Shift+ArrowUp':'Shift+ArrowDown');assert.equal(await p.locator('[data-cell-selected]').count(),4);
+ await history(p,'undo');assert.deepEqual((await state(p,f)).nodes,formatted.nodes);await history(p,'redo');await p.evaluate(()=>window.inputFixture.reopen());assert.deepEqual((await state(p,f)).nodes,after.nodes);
+},{plainTable:true}));
+
+for(const version of [1,2])test(`v${version} canceled composition without native end permits fresh input and cell selection`,()=>probe(`v${version}-composition-missing-end`,async(p,f)=>{
+ const before=await state(p,f);
+ await p.evaluate(()=>{
+  const f=window.inputFixture,input=document.querySelector('textarea[data-row="1"][data-column="0"]');
+  input.dispatchEvent(new CompositionEvent('compositionstart',{bubbles:true}));f.surface.setReadOnly(true);f.surface.setReadOnly(false);
+ });
+ const input=p.getByRole('textbox',{name:'Table row 2 column 1',exact:true});await input.focus();await input.press('Alt+Enter');assert.equal(await p.locator('[data-cell-selected]').count(),1);unchanged(before,await state(p,f));
+ await input.fill('fresh input');
+ const after=await state(p,f);one(before,after);const expected=structuredClone(tuple(before));if(version===1)expected[2].rows[1][0]=[['fresh input',rows(before)[1][0][0][1]]];else expected[2].rows[1][0].paragraphs[0].runs=[['fresh input',rows(before)[1][0].paragraphs[0].runs[0][1]]];assert.deepEqual(tuple(after),expected);
+ await history(p,'undo');assert.deepEqual((await state(p,f)).nodes,before.nodes);await history(p,'redo');await p.evaluate(()=>window.inputFixture.reopen());assert.deepEqual((await state(p,f)).nodes,after.nodes);
+},{tableTuple:version===1?fixture.tuple:v2}));
+
+// Paragraph/mark combinations are covered above for both descriptor versions;
+// each admitted heading must preserve the same palette through rich transfer.
+for(let level=1;level<=6;level++)for(const [label,mark,tag] of [['Bold cells','bold','strong'],['Italic cells','italic','em'],['Underline cells','underline','u'],['Strike cells','strike','s'],['Code cells','code','code'],['Link cells','link','a']])test(`heading ${level} with ${mark}: exact rich clipboard, atomic history and reopen`,()=>probe(`heading-${level}-${mark}`,async(p,f)=>{
+ const before=await state(p,f);await choose(p,2,1);await p.getByRole('button',{name:`Heading ${level} cells`,exact:true}).click();const styled=await state(p,f);one(before,styled);
+ const expected=structuredClone(tuple(styled));assert.deepEqual(expected[2].rows[1][0].paragraphs[0].style,['heading',level]);
+ if(mark==='link')await p.getByRole('textbox',{name:'Table cell link',exact:true}).fill('https://EXAMPLE.test');
+ await p.getByRole('button',{name:label,exact:true}).click();const formatted=await state(p,f);one(styled,formatted);assert.equal(formatted.commands.length,styled.commands.length+1);
+ expected[2].rows[1][0].paragraphs[0].runs=rows(before)[1][0].map(run=>[run[0],[[mark,...(mark==='link'?['https://example.test/']:[])]]]);
+ assert.deepEqual(tuple(formatted),expected);assert.equal(await section(p).locator(`h${level} ${tag}`).textContent(),'alpha😀');
+ const copied=await clip(p,'copy');assert.deepEqual(JSON.parse(copied.data[mime]),{version:2,cells:[[expected[2].rows[1][0]]]});unchanged(formatted,await state(p,f));
+ await clip(p,'cut');const cut=await state(p,f);one(formatted,cut);await clip(p,'paste',copied.data);const pasted=await state(p,f);one(cut,pasted);assert.deepEqual(pasted.nodes,formatted.nodes);
+ await history(p,'undo');assert.deepEqual((await state(p,f)).nodes,cut.nodes);await history(p,'undo');assert.deepEqual((await state(p,f)).nodes,formatted.nodes);await history(p,'redo');await history(p,'redo');
+ assert.deepEqual((await p.evaluate(()=>window.inputFixture.typedRoundTrip())).nodes.find(n=>n.blockAttributes?.[0]==='module:editac.table').blockAttributes,expected);
+ await p.evaluate(()=>window.inputFixture.reopen());assert.deepEqual((await state(p,f)).nodes,formatted.nodes);
+},{plainTable:true}));
