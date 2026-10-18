@@ -71,7 +71,7 @@ final class NativeChangeReviewView: NSView {
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    func show(_ value: NativeChangeReviewPresentation, current: NativeChangeReviewScope) {
+    func show(_ value: NativeChangeReviewPresentation, current: NativeChangeReviewScope?) {
         guard !disposed else { return }
         presentation = value; currentScope = current; selectedChange = nil; ranges = []
         title.stringValue = "Read-only review: \(value.beforeLabel) → \(value.afterLabel)\n\(value.representation)\nDocument: \(value.scope.document); epoch: \(value.scope.epoch); schema: \(value.scope.schema); profile: \(value.scope.profile)\n\(value.attribution.label)\nBefore hash: \(value.beforeHash)\nAfter hash: \(value.afterHash)"
@@ -86,6 +86,11 @@ final class NativeChangeReviewView: NSView {
         refreshTextGeometry()
         textView.setSelectedRange(NSRange(location: 0, length: 0))
         updateStatus(); updateButtons()
+    }
+
+    func showIssue(_ message: String) {
+        guard !disposed else { return }
+        status.stringValue = message; status.setAccessibilityLabel(message)
     }
 
     func observeCurrentScope(_ value: NativeChangeReviewScope?) {
