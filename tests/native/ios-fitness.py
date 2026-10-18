@@ -152,7 +152,8 @@ def main():
         # Attach the actual private device to a foreground Simulator window.
         # Headless boot/UI service readiness alone does not observe host focus.
         run('simulator-ui-open',['open','-a','Simulator','--args','-CurrentDeviceUDID',simulator],timeout=30)
-        hostFocus = run('simulator-host-foreground',['xcrun','swift','-e','import AppKit; print(NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "unavailable")'],timeout=60).strip()
+        macSdk = run('host-sdk-path',['xcrun','--sdk','macosx','--show-sdk-path']).strip()
+        hostFocus = run('simulator-host-foreground',['xcrun','--sdk','macosx','swift','-sdk',macSdk,'-e','import AppKit; print(NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "unavailable")'],timeout=60).strip()
         assert hostFocus == 'com.apple.iphonesimulator', 'Private simulator host is not foreground: '+hostFocus
         record['simulatorHostForeground'] = hostFocus
         # Boot completion does not guarantee the install coordinator's XPC
