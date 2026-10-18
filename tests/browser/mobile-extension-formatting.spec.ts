@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
+import { reconcileTouch } from './mobile-extensions/touch-contract.mjs';
 import { browserHarness } from './browser-harness.ts';
 import { browserInputSources } from '../editing/browser-driver.ts';
 import { installExtensionCounters } from './mobile-extensions/resources.mjs';
@@ -21,6 +22,7 @@ const { probe, facts } = browserHarness('mobile-extension-formatting', 'fixtures
     await page.route('**/*',route=>{const url=route.request().url();if(new URL(url).origin!==new URL(fact.origin).origin){fact.unexpectedRequests.push(url);return route.abort();}return route.continue();});
     await page.addInitScript(installResourceCounters); await page.addInitScript(installExtensionCounters); },
   sourcePaths: [...browserInputSources, 'tests/browser/mobile-extension-formatting.spec.ts',
+    'tests/browser/mobile-extensions/touch-contract.mjs','tests/browser/mobile-extensions/touch-predicates.json','tests/browser/mobile-extensions/index.mjs','../architecture/tests/mobile-extension-cases.md','tests/manual/mobile-web-extensions.md',
     'scripts/test-browser.mjs','tests/browser/browser-harness.ts','tests/browser/fixture-server.mjs','tests/browser/editing-packed-cache.mjs','scripts/test-toolchain.mjs','scripts/build-wasm.mjs','scripts/build-extension-runtime.mjs','package-lock.json', 'fixtures/browser-mobile-extensions/session.mjs', 'fixtures/browser-mobile-extensions/index.html',
     'fixtures/rich-presenters/formatting/mixed-extensions.json', 'tests/mobile-web/resources.mjs',
     'tests/browser/mobile-extensions/resources.mjs', '../architecture/specs/rich-content-extensions.md',
@@ -30,7 +32,7 @@ const { probe, facts } = browserHarness('mobile-extension-formatting', 'fixtures
       'clipboard/fragment','clipboard/pending','clipboard/html','modules/tables/clipboard','modules/images/presenter','modules/attachments/presenter','modules/references/display','modules/math','modules/math-definition','modules/registry','extensions/math','extensions/assets','editor','surface','extensions/configuration','extensions/contract'].flatMap(n =>
       [`packages/web/src/${n}.ts`, `packages/web/dist/${n}.js`])],
 });
-facts.binding = { gate:'MTF-1.1/MTF-1.2', original:'MEX-1.9/MWX-1.9',
+facts.binding = { gate:'MTF-1.1/MTF-1.2/MTF-1.3', original:'MEX-1.9/MWX-1.9',
  semantics:'packed production BrowserEditor/shared Session/WASM/IndexedDB, deterministic content and touch events',
  platform:'desktop browser mobile viewport replay only; device/OS/native menu/IME/AT/performance/release remain open' };
 async function frame(page) { await page.evaluate(() => new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())))); }
@@ -355,3 +357,8 @@ test(`MTF-1.2 formatted paste into ${inline?'inline':'block'} code retains liter
  await history(p,'undo');assert.deepEqual((await state(p)).nodes,before.nodes);
  fact.snapshots.push({before,after});await finish(p,baseline,fact);
 }));
+
+// Runs after the portable cases, before harness teardown persists the receipt.
+test('MTF-1.3 reconciles every advertised portable path against original catalog IDs', () => {
+  facts.acceptance = reconcileTouch(facts);
+});
