@@ -1,0 +1,704 @@
+{
+  "version": 1,
+  "text": [
+    "Literal #read(\"/private/secret\") {no template evaluation}",
+    "Café preserves authored combining text",
+    "لا لَا العربية",
+    "longwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongwordlongword",
+    "Paragraph 00: exact independent multipage reading order.",
+    "Paragraph 01: exact independent multipage reading order.",
+    "Paragraph 02: exact independent multipage reading order.",
+    "Paragraph 03: exact independent multipage reading order.",
+    "Paragraph 04: exact independent multipage reading order.",
+    "Paragraph 05: exact independent multipage reading order.",
+    "Paragraph 06: exact independent multipage reading order.",
+    "Paragraph 07: exact independent multipage reading order.",
+    "Paragraph 08: exact independent multipage reading order.",
+    "Paragraph 09: exact independent multipage reading order.",
+    "Paragraph 10: exact independent multipage reading order.",
+    "Paragraph 11: exact independent multipage reading order.",
+    "Paragraph 12: exact independent multipage reading order.",
+    "Paragraph 13: exact independent multipage reading order.",
+    "Paragraph 14: exact independent multipage reading order.",
+    "Paragraph 15: exact independent multipage reading order.",
+    "Paragraph 16: exact independent multipage reading order.",
+    "Paragraph 17: exact independent multipage reading order.",
+    "Paragraph 18: exact independent multipage reading order.",
+    "Paragraph 19: exact independent multipage reading order.",
+    "Paragraph 20: exact independent multipage reading order.",
+    "Paragraph 21: exact independent multipage reading order.",
+    "Paragraph 22: exact independent multipage reading order.",
+    "Paragraph 23: exact independent multipage reading order.",
+    "Paragraph 24: exact independent multipage reading order.",
+    "Paragraph 25: exact independent multipage reading order.",
+    "Paragraph 26: exact independent multipage reading order.",
+    "Paragraph 27: exact independent multipage reading order.",
+    "Paragraph 28: exact independent multipage reading order.",
+    "Paragraph 29: exact independent multipage reading order.",
+    "Paragraph 30: exact independent multipage reading order.",
+    "Paragraph 31: exact independent multipage reading order.",
+    "Paragraph 32: exact independent multipage reading order.",
+    "Paragraph 33: exact independent multipage reading order.",
+    "Paragraph 34: exact independent multipage reading order.",
+    "Paragraph 35: exact independent multipage reading order.",
+    "Paragraph 36: exact independent multipage reading order.",
+    "Paragraph 37: exact independent multipage reading order.",
+    "Paragraph 38: exact independent multipage reading order.",
+    "Paragraph 39: exact independent multipage reading order.",
+    "Paragraph 40: exact independent multipage reading order.",
+    "Paragraph 41: exact independent multipage reading order.",
+    "Paragraph 42: exact independent multipage reading order.",
+    "Paragraph 43: exact independent multipage reading order.",
+    "Paragraph 44: exact independent multipage reading order."
+  ],
+  "richBlocks": [
+    {
+      "runs": [
+        {
+          "text": "Captured publication",
+          "marks": [
+            {
+              "mark": "bold"
+            }
+          ]
+        }
+      ],
+      "attributes": {
+        "type": "heading",
+        "level": 1
+      }
+    },
+    {
+      "runs": [
+        {
+          "text": "Regular ",
+          "marks": []
+        },
+        {
+          "text": "bold ",
+          "marks": [
+            {
+              "mark": "bold"
+            }
+          ]
+        },
+        {
+          "text": "italic ",
+          "marks": [
+            {
+              "mark": "italic"
+            }
+          ]
+        },
+        {
+          "text": "both ",
+          "marks": [
+            {
+              "mark": "bold"
+            },
+            {
+              "mark": "italic"
+            }
+          ]
+        },
+        {
+          "text": "underlined ",
+          "marks": [
+            {
+              "mark": "underline"
+            }
+          ]
+        },
+        {
+          "text": "struck ",
+          "marks": [
+            {
+              "mark": "strike"
+            }
+          ]
+        },
+        {
+          "text": "literal {code} \\ path",
+          "marks": [
+            {
+              "mark": "code"
+            }
+          ]
+        }
+      ],
+      "attributes": null
+    },
+    {
+      "runs": [
+        {
+          "text": "Safe link read more read more read more read more read more read more read more read more read more read more read more read more read more read more read more read more read more read more read more read more ",
+          "marks": [
+            {
+              "mark": "link",
+              "href": "https://example.test/a?x=1&y=2"
+            }
+          ]
+        }
+      ],
+      "attributes": null
+    },
+    {
+      "runs": [
+        {
+          "text": "Three: parent",
+          "marks": []
+        }
+      ],
+      "attributes": null,
+      "containers": [
+        {
+          "key": "ordered-main",
+          "style": {
+            "type": "ordered",
+            "start": 3
+          }
+        }
+      ]
+    },
+    {
+      "runs": [
+        {
+          "text": "Nested bullet: wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely wrap safely ",
+          "marks": [
+            {
+              "mark": "italic"
+            }
+          ]
+        }
+      ],
+      "attributes": null,
+      "containers": [
+        {
+          "key": "ordered-main",
+          "style": {
+            "type": "ordered",
+            "start": 3
+          }
+        },
+        {
+          "key": "bullet-child",
+          "style": {
+            "type": "unordered"
+          }
+        }
+      ]
+    },
+    {
+      "runs": [
+        {
+          "text": "Four: parent resumes after child",
+          "marks": [
+            {
+              "mark": "bold"
+            }
+          ]
+        }
+      ],
+      "attributes": null,
+      "containers": [
+        {
+          "key": "ordered-main",
+          "style": {
+            "type": "ordered",
+            "start": 3
+          }
+        }
+      ]
+    },
+    {
+      "runs": [
+        {
+          "text": "Ten: independent restart",
+          "marks": []
+        }
+      ],
+      "attributes": null,
+      "containers": [
+        {
+          "key": "ordered-new",
+          "style": {
+            "type": "ordered",
+            "start": 10
+          }
+        }
+      ]
+    },
+    {
+      "runs": [
+        {
+          "text": "Second section",
+          "marks": []
+        }
+      ],
+      "attributes": {
+        "type": "heading",
+        "level": 2
+      }
+    },
+    {
+      "runs": [
+        {
+          "text": "Café stays exact; <script>literal()</script>",
+          "marks": [
+            {
+              "mark": "underline"
+            },
+            {
+              "mark": "strike"
+            }
+          ]
+        }
+      ],
+      "attributes": null
+    },
+    {
+      "runs": [
+        {
+          "text": "Contact",
+          "marks": [
+            {
+              "mark": "link",
+              "href": "mailto:reader@example.test"
+            }
+          ]
+        },
+        {
+          "text": "base",
+          "marks": []
+        }
+      ],
+      "attributes": null
+    }
+  ],
+  "structure": {
+    "descriptor": {
+      "identity": {
+        "host": "fixture-host",
+        "key": "pdf-panels"
+      },
+      "kind": "image",
+      "metadata": {
+        "filename": "panels.png",
+        "mediaType": "image/png",
+        "byteLength": 189,
+        "sha256": "6ee86b55e158ad85277094955332cbf7310629ed5e0e9db85c6086c3a8a07b5a",
+        "width": 120,
+        "height": 60,
+        "durationMs": null,
+        "alt": "Red, green and blue vertical panels",
+        "caption": "Original authorized color panels"
+      },
+      "fallback": "[original color panels]",
+      "source": "inert original image source"
+    },
+    "pixel": [
+      137,
+      80,
+      78,
+      71,
+      13,
+      10,
+      26,
+      10,
+      0,
+      0,
+      0,
+      13,
+      73,
+      72,
+      68,
+      82,
+      0,
+      0,
+      0,
+      120,
+      0,
+      0,
+      0,
+      60,
+      8,
+      2,
+      0,
+      0,
+      0,
+      34,
+      207,
+      233,
+      255,
+      0,
+      0,
+      0,
+      132,
+      73,
+      68,
+      65,
+      84,
+      120,
+      218,
+      237,
+      208,
+      65,
+      13,
+      0,
+      48,
+      8,
+      4,
+      48,
+      164,
+      156,
+      20,
+      228,
+      79,
+      14,
+      18,
+      38,
+      3,
+      30,
+      77,
+      170,
+      160,
+      53,
+      201,
+      138,
+      188,
+      222,
+      209,
+      179,
+      162,
+      68,
+      139,
+      22,
+      45,
+      90,
+      180,
+      104,
+      209,
+      162,
+      69,
+      139,
+      22,
+      45,
+      90,
+      180,
+      104,
+      209,
+      162,
+      69,
+      139,
+      22,
+      45,
+      90,
+      180,
+      104,
+      209,
+      162,
+      69,
+      139,
+      22,
+      45,
+      90,
+      180,
+      104,
+      209,
+      162,
+      69,
+      139,
+      22,
+      45,
+      90,
+      180,
+      104,
+      209,
+      162,
+      69,
+      139,
+      22,
+      45,
+      90,
+      180,
+      104,
+      209,
+      162,
+      69,
+      139,
+      22,
+      45,
+      90,
+      180,
+      104,
+      209,
+      162,
+      69,
+      139,
+      22,
+      45,
+      90,
+      180,
+      104,
+      209,
+      162,
+      69,
+      139,
+      22,
+      45,
+      90,
+      180,
+      104,
+      209,
+      162,
+      69,
+      139,
+      22,
+      45,
+      90,
+      180,
+      104,
+      209,
+      162,
+      69,
+      139,
+      190,
+      21,
+      253,
+      1,
+      30,
+      173,
+      72,
+      255,
+      19,
+      82,
+      74,
+      202,
+      0,
+      0,
+      0,
+      0,
+      73,
+      69,
+      78,
+      68,
+      174,
+      66,
+      96,
+      130
+    ],
+    "blocks": [
+      {
+        "runs": [
+          {
+            "text": "Before table",
+            "marks": []
+          }
+        ],
+        "attributes": null
+      },
+      {
+        "runs": [
+          {
+            "text": "",
+            "marks": []
+          }
+        ],
+        "attributes": {
+          "type": "content",
+          "tuple": [
+            "module:editac.table",
+            1,
+            {
+              "rows": [
+                [
+                  [
+                    [
+                      "Item",
+                      [
+                        [
+                          "bold"
+                        ]
+                      ]
+                    ]
+                  ],
+                  [
+                    [
+                      "Publication note",
+                      [
+                        [
+                          "bold"
+                        ]
+                      ]
+                    ]
+                  ]
+                ],
+                [
+                  [
+                    [
+                      "Row 1",
+                      []
+                    ]
+                  ],
+                  [
+                    [
+                      "Café bounded publication with exact cell order. Café bounded publication with exact cell order. Café bounded publication with exact cell order. ",
+                      []
+                    ]
+                  ]
+                ],
+                [
+                  [
+                    [
+                      "Row 2",
+                      []
+                    ]
+                  ],
+                  [
+                    [
+                      "Café bounded publication with exact cell order. Café bounded publication with exact cell order. Café bounded publication with exact cell order. ",
+                      []
+                    ]
+                  ]
+                ],
+                [
+                  [
+                    [
+                      "Row 3",
+                      []
+                    ]
+                  ],
+                  [
+                    [
+                      "لا لَا العربية",
+                      []
+                    ]
+                  ]
+                ],
+                [
+                  [
+                    [
+                      "Row 4",
+                      []
+                    ]
+                  ],
+                  [
+                    [
+                      "Café bounded publication with exact cell order. Café bounded publication with exact cell order. Café bounded publication with exact cell order. ",
+                      []
+                    ]
+                  ]
+                ],
+                [
+                  [
+                    [
+                      "Row 5",
+                      []
+                    ]
+                  ],
+                  [
+                    [
+                      "Café bounded publication with exact cell order. Café bounded publication with exact cell order. Café bounded publication with exact cell order. ",
+                      []
+                    ]
+                  ]
+                ],
+                [
+                  [
+                    [
+                      "Row 6",
+                      []
+                    ]
+                  ],
+                  [
+                    [
+                      "Café bounded publication with exact cell order. Café bounded publication with exact cell order. Café bounded publication with exact cell order. ",
+                      []
+                    ]
+                  ]
+                ],
+                [
+                  [
+                    [
+                      "Row 7",
+                      []
+                    ]
+                  ],
+                  [
+                    [
+                      "Café bounded publication with exact cell order. Café bounded publication with exact cell order. Café bounded publication with exact cell order. ",
+                      []
+                    ]
+                  ]
+                ],
+                [
+                  [
+                    [
+                      "Row 8",
+                      []
+                    ]
+                  ],
+                  [
+                    [
+                      "Café bounded publication with exact cell order. Café bounded publication with exact cell order. Café bounded publication with exact cell order. ",
+                      []
+                    ]
+                  ]
+                ]
+              ],
+              "alignments": [
+                "left",
+                "center"
+              ],
+              "source": "inert table source"
+            }
+          ]
+        }
+      },
+      {
+        "runs": [
+          {
+            "text": "[original color panels]",
+            "marks": []
+          }
+        ],
+        "attributes": {
+          "type": "content",
+          "tuple": [
+            "module:editac.asset",
+            1,
+            {
+              "identity": {
+                "host": "fixture-host",
+                "key": "pdf-panels"
+              },
+              "kind": "image",
+              "metadata": {
+                "filename": "panels.png",
+                "mediaType": "image/png",
+                "byteLength": 189,
+                "sha256": "6ee86b55e158ad85277094955332cbf7310629ed5e0e9db85c6086c3a8a07b5a",
+                "width": 120,
+                "height": 60,
+                "durationMs": null,
+                "alt": "Red, green and blue vertical panels",
+                "caption": "Original authorized color panels"
+              },
+              "fallback": "[original color panels]",
+              "source": "inert original image source"
+            }
+          ]
+        }
+      },
+      {
+        "runs": [
+          {
+            "text": "After original image",
+            "marks": []
+          }
+        ],
+        "attributes": null
+      }
+    ]
+  }
+}
