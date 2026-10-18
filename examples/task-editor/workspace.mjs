@@ -24,7 +24,7 @@ const actions = [
   {id:'image',label:'Local image',prepare:()=>({type:'fragment',blocks:[content(['module:editac.asset',1,{identity:{host:'product-local',key:'pixel'},kind:'image',metadata:{alt:'Local sample pixel',caption:'',filename:'pixel.png',mediaType:'image/png',byteLength:imageBytes.length,sha256:expectedImageHash,width:2,height:2,durationMs:null},fallback:'Local sample pixel',source:'Local verified pixel'}],'Local sample pixel')]})},
 ];
 
-export async function mountWorkspaceEditor(name, {root, status, creation, readOnly=false, onSave=()=>{}, onError=()=>{}, onHistory=()=>{}}) {
+export async function mountWorkspaceEditor(name, {root, status, creation, readOnly=false, recovery=[], onSave=()=>{}, onError=()=>{}, onHistory=()=>{}}) {
   const permission = permissions[name];
   if (!permission) throw Error('Unknown workspace profile');
   const options = await localOptions(name, undefined, creation);
@@ -49,8 +49,8 @@ export async function mountWorkspaceEditor(name, {root, status, creation, readOn
   try {await editor.ready;} catch(error) {report(error);unsubscribe();await editor.destroy({policy:'report'});throw error;}
   const historyListener = event => {if(event.key.toLowerCase()==='z'&&(event.metaKey||event.ctrlKey)){events.history.push(event.shiftKey?'redo':'undo');onHistory(events.history.at(-1));}};
   root.addEventListener('keydown',historyListener);
-  return {editor, options, permission, events,
+  return {editor, options, permission, events, recovery,
     async save(){try {await editor.flush({target:'local'});const receipt={documentId:options.identity.documentId,localCommitted:editor.state.localCommitted};events.save.push(receipt);onSave(receipt);return receipt;}catch(error){report(error);throw error;}},
-    async close(){if(closed)return;closed=true;unsubscribe();root.removeEventListener('keydown',historyListener);let result;try{result=await editor.destroy({policy:'flush'});}catch(error){report(error);result=await editor.destroy({policy:'report'});}finally{if(imageURL)URL.revokeObjectURL(imageURL);}return result;},
+    async close(){if(closed)return;closed=true;unsubscribe();root.removeEventListener('keydown',historyListener);let result;try{result=await editor.destroy({policy:'flush'});}catch(error){report(error);result=await editor.destroy({policy:'report'});}finally{if(imageURL)URL.revokeObjectURL(imageURL);}if(result.unsaved)recovery.push(result);return result;},
   };
 }
