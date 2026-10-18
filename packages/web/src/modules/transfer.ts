@@ -1,6 +1,6 @@
 import type { EngineHandle } from '@edit-ac/core';
 import { EXTENSION_TRANSFER_MIME, importExtensionTransfer, type ExtensionTransferRegistry } from '@edit-ac/core/extensions';
-import type { ClipboardCodec } from '../clipboard/fragment.js';
+import { FRAGMENT_MIME, encodeContentFragment, type ClipboardCodec } from '../clipboard/fragment.js';
 import type { ContentFactory, ContentContext } from './content.js';
 import { inlineTags } from '../dom/marks.js';
 import { safeLink } from '../dom/links.js';
@@ -47,10 +47,17 @@ export const extensionSourcePresenter: ContentFactory = context => {
   element.append(status, input);
   const events = ['keydown','keyup','beforeinput','input','compositionstart','compositionupdate','compositionend','copy','cut','paste','pointerdown','pointerup'];
   const stop = (event: Event) => event.stopPropagation();
-  const copy = (event: Event) => { const e = event as ClipboardEvent; if (e.clipboardData) { e.clipboardData.setData('text/plain', input.value.slice(input.selectionStart, input.selectionEnd)); e.preventDefault(); } };
+  const copy = (event: Event) => {
+    const e = event as ClipboardEvent; if (!e.clipboardData) return;
+    const sourceSelection = event.target === input;
+    e.clipboardData.setData('text/plain', sourceSelection ? input.value.slice(input.selectionStart, input.selectionEnd) : input.value);
+    if (!sourceSelection) try { e.clipboardData.setData(FRAGMENT_MIME, encodeContentFragment(context.engine, current)); }
+    catch { /* Unsupported/oversized atoms retain their explicit original source. */ }
+    e.preventDefault();
+  };
   for (const event of events) element.addEventListener(event, stop);
-  input.addEventListener('copy', copy);
-  let disposed = false;
-  return { element, update(node) { const value = sourceOf(node); if (disposed || value === undefined) return false; input.value = value; return true; },
-    setReadOnly() { input.readOnly = true; }, dispose() { if (disposed) return; disposed = true; for (const event of events) element.removeEventListener(event, stop); input.removeEventListener('copy', copy); } };
+  element.addEventListener('copy', copy);
+  let disposed = false, current = context.node;
+  return { element, update(node) { const value = sourceOf(node); if (disposed || value === undefined) return false; current = node; input.value = value; return true; },
+    setReadOnly() { input.readOnly = true; }, dispose() { if (disposed) return; disposed = true; for (const event of events) element.removeEventListener(event, stop); element.removeEventListener('copy', copy); } };
 };

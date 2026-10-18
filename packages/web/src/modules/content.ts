@@ -112,6 +112,7 @@ class BasicContentView implements ContentView {
   private readonly controls: HTMLTextAreaElement[] = [];
   private readonly previews: HTMLElement[] = [];
   private readonly listeners: [EventTarget,string,EventListener][] = [];
+  // A null entry retains a revoked native composition until its end or a fresh edit.
   private readonly compositions = new Map<HTMLTextAreaElement, Json>();
   private readonly status: HTMLElement;
   private image: HTMLImageElement | undefined;
@@ -205,10 +206,23 @@ class BasicContentView implements ContentView {
         const preview=doc.createElement('div'); this.previews.push(preview); td.append(preview);
         const input=doc.createElement('textarea'); input.rows=1; input.setAttribute('aria-label',`Table row ${r+1} column ${c+1}`); input.dataset.row=String(r); input.dataset.column=String(c); this.controls.push(input); td.append(input);
         this.listen(input,'focus',()=>this.leaveCells());
-        this.listen(input,'compositionstart',()=>{this.compositions.set(input,this.node.blockAttributes);});
-        this.listen(input,'compositionend',()=>{const expected=this.compositions.get(input);this.compositions.delete(input);this.edit(input,expected);});
-        this.listen(input,'input',event=>{if(!(event as InputEvent).isComposing&&!this.compositions.has(input))this.edit(input);});
-        this.listen(input,'keydown',event=>{const e=event as KeyboardEvent;if(e.defaultPrevented)return;if(e.isComposing||this.compositions.has(input)){this.focusEscape=false;return;}
+        this.listen(input,'beforeinput',event=>{
+          const e=event as InputEvent;
+          if(this.compositions.get(input)===null&&!e.isComposing&&!/Composition/u.test(e.inputType))this.compositions.delete(input);
+        });
+        this.listen(input,'compositionstart',()=>{this.compositions.set(input,this.readOnly?null:this.node.blockAttributes);});
+        this.listen(input,'compositionend',()=>{
+          const expected=this.compositions.get(input);this.compositions.delete(input);
+          // Readonly revokes the captured edit even if permission returns before
+          // the native control sends its final composition/input events.
+          if(expected==null){this.update(this.node);return;}
+          this.edit(input,expected);
+        });
+        this.listen(input,'input',event=>{
+          if(this.compositions.get(input)===null){this.update(this.node);return;}
+          if(!(event as InputEvent).isComposing&&!this.compositions.has(input))this.edit(input);
+        });
+        this.listen(input,'keydown',event=>{const e=event as KeyboardEvent;if(e.defaultPrevented)return;if(e.isComposing||this.compositions.get(input)!=null){this.focusEscape=false;return;}
           if(this.tableKey(e,input))return;
           if(e.altKey&&!e.ctrlKey&&!e.metaKey&&e.key==='Enter'){e.preventDefault();this.selectCells(r,c,false);return;}
           this.tableHistory(e);
@@ -237,7 +251,7 @@ class BasicContentView implements ContentView {
     }else data.rows.forEach((row,r)=>row.forEach((runs,c)=>{
       const at=r*data.alignments.length+c,input=this.controls[at]!,preview=this.previews[at]!;
       const blocks=data.cells?.[r]?.[c]?.paragraphs ?? [{style:['paragraph'],runs}];
-      const value=blocks.map(block=>cellText(block.runs)).join('\n'); if(!this.compositions.has(input)&&input.value!==value){const start=input.selectionStart,end=input.selectionEnd;input.value=value;input.setSelectionRange(Math.min(start,value.length),Math.min(end,value.length));}
+      const value=blocks.map(block=>cellText(block.runs)).join('\n'); if(this.compositions.get(input)==null&&input.value!==value){const start=input.selectionStart,end=input.selectionEnd;input.value=value;input.setSelectionRange(Math.min(start,value.length),Math.min(end,value.length));}
       const cell=this.cellElements[at]!;
       // Header changes may replace the cell tag without replacing its native control.
       const header=data.cells?.[r]?.[c]?.header ?? r===0;
@@ -264,7 +278,7 @@ class BasicContentView implements ContentView {
   }
   private policy(): readonly (readonly [number,number])[] { return this.protectedCells?.(this.node) ?? []; }
   private formatSource(): void {
-    if(this.disposed||this.readOnly||this.compositions.size||!this.tableSource)return;
+    if(this.disposed||this.readOnly||[...this.compositions.values()].some(value=>value!==null)||!this.tableSource)return;
     let baseline: SourceBaseline | undefined, plan: PlanToken | undefined;
     const selected=this.cells, first=this.firstCell, focus=this.focusCell;
     try {
@@ -284,7 +298,7 @@ class BasicContentView implements ContentView {
   }
   private selectedInput(): HTMLTextAreaElement | undefined {const s=this.cells,data=this.descriptor;return s&&'rows' in data?this.controls[s.row*data.alignments.length+s.column]:undefined;}
   private selectCells(row:number,column:number,extend:boolean):void {
-    if(this.disposed||this.compositions.size)return;
+    if(this.disposed||[...this.compositions.values()].some(value=>value!==null))return;
     const data=this.descriptor;if(!data||!('rows'in data)||!Number.isInteger(row)||!Number.isInteger(column)||row<0||column<0||row>=data.rows.length||column>=data.alignments.length)return;
     const first=extend&&this.firstCell?this.firstCell:{row,column};
     const rows=Math.abs(first.row-row)+1,columns=Math.abs(first.column-column)+1;
@@ -416,6 +430,6 @@ class BasicContentView implements ContentView {
       if(result.caret)this.context.engine.releaseAnchor(result.caret);this.status.textContent='Cell updated.';
     }catch{this.status.textContent='Cell edit rejected; current data preserved.';if(node)this.update(node);}
   }
-  setReadOnly(value: boolean): void {this.readOnly=value;if(value){this.compositions.clear();const data=this.descriptor;if(data&&'rows' in data)for(const input of this.controls){const r=Number(input.dataset.row),c=Number(input.dataset.column);const text=data.cells?.[r]?.[c]?.paragraphs.map(block=>cellText(block.runs)).join('\n')??cellText(data.rows[r]![c]!);if(input.value!==text)input.value=text;}}for(const input of this.controls){const readOnly=value||this.kind==='image'||input.dataset.multiblock==='true';if(input.readOnly!==readOnly)input.readOnly=readOnly;}if(this.sourceAction)this.sourceAction.disabled=value||!this.tableSource||(!Array.isArray(this.node.blockAttributes)||this.node.blockAttributes[1]!==1);this.paintCells();}
+  setReadOnly(value: boolean): void {this.readOnly=value;if(value){for(const input of this.compositions.keys())this.compositions.set(input,null);const data=this.descriptor;if(data&&'rows' in data)for(const input of this.controls){const r=Number(input.dataset.row),c=Number(input.dataset.column);const text=data.cells?.[r]?.[c]?.paragraphs.map(block=>cellText(block.runs)).join('\n')??cellText(data.rows[r]![c]!);if(input.value!==text)input.value=text;}}for(const input of this.controls){const readOnly=value||this.kind==='image'||input.dataset.multiblock==='true';if(input.readOnly!==readOnly)input.readOnly=readOnly;}if(this.sourceAction)this.sourceAction.disabled=value||!this.tableSource||(!Array.isArray(this.node.blockAttributes)||this.node.blockAttributes[1]!==1);this.paintCells();}
   dispose(): void {if(this.disposed)return;this.disposed=true;for(const [target,type,listener]of this.listeners)target.removeEventListener(type,listener);this.compositions.clear();this.cellContentKeys.length=0;this.cellElements.length=0;this.descriptorKey=undefined;for(const input of this.controls)input.readOnly=true;this.image?.removeAttribute('src');}
 }

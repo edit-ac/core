@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {registerImportLifecycleTests} from './import-lifecycle.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync,writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
@@ -136,3 +137,5 @@ mediaTest('EPUB active XHTML and unsupported navigation stay inert with complete
  const rows=await page.evaluate(async()=>{const rows=[];for(const name of ['active','navigation']){const f=await mediaSetup(),source=Uint8Array.from(name==='active'?mediaInput.lossSource:mediaInput.fixtures.navigation),before=f.snapshot(),p=await f.prepare({source});const unchanged=JSON.stringify(before)===JSON.stringify(f.snapshot());await p.commitAssets(f.owner,f.job,f.host,f.sourceGrant);rows.push({name,unchanged,diagnostics:p.diagnostics,visible:text(f.engine),original:Array.from(p.original),calls:f.calls});await f.close();}return rows;});
  for(const r of rows){assert.ok(r.unchanged);assert.ok(r.diagnostics.every(d=>d.lossy&&d.action&&d.location));assert.ok(!r.visible.includes('forbidden script'));assert.ok(!r.visible.includes('private'));assert.ok(r.visible.includes('First 🙂'));assert.ok(r.visible.includes('Second'));if(r.name==='active'){assert.ok(r.diagnostics.some(d=>d.code==='UNSUPPORTED_XHTML_CONTENT_INERT'));assert.ok(r.diagnostics.some(d=>d.code==='REMOTE_OR_UNSUPPORTED_IMAGE_INERT'));assert.deepEqual(r.original,lossSource);}else{assert.ok(r.diagnostics.some(d=>d.code==='UNSUPPORTED_NAVIGATION_TARGET'));assert.deepEqual(r.original,fixtures.navigation);}}return rows;
 });
+
+registerImportLifecycleTests(mediaTest,source);

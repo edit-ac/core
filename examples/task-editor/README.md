@@ -24,6 +24,8 @@ inputs, toolchain and every pack hash, then installs and bundles a fresh site.
 `prepared.json`; all recorded source, package and served-file hashes are checked.
 A prepared site is build evidence, never a passing browser result.
 
+The internal [web feature ledger](FEATURES.md) maps public APIs to exact owner proofs and records remaining source/coverage gaps. It is maintained separately from the product checkpoint.
+
 ## Product walkthrough
 
 1. Open the printed Task/comment URL. Edit task text; use Editing commands for
