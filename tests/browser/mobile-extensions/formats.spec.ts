@@ -534,3 +534,39 @@ test('MFA-1.3 cancellation terminates an actual public worker during its blocked
   assert.deepEqual((await transport(page)).calls,[]);await finish(page,baseline,fact);
  } finally {release();}
 }));
+
+for (const width of [260, 195]) test(`WEX-2.2 narrow ${width}px file controls keep recovery reachable`, () => probe(`WEX-2.2-narrow-${width}`, async (page, fact) => {
+ const baseline = await mount(page, {text:'alpha 😀'}), before = await state(page);
+ await page.setViewportSize({width,height:740});
+ await page.evaluate(width => {
+   (window as any).mobileGeometry = {visual:{left:0,top:0,width,height:740},scale:1};
+   (window as any).editor.viewport.invalidate();
+ }, width);
+ await open(page); await frames(page);
+ // Native option/file-input sizing must not push the fallback fields outside.
+ await page.evaluate(() => {
+   const c=(window as any).formats;
+   c.exportFormat.options[0].textContent='Export profile '+ 'long-profile-'.repeat(40);
+   c.filename.value='long-filename-'.repeat(18)+'.txt';
+ });
+ fact.geometry = await ui(page).evaluate(e => {
+   const panel=(window as any).formats.panel, r=panel.getBoundingClientRect();
+   return {left:r.left,right:r.right,width:r.width,client:panel.clientWidth,scroll:panel.scrollWidth,
+     fields:[...panel.querySelectorAll('input,select,textarea,button')].filter((f:HTMLElement)=>!f.hidden).map((f:HTMLElement)=>{
+       const b=f.getBoundingClientRect(); return {name:f.getAttribute('aria-label')??f.textContent,left:b.left,right:b.right,width:b.width,height:b.height};
+     })};
+ });
+ assert.ok(fact.geometry.left>=-1 && fact.geometry.right<=width+1, JSON.stringify(fact.geometry));
+ assert.ok(fact.geometry.scroll<=fact.geometry.client+1, JSON.stringify(fact.geometry));
+ for(const f of fact.geometry.fields) {
+   assert.ok(f.left>=fact.geometry.left-1 && f.right<=fact.geometry.right+1, JSON.stringify(f));
+   assert.ok(f.width>=43.99 && f.height>=43.99, JSON.stringify(f));
+ }
+ await prepare(page); const output=await artifact(page);
+ await button(page,'Copy output').tap(); assert.match(await status(page).innerText(),/Output retained/);
+ await button(page,'Select output for manual copy').focus(); await page.keyboard.press('Enter');
+ assert.deepEqual(await page.evaluate(()=>{const e=(window as any).formats.output;return [e===document.activeElement,e.selectionStart,e.selectionEnd,e.value];}),[true,0,output.text.length,output.text]);
+ const after=await state(page);
+ for(const key of ['nodes','history','patches','journal'])assert.deepEqual(after[key],before[key],key);
+ assert.deepEqual(await artifact(page),output); await finish(page,baseline,fact);
+}));

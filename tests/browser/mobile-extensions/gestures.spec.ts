@@ -183,7 +183,7 @@ for(const profile of ['image','table'])test(`MWX-C14 ${profile} advertises no un
   const baseline=await mount(page,{gestureAudit:true,...(profile==='table'?{table:true}:{asset,contentHost:'absent'})});
   const before=await snapshot(page),selector=profile==='table'?'[data-content-module="table"]':'[data-content-module="image"]';
   const labels=await page.locator(`${selector} button`).allTextContents();
-  const expected=profile==='table'?commandProfiles.find(p=>p.id==='table').commands.concat(commandProfiles.find(p=>p.id==='table').derivedControls):['Load image'];
+  const expected=profile==='table'?commandProfiles.find(p=>p.id==='table').commands.concat(commandProfiles.find(p=>p.id==='table').derivedControls):['Load image','Cancel image load'];
   assert.deepEqual([...labels].sort(),[...expected].sort(),'exact advertised action inventory');
   assert.ok(labels.every(label=>!/resize|width|height|size preset/i.test(label)));
   assert.equal(await page.locator(`${selector} [data-resize-handle]`).count(),0);
