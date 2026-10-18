@@ -1,0 +1,223 @@
+{
+  "schemaVersion": 1,
+  "gate": "MEX-1.6",
+  "projection": "MFA-1.4",
+  "scope": "portable production-browser mechanics",
+  "platform": "pending-original-MWX-1.8",
+  "predicates": [
+    {
+      "id": "MWX-C21/preview-confirm-history",
+      "catalogId": "MWX-C21",
+      "expected": "Preview is nonmutating; confirmation uses one history group",
+      "cases": [
+        "MWX-C21-text",
+        "MWX-C21-markdown",
+        "MFA-1.2-media-adoption"
+      ]
+    },
+    {
+      "id": "MWX-C21/picker-fallback",
+      "catalogId": "MWX-C21",
+      "expected": "Absent, denied, canceled and late picker preserve explicit file input",
+      "cases": [
+        "MWX-C21-picker-absent",
+        "MWX-C21-picker-denied",
+        "MWX-C21-picker-canceled",
+        "MWX-C21-picker-success",
+        "MWX-C21-picker-late"
+      ]
+    },
+    {
+      "id": "MWX-C21/bounds-cancel",
+      "catalogId": "MWX-C21",
+      "expected": "Over-limit and canceled preparation preserve document and source",
+      "cases": [
+        "MWX-C21-limit-cancel",
+        "MFA-1.2-ingest-cancel",
+        "MFA-1.2-ingest-background",
+        "MFA-1.2-ingest-dispose"
+      ]
+    },
+    {
+      "id": "MWX-C21/original-authority",
+      "catalogId": "MWX-C21",
+      "expected": "Only approved exact originals are adopted atomically",
+      "cases": [
+        "MFA-1.2-media-adoption",
+        "MFA-1.2-media-denied",
+        "MFA-1.2-media-bad-hash"
+      ]
+    },
+    {
+      "id": "MWX-C21/captured-target",
+      "catalogId": "MWX-C21",
+      "expected": "Captured anchors, revision and editor identity fence delayed confirmation",
+      "cases": [
+        "MWX-C21-retained-selection",
+        "MFA-1.2-review-cancel",
+        "MFA-1.2-review-background",
+        "MFA-1.2-review-pagehide",
+        "MFA-1.2-review-readonly",
+        "MFA-1.2-review-stale",
+        "MFA-1.2-review-second-editor"
+      ]
+    },
+    {
+      "id": "MWX-C22/exact-text",
+      "catalogId": "MWX-C22",
+      "expected": "Text and Markdown preserve bytes, filename and media type",
+      "cases": [
+        "MWX-C22-text",
+        "MWX-C22-markdown",
+        "MWX-C22-download"
+      ]
+    },
+    {
+      "id": "MWX-C22/qualified-binary",
+      "catalogId": "MWX-C22",
+      "expected": "Qualified binary exports retain exact bytes through browser download",
+      "cases": [
+        "MFA-1.1-worker-export-rtf",
+        "MFA-1.1-worker-export-docx",
+        "MFA-1.1-worker-export-odt",
+        "MFA-1.1-worker-export-epub",
+        "MFA-1.1-worker-export-pdf"
+      ]
+    },
+    {
+      "id": "MWX-C22/save-fallback",
+      "catalogId": "MWX-C22",
+      "expected": "Absent, denied, canceled or failed save retains output and recovery",
+      "cases": [
+        "MWX-C22-save-absent",
+        "MWX-C22-save-denied",
+        "MWX-C22-save-canceled",
+        "MWX-C22-save-write-failure",
+        "MWX-C22-save-close-failure",
+        "MWX-C22-save-success"
+      ]
+    },
+    {
+      "id": "MWX-C22/captured-revision",
+      "catalogId": "MWX-C22",
+      "expected": "Immutable capture rejects changed load-time or mismatched revision",
+      "cases": [
+        "MWX-C22-delayed-snapshot",
+        "MFA-1.3-lazy-revision",
+        "MFA-1.3-fixed-rtf",
+        "MFA-1.3-fixed-docx",
+        "MFA-1.3-output-wrong-revision"
+      ]
+    },
+    {
+      "id": "MWX-C23/explicit-share",
+      "catalogId": "MWX-C23",
+      "expected": "Only explicit activated share invokes prepared transport",
+      "cases": [
+        "MWX-C23-absent",
+        "MWX-C23-unsupported",
+        "MWX-C23-denied",
+        "MWX-C23-canceled",
+        "MWX-C23-success",
+        "MFA-1.3-activation-share"
+      ]
+    },
+    {
+      "id": "MWX-C23/qualified-recovery",
+      "catalogId": "MWX-C23",
+      "expected": "Rejected qualified shares retain exact output and explicit download/manual options",
+      "cases": [
+        "MFA-1.3-recovery-rtf-absent",
+        "MFA-1.3-recovery-rtf-unsupported",
+        "MFA-1.3-recovery-rtf-denied",
+        "MFA-1.3-recovery-rtf-canceled",
+        "MFA-1.3-recovery-docx-absent",
+        "MFA-1.3-recovery-docx-unsupported",
+        "MFA-1.3-recovery-docx-denied",
+        "MFA-1.3-recovery-docx-canceled"
+      ]
+    },
+    {
+      "id": "MWX-C23/late-delivery",
+      "catalogId": "MWX-C23",
+      "expected": "Cancellation fences late save/share completion and aborts writer once",
+      "cases": [
+        "MWX-C24-late-save",
+        "MWX-C24-late-share",
+        "MFA-1.3-save-delayed-writer",
+        "MFA-1.3-save-delayed-write-failure"
+      ]
+    },
+    {
+      "id": "MWX-C24/manual-copy",
+      "catalogId": "MWX-C24",
+      "expected": "Absent or denied clipboard retains selectable exact text",
+      "cases": [
+        "MWX-C24-copy-absent",
+        "MWX-C24-copy-denied",
+        "MWX-C24-copy-success",
+        "MFA-1.3-copy-late"
+      ]
+    },
+    {
+      "id": "MWX-C24/activation",
+      "catalogId": "MWX-C24",
+      "expected": "Save/download/share/copy refuse missing activation",
+      "cases": [
+        "MFA-1.3-activation-save",
+        "MFA-1.3-activation-download",
+        "MFA-1.3-activation-share",
+        "MFA-1.3-activation-copy"
+      ]
+    },
+    {
+      "id": "MWX-C24/stale-work",
+      "catalogId": "MWX-C24",
+      "expected": "Switching document or lifecycle state cannot publish stale work",
+      "cases": [
+        "MWX-C24-session-switch",
+        "MWX-C24-stale-import",
+        "MWX-C24-cancel-import",
+        "MFA-1.3-worker-cancel",
+        "MFA-1.3-worker-pagehide",
+        "MFA-1.3-worker-background",
+        "MFA-1.3-worker-composition",
+        "MFA-1.3-worker-readonly",
+        "MFA-1.3-worker-close",
+        "MFA-1.3-worker-dispose"
+      ]
+    },
+    {
+      "id": "MWX-C24/qualified-menu",
+      "catalogId": "MWX-C24",
+      "expected": "Menus advertise exact authenticated direction/profile/fidelity; PDF export only; opening is inert",
+      "cases": [
+        "MWX-C24-inventory",
+        "MFA-1.1-operational-menu",
+        "MFA-1.1-profiles-pdf-import",
+        "MWX-C24-no-codec"
+      ]
+    },
+    {
+      "id": "MWX-C24/bounded-worker",
+      "catalogId": "MWX-C24",
+      "expected": "Bounded output and actual worker cancellation retain prior recovery",
+      "cases": [
+        "MWX-C24-export-limit",
+        "MFA-1.3-output-bound",
+        "MFA-1.3-worker-inflight"
+      ]
+    },
+    {
+      "id": "MWX-C24/fallback-guidance",
+      "catalogId": "MWX-C24",
+      "expected": "Capability/permission/activation refusal gives explicit recovery controls",
+      "cases": [
+        "MFA-1.1-fallback-guidance-absent",
+        "MFA-1.1-fallback-guidance-denied",
+        "MFA-1.1-fallback-guidance-inactive",
+        "MWX-C24-targets"
+      ]
+    }
+  ]
+}

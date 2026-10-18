@@ -39,13 +39,15 @@ const {probe,facts}=browserHarness('mobile-extensions','fixtures/browser-mobile-
     '../architecture/specs/document-conversion.md','../architecture/specs/formats.md','../architecture/tests/mobile-extension-cases.md',
     mediaSourcePath,'fixtures/formats/docx/probe/pixel.png','fixtures/browser-mobile-extensions/session.mjs','fixtures/browser-mobile-extensions/index.html','fixtures/browser-mobile-extensions/format-host.mjs',
     'tests/browser/mobile-extensions/formats.spec.ts','tests/browser/mobile-extensions/index.mjs','tests/browser/mobile-extensions/case-index.json',
+    'tests/browser/mobile-extensions/format-contract.mjs','tests/browser/mobile-extensions/format-predicates.json','tests/browser/mobile-extensions/README.md',
     'tests/mobile-web/resources.mjs','tests/browser/mobile-extensions/resources.mjs','scripts/test-mobile-extensions.mjs','packages/web/package.json',
     ...['modules/formats','modules/format-profiles','modules/touch-controls','clipboard/fragment','clipboard/html','dom/selection','editor','platform/viewport'].flatMap(n=>[`packages/web/src/${n}.ts`,`packages/web/dist/${n}.js`])],
 });
 facts.binding={gate:'MEX-1.6',ids:['MWX-C21','MWX-C22','MWX-C23','MWX-C24'],
   semantics:'actual installed BrowserEditor/Session/WASM/IndexedDB/Markdown, authenticated document-format worker, touch selectors and explicit Session confirmation',
   platform:'prepared OS transports; browser download request only; no actual OS/device delivery claim',
-  pending:'stable original/media adoption and full captured export/share lifecycle remain MFA-1.2/1.3; complete original-case reconciliation remains MFA-1.4; broader MEX-1.6 stays unchecked'};
+  registration:'format-predicates.json maps original portable predicates to required passing cases; the dispatcher emits bound reconciliation',
+  pending:'actual device/OS delivery, native handles/IME/AT, timing/cost/budget and release remain unqualified; broader original platform gates stay unchecked'};
 const ui=page=>page.getByRole('group',{name:'File and sharing controls',exact:true});
 const button=(page,name)=>ui(page).getByRole('button',{name,exact:true});
 const status=page=>ui(page).getByRole('status');

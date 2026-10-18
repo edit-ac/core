@@ -66,8 +66,8 @@ explicit line-ending/header dialect and chosen table. Reported losses require
 explicit approval. Import previews confirm through the existing Session commit
 path; embedded originals require the existing asset adoption owner and are not
 admitted as ordinary fragments. Binary artifacts retain bytes for download/save;
-text clipboard/manual copy is offered only for text representations. These menu
-checks do not qualify the later stable-original adoption or full sharing gates. Cancellation, dismissal and
+text clipboard/manual copy is offered only for text representations. The menu cases are prerequisites; the integrated formats group also exercises
+the original adoption and captured export/share lifecycle described below. Cancellation, dismissal and
 disposal fence late catalog results, and metadata failure preserves baseline
 recovery. The formats harness authenticates the qualified canonical2 package
 hash and owner ancestry before installing its actual entry and manifest. It
@@ -163,4 +163,33 @@ transports. They assert preview nonmutation, one history/update, undo/redo/reope
 exact package/media retention, stable captured editor targets, background/pagehide/
 read-only/stale rejection, and cancellation fencing. Host callbacks must honor the
 AbortSignal and remain bounded/local. This portable proof does not qualify physical
-devices, OS delivery, performance, the full sharing lifecycle or release gates.
+devices, OS delivery, performance or release gates.
+
+
+Integrated format qualification (MFA-1.4 / original MEX-1.6):
+
+`npm run test:mobile-extensions -- --group formats` runs the packed production
+presenter/Session/storage and authenticated optional worker, plus catalog checks.
+The evidence-only [predicate registration](format-predicates.json) maps every
+portable MWX-C21–C24 requirement to exact executed browser case names. The dispatcher
+refuses missing, failed, duplicated or errored case evidence and emits
+`format-reconciliation.json`, binding the registration, original catalog hashes
+and browser receipt hash. Prepared validator negatives do not count as browser
+observations; the catalog index retains pending platform observations.
+
+| Original case | Reader-facing portable outcome | Evidence boundary |
+| --- | --- | --- |
+| MWX-C21 | File-input preview remains nonmutating; explicit confirmation uses captured anchors and one history/adoption group. Rejected originals, stale targets, cancellation and bounds preserve document/source recovery. | Actual installed Session, IndexedDB, undo/redo/reopen and two-editor isolation; prepared picker and approved-original transport. |
+| MWX-C22 | Text/Markdown and qualified binary output preserve requested metadata and exact bytes. Prepare is distinct from save/share; failed save retains output and explicit Download file. | Actual worker and browser download request/byte stream; prepared save/write/close responses cannot prove OS storage. |
+| MWX-C23 | Sharing requires explicit activation. Absent, unsupported, denied and canceled share retain output and offer download or suitable text recovery; dismissal never claims delivery. | Prepared share payload/status; no actual native share destination observed. |
+| MWX-C24 | Clipboard refusal leaves selectable text; binary bytes retain download recovery. Exact direction/profile/fidelity menus exclude PDF import. Bounds, cancellation, revision and lifecycle fences prevent stale publication. | Actual production controls and worker termination; prepared clipboard/activation/mobile geometry. Native handles and OS delivery remain unobserved. |
+
+Opening controls starts no conversion or permission request. Lower host bounds,
+captured revision checks and actual blocked-worker bootstrap cancellation retain
+prior output. Recovery downloads request browser delivery and never claim OS
+storage success. Every receipt retains package byte sizes/hashes, exact fixture,
+source and served-body hashes, browser engine and per-case resource counters.
+These are raw provenance/cost observations, not timing or budget qualification.
+Actual phone/tablet/OS file, share and clipboard outcomes, native selection handles,
+IME/dictation/voice control/screen-reader observations, performance and release
+predicates remain pending under the original platform owners (MWX-1.8/roadmap43).
