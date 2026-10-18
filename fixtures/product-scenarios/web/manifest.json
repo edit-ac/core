@@ -1,13 +1,60 @@
 {
   "schemaVersion": 1,
   "scope": "Browser product slice only; original DEL-1.1 all-platform matrix remains open",
-  "profile": {"engine": "chromium", "headless": true, "storage": "real IndexedDB", "permissions": "local editable task; no remote authority", "optionalMarkdown": false},
+  "profile": {
+    "engine": "chromium",
+    "headless": true,
+    "storage": "real IndexedDB",
+    "permissions": "local editable task; no remote authority",
+    "optionalMarkdown": false
+  },
   "scenarios": {
     "web-bootstrap": {
       "parent": "PWE-1.1",
-      "command": ["node", "tests/scenarios/bootstrap.mjs"],
-      "fixtures": ["examples/task-editor/index.html", "examples/task-editor/editor.mjs", "examples/task-editor/document.mjs", "examples/task-editor/markdown.mjs", "examples/task-editor/recovery.mjs"],
-      "cases": ["installed-sdk-bootstrap", "local-commit-reload", "existing-data-never-reseeded", "missing-checkpoint-never-reseeded", "dispatcher-rejects-invalid-inputs"]
+      "command": [
+        "node",
+        "tests/scenarios/bootstrap.mjs"
+      ],
+      "fixtures": [
+        "examples/task-editor/index.html",
+        "examples/task-editor/editor.mjs",
+        "examples/task-editor/document.mjs",
+        "examples/task-editor/markdown.mjs",
+        "examples/task-editor/recovery.mjs",
+        "examples/task-editor/workspace.mjs"
+      ],
+      "cases": [
+        "installed-sdk-bootstrap",
+        "local-commit-reload",
+        "existing-data-never-reseeded",
+        "missing-checkpoint-never-reseeded",
+        "dispatcher-rejects-invalid-inputs"
+      ]
+    },
+    "web-task-workspace": {
+      "parent": "PWE-1.2",
+      "command": [
+        "node",
+        "tests/scenarios/workspace.mjs"
+      ],
+      "fixtures": [
+        "examples/task-editor/index.html",
+        "examples/task-editor/editor.mjs",
+        "examples/task-editor/document.mjs",
+        "examples/task-editor/markdown.mjs",
+        "examples/task-editor/recovery.mjs",
+        "examples/task-editor/workspace.mjs"
+      ],
+      "cases": [
+        "dispatcher-rejects-invalid-inputs",
+        "distinct-documents-stores-callbacks",
+        "focus-edit-undo-isolation",
+        "task-rich-presenters",
+        "comment-capability-denial",
+        "readonly-admission-and-revocation",
+        "sibling-survives-disposal",
+        "isolated-error-callback"
+      ]
     }
   }
 }
