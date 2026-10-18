@@ -3262,6 +3262,207 @@
         "tests/formats/consumers/inspect-odt-media.py",
         "tests/formats/consumers/odt-media-contracts.test.mjs"
       ]
+    },
+    "consumers-epub-import": {
+      "gate": "CNV-1.18-C2-EI",
+      "boundary": "Actual packed EPUB3.3 guarded import, explicit original staging/ingest, atomic shared Session/IndexedDB adoption and independent ODF semantic oracle; browser-only, native/full matrix open",
+      "commands": [
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--features",
+            "epub-import,docx-codecs,jobs",
+            "--test",
+            "epub_import",
+            "--test",
+            "jobs",
+            "--test",
+            "profiles",
+            "--test",
+            "container_limits"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats-wasm/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--lib"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/epub-media.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "--test-name-pattern=packed disabled",
+            "tests/formats/consumers/browser.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "--test-name-pattern=packed archives|default Rust graph|installed public",
+            "tests/formats/consumers/contracts.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/epub-media-contracts.test.mjs"
+          ],
+          "kind": "node-test"
+        }
+      ],
+      "inputs": [
+        "crates/editac-formats-wasm/Cargo.toml",
+        "crates/editac-formats-wasm/Cargo.lock",
+        "crates/editac-formats-wasm/src/lib.rs",
+        "scripts/build-formats.mjs",
+        "packages/formats/package.json",
+        "packages/formats/capabilities.json",
+        "packages/formats/src/index.js",
+        "packages/formats/src/worker.js",
+        "packages/formats/src/index.d.ts",
+        "tests/formats/consumers/prepare.mjs",
+        "tests/formats/consumers/browser.test.mjs",
+        "tests/formats/consumers/contracts.test.mjs",
+        "tests/formats/consumers/inspect.py",
+        "tests/formats/consumers/coverage.test.mjs",
+        "tests/formats/consumers/docx-fixture.json",
+        "tests/formats/consumers/inspect-docx.py",
+        "tests/formats/consumers/docx-import-fixtures.py",
+        "tests/formats/consumers/inspect-docx-import.py",
+        "tests/formats/consumers/harness.mjs",
+        "tests/formats/consumers/media.test.mjs",
+        "tests/formats/consumers/inspect-docx-media.py",
+        "tests/formats/consumers/media-contracts.test.mjs",
+        "crates/editac-formats/src/epub/import.rs",
+        "fixtures/formats/epub/package.opf",
+        "tests/formats/consumers/epub-import-fixtures.py",
+        "tests/formats/consumers/epub-media.test.mjs",
+        "tests/formats/consumers/inspect-epub-media.py",
+        "tests/formats/consumers/epub-media-contracts.test.mjs",
+        "fixtures/formats/epub/first.xhtml",
+        "fixtures/formats/epub/second.xhtml",
+        "fixtures/formats/epub/nav.xhtml",
+        "fixtures/formats/epub/container.xml"
+      ]
+    },
+    "consumers-epub-import-bridge-repair": {
+      "gate": "CNV-1.18-C2-EI",
+      "boundary": "Actual packed EPUB3.3 guarded import, explicit original staging/ingest, atomic shared Session/IndexedDB adoption and independent ODF semantic oracle; browser-only, native/full matrix open; native86 reused only on unchanged native source pins",
+      "commands": [
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats-wasm/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--lib"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/epub-media.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "--test-name-pattern=packed disabled",
+            "tests/formats/consumers/browser.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "--test-name-pattern=packed archives|default Rust graph|installed public",
+            "tests/formats/consumers/contracts.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/epub-media-contracts.test.mjs"
+          ],
+          "kind": "node-test"
+        }
+      ],
+      "inputs": [
+        "crates/editac-formats-wasm/Cargo.toml",
+        "crates/editac-formats-wasm/Cargo.lock",
+        "crates/editac-formats-wasm/src/lib.rs",
+        "scripts/build-formats.mjs",
+        "packages/formats/package.json",
+        "packages/formats/capabilities.json",
+        "packages/formats/src/index.js",
+        "packages/formats/src/worker.js",
+        "packages/formats/src/index.d.ts",
+        "tests/formats/consumers/prepare.mjs",
+        "tests/formats/consumers/browser.test.mjs",
+        "tests/formats/consumers/contracts.test.mjs",
+        "tests/formats/consumers/inspect.py",
+        "tests/formats/consumers/coverage.test.mjs",
+        "tests/formats/consumers/docx-fixture.json",
+        "tests/formats/consumers/inspect-docx.py",
+        "tests/formats/consumers/docx-import-fixtures.py",
+        "tests/formats/consumers/inspect-docx-import.py",
+        "tests/formats/consumers/harness.mjs",
+        "tests/formats/consumers/media.test.mjs",
+        "tests/formats/consumers/inspect-docx-media.py",
+        "tests/formats/consumers/media-contracts.test.mjs",
+        "crates/editac-formats/src/epub/import.rs",
+        "fixtures/formats/epub/package.opf",
+        "tests/formats/consumers/epub-import-fixtures.py",
+        "tests/formats/consumers/epub-media.test.mjs",
+        "tests/formats/consumers/inspect-epub-media.py",
+        "tests/formats/consumers/epub-media-contracts.test.mjs",
+        "fixtures/formats/epub/first.xhtml",
+        "fixtures/formats/epub/second.xhtml",
+        "fixtures/formats/epub/nav.xhtml",
+        "fixtures/formats/epub/container.xml"
+      ]
     }
   }
 }

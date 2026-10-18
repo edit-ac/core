@@ -224,6 +224,19 @@ impl odt::import::OriginalMediaHost for PreparedImportMedia<'_> {
         docx::import::OriginalMediaHost::ingest_original(self, reference, request, bytes)
     }
 }
+impl epub::import::OriginalMediaHost for PreparedImportMedia<'_> {
+    fn identity(&self, hash: &[u8; 32]) -> Result<AssetIdentity, PortError> {
+        docx::import::OriginalMediaHost::identity(self, hash)
+    }
+    fn ingest_original(
+        &mut self,
+        reference: &str,
+        request: &AssetRequest,
+        bytes: &[u8],
+    ) -> Result<HostOutcome, PortError> {
+        docx::import::OriginalMediaHost::ingest_original(self, reference, request, bytes)
+    }
+}
 #[wasm_bindgen]
 pub fn convert_with_assets(
     request: &str,
@@ -271,6 +284,7 @@ fn profile(format: &str, import: bool, safe: bool) -> Result<Profile, Value> {
         ("pdf", false, false) => pdf::export::PROFILE,
         ("docx", true, false) => docx::import::STRUCTURE_PROFILE,
         ("odt", true, false) => odt::import::PROFILE,
+        ("epub", true, false) => epub::import::PROFILE,
         ("rtf", true, false) => rtf::import::PROFILE,
         ("rtf", false, false) => rtf::export::PROFILE,
         ("csv", true, false) => table_text::import::PROFILE,
@@ -525,6 +539,58 @@ pub fn convert_value_with_assets(
         };
         json!({"ok":true,"blocks":blocks,"diagnostics":diagnostics,"sessionCommitted":committed,
             "mediaCandidates":host.originals,"mediaStaging":"requires-durable-owner-adoption","fidelity":"odf13-semantic-v1"})
+    } else if import && r.format == "epub" {
+        if r.import_grants.len() > 64
+            || r.import_grants
+                .iter()
+                .any(|g| g.sha256.len() != 32 || g.identity.validate().is_err())
+        {
+            return Err(error("InvalidAssets"));
+        }
+        for (n, g) in r.import_grants.iter().enumerate() {
+            if r.import_grants[..n]
+                .iter()
+                .any(|other| other.sha256 == g.sha256 || other.identity == g.identity)
+            {
+                return Err(error("InvalidAssets"));
+            }
+        }
+        let mut host = PreparedImportMedia {
+            grants: &r.import_grants,
+            requested: std::cell::Cell::new(false),
+            originals: vec![],
+        };
+        let prepared = epub::import::prepare(
+            &mut job, editac_formats::container::Budgets::default(), &mut host, || 0,
+        ).map_err(|e| json!({"ok":false,
+            "code":if host.requested.get() { "AssetStagingUnavailable" } else { "ConversionRejected" },
+            "reason":e.code,"location":e.location,
+            "diagnostics":e.diagnostics.iter().map(|d|json!({"code":d.code,"location":d.location,"lossy":d.lossy,"action":d.action})).collect::<Vec<_>>(),
+            "action":"Keep the complete original EPUB. Explicit matching media grants and atomic storage adoption are required; no live content was inserted."}))?;
+        let blocks = prepared
+            .blocks()
+            .iter()
+            .map(transfer_value)
+            .collect::<Vec<_>>();
+        let diagnostics = prepared
+            .report()
+            .diagnostics
+            .iter()
+            .map(|d| json!({"code":d.code,"location":d.location,"lossy":d.lossy,"action":d.action}))
+            .collect::<Vec<_>>();
+        let committed = if !host.originals.is_empty()
+            || (!approve && diagnostics.iter().any(|d| d["lossy"] == true))
+        {
+            job.abort().map_err(fail)?;
+            false
+        } else {
+            prepared
+                .commit(&mut job, &mut owner, approve, 0)
+                .map_err(fail)?
+                .is_some()
+        };
+        json!({"ok":true,"blocks":blocks,"diagnostics":diagnostics,"sessionCommitted":committed,
+            "mediaCandidates":host.originals,"mediaStaging":"requires-durable-owner-adoption","fidelity":"epub33-reflowable-semantic-v1"})
     } else if import && r.format == "rtf" {
         let prepared =
             rtf::import::prepare(&mut job, rtf::import::Budgets::default(), || 0).map_err(|e|json!({"ok":false,"code":"ConversionRejected","reason":e.code,"offset":e.offset,"diagnostics":e.report.diagnostics.iter().map(|d|json!({"code":d.code,"offset":d.offset,"control":d.control,"action":d.action,"lossy":true})).collect::<Vec<_>>(),"action":"Keep original input; reduce complexity or review unsupported controls."}))?;
@@ -768,7 +834,7 @@ mod tests {
         );
     }
     #[test]
-    fn public_epub_export_uses_captured_writer_and_keeps_import_unavailable() {
+    fn public_epub_export_and_import_use_qualified_mappers() {
         let (mut r, c) = fixture();
         r["direction"] = json!("export");
         r["format"] = json!("epub");
@@ -783,9 +849,30 @@ mod tests {
                 .any(|d| d["code"] == "PACKAGE_REGENERATED")
         );
         r["direction"] = json!("import");
+        let bytes = v["bytes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|b| b.as_u64().unwrap() as u8)
+            .collect::<Vec<_>>();
+        let imported = convert_value(&r.to_string(), &bytes, &c).unwrap();
+        assert_eq!(imported["profile"], "edit-ac-epub-v1");
+        assert_eq!(imported["fidelity"], "epub33-reflowable-semantic-v1");
+        assert_eq!(imported["sessionCommitted"], false);
+        assert!(
+            imported["diagnostics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|d| d["lossy"] == true)
+        );
+        r["approveLoss"] = json!(true);
+        let approved = convert_value(&r.to_string(), &bytes, &c).unwrap();
+        assert_eq!(approved["sessionCommitted"], true);
+        assert!(!imported["blocks"].as_array().unwrap().is_empty());
         assert_eq!(
             convert_value(&r.to_string(), b"PK", &c).unwrap_err()["code"],
-            "FORMAT_UNAVAILABLE"
+            "ConversionRejected"
         );
     }
     #[test]
@@ -916,7 +1003,7 @@ mod tests {
             convert_value(&r.to_string(), b"%PDF-1.7", b"").unwrap_err()["code"],
             "FORMAT_EXPORT_ONLY"
         );
-        r["format"] = json!("epub");
+        r["format"] = json!("unavailable");
         assert_eq!(
             convert_value(&r.to_string(), b"x", b"").unwrap_err()["code"],
             "FORMAT_UNAVAILABLE"

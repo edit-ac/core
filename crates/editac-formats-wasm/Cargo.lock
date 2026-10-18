@@ -260,11 +260,13 @@ dependencies = [
  "csv-core",
  "docx-rs",
  "editac-core",
+ "editac-html",
  "editac-session",
  "flate2",
  "krilla",
  "quick-xml",
  "rustybuzz",
+ "serde_json",
  "sha2",
  "yrs",
  "zip",
@@ -280,6 +282,14 @@ dependencies = [
  "serde",
  "serde_json",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "editac-html"
+version = "0.0.0"
+dependencies = [
+ "editac-core",
+ "serde_json",
 ]
 
 [[package]]

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "owner": "CNV-1.18-C1/C2-DX/C2-DI-T / C2-EX / C2-PX / C2-DI-M / C2-OI",
+  "owner": "CNV-1.18-C1/C2-DX/C2-DI-T / C2-EX / C2-PX / C2-DI-M / C2-OI / C2-EI",
   "state": "implementation-pending-qualification",
   "directions": [
     {
@@ -139,15 +139,28 @@
       ],
       "media": "Explicit exact-hash grants; real original retention and host ingest before atomic shared storage adoption",
       "complete": true
+    },
+    {
+      "format": "epub",
+      "direction": "import",
+      "profile": "edit-ac-epub-v1",
+      "target": "browser-worker-wasm32",
+      "fixture": "tests/formats/consumers/epub-import-fixtures.py",
+      "fidelity": "epub33-reflowable-semantic-v1",
+      "feature": "epub-import",
+      "requiredFeatures": [
+        "epub-import",
+        "jobs"
+      ],
+      "media": "Explicit exact-hash grants; real original retention and host ingest before atomic shared storage adoption",
+      "complete": true
     }
   ],
   "additionalProfiles": [
     "edit-ac-csv-spreadsheet-safe-v1",
     "edit-ac-tsv-spreadsheet-safe-v1"
   ],
-  "unavailable": [
-    "epub-import"
-  ],
+  "unavailable": [],
   "pdfImport": "FORMAT_EXPORT_ONLY",
   "runtimeMemory": {
     "linearMaximumBytes": 67108864,

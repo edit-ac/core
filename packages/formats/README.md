@@ -6,8 +6,7 @@ The base editor does not depend on this package. Build with
 `node scripts/build-formats.mjs` using the locked Node/Rust/bindgen toolchains.
 
 The initial public worker return covers the existing bounded RTF 1.9.1 profile and
-explicit UTF-8 CSV/TSV table dialects and semantic DOCX/ODT/EPUB and bounded PDF publication export and DOCX/ODT text/marks/lists/simple-table/original-PNG import. EPUB import is unavailable
-at this package boundary until separately packaged and qualified. PDF import is
+explicit UTF-8 CSV/TSV table dialects and semantic DOCX/ODT/EPUB and bounded PDF publication export and DOCX/ODT text/marks/lists/simple-table/original-PNG import and EPUB3.3 ordered chapter/text/marks/lists/original-PNG import. EPUB scripts, forms, remote resources, DRM and fixed layout stay inactive with explicit diagnostics or rejection. PDF import is
 always export-only, including a PDF signature mislabeled as another supported
 format. Existing native adapters retain their own evidence and limitations.
 
