@@ -22,13 +22,12 @@ private func expect(_ b: Bool, _ message: String) throws { if !b { throw CheckFa
 final class FitnessTextView: UITextView {
     var cjk = false
     var changed: ((String) -> Void)?
+    var inputObserved: ((String, Bool) -> Void)?
     var depth = 0
-    override var textInputMode: UITextInputMode? {
-        let language = cjk ? "zh-Hans" : "en-US"
-        return UITextInputMode.activeInputModes.first { $0.primaryLanguage == language } ?? super.textInputMode
-    }
     func mutation(_ kind: String, _ body: () -> Void) {
+        if depth == 0 { inputObserved?(kind, true) }
         depth += 1; body(); depth -= 1
+        if depth == 0 { inputObserved?(kind, false) }
         if depth == 0 && cjk { changed?(kind) }
     }
     override func setMarkedText(_ markedText: String?, selectedRange: NSRange) {
@@ -66,9 +65,14 @@ final class FitnessController: UIViewController, UITextViewDelegate {
     var errors: [String] = []
     var attempts: [[String: Any]] = []
     var focusRequests = 0
+    var focusRequestedAt: CFTimeInterval?
+    var keyboardShownAt: CFTimeInterval?
+    var selectionInstalledAt: CFTimeInterval?
+    var focusReadiness: [String: Any] = [:]
     var display: CADisplayLink?
     var composing = false
     var keyboardToken: NSObjectProtocol?
+    var inputModeToken: NSObjectProtocol?
     var fixture: [String: Any] = [:]
     let thermalStart = ProcessInfo.processInfo.thermalState.rawValue
     override func viewDidLoad() {
@@ -116,7 +120,13 @@ final class FitnessController: UIViewController, UITextViewDelegate {
         } catch { errors.append(String(describing: error)); status.text = "setup failed" }
         keyboardToken = NotificationCenter.default.addObserver(forName: UIResponder.keyboardDidShowNotification, object: nil, queue: .main) { [weak self] n in
             let r = (n.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue ?? .zero
-            self?.keyboards.append(["at": CACurrentMediaTime(), "frame": rect(r), "local": n.userInfo?[UIResponder.keyboardIsLocalUserInfoKey] as? Bool ?? false])
+            let at = CACurrentMediaTime()
+            self?.keyboards.append(["at": at, "frame": rect(r), "local": n.userInfo?[UIResponder.keyboardIsLocalUserInfoKey] as? Bool ?? false])
+            self?.keyboardShownAt = at
+            self?.completeAppendFocus()
+        }
+        inputModeToken = NotificationCenter.default.addObserver(forName: UITextInputMode.currentInputModeDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.completeAppendFocus()
         }
         display = CADisplayLink(target: self, selector: #selector(frame(_:)))
         display?.add(to: .main, forMode: .common)
@@ -132,27 +142,36 @@ final class FitnessController: UIViewController, UITextViewDelegate {
         editor.frame = CGRect(x: 20, y: top + 50, width: width, height: 300)
         committedLabel.frame = CGRect(x: 20, y: top + 355, width: width, height: 25)
         status.frame = CGRect(x: 20, y: top + 385, width: width, height: 40)
+        // Every action must remain above the software keyboard, including
+        // verification while the editor still owns the real input session.
+        let actionWidth = (view.bounds.width - 60) / 3
         for button in view.subviews.compactMap({ $0 as? UIButton }) {
             switch button.accessibilityIdentifier {
-            case "focus-append": button.frame = CGRect(x: 20, y: top, width: 170, height: 40)
-            case "cancel-composition": button.frame = CGRect(x: 200, y: top, width: 170, height: 40)
-            case "verify-source": button.frame = CGRect(x: 20, y: top + 435, width: width, height: 40)
+            case "focus-append": button.frame = CGRect(x: 20, y: top, width: actionWidth, height: 40)
+            case "cancel-composition": button.frame = CGRect(x: 30 + actionWidth, y: top, width: actionWidth, height: 40)
+            case "verify-source": button.frame = CGRect(x: 40 + 2 * actionWidth, y: top, width: actionWidth, height: 40)
             default: break
             }
         }
     }
     @objc func focusAppend() {
         focusRequests += 1
+        focusRequestedAt = CACurrentMediaTime()
+        keyboardShownAt = nil; selectionInstalledAt = nil; focusReadiness = [:]
         partial()
         // Rebind after first-run keyboard UI as well as a language relaunch.
         // The swipe tutorial can leave visible keys and acknowledged focus
         // without a live input session after Continue is dismissed.
         status.accessibilityValue = "focus-pending"
-        editor.resignFirstResponder()
-        editor.becomeFirstResponder()
-        editor.reloadInputViews()
-        editor.selectedRange = NSRange(location: editor.textStorage.length, length: 0)
-        if cjk { status.accessibilityValue = editor.isFirstResponder && editor.textInputMode?.primaryLanguage == "zh-Hans" ? "pinyin-ready" : "focus failed" }
+        // Do not reload a keyboard while UIKit is establishing its remote input
+        // session. Rebinding an existing responder needs a separate native turn;
+        // readiness must use this request's did-show event, never a stale one.
+        if editor.isFirstResponder {
+            editor.resignFirstResponder()
+            DispatchQueue.main.async { [weak self] in self?.editor.becomeFirstResponder() }
+        } else {
+            editor.becomeFirstResponder()
+        }
         partial()
     }
     func textViewDidBeginEditing(_ textView: UITextView) {
@@ -164,15 +183,33 @@ final class FitnessController: UIViewController, UITextViewDelegate {
         DispatchQueue.main.async { [weak self, weak textView] in
             guard let self = self, let textView = textView else { return }
             textView.selectedRange = NSRange(location: textView.textStorage.length, length: 0)
-            self.status.accessibilityValue = textView.isFirstResponder && textView.textInputMode?.primaryLanguage == (self.cjk ? "zh-Hans" : "en-US") ? (self.cjk ? "pinyin-ready" : "ascii-ready") : "focus failed"
+            self.selectionInstalledAt = CACurrentMediaTime()
+            self.completeAppendFocus()
             self.partial()
         }
+    }
+    func completeAppendFocus() {
+        let mode = cjk ? "zh-Hans" : "en-US"
+        guard let requestedAt = focusRequestedAt,
+              let keyboardAt = keyboardShownAt, let selectionAt = selectionInstalledAt,
+              keyboardAt >= requestedAt, selectionAt >= requestedAt,
+              UIApplication.shared.applicationState == .active,
+              editor.window?.windowScene?.activationState == .foregroundActive,
+              editor.isFirstResponder, editor.window?.isKeyWindow == true,
+              editor.selectedRange == NSRange(location: editor.textStorage.length, length: 0) else { return }
+        let actualMode = editor.textInputMode?.primaryLanguage ?? "unavailable"
+        focusReadiness = ["requestedAt": requestedAt, "keyboardDidShowAt": keyboardAt, "selectionInstalledAt": selectionAt,
+            "applicationActive": true, "sceneActive": true,
+            "readyAt": CACurrentMediaTime(), "keyWindow": true,
+            "selectionUtf16": [editor.textStorage.length, 0], "inputMode": actualMode]
+        status.accessibilityValue = actualMode == mode ? (cjk ? "pinyin-ready" : "ascii-ready") : "input-mode:" + actualMode
+        partial()
     }
     func partial() {
         let value: [String: Any] = ["errors": errors, "attempts": attempts, "typed": typed, "focusRequests": focusRequests,
             "firstResponder": editor.isFirstResponder, "inputMode": editor.textInputMode?.primaryLanguage ?? "unavailable",
             "committed": (try? text(engine)) ?? "unavailable", "projected": editor.text ?? "",
-            "selectionUtf16": editor.selectedRange.location, "samples": samples, "frames": frameTrace, "compositionEvents": compositionEvents, "cancellation": cancellation, "inputModes": UITextInputMode.activeInputModes.map { $0.primaryLanguage ?? "unknown" }]
+            "selectionUtf16": editor.selectedRange.location, "focusReadiness": focusReadiness, "samples": samples, "frames": frameTrace, "compositionEvents": compositionEvents, "cancellation": cancellation, "inputModes": UITextInputMode.activeInputModes.map { $0.primaryLanguage ?? "unknown" }]
         let path = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent(cjk ? "cjk-partial.json" : "partial.json")
         if let bytes = try? fitnessJSON(value) { try? Data(bytes.utf8).write(to: path, options: .atomic) }
     }
@@ -312,14 +349,15 @@ final class FitnessController: UIViewController, UITextViewDelegate {
         check("cjk-disposal") {
             try engine.dispose(); display?.invalidate(); display = nil
             if let token = keyboardToken { NotificationCenter.default.removeObserver(token); keyboardToken = nil }
+            if let token = inputModeToken { NotificationCenter.default.removeObserver(token); inputModeToken = nil }
             do { _ = try engine.read(); throw CheckFailure(message: "disposed read succeeded") }
             catch let e as NativeError { guard case .Disposed = e else { throw e } }
-            return ["displayLinkInvalidated": display == nil, "keyboardObserverRemoved": keyboardToken == nil]
+            return ["displayLinkInvalidated": display == nil, "keyboardObserverRemoved": keyboardToken == nil && inputModeToken == nil]
         }
         let failed = cases.filter { $0["state"] as? String == "failed" }.count
         let record: [String: Any] = ["version": 1, "qualification": "unqualified", "cases": cases,
             "counts": ["executed": cases.count, "passed": cases.count-failed, "failed": failed, "skipped": 0],
-            "samples": samples, "frames": frameTrace, "keyboards": keyboards, "errors": errors, "compositionEvents": compositionEvents,
+            "focusReadiness": focusReadiness, "samples": samples, "frames": frameTrace, "keyboards": keyboards, "errors": errors, "compositionEvents": compositionEvents,
             "host": ["system": UIDevice.current.systemVersion, "physical": false, "locale": Locale.current.identifier,
                 "thermalStart": thermalStart, "thermalEnd": ProcessInfo.processInfo.thermalState.rawValue,
                 "inputModes": UITextInputMode.activeInputModes.map { $0.primaryLanguage ?? "unknown" }],
@@ -376,12 +414,13 @@ final class FitnessController: UIViewController, UITextViewDelegate {
             catch let e as NativeError { guard case .Disposed = e else { throw e } }
             display?.invalidate(); display = nil
             if let token = keyboardToken { NotificationCenter.default.removeObserver(token); keyboardToken = nil }
-            return ["displayLinkInvalidated": display == nil, "keyboardObserverRemoved": keyboardToken == nil]
+            if let token = inputModeToken { NotificationCenter.default.removeObserver(token); inputModeToken = nil }
+            return ["displayLinkInvalidated": display == nil, "keyboardObserverRemoved": keyboardToken == nil && inputModeToken == nil]
         }
         let failed = cases.filter { $0["state"] as? String == "failed" }.count
         let record: [String: Any] = ["version": 1, "qualification": "unqualified", "cases": cases,
             "counts": ["executed": cases.count, "passed": cases.count-failed, "failed": failed, "skipped": 0],
-            "samples": samples, "frames": frameTrace, "keyboards": keyboards, "errors": errors,
+            "focusReadiness": focusReadiness, "samples": samples, "frames": frameTrace, "keyboards": keyboards, "errors": errors,
             "host": ["system": UIDevice.current.systemVersion, "model": UIDevice.current.model, "physical": false,
                 "thermalStart": thermalStart, "thermalEnd": ProcessInfo.processInfo.thermalState.rawValue,
                 "thermalScope": "simulator ProcessInfo observation; physical thermal behavior unavailable", "locale": Locale.current.identifier,
@@ -394,10 +433,35 @@ final class FitnessController: UIViewController, UITextViewDelegate {
     }
 }
 @main final class NativeFitnessApp: UIResponder, UIApplicationDelegate {
-    var window: UIWindow?
     func application(_ application: UIApplication, didFinishLaunchingWithOptions options: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
-        let w = UIWindow(frame: UIScreen.main.bounds); w.rootViewController = ProcessInfo.processInfo.arguments.contains("--workload") ? WorkloadController() : FitnessController(); w.makeKeyAndVisible(); window = w
         return true
+    }
+    func application(_ application: UIApplication, configurationForConnecting session: UISceneSession, options: UIScene.ConnectionOptions) -> UISceneConfiguration {
+        let configuration = UISceneConfiguration(name: "NativeFitness", sessionRole: session.role)
+        configuration.delegateClass = NativeFitnessSceneDelegate.self
+        return configuration
+    }
+}
+final class NativeFitnessSceneDelegate: UIResponder, UIWindowSceneDelegate {
+    var window: UIWindow?
+    func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options: UIScene.ConnectionOptions) {
+        guard let scene = scene as? UIWindowScene else { return }
+        let w = UIWindow(windowScene: scene)
+        w.rootViewController = ProcessInfo.processInfo.arguments.contains("--workload") ? WorkloadController() : FitnessController()
+        window = w; w.makeKeyAndVisible()
+    }
+    func sceneDidBecomeActive(_ scene: UIScene) {
+        // Global application activation settles after the scene callback returns.
+        // Observe the following real main-loop turn; do not publish desired state.
+        DispatchQueue.main.async { [weak self, weak scene] in
+            guard let self = self, let scene = scene else { return }
+            let readiness: [String: Any] = ["applicationActive": UIApplication.shared.applicationState == .active,
+                "sceneActive": scene.activationState == .foregroundActive,
+                "keyWindow": self.window?.isKeyWindow == true, "pid": ProcessInfo.processInfo.processIdentifier]
+            let path = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("runtime-ready.json")
+            if let bytes = try? fitnessJSON(readiness) { try? Data(bytes.utf8).write(to: path, options: .atomic) }
+            (self.window?.rootViewController as? FitnessController)?.completeAppendFocus()
+        }
     }
 }
 
@@ -422,12 +486,18 @@ final class WorkloadController: UIViewController, UITextViewDelegate {
     var resources: [[String: Any]] = []
     var setup: [String: Any] = [:]
     var attempts: [[String: Any]] = []
+    var inputEvents: [[String: Any]] = []
     var focusRequests = 0
+    var keyboardObservers: [NSObjectProtocol] = []
+    var keyboardShownAt: CFTimeInterval?
+    var selectionInstalledAt: CFTimeInterval?
+    var focusReadiness: [String: Any] = [:]
     func partial() {
-        let value: [String: Any] = ["name": name, "setup": setup, "attempts": attempts,
+        let value: [String: Any] = ["name": name, "setup": setup, "attempts": attempts, "inputEvents": inputEvents,
             "samples": samples, "resources": resources, "typed": typed, "focusRequests": focusRequests, "errors": errors,
             "selectionUtf16": editor.selectedRange.location, "projectedUtf16": editor.textStorage.length,
-            "firstResponder": editor.isFirstResponder, "inputMode": editor.textInputMode?.primaryLanguage ?? "unavailable"]
+            "firstResponder": editor.isFirstResponder, "inputMode": editor.textInputMode?.primaryLanguage ?? "unavailable",
+            "focusReadiness": focusReadiness]
         let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent(name + "-partial.json")
         if let bytes = try? fitnessJSON(value) { try? Data(bytes.utf8).write(to: url, options: .atomic) }
     }
@@ -451,12 +521,27 @@ final class WorkloadController: UIViewController, UITextViewDelegate {
         (node["runs"] as! [[String: Any]]).map { $0["text"] as! String }.joined()
     }
     override func viewDidLoad() {
-        super.viewDidLoad(); view.backgroundColor = .systemBackground
+        super.viewDidLoad()
+        editor.layoutManager.allowsNonContiguousLayout = true; view.backgroundColor = .systemBackground
         editor.frame = CGRect(x: 20, y: 80, width: view.bounds.width - 40, height: 260)
         editor.accessibilityIdentifier = "workload-editor"
         editor.autocorrectionType = .no; editor.spellCheckingType = .no; editor.autocapitalizationType = .none
         editor.smartQuotesType = .no; editor.smartDashesType = .no; editor.font = .systemFont(ofSize: 16)
         editor.delegate = self
+        keyboardObservers = [
+            NotificationCenter.default.addObserver(forName: UIResponder.keyboardDidShowNotification, object: nil, queue: .main) { [weak self] _ in
+                self?.keyboardShownAt = CACurrentMediaTime(); self?.completeFocus()
+            },
+            NotificationCenter.default.addObserver(forName: UIResponder.keyboardDidHideNotification, object: nil, queue: .main) { [weak self] _ in
+                self?.keyboardShownAt = nil
+            },
+            NotificationCenter.default.addObserver(forName: UITextInputMode.currentInputModeDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
+                self?.completeFocus()
+            }
+        ]
+        editor.inputObserved = { [weak self] kind, entering in
+            self?.inputEvents.append(["kind": kind, "entering": entering, "at": CACurrentMediaTime()])
+        }
         status.accessibilityIdentifier = "workload-status"; status.text = "preparing"
         let button = UIButton(type: .system); button.accessibilityIdentifier = "workload-verify"
         button.setTitle("Verify workload", for: .normal); button.addTarget(self, action: #selector(verify), for: .touchUpInside)
@@ -495,6 +580,7 @@ final class WorkloadController: UIViewController, UITextViewDelegate {
             setup = ["restoreStartAt": start, "restoredAt": restored, "projectionLayoutDoneAt": CACurrentMediaTime(),
                 "checkpointBytes": bytes.count, "blocks": nodes.count, "textUtf8Bytes": nodes.map(nodeText).reduce(0) { $0 + $1.utf8.count },
                 "textUtf16Units": nodes.map(nodeText).reduce(0) { $0 + $1.utf16.count }, "projectedUtf16Units": initial.utf16.count,
+                "allowsNonContiguousLayout": editor.layoutManager.allowsNonContiguousLayout,
                 "fullSnapshotRestored": true, "targetOffsetUtf16": targetOffset, "nodeOffsetUtf16": nodeOffset, "originalTarget": originalTarget]
             resources.append(memory("after-projection-layout")); status.text = "ready"
         } catch { errors.append(String(describing: error)); status.text = "failed" }
@@ -514,6 +600,7 @@ final class WorkloadController: UIViewController, UITextViewDelegate {
     }
     @objc func focusWorkload() {
         focusRequests += 1
+        selectionInstalledAt = nil; focusReadiness = [:]
         partial()
         // An explicit OS button action requests UIKit focus. A tap in a huge
         // scrolled text surface does not prove a text-service session exists.
@@ -527,10 +614,22 @@ final class WorkloadController: UIViewController, UITextViewDelegate {
             guard let self = self else { return }
             self.editor.selectedRange = NSRange(location: self.targetOffset, length: 1)
             self.editor.scrollRangeToVisible(self.editor.selectedRange)
-            self.status.accessibilityValue = self.editor.isFirstResponder ? "keyboard-ready" : "focus-failed"
+            self.selectionInstalledAt = CACurrentMediaTime()
+            self.completeFocus()
             self.partial()
         }
     }
+    func completeFocus() {
+        guard let keyboardAt = keyboardShownAt, let selectionAt = selectionInstalledAt,
+              editor.isFirstResponder, editor.window?.isKeyWindow == true,
+              editor.selectedRange == NSRange(location: targetOffset, length: 1) else { return }
+        let actualMode = editor.textInputMode?.primaryLanguage ?? "unavailable"
+        focusReadiness = ["keyboardDidShowAt": keyboardAt, "selectionInstalledAt": selectionAt,
+            "readyAt": CACurrentMediaTime(), "keyWindow": true, "selectionUtf16": [targetOffset, 1]]
+        status.accessibilityValue = actualMode == "en-US" ? "keyboard-ready" : "input-mode:" + actualMode
+        partial()
+    }
+    deinit { for observer in keyboardObservers { NotificationCenter.default.removeObserver(observer) } }
     func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText replacement: String) -> Bool {
         let start = CACurrentMediaTime()
         attempts.append(["rangeUtf16": range.location, "removedUtf16": range.length, "replacement": replacement, "pending": pending != nil])
@@ -552,11 +651,16 @@ final class WorkloadController: UIViewController, UITextViewDelegate {
             try expect(changed.count == 1 && (changed[0]["node"] as! [String: Any])["id"] as? String == nodeID, "one changed block in full corpus")
             let decoded = CACurrentMediaTime()
             textView.textStorage.replaceCharacters(in: range, with: replacement)
-            textView.selectedRange = NSRange(location: targetOffset, length: 1); textView.scrollRangeToVisible(textView.selectedRange)
+            let storageDone = CACurrentMediaTime()
+            textView.selectedRange = NSRange(location: targetOffset, length: 1)
+            let selectionDone = CACurrentMediaTime()
+            textView.scrollRangeToVisible(textView.selectedRange)
+            let scrollDone = CACurrentMediaTime()
             typed += replacement
             pending = ["inputAt": start, "engineDoneAt": done, "projectionDoneAt": CACurrentMediaTime(),
                 "anchorDoneAt": anchorDone, "focusDoneAt": focusDone, "batchStartAt": batchStart,
-                "decodedAt": decoded, "rustTrace": trace,
+                "decodedAt": decoded, "storageDoneAt": storageDone, "selectionDoneAt": selectionDone,
+                "scrollDoneAt": scrollDone, "rustTrace": trace,
                 "rangeUtf16": range.location, "replacementUtf16": 1, "removedUtf16": 1, "changedBlocks": changed.count,
                 "thermal": ProcessInfo.processInfo.thermalState.rawValue, "firstResponder": textView.isFirstResponder, "inputMode": textView.textInputMode?.primaryLanguage ?? "unavailable"]
             display?.isPaused = false
@@ -566,7 +670,11 @@ final class WorkloadController: UIViewController, UITextViewDelegate {
     @objc func frame(_ link: CADisplayLink) {
         guard var sample = pending else { return }
         sample["layoutStartAt"] = CACurrentMediaTime()
-        editor.layoutManager.ensureLayout(for: editor.textContainer)
+        // The full corpus remains in TextKit. Ordinary input invalidates only
+        // its changed range; forcing the entire container hides that boundary.
+        let changed = NSRange(location: targetOffset, length: 1)
+        editor.layoutManager.ensureLayout(forCharacterRange: changed)
+        sample["layoutRangeUtf16"] = [changed.location, changed.length]
         sample["layoutDoneAt"] = CACurrentMediaTime(); sample["displayTimestamp"] = link.timestamp; sample["targetTimestamp"] = link.targetTimestamp
         sample["caretRect"] = rect(editor.caretRect(for: editor.selectedTextRange!.end)); sample["firstResponderAtFrame"] = editor.isFirstResponder
         samples.append(sample); resources.append(memory("input-\(samples.count)")); pending = nil; display?.isPaused = true
@@ -613,6 +721,8 @@ final class WorkloadController: UIViewController, UITextViewDelegate {
         }
         check("resources-and-disposal") {
             resources.append(memory("before-disposal")); try engine.dispose(); display?.invalidate(); display = nil
+            for observer in keyboardObservers { NotificationCenter.default.removeObserver(observer) }
+            keyboardObservers.removeAll()
             resources.append(memory("after-disposal"))
             try expect(resources.allSatisfy { ($0["status"] as? Int32) == KERN_SUCCESS && ($0["residentBytes"] as? UInt64 ?? 0) > 0 }, "executed task memory observations")
         }
@@ -620,6 +730,8 @@ final class WorkloadController: UIViewController, UITextViewDelegate {
         let record: [String: Any] = ["version": 1, "name": name, "qualification": "unqualified", "setup": setup, "cases": cases,
             "counts": ["executed": cases.count, "passed": cases.count - failed, "failed": failed, "skipped": 0],
             "samples": samples, "resources": resources, "errors": errors, "typed": typed, "focusRequests": focusRequests,
+            "focusReadiness": focusReadiness,
+            "inputEvents": inputEvents,
             "host": ["system": UIDevice.current.systemVersion, "physical": false, "refreshMaximum": UIScreen.main.maximumFramesPerSecond],
             "gaps": ["plain-text projection; mixed-block native renderer not qualified", "callback is not compositor", "12 samples below 100-sample tail minimum", "sampled resident memory is not peak or plateau", "no VoiceOver or physical thermal claim"]]
         do {
