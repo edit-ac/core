@@ -2,20 +2,23 @@
 <html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>React task editor</title>
-
+<title>React local task workspace</title>
 <style>
-body { max-width: 48rem; margin: 3rem auto; padding: 0 1rem; font: 18px/1.5 system-ui; }
-#editor { min-height: 8rem; padding: 1rem; border: 1px solid #888; }
+body { max-width: 72rem; margin: 2rem auto; padding: 0 1rem; font: 18px/1.5 system-ui; }
+#workspace { display: flex; gap: 2rem; flex-wrap: wrap; }
+section { flex: 1; min-width: 18rem; }
+section [role="textbox"] { min-height: 8rem; padding: 1rem; border: 1px solid #888; }
+[data-slot] > [aria-haspopup], [data-slot] > [role="group"],
+[data-slot] > [role="menu"], [data-slot] > [role="dialog"] { position: static !important; }
 button { font: inherit; margin: .5rem .5rem .5rem 0; }
 </style>
-<h1>React task editor</h1>
-<p>Edit this task or paste Markdown. Your document stays in this browser. Sync requires an authorized transport supplied by the host.</p>
-<div id="editor" aria-label="Task document"></div>
-<button id="save">Save locally</button>
-
-<button id="export-recovery">Export recovery</button>
-<p>Simple Markdown task content. Native/mobile input and release performance remain unqualified. The host owns authentication and uploads.</p>
+<h1>React local task workspace</h1>
+<nav><a href="/fixture/react.html?route=tasks" data-route="tasks">Task and comment</a> · <a href="/fixture/react.html?route=document" data-route="document">Document body</a></nav>
+<p>Independent local documents, rendered through EditorHost in React StrictMode. The plain comment admits only basic text editing. Rich task and document controls use the same public SDK.</p>
+<div id="workspace"></div>
+<button id="save">Save active document locally</button>
+<button id="export-recovery">Export active document recovery</button>
+<p>Your work stays in this browser. Remote durability is not confirmed. Native/mobile input and release performance remain unqualified.</p>
 <p id="message" role="status">Opening task…</p>
 <script type="module" src="/fixture/react-built.mjs"></script>
 </html>

@@ -2,25 +2,46 @@
 
 Build with `npm run build:wasm` and `npm run build`, then run
 `npm run example:task`. Open the printed localhost URL. Stop with Ctrl+C.
-The example edits one persisted document, parses task Markdown, offers literal
-paste, saves locally and reopens the same identity offline. Opening never seeds
+The example edits an isolated task description and plain comment, offers rich
+task controls and literal comment input, saves locally and reopens the same
+identities offline. Opening never seeds
 over missing or corrupt existing content. Export recovery before closing after a
 save failure; the JSON contains explicit byte arrays and is not an import format.
 
-For React 19.3.0, build the shipped client and copy its glue assets:
+For React 19.3.0, build the shipped client after the workspace build:
 
 ```sh
 node_modules/.bin/esbuild examples/task-editor/react.mjs --bundle --format=esm --outfile=examples/task-editor/react-built.mjs
-mkdir -p examples/task-editor/wasm
-cp -R packages/core/dist/wasm/. examples/task-editor/wasm/
 npm run example:task
 ```
 
-Open `/fixture/react.html` on the printed server. React renders an empty host;
-local checkpoint creation runs in the client entry. Its StrictMode lifecycle
-flushes on unmount and retains failed-save reports outside the component. The
-preview uses workspace builds; `node --test tests/docs-examples.test.mjs` separately
-installs local tarballs and builds/runs these same sources in isolation.
+Open `/fixture/react.html` on the printed server. The Task and comment link opens
+two independent EditorHost surfaces in StrictMode; Document body opens a third
+local identity. Route navigation flushes and disposes the previous surfaces before
+mounting the next ones. Browser Back restores the matching route and saved content.
+The task retains the original React sample's `example-react` storage namespace.
+Save, recovery export and close controls act on their named document. Recovery
+reports stay outside React components and remain available after route disposal.
+No export includes a sibling document.
+
+Use `?readonly` to inspect without editing. The default comment admits basic text
+and history only; the task/document expose the existing rich presenters. The
+`?profiles=equal` and `?order=comment-first` fixture switches exercise equal rich
+profiles and reversed mounting without changing identities or granting permissions
+to the default plain comment.
+
+The preview uses workspace builds. The focused installed-tarball proof is:
+
+```sh
+node tests/scenarios/run.mjs web-react-routes
+```
+
+Select Node 24.19.0/npm 11.17.0/Rust 1.97.1 first. The proof installs actual local
+core/web/React packages, uses React 19.3.0 and Chromium with real WASM/IndexedDB,
+and saves exact source/package/graph hashes and screenshots under
+`../architecture/evidence/browser-product-workflows-20261018/pwe-1.3/`.
+It reuses the existing shared-resource graph/asset audits. These cases prove this
+browser product integration, without qualifying the full platform/release matrix.
 
 Local save does not confirm remote durability. `attachTaskSync()` in the plain
 entry accepts a host-authorized transport; these examples contain no hosted sync,

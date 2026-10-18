@@ -24,8 +24,8 @@ const actions = [
   {id:'image',label:'Local image',prepare:()=>({type:'fragment',blocks:[content(['module:editac.asset',1,{identity:{host:'product-local',key:'pixel'},kind:'image',metadata:{alt:'Local sample pixel',caption:'',filename:'pixel.png',mediaType:'image/png',byteLength:imageBytes.length,sha256:expectedImageHash,width:2,height:2,durationMs:null},fallback:'Local sample pixel',source:'Local verified pixel'}],'Local sample pixel')]})},
 ];
 
-export async function mountWorkspaceEditor(name, {root, status, creation, readOnly=false, recovery=[], onSave=()=>{}, onError=()=>{}, onHistory=()=>{}}) {
-  const permission = permissions[name];
+export async function workspaceOptions(name, {profile=name, creation, readOnly=false}={}) {
+  const permission = permissions[profile];
   if (!permission) throw Error('Unknown workspace profile');
   const options = await localOptions(name, undefined, creation);
   let imageURL, closed=false;
@@ -36,21 +36,28 @@ export async function mountWorkspaceEditor(name, {root, status, creation, readOn
     imageURL ??= URL.createObjectURL(new Blob([imageBytes],{type:'image/png'}));
     return {state:'available',grant:{identity:request.identity,actions:['resolve-url','read']},resolution:{identity:request.identity,operationId:request.operationId,url:imageURL}};
   }};
-  const editor = createEditor(root, {...options,
+  return {options: {...options,
     ...(permission.rich ? {...await markdownOptions(),content:contentModules({imageAssets}),slash:slashCommands(actions),references:referenceSuggestions(resolveReference)} : {preset:'minimal',typingShortcuts:false,plainPasteControl:false,commandAllowed:command=>['enter','break','backward','forward','undo','redo','replace'].includes(command)}),
-    readOnly:readOnly || !permission.edit, commandControls:permission.rich, label:name==='task'?'Task description':'Plain comment',
-  });
+    readOnly:readOnly || !permission.edit, commandControls:permission.rich, label:profile==='task'?'Task description':'Plain comment',
+  }, permission, dispose(){closed=true;if(imageURL)URL.revokeObjectURL(imageURL);}};
+}
+
+export async function mountWorkspaceEditor(name, {root, status, creation, readOnly=false, recovery=[], onSave=()=>{}, onError=()=>{}, onHistory=()=>{}}) {
+  const resources=await workspaceOptions(name,{creation,readOnly});
+  const {options,permission}=resources;
+  const editor=createEditor(root,options);
+  let closed=false;
   const events = {save:[],error:[],history:[]};
   const report = error => {events.error.push(error.message);status.textContent=`Local ${name} error: ${error.message}. Export recovery before closing.`;onError(error);};
   const unsubscribe = editor.subscribe(state=>{
     if(state.error) report(state.error);
     else status.textContent=state.localCommitted?'Saved locally. Remote durability is not confirmed.':state.ready?'Ready locally.':'Opening local document…';
   });
-  try {await editor.ready;} catch(error) {report(error);unsubscribe();await editor.destroy({policy:'report'});throw error;}
+  try {await editor.ready;} catch(error) {report(error);unsubscribe();await editor.destroy({policy:'report'});resources.dispose();throw error;}
   const historyListener = event => {if(event.key.toLowerCase()==='z'&&(event.metaKey||event.ctrlKey)){events.history.push(event.shiftKey?'redo':'undo');onHistory(events.history.at(-1));}};
   root.addEventListener('keydown',historyListener);
   return {editor, options, permission, events, recovery,
     async save(){try {await editor.flush({target:'local'});const receipt={documentId:options.identity.documentId,localCommitted:editor.state.localCommitted};events.save.push(receipt);onSave(receipt);return receipt;}catch(error){report(error);throw error;}},
-    async close(){if(closed)return;closed=true;unsubscribe();root.removeEventListener('keydown',historyListener);let result;try{result=await editor.destroy({policy:'flush'});}catch(error){report(error);result=await editor.destroy({policy:'report'});}finally{if(imageURL)URL.revokeObjectURL(imageURL);}if(result.unsaved)recovery.push(result);return result;},
+    async close(){if(closed)return;closed=true;unsubscribe();root.removeEventListener('keydown',historyListener);let result;try{result=await editor.destroy({policy:'flush'});}catch(error){report(error);result=await editor.destroy({policy:'report'});}finally{resources.dispose();}if(result.unsaved)recovery.push(result);return result;},
   };
 }
