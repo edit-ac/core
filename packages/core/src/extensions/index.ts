@@ -32,3 +32,9 @@ export type { AiSessionStatus, AiReviewTarget } from './ai-session.js';
 
 export { AI_ACTION_PROFILE, AI_ACTIONS, AI_TONES, prepareAiAction } from './ai-actions.js';
 export type { AiActionId, AiTone, AiActionOptions, PreparedAiAction } from './ai-actions.js';
+
+export { ASSISTIVE_VERSION, ASSISTIVE_PROFILE, ASSISTIVE_CAPABILITIES, AssistiveError, AssistiveRegistration } from './assistive-input.js';
+export type { AssistiveCapability, AssistiveLimits, AssistiveTransportCapabilities, AssistiveDescriptor, AssistiveErrorCode, AssistiveOutcome, AssistiveState, AssistiveSessionIdentity, AssistiveTarget, AssistiveCommandApplicability, AssistivePresenterStatus, AssistiveResult, AssistiveStartRequest, AssistiveTransportEvent, AssistiveTransportSession, AssistiveTransport } from './assistive-input.js';
+
+export { AssistiveInputSession, captureAssistiveTarget } from './assistive-input-session.js';
+export type { AssistiveSessionTarget } from './assistive-input-session.js';

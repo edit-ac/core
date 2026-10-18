@@ -3,6 +3,37 @@ use editac_core::modules::v1::{Registry, RegistryError};
 use serde_json::{Value, json};
 use yrs::Any;
 
+/// Optional host services use their owning extension admission, not stored modules.
+/// Shared fixed corpus is also consumed through the public TypeScript entry point.
+#[allow(dead_code)]
+pub fn assistive_fixture(case: &Value) -> bool {
+    use editac_core::extensions::assistive_input::*;
+    let mut registration = Registration::default();
+    if !case["descriptor"].is_null() {
+        let Ok(d) = serde_json::from_value::<Descriptor>(case["descriptor"].clone()) else {
+            return false;
+        };
+        if registration.register(d).is_err() {
+            return false;
+        }
+    }
+    if case["dispose"] == true {
+        registration.dispose();
+    }
+    match case["operation"].as_str().unwrap() {
+        "register" => true,
+        "status" => serde_json::from_value::<PresenterStatus>(case["value"].clone())
+            .is_ok_and(|s| registration.validate_status(&s).is_ok()),
+        "commands" => serde_json::from_value::<Vec<CommandApplicability>>(case["value"].clone())
+            .is_ok_and(|c| registration.validate_commands(&c).is_ok()),
+        "result" => serde_json::from_value::<ResultEnvelope>(case["value"].clone())
+            .is_ok_and(|r| registration.validate_result(&r).is_ok()),
+        "start" => serde_json::from_value::<StartRequest>(case["value"].clone())
+            .is_ok_and(|r| registration.validate_start(&r).is_ok()),
+        _ => panic!("unknown assistive conformance operation"),
+    }
+}
+
 pub fn any(value: &Value) -> Any {
     Any::from_json(&serde_json::to_string(value).unwrap()).unwrap()
 }

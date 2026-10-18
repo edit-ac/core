@@ -542,6 +542,28 @@ export class TextInput {
       blocked:()=>this.#composition.active || !!this.slash?.open || !!this.references?.open});
     this.codeCommands.setReadOnly(this.#readOnly);
   }
+  assistive: import('../modules/assistive-input.js').AssistiveInputPresenter | undefined;
+  attachAssistive(factory: import('../modules/assistive-input.js').AssistivePresenterFactory): void {
+    if (this.assistive || this.#disposed) throw Error('Assistance already attached or disposed');
+    this.assistive = factory({root: this.#renderer.root, engine: this.#engine, selection: this.#selection,
+      captureCommand: (name, owner) => {
+        const target = this.keyboard.captureCommand(name, undefined, owner);
+        if (!target) return undefined;
+        // Reuse the qualified formatting applicability and shared history state;
+        // the presenter never guesses mark support or maintains its own history.
+        if (['bold','italic','underline','strike','code','link'].includes(name)) {
+          const toolbar = this.keyboard.formatting.capture();
+          try { if (!toolbar?.applicable(name as import('@edit-ac/core').MarkCommand['mark'])) { target.dispose(); return undefined; } }
+          finally { toolbar?.dispose(); }
+        } else if (name === 'undo' || name === 'redo') {
+          const history = this.#engine.history({type:'state'});
+          if (!(name === 'undo' ? history.undoGroups : history.redoGroups)) { target.dispose(); return undefined; }
+        }
+        return target;
+      },
+      blocked: () => this.#disposed || this.#composition.active || this.#readOnly});
+    this.assistive?.setReadOnly(this.#readOnly);
+  }
   search: import('../modules/search.js').DocumentSearchPresenter | undefined;
   attachSearch(factory: import('../modules/search.js').DocumentSearchFactory): void {
     if (this.search || this.#disposed) throw Error('Search presenter already attached or disposed');
@@ -571,7 +593,7 @@ export class TextInput {
     this.#requestedReadOnly = value; this.#applyReadOnly(value || this.#suspended);
   }
   #applyReadOnly(value: boolean): void {
-    this.codeCommands?.setReadOnly(value); this.search?.setReadOnly(value); this.reorder?.setReadOnly(value); this.slash?.setReadOnly(value); this.references?.setReadOnly(value);
+    this.assistive?.setReadOnly(value); this.codeCommands?.setReadOnly(value); this.search?.setReadOnly(value); this.reorder?.setReadOnly(value); this.slash?.setReadOnly(value); this.references?.setReadOnly(value);
     if (value) {
       this.clipboard.cancel(); this.textDrag.cancel();
       const owner = this.#composition.owner;
@@ -593,7 +615,7 @@ export class TextInput {
   }
   dispose(): void {
     if (this.#disposed) return;
-    this.codeCommands?.dispose(); this.search?.dispose(); this.reorder?.dispose(); this.slash?.dispose(); this.references?.dispose();
+    this.assistive?.dispose(); this.codeCommands?.dispose(); this.search?.dispose(); this.reorder?.dispose(); this.slash?.dispose(); this.references?.dispose();
     this.#composition.finish('dispose'); this.#composition.dispose(); this.keyboard.dispose(); this.clipboard.dispose(); this.textDrag.dispose();
     this.#disposed = true; this.#generation++; this.#observer.disconnect(); this.#subscription.dispose();
     this.#renderer.patchBoundary = undefined; this.#renderer.setReadOnly(true);

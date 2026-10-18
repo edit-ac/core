@@ -1,0 +1,2231 @@
+{
+  "profile": "editac-assistive-input-v1",
+  "provenance": "hand-authored prepared protocol values; no speech/OS/provider observations",
+  "cases": [
+    {
+      "id": "valid_descriptor",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "register",
+      "value": null,
+      "dispose": false,
+      "accepted": true
+    },
+    {
+      "id": "absent_baseline",
+      "descriptor": null,
+      "operation": "register",
+      "value": null,
+      "dispose": false,
+      "accepted": true
+    },
+    {
+      "id": "disabled_registration",
+      "descriptor": {
+        "version": 1,
+        "enabled": false,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "register",
+      "value": null,
+      "dispose": false,
+      "accepted": true
+    },
+    {
+      "id": "command_status_only",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": null
+      },
+      "operation": "register",
+      "value": null,
+      "dispose": false,
+      "accepted": true
+    },
+    {
+      "id": "incompatible_version",
+      "descriptor": {
+        "version": 2,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "register",
+      "value": null,
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "unknown_capability",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "speech-service"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "register",
+      "value": null,
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "duplicate_capability",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "status",
+          "status"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "register",
+      "value": null,
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "empty_capabilities",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "register",
+      "value": null,
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "missing_transport",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": null
+      },
+      "operation": "register",
+      "value": null,
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "undeclared_transport",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "status"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "register",
+      "value": null,
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "extra_executable_field",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        },
+        "execute": "script"
+      },
+      "operation": "register",
+      "value": null,
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "limits_textBytes_zero",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 0,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "register",
+      "value": null,
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "limits_textBytes_oversized",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 16385,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "register",
+      "value": null,
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "limits_statusBytes_zero",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 0,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "register",
+      "value": null,
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "limits_statusBytes_oversized",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 513,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "register",
+      "value": null,
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "limits_commands_zero",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 0,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "register",
+      "value": null,
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "limits_commands_oversized",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 65,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "register",
+      "value": null,
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "limits_results_zero",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 0,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "register",
+      "value": null,
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "limits_results_oversized",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 1025,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "register",
+      "value": null,
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "limits_sessions_zero",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 0,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "register",
+      "value": null,
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "limits_sessions_oversized",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 9,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "register",
+      "value": null,
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "limits_timeoutMs_zero",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 0
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "register",
+      "value": null,
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "limits_timeoutMs_oversized",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 120001
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "register",
+      "value": null,
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "unknown_locality",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "inferred-local",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "register",
+      "value": null,
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "host_permission_required",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "extension",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "register",
+      "value": null,
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "valid_status",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "status",
+      "value": {
+        "version": 1,
+        "state": "active",
+        "session": {
+          "sessionId": "prepared-1",
+          "generation": 1
+        },
+        "reason": null,
+        "message": "Ready",
+        "provisional": "Prepared שלום 🧪"
+      },
+      "dispose": false,
+      "accepted": true
+    },
+    {
+      "id": "absent_status",
+      "descriptor": null,
+      "operation": "status",
+      "value": {
+        "version": 1,
+        "state": "active",
+        "session": {
+          "sessionId": "prepared-1",
+          "generation": 1
+        },
+        "reason": null,
+        "message": "Ready",
+        "provisional": "Prepared שלום 🧪"
+      },
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "disabled_status",
+      "descriptor": {
+        "version": 1,
+        "enabled": false,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "status",
+      "value": {
+        "version": 1,
+        "state": "active",
+        "session": {
+          "sessionId": "prepared-1",
+          "generation": 1
+        },
+        "reason": null,
+        "message": "Ready",
+        "provisional": "Prepared שלום 🧪"
+      },
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "disposed_status",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "status",
+      "value": {
+        "version": 1,
+        "state": "active",
+        "session": {
+          "sessionId": "prepared-1",
+          "generation": 1
+        },
+        "reason": null,
+        "message": "Ready",
+        "provisional": "Prepared שלום 🧪"
+      },
+      "dispose": true,
+      "accepted": false
+    },
+    {
+      "id": "status_byte_boundary",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "status",
+      "value": {
+        "version": 1,
+        "state": "active",
+        "session": {
+          "sessionId": "prepared-1",
+          "generation": 1
+        },
+        "reason": null,
+        "message": "🧪🧪🧪🧪🧪🧪🧪🧪",
+        "provisional": "🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪"
+      },
+      "dispose": false,
+      "accepted": true
+    },
+    {
+      "id": "status_bytes_overrun",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "status",
+      "value": {
+        "version": 1,
+        "state": "active",
+        "session": {
+          "sessionId": "prepared-1",
+          "generation": 1
+        },
+        "reason": null,
+        "message": "🧪🧪🧪🧪🧪🧪🧪🧪🧪",
+        "provisional": "Prepared שלום 🧪"
+      },
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "provisional_bytes_overrun",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "status",
+      "value": {
+        "version": 1,
+        "state": "active",
+        "session": {
+          "sessionId": "prepared-1",
+          "generation": 1
+        },
+        "reason": null,
+        "message": "Ready",
+        "provisional": "🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪"
+      },
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "status_version",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "status",
+      "value": {
+        "version": 2,
+        "state": "active",
+        "session": {
+          "sessionId": "prepared-1",
+          "generation": 1
+        },
+        "reason": null,
+        "message": "Ready",
+        "provisional": "Prepared שלום 🧪"
+      },
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "status_unknown_state",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "status",
+      "value": {
+        "version": 1,
+        "state": "listening-inferred",
+        "session": {
+          "sessionId": "prepared-1",
+          "generation": 1
+        },
+        "reason": null,
+        "message": "Ready",
+        "provisional": "Prepared שלום 🧪"
+      },
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "status_invalid_generation",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "status",
+      "value": {
+        "version": 1,
+        "state": "active",
+        "session": {
+          "sessionId": "prepared-1",
+          "generation": 0
+        },
+        "reason": null,
+        "message": "Ready",
+        "provisional": "Prepared שלום 🧪"
+      },
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "status_extra_metadata",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "status",
+      "value": {
+        "version": 1,
+        "state": "active",
+        "session": {
+          "sessionId": "prepared-1",
+          "generation": 1
+        },
+        "reason": null,
+        "message": "Ready",
+        "provisional": "Prepared שלום 🧪",
+        "audio": "forbidden"
+      },
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "valid_commands",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "commands",
+      "value": [
+        {
+          "commandId": "undo",
+          "label": "Undo",
+          "enabled": false,
+          "reason": "unavailable"
+        },
+        {
+          "commandId": "cancel",
+          "label": "Cancel",
+          "enabled": true,
+          "reason": null
+        }
+      ],
+      "dispose": false,
+      "accepted": true
+    },
+    {
+      "id": "duplicate_commands",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "commands",
+      "value": [
+        {
+          "commandId": "undo",
+          "label": "Undo",
+          "enabled": false,
+          "reason": "unavailable"
+        },
+        {
+          "commandId": "undo",
+          "label": "Undo",
+          "enabled": false,
+          "reason": "unavailable"
+        }
+      ],
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "commands_bound",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "commands",
+      "value": [
+        {
+          "commandId": "command-0",
+          "label": "Undo",
+          "enabled": false,
+          "reason": "unavailable"
+        },
+        {
+          "commandId": "command-1",
+          "label": "Undo",
+          "enabled": false,
+          "reason": "unavailable"
+        },
+        {
+          "commandId": "command-2",
+          "label": "Undo",
+          "enabled": false,
+          "reason": "unavailable"
+        },
+        {
+          "commandId": "command-3",
+          "label": "Undo",
+          "enabled": false,
+          "reason": "unavailable"
+        },
+        {
+          "commandId": "command-4",
+          "label": "Undo",
+          "enabled": false,
+          "reason": "unavailable"
+        }
+      ],
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "disabled_command_reason",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "commands",
+      "value": [
+        {
+          "commandId": "undo",
+          "label": "Undo",
+          "enabled": false,
+          "reason": null
+        }
+      ],
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "enabled_command_reason",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "commands",
+      "value": [
+        {
+          "commandId": "cancel",
+          "label": "Cancel",
+          "enabled": true,
+          "reason": "unavailable"
+        }
+      ],
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "empty_command_label",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "commands",
+      "value": [
+        {
+          "commandId": "undo",
+          "label": " ",
+          "enabled": false,
+          "reason": "unavailable"
+        }
+      ],
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "unknown_command_reason",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "commands",
+      "value": [
+        {
+          "commandId": "undo",
+          "label": "Undo",
+          "enabled": false,
+          "reason": "guessed"
+        }
+      ],
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "valid_final",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "result",
+      "value": {
+        "version": 1,
+        "session": {
+          "sessionId": "prepared-1",
+          "generation": 1
+        },
+        "sequence": 0,
+        "kind": "final",
+        "text": "Prepared 🧪"
+      },
+      "dispose": false,
+      "accepted": true
+    },
+    {
+      "id": "valid_provisional",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "result",
+      "value": {
+        "version": 1,
+        "session": {
+          "sessionId": "prepared-1",
+          "generation": 1
+        },
+        "sequence": 0,
+        "kind": "provisional",
+        "text": "Prepared 🧪"
+      },
+      "dispose": false,
+      "accepted": true
+    },
+    {
+      "id": "result_byte_boundary",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "result",
+      "value": {
+        "version": 1,
+        "session": {
+          "sessionId": "prepared-1",
+          "generation": 1
+        },
+        "sequence": 0,
+        "kind": "final",
+        "text": "🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪"
+      },
+      "dispose": false,
+      "accepted": true
+    },
+    {
+      "id": "result_bytes_overrun",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "result",
+      "value": {
+        "version": 1,
+        "session": {
+          "sessionId": "prepared-1",
+          "generation": 1
+        },
+        "sequence": 0,
+        "kind": "final",
+        "text": "🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪"
+      },
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "result_sequence_bound",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "result",
+      "value": {
+        "version": 1,
+        "session": {
+          "sessionId": "prepared-1",
+          "generation": 1
+        },
+        "sequence": 8,
+        "kind": "final",
+        "text": "Prepared 🧪"
+      },
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "result_unknown_kind",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "result",
+      "value": {
+        "version": 1,
+        "session": {
+          "sessionId": "prepared-1",
+          "generation": 1
+        },
+        "sequence": 0,
+        "kind": "execute",
+        "text": "Prepared 🧪"
+      },
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "result_unknown_version",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "result",
+      "value": {
+        "version": 2,
+        "session": {
+          "sessionId": "prepared-1",
+          "generation": 1
+        },
+        "sequence": 0,
+        "kind": "final",
+        "text": "Prepared 🧪"
+      },
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "result_identity_bound",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "result",
+      "value": {
+        "version": 1,
+        "session": {
+          "sessionId": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "generation": 1
+        },
+        "sequence": 0,
+        "kind": "final",
+        "text": "Prepared 🧪"
+      },
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "result_credentials_rejected",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "result",
+      "value": {
+        "version": 1,
+        "session": {
+          "sessionId": "prepared-1",
+          "generation": 1
+        },
+        "sequence": 0,
+        "kind": "final",
+        "text": "Prepared 🧪",
+        "credentials": "forbidden"
+      },
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "result_without_transport_capability",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "status"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": null
+      },
+      "operation": "result",
+      "value": {
+        "version": 1,
+        "session": {
+          "sessionId": "prepared-1",
+          "generation": 1
+        },
+        "sequence": 0,
+        "kind": "final",
+        "text": "Prepared 🧪"
+      },
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "valid_start",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "start",
+      "value": {
+        "version": 1,
+        "session": {
+          "sessionId": "prepared-1",
+          "generation": 1
+        }
+      },
+      "dispose": false,
+      "accepted": true
+    },
+    {
+      "id": "invalid_start_version",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "start",
+      "value": {
+        "version": 2,
+        "session": {
+          "sessionId": "prepared-1",
+          "generation": 1
+        }
+      },
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "invalid_start_identity",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "start",
+      "value": {
+        "version": 1,
+        "session": {
+          "sessionId": "",
+          "generation": 1
+        }
+      },
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "invalid_start_generation",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "start",
+      "value": {
+        "version": 1,
+        "session": {
+          "sessionId": "prepared-1",
+          "generation": 4294967296
+        }
+      },
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "start_rejects_document_context",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "start",
+      "value": {
+        "version": 1,
+        "session": {
+          "sessionId": "prepared-1",
+          "generation": 1
+        },
+        "context": "private"
+      },
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "missing_nullable_transport",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "status"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        }
+      },
+      "operation": "register",
+      "value": null,
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "maximum_declared_limits",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 16384,
+          "statusBytes": 512,
+          "commands": 64,
+          "results": 1024,
+          "sessions": 8,
+          "timeoutMs": 120000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "register",
+      "value": null,
+      "dispose": false,
+      "accepted": true
+    },
+    {
+      "id": "transport_rejects_array_coercion",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": [
+            "unknown"
+          ],
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "register",
+      "value": null,
+      "dispose": false,
+      "accepted": false
+    },
+    {
+      "id": "result_rejects_array_coercion",
+      "descriptor": {
+        "version": 1,
+        "enabled": true,
+        "capabilities": [
+          "commands",
+          "status",
+          "host-transport"
+        ],
+        "limits": {
+          "textBytes": 64,
+          "statusBytes": 32,
+          "commands": 4,
+          "results": 8,
+          "sessions": 1,
+          "timeoutMs": 1000
+        },
+        "transport": {
+          "input": "transcript",
+          "locality": "unknown",
+          "permissionOwner": "host",
+          "retention": "none",
+          "cancellation": "best-effort",
+          "canStop": true
+        }
+      },
+      "operation": "result",
+      "value": {
+        "version": 1,
+        "session": {
+          "sessionId": "prepared-1",
+          "generation": 1
+        },
+        "sequence": 0,
+        "kind": [
+          "final"
+        ],
+        "text": "Prepared 🧪"
+      },
+      "dispose": false,
+      "accepted": false
+    }
+  ]
+}

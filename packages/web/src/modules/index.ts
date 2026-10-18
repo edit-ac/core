@@ -58,3 +58,6 @@ export type { EmbedDescriptor, EmbedTemplate, EmbedOptions } from './embeds/pres
 
 export { documentSearch, DocumentSearchPresenter } from './search.js';
 export type { DocumentSearchContext, DocumentSearchOptions, DocumentSearchFactory } from './search.js';
+
+export { assistiveInput, AssistiveInputPresenter } from './assistive-input.js';
+export type { AssistivePresenterContext, AssistivePresenterOptions, AssistivePresenterFactory } from './assistive-input.js';

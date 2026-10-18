@@ -28,6 +28,7 @@ export interface EditorSurfaceOptions extends Partial<EditorFacadeOptionsV1> {
   commandAllowed?: (command: import('./commands/catalog.js').PortableCommand) => boolean;
   selectionViewport?: import('./selection/pointer.js').PointerSelectionViewport;
   codeCommands?: import('./extensions/code.js').CodeCommandsFactory;
+  assistive?: import('./modules/assistive-input.js').AssistivePresenterFactory;
   search?: import('./modules/search.js').DocumentSearchFactory;
   markdown?: import('./input/shortcuts.js').MarkdownAdapter;
   codeHighlight?: import("./modules/code/presenter.js").CodeHighlightFactory | import('./extensions/highlighting.js').ManagedCodeHighlightFactory;
@@ -64,6 +65,7 @@ export interface EditorSurface {
   readonly viewport: EditorViewport;
   readonly pointerSelection: import('./selection/pointer.js').PointerSelection;
   readonly codeCommands: import('./extensions/code.js').CodeCommandsPresenter | undefined;
+  readonly assistive: import('./modules/assistive-input.js').AssistiveInputPresenter | undefined;
   readonly search: import('./modules/search.js').DocumentSearchPresenter | undefined;
   readonly reorder: import('./modules/reorder.js').ReorderPresenter | undefined;
   readonly references: import('./modules/references.js').ReferencePresenter | undefined;
@@ -207,6 +209,7 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
     if (options.reorder) input.attachReorder(options.reorder);
     if (options.references) input.attachReferences(options.references);
     if (options.slash) input.attachSlash(options.slash);
+    if (options.assistive) input.attachAssistive(options.assistive);
     if (options.markdown) input.shortcuts = options.markdown.createShortcuts(engine, commit);
     input.shortcuts.enabled=options.typingShortcuts??true;
     input.clipboard.plainTextPolicy = options.plainTextPolicy ?? (options.preset === 'minimal' || !engine.markdownAvailable ? 'literal' : 'markdown');
@@ -393,6 +396,7 @@ export function mountEditorSurface(root: HTMLElement, engine: EngineHandle, opti
       get viewport() { return binding.viewport; },
       get pointerSelection() { return binding.pointerSelection; },
       get codeCommands() { return binding.input.codeCommands; },
+      get assistive() { return binding.input.assistive; },
       get search() { return binding.input.search; },
       get reorder() { return binding.input.reorder; },
       get references() { return binding.input.references; },

@@ -81,6 +81,8 @@ export { DocumentSearch, BlockReorder, Images, Tables, MathNotation, References,
 export type { EditorFacadeOptionsV1, ExtensionPresetOverridesV1, ReferenceConfigurationV1, SlashConfigurationV1 } from './extensions/configuration.js';
 export type { PresenceOptions, PresenceAttachment } from './sync/presence.js';
 
+export { assistiveInput, AssistiveInputPresenter } from './modules/assistive-input.js';
+export type { AssistivePresenterContext, AssistivePresenterOptions, AssistivePresenterFactory } from './modules/assistive-input.js';
 export { managedCodeHighlighting } from './extensions/highlighting.js';
 export type { ManagedCodeHighlightOptions, ManagedCodeHighlightFactory, ManagedCodeHighlightAttachment, CodeHighlightAttachment } from './extensions/highlighting.js';
 

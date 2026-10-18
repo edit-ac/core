@@ -337,3 +337,30 @@ is explicitly unavailable; it is never treated as redo. CLI/agent consumers may
 call the same captured semantic API; a queued UI event is not observed execution.
 Native UI transports, OS keyboard layouts and screen-reader remaps need separate
 qualification.
+
+
+### Optional assistive controls
+
+Import `assistiveInput` from `@edit-ac/web` (or `@edit-ac/web/modules`) and
+`AssistiveRegistration` from `@edit-ac/core/extensions`. Register a v1 descriptor
+before passing `assistive: assistiveInput(registration, options)` to
+`BrowserEditor` or `mountEditorSurface`. An absent or disabled descriptor creates
+no assistance controls. Ordinary input remains on the existing browser route.
+
+The presenter uses existing semantic command IDs and captured stable selection.
+Its default controls are Bold, Italic, Undo and Redo; `options.commands` selects
+catalog entries. Disabled controls show applicability reasons. Use the editor's
+existing Escape-then-Tab route to reach Editing assistance, then search and press
+Enter or Tab to a named button. Escape or Close assistance restores the captured
+selection while assistance owns focus. Moving to another control dismisses the
+panel without redirecting focus.
+
+`editor.assistive?.update(status)` validates the bounded v1 status envelope before
+changing UI. Provisional text is never rendered or announced. Explicit `cancel`
+and `recover` callbacks expose host actions; unavailable actions have visible
+reasons. No callback starts a microphone or installs a provider. The descriptor's
+transport locality, input and retention are shown as declared, including unknown
+values. Dispose the registration to remove its controls; editor teardown also
+releases the presenter. These prepared browser controls have structural
+accessibility coverage, not OS dictation or screen-reader qualification. Transport
+session commits remain a separate lifecycle implementation.
