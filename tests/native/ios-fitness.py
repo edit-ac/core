@@ -149,6 +149,12 @@ def main():
         # exceed five minutes while other builds run. This is setup admission,
         # not an input/layout budget; retain the bounded wait and its log.
         run('simulator-boot' ,['xcrun','simctl','boot',simulator]); run('simulator-ready',['xcrun','simctl','bootstatus',simulator,'-b'],timeout=600)
+        # Attach the actual private device to a foreground Simulator window.
+        # Headless boot/UI service readiness alone does not observe host focus.
+        run('simulator-ui-open',['open','-a','Simulator','--args','-CurrentDeviceUDID',simulator],timeout=30)
+        hostFocus = run('simulator-host-foreground',['xcrun','swift','-e','import AppKit; print(NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "unavailable")'],timeout=60).strip()
+        assert hostFocus == 'com.apple.iphonesimulator', 'Private simulator host is not foreground: '+hostFocus
+        record['simulatorHostForeground'] = hostFocus
         # Boot completion does not guarantee the install coordinator's XPC
         # service is running. Start this private simulator's declared service,
         # then retain its actual launchd state before making one install request.
