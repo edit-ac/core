@@ -32,8 +32,7 @@ export interface ExtensionHooksV1<Options extends Record<string, Json>> extends 
   readonly clipboardCodecs?: readonly ClipboardCodec[];
 }
 export type ExtensionCreateV1<Options extends Record<string, Json>> = ExtensionDefinitionV1<Options> & ExtensionHooksV1<Options>;
-const authored = new WeakMap<ConfiguredExtensionV1, ExtensionHooksV1<Record<string, Json>>>();
-const admitted = new WeakMap<PreparedEditorConfigurationV1, readonly { value: ConfiguredExtensionV1; hooks: ExtensionHooksV1<Record<string, Json>> }[]>();
+import { authored, admitted, attachments } from './authoring-metadata.js';
 const error = (id: string, option: string, remedy: string): never => { throw new ExtensionConfigurationError('invalid-authoring', id, option, remedy); };
 
 export const Extension = Object.freeze({
@@ -66,34 +65,10 @@ export const Extension = Object.freeze({
     const hooks = Object.freeze({ onAttach: definition.onAttach, onPatch: definition.onPatch, commands, input, renderers,
       markdown, clipboardCodecs });
     return Object.freeze({ name: factory.name, version: factory.version, configure(options: Partial<Options> = {}) {
-      const value = factory.configure(options); authored.set(value, hooks as ExtensionHooksV1<Record<string, Json>>); return value;
+      const value = factory.configure(options); authored.set(value, hooks as ExtensionHooksV1<Record<string, Json>>); attachments.set(value, attachAuthoring); return value;
     } });
   },
 });
-export function isAuthored(value: ConfiguredExtensionV1): boolean { return authored.has(value); }
-export function admitAuthoring(prepared: PreparedEditorConfigurationV1, originals: readonly ConfiguredExtensionV1[]): void {
-  admitted.set(prepared, originals.flatMap((value, index) => {
-    const hooks = authored.get(value); return hooks ? [{ value: prepared.extensions[index]!, hooks }] : [];
-  }));
-}
-const preparedAdapters = new WeakMap<PreparedEditorConfigurationV1, { renderers: Readonly<Record<string, ModuleRenderer>>; markdown: { codec: MarkdownCodec; createShortcuts: typeof literalShortcuts } | undefined; clipboardCodecs: readonly ClipboardCodec[] }>();
-export function authoringAdapters(prepared: PreparedEditorConfigurationV1) {
-  const cached = preparedAdapters.get(prepared); if (cached) return cached;
-  const entries = admitted.get(prepared) ?? [];
-  const priorities = new Map<string, Set<number>>();
-  for (const { value, hooks } of entries) for (const rule of hooks.input ?? []) {
-    const key = `${rule.type}:${rule.key}`, seen = priorities.get(key) ?? new Set<number>();
-    if (seen.has(rule.priority)) error(value.feature.id, 'input', 'Resolve equal input priorities before attachment');
-    seen.add(rule.priority); priorities.set(key, seen);
-  }
-  const codecs = entries.flatMap(e => e.hooks.clipboardCodecs ?? []); validateClipboardCodecs(codecs);
-  const markdown = entries.filter(e => e.hooks.markdown);
-  if (markdown.length + prepared.extensions.filter(e => e.feature.id === 'editac.markdown').length > 1) error('editor', 'markdown', 'Select one Markdown adapter');
-  const adapters = Object.freeze({ renderers: Object.freeze(Object.assign({}, ...entries.map(e => e.hooks.renderers))) as Record<string, ModuleRenderer>,
-    markdown: markdown[0]?.hooks.markdown ? { codec: markdown[0].hooks.markdown, createShortcuts: literalShortcuts } : undefined, clipboardCodecs: Object.freeze(codecs) });
-  preparedAdapters.set(prepared, adapters); return adapters;
-}
-
 /** Lifecycle adapter only: ModuleRuntime owns all committed-event dispatch. */
 export function attachAuthoring(prepared: PreparedEditorConfigurationV1 | undefined, runtime: ModuleRuntime | undefined,
   ports: Pick<ExtensionCallbackContextV1, 'can' | 'commit' | 'captureCommand'> & { blocked(): boolean; captureTarget: ExtensionContextV1['captureTarget']; matching?: PatternPorts; replacement: ExtensionContextV1['replacement'] }) {
