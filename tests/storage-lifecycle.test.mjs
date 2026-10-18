@@ -297,6 +297,75 @@ check('actual Chromium lifecycle uses leased Rust writer and IndexedDB completio
     }, serial(initial));
   } finally { await context.close(); }
 });
+check('actual IndexedDB recovery replays acknowledged journal bytes beyond the JSON request limit without compaction', async () => {
+  const owned = await chromium.launchServer({ headless: true });
+  const child = owned.process();
+  facts.processes.push({ pid: child.pid, launcher: child.spawnfile, workspace: process.cwd(), port: null,
+    purpose: 'NPR-1.1 binary journal recovery integration', log: 'full.log' });
+  let connected;
+  try {
+    connected = await chromium.connect(owned.wsEndpoint());
+    const context = await connected.newContext();
+    await context.route('https://large-journal.test/**', async route => {
+      const path = new URL(route.request().url()).pathname;
+      if (path === '/') return route.fulfill({ contentType: 'text/html', body: '<!doctype html><script type="importmap">{"imports":{"@edit-ac/core":"/core/index.js"}}</script>' });
+      if (path.includes('..') || !/^\/(core|web)\//.test(path)) return route.abort();
+      const prefix = path.startsWith('/core/') ? '../packages/core/dist/' : '../packages/web/dist/';
+      await route.fulfill({ contentType: path.endsWith('.wasm') ? 'application/wasm' : 'text/javascript',
+        body: await readFile(new URL(prefix + path.replace(/^\/(core|web)\//, ''), import.meta.url)) });
+    });
+    const page = await context.newPage(); await page.goto('https://large-journal.test/');
+    const result = await page.evaluate(async () => {
+      const { init } = await import('/core/index.js');
+      const { recoverLocalDocument } = await import('/web/entry.js');
+      const { CheckpointStorage } = await import('/web/storage/checkpoint.js');
+      const { UpdateJournal } = await import('/web/storage/journal.js');
+      const assetUrl = '/core/wasm/editac_wasm_bg.wasm', databaseName = 'full-binary-journal';
+      const runtime = await init(assetUrl);
+      const initial = runtime.createEngine({ profile: 'v5', documentId: crypto.randomUUID(), epoch: crypto.randomUUID(), nodes: Array.from({ length: 5 }, () => ({ text: 'base' })) });
+      const point = initial.checkpoint(), identity = point.identity; initial.dispose();
+      const checkpoints = await CheckpointStorage.open(indexedDB, databaseName);
+      try { await checkpoints.publish(point, []); } finally { checkpoints.close(); }
+      const options = { assetUrl, databaseName, identity, indexedDB, locks: navigator.locks };
+      let session = await recoverLocalDocument(options);
+      try {
+        const engine = session.writer.engine, blockIds = engine.read().visible.map(node => node.id);
+        for (const id of blockIds) {
+          const at = engine.anchor(id, 4, 'right');
+          try {
+            const committed = session.storage.commit({ kind: 'text', origin: 'regression:large-journal', command: { type: 'insert', at, text: 'x'.repeat(120000) } });
+            if (committed.caret) engine.releaseAnchor(committed.caret);
+          } finally { engine.releaseAnchor(at); }
+        }
+        await session.storage.flush({ target: 'local' });
+        const before = JSON.stringify(engine.read().visible), vector = JSON.stringify([...engine.stateVector()]);
+        const journal = await UpdateJournal.open(indexedDB, databaseName);
+        let entries;
+        try { entries = await journal.read(identity); } finally { journal.close(); }
+        const ids = entries.map(entry => entry.updateId), rawBytes = entries.reduce((sum, entry) => sum + entry.bytes.length, 0);
+        const legacyJSONBytes = new TextEncoder().encode(JSON.stringify(entries.map(entry => ({ identity: entry.identity, bytes: [...entry.bytes] })))).length;
+        await session.storage.destroy({ policy: 'flush' }); session = undefined;
+        session = await recoverLocalDocument(options);
+        const restored = session.writer.engine;
+        const retainedJournal = await UpdateJournal.open(indexedDB, databaseName);
+        let retained;
+        try { retained = await retainedJournal.read(identity); } finally { retainedJournal.close(); }
+        return { rawBytes, legacyJSONBytes, entries: entries.length, exactText: JSON.stringify(restored.read().visible) === before,
+          exactVector: JSON.stringify([...restored.stateVector()]) === vector, acknowledged: JSON.stringify(retained.map(entry => entry.updateId)) === JSON.stringify(ids) };
+      } finally { if (session) await session.storage.destroy({ policy: 'flush' }); }
+    });
+    facts.largeJournalRecovery = result;
+    assert.ok(result.legacyJSONBytes > 2 * 1024 * 1024);
+    assert.ok(result.rawBytes < 2 * 1024 * 1024);
+    assert.equal(result.entries, 5); assert.equal(result.exactText, true);
+    assert.equal(result.exactVector, true); assert.equal(result.acknowledged, true);
+    await context.close();
+  } finally {
+    await connected?.close(); await owned.close();
+    assert.notEqual(child.exitCode ?? child.signalCode, null);
+  }
+});
+
 after(async () => {
   try { await browser?.close(); }
   finally {

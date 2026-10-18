@@ -146,6 +146,30 @@ for(const mode of ['absent-presenter','future-version','wrong-inline-owner','mal
  assert.deepEqual(f.externalRequests??[],[]);
 },{...returnedConfig,absentMath:mode==='absent-presenter'}));
 
+// Final host admission is distinct from decoding. Recover the exact rich offer,
+// including opaque tuples, rather than only its accompanying plain/HTML flavor.
+const recoveryFamilies=[...families,corpus.cases.find(c=>c.id==='registered-paragraph'),corpus.returnedCases.find(c=>c.id==='mixed-document')];
+for(const c of recoveryFamilies)test(`recovery ${c.id}: rejected final commit preserves original and retry is atomic`,()=>probe(`recovery-${c.id}`,async(p,f)=>{
+ await select(p,true);const before=await state(p,f);
+ const data={...offer(c.envelope),'text/x-markdown':'alternate Markdown'};
+ const result=await paste(p,data);assert.equal(result.disposition,'rejected');assert.match(result.reason,/fixture-final-commit-rejected/);
+ const rejected=await state(p,f);unchanged(before,rejected);assert.deepEqual(rejected.selection,before.selection);assert.equal(rejected.focused,before.focused);
+ const original=rejected.recovery.find(r=>r.mime===mime);assert(original,'bounded recovery retains authoritative structured source');assert.equal(original.raw,data[mime]);assert(rejected.recovery.length<=4);
+ await p.evaluate(()=>window.inputFixture.rejectCommits(false));
+ assert.equal((await paste(p,{[mime]:original.raw})).disposition,'committed');const after=await state(p,f);one(before,after);assert.deepEqual(blocks(after).slice(1,-1),inserted(c.envelope.payload));
+ await restore(p,f,before,after);
+},{...returnedConfig,rejectCommit:true}));
+for(const c of recoveryFamilies)test(`recovery ${c.id}: disposal rejects deferred rich transfer and late completion`,()=>probe(`disposed-${c.id}`,async(p,f)=>{
+ await select(p);const before=await state(p,f),data=offer(c.envelope);
+ await p.evaluate(data=>window.inputFixture.defer(data),data);
+ const captured=await p.evaluate(()=>{const job=window.pendingTransfer.job;window.inputFixture.protocol.clipboard.dispose();return{source:job.source,frozen:Object.isFrozen(job.source)};});
+ assert.equal(captured.frozen,true);assert.deepEqual(captured.source,data);
+ const result=await p.evaluate(async()=>{window.pendingTransfer.release();return window.pendingTransfer.job.result;});assert.equal(result.disposition,'rejected');
+ const after=await state(p,f);unchanged(before,after);assert.deepEqual(after.selection,before.selection);assert.equal(after.focused,before.focused);assert.equal(after.codecCalls,0);
+ assert.equal(after.recovery.find(r=>r.mime===mime)?.raw,data[mime]);
+ await p.evaluate(()=>window.pendingTransfer.release());unchanged(after,await state(p,f));
+},returnedConfig));
+
 // The fallback card owns whole-atom copy; its source textarea owns literal slices.
 for(const c of corpus.returnedCases.filter(c=>c.kind==='inert'))test(`returned ${c.id}: fallback card copy preserves exact marks and envelope, source copy stays literal`,()=>probe(`returned-${c.id}-card-copy`,async(p,f)=>{
  const before=await state(p,f);await select(p,true);assert.equal((await paste(p,offer(c.envelope))).disposition,'committed');

@@ -149,7 +149,7 @@ export class KeyboardInput {
     let disposed = false, redirected = false, consumed = false;
     const focus = (event: FocusEvent) => {
       const node = event.target;
-      if (node instanceof Element && node !== root && !root.contains(node) && !focusOwner?.contains(node) &&
+      if (node instanceof Element && node !== root && !focusOwner?.contains(node) &&
         (focusOwner || node.closest('input, textarea, select, [contenteditable="true"], [role="textbox"]'))) redirected = true;
     };
     doc.addEventListener('focusin', focus);
