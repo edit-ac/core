@@ -92,3 +92,27 @@ viewport disruption and stable remote targets. Image/table inventories explicitl
 advertise no portable resize command; no new dimension field is introduced.
 Prepared mobile geometry and pointer events remain separate from real
 MWX-1.8 device/native scroll, zoom, IME and accessibility qualification.
+
+Asset/embed prerequisite integration:
+
+```sh
+npm run test:mobile-extensions -- --group assets
+```
+
+The assets suite consumes installed production BrowserEditor, Session, WASM and
+IndexedDB with prepared image/attachment/embed hosts. `contentModules` accepts
+`imageLoading: 'explicit'` to show a source/alt-text card and Load image action
+without resolving or fetching on mount. The compatibility default remains
+`automatic` for hosts already supplying an image policy. Image/file cancellation
+and embed deactivation release presenter-owned work; embedding requires a fresh
+explicit authority check. These controls use intrinsic 44 CSS pixel targets and
+bounded source views. Prepared host responses and viewport changes are mechanics
+checks, with actual picker/camera/clipboard/device behavior still unqualified.
+
+Passing this suite does **not** close MEX-1.5: MWX-C17 file-input/capture and
+MWX-C18 binary ingestion/upload/background lifecycle require an exposed owning
+AssetWork browser adapter. Existing resolve-url/open/download ports cannot ingest.
+The mixed-file clipboard rows qualify existing HTML/plain precedence and recovery,
+not insertion of binary bytes or durable upload. Do not add a second journal or
+serializer to replace the missing Session boundary. Preserve its admission receipt
+and retry only when a qualified pinned owner return changes that prerequisite.

@@ -1,0 +1,12 @@
+// Prepared host callbacks only. They do not own document state or binary semantics.
+export function assetHost(options={}) {
+ const c=window.assetControl={calls:[],signals:[],canceled:[],pending:[],state:options.state??'available',paused:!!options.paused,
+  host:{principal:'viewer',tenant:'fixture',authority:null,scope:{document:'document',session:'session',revision:'1',permission:'1',authorized:true},policyRevision:'1',readonly:false,capabilities:{publicMetadata:true,privateLookup:false,title:true,icon:true,preview:true,activate:true,publishMetadata:false}},
+  release(){for(const done of this.pending.splice(0))done();}};
+ async function record(operation,request,signal){c.calls.push({operation,request});c.signals.push(signal);if(c.paused)await new Promise(done=>c.pending.push(done));}
+ if(options.noPort)return {imageLoading:'explicit'};
+ return {imageLoading:'explicit',imageLimits:options.imageLimits,attachmentLimits:options.attachmentLimits,
+  imageAssets:{async resolve(request,signal){await record('resolve',request,signal);return {state:c.state,grant:{identity:options.wrongIdentity?{host:'other',key:'wrong'}:request.identity,actions:['resolve-url','read']},resolution:{identity:request.identity,operationId:request.operationId,url:'https://assets.invalid/'+(options.media??'pixel.png')}};},cancel(request){c.canceled.push(request.operationId);}},
+  attachments:{observe(identity){return {identity,state:options.observed??'missing'};},async authorize(request,signal){await record('authorize',request,signal);return {identity:request.identity,state:c.state,actions:options.denied?[]:['open','download']};},async execute(request,signal){await record('execute',request,signal);return {identity:request.identity,operationId:request.operationId,action:request.action,state:'completed'};},cancel(request){c.canceled.push(request.operationId);}},
+  embeds:{context:()=>c.host,templates:options.noTemplate?[]:[{provider:'prepared-video',endpoint:'https://isolated.invalid/player'}],resolver:{async publicMetadata(request,signal){await record('metadata',request,signal);if(c.state!=='available')return {status:c.state==='offline'?'unavailable':c.state};return {status:'available',freshness:{fetchedAt:Date.now()-10,expiresAt:Date.now()+60000,policyRevision:request.host.policyRevision},metadata:{kind:'public',provider:'prepared-video',requestedUrl:request.target.url,display:{title:'Prepared metadata 😀',description:'No provider HTML or secondary fetch'}}};}}}};
+}

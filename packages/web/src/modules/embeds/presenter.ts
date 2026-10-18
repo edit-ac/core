@@ -1,6 +1,7 @@
 import { admitLinkRequest, captureLinkRequest, linkIntentPermission, safeLink, validateLinkResult } from '@edit-ac/core';
 import type { LinkHostContext, LinkHostPorts, LinkRequest, LinkOutcome } from '@edit-ac/core';
 import type { ContentContext, ContentFactory } from '../content.js';
+import { touchTarget, touchPanel } from '../touch-controls.js';
 
 /** Opaque source-preserving module tuple, not executable provider markup. */
 export interface EmbedDescriptor { url: string; provider: string; fallback: string; source: string }
@@ -51,13 +52,14 @@ export function embedPresenters(options: EmbedOptions = {}): ContentFactory {
     const refresh = doc.createElement('button'), activate = doc.createElement('button'), deactivate = doc.createElement('button');
     element.dataset.contentModule = 'embed'; element.contentEditable = 'false'; status.setAttribute('role','status'); source.readOnly = true; source.setAttribute('aria-label','Embed source');
     refresh.textContent = 'Refresh card'; activate.textContent = 'Activate embed'; deactivate.textContent = 'Deactivate embed';
-    for (const b of [refresh,activate,deactivate]) b.type = 'button';
+    for (const b of [refresh,activate,deactivate]) { b.type = 'button'; touchTarget(b); }
+    touchTarget(source);touchPanel(source);source.style.width='100%';element.style.minWidth='0';
     element.append(label,description,status,source,refresh,activate,deactivate);
     let disposed = false, readOnly = context.readOnly, current = context.node, key = '', stop: (() => void) | undefined, frame: HTMLIFrameElement | undefined;
     const state = (value: string) => { element.dataset.embedState = value; status.textContent = `Embed ${value}.`; };
     const clearFrame = () => { frame?.removeAttribute('src'); frame?.remove(); frame = undefined; deactivate.disabled = true; };
     const fallback = () => { label.textContent = data!.fallback; description.textContent = data!.url; source.value = data!.source; };
-    const buttons = () => { refresh.disabled = !host || readOnly || !!stop || disposed; activate.disabled = refresh.disabled || !templates.has(data!.provider); deactivate.disabled = !frame; };
+    const buttons = () => { refresh.disabled = !host || readOnly || !!stop || disposed; activate.disabled = refresh.disabled || !templates.has(data!.provider); deactivate.disabled = !frame && !stop; };
     const present = () => { fallback(); state(host && templates.has(data!.provider) ? 'inactive' : 'unsupported'); buttons(); };
     const liveNode = (expected: string) => !disposed && element.isConnected && expected === key && JSON.stringify(context.engine.read().visible.find(n => n.id === current.id)?.blockAttributes) === JSON.stringify(current.blockAttributes);
     async function run(interactive: boolean): Promise<void> {
@@ -92,18 +94,21 @@ export function embedPresenters(options: EmbedOptions = {}): ContentFactory {
         label.textContent = outcome.metadata.display.title; description.textContent = outcome.metadata.display.description ?? captured.url;
         if (interactive) {
           const endpoint = new URL(templates.get(captured.provider)!); endpoint.searchParams.set('url',captured.url);
-          frame = doc.createElement('iframe'); frame.title = captured.fallback; frame.setAttribute('sandbox','allow-scripts'); frame.referrerPolicy = 'no-referrer'; frame.setAttribute('allow',"camera 'none'; microphone 'none'; geolocation 'none'; fullscreen 'none'"); frame.setAttribute('credentialless',''); frame.src = endpoint.href; element.append(frame);
+          frame = doc.createElement('iframe'); frame.title = captured.fallback; frame.style.maxWidth='100%'; frame.setAttribute('sandbox','allow-scripts'); frame.referrerPolicy = 'no-referrer'; frame.setAttribute('allow',"camera 'none'; microphone 'none'; geolocation 'none'; fullscreen 'none'"); frame.setAttribute('credentialless',''); frame.src = endpoint.href; element.append(frame);
         }
         finish(); state(interactive ? 'active' : 'card'); buttons();
       } catch { if (pending) { finish(); if (liveNode(expected)) { fallback(); state('unavailable'); } } }
     }
     refresh.onclick = () => { void run(false); }; activate.onclick = () => { void run(true); };
-    deactivate.onclick = () => { clearFrame(); fallback(); state('inactive'); buttons(); };
+    const exit = () => { stop?.(); clearFrame(); fallback(); state('inactive'); buttons(); activate.focus({preventScroll:true}); };
+    deactivate.onclick = exit;
+    const escape = (event: KeyboardEvent) => { if(event.key==='Escape'&&!event.isComposing&&(frame||stop)){event.preventDefault();exit();} };
+    element.addEventListener('keydown',escape);
     const contain = (event: Event) => event.stopPropagation();
     const events = ['beforeinput','input','keydown','keyup','compositionstart','compositionend','cut','paste','dragstart','dragover','drop','dragend'];
     for (const type of events) element.addEventListener(type,contain);
     const update = (node: ContentContext['node']) => { const next = descriptor(node); if (disposed || !next) return false; current = node; const nextKey = JSON.stringify(next); if (nextKey !== key) { stop?.(); clearFrame(); data = next; key = nextKey; present(); } else if (host) { try { if (!host.context().scope.authorized) { stop?.(); clearFrame(); fallback(); state('forbidden'); buttons(); } } catch { stop?.(); clearFrame(); fallback(); state('unavailable'); buttons(); } } return true; };
     update(context.node);
-    return {element,update,setReadOnly(value){ readOnly = value; if (value) { stop?.(); clearFrame(); fallback(); state('inactive'); } buttons(); },dispose(){ if (disposed) return; disposed = true; stop?.(); clearFrame(); for (const b of [refresh,activate,deactivate]) b.onclick = null; for (const type of events) element.removeEventListener(type,contain); state('disposed'); buttons(); }};
+    return {element,update,setReadOnly(value){ readOnly = value; if (value) { stop?.(); clearFrame(); fallback(); state('inactive'); } buttons(); },dispose(){ if (disposed) return; disposed = true; stop?.(); clearFrame();element.removeEventListener('keydown',escape); for (const b of [refresh,activate,deactivate]) b.onclick = null; for (const type of events) element.removeEventListener(type,contain); state('disposed'); buttons(); }};
   };
 }
