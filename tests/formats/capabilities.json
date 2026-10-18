@@ -1253,6 +1253,73 @@
         "fixtures/formats/table-text/quoted.tsv",
         "fixtures/formats/table-text/expected.json"
       ]
+    },
+    "table-text-export": {
+      "gate": "CNV-1.17",
+      "commands": [
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--features",
+            "table-text-export,table-text-import",
+            "--test",
+            "table_text_export",
+            "--",
+            "--nocapture"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--features",
+            "table-text-export,table-text-import",
+            "--test",
+            "jobs",
+            "--test",
+            "profiles",
+            "--",
+            "--nocapture"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/table-text-export.test.mjs",
+            "tests/formats/dispatcher.test.mjs"
+          ],
+          "kind": "node-test"
+        }
+      ],
+      "inputs": [
+        "crates/editac-formats/src/lib.rs",
+        "crates/editac-formats/Cargo.toml",
+        "crates/editac-formats/Cargo.lock",
+        "crates/editac-formats/src/table_text/mod.rs",
+        "crates/editac-formats/src/table_text/export.rs",
+        "crates/editac-formats/src/table_text/import.rs",
+        "crates/editac-formats/tests/table_text_export.rs",
+        "crates/editac-formats/tests/support/jobs_harness.rs",
+        "crates/editac-formats/examples/table_text_export.rs",
+        "tests/formats/table-text-export.test.mjs",
+        "tests/formats/table-text-export-reference.py",
+        "fixtures/formats/table-text/export/profile.md",
+        "fixtures/formats/table-text/quoted.csv",
+        "fixtures/formats/table-text/expected.json"
+      ]
     }
   }
 }

@@ -324,5 +324,5 @@ pub mod rtf;
 #[cfg(any(feature = "epub-import", feature = "epub-export"))]
 pub mod epub;
 
-#[cfg(feature = "table-text-import")]
+#[cfg(any(feature = "table-text-import", feature = "table-text-export"))]
 pub mod table_text;

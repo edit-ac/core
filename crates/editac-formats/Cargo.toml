@@ -16,6 +16,7 @@ unsafe_code = "forbid"
 
 [features]
 default = []
+table-text-export = ["jobs", "dep:yrs"]
 table-text-import = ["jobs", "dep:csv-core", "dep:yrs"]
 pdf-export = ["pdf-probe", "jobs", "krilla/raster-images", "dep:flate2"]
 pdf-probe = ["dep:krilla", "dep:rustybuzz"]
@@ -163,3 +164,11 @@ required-features = ["table-text-import"]
 [[example]]
 name = "table_text_import"
 required-features = ["table-text-import"]
+
+[[test]]
+name = "table_text_export"
+required-features = ["table-text-export", "table-text-import"]
+
+[[example]]
+name = "table_text_export"
+required-features = ["table-text-export"]
