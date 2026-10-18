@@ -1,15 +1,91 @@
 import XCTest
 
 final class NativeFitnessUITests: XCTestCase {
-    func focus(_ app: XCUIApplication, button: XCUIElement, status: XCUIElement, value: String) {
+    func dismissKeyboardTutorial(_ app: XCUIApplication) throws -> Bool {
+        var touched = false
+        for attempt in 1...3 {
+            // Keyboard introductions can duplicate AX entries and present a
+            // second panel with the same Continue label. Observe each panel.
+            let anyContinue = app.buttons.matching(identifier: "Continue").firstMatch
+            guard anyContinue.waitForExistence(timeout: 5) else { return touched }
+            let introduction = app.otherElements["UIContinuousPathIntroductionView"].firstMatch
+            let tutorial = introduction.exists
+                ? introduction.buttons.matching(identifier: "Continue").firstMatch : anyContinue
+            let windowElement = app.windows.firstMatch
+            let r = tutorial.frame, window = windowElement.frame
+            XCTAssertTrue(window.contains(r)); XCTAssertGreaterThan(r.width, 0); XCTAssertGreaterThan(r.height, 0)
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = "keyboard onboarding before touch \(attempt)"
+            screenshot.lifetime = .keepAlways; add(screenshot)
+            // Anchor the observed screen point to the app window. Remote
+            // keyboard AX elements can have unreliable element coordinates.
+            let before = ProcessInfo.processInfo.systemUptime
+            windowElement.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
+                .withOffset(CGVector(dx: r.midX - window.minX, dy: r.midY - window.minY)).tap()
+            touched = true
+            let gone = anyContinue.waitForNonExistence(timeout: 10)
+            let record: [String: Any] = ["action": "OS touch at window-relative center of observed onboarding control",
+                "attempt": attempt, "disappearedAfterTouch": gone,
+                "frame": ["x": r.minX, "y": r.minY, "width": r.width, "height": r.height],
+                "point": ["x": r.midX, "y": r.midY], "before": before, "after": ProcessInfo.processInfo.systemUptime]
+            let data = try JSONSerialization.data(withJSONObject: record, options: [.sortedKeys])
+            let attachment = XCTAttachment(data: data, uniformTypeIdentifier: "public.json")
+            attachment.name = "keyboard tutorial screen dispatch \(attempt)"; attachment.lifetime = .keepAlways; add(attachment)
+            if gone { return true }
+        }
+        XCTFail("OS keyboard onboarding remained after three observed control touches")
+        throw NSError(domain: "NativeFitnessTutorial", code: 1)
+    }
+    func focus(_ app: XCUIApplication, button: XCUIElement, status: XCUIElement, value: String) throws {
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
         let ready = NSPredicate(format: "value == %@", value)
-        for _ in 0..<3 {
-            app.activate()
-            button.press(forDuration: 0.1)
-            if ready.evaluate(with: status) || XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: ready, object: status)], timeout: 5) == .completed { return }
+        let settled = NSPredicate(format: "value == %@ OR value BEGINSWITH %@", value, "input-mode:")
+        var transitions: [[String: Any]] = []
+        var switchesRemaining = 6
+        for attempt in 1...3 {
+            // Retry only pre-input focus. A mode change may dismiss the software
+            // keyboard after UIKit has reported the selected language ready.
+            app.activate(); button.tap()
+            // A first-use sheet can replace the keyboard entirely. Dismiss it
+            // before waiting for a keyboard, then request fresh native focus.
+            if try dismissKeyboardTutorial(app) { button.tap() }
+            guard app.keyboards.firstMatch.waitForExistence(timeout: 10) else { continue }
+            guard settled.evaluate(with: status) || XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: settled, object: status)], timeout: 5) == .completed else { continue }
+            while !ready.evaluate(with: status) && switchesRemaining > 0 {
+                let previous = status.value as? String ?? "unavailable"
+                let next = app.buttons["Next keyboard"]
+                guard next.waitForExistence(timeout: 5) else { break }
+                let frame = next.frame, window = app.windows.firstMatch.frame
+                guard frame.width > 0, frame.height > 0,
+                      window.contains(CGPoint(x: frame.midX, y: frame.midY)) else { break }
+                let before = ProcessInfo.processInfo.systemUptime
+                app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
+                    .withOffset(CGVector(dx: frame.midX - window.minX, dy: frame.midY - window.minY)).tap()
+                switchesRemaining -= 1
+                if try dismissKeyboardTutorial(app) {
+                    button.tap()
+                    guard app.keyboards.firstMatch.waitForExistence(timeout: 10) else { break }
+                }
+                let changed = NSPredicate(format: "value != %@", previous)
+                guard XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: changed, object: status)], timeout: 10) == .completed else { break }
+                transitions.append(["before": before, "after": ProcessInfo.processInfo.systemUptime,
+                    "focusAttempt": attempt, "previous": previous, "observed": status.value as? String ?? "unavailable",
+                    "transport": "single OS touch at observed next-keyboard button center",
+                    "frame": ["x": frame.minX, "y": frame.minY, "width": frame.width, "height": frame.height]])
+            }
+            guard ready.evaluate(with: status) && app.keyboards.firstMatch.waitForExistence(timeout: 10) else { continue }
+            if value == "pinyin-ready" {
+                let firstKey = app.keys["n"]
+                guard firstKey.waitForExistence(timeout: 5) && firstKey.isHittable else { continue }
+            }
+            let attachment = XCTAttachment(data: try JSONSerialization.data(withJSONObject: transitions, options: [.sortedKeys]), uniformTypeIdentifier: "public.json")
+            attachment.name = "actual OS keyboard input-mode transitions"; attachment.lifetime = .keepAlways; add(attachment)
+            return
         }
-        XCTFail("UIKit did not acknowledge an actual foreground focus action")
+        let attachment = XCTAttachment(data: try JSONSerialization.data(withJSONObject: transitions, options: [.sortedKeys]), uniformTypeIdentifier: "public.json")
+        attachment.name = "failed pre-input focus and mode transitions"; attachment.lifetime = .keepAlways; add(attachment)
+        XCTFail("Actual selected OS input mode and keyboard did not acknowledge a bounded focus action")
+        throw NSError(domain: "NativeFitnessFocus", code: 1)
     }
 
     func workload(_ name: String) throws {
@@ -24,12 +100,24 @@ final class NativeFitnessUITests: XCTestCase {
             XCTAssertTrue(p.evaluate(with: status) || XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: p, object: status)], timeout: 30) == .completed)
         }
         XCTAssertEqual(status.label, "ready")
-        focus(app, button: app.buttons["workload-focus"], status: status, value: "keyboard-ready")
+        try focus(app, button: app.buttons["workload-focus"], status: status, value: "keyboard-ready")
         awaitValue("keyboard-ready")
+        var dispatches: [[String: Any]] = []
         for (i, letter) in "abcdefghijkl".enumerated() {
-            let key = app.keys[String(letter)]; XCTAssertTrue(key.waitForExistence(timeout: 5)); XCTAssertTrue(key.isHittable)
-            key.press(forDuration: 0.1); awaitValue("samples-\(i + 1)")
+            // KeyboardEvents is the OS hardware-key path; it can hide the
+            // software keys while the text control retains native input focus.
+            // A visible software-key lookup is not its delivery acknowledgment.
+            // Require each actual native sample instead, with no fallback/replay.
+            let keyboardVisible = app.keyboards.firstMatch.exists
+            let before = ProcessInfo.processInfo.systemUptime
+            app.typeText(String(letter)); awaitValue("samples-\(i + 1)")
+            dispatches.append(["key": String(letter), "softwareKeyboardVisibleBefore": keyboardVisible,
+                "before": before, "after": ProcessInfo.processInfo.systemUptime])
         }
+        let data = try JSONSerialization.data(withJSONObject: ["client": "XCTest OS workload key press", "name": name,
+            "transport": "XCTest application KeyboardEvents.typeText; one dispatch, no replay or setter", "clock": "ProcessInfo.systemUptime; no cross-process join", "dispatches": dispatches], options: [.sortedKeys])
+        let attachment = XCTAttachment(data: data, uniformTypeIdentifier: "public.json")
+        attachment.name = name + " OS dispatches"; attachment.lifetime = .keepAlways; add(attachment)
         app.buttons["workload-verify"].tap()
         let p = NSPredicate(format: "label == %@", "verified")
         XCTAssertTrue(p.evaluate(with: status) || XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: p, object: status)], timeout: 30) == .completed)
@@ -48,17 +136,7 @@ final class NativeFitnessUITests: XCTestCase {
         XCTAssertTrue(editor.waitForExistence(timeout: 30))
         let initial = "A😀éZ"
         XCTAssertEqual(editor.value as? String, initial)
-        focus(app, button: app.buttons["focus-append"], status: app.staticTexts["scenario-status"], value: "ascii-ready")
-        // A fresh OS image presents its swipe-typing tutorial above the keys.
-        let tutorial = app.staticTexts["Continue"]
-        if tutorial.waitForExistence(timeout: 5) {
-            tutorial.tap()
-            XCTAssertTrue(tutorial.waitForNonExistence(timeout: 10))
-            // Continue dismisses system UI, which is not proof that the text
-            // service is rebound to our editor. Request fresh UIKit focus
-            // before measuring the first actual key; never retry a lost key.
-            focus(app, button: app.buttons["focus-append"], status: app.staticTexts["scenario-status"], value: "ascii-ready")
-        }
+        try focus(app, button: app.buttons["focus-append"], status: app.staticTexts["scenario-status"], value: "ascii-ready")
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 10))
         let ready = NSPredicate(format: "value == %@", "ascii-ready")
         let status = app.staticTexts["scenario-status"]
@@ -66,10 +144,10 @@ final class NativeFitnessUITests: XCTestCase {
         var driverSamples: [[String: Any]] = []
         var prefix = initial
         for letter in "abcdefghijkl" {
-            let key = app.keys[String(letter)]
-            XCTAssertTrue(key.waitForExistence(timeout: 5)); XCTAssertTrue(key.isHittable)
+            // Hardware-key transport does not require a hittable software key.
+            // Admit delivery only through the exact native value/callback path.
             let before = ProcessInfo.processInfo.systemUptime
-            key.press(forDuration: 0.1); prefix += String(letter)
+            app.typeText(String(letter)); prefix += String(letter)
             let committed = NSPredicate(format: "value == %@", prefix)
             XCTAssertTrue(committed.evaluate(with: editor) || XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: committed, object: editor)], timeout: 10) == .completed)
             let observed = editor.value as? String ?? ""
@@ -79,7 +157,10 @@ final class NativeFitnessUITests: XCTestCase {
         XCTAssertEqual(editor.value as? String, initial + "abcdefghijkl")
         XCTAssertTrue(editor.frame.width > 0 && editor.frame.height > 0)
         let before = XCTAttachment(screenshot: app.screenshot()); before.name = "OS keyboard and accessibility value"; before.lifetime = .keepAlways; add(before)
-        app.buttons["verify-source"].tap()
+        let verify = app.buttons["verify-source"]
+        XCTAssertTrue(verify.isHittable)
+        XCTAssertFalse(verify.frame.intersects(app.keyboards.firstMatch.frame), "Verification action must remain outside the live OS keyboard")
+        verify.tap()
         let verified = NSPredicate(format: "label == %@", "verified")
         expectation(for: verified, evaluatedWith: status)
         waitForExpectations(timeout: 15)
@@ -110,17 +191,39 @@ final class NativeFitnessUITests: XCTestCase {
         // XCTest aborts after an assertion failure; teardown still retains the
         // actual keyboard/focus/candidate state needed to diagnose that failure.
         addTeardownBlock { capture("final CJK runtime state") }
-        editor.tap()
-        // A fresh OS image presents its swipe-typing tutorial above the keys.
-        let tutorial = app.staticTexts["Continue"]
-        if tutorial.waitForExistence(timeout: 5) { tutorial.tap() }
+        try focus(app, button: app.buttons["focus-append"], status: status, value: "pinyin-ready")
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 10))
         let ready = NSPredicate(format: "value == %@", "pinyin-ready")
         XCTAssertTrue(ready.evaluate(with: status) || XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: ready, object: status)], timeout: 15) == .completed)
         var keyObservations: [[String: Any]] = []
+        func tapPinyinKey(_ letter: String) throws {
+            let key = app.keys[letter]
+            XCTAssertTrue(key.waitForExistence(timeout: 5)); XCTAssertTrue(key.isHittable)
+            let frame = key.frame, keyboard = app.keyboards.firstMatch.frame, window = app.windows.firstMatch.frame
+            XCTAssertGreaterThan(frame.width, 0); XCTAssertGreaterThan(frame.height, 0)
+            XCTAssertTrue(keyboard.contains(frame)); XCTAssertTrue(window.contains(frame))
+            // A sustained element press completed without a UITextInput callback.
+            // Activate the ordinary software-key touch-up path at its observed
+            // center, rooted in the app window to avoid remote keyboard AX
+            // coordinate ambiguity. typeText injects unmarked literals instead of OS Pinyin.
+            // Save dispatch evidence before a callback assertion can abort.
+            let before = ProcessInfo.processInfo.systemUptime
+            app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
+                .withOffset(CGVector(dx: frame.midX - window.minX, dy: frame.midY - window.minY)).tap()
+            let observation: [String: Any] = ["key": letter,
+                "frame": ["x": frame.minX, "y": frame.minY, "width": frame.width, "height": frame.height],
+                "point": ["x": frame.midX, "y": frame.midY],
+                "keyboardFrame": ["x": keyboard.minX, "y": keyboard.minY, "width": keyboard.width, "height": keyboard.height],
+                "windowFrame": ["x": window.minX, "y": window.minY, "width": window.width, "height": window.height],
+                "before": before, "after": ProcessInfo.processInfo.systemUptime,
+                "transport": "single ordinary OS touch at observed software-key center; no replay or setter"]
+            let data = try JSONSerialization.data(withJSONObject: observation, options: [.sortedKeys])
+            let attachment = XCTAttachment(data: data, uniformTypeIdentifier: "public.json")
+            attachment.name = "Pinyin " + letter + " software-key dispatch"; attachment.lifetime = .keepAlways; add(attachment)
+        }
+        capture("OS Pinyin keyboard before first dispatch")
         for letter in ["n", "i"] {
-            let key = app.keys[letter]; XCTAssertTrue(key.waitForExistence(timeout: 5)); XCTAssertTrue(key.isHittable)
-            key.press(forDuration: 0.1)
+            try tapPinyinKey(letter)
             awaitStatus("composing"); XCTAssertEqual(source.label, initial)
             keyObservations.append(["key": letter, "source": source.label, "projected": editor.value as? String ?? "", "at": ProcessInfo.processInfo.systemUptime])
         }
@@ -140,16 +243,20 @@ final class NativeFitnessUITests: XCTestCase {
         XCTAssertEqual(source.label, expected); XCTAssertEqual(editor.value as? String, expected)
         let after = ProcessInfo.processInfo.systemUptime
         for letter in ["h", "a", "o"] {
-            let key = app.keys[letter]; XCTAssertTrue(key.isHittable); key.press(forDuration: 0.1)
+            try tapPinyinKey(letter)
             awaitStatus("composing"); XCTAssertEqual(source.label, expected)
             keyObservations.append(["key": letter, "source": source.label, "projected": editor.value as? String ?? "", "at": ProcessInfo.processInfo.systemUptime])
         }
         capture("OS Pinyin composition before host cancel")
         app.buttons["cancel-composition"].tap(); awaitStatus("cancelled")
         XCTAssertEqual(source.label, expected); XCTAssertEqual(editor.value as? String, expected)
-        app.buttons["verify-source"].tap(); awaitStatus("verified")
+        let verify = app.buttons["verify-source"]
+        XCTAssertTrue(verify.isHittable)
+        XCTAssertFalse(verify.frame.intersects(app.keyboards.firstMatch.frame), "Verification action must remain outside the live OS keyboard")
+        verify.tap(); awaitStatus("verified")
         XCTAssertEqual(editor.value as? String, expected)
         let record: [String: Any] = ["client": "XCTest OS Pinyin candidate accessibility query/action", "candidate": geometry,
+            "transport": "single ordinary OS touch at observed software-key center; one dispatch per key, no replay or setter",
             "keys": keyObservations, "committed": source.label, "value": editor.value as? String ?? "", "status": status.label,
             "candidateDispatchBefore": before, "candidateAXAfter": after, "driverClock": "ProcessInfo.systemUptime; independent clock, no cross-process timestamp join",
             "cancelAction": "native host cancels actual OS marked text", "screenReader": "not observed"]
