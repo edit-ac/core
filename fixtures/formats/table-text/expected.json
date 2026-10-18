@@ -1,0 +1,36 @@
+{
+  "quoted.csv": [
+    [
+      "Name",
+      "Value",
+      "Empty"
+    ],
+    [
+      "A, B",
+      "line1\nline2",
+      ""
+    ],
+    [
+      "é🙂",
+      "say \"hi\"",
+      "=1+1"
+    ]
+  ],
+  "quoted.tsv": [
+    [
+      "Name",
+      "Value",
+      "Empty"
+    ],
+    [
+      "A\tB",
+      "line1\nline2",
+      ""
+    ],
+    [
+      "é🙂",
+      "001.20",
+      "@SUM(A1)"
+    ]
+  ]
+}

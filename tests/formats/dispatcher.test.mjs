@@ -12,6 +12,7 @@ test('unknown and absent suites fail instead of falling through', () => {
   assert.equal(select(manifest, 'rtf-import').gate, 'CNV-1.12');
   assert.equal(select(manifest, 'rtf-export').gate, 'CNV-1.13');
   assert.equal(select(manifest, 'epub-export').gate, 'CNV-1.15');
+  assert.equal(select(manifest, 'table-text-import').gate, 'CNV-1.16');
   assert.equal(select(manifest, 'docx-dependencies').gate, 'CNV-1.3');
   assert.equal(select(manifest, 'container-limits').gate, 'CNV-1.4');
   assert.equal(select(manifest, 'docx-import-text').gate, 'CNV-1.5');
