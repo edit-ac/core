@@ -1,5 +1,8 @@
 //! Private worker for runner.py. Public conversion semantics come exclusively
 //! from editac-formats and the shared Session; no independent writable model.
+mod export;
+#[cfg(feature = "qualification")]
+mod fixture;
 mod heap;
 #[cfg(feature = "qualification")]
 use std::io::Write;
@@ -163,11 +166,12 @@ fn convert(input: &[u8]) -> Value {
     let checkpoint = reopened.service().session().document().checkpoint().bytes;
     json!({"state":"passed","profile":rtf::PROFILE.id,"report":report,"preparedBlocks":expected,"snapshotBlocks":imported.visible.iter().map(|n|json!({"runs":n.runs.iter().map(|r|json!({"text":r.text,"attributes":r.attributes.iter().map(|(k,v)|(k.clone(),{let mut s=String::new();v.to_json(&mut s);serde_json::from_str::<Value>(&s).unwrap()})).collect::<std::collections::BTreeMap<_,_>>()})).collect::<Vec<_>>(),"attributes":attributes(&n.block_attributes)})).collect::<Vec<_>>(),
         "text":after_text,"undo":undo,"redo":redo,"reopen":reopen,"commits":1,"activeJobs":pool.active(),"originalSha256":hash(input),
-        "documentId":document_id,"checkpointSha256":hash(&checkpoint),"checkpoint":checkpoint,"assets":0,"networkCalls":0})
+        "epoch":id.epoch,"writerId":reopened.service().session().document().checkpoint().writer_id,"documentId":document_id,"checkpointSha256":hash(&checkpoint),"checkpoint":checkpoint,"assets":0,"networkCalls":0})
 }
 #[cfg(feature = "qualification")]
 fn probe(mode: &str) -> Option<Value> {
     match mode {
+        "export-fixture" => Some(fixture::make()),
         "read" => Some(json!({"denied":std::fs::read(std::env::args().nth(2).unwrap()).is_err()})),
         "write" => Some(
             json!({"denied":std::fs::write(std::env::args().nth(2).unwrap(),b"escape").is_err()}),
@@ -206,7 +210,7 @@ fn main() {
         println!("{v}");
         return;
     }
-    if mode != "rtf-import" {
+    if mode != "rtf-import" && mode != "rtf-export" {
         eprintln!("FORMAT_PROFILE_UNAVAILABLE");
         std::process::exit(78);
     }
@@ -218,7 +222,11 @@ fn main() {
     let mut result = if input.len() > LIMITS.input_bytes {
         json!({"state":"rejected","code":"FORMAT_INPUT_LIMIT","liveUnchanged":true})
     } else {
-        convert(&input)
+        if mode == "rtf-export" {
+            export::convert(&input)
+        } else {
+            convert(&input)
+        }
     };
     result["peakRustHeapBytes"] = json!(ALLOCATOR.peak());
     result["hardRustHeapBytes"] = json!(heap::LIMIT);

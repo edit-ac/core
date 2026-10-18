@@ -14,7 +14,8 @@ is a new shared Session checkpoint; it is not journal durability or permission t
 replace a host document. Host insertion and platform wiring are outside this profile.
 Unsupported RTF constructs return the full recoverable diagnostic report. There is
 no implicit lossy approval. PDF input is rejected by the shared export-only policy.
-All other native formats/directions remain unqualified by this package.
+The separately qualified RTF export route is described below; other native
+formats/directions remain unqualified by this package.
 
 The runner installs deny-default filesystem, network and process policy before
 conversion. Only the pinned executable, OS loader paths and inherited bounded
@@ -43,3 +44,30 @@ commands. Source-package tests compile both variants outside the checkout, pin
 all local source members, locked dependencies, binary and license/notice bytes,
 and test the production binary for actual Session/history/reopen behavior. No
 registry publication, OS editor/viewer wiring, paid service or release is claimed.
+
+`run_export(binary, binary_sha256, checkpoint_request, *, wall_ms=4000,
+output_bytes=4194304, cancel=None)` accepts bounded UTF-8 JSON containing
+`documentId`, `epoch`, `writerId`, `checkpoint` (initialized checkpoint bytes) and
+`checkpointSha256`. Import results expose these fields for explicit subsequent
+export. The shared store validates and reopens that exact checkpoint; the writer
+captures one Session revision. `outcome.result` returns complete RTF artifact
+bytes, their hash, captured revision, source checkpoint hash, representability
+report and unchanged-Session/reopen evidence. `Result.original` retains the exact
+request envelope on success and every failure. The checkpoint is the recoverable
+source; source-package layout or external authoring provenance is not inferred.
+
+Loss is refused unless the caller explicitly sets `approveLoss: true` in the
+request; complete diagnostics remain visible with approval. The qualified text,
+direct bold/italic/underline/strike, paragraph and simple-table subset uses the
+existing bounded writer. Unsupported block styles, marks and atoms are reported;
+no image/remote asset read or active RTF destination is granted. `outputLimit`
+may reduce the writer output budget. The qualification build accepts `laterText` to exercise a private Session
+mutation after capture; production rejects that test-only option. Concurrent
+caller buffer changes cannot alter the admitted bytes.
+Neither completion nor `reopen` acknowledges a host save or durable journal.
+
+The qualification build also supplies `export-fixture`, which prepares controlled
+shared Session checkpoints through the existing fragment/job API. Production
+builds omit this command. Independent macOS `textutil` and a separate HTML semantic
+oracle inspect only generated artifacts outside the conversion sandbox. Native
+RTF profiles use declared writer defaults and no bundled fonts or media assets.

@@ -52,10 +52,11 @@ for folder in ('schema-v4','schema-v5'):
     for required in ('mapping.rs','bounded_decoder.rs','policy.rs','seed.json'):
         if 'fixtures/'+folder+'/'+required not in paths:raise RuntimeError('missing compile input: '+folder+'/'+required)
 # Preflight all inputs before any compiler or feature execution.
-fixtures = ['fixtures/formats/rtf/supported.rtf','fixtures/formats/native/rtf-loss.rtf']
+fixtures = ['tests/formats/rtf-reader.py','fixtures/formats/rtf/export/reader-probe.rtf','fixtures/formats/rtf/supported.rtf','fixtures/formats/native/rtf-loss.rtf']
 for p in fixtures:
     if not (ROOT/p).is_file(): raise RuntimeError('missing exact fixture: '+p)
 paths.update(fixtures)
+paths.update(str(p.relative_to(ROOT)) for p in (ROOT/'tests/formats/consumers/native').glob('*') if p.is_file())
 source_pins = {}
 archive = OUT / 'native-source.tar'
 with tarfile.open(archive,'w') as tar:

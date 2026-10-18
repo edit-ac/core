@@ -3,7 +3,8 @@
 
 The public run() retains original bytes on every outcome. Only complete correlated
 worker results are returned; the caller decides retention and subsequent host use.
-This is a standalone new-session import, not insertion into a live host document.
+Import creates a new Session; export restores a supplied initialized Session checkpoint.
+Neither route mutates a live host document or marks it saved.
 """
 import dataclasses
 import hashlib
@@ -61,12 +62,68 @@ def run(binary, binary_sha256, original, *, wall_ms=4000, output_bytes=MAX_OUTPU
         _ACTIVE.release()
 
 
+def run_export(binary, binary_sha256, checkpoint_request, *, wall_ms=4000,
+               output_bytes=MAX_OUTPUT, cancel=None):
+    """Export an initialized checkpoint through the captured shared Session writer.
+
+    checkpoint_request is a UTF-8 JSON envelope with documentId, writerId,
+    checkpoint bytes and checkpointSha256. Original envelope bytes are retained
+    on every outcome. approveLoss is explicit and defaults to false. No save or
+    journal durability transition is implied by successful conversion.
+    """
+    if not _ACTIVE.acquire(blocking=False):
+        data = bytes(checkpoint_request)
+        return Result(dict(schemaVersion=1, state='unavailable', code='FORMAT_BUSY', executed=0,
+                           outputAccepted=False, childExited=True, originalSha256=hashlib.sha256(data).hexdigest()), data)
+    try:
+        return _run(binary, binary_sha256, checkpoint_request, 'rtf-export', (), wall_ms, output_bytes, cancel)
+    finally:
+        _ACTIVE.release()
+
+
+def _export_completion_valid(payload, original):
+    """Reject incomplete or malformed worker envelopes before exposing output."""
+    try:
+        request = json.loads(original)
+        artifact = payload.get('artifact')
+        checkpoint = request.get('checkpoint')
+        def byte_list(value):
+            return isinstance(value, list) and bool(value) and all(type(n) is int and 0 <= n <= 255 for n in value)
+        report = payload.get('report')
+        if not isinstance(report, dict) or not isinstance(report.get('diagnostics'), list):
+            return False
+        diagnostics = report['diagnostics']
+        if not all(isinstance(d, dict) and isinstance(d.get('code'), str) and d['code'] and
+                   isinstance(d.get('location'), str) and d['location'] and
+                   type(d.get('lossy')) is bool for d in diagnostics):
+            return False
+        if not {'STYLE_DEFAULTS', 'METADATA_DEFAULTS'} <= {d['code'] for d in diagnostics}:
+            return False
+        if any(d['lossy'] for d in diagnostics) and request.get('approveLoss') is not True:
+            return False
+        return (payload.get('direction') == 'export' and
+                payload.get('liveUnchanged') is True and payload.get('reopen') is True and
+                type(payload.get('activeJobs')) is int and payload['activeJobs'] == 0 and
+                type(report.get('nodes')) is int and report['nodes'] >= 0 and
+                type(report.get('utf16Units')) is int and report['utf16Units'] >= 0 and
+                byte_list(artifact) and byte_list(checkpoint) and
+                payload.get('sourceCheckpointSha256') == request.get('checkpointSha256') and
+                hashlib.sha256(bytes(checkpoint)).hexdigest() == request.get('checkpointSha256') and
+                isinstance(payload.get('revision'), str) and bool(payload['revision']) and
+                payload['revision'] == payload.get('capturedRevision') and
+                isinstance(payload.get('currentRevision'), str) and bool(payload['currentRevision']) and
+                ('laterText' in request or payload['revision'] == payload['currentRevision']) and
+                hashlib.sha256(bytes(artifact)).hexdigest() == payload.get('artifactSha256'))
+    except (ValueError, TypeError, KeyError, AttributeError, OverflowError):
+        return False
+
+
 def _run(binary, binary_sha256, original, mode, args=(), wall_ms=4000,
          output_bytes=MAX_OUTPUT, cancel=None):
     start = time.monotonic()
     original = bytes(original)
     outcome = dict(schemaVersion=1, state='unavailable', code=None, executed=0,
-                   profile='edit-ac-rtf-v1', direction='import',
+                   profile='edit-ac-rtf-v1', direction='export' if mode == 'rtf-export' else 'import',
                    target=platform.platform(), originalSha256=hashlib.sha256(original).hexdigest(),
                    originalBytes=len(original), childExited=True, outputAccepted=False,
                    hardRustHeapBytes=RUST_HEAP, peakObservedRssBytes=0, rssSamples=0,
@@ -79,7 +136,7 @@ def _run(binary, binary_sha256, original, mode, args=(), wall_ms=4000,
             raise ValueError('FORMAT_RESOURCE_PROFILE_UNAVAILABLE')
         if platform.system() != 'Darwin' or platform.machine() != 'arm64' or not pathlib.Path(SANDBOX).is_file():
             raise ValueError('FORMAT_ISOLATION_UNAVAILABLE')
-        if mode not in ('rtf-import', 'read', 'write', 'network', 'child', 'spin', 'heap', 'output'):
+        if mode not in ('rtf-import', 'rtf-export', 'export-fixture', 'read', 'write', 'network', 'child', 'spin', 'heap', 'output'):
             raise ValueError('FORMAT_PROFILE_UNAVAILABLE')
         binary = pathlib.Path(binary).resolve(strict=True)
         if not binary.is_file() or _file_hash(binary) != binary_sha256:
@@ -172,17 +229,27 @@ def _run(binary, binary_sha256, original, mode, args=(), wall_ms=4000,
             elif len(raw) > output_bytes:
                 outcome.update(state='rejected', code='FORMAT_OUTPUT_LIMIT')
             else:
-                payload = json.loads(raw)
-                if mode == 'rtf-import':
+                try:
+                    payload = json.loads(raw)
+                except (ValueError, TypeError):
+                    raise ValueError('FORMAT_COMPLETION_INVALID')
+                if not isinstance(payload, dict):
+                    raise ValueError('FORMAT_COMPLETION_INVALID')
+                if mode in ('rtf-import', 'rtf-export'):
                     if payload.get('state') not in ('passed', 'rejected'):
                         raise ValueError('FORMAT_COMPLETION_INVALID')
                     if payload['state'] == 'passed':
                         if (payload.get('originalSha256') != outcome['originalSha256'] or
                             payload.get('profile') != outcome['profile'] or
-                            payload.get('hardRustHeapBytes') != RUST_HEAP or
-                            not all(payload.get(k) for k in ('undo', 'redo', 'reopen')) or
-                            hashlib.sha256(bytes(payload.get('checkpoint', []))).hexdigest() != payload.get('checkpointSha256')):
+                            payload.get('hardRustHeapBytes') != RUST_HEAP):
                             raise ValueError('FORMAT_COMPLETION_INVALID')
+                        if mode == 'rtf-import':
+                            if (not all(payload.get(k) for k in ('undo', 'redo', 'reopen')) or
+                                hashlib.sha256(bytes(payload.get('checkpoint', []))).hexdigest() != payload.get('checkpointSha256')):
+                                raise ValueError('FORMAT_COMPLETION_INVALID')
+                        else:
+                            if not _export_completion_valid(payload, original):
+                                raise ValueError('FORMAT_COMPLETION_INVALID')
                     outcome.update(state=payload['state'], code=payload.get('code'), outputAccepted=payload['state'] == 'passed')
                 else:
                     outcome.update(state='probe', outputAccepted=False)
