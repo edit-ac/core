@@ -131,6 +131,13 @@ class BasicContentView implements ContentView {
       this.element.setAttribute('aria-label','Table cell selection');
       const help=doc.createElement('p');help.textContent='Table keyboard help: Tab/Shift+Tab moves cells. Tab at the last cell adds one allowed row. Escape then Tab/Shift+Tab leaves the editor. Alt+Enter selects cells; arrows move the cell selection.';this.element.append(help);
       this.listen(this.element,'focusout',()=>{this.focusEscape=false;});
+      // A rectangle belongs to this presenter. Moving into another editing
+      // surface retires it, while our own link/format controls retain it.
+      this.listen(doc,'focusin',event=>{
+        const target=event.target;
+        if(target instanceof Element && !this.element.contains(target) &&
+          target.closest('input,textarea,select,[contenteditable="true"],[role="textbox"]'))this.leaveCells();
+      });
       this.listen(this.element,'beforeinput',()=>{this.focusEscape=false;});
       this.listen(this.element,'compositionstart',()=>{this.focusEscape=false;});
       const toolbar=doc.createElement('div'); touchPanel(toolbar);toolbar.setAttribute('role','group'); toolbar.setAttribute('aria-label','Table structure'); this.element.append(toolbar);

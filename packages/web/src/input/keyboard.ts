@@ -7,6 +7,7 @@ export interface HistoryTarget {
   dispose(): void;
 }
 import { leaveEditor } from './focus.js';
+import { touchPanel, touchTarget } from '../modules/touch-controls.js';
 import { errorMessage, rejected } from '../errors.js';
 import type { AnchorToken, CommitResult, EditorCommand, EngineHandle, PrepareRequest, ProjectedNode, StableRange } from '@edit-ac/core';
 import type { DOMRenderer } from '../dom/render.js';
@@ -129,9 +130,13 @@ export class KeyboardInput {
     if (!action || this.#disposed || this.#blocked() || !this.#allowed(action) || doc.activeElement !== root) return undefined;
     let range: StableRange;
     const tokens: AnchorToken[] = [];
+    let nodeText: RetainedSelection | undefined;
     try {
-      if (!supplied) this.#selection.capture();
-      const current = supplied ?? this.#selection.current?.range;
+      if (!supplied) {
+        this.#selection.capture();
+        if (['bold','italic','underline','strike','code','link','undo','redo'].includes(action)) nodeText = this.#selection.retainSelectedText();
+      }
+      const current = supplied ?? this.#selection.current?.range ?? nodeText?.range;
       if (!current) return undefined;
       const a = this.#engine.resolve(current.anchor), b = this.#engine.resolve(current.focus);
       if (a.type !== 'position' || b.type !== 'position' || !this.#selection.toDOM(a) || !this.#selection.toDOM(b)) return undefined;
@@ -139,6 +144,7 @@ export class KeyboardInput {
       tokens.push(this.#engine.anchor(b.node, b.offset, b.bias));
       range = { anchor: tokens[0]!, focus: tokens[1]! };
     } catch { for (const token of tokens) this.#engine.releaseAnchor(token); return undefined; }
+    finally { nodeText?.dispose(); }
     const revision = this.#engine.read().revision;
     let disposed = false, redirected = false, consumed = false;
     const focus = (event: FocusEvent) => {
@@ -417,7 +423,7 @@ export class KeyboardInput {
     const target = this.captureToolbar();
     if (!target || target.state('link') === 'disabled') { target?.dispose(); return rejected('unsupported-formatting'); }
     this.#closeLink();
-    const retained = this.#selection.retain();
+    const retained = this.#selection.retain() ?? this.#selection.retainSelectedText();
     if (!retained) { target.dispose(); return rejected('unmapped-selection'); }
     const doc = this.#renderer.root.ownerDocument, form = doc.createElement('form');
     form.setAttribute('role', 'dialog'); form.setAttribute('aria-label', 'Edit link');
@@ -427,6 +433,9 @@ export class KeyboardInput {
     const apply = doc.createElement('button'); apply.type = 'submit'; apply.textContent = 'Apply link';
     const cancel = doc.createElement('button'); cancel.type = 'button'; cancel.textContent = 'Cancel link';
     const status = doc.createElement('span'); status.setAttribute('role', 'status'); status.setAttribute('aria-atomic', 'true');
+    touchPanel(form);
+    for (const control of [input, apply, cancel]) touchTarget(control);
+    input.style.maxWidth = '100%';
     form.append(label, apply, cancel, status); this.#help.after(form); this.#link = { element: form, target, selection: retained };
     cancel.addEventListener('click', () => this.#closeLink(true));
     form.addEventListener('keydown', event => { if (event.key === 'Escape' && !event.isComposing) { event.preventDefault(); this.#closeLink(true); this.#escape = true; } });
