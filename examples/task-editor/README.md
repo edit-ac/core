@@ -8,6 +8,28 @@ identities offline. Opening never seeds
 over missing or corrupt existing content. Export recovery before closing after a
 save failure; the JSON contains explicit byte arrays and is not an import format.
 
+For an offline reload, use `/fixture/index.html` on the printed server and click
+**Prepare offline reload** while online. Wait for the app-available message before
+disconnecting. This explicitly caches only this app's code and WASM; task/comment
+content remains in separate IndexedDB stores. Save each document locally, disconnect,
+then reload or use its Reopen button. Clearing browser site data removes both stores
+and the offline shell. The server can remain stopped while the prepared page reloads.
+
+Status distinguishes pending changes, successful local saves and errors. Reopen first
+flushes; a failed save leaves the live editor available for recovery rather than
+opening an older copy. Export is a deliberate per-document download and includes
+unsaved recovery retained after closing that editor. Keep that file before leaving
+the page: retained reports are memory only. Recovery bytes are not an import UI.
+**Make task/comment readonly** revokes editing for that identity, including subsequent
+reopens in the same page; a fresh page uses the host's initial `?readonly` policy.
+Storage denial, missing or corrupt checkpoints produce errors without reseeding or
+claiming a saved receipt. The independent sibling remains usable.
+
+The installed-SDK local recovery proof is
+`node tests/scenarios/run.mjs web-local-recovery`; exact input hashes, offline/failure
+screenshots and case receipts live under
+`../architecture/evidence/browser-product-workflows-20261018/pwe-1.4/`.
+
 For React 19.3.0, build the shipped client after the workspace build:
 
 ```sh

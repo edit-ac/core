@@ -46,18 +46,39 @@ export async function mountWorkspaceEditor(name, {root, status, creation, readOn
   const resources=await workspaceOptions(name,{creation,readOnly});
   const {options,permission}=resources;
   const editor=createEditor(root,options);
-  let closed=false;
+  let closed=false, generation=0, pending=false, lastError;
   const events = {save:[],error:[],history:[]};
-  const report = error => {events.error.push(error.message);status.textContent=`Local ${name} error: ${error.message}. Export recovery before closing.`;onError(error);};
-  const unsubscribe = editor.subscribe(state=>{
-    if(state.error) report(state.error);
-    else status.textContent=state.localCommitted?'Saved locally. Remote durability is not confirmed.':state.ready?'Ready locally.':'Opening local document…';
-  });
+  const report = error => {
+    if(lastError!==error){events.error.push(error.message);onError(error);lastError=error;}
+    status.dataset.state='error';
+    status.textContent=`Local ${name} error: ${error.message}. Export recovery before closing.`;
+  };
+  const render = state => {
+    if(state.error){report(state.error);return;}
+    status.dataset.state=pending?'pending':state.ready?'local':'opening';
+    status.textContent=pending?'Changes pending local save.':state.localCommitted?'Saved locally. Remote durability is not confirmed.':state.ready?'Ready locally. Remote durability is not confirmed.':'Opening local document…';
+  };
+  const unsubscribe = editor.subscribe(render);
   try {await editor.ready;} catch(error) {report(error);unsubscribe();await editor.destroy({policy:'report'});resources.dispose();throw error;}
+  // The public lifecycle retains the last receipt while another update is pending.
+  // Observe edits and use the public flush barrier before describing them as saved.
+  const saveBarrier=async()=>{
+    const captured=generation;
+    try{await editor.flush({target:'local'});if(editor.state.error)throw editor.state.error;
+      if(captured===generation)pending=false;
+      render(editor.state);
+      return {documentId:options.identity.documentId,localCommitted:editor.state.localCommitted};
+    }catch(error){report(error);throw error;}
+  };
+  const unpatch=editor.subscribe({type:'updates'},()=>{
+    generation++;pending=true;render(editor.state);
+    queueMicrotask(()=>{if(!closed)void saveBarrier().catch(()=>{});});
+  });
+  render(editor.state);
   const historyListener = event => {if(event.key.toLowerCase()==='z'&&(event.metaKey||event.ctrlKey)){events.history.push(event.shiftKey?'redo':'undo');onHistory(events.history.at(-1));}};
   root.addEventListener('keydown',historyListener);
   return {editor, options, permission, events, recovery,
-    async save(){try {await editor.flush({target:'local'});const receipt={documentId:options.identity.documentId,localCommitted:editor.state.localCommitted};events.save.push(receipt);onSave(receipt);return receipt;}catch(error){report(error);throw error;}},
-    async close(){if(closed)return;closed=true;unsubscribe();root.removeEventListener('keydown',historyListener);let result;try{result=await editor.destroy({policy:'flush'});}catch(error){report(error);result=await editor.destroy({policy:'report'});}finally{resources.dispose();}if(result.unsaved)recovery.push(result);return result;},
+    async save(){const receipt=await saveBarrier();events.save.push(receipt);onSave(receipt);return receipt;},
+    async close(){if(closed)return;closed=true;unsubscribe();unpatch();root.removeEventListener('keydown',historyListener);let result;try{result=await editor.destroy({policy:'flush'});}catch(error){report(error);result=await editor.destroy({policy:'report'});}finally{resources.dispose();}if(result.unsaved)recovery.push(result);return result;},
   };
 }

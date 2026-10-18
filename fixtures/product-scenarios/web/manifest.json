@@ -21,7 +21,9 @@
         "examples/task-editor/document.mjs",
         "examples/task-editor/markdown.mjs",
         "examples/task-editor/recovery.mjs",
-        "examples/task-editor/workspace.mjs"
+        "examples/task-editor/workspace.mjs",
+        "examples/task-editor/offline.mjs",
+        "examples/task-editor/offline-worker.mjs"
       ],
       "cases": [
         "installed-sdk-bootstrap",
@@ -43,7 +45,9 @@
         "examples/task-editor/document.mjs",
         "examples/task-editor/markdown.mjs",
         "examples/task-editor/recovery.mjs",
-        "examples/task-editor/workspace.mjs"
+        "examples/task-editor/workspace.mjs",
+        "examples/task-editor/offline.mjs",
+        "examples/task-editor/offline-worker.mjs"
       ],
       "cases": [
         "dispatcher-rejects-invalid-inputs",
@@ -72,7 +76,9 @@
         "examples/task-editor/document.mjs",
         "examples/task-editor/markdown.mjs",
         "examples/task-editor/recovery.mjs",
-        "fixtures/product-scenarios/web/react-lifecycle.mjs"
+        "fixtures/product-scenarios/web/react-lifecycle.mjs",
+        "examples/task-editor/offline.mjs",
+        "examples/task-editor/offline-worker.mjs"
       ],
       "cases": [
         "dispatcher-rejects-invalid-inputs",
@@ -92,6 +98,38 @@
         "scripts/shared-resource-sources.mjs",
         "scripts/browser-size-contract.mjs",
         "scripts/test-toolchain.mjs"
+      ]
+    },
+    "web-local-recovery": {
+      "parent": "PWE-1.4",
+      "command": [
+        "node",
+        "tests/scenarios/local-recovery.mjs"
+      ],
+      "fixtures": [
+        "examples/task-editor/index.html",
+        "examples/task-editor/editor.mjs",
+        "examples/task-editor/document.mjs",
+        "examples/task-editor/markdown.mjs",
+        "examples/task-editor/recovery.mjs",
+        "examples/task-editor/workspace.mjs",
+        "examples/task-editor/offline.mjs",
+        "examples/task-editor/offline-worker.mjs",
+        "fixtures/product-scenarios/web/local-faults.mjs"
+      ],
+      "cases": [
+        "dispatcher-rejects-invalid-inputs",
+        "independent-local-commits",
+        "offline-shell-reload-reopen",
+        "pending-and-local-status",
+        "readonly-revocation-preserves-content",
+        "append-failure-keeps-live-replica",
+        "deliberate-isolated-recovery-export",
+        "close-retains-unsaved-recovery",
+        "creation-denial-never-reseeds",
+        "existing-open-denial-preserves-content",
+        "missing-checkpoint-never-reseeds",
+        "corrupt-checkpoint-never-reseeds"
       ]
     }
   }
