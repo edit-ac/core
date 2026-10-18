@@ -899,7 +899,8 @@ fn empty_middle_item_exit_keeps_trailing_items_and_numbering_in_tail() {
 #[test]
 fn zero_start_uses_production_tuple_projection_history_and_restore() {
     let mut d = engine();
-    d.enable_history(editac_core::history::HistoryConfig::default()).unwrap();
+    d.enable_history(editac_core::history::HistoryConfig::default())
+        .unwrap();
     let original_sources = sources(&d);
     wrap(&mut d, &[A, B], ContainerStyle::Ordered { start: 0 });
     assert_eq!(number(&d, A), Some(0));

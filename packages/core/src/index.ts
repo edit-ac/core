@@ -52,4 +52,4 @@ export * from "./links/index.js";
 
 export type { HTMLNode } from "./engine.js";
 
-export type { AssetIdentity, AssetAction, AssetGrant, AssetRequest, AssetPublication, AssetIntent, AssetWorkAction, AssetWorkResult } from "./engine.js";
+export type { AssetIdentity, AssetAction, AssetGrant, AssetRequest, AssetPublication, AssetIntent, AssetWorkAction, AssetWorkResult, PreparedOriginal } from "./engine.js";

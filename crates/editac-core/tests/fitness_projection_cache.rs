@@ -94,19 +94,38 @@ fn inspected_dirty_projection_invalidates_on_second_edit_and_remote_deletion() {
     let identity = DocumentIdentity::v5(
         "77777777-7777-4777-8777-777777777702",
         "88888888-8888-4888-8888-888888888802",
-    ).unwrap();
+    )
+    .unwrap();
     let mut document = Document::create(
         CreationPermit::authorize_new(identity).unwrap(),
-        &[InitialNode { kind: "block".into(), text: "a😀bc".into() },
-          InitialNode { kind: "block".into(), text: "second".into() }],
-    ).unwrap();
+        &[
+            InitialNode {
+                kind: "block".into(),
+                text: "a😀bc".into(),
+            },
+            InitialNode {
+                kind: "block".into(),
+                text: "second".into(),
+            },
+        ],
+    )
+    .unwrap();
     let initial = document.snapshot().unwrap();
     let first = initial.visible[0].id.clone();
     let second = initial.visible[1].id.clone();
     for (node, offset, text) in [(&first, 1, "x"), (&second, 0, "y")] {
-        let at = document.anchor(node, Utf16Offset(offset), Bias::Right).unwrap();
-        let plan = document.prepare_text(&TextCommand::Insert { at, text: text.into() },
-            &TextOrigin::new("fitness:dirty-inspection").unwrap()).unwrap();
+        let at = document
+            .anchor(node, Utf16Offset(offset), Bias::Right)
+            .unwrap();
+        let plan = document
+            .prepare_text(
+                &TextCommand::Insert {
+                    at,
+                    text: text.into(),
+                },
+                &TextOrigin::new("fitness:dirty-inspection").unwrap(),
+            )
+            .unwrap();
         document.commit_text(plan).unwrap();
         // Resolve through inspect without consuming either edit's public deltas.
         let at = document.anchor(node, Utf16Offset(0), Bias::Right).unwrap();
@@ -117,26 +136,60 @@ fn inspected_dirty_projection_invalidates_on_second_edit_and_remote_deletion() {
     assert!(changed.touched_ranges.iter().any(|r| r.source == first));
     assert!(changed.touched_ranges.iter().any(|r| r.source == second));
     assert!(changed.source_reads > 0);
-    assert_eq!(changed.visible[0].runs.iter().map(|r| r.text.as_str()).collect::<String>(), "ax😀bc");
-    assert_eq!(changed.visible[1].runs.iter().map(|r| r.text.as_str()).collect::<String>(), "ysecond");
+    assert_eq!(
+        changed.visible[0]
+            .runs
+            .iter()
+            .map(|r| r.text.as_str())
+            .collect::<String>(),
+        "ax😀bc"
+    );
+    assert_eq!(
+        changed.visible[1]
+            .runs
+            .iter()
+            .map(|r| r.text.as_str())
+            .collect::<String>(),
+        "ysecond"
+    );
     assert_eq!(document.snapshot().unwrap().source_reads, 0);
 
     let checkpoint = document.checkpoint();
     let mut peer = Document::restore(document.identity(), &checkpoint, &[]).unwrap();
-    let selection = peer.selection((&first, Utf16Offset(1), Bias::Right),
-        (&first, Utf16Offset(2), Bias::Left)).unwrap();
-    let plan = peer.prepare_text(&TextCommand::Delete { selection },
-        &TextOrigin::new("fitness:remote-delete").unwrap()).unwrap();
+    let selection = peer
+        .selection(
+            (&first, Utf16Offset(1), Bias::Right),
+            (&first, Utf16Offset(2), Bias::Left),
+        )
+        .unwrap();
+    let plan = peer
+        .prepare_text(
+            &TextCommand::Delete { selection },
+            &TextOrigin::new("fitness:remote-delete").unwrap(),
+        )
+        .unwrap();
     let update = peer.commit_text(plan).unwrap().update.unwrap();
     document.apply_replay(&update).unwrap();
-    let at = document.anchor(&first, Utf16Offset(1), Bias::Right).unwrap();
+    let at = document
+        .anchor(&first, Utf16Offset(1), Bias::Right)
+        .unwrap();
     document.resolve_anchor(&at).unwrap();
     let received = document.snapshot().unwrap();
     assert!(received.changed_nodes.contains(&first));
     assert!(received.source_reads > 0 && !received.touched_ranges.is_empty());
-    assert_eq!(received.visible[0].runs.iter().map(|r| r.text.as_str()).collect::<String>(), "a😀bc");
+    assert_eq!(
+        received.visible[0]
+            .runs
+            .iter()
+            .map(|r| r.text.as_str())
+            .collect::<String>(),
+        "a😀bc"
+    );
     let checkpoint = document.checkpoint();
-    let fresh = Document::restore(document.identity(), &checkpoint, &[]).unwrap().snapshot().unwrap();
+    let fresh = Document::restore(document.identity(), &checkpoint, &[])
+        .unwrap()
+        .snapshot()
+        .unwrap();
     assert_eq!(received.visible, fresh.visible);
     assert_eq!(received.recovery, fresh.recovery);
     assert_eq!(received.retained_structure, fresh.retained_structure);
