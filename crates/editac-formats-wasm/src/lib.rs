@@ -64,6 +64,8 @@ struct Request {
     approve_loss: Option<bool>,
     #[serde(default)]
     assets: Vec<ApprovedAsset>,
+    #[serde(default)]
+    import_grants: Vec<ImportGrant>,
 }
 // Explicit caller-held read grants and immutable bytes only. No locators,
 // implicit fetches or descriptor-derived authority enter this transport.
@@ -156,34 +158,57 @@ fn publication_fonts() -> pdf::export::Fonts<'static> {
         ]),
     }
 }
-// The public browser attachment owner currently requires a live node before
-// ingest. Never pretend worker-local staging is durable host ingestion and never
-// insert a descriptor before its originals are admitted. This explicit port
-// rejects only media staging; text/list/table mapping uses the qualified importer.
-#[derive(Default)]
-struct UnavailableImportMedia {
-    requested: std::cell::Cell<bool>,
+// Worker-local codec projection only: these bytes are not durable staging or
+// host ingestion. The public caller must stage and atomically adopt every item
+// using the real storage owner before any live descriptor can be inserted.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+struct ImportGrant {
+    sha256: Vec<u8>,
+    identity: AssetIdentity,
+    actions: Vec<AssetAction>,
 }
-impl AssetHost for UnavailableImportMedia {
-    fn authorize(&mut self, _: &AssetRequest) -> Result<AssetGrant, PortError> {
-        Err(PortError::Unavailable)
+struct PreparedImportMedia<'a> {
+    grants: &'a [ImportGrant],
+    requested: std::cell::Cell<bool>,
+    originals: Vec<Value>,
+}
+impl AssetHost for PreparedImportMedia<'_> {
+    fn authorize(&mut self, r: &AssetRequest) -> Result<AssetGrant, PortError> {
+        let record = self
+            .grants
+            .iter()
+            .find(|g| g.identity == r.identity)
+            .ok_or(PortError::Permission)?;
+        let grant = AssetGrant {
+            identity: record.identity.clone(),
+            actions: record.actions.clone(),
+        };
+        r.validate(&grant).map_err(|_| PortError::Permission)?;
+        Ok(grant)
     }
     fn execute(&mut self, _: &str, _: &AssetRequest) -> Result<HostOutcome, PortError> {
         Err(PortError::Unavailable)
     }
 }
-impl docx::import::OriginalMediaHost for UnavailableImportMedia {
-    fn identity(&self, _: &[u8; 32]) -> Result<AssetIdentity, PortError> {
+impl docx::import::OriginalMediaHost for PreparedImportMedia<'_> {
+    fn identity(&self, hash: &[u8; 32]) -> Result<AssetIdentity, PortError> {
         self.requested.set(true);
-        Err(PortError::Unavailable)
+        self.grants
+            .iter()
+            .find(|g| g.sha256.as_slice() == hash)
+            .map(|g| g.identity.clone())
+            .ok_or(PortError::Permission)
     }
     fn ingest_original(
         &mut self,
         _: &str,
-        _: &AssetRequest,
-        _: &[u8],
+        r: &AssetRequest,
+        bytes: &[u8],
     ) -> Result<HostOutcome, PortError> {
-        Err(PortError::Unavailable)
+        self.originals
+            .push(json!({"identity":r.identity,"bytes":bytes}));
+        Ok(HostOutcome::Complete)
     }
 }
 #[wasm_bindgen]
@@ -383,14 +408,33 @@ pub fn convert_value_with_assets(
     let source_hash = job.contract().input_sha256.to_vec();
     let approve = r.approve_loss.unwrap_or(false);
     let mut v = if import && r.format == "docx" {
-        let mut host = UnavailableImportMedia::default();
+        if r.import_grants.len() > 64
+            || r.import_grants
+                .iter()
+                .any(|g| g.sha256.len() != 32 || g.identity.validate().is_err())
+        {
+            return Err(error("InvalidAssets"));
+        }
+        for (n, g) in r.import_grants.iter().enumerate() {
+            if r.import_grants[..n]
+                .iter()
+                .any(|other| other.sha256 == g.sha256 || other.identity == g.identity)
+            {
+                return Err(error("InvalidAssets"));
+            }
+        }
+        let mut host = PreparedImportMedia {
+            grants: &r.import_grants,
+            requested: std::cell::Cell::new(false),
+            originals: vec![],
+        };
         let prepared = docx::import::prepare_structure(
             &mut job, editac_formats::container::Budgets::default(), &mut host, || 0,
         ).map_err(|e| json!({"ok":false,
             "code":if host.requested.get() { "AssetStagingUnavailable" } else { "ConversionRejected" },
             "reason":format!("{:?}",e.code),"location":e.location,
             "diagnostics":e.diagnostics.iter().map(|d|json!({"code":d.code,"location":d.location,"lossy":d.lossy,"action":d.action})).collect::<Vec<_>>(),
-            "action":"Keep the complete original DOCX. Media import requires the shared prepared-asset staging/adoption return; no live content was inserted."}))?;
+            "action":"Keep the complete original DOCX. Explicit matching media grants and atomic storage adoption are required; no live content was inserted."}))?;
         let blocks = prepared
             .blocks()
             .iter()
@@ -402,7 +446,9 @@ pub fn convert_value_with_assets(
             .iter()
             .map(|d| json!({"code":d.code,"location":d.location,"lossy":d.lossy,"action":d.action}))
             .collect::<Vec<_>>();
-        let committed = if !approve && diagnostics.iter().any(|d| d["lossy"] == true) {
+        let committed = if !host.originals.is_empty()
+            || (!approve && diagnostics.iter().any(|d| d["lossy"] == true))
+        {
             job.abort().map_err(fail)?;
             false
         } else {
@@ -412,7 +458,7 @@ pub fn convert_value_with_assets(
                 .is_some()
         };
         json!({"ok":true,"blocks":blocks,"diagnostics":diagnostics,"sessionCommitted":committed,
-            "mediaStaging":"unavailable-before-live-node","fidelity":"docx-structure-semantic-v1-no-media"})
+            "mediaCandidates":host.originals,"mediaStaging":"requires-durable-owner-adoption","fidelity":"docx-structure-semantic-v1"})
     } else if import && r.format == "rtf" {
         let prepared =
             rtf::import::prepare(&mut job, rtf::import::Budgets::default(), || 0).map_err(|e|json!({"ok":false,"code":"ConversionRejected","reason":e.code,"offset":e.offset,"diagnostics":e.report.diagnostics.iter().map(|d|json!({"code":d.code,"offset":d.offset,"control":d.control,"action":d.action,"lossy":true})).collect::<Vec<_>>(),"action":"Keep original input; reduce complexity or review unsupported controls."}))?;
@@ -585,7 +631,7 @@ mod tests {
         let value = convert_value(&r.to_string(), &bytes, &c).unwrap();
         assert_eq!(value["sessionCommitted"], true);
         assert_eq!(value["blocks"][0]["runs"][0]["text"], "Hello 🙂");
-        assert_eq!(value["mediaStaging"], "unavailable-before-live-node");
+        assert_eq!(value["mediaStaging"], "requires-durable-owner-adoption");
         assert_eq!(value["profile"], "edit-ac-docx-v1");
     }
     #[test]

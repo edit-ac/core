@@ -2612,6 +2612,303 @@
         "tests/formats/rtf-reader.py",
         "fixtures/formats/rtf/export/reader-probe.rtf"
       ]
+    },
+    "consumers-docx-import-media": {
+      "gate": "CNV-1.18-C2-DI-M",
+      "boundary": "Actual merged immutable packed DOCX media worker and shared storage adoption; no native/platform or aggregate claim",
+      "commands": [
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--features",
+            "docx-codecs,jobs",
+            "--test",
+            "jobs",
+            "--test",
+            "profiles",
+            "--test",
+            "docx_import_text",
+            "--test",
+            "docx_import_structure",
+            "--test",
+            "container_limits"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats-wasm/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--lib"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "--test-name-pattern=DOCX|packed disabled",
+            "tests/formats/consumers/browser.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/media.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "--test-name-pattern=packed archives|default Rust graph|installed public|partial DOCX",
+            "tests/formats/consumers/contracts.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/media-contracts.test.mjs"
+          ],
+          "kind": "node-test"
+        }
+      ],
+      "inputs": [
+        "crates/editac-formats-wasm/Cargo.toml",
+        "crates/editac-formats-wasm/Cargo.lock",
+        "crates/editac-formats-wasm/src/lib.rs",
+        "scripts/build-formats.mjs",
+        "packages/formats/package.json",
+        "packages/formats/capabilities.json",
+        "packages/formats/src/index.js",
+        "packages/formats/src/worker.js",
+        "packages/formats/src/index.d.ts",
+        "tests/formats/consumers/prepare.mjs",
+        "tests/formats/consumers/browser.test.mjs",
+        "tests/formats/consumers/contracts.test.mjs",
+        "tests/formats/consumers/inspect.py",
+        "tests/formats/consumers/coverage.test.mjs",
+        "tests/formats/consumers/docx-fixture.json",
+        "tests/formats/consumers/inspect-docx.py",
+        "tests/formats/consumers/docx-import-fixtures.py",
+        "tests/formats/consumers/inspect-docx-import.py",
+        "tests/formats/consumers/harness.mjs",
+        "tests/formats/consumers/media.test.mjs",
+        "tests/formats/consumers/inspect-docx-media.py",
+        "tests/formats/consumers/media-contracts.test.mjs"
+      ]
+    },
+    "consumers-docx-import-media-repair": {
+      "gate": "CNV-1.18-C2-DI-M",
+      "boundary": "Actual merged immutable packed DOCX media worker and shared storage adoption; no native/platform or aggregate claim",
+      "commands": [
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "--test-name-pattern=packed disabled|packed DOCX original media",
+            "tests/formats/consumers/browser.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/media.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "--test-name-pattern=packed archives|default Rust graph|installed public|partial DOCX",
+            "tests/formats/consumers/contracts.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/media-contracts.test.mjs"
+          ],
+          "kind": "node-test"
+        }
+      ],
+      "inputs": [
+        "crates/editac-formats-wasm/Cargo.toml",
+        "crates/editac-formats-wasm/Cargo.lock",
+        "crates/editac-formats-wasm/src/lib.rs",
+        "scripts/build-formats.mjs",
+        "packages/formats/package.json",
+        "packages/formats/capabilities.json",
+        "packages/formats/src/index.js",
+        "packages/formats/src/worker.js",
+        "packages/formats/src/index.d.ts",
+        "tests/formats/consumers/prepare.mjs",
+        "tests/formats/consumers/browser.test.mjs",
+        "tests/formats/consumers/contracts.test.mjs",
+        "tests/formats/consumers/inspect.py",
+        "tests/formats/consumers/coverage.test.mjs",
+        "tests/formats/consumers/docx-fixture.json",
+        "tests/formats/consumers/inspect-docx.py",
+        "tests/formats/consumers/docx-import-fixtures.py",
+        "tests/formats/consumers/inspect-docx-import.py",
+        "tests/formats/consumers/harness.mjs",
+        "tests/formats/consumers/media.test.mjs",
+        "tests/formats/consumers/inspect-docx-media.py",
+        "tests/formats/consumers/media-contracts.test.mjs"
+      ]
+    },
+    "consumers-docx-import-media-fixture-repair": {
+      "gate": "CNV-1.18-C2-DI-M",
+      "boundary": "Actual merged immutable packed DOCX media worker and shared storage adoption; no native/platform or aggregate claim",
+      "commands": [
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/media.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "--test-name-pattern=packed archives|default Rust graph|installed public|partial DOCX",
+            "tests/formats/consumers/contracts.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/media-contracts.test.mjs"
+          ],
+          "kind": "node-test"
+        }
+      ],
+      "inputs": [
+        "crates/editac-formats-wasm/Cargo.toml",
+        "crates/editac-formats-wasm/Cargo.lock",
+        "crates/editac-formats-wasm/src/lib.rs",
+        "scripts/build-formats.mjs",
+        "packages/formats/package.json",
+        "packages/formats/capabilities.json",
+        "packages/formats/src/index.js",
+        "packages/formats/src/worker.js",
+        "packages/formats/src/index.d.ts",
+        "tests/formats/consumers/prepare.mjs",
+        "tests/formats/consumers/browser.test.mjs",
+        "tests/formats/consumers/contracts.test.mjs",
+        "tests/formats/consumers/inspect.py",
+        "tests/formats/consumers/coverage.test.mjs",
+        "tests/formats/consumers/docx-fixture.json",
+        "tests/formats/consumers/inspect-docx.py",
+        "tests/formats/consumers/docx-import-fixtures.py",
+        "tests/formats/consumers/inspect-docx-import.py",
+        "tests/formats/consumers/harness.mjs",
+        "tests/formats/consumers/media.test.mjs",
+        "tests/formats/consumers/inspect-docx-media.py",
+        "tests/formats/consumers/media-contracts.test.mjs"
+      ]
+    },
+    "consumers-docx-import-media-completion": {
+      "gate": "CNV-1.18-C2-DI-M",
+      "boundary": "Actual merged immutable packed DOCX media worker and shared storage adoption; no native/platform or aggregate claim",
+      "commands": [
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "--test-name-pattern=DOCX|packed disabled",
+            "tests/formats/consumers/browser.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/media.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "--test-name-pattern=packed archives|default Rust graph|installed public|partial DOCX",
+            "tests/formats/consumers/contracts.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/media-contracts.test.mjs"
+          ],
+          "kind": "node-test"
+        }
+      ],
+      "inputs": [
+        "crates/editac-formats-wasm/Cargo.toml",
+        "crates/editac-formats-wasm/Cargo.lock",
+        "crates/editac-formats-wasm/src/lib.rs",
+        "scripts/build-formats.mjs",
+        "packages/formats/package.json",
+        "packages/formats/capabilities.json",
+        "packages/formats/src/index.js",
+        "packages/formats/src/worker.js",
+        "packages/formats/src/index.d.ts",
+        "tests/formats/consumers/prepare.mjs",
+        "tests/formats/consumers/browser.test.mjs",
+        "tests/formats/consumers/contracts.test.mjs",
+        "tests/formats/consumers/inspect.py",
+        "tests/formats/consumers/coverage.test.mjs",
+        "tests/formats/consumers/docx-fixture.json",
+        "tests/formats/consumers/inspect-docx.py",
+        "tests/formats/consumers/docx-import-fixtures.py",
+        "tests/formats/consumers/inspect-docx-import.py",
+        "tests/formats/consumers/harness.mjs",
+        "tests/formats/consumers/media.test.mjs",
+        "tests/formats/consumers/inspect-docx-media.py",
+        "tests/formats/consumers/media-contracts.test.mjs"
+      ]
     }
   }
 }

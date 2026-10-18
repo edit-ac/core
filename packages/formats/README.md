@@ -6,7 +6,7 @@ The base editor does not depend on this package. Build with
 `node scripts/build-formats.mjs` using the locked Node/Rust/bindgen toolchains.
 
 The initial public worker return covers the existing bounded RTF 1.9.1 profile and
-explicit UTF-8 CSV/TSV table dialects and semantic DOCX/ODT/EPUB and bounded PDF publication export and DOCX text/list/simple-table import. DOCX media import and ODT/EPUB import are unavailable
+explicit UTF-8 CSV/TSV table dialects and semantic DOCX/ODT/EPUB and bounded PDF publication export and DOCX text/list/simple-table/original-PNG import. ODT/EPUB import are unavailable
 at this package boundary until separately packaged and qualified. PDF import is
 always export-only, including a PDF signature mislabeled as another supported
 format. Existing native adapters retain their own evidence and limitations.
@@ -64,13 +64,21 @@ DOCX output reports regenerated package/page/style/metadata defaults. Unsupporte
 semantics require explicit loss approval; results and failures retain recovery.
 
 DOCX import reuses the guarded semantic importer for text, marks, headings,
-links, direct lists and v1 rectangular tables. Unsupported constructs return
-complete actionable diagnostics and require explicit loss approval. Media staging
-returns `AssetStagingUnavailable`, retaining the complete original input and
-checkpoint with no live mutation. The shared browser attachment API currently
-requires a live descriptor before ingest; its prepared-import staging/adoption
-transaction is still required. This package does not insert first and compensate,
-silently drop images or claim the full DOCX import direction is qualified.
+links, direct lists, v1 rectangular tables and paragraph-isolated original PNGs.
+Unsupported constructs return complete diagnostics and require explicit loss
+approval. Media needs exact SHA-256 bytes, host identities and explicit grants in
+`importGrants`; absent authority returns `AssetStagingUnavailable` and retains the
+original package/checkpoint. Media results require
+`await prepared.commitAssets(owner, immutableJobId, approvedHostTransport, sourceRecoveryGrant)` with
+an `openEditorStorage` owner for this exact engine. The method durably stages
+the complete package at `immutableJobId + '_source'` and image originals, explicitly dispatches image ingest with immutable operation IDs, and uses
+one shared `commitPreparedAssets` transaction. Its completion includes the actual
+`localCommit`, which the save owner must correlate to the returned revision.
+Caller source remains available after stage failure; retained originals are
+recoverable via `assets.preparedSource(job, reference, freshReadGrant)` after subsequent failure/cancellation.
+`cancel()`/`dispose()` fence active work. Recovery/reopen performs no host work;
+cleanup remains explicit. Ordinary `commit()` refuses media. No remote conversion,
+implicit grants, insertion compensation or layout/source-byte fidelity is claimed.
 
 ODT export uses the qualified ODF 1.3 semantic writer with the same approved original PNG transport. It preserves the declared text/marks/headings/lists/v1 tables/links and image accessibility labels, reports regenerated package/style/metadata defaults, and rejects unapproved loss. ODT import remains unavailable in this public worker. Independent reader/schema qualification covers generated artifacts, not arbitrary suite layout or native platform wiring.
 

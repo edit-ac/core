@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "owner": "CNV-1.18-C1/C2-DX/C2-DI-T / C2-EX / C2-PX",
+  "owner": "CNV-1.18-C1/C2-DX/C2-DI-T / C2-EX / C2-PX / C2-DI-M",
   "state": "implementation-pending-qualification",
   "directions": [
     {
@@ -76,14 +76,14 @@
       "profile": "edit-ac-docx-v1",
       "target": "browser-worker-wasm32",
       "fixture": "tests/formats/consumers/docx-import-fixtures.py",
-      "fidelity": "docx-structure-semantic-v1-no-media",
+      "fidelity": "docx-structure-semantic-v1",
       "feature": "docx-codecs",
-      "media": "AssetStagingUnavailable; full DOCX import remains unqualified",
+      "media": "Explicit exact-hash grants; real original retention and host ingest before atomic shared storage adoption",
       "requiredFeatures": [
         "docx-codecs",
         "jobs"
       ],
-      "complete": false
+      "complete": true
     },
     {
       "format": "odt",
@@ -131,7 +131,6 @@
     "edit-ac-tsv-spreadsheet-safe-v1"
   ],
   "unavailable": [
-    "docx-import-media",
     "odt-import",
     "epub-import"
   ],

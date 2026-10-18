@@ -12,6 +12,7 @@ let workerPermits=0;const MAX_WORKERS=2;
 const MAX_OUTPUT = 8 * 1048576;
 /** A client owns at most one conversion worker; caller retains live Engine/anchors. */
 export function createFormatClient() {
+  const commits=new Set();
   let active = null, disposed = false, compiledModule = null, generation = 0;
   const reject = (code, original, detail = {}) => new FormatError(code, {code, ...detail}, original);
   async function run(engine, options, direction) {
@@ -44,7 +45,7 @@ export function createFormatClient() {
       chunks.push(a.bytes.slice());assetLength+=a.bytes.length;
     }
     const assetBytes=new Uint8Array(assetLength);let assetOffset=0;for(const chunk of chunks){assetBytes.set(chunk,assetOffset);assetOffset+=chunk.length;}
-    const request={assets,direction,format:options.format,identity:checkpoint.identity,initialized:checkpoint.initialized,writerId:checkpoint.writerId,
+    const request={assets,importGrants:options.importGrants ?? [],direction,format:options.format,identity:checkpoint.identity,initialized:checkpoint.initialized,writerId:checkpoint.writerId,
       selected:options.selected ?? null,filename:options.filename ?? null,mediaType:options.mediaType ?? null,newline:options.newline ?? null,header:options.header ?? null,safe:options.safe ?? false,approveLoss:options.approveLoss ?? false};
     if (JSON.stringify(request).length > 16384) throw failure('ResourceLimit');
     let worker;
@@ -94,22 +95,72 @@ export function createFormatClient() {
   return {
     async prepareImport(engine, options) {
       const range={anchor:options.range?.anchor,focus:options.range?.focus};
-      const ticket=generation;const signal=options.signal;const result=await run(engine,options,'import');let used=false;const blocks=structuredClone(result.blocks);
-      const failure=(code,detail=result)=>{const e=reject(code,result.original,detail);e.recovery=result.recovery;return e;};
+      const ticket=generation;const signal=options.signal;const approveLoss=options.approveLoss;const timeoutMs=options.timeoutMs??10000;const grants=structuredClone(options.importGrants ?? []);const result=await run(engine,{...options,importGrants:grants},'import');let used=false;const blocks=structuredClone(result.blocks);
+      const candidates=structuredClone(result.mediaCandidates ?? []),originalBytes=result.original.slice(),recovery=structuredClone(result.recovery),hasLoss=result.diagnostics.some(d=>d.lossy);
+      const failure=(code,detail=result)=>{const e=reject(code,originalBytes.slice(),detail);e.recovery=structuredClone(recovery);return e;};
       return {...result,commit(){
         if(used)throw failure('Finished');used=true;
         if(disposed)throw failure('Disposed');
         if(generation!==ticket||signal?.aborted)throw failure('Cancelled');
         if(engine.read().revision!==result.revision)throw failure('StaleTarget');
+        if(candidates.length)throw failure('AssetOwnerRequired');
         if(!result.sessionCommitted)throw failure(result.diagnostics.some(d=>d.lossy)?'LossApprovalRequired':'NoChange');
         try {
           const plan=engine.prepare({kind:'fragment',origin:'format-import',range,blocks});
           return engine.commit(plan);
         } catch(error) { throw failure('CommitRejected',{...result,cause:String(error),action:'Retain original input and checkpoint; the shared import commit was rejected.'}); }
+      }, async commitAssets(owner,job,host,sourceGrant) {
+        if(used)throw failure('Finished');used=true;
+        if(!owner || owner.engine!==engine || typeof job!=='string' || !job.length || !host || typeof host.authorize!=='function' || typeof host.execute!=='function')throw failure('InvalidAssetOwner');
+        const recoveryGrant=structuredClone(sourceGrant);
+        if(!recoveryGrant?.identity||!Array.isArray(recoveryGrant.actions))throw failure('InvalidSourceGrant');
+        const sourceBytes=originalBytes.slice();
+        const assets=await owner.enableAssets();let plan;const controller=new AbortController();commits.add(controller);let deadlineExpired=false;
+        const deadline=setTimeout(()=>{deadlineExpired=true;controller.abort();},timeoutMs);
+        const abort=()=>controller.abort();signal?.addEventListener('abort',abort,{once:true});if(signal?.aborted)abort();
+        const canceled=()=>{if(disposed||generation!==ticket||signal?.aborted||controller.signal.aborted)throw failure(deadlineExpired?'Timeout':'Cancelled');};
+        try {
+          canceled();
+          if(engine.read().revision!==result.revision)throw failure('StaleTarget');
+          if(!candidates.length)throw failure('NoMedia');
+          if(!approveLoss&&hasLoss)throw failure('LossApprovalRequired');
+          // Local original-input recovery, never dispatched/uploaded. Adoption
+          // retires this unused prepared reference while preserving exact bytes.
+          await assets.stageOriginal(job,job+'_source',{version:1,operationId:job+'_retain_source',identity:recoveryGrant.identity,action:'ingest',byteLimit:sourceBytes.length},recoveryGrant,sourceBytes);
+          const refs=[];
+          const ordered=blocks.filter(b=>b.attributes?.type==='content'&&b.attributes.tuple?.[0]==='module:editac.asset').map(b=>{
+            const identity=b.attributes.tuple[2].identity;
+            const c=candidates.find(c=>c.identity.host===identity.host&&c.identity.key===identity.key);
+            if(!c)throw failure('InvalidAssets');return c;
+          });
+          if(!ordered.length||ordered.length>64)throw failure('InvalidAssets');
+          for(let n=0;n<ordered.length;n++){
+            canceled();const c=ordered[n],reference=job+'_original_'+n;
+            const grant=grants.find(g=>g.identity.host===c.identity.host&&g.identity.key===c.identity.key);
+            if(!grant)throw failure('InvalidAssets');
+            const bytes=Uint8Array.from(c.bytes);
+            await assets.stageOriginal(job,reference,{version:1,operationId:job+'_ingest_'+n,identity:c.identity,action:'ingest',byteLimit:bytes.length},{identity:grant.identity,actions:grant.actions},bytes);
+            canceled();
+            await new Promise((resolve,rejectDispatch)=>{
+              const abort=()=>rejectDispatch(failure(deadlineExpired?'Timeout':'Cancelled'));
+              controller.signal.addEventListener('abort',abort,{once:true});
+              if(controller.signal.aborted)abort();
+              else void assets.runOne(job+'_ingest_'+n,true,host).then(done=>{if(!done)throw failure('AssetIngestFailed');resolve();}).catch(rejectDispatch).finally(()=>controller.signal.removeEventListener('abort',abort));
+            });
+            refs.push(reference);
+          }
+          canceled();if(engine.read().revision!==result.revision)throw failure('StaleTarget');
+          plan=engine.prepare({kind:'fragment',origin:'format-import',range,blocks});
+          return await owner.commitPreparedAssets(plan,job,refs,{signal:controller.signal});
+        } catch(error) {
+          try {await assets.fenceJob(job);} catch(cleanup) {throw failure('CleanupPending',{...result,cause:String(error),cleanup:String(cleanup)});}
+          if(error instanceof FormatError)throw error;
+          throw failure('CommitRejected',{...result,cause:String(error)});
+        } finally {clearTimeout(deadline);signal?.removeEventListener('abort',abort);commits.delete(controller);if(plan)engine.releasePlan(plan);}
       }};
     },
     export(engine,options){return run(engine,options,'export');},
-    cancel(){generation++;active?.stop();},
-    dispose(){disposed=true;generation++;active?.stop();compiledModule=null;}
+    cancel(){generation++;active?.stop();for(const c of commits)c.abort();},
+    dispose(){disposed=true;generation++;active?.stop();for(const c of commits)c.abort();compiledModule=null;}
   };
 }

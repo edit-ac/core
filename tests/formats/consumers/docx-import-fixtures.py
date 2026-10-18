@@ -23,7 +23,7 @@ def package(document, relationships=rels, extras=()):
             info=zipfile.ZipInfo(name,(2026,1,1,0,0,0));z.writestr(info,data)
     return b.getvalue()
 pixel=pathlib.Path('fixtures/formats/docx/probe/pixel.png').read_bytes()
-fixtures={'supported':package(plain),'loss':package(loss),'media':package(source,media_rels,[('word/media/pixel.png',pixel)]),'corrupt':b'PK\x03\x04not-a-zip','hostile':package(plain,extras=[('../escape.xml','forbidden')]),'nodes':package(plain.replace('</w:body>','<w:p><w:r><w:t>overflow</w:t></w:r></w:p>'*130+'</w:body>'))}
+fixtures={'supported':package(plain),'loss':package(loss),'media':package(source,media_rels,[('word/media/pixel.png',pixel)]),'media-loss':package(source.replace('</w:body>','<w:sdt><w:sdtContent><w:p><w:r><w:t>opaque retained</w:t></w:r></w:p></w:sdtContent></w:sdt></w:body>'),media_rels,[('word/media/pixel.png',pixel)]),'corrupt':b'PK\x03\x04not-a-zip','hostile':package(plain,extras=[('../escape.xml','forbidden')]),'nodes':package(plain.replace('</w:body>','<w:p><w:r><w:t>overflow</w:t></w:r></w:p>'*130+'</w:body>'))}
 manifest={}
 for name,data in fixtures.items():
     (out/(name+'.docx')).write_bytes(data)
