@@ -43,12 +43,14 @@ export class LocalStorageLifecycle {
   #destroyed = false;
 
   #assets: Promise<AssetSession> | undefined;
+  #assetSession: AssetSession | undefined;
   /** Optional AssetWork companion over this same per-document database. */
   enableAssets(factory: IDBFactory, databaseName: string): Promise<AssetSession> {
     this.#requireLive();
     if (this.#closing) throw new Error("Storage lifecycle is closing");
+    if (databaseName !== this.#journal.databaseName) throw new Error("Assets must share the content journal database");
     if (!this.#assets) {
-      const opening = import("../sync/assets.js").then(({ AssetSession }) => AssetSession.open(this.#writer.engine, factory, databaseName));
+      const opening = import("../sync/assets.js").then(({ AssetSession }) => AssetSession.open(this.#writer.engine, factory, databaseName)).then(session => { this.#assetSession=session; return session; });
       this.#assets = opening;
       void opening.catch(() => { if (this.#assets === opening) this.#assets = undefined; });
     }
@@ -68,7 +70,8 @@ export class LocalStorageLifecycle {
       if (!patch.update || this.#replayingLocal) return;
       const update: JournalUpdate = { identity: { ...patch.identity }, writerId: patch.writerId,
         sequence: patch.sequence, origin: patch.origin, bytes: new Uint8Array(patch.update.bytes) };
-      const record: PendingUpdate = { update, completion: Promise.resolve().then(() => this.#journal.append(update)), failed: false };
+      const durable=this.#assetSession?.committedReceipt(update);
+      const record: PendingUpdate = { update, completion: durable ? Promise.resolve(durable) : Promise.resolve().then(() => this.#journal.append(update)), failed: false };
       this.#updates.add(record);
       record.completion = record.completion.then(commit => {
         this.#updates.delete(record);
@@ -149,6 +152,16 @@ export class LocalStorageLifecycle {
   commitPrepared(plan: PlanToken): CommitResult {
     this.#requireWritable();
     return this.#writer.engine.commit(plan);
+  }
+  /** One durable prepared import; shares the Rust content/history owner. */
+  async commitPreparedAssets(plan: PlanToken, job: string, references: readonly string[], options: { signal?: AbortSignal } = {}): Promise<import('../sync/assets.js').PreparedAssetCommitReceipt> {
+    this.#requireWritable();
+    if (!this.#assets) throw new Error('Enable assets before prepared import');
+    const ownedReferences=[...references], signal=options.signal;
+    await this.flush({target:'local'});
+    const assets=await this.#assets;
+    this.#requireWritable();
+    return assets.commitPrepared(plan,job,ownedReferences,signal?{signal}:{});
   }
   #requireWritable(): void {
     this.#requireLive();

@@ -6,13 +6,13 @@ import {browserHarness} from './browser-harness.ts';
 const descriptor=JSON.parse(await readFile('fixtures/rich-content/asset-descriptors.json','utf8')).descriptors[0];
 const {probe}=browserHarness('asset-ingest','fixtures/browser-input',{
  assertSourcesUnchanged:true,serverOptions:{recordRequests:true},
- sourcePaths:['crates/editac-session/Cargo.toml','crates/editac-wasm/Cargo.toml','Cargo.lock','scripts/build-wasm-notices.mjs','scripts/share-wasm-glue.mjs','packages/web/package.json','tests/browser/fixture-server.mjs','crates/editac-session/src/assets.rs','crates/editac-session/src/ports/memory.rs','crates/editac-wasm/src/assets.rs','crates/editac-wasm/src/engine.rs','packages/core/src/index.ts','packages/web/src/sync/assets.ts','packages/web/src/storage/journal.ts','packages/web/src/storage/index.ts','fixtures/browser-input/session.mjs','fixtures/browser-asset-ingest/host.mjs','fixtures/rich-content/asset-descriptors.json','tests/consumers/asset-ingest/public-types.ts'],
+ sourcePaths:['packages/core/src/engine.ts','packages/web/src/storage/owner.ts','crates/editac-wasm/src/bridge.rs','crates/editac-core/src/commands/editor.rs','crates/editac-session/Cargo.toml','crates/editac-wasm/Cargo.toml','Cargo.lock','scripts/build-wasm-notices.mjs','scripts/share-wasm-glue.mjs','packages/web/package.json','tests/browser/fixture-server.mjs','crates/editac-session/src/assets.rs','crates/editac-session/src/ports/memory.rs','crates/editac-wasm/src/assets.rs','crates/editac-wasm/src/engine.rs','packages/core/src/index.ts','packages/web/src/sync/assets.ts','packages/web/src/storage/journal.ts','packages/web/src/storage/index.ts','fixtures/browser-input/session.mjs','fixtures/browser-asset-ingest/host.mjs','fixtures/rich-content/asset-descriptors.json','tests/consumers/asset-ingest/public-types.ts'],
  async prepareConsumer(consumer,{facts,run}){
   await mkdir(join(consumer,'node_modules/@edit-ac'),{recursive:true});
   for(const name of ['core','web'])await symlink(join(consumer,name,'package'),join(consumer,'node_modules/@edit-ac',name));
   await writeFile(join(consumer,'package.json'),JSON.stringify({private:true,type:'module'}));
   const input=join(consumer,'public-types.ts');await copyFile('tests/consumers/asset-ingest/public-types.ts',input);
-  await run(process.execPath,[resolve('node_modules/typescript/bin/tsc'),'--noEmit','--strict','--skipLibCheck','--module','nodenext','--moduleResolution','nodenext','--target','es2022','--lib','es2022,dom,dom.iterable',input],'public-types.log');facts.publicTypes={passed:true,invalidExamples:3};
+  await run(process.execPath,[resolve('node_modules/typescript/bin/tsc'),'--noEmit','--strict','--skipLibCheck','--module','nodenext','--moduleResolution','nodenext','--target','es2022','--lib','es2022,dom,dom.iterable',input],'public-types.log');facts.publicTypes={passed:true,invalidExamples:4};
   const fixture=join(consumer,'fixture');await mkdir(fixture);
   for(const file of ['index.html','session.mjs'])await copyFile('fixtures/browser-input/'+file,join(fixture,file));
   await copyFile('fixtures/browser-asset-ingest/host.mjs',join(fixture,'host.mjs'));return fixture;

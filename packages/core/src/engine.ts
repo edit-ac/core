@@ -3,10 +3,11 @@ export type AssetAction = "authorize" | "ingest" | "read" | "cache" | "publish" 
 export interface AssetGrant { identity: AssetIdentity; actions: readonly AssetAction[] }
 export interface AssetRequest { version: 1; operationId: string; identity: AssetIdentity; action: AssetAction; byteLimit: number }
 export interface AssetPublication { operationId: string; identity: AssetIdentity }
-export interface AssetIntent { reference: string; request: AssetRequest; status: "Pending" | "Complete" | "Canceled" | { Published: AssetPublication }; attempts: number }
+export interface AssetIntent { reference: string; hostReference: string; request: AssetRequest; status: "Pending" | "Complete" | "Canceled" | { Published: AssetPublication }; attempts: number }
 export type AssetWorkAction = {type:"validate";request:AssetRequest;grant:AssetGrant} | {type:"inspect"} | {type:"enqueue";reference:string;request:AssetRequest;grant:AssetGrant}
  | {type:"stageOriginal";job:string;reference:string;request:AssetRequest;grant:AssetGrant;bytes:readonly number[]}
  | {type:"fenceJob";job:string}
+ | {type:"ingestSource";reference:string;grant:AssetGrant}
  | {type:"preparedSource";job:string;reference:string;grant:AssetGrant}
  | {type:"retire";reference:string;identity:AssetIdentity;prefix:string}
  | {type:"begin";operation:string;online:boolean;grant:AssetGrant}
@@ -164,7 +165,17 @@ export interface MarkdownCodec {
 export type HTMLNode = { kind: "text"; text: string } | { kind: "inert" } | {
   kind: "element"; tag: string; attributes: readonly { name: string; value: string; namespaced: boolean }[]; children: readonly HTMLNode[];
 };
+export interface PreparedAssetCommit {
+  readonly journal: string;
+  readonly targets: readonly string[];
+  readonly update: { identity: DocumentIdentity; writerId: number; sequence: number; origin: string; bytes: Uint8Array };
+  /** Only after the update and asset candidate are durably committed together. */
+  commit(): CommitResult;
+  abort(): void;
+}
 export interface EngineHandle {
+  /** Reserve semantic admission; Rust derives targets from this exact editor plan. */
+  reserveAssetCommit(plan: PlanToken, journal: string, job: string, references: readonly string[]): PreparedAssetCommit;
   /** Pure Rust transaction over an opaque per-document asset journal. */
   assetWork(journal: string | null, action: AssetWorkAction): AssetWorkResult;
   readonly markdownAvailable: boolean;
@@ -208,6 +219,7 @@ export class EngineError extends Error {
 /** Internal compiled boundary; application clients use EngineHandle. */
 export interface RawEngine {
   asset_work(input: string): string;
+  prepare_asset_commit(token: string, input: string): string;
   validate_fragment(input: string): string;
   import_html(input: string): string;
   read(): string; anchor(input: string): string; resolve(token: string): string;
@@ -322,7 +334,8 @@ function ownHandle(allocation: RawEngine): EngineHandle {
   let markdown: MarkdownCodec | undefined;
   type RawPatch = Omit<Patch, "update"> & { update: null | {identity:DocumentIdentity; bytes:number[]} };
   type Listener = { scope: PatchScope; callback: (patch: Patch) => void };
-  let nextId = 0, dispatching = false;
+  let nextId = 0, dispatching = false, reserved = false;
+  const requireAdmission = (operation: string): void => { if (reserved) throw new EngineError("EngineRejected", operation, "prepared asset commit in progress"); };
   const listeners = new Map<number, Listener>();
   const queue: { patch: RawPatch; listeners: [number, Listener][] }[] = [];
   const failures: ObserverError[] = [];
@@ -371,6 +384,7 @@ function ownHandle(allocation: RawEngine): EngineHandle {
     } finally { dispatching = false; }
   };
   const mutate = <T>(operation: string, action: (engine: RawEngine) => T): T => {
+    requireAdmission(operation);
     const result = use(operation, action);
     const patch = use("patch", e => JSON.parse(e.take_patch()) as RawPatch | null);
     if (patch && listeners.size) queue.push({patch, listeners:[...listeners.entries()]});
@@ -381,7 +395,7 @@ function ownHandle(allocation: RawEngine): EngineHandle {
     const input=encode(request,'prepare');
     return use('prepare',e=>JSON.parse(e.prepare(input)).token as PlanToken);
   };
-  const releasePlan = (plan: PlanToken): void => use("releasePlan", e => e.release_plan(token(plan, "releasePlan")));
+  const releasePlan = (plan: PlanToken): void => { requireAdmission("releasePlan"); use("releasePlan", e => e.release_plan(token(plan, "releasePlan"))); };
   const codec = (operation: string): MarkdownCodec => {
     if (!markdown) throw new EngineError("CapabilityUnavailable", operation, "markdown-codec-unavailable");
     return markdown;
@@ -389,6 +403,17 @@ function ownHandle(allocation: RawEngine): EngineHandle {
   const importMarkdown = (source: string, options: MarkdownOptions = {}): PreparedMarkdown => use("importMarkdown", () => codec("importMarkdown").importMarkdown(source, options));
   const exportMarkdown = (blocks: readonly FragmentBlock[], options: MarkdownOptions = {}): MarkdownExport => use("exportMarkdown", () => codec("exportMarkdown").exportMarkdown(blocks, options));
   return Object.freeze({
+    reserveAssetCommit: (plan: PlanToken, journal: string, job: string, references: readonly string[]) => {
+      requireAdmission("reserveAssetCommit");
+      const candidate = use("reserveAssetCommit", e => JSON.parse(e.prepare_asset_commit(token(plan, "reserveAssetCommit"), encode({journal, job, references}, "reserveAssetCommit"))));
+      reserved = true;
+      let active = true;
+      const finish = (): void => { if (!active) throw new EngineError("InvalidHandle", "assetCommit", "reservation consumed"); active = false; reserved = false; };
+      return Object.freeze({ journal: candidate.journal as string, targets: Object.freeze(candidate.targets as string[]),
+        update: {...candidate.update, bytes: Uint8Array.from(candidate.update.bytes)},
+        commit: () => { finish(); return mutate("commit", e => JSON.parse(e.commit(token(plan, "commit"))) as CommitResult); },
+        abort: () => { if (active) finish(); } });
+    },
     assetWork: (journal: string | null, action: AssetWorkAction) => use("assetWork", e => JSON.parse(e.asset_work(encode({journal,action}, "assetWork"))) as AssetWorkResult),
     read: () => use("read", e => JSON.parse(e.read()) as Snapshot),
     validateFragment: (input: string) => use("validateFragment", e => {
@@ -478,6 +503,6 @@ function ownHandle(allocation: RawEngine): EngineHandle {
       return Object.freeze({get active() {return !!raw && listeners.has(id);}, dispose() {listeners.delete(id);} });
     }),
     takeObserverErrors: () => use("takeObserverErrors", () => failures.splice(0)),
-    dispose: () => { if (raw) { const owned = raw; raw = undefined; markdown = undefined; listeners.clear(); queue.length = 0; failures.length = 0; try { owned.dispose(); } finally { owned.free(); } } },
+    dispose: () => { requireAdmission("dispose"); if (raw) { const owned = raw; raw = undefined; markdown = undefined; listeners.clear(); queue.length = 0; failures.length = 0; try { owned.dispose(); } finally { owned.free(); } } },
   });
 }

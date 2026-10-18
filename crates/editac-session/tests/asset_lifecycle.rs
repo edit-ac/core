@@ -1515,3 +1515,46 @@ fn prepared_adoption_codec_recovery_validates_targets_and_legacy_defaults() {
     let legacy: AssetJournal = serde_json::from_value(legacy).unwrap();
     assert_eq!(legacy, before);
 }
+
+#[test]
+fn adopted_host_cleanup_keeps_original_scoped_reference_and_sibling() {
+    let store = memory();
+    stage(&store, "job_a", "original_a", "ingest_a").unwrap();
+    stage(&store, "job_b", "sibling", "ingest_b").unwrap();
+    let candidate = store
+        .asset_journal()
+        .unwrap()
+        .prepare_adoption("job_a", &[binding("original_a", "live_node")])
+        .unwrap();
+    assert_eq!(candidate.host_reference("live_node"), "original_a");
+    assert_eq!(candidate.host_reference("sibling"), "sibling");
+    store
+        .update_assets(|j| {
+            *j = candidate;
+            Ok(())
+        })
+        .unwrap();
+    let work = AssetWork::new(&store);
+    work.retire("live_node", &asset(), "cleanup").unwrap();
+    #[derive(Default)]
+    struct ScopedHost(Vec<String>);
+    impl AssetHost for ScopedHost {
+        fn authorize(&mut self, r: &AssetRequest) -> Result<AssetGrant, PortError> {
+            Ok(grant(r.action))
+        }
+        fn execute(&mut self, reference: &str, _: &AssetRequest) -> Result<HostOutcome, PortError> {
+            self.0.push(reference.into());
+            Ok(HostOutcome::Complete)
+        }
+    }
+    let mut host = ScopedHost::default();
+    work.run_one("cleanup_cancel", true, &mut host).unwrap();
+    work.run_one("cleanup_release", true, &mut host).unwrap();
+    assert_eq!(host.0, vec!["original_a", "original_a"]);
+    assert!(store.asset_journal().unwrap().is_prepared("sibling"));
+    assert_eq!(
+        work.prepared_source("job_a", "original_a", &grant(AssetAction::Read))
+            .unwrap(),
+        ORIGINAL
+    );
+}

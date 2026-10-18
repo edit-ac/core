@@ -644,6 +644,95 @@ impl Bridge {
     pub fn release_plan(&mut self, token: &str) {
         self.plans.remove(token);
     }
+    /// Derive every adopted target from the exact revision-bound editor update.
+    /// No descriptor or history mutation occurs during this preparation.
+    pub fn prepare_asset_commit(&self, token: &str, input: &str) -> Result<Value> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Request {
+            journal: String,
+            job: String,
+            references: Vec<String>,
+        }
+        let request: Request = parse(input, "prepareAssetCommit")?;
+        let Some(Plan::Editor(plan, _)) = self.plans.get(token) else {
+            return Err(err(
+                "InvalidHandle",
+                "prepareAssetCommit",
+                "editor plan required",
+            ));
+        };
+        let update = self
+            .doc
+            .preview_editor(plan)
+            .map_err(|e| kernel("prepareAssetCommit", e))?;
+        let staged = Document::restore(
+            self.doc.identity(),
+            &self.doc.checkpoint(),
+            std::slice::from_ref(&update),
+        )
+        .map_err(|e| kernel("prepareAssetCommit", e))?;
+        let before = self
+            .doc
+            .snapshot()
+            .map_err(|e| kernel("prepareAssetCommit", e))?;
+        let after = staged
+            .snapshot()
+            .map_err(|e| kernel("prepareAssetCommit", e))?;
+        let mut targets = Vec::new();
+        for node in &after.visible {
+            let Some(attributes) = &node.block_attributes else {
+                continue;
+            };
+            if let Ok(Some(editac_core::modules::content::Content::Asset { descriptor })) =
+                editac_core::modules::content::Content::from_tuple(&attributes.tuple())
+            {
+                if let Some(old) = before.visible.iter().find(|old| old.id == node.id) {
+                    if old.block_attributes != node.block_attributes {
+                        return Err(err(
+                            "EngineRejected",
+                            "prepareAssetCommit",
+                            "existing asset replacement is not import insertion",
+                        ));
+                    }
+                    continue;
+                }
+                let target = format!(
+                    "node_{}",
+                    node.id
+                        .as_bytes()
+                        .iter()
+                        .map(|b| format!("{b:02x}"))
+                        .collect::<String>()
+                );
+                targets.push((target, descriptor.identity));
+            }
+        }
+        let journal = crate::assets::adoption(
+            self.doc.identity(),
+            &request.journal,
+            &request.job,
+            &request.references,
+            &targets,
+        )?;
+        let sequence = self
+            .doc
+            .last_patch()
+            .map_or(0, |p| p.sequence)
+            .checked_add(1)
+            .ok_or_else(|| {
+                err(
+                    "ResourceLimit",
+                    "prepareAssetCommit",
+                    "patch sequence exhausted",
+                )
+            })?;
+        Ok(
+            json!({"journal":journal,"targets":targets.iter().map(|(t,_)|t).collect::<Vec<_>>(),
+            "update":{"identity":identity(self.doc.identity()),"writerId":self.doc.writer_id(),
+                "sequence":sequence,"origin":plan.origin(),"bytes":update.bytes}}),
+        )
+    }
     pub fn commit(&mut self, token: &str) -> Result<Value> {
         let plan = self.plans.remove(token).ok_or_else(|| {
             err(
@@ -1129,3 +1218,105 @@ mod fragment_transfer_tests {
 #[cfg(test)]
 #[path = "table_source_cases.rs"]
 mod table_source_cases;
+
+#[cfg(test)]
+mod prepared_asset_cases {
+    use super::*;
+    fn fixture(serial: u32) -> (Bridge, String, String) {
+        let mut b=Bridge::create(&json!({"profile":"v5","documentId":format!("94100000-0000-4000-8000-{serial:012}"),"epoch":"94200000-0000-4000-8000-000000000001","nodes":[{"text":"before"}]}).to_string()).unwrap();
+        let descriptor: Value = serde_json::from_str::<Value>(include_str!(
+            "../../../fixtures/rich-content/asset-descriptors.json"
+        ))
+        .unwrap()["descriptors"][0]
+            .clone();
+        let node = b.doc.snapshot().unwrap().visible[0].id.clone();
+        let at = b
+            .capture(&json!({"node":node,"offset":0,"bias":"left"}).to_string())
+            .unwrap()["token"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let plan=b.prepare(&json!({"kind":"fragment","origin":"prepared:import","range":{"anchor":at,"focus":at},"blocks":[{"runs":[{"text":descriptor["fallback"],"marks":[]}],"attributes":{"type":"content","tuple":["module:editac.asset",1,descriptor]}}]}).to_string()).unwrap()["token"].as_str().unwrap().to_string();
+        let grant = json!({"identity":{"host":"fixture-host","key":"file-v1"},"actions":["ingest","read","cancel","release-reference"]});
+        let staged=b.asset_work(&json!({"journal":null,"action":{"type":"stageOriginal","job":"job_a","reference":"original_a","request":{"version":1,"operationId":"ingest_a","identity":grant["identity"],"action":"ingest","byteLimit":32},"grant":grant,"bytes":[0,255,13,10,128,42]}}).to_string()).unwrap()["journal"].as_str().unwrap().to_string();
+        (b, plan, staged)
+    }
+    fn complete(b: &Bridge, journal: &str) -> String {
+        let grant =
+            json!({"identity":{"host":"fixture-host","key":"file-v1"},"actions":["ingest"]});
+        let begun=b.asset_work(&json!({"journal":journal,"action":{"type":"begin","operation":"ingest_a","online":true,"grant":grant}}).to_string()).unwrap();
+        b.asset_work(&json!({"journal":begun["journal"],"action":{"type":"complete","operation":"ingest_a","receipt":null,"grant":grant}}).to_string()).unwrap()["journal"].as_str().unwrap().to_string()
+    }
+    #[test]
+    fn prepared_asset_boundary_derives_exact_targets_without_live_mutation() {
+        let (mut b, plan, staged) = fixture(1);
+        let journal = complete(&b, &staged);
+        let before = b.doc_state();
+        let candidate = b
+            .prepare_asset_commit(
+                &plan,
+                &json!({"journal":journal,"job":"job_a","references":["original_a"]}).to_string(),
+            )
+            .unwrap();
+        assert_eq!(b.doc_state(), before);
+        assert_eq!(candidate["update"]["sequence"], 1);
+        b.commit(&plan).unwrap();
+        let owner = b
+            .doc
+            .snapshot()
+            .unwrap()
+            .visible
+            .into_iter()
+            .find(|n| matches!(n.block_attributes, Some(BlockAttributes::Unknown(_))))
+            .unwrap()
+            .id
+            .clone();
+        let expected = format!(
+            "node_{}",
+            owner
+                .as_bytes()
+                .iter()
+                .map(|v| format!("{v:02x}"))
+                .collect::<String>()
+        );
+        assert_eq!(candidate["targets"][0], expected);
+        assert_eq!(b.doc.history_state().undo_groups, 1);
+        let inspected = b
+            .asset_work(
+                &json!({"journal":candidate["journal"],"action":{"type":"inspect"}}).to_string(),
+            )
+            .unwrap();
+        assert_eq!(inspected["prepared"][0]["adoptedReference"], expected);
+        assert_eq!(inspected["intents"][0]["reference"], expected);
+    }
+    #[test]
+    fn prepared_asset_boundary_rejects_incomplete_extra_and_stale_plans() {
+        let (mut b, plan, staged) = fixture(2);
+        let before = b.doc_state();
+        assert!(
+            b.prepare_asset_commit(
+                &plan,
+                &json!({"journal":staged,"job":"job_a","references":["original_a"]}).to_string()
+            )
+            .is_err()
+        );
+        let journal = complete(&b, &staged);
+        assert!(
+            b.prepare_asset_commit(
+                &plan,
+                &json!({"journal":journal,"job":"job_a","references":["original_a","extra"]})
+                    .to_string()
+            )
+            .is_err()
+        );
+        assert_eq!(b.doc_state(), before);
+        b.commit(&plan).unwrap();
+        assert!(
+            b.prepare_asset_commit(
+                &plan,
+                &json!({"journal":journal,"job":"job_a","references":["original_a"]}).to_string()
+            )
+            .is_err()
+        );
+    }
+}
