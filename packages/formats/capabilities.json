@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 1,
+  "owner": "CNV-1.18-C1/C2-DX/C2-DI-T",
+  "state": "implementation-pending-qualification",
+  "directions": [
+    {
+      "format": "rtf",
+      "direction": "import",
+      "profile": "edit-ac-rtf-v1",
+      "target": "browser-worker-wasm32",
+      "fixture": "fixtures/formats/rtf/profile.md",
+      "fidelity": "rtf191-cp1252-unicode-simple-table-v1",
+      "feature": "rtf-import"
+    },
+    {
+      "format": "rtf",
+      "direction": "export",
+      "profile": "edit-ac-rtf-v1",
+      "target": "browser-worker-wasm32",
+      "fixture": "fixtures/formats/rtf/profile.md",
+      "fidelity": "rtf191-export-semantic-v1",
+      "feature": "rtf-export"
+    },
+    {
+      "format": "csv",
+      "direction": "import",
+      "profile": "edit-ac-csv-v1",
+      "target": "browser-worker-wasm32",
+      "fixture": "fixtures/formats/table-text/quoted.csv",
+      "fidelity": "explicit-utf8-text-table-v1",
+      "feature": "table-text-import"
+    },
+    {
+      "format": "csv",
+      "direction": "export",
+      "profile": "edit-ac-csv-v1",
+      "target": "browser-worker-wasm32",
+      "fixture": "fixtures/formats/table-text/quoted.csv",
+      "fidelity": "selected-table-exact-v1",
+      "feature": "table-text-export"
+    },
+    {
+      "format": "tsv",
+      "direction": "import",
+      "profile": "edit-ac-tsv-v1",
+      "target": "browser-worker-wasm32",
+      "fixture": "fixtures/formats/table-text/quoted.csv",
+      "fidelity": "explicit-utf8-text-table-v1",
+      "feature": "table-text-import"
+    },
+    {
+      "format": "tsv",
+      "direction": "export",
+      "profile": "edit-ac-tsv-v1",
+      "target": "browser-worker-wasm32",
+      "fixture": "fixtures/formats/table-text/quoted.csv",
+      "fidelity": "selected-table-exact-v1",
+      "feature": "table-text-export"
+    },
+    {
+      "format": "docx",
+      "direction": "export",
+      "profile": "edit-ac-docx-v1",
+      "target": "browser-worker-wasm32",
+      "fixture": "tests/formats/consumers/docx-fixture.json",
+      "fidelity": "docx-export-semantic-v1",
+      "feature": "docx-codecs",
+      "requiredFeatures": [
+        "docx-codecs",
+        "jobs"
+      ]
+    },
+    {
+      "format": "docx",
+      "direction": "import",
+      "profile": "edit-ac-docx-v1",
+      "target": "browser-worker-wasm32",
+      "fixture": "tests/formats/consumers/docx-import-fixtures.py",
+      "fidelity": "docx-structure-semantic-v1-no-media",
+      "feature": "docx-codecs",
+      "media": "AssetStagingUnavailable; full DOCX import remains unqualified",
+      "requiredFeatures": [
+        "docx-codecs",
+        "jobs"
+      ],
+      "complete": false
+    }
+  ],
+  "additionalProfiles": [
+    "edit-ac-csv-spreadsheet-safe-v1",
+    "edit-ac-tsv-spreadsheet-safe-v1"
+  ],
+  "unavailable": [
+    "docx-import-media",
+    "odt-import",
+    "odt-export",
+    "epub-import",
+    "epub-export",
+    "pdf-export"
+  ],
+  "pdfImport": "FORMAT_EXPORT_ONLY",
+  "runtimeMemory": {
+    "linearMaximumBytes": 67108864,
+    "wholeProcessHardLimit": false
+  },
+  "remainingOwner": "CNV-1.18-C2 and platform31\u201336/qualification37",
+  "diagnosticSchema": 1,
+  "buildReceipt": "dist/build-receipt.json",
+  "originalInput": "caller-retained bytes plus captured SDK recovery checkpoint",
+  "limits": {
+    "activeWorkersPerRealm": 2,
+    "activeJobsPerClient": 1,
+    "inputBytes": 1048576,
+    "checkpointBytes": 1048576,
+    "resultEnvelopeCharacters": 8388608,
+    "moduleAssetBytes": 8388608,
+    "wallMs": 10000,
+    "originalAssetBytes": 1048576
+  }
+}

@@ -286,5 +286,8 @@
       ],
       "originalInput": "caller-retained"
     }
+  ],
+  "optionalConsumerManifests": [
+    "../../packages/formats/capabilities.json"
   ]
 }
