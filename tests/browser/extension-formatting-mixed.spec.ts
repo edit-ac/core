@@ -145,3 +145,39 @@ for(const mode of ['absent-presenter','future-version','wrong-inline-owner','mal
  }else{assert.equal(result.disposition,'rejected');unchanged(before,after);}
  assert.deepEqual(f.externalRequests??[],[]);
 },{...returnedConfig,absentMath:mode==='absent-presenter'}));
+
+// The fallback card owns whole-atom copy; its source textarea owns literal slices.
+for(const c of corpus.returnedCases.filter(c=>c.kind==='inert'))test(`returned ${c.id}: fallback card copy preserves exact marks and envelope, source copy stays literal`,()=>probe(`returned-${c.id}-card-copy`,async(p,f)=>{
+ const before=await state(p,f);await select(p,true);assert.equal((await paste(p,offer(c.envelope))).disposition,'committed');
+ const after=await state(p,f);one(before,after);
+ const copied=await p.evaluate(()=>{
+  const card=document.querySelector('[data-content-module=extension-source]'),input=card.querySelector('textarea');
+  const copy=target=>{const data=new DataTransfer(),event=window.preparedClipboardEvent('copy',data);target.dispatchEvent(event);return{prevented:event.defaultPrevented,data:Object.fromEntries([...data.types].map(m=>[m,data.getData(m)]))};};
+  input.focus();input.setSelectionRange(1,5);return{whole:copy(card),slice:copy(input),source:input.value};
+ });
+ assert.equal(copied.whole.prevented,true);assert.equal(copied.whole.data['text/plain'],copied.source);
+ assert.deepEqual(JSON.parse(copied.whole.data[fragment]).blocks,c.envelope.payload);
+ assert.equal(copied.slice.prevented,true);assert.deepEqual(copied.slice.data,{'text/plain':copied.source.slice(1,5)});
+ unchanged(after,await state(p,f));
+ await select(p,true,true);assert.equal((await paste(p,copied.whole.data)).disposition,'committed');const pasted=await state(p,f);one(after,pasted);
+ assert.deepEqual(blocks(pasted).filter(b=>b.attributes[0]==='module:editac.inert-extension'),c.envelope.payload.map(expected));
+ await restore(p,f,after,pasted);const reopened=await state(p,f);
+ const disposed=await p.evaluate(()=>{const card=document.querySelector('[data-content-module=extension-source]');window.inputFixture.disposeSurface();const data=new DataTransfer(),event=window.preparedClipboardEvent('copy',data);card.dispatchEvent(event);return{prevented:event.defaultPrevented,types:[...data.types]};});
+ assert.deepEqual(disposed,{prevented:false,types:[]});unchanged(reopened,await state(p,f));
+},returnedConfig));
+
+for(const c of families)test(`returned ${c.kind} disposed: late prepared transfer cannot mutate storage or revive presenters`,()=>probe(`returned-${c.kind}-disposed`,async(p,f)=>{
+ const before=await state(p,f);await select(p);await p.evaluate(data=>{window.inputFixture.defer(data);window.inputFixture.disposeSurface();},offer(c.envelope));
+ const result=await p.evaluate(async()=>{window.pendingTransfer.release();return window.pendingTransfer.job.result;});assert.equal(result.disposition,'rejected');
+ const after=await state(p,f);unchanged(before,after);assert.equal(after.codecCalls,0);assert.deepEqual(f.externalRequests??[],[]);
+},returnedConfig));
+
+for(const mode of ['unavailable','future-version'])test(`returned fallback ${mode}: whole-card copy retains complete original recovery envelope`,()=>probe(`returned-fallback-${mode}-copy`,async(p,f)=>{
+ const c=structuredClone(families.find(c=>c.kind==='math'));if(mode==='future-version')c.envelope.dataVersion=99;
+ const before=await state(p,f);await select(p);assert.equal((await paste(p,offer(c.envelope))).disposition,'committed');const after=await state(p,f);one(before,after);
+ const data=await p.evaluate(()=>{const card=document.querySelector('[data-content-module=extension-source]'),dt=new DataTransfer();card.dispatchEvent(window.preparedClipboardEvent('copy',dt));return Object.fromEntries([...dt.types].map(m=>[m,dt.getData(m)]));});
+ assert.equal(data['text/plain'],c.envelope.source);const native=JSON.parse(data[fragment]);assert.deepEqual(native.blocks[0].attributes,{type:'content',tuple:['module:editac.inert-extension',1,c.envelope]});
+ assert.deepEqual(native.blocks[0].runs,[{text:c.envelope.source,marks:[]}]);unchanged(after,await state(p,f));
+ await select(p,true,true);assert.equal((await paste(p,data)).disposition,'committed');const copied=await state(p,f);one(after,copied);
+ assert.deepEqual(copied.nodes.find(n=>n.blockAttributes?.[0]==='module:editac.inert-extension').blockAttributes,['module:editac.inert-extension',1,c.envelope]);await restore(p,f,after,copied);
+},{...returnedConfig,...(mode==='unavailable'?{unavailable:['editac.math']}:{})}));
