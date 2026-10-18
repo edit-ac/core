@@ -142,17 +142,34 @@ test('retained native seeds require exact producer inputs and independently chec
   const artifacts = { fixture: Buffer.from(JSON.stringify(document)), snapshot: Buffer.from(JSON.stringify({ visible })),
     checkpoint: Buffer.from(JSON.stringify({ identity, checkpoint: { identity, initialized: true, bytes: [1, 2, 3] } })),
     log: Buffer.from('seed: 1/1 fixture prepared; 0 failures/skips') };
-  const admit = (a = artifacts, p = prior, i = inputs, e = executable) => admitSeed('Task', p, i, e, a);
+  // Seal test receipts independently of admission. Semantic negatives are resealed
+  // so they still exercise the oracle after exact byte-integrity admission.
+  const seal = (a = artifacts) => ({ ...prior, fixtures: [{ name: 'Task', sha256: seedHash(a.fixture) }], artifactInputs: {
+    'harness/fitness-seed': seedHash(executable), 'fixtures/Task.native-checkpoint.json': seedHash(a.checkpoint),
+    'fixtures/Task.native-snapshot.json': seedHash(a.snapshot), 'seed-Task.log': seedHash(a.log),
+  } });
+  const receipt = seal();
+  const admit = (a = artifacts, p = receipt, i = inputs, e = executable) => admitSeed('Task', p, i, e, a);
   assert.equal(admit().frozen.checkpoint.bytes.length, 3);
-  assert.throws(() => admit(artifacts, prior, { ...inputs, 'Cargo.lock': 'c'.repeat(64) }), /source identity/);
-  assert.throws(() => admit(artifacts, prior, inputs, Buffer.from('other executable')), /executable identity/);
-  assert.throws(() => admit({ ...artifacts, fixture: Buffer.from('{}') }), /fixture identity/);
-  assert.throws(() => admit({ ...artifacts, log: Buffer.from('seed: started') }), /Incomplete/);
+  assert.throws(() => admit(artifacts, receipt, { ...inputs, 'Cargo.lock': 'c'.repeat(64) }), /source identity/);
+  assert.throws(() => admit(artifacts, receipt, inputs, Buffer.from('other executable')), /executable identity/);
+  for (const key of ['fixture', 'checkpoint', 'snapshot', 'log']) {
+    const changed = { ...artifacts, [key]: Buffer.concat([artifacts[key], Buffer.from(' ')]) };
+    assert.throws(() => admit(changed), /receipt identity/);
+  }
+  for (const path of Object.keys(receipt.artifactInputs)) {
+    const missing = structuredClone(receipt); delete missing.artifactInputs[path];
+    assert.throws(() => admit(artifacts, missing), /receipt identity/);
+  }
+  assert.throws(() => admit(artifacts, prior), /receipt identity/);
+  const rejectSemantic = (a, pattern) => assert.throws(() => admit(a, seal(a)), pattern);
+  rejectSemantic({ ...artifacts, fixture: Buffer.from('{}') }, /fixture identity/);
+  rejectSemantic({ ...artifacts, log: Buffer.from('seed: started') }, /Incomplete/);
   const corrupt = structuredClone({ visible }); corrupt.visible[0].runs[0].text += 'drift';
-  assert.throws(() => admit({ ...artifacts, snapshot: Buffer.from(JSON.stringify(corrupt)) }), /semantic oracle/);
-  assert.throws(() => admit({ ...artifacts, checkpoint: Buffer.from(JSON.stringify({ identity, checkpoint: { identity, initialized: true, bytes: [256] } })) }), /envelope/);
+  rejectSemantic({ ...artifacts, snapshot: Buffer.from(JSON.stringify(corrupt)) }, /semantic oracle/);
+  rejectSemantic({ ...artifacts, checkpoint: Buffer.from(JSON.stringify({ identity, checkpoint: { identity, initialized: true, bytes: [256] } })) }, /envelope/);
   const other = { ...identity, epoch: 'other' };
-  assert.throws(() => admit({ ...artifacts, checkpoint: Buffer.from(JSON.stringify({ identity: other, checkpoint: { identity: other, initialized: true, bytes: [1] } })) }), /identity drift/);
+  rejectSemantic({ ...artifacts, checkpoint: Buffer.from(JSON.stringify({ identity: other, checkpoint: { identity: other, initialized: true, bytes: [1] } })) }, /identity drift/);
   assert.equal(options(['--seed-directory', 'prepared']).seedDirectory, 'prepared');
   assert.throws(() => options(['--seed-directory']), /Missing value/);
 });
