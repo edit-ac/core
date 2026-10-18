@@ -1395,7 +1395,9 @@
         "tests/formats/consumers/browser.test.mjs",
         "tests/formats/consumers/contracts.test.mjs",
         "tests/formats/consumers/inspect.py",
-        "tests/formats/consumers/coverage.test.mjs"
+        "tests/formats/consumers/coverage.test.mjs",
+        "tests/formats/consumers/docx-import-fixtures.py",
+        "tests/formats/consumers/inspect-docx-import.py"
       ]
     },
     "consumers": {
@@ -1481,7 +1483,9 @@
         "tests/formats/consumers/browser.test.mjs",
         "tests/formats/consumers/contracts.test.mjs",
         "tests/formats/consumers/inspect.py",
-        "tests/formats/consumers/coverage.test.mjs"
+        "tests/formats/consumers/coverage.test.mjs",
+        "tests/formats/consumers/docx-import-fixtures.py",
+        "tests/formats/consumers/inspect-docx-import.py"
       ]
     },
     "consumers-docx-export": {
@@ -1562,7 +1566,189 @@
         "tests/formats/consumers/inspect.py",
         "tests/formats/consumers/coverage.test.mjs",
         "tests/formats/consumers/docx-fixture.json",
-        "tests/formats/consumers/inspect-docx.py"
+        "tests/formats/consumers/inspect-docx.py",
+        "tests/formats/consumers/docx-import-fixtures.py",
+        "tests/formats/consumers/inspect-docx-import.py"
+      ]
+    },
+    "consumers-docx-import-text": {
+      "gate": "CNV-1.18-C2-DI-T",
+      "boundary": "Packed DOCX text/list/v1 table import; original media and full parent remain open",
+      "commands": [
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--features",
+            "rtf-import,rtf-export,table-text-import,table-text-export,docx-codecs",
+            "--test",
+            "rtf_import",
+            "--test",
+            "rtf_export",
+            "--test",
+            "table_text_import",
+            "--test",
+            "table_text_export",
+            "--test",
+            "jobs",
+            "--test",
+            "profiles",
+            "--test",
+            "docx_export",
+            "--test",
+            "docx_import_text",
+            "--test",
+            "docx_import_structure",
+            "--test",
+            "container_limits"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats-wasm/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--lib"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/browser.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/contracts.test.mjs"
+          ],
+          "kind": "node-test"
+        }
+      ],
+      "inputs": [
+        "crates/editac-formats-wasm/Cargo.toml",
+        "crates/editac-formats-wasm/Cargo.lock",
+        "crates/editac-formats-wasm/src/lib.rs",
+        "scripts/build-formats.mjs",
+        "packages/formats/package.json",
+        "packages/formats/capabilities.json",
+        "packages/formats/src/index.js",
+        "packages/formats/src/worker.js",
+        "packages/formats/src/index.d.ts",
+        "tests/formats/consumers/prepare.mjs",
+        "tests/formats/consumers/browser.test.mjs",
+        "tests/formats/consumers/contracts.test.mjs",
+        "tests/formats/consumers/inspect.py",
+        "tests/formats/consumers/coverage.test.mjs",
+        "tests/formats/consumers/docx-fixture.json",
+        "tests/formats/consumers/inspect-docx.py",
+        "tests/formats/consumers/docx-import-fixtures.py",
+        "tests/formats/consumers/inspect-docx-import.py"
+      ]
+    },
+    "consumers-docx-import-text-repair": {
+      "gate": "CNV-1.18-C2-DI-T",
+      "boundary": "Packed DOCX text/list/v1 table import; original media and full parent remain open; repair only bridge/browser/contracts, reuse exact 246 native adapter passes from canonical2",
+      "commands": [
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats-wasm/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--lib"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/browser.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/contracts.test.mjs"
+          ],
+          "kind": "node-test"
+        }
+      ],
+      "inputs": [
+        "crates/editac-formats-wasm/Cargo.toml",
+        "crates/editac-formats-wasm/Cargo.lock",
+        "crates/editac-formats-wasm/src/lib.rs",
+        "scripts/build-formats.mjs",
+        "packages/formats/package.json",
+        "packages/formats/capabilities.json",
+        "packages/formats/src/index.js",
+        "packages/formats/src/worker.js",
+        "packages/formats/src/index.d.ts",
+        "tests/formats/consumers/prepare.mjs",
+        "tests/formats/consumers/browser.test.mjs",
+        "tests/formats/consumers/contracts.test.mjs",
+        "tests/formats/consumers/inspect.py",
+        "tests/formats/consumers/coverage.test.mjs",
+        "tests/formats/consumers/docx-fixture.json",
+        "tests/formats/consumers/inspect-docx.py",
+        "tests/formats/consumers/docx-import-fixtures.py",
+        "tests/formats/consumers/inspect-docx-import.py"
+      ]
+    },
+    "consumers-docx-import-text-contract-repair": {
+      "gate": "CNV-1.18-C2-DI-T",
+      "boundary": "Packed DOCX text/list/v1 table import; original media and full parent remain open; independent-oracle repair only; reuse pinned canonical2 native246 and canonical3 bridge10/browser14",
+      "commands": [
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/contracts.test.mjs"
+          ],
+          "kind": "node-test"
+        }
+      ],
+      "inputs": [
+        "crates/editac-formats-wasm/Cargo.toml",
+        "crates/editac-formats-wasm/Cargo.lock",
+        "crates/editac-formats-wasm/src/lib.rs",
+        "scripts/build-formats.mjs",
+        "packages/formats/package.json",
+        "packages/formats/capabilities.json",
+        "packages/formats/src/index.js",
+        "packages/formats/src/worker.js",
+        "packages/formats/src/index.d.ts",
+        "tests/formats/consumers/prepare.mjs",
+        "tests/formats/consumers/browser.test.mjs",
+        "tests/formats/consumers/contracts.test.mjs",
+        "tests/formats/consumers/inspect.py",
+        "tests/formats/consumers/coverage.test.mjs",
+        "tests/formats/consumers/docx-fixture.json",
+        "tests/formats/consumers/inspect-docx.py",
+        "tests/formats/consumers/docx-import-fixtures.py",
+        "tests/formats/consumers/inspect-docx-import.py"
       ]
     }
   }

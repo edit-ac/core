@@ -34,3 +34,9 @@ test('independent readers inspect actual browser-produced RTF and exact/safe CSV
 });
 
 test('independent DOCX package/semantic oracle rejects text/mark/table/link/media perturbations',()=>{const text=run('/usr/bin/textutil',['-convert','txt','-stdout',resolve(output,'browser-supported.docx')],'browser-docx-reader');assert.match(text,/DOCX 🙂 heading/);assert.match(text,/First item/);assert.match(text,/Cell A/);assert.match(text,/Cell 🙂/);run('python3',['tests/formats/consumers/inspect-docx.py',output],'browser-docx-independent');});
+
+test('partial DOCX import independently matches original XML semantics and rejects corrupted projections',()=>{
+ const capabilities=JSON.parse(readFileSync(resolve(packed.consumer,'node_modules/@edit-ac/formats/capabilities.json')));
+ const direction=capabilities.directions.find(d=>d.format==='docx'&&d.direction==='import');assert.equal(direction.complete,false);assert.match(direction.media,/AssetStagingUnavailable/);assert.ok(capabilities.unavailable.includes('docx-import-media'));
+ run('python3',['tests/formats/consumers/inspect-docx-import.py',output],'browser-docx-import-independent');
+});

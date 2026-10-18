@@ -14,6 +14,7 @@ export interface Result {
   inputSha256: number[]; diagnostics: readonly Record<string, unknown>[];
   metrics: { totalPrepareMs:number; bootstrapMs:number; sessionConversionMs:number; wasmLinearBytes:number; wasmMaximumBytes:number; heapBytes:number|null };
 }
+/** DOCX supports text/list/v1-table only; embedded media rejects with AssetStagingUnavailable. */
 export interface PreparedImport extends Result { blocks: readonly FragmentBlock[]; sessionCommitted: boolean; commit(): CommitResult }
 export interface ExportResult extends Result { bytes: Uint8Array }
 export class FormatError extends Error { code:string; report:Record<string,unknown>; original:Uint8Array; recovery?:Checkpoint }

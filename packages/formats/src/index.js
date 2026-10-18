@@ -92,15 +92,18 @@ export function createFormatClient() {
   return {
     async prepareImport(engine, options) {
       const range={anchor:options.range?.anchor,focus:options.range?.focus};
-      const ticket=generation;const result=await run(engine,options,'import');let used=false;const blocks=structuredClone(result.blocks);
+      const ticket=generation;const signal=options.signal;const result=await run(engine,options,'import');let used=false;const blocks=structuredClone(result.blocks);
+      const failure=(code,detail=result)=>{const e=reject(code,result.original,detail);e.recovery=result.recovery;return e;};
       return {...result,commit(){
-        if(used)throw reject('Finished',result.original);used=true;
-        if(disposed)throw reject('Disposed',result.original);
-        if(generation!==ticket||options.signal?.aborted)throw reject('Cancelled',result.original);
-        if(engine.read().revision!==result.revision)throw reject('StaleTarget',result.original);
-        if(!result.sessionCommitted)throw reject(result.diagnostics.length?'LossApprovalRequired':'NoChange',result.original,result);
-        const plan=engine.prepare({kind:'fragment',origin:'format-import',range,blocks});
-        return engine.commit(plan);
+        if(used)throw failure('Finished');used=true;
+        if(disposed)throw failure('Disposed');
+        if(generation!==ticket||signal?.aborted)throw failure('Cancelled');
+        if(engine.read().revision!==result.revision)throw failure('StaleTarget');
+        if(!result.sessionCommitted)throw failure(result.diagnostics.some(d=>d.lossy)?'LossApprovalRequired':'NoChange');
+        try {
+          const plan=engine.prepare({kind:'fragment',origin:'format-import',range,blocks});
+          return engine.commit(plan);
+        } catch(error) { throw failure('CommitRejected',{...result,cause:String(error),action:'Retain original input and checkpoint; the shared import commit was rejected.'}); }
       }};
     },
     export(engine,options){return run(engine,options,'export');},

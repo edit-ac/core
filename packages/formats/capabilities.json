@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "owner": "CNV-1.18-C1/C2-DX",
+  "owner": "CNV-1.18-C1/C2-DX/C2-DI-T",
   "state": "implementation-pending-qualification",
   "directions": [
     {
@@ -69,6 +69,21 @@
         "docx-codecs",
         "jobs"
       ]
+    },
+    {
+      "format": "docx",
+      "direction": "import",
+      "profile": "edit-ac-docx-v1",
+      "target": "browser-worker-wasm32",
+      "fixture": "tests/formats/consumers/docx-import-fixtures.py",
+      "fidelity": "docx-structure-semantic-v1-no-media",
+      "feature": "docx-codecs",
+      "media": "AssetStagingUnavailable; full DOCX import remains unqualified",
+      "requiredFeatures": [
+        "docx-codecs",
+        "jobs"
+      ],
+      "complete": false
     }
   ],
   "additionalProfiles": [
@@ -76,7 +91,7 @@
     "edit-ac-tsv-spreadsheet-safe-v1"
   ],
   "unavailable": [
-    "docx-import",
+    "docx-import-media",
     "odt-import",
     "odt-export",
     "epub-import",

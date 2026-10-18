@@ -6,7 +6,7 @@ The base editor does not depend on this package. Build with
 `node scripts/build-formats.mjs` using the locked Node/Rust/bindgen toolchains.
 
 The initial public worker return covers the existing bounded RTF 1.9.1 profile and
-explicit UTF-8 CSV/TSV table dialects and semantic DOCX export. DOCX import, ODT, EPUB and PDF export are unavailable
+explicit UTF-8 CSV/TSV table dialects and semantic DOCX export and DOCX text/list/simple-table import. DOCX media import, ODT, EPUB and PDF export are unavailable
 at this package boundary until separately packaged and qualified. PDF import is
 always export-only, including a PDF signature mislabeled as another supported
 format. Existing native adapters retain their own evidence and limitations.
@@ -62,3 +62,12 @@ No host operation, URL resolution, upload or lifecycle mutation occurs in export
 The aggregate original-byte allowance is 1 MiB, with at most 64 unique assets.
 DOCX output reports regenerated package/page/style/metadata defaults. Unsupported
 semantics require explicit loss approval; results and failures retain recovery.
+
+DOCX import reuses the guarded semantic importer for text, marks, headings,
+links, direct lists and v1 rectangular tables. Unsupported constructs return
+complete actionable diagnostics and require explicit loss approval. Media staging
+returns `AssetStagingUnavailable`, retaining the complete original input and
+checkpoint with no live mutation. The shared browser attachment API currently
+requires a live descriptor before ingest; its prepared-import staging/adoption
+transaction is still required. This package does not insert first and compensate,
+silently drop images or claim the full DOCX import direction is qualified.

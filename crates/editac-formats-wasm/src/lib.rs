@@ -125,6 +125,36 @@ impl docx::export::OriginalAssetHost for ApprovedAssets<'_> {
             .to_vec())
     }
 }
+// The public browser attachment owner currently requires a live node before
+// ingest. Never pretend worker-local staging is durable host ingestion and never
+// insert a descriptor before its originals are admitted. This explicit port
+// rejects only media staging; text/list/table mapping uses the qualified importer.
+#[derive(Default)]
+struct UnavailableImportMedia {
+    requested: std::cell::Cell<bool>,
+}
+impl AssetHost for UnavailableImportMedia {
+    fn authorize(&mut self, _: &AssetRequest) -> Result<AssetGrant, PortError> {
+        Err(PortError::Unavailable)
+    }
+    fn execute(&mut self, _: &str, _: &AssetRequest) -> Result<HostOutcome, PortError> {
+        Err(PortError::Unavailable)
+    }
+}
+impl docx::import::OriginalMediaHost for UnavailableImportMedia {
+    fn identity(&self, _: &[u8; 32]) -> Result<AssetIdentity, PortError> {
+        self.requested.set(true);
+        Err(PortError::Unavailable)
+    }
+    fn ingest_original(
+        &mut self,
+        _: &str,
+        _: &AssetRequest,
+        _: &[u8],
+    ) -> Result<HostOutcome, PortError> {
+        Err(PortError::Unavailable)
+    }
+}
 #[wasm_bindgen]
 pub fn convert_with_assets(
     request: &str,
@@ -167,6 +197,7 @@ pub fn convert(request: &str, original: &[u8], checkpoint: &[u8]) -> String {
 fn profile(format: &str, import: bool, safe: bool) -> Result<Profile, Value> {
     Ok(match (format, import, safe) {
         ("docx", false, false) => docx::export::PROFILE,
+        ("docx", true, false) => docx::import::STRUCTURE_PROFILE,
         ("rtf", true, false) => rtf::import::PROFILE,
         ("rtf", false, false) => rtf::export::PROFILE,
         ("csv", true, false) => table_text::import::PROFILE,
@@ -317,7 +348,38 @@ pub fn convert_value_with_assets(
     let revision = job.contract().revision.to_bytes().to_vec();
     let source_hash = job.contract().input_sha256.to_vec();
     let approve = r.approve_loss.unwrap_or(false);
-    let mut v = if import && r.format == "rtf" {
+    let mut v = if import && r.format == "docx" {
+        let mut host = UnavailableImportMedia::default();
+        let prepared = docx::import::prepare_structure(
+            &mut job, editac_formats::container::Budgets::default(), &mut host, || 0,
+        ).map_err(|e| json!({"ok":false,
+            "code":if host.requested.get() { "AssetStagingUnavailable" } else { "ConversionRejected" },
+            "reason":format!("{:?}",e.code),"location":e.location,
+            "diagnostics":e.diagnostics.iter().map(|d|json!({"code":d.code,"location":d.location,"lossy":d.lossy,"action":d.action})).collect::<Vec<_>>(),
+            "action":"Keep the complete original DOCX. Media import requires the shared prepared-asset staging/adoption return; no live content was inserted."}))?;
+        let blocks = prepared
+            .blocks()
+            .iter()
+            .map(transfer_value)
+            .collect::<Vec<_>>();
+        let diagnostics = prepared
+            .report()
+            .diagnostics
+            .iter()
+            .map(|d| json!({"code":d.code,"location":d.location,"lossy":d.lossy,"action":d.action}))
+            .collect::<Vec<_>>();
+        let committed = if !approve && diagnostics.iter().any(|d| d["lossy"] == true) {
+            job.abort().map_err(fail)?;
+            false
+        } else {
+            prepared
+                .commit(&mut job, &mut owner, approve, 0)
+                .map_err(fail)?
+                .is_some()
+        };
+        json!({"ok":true,"blocks":blocks,"diagnostics":diagnostics,"sessionCommitted":committed,
+            "mediaStaging":"unavailable-before-live-node","fidelity":"docx-structure-semantic-v1-no-media"})
+    } else if import && r.format == "rtf" {
         let prepared =
             rtf::import::prepare(&mut job, rtf::import::Budgets::default(), || 0).map_err(|e|json!({"ok":false,"code":"ConversionRejected","reason":e.code,"offset":e.offset,"diagnostics":e.report.diagnostics.iter().map(|d|json!({"code":d.code,"offset":d.offset,"control":d.control,"action":d.action,"lossy":true})).collect::<Vec<_>>(),"action":"Keep original input; reduce complexity or review unsupported controls."}))?;
         let blocks = prepared
@@ -446,6 +508,35 @@ mod tests {
         )
     }
     #[test]
+    fn public_docx_import_reuses_guarded_structure_session_and_unicode() {
+        let (mut r, c) = fixture();
+        r["direction"] = json!("export");
+        r["format"] = json!("docx");
+        let exported = convert_value(&r.to_string(), &[], &c).unwrap();
+        let bytes = exported["bytes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|b| b.as_u64().unwrap() as u8)
+            .collect::<Vec<_>>();
+        r["direction"] = json!("import");
+        r["approveLoss"] = json!(true);
+        let value = convert_value(&r.to_string(), &bytes, &c).unwrap();
+        assert_eq!(value["sessionCommitted"], true);
+        assert_eq!(value["blocks"][0]["runs"][0]["text"], "Hello 🙂");
+        assert_eq!(value["mediaStaging"], "unavailable-before-live-node");
+        assert_eq!(value["profile"], "edit-ac-docx-v1");
+    }
+    #[test]
+    fn public_docx_import_rejects_malformed_containers_before_mutation() {
+        let (mut r, c) = fixture();
+        r["format"] = json!("docx");
+        let e = convert_value(&r.to_string(), b"PK invalid", &c).unwrap_err();
+        assert_eq!(e["code"], "ConversionRejected");
+        assert!(e["location"].as_str().is_some());
+        assert!(e["diagnostics"].is_array());
+    }
+    #[test]
     fn public_docx_export_uses_existing_captured_writer() {
         let (mut r, c) = fixture();
         r["direction"] = json!("export");
@@ -462,7 +553,7 @@ mod tests {
         r["direction"] = json!("import");
         assert_eq!(
             convert_value(&r.to_string(), b"PK", &c).unwrap_err()["code"],
-            "FORMAT_UNAVAILABLE"
+            "ConversionRejected"
         );
     }
     #[test]
@@ -573,7 +664,7 @@ mod tests {
             convert_value(&r.to_string(), b"%PDF-1.7", b"").unwrap_err()["code"],
             "FORMAT_EXPORT_ONLY"
         );
-        r["format"] = json!("docx");
+        r["format"] = json!("odt");
         assert_eq!(
             convert_value(&r.to_string(), b"x", b"").unwrap_err()["code"],
             "FORMAT_UNAVAILABLE"

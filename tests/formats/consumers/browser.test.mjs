@@ -180,3 +180,59 @@ test('DOCX complete cold/warm snapshot/worker/artifact/reopen costs include orig
   client.dispose();engine.dispose();return values;
  },docxFixture));for(const m of r){assert.ok(m.completeMs>0);assert.ok(m.artifactBytes>0);assert.match(m.captured,/DOCX 🙂 heading/);assert.ok(m.metrics.wasmLinearBytes<=67108864);}evidence.docxResources=r;save();
 });
+
+const importFixtures=()=>Object.fromEntries(['supported','loss','media','corrupt','hostile','nodes'].map(name=>[name,Array.from(readFileSync(resolve(output,'docx-import-fixtures',name+'.docx')))]));
+test('packed public DOCX text/list/table import uses real worker and one live Session commit/history/reopen',async()=>{
+ const r=await check('docx-import-lifecycle',page=>page.evaluate(async input=>{
+  const {engine,client,range}=make();const original=Uint8Array.from(input.supported);const before=text(engine),revision=engine.read().revision;
+  const p=await client.prepareImport(engine,{format:'docx',range,source:original});
+  const unchanged=text(engine)===before&&engine.read().revision===revision;
+  // The published result is review data, not authority over the captured plan.
+  const blocks=structuredClone(p.blocks);p.blocks[0].runs[0].text='tampered result';original.fill(0);
+  p.commit();const imported=text(engine),snapshot=engine.read(),history=engine.history({type:'state'});
+  let duplicate;try{p.commit();}catch(e){duplicate={code:e.code,original:e.original.length,recovery:!!e.recovery};}
+  const cp=engine.checkpoint(),reopened=runtime.restoreEngine(cp.identity,cp),reopenedSnapshot=reopened.read();reopened.dispose();
+  engine.history({type:'undo'});const undo=text(engine);engine.history({type:'redo'});const redo=text(engine);
+  const value={unchanged,imported,snapshot,reopenedSnapshot,history,undo,redo,duplicate,blocks,diagnostics:p.diagnostics,metrics:p.metrics,original:Array.from(p.original),profile:p.profile};
+  client.dispose();engine.dispose();return value;
+ },importFixtures()));
+ assert.equal(r.unchanged,true);assert.equal(r.profile,'edit-ac-docx-v1');assert.match(r.imported,/DOCX import 🙂 é linked/);assert.match(r.imported,/Three/);assert.match(r.imported,/nested 🙂/);assert.match(r.imported,/Four/);assert.match(r.imported,/tail/);assert.ok(!r.imported.includes('tampered'));
+ assert.equal(r.history.undoGroups,1);assert.equal(r.undo,'base');assert.equal(r.redo,r.imported);assert.deepEqual(r.reopenedSnapshot.visible,r.snapshot.visible);assert.equal(r.duplicate.code,'Finished');assert.equal(r.duplicate.recovery,true);assert.ok(r.duplicate.original>0);
+ assert.ok(r.blocks[0].runs.some(run=>run.text==='DOCX import 🙂 é'&&run.marks.some(m=>m.mark==='bold')));
+ assert.ok(r.blocks[0].runs.some(run=>run.marks.some(m=>m.mark==='link'&&m.href==='https://example.test/')));
+ assert.ok(r.blocks.some(b=>b.containers?.length));assert.ok(r.blocks.some(b=>b.attributes?.type==='content'&&b.attributes.tuple[0]==='module:editac.table'));
+ assert.ok(!r.diagnostics.some(d=>d.lossy));assert.deepEqual(r.original,importFixtures().supported);
+ writeFileSync(resolve(output,'browser-docx-import-projection.json'),JSON.stringify(r,null,2)+'\n');
+});
+test('packed DOCX complete unsupported diagnostics require approval and all commit fences retain recovery',async()=>{
+ const r=await check('docx-import-loss-and-fences',page=>page.evaluate(async input=>{
+  const {engine,client,range}=make(),source=Uint8Array.from(input.loss);const p=await client.prepareImport(engine,{format:'docx',source,range});let refused;
+  try{p.commit();}catch(e){refused={code:e.code,recovery:!!e.recovery,original:Array.from(e.original),diagnostics:e.report.diagnostics};}
+  const unchanged=text(engine);const approved=await client.prepareImport(engine,{format:'docx',source,range,approveLoss:true});approved.commit();const imported=text(engine);
+  // New live anchors for the current document; stale capture must not replace edits.
+  const n=engine.read().visible[0],a=engine.anchor(n.id,0,'right');const target={anchor:a,focus:a};
+  const stale=await client.prepareImport(engine,{format:'docx',source:Uint8Array.from(input.supported),range:target});engine.commit(engine.prepare({kind:'editor',origin:'later',commands:[{type:'insert',at:a,text:'later'}]}));const afterEdit=text(engine);let staleError;try{stale.commit();}catch(e){staleError={code:e.code,recovery:!!e.recovery,original:e.original.length};}
+  const cancelled=await client.prepareImport(engine,{format:'docx',source:Uint8Array.from(input.supported),range:target});client.cancel();let cancelError;try{cancelled.commit();}catch(e){cancelError={code:e.code,recovery:!!e.recovery};}
+  const value={refused,unchanged,imported,diagnostics:approved.diagnostics,staleError,cancelError,afterEdit,final:text(engine)};client.dispose();engine.dispose();return value;
+ },importFixtures()));
+ assert.equal(r.refused.code,'LossApprovalRequired');assert.equal(r.refused.recovery,true);assert.deepEqual(r.refused.original,importFixtures().loss);assert.equal(r.unchanged,'base');assert.match(r.imported,/DOCX import/);assert.ok(!r.imported.includes('opaque retained'));assert.ok(r.diagnostics.some(d=>d.code.startsWith('UNSUPPORTED_ELEMENT:')&&d.code.endsWith('sdt')));assert.deepEqual(r.refused.diagnostics,r.diagnostics);assert.equal(r.staleError.code,'StaleTarget');assert.equal(r.staleError.recovery,true);assert.ok(r.staleError.original>0);assert.equal(r.cancelError.code,'Cancelled');assert.equal(r.cancelError.recovery,true);assert.equal(r.final,r.afterEdit);
+});
+test('packed DOCX original media dependency, hostile containers, budgets and cancellation fail atomically',async()=>{
+ const r=await check('docx-import-failure-recovery',page=>page.evaluate(async input=>{
+  const {engine,client,range}=make(),before=engine.checkpoint();const results=[];
+  for(const name of ['media','corrupt','hostile','nodes']){const source=Uint8Array.from(input[name]);try{await client.prepareImport(engine,{format:'docx',range,source,approveLoss:true});results.push({name,unexpected:true});}catch(e){results.push({name,code:e.code,report:e.report,original:Array.from(e.original),recovery:!!e.recovery,unchanged:JSON.stringify(engine.checkpoint())===JSON.stringify(before)});}}
+  for(const phase of ['early','active']){const controller=new AbortController();if(phase==='early')controller.abort();const pending=client.prepareImport(engine,{format:'docx',source:Uint8Array.from(input.supported),range,signal:controller.signal});if(phase==='active')controller.abort();try{await pending;results.push({name:phase,unexpected:true});}catch(e){results.push({name:phase,code:e.code,original:Array.from(e.original),unchanged:text(engine)==='base'});}}
+  const value={results,final:text(engine),history:engine.history({type:'state'})};client.dispose();engine.dispose();return value;
+ },importFixtures()));
+ assert.equal(r.final,'base');assert.equal(r.history.undoGroups,0);
+ for(const v of r.results){assert.equal(v.unexpected,undefined);assert.equal(v.unchanged,true);assert.deepEqual(v.original,importFixtures()[v.name]??importFixtures().supported);if(['early','active'].includes(v.name))assert.equal(v.code,'Cancelled');else {assert.equal(v.recovery,true);assert.equal(v.code,v.name==='media'?'AssetStagingUnavailable':'ConversionRejected');}}
+ assert.match(r.results[0].report.action,/shared prepared-asset staging/);
+});
+test('packed DOCX cold/warm costs include input capture, complete parse, transfer, live commit and reopen',async()=>{
+ const r=await check('docx-import-costs',page=>page.evaluate(async input=>{
+  const {engine,client}=make(),values=[];for(const phase of ['cold','warm']){const n=engine.read().visible[0],a=engine.anchor(n.id,0,'right'),start=performance.now(),heapBefore=performance.memory.usedJSHeapSize;
+   const p=await client.prepareImport(engine,{format:'docx',range:{anchor:a,focus:a},source:Uint8Array.from(input.supported)});p.commit();const cp=engine.checkpoint(),reopened=runtime.restoreEngine(cp.identity,cp),projection=text(reopened);reopened.dispose();
+   values.push({phase,completeMs:performance.now()-start,heapBefore,heapAfter:performance.memory.usedJSHeapSize,inputBytes:input.supported.length,checkpointBytes:cp.bytes.length,metrics:p.metrics,projection,scope:'original byte copy + checkpoint capture + module bootstrap + bounded inflate/XML/map/shared detached Session job + transfer + live commit + checkpoint/reopen; no media support or throughput claim'});engine.history({type:'undo'});engine.releaseAnchor(a);}
+  client.dispose();engine.dispose();return values;
+ },importFixtures()));assert.equal(r.length,2);for(const v of r){assert.ok(v.completeMs>0);assert.ok(v.inputBytes>0);assert.match(v.projection,/DOCX import 🙂 é/);assert.ok(v.metrics.wasmLinearBytes<=67108864);}evidence.docxImportResources=r;save();
+});
