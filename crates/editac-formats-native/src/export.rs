@@ -16,6 +16,7 @@ fn attempt(input: &[u8], kind: &str) -> Result<Value, String> {
     let table = kind == "table";
     let odt = kind == "odt";
     let docx = kind == "docx";
+    let epub = kind == "epub";
     let started = Instant::now();
     let now = || started.elapsed().as_millis() as u64;
     let request: Value = serde_json::from_slice(input).map_err(|_| "FORMAT_CHECKPOINT_INVALID")?;
@@ -24,6 +25,9 @@ fn attempt(input: &[u8], kind: &str) -> Result<Value, String> {
     }
     #[cfg(not(feature = "qualification"))]
     if request.get("laterText").is_some() {
+        return Err("FORMAT_PROFILE_UNAVAILABLE".into());
+    }
+    if epub && request["profile"].as_str() != Some("edit-ac-epub-v1") {
         return Err("FORMAT_PROFILE_UNAVAILABLE".into());
     }
     if docx && request["profile"].as_str() != Some("edit-ac-docx-v1") {
@@ -58,7 +62,11 @@ fn attempt(input: &[u8], kind: &str) -> Result<Value, String> {
             },
         )
     };
-    #[cfg(any(feature = "odt-export", feature = "docx-export"))]
+    #[cfg(any(
+        feature = "odt-export",
+        feature = "docx-export",
+        feature = "epub-export"
+    ))]
     let mut media = super::media::Media::from_request(&request)?;
     #[cfg(feature = "odt-export")]
     let profile = if odt {
@@ -69,6 +77,12 @@ fn attempt(input: &[u8], kind: &str) -> Result<Value, String> {
     #[cfg(feature = "docx-export")]
     let profile = if docx {
         editac_formats::docx::export::PROFILE
+    } else {
+        profile
+    };
+    #[cfg(feature = "epub-export")]
+    let profile = if epub {
+        editac_formats::epub::export::PROFILE
     } else {
         profile
     };
@@ -127,7 +141,9 @@ fn attempt(input: &[u8], kind: &str) -> Result<Value, String> {
         limits.output_bytes = n;
     }
     let spec = JobSpec {
-        id: if docx {
+        id: if epub {
+            "native-epub-export"
+        } else if docx {
             "native-docx-export"
         } else if odt {
             "native-odt-export"
@@ -140,6 +156,7 @@ fn attempt(input: &[u8], kind: &str) -> Result<Value, String> {
         direction: Direction::Export,
         original: b"",
         filename: match profile.format {
+            "epub" => "snapshot.epub",
             "docx" => "snapshot.docx",
             "odt" => "snapshot.odt",
             "csv" => "selected.csv",
@@ -147,6 +164,7 @@ fn attempt(input: &[u8], kind: &str) -> Result<Value, String> {
             _ => "snapshot.rtf",
         },
         media_type: match profile.format {
+            "epub" => "application/epub+zip",
             "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             "odt" => "application/vnd.oasis.opendocument.text",
             "csv" => "text/csv",
@@ -215,8 +233,12 @@ fn attempt(input: &[u8], kind: &str) -> Result<Value, String> {
             .map_err(|e| format!("edit:{e:?}"))?;
     }
     let at_export = owner.service().session().document().checkpoint().bytes;
-    #[cfg(any(feature = "odt-export", feature = "docx-export"))]
-    if odt || docx {
+    #[cfg(any(
+        feature = "odt-export",
+        feature = "docx-export",
+        feature = "epub-export"
+    ))]
+    if odt || docx || epub {
         media.cancellation = Some(job.cancellation());
     }
     let result = if odt {
@@ -225,6 +247,15 @@ fn attempt(input: &[u8], kind: &str) -> Result<Value, String> {
             super::odt::write(&mut job, &request, &mut media, now)
         }
         #[cfg(not(feature = "odt-export"))]
+        {
+            return Err("FORMAT_PROFILE_UNAVAILABLE".into());
+        }
+    } else if epub {
+        #[cfg(feature = "epub-export")]
+        {
+            super::epub::write(&mut job, &request, &mut media, now)
+        }
+        #[cfg(not(feature = "epub-export"))]
         {
             return Err("FORMAT_PROFILE_UNAVAILABLE".into());
         }
@@ -260,8 +291,12 @@ fn attempt(input: &[u8], kind: &str) -> Result<Value, String> {
         == owner.service().read(0).unwrap().snapshot.visible;
     let current = format!("{:?}", owner.service().read(now()).unwrap().revision);
     let asset_reads = 0;
-    #[cfg(any(feature = "odt-export", feature = "docx-export"))]
-    let asset_reads = if odt || docx {
+    #[cfg(any(
+        feature = "odt-export",
+        feature = "docx-export",
+        feature = "epub-export"
+    ))]
+    let asset_reads = if odt || docx || epub {
         media.reads
     } else {
         asset_reads
@@ -294,5 +329,11 @@ pub fn convert_odt(input: &[u8]) -> Value {
 #[cfg(feature = "docx-export")]
 pub fn convert_docx(input: &[u8]) -> Value {
     attempt(input, "docx")
+        .unwrap_or_else(|code| json!({"state":"rejected","code":code,"liveUnchanged":true}))
+}
+
+#[cfg(feature = "epub-export")]
+pub fn convert_epub(input: &[u8]) -> Value {
+    attempt(input, "epub")
         .unwrap_or_else(|code| json!({"state":"rejected","code":code,"liveUnchanged":true}))
 }

@@ -2,11 +2,17 @@
 //! from editac-formats and the shared Session; no independent writable model.
 #[cfg(feature = "docx-export")]
 mod docx;
+#[cfg(feature = "epub-export")]
+mod epub;
 mod export;
 #[cfg(feature = "qualification")]
 mod fixture;
 mod heap;
-#[cfg(any(feature = "odt-export", feature = "docx-export"))]
+#[cfg(any(
+    feature = "odt-export",
+    feature = "docx-export",
+    feature = "epub-export"
+))]
 mod media;
 #[cfg(feature = "odt-export")]
 mod odt;
@@ -227,6 +233,7 @@ fn main() {
         && mode != "odt-export"
         && mode != "odt-import"
         && mode != "docx-export"
+        && mode != "epub-export"
     {
         eprintln!("FORMAT_PROFILE_UNAVAILABLE");
         std::process::exit(78);
@@ -254,6 +261,15 @@ fn main() {
                 export::convert_odt(&input)
             }
             #[cfg(not(feature = "odt-export"))]
+            {
+                json!({"state":"rejected","code":"FORMAT_PROFILE_UNAVAILABLE","liveUnchanged":true})
+            }
+        } else if mode == "epub-export" {
+            #[cfg(feature = "epub-export")]
+            {
+                export::convert_epub(&input)
+            }
+            #[cfg(not(feature = "epub-export"))]
             {
                 json!({"state":"rejected","code":"FORMAT_PROFILE_UNAVAILABLE","liveUnchanged":true})
             }

@@ -19,7 +19,7 @@ def run(args, name, cwd=ROOT):
 
 def digest(data): return hashlib.sha256(data).hexdigest()
 manifest = 'crates/editac-formats-native/Cargo.toml'
-metadata = json.loads(run(['cargo','metadata','--manifest-path',manifest,'--locked','--offline','--filter-platform','aarch64-apple-darwin','--format-version=1','--features','odt-export,odt-import,docx-export'],'metadata'))
+metadata = json.loads(run(['cargo','metadata','--manifest-path',manifest,'--locked','--offline','--filter-platform','aarch64-apple-darwin','--format-version=1','--features','odt-export,odt-import,docx-export,epub-export'],'metadata'))
 nodes={n['id']:n for n in metadata['resolve']['nodes']}
 root=metadata['resolve']['root']; reached=set(); pending=[root]
 while pending:
@@ -59,7 +59,7 @@ fixtures += [str(p.relative_to(ROOT)) for p in (ROOT/'fixtures/formats/table-tex
 fixtures += ['tests/formats/consumers/odt-fixture.json','tests/formats/consumers/inspect-odt.py']
 fixtures += [str(p.relative_to(ROOT)) for p in (ROOT/'fixtures/formats/odt/export/schema').rglob('*') if p.is_file()]
 fixtures += ['fixtures/formats/odt/supported.xml','fixtures/formats/docx/probe/pixel.png','tests/formats/consumers/odt-import-fixtures.py']
-fixtures += ['tests/formats/consumers/docx-fixture.json']
+fixtures += ['tests/formats/consumers/docx-fixture.json','tests/formats/inspect-epub-export.py']
 paths.update(fixtures)
 paths.update(str(p.relative_to(ROOT)) for p in (ROOT/'tests/formats/consumers/native').glob('*') if p.is_file())
 source_pins = {}
@@ -96,7 +96,7 @@ for package in sorted(metadata['packages'],key=lambda p:p['name']):
         data=p.read_bytes();notices.append(p.name+'\n'+data.decode()+'\n');notice_pins[str(p)]=digest(data)
 (OUT/'THIRD-PARTY-NOTICES.txt').write_text(''.join(notices))
 # Default and qualification executables are independently pinned and preserved.
-for label,features in [('native',[]),('native-probe',['--features','qualification']),('odt-native',['--features','odt-export,odt-import']),('odt-probe',['--features','odt-export,odt-import,qualification']),('docx-native',['--features','docx-export']),('docx-probe',['--features','docx-export,qualification'])]:
+for label,features in [('native',[]),('native-probe',['--features','qualification']),('odt-native',['--features','odt-export,odt-import']),('odt-probe',['--features','odt-export,odt-import,qualification']),('docx-native',['--features','docx-export']),('docx-probe',['--features','docx-export,qualification']),('epub-native',['--features','epub-export']),('epub-probe',['--features','epub-export,qualification'])]:
     run(['cargo','build','--manifest-path',manifest,'--locked','--offline',*features], 'build-'+label,consumer)
     built=OUT.parent/'build-target/debug/editac-formats-native'
     shutil.copy2(built,OUT/label)
@@ -104,6 +104,6 @@ receipt=dict(schemaVersion=1, archive=str(archive),archiveSha256=archive_hash,ar
     consumer=str(consumer),sourcePins=source_pins,noticePins=notice_pins,dependencies=records,
     noticesSha256=digest((OUT/'THIRD-PARTY-NOTICES.txt').read_bytes()),
     fixtures={p:digest((ROOT/p).read_bytes()) for p in fixtures},
-    binaries={label:dict(path=str(OUT/label),sha256=digest((OUT/label).read_bytes()),bytes=(OUT/label).stat().st_size) for label in ('native','native-probe','odt-native','odt-probe','docx-native','docx-probe')})
+    binaries={label:dict(path=str(OUT/label),sha256=digest((OUT/label).read_bytes()),bytes=(OUT/label).stat().st_size) for label in ('native','native-probe','odt-native','odt-probe','docx-native','docx-probe','epub-native','epub-probe')})
 (OUT/'prepared.json').write_text(json.dumps(receipt,indent=2)+'\n')
 print(json.dumps(dict(sourceMembers=len(source_pins),dependencies=len(records),archiveBytes=receipt['archiveBytes'],binaries=receipt['binaries'])))

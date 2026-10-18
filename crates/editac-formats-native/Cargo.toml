@@ -12,6 +12,7 @@ publish = false
 qualification = []
 odt-import = ["editac-formats/odt-import"]
 odt-export = ["editac-formats/odt-export"]
+epub-export = ["editac-formats/epub-export"]
 docx-export = ["editac-formats/docx-codecs", "editac-formats/jobs"]
 
 [dependencies]

@@ -167,3 +167,18 @@ host document saved. Qualification uses immutable local source packages, actual
 Session/job/AssetWork conversion, independent generated-package/textutil checks
 and complete caller costs; this adds no native host UI, Word layout, crash
 durability, platform support or release claim.
+
+### Optional native EPUB export
+
+Build with `--features epub-export` and call `runner.run_epub_export` using the
+reviewed executable hash and serialized initialized Session checkpoint request
+with explicit `edit-ac-epub-v1` profile. Caller-approved `{host,key,bytes}`
+originals grant access independently of document metadata. Missing grants reject
+the complete output. Keep `Result.original`, including checkpoint and originals,
+for recovery on every outcome. The shared EPUB3.3 writer preserves its qualified
+semantic XHTML, chapter/spine/navigation, metadata policy and accessibility labels;
+package/style/metadata defaults and unsupported content have complete diagnostics.
+Loss requires explicit approval. The existing native sandbox/resource runner
+denies ambient files, network and child processes, authenticates completion and
+keeps later edits separate from the captured revision. This consumer adds no
+reading-system UI, host-save, exact pagination, platform or release claim.

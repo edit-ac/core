@@ -82,7 +82,7 @@ pub fn make() -> Value {
         id.clone(),
         &[InitialNode {
             kind: "block".into(),
-            text: if kind == "odt" || kind == "docx" {
+            text: if kind == "odt" || kind == "docx" || kind == "epub" {
                 ""
             } else {
                 "base"
@@ -116,9 +116,17 @@ pub fn make() -> Value {
         let mut blocks = odt_fixture();
         blocks[0].runs[0].text = "DOCX 🙂 heading".into();
         blocks
+    } else if kind == "epub" {
+        let mut blocks = odt_fixture();
+        blocks[0].runs[0].text = "EPUB 🙂 heading".into();
+        let mut heading = para(vec![run("Second chapter", vec![])]);
+        heading.attributes = Some(BlockAttributes::Heading(1));
+        blocks.push(heading);
+        blocks.push(para(vec![run("Final reading order", vec![])]));
+        blocks
     } else if kind == "odt" {
         odt_fixture()
-    } else if kind == "odt-loss" || kind == "docx-loss" {
+    } else if kind == "odt-loss" || kind == "docx-loss" || kind == "epub-loss" {
         let mut blocks = odt_fixture();
         blocks[2].attributes = Some(BlockAttributes::Code("rust".into()));
         blocks.push(FragmentBlock {
