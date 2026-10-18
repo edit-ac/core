@@ -59,7 +59,9 @@ final class NativeFitnessUITests: XCTestCase {
                 guard frame.width > 0, frame.height > 0,
                       window.contains(CGPoint(x: frame.midX, y: frame.midY)) else { break }
                 let before = ProcessInfo.processInfo.systemUptime
-                next.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap(); switchesRemaining -= 1
+                app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
+                    .withOffset(CGVector(dx: frame.midX - window.minX, dy: frame.midY - window.minY)).tap()
+                switchesRemaining -= 1
                 if try dismissKeyboardTutorial(app) {
                     button.tap()
                     guard app.keyboards.firstMatch.waitForExistence(timeout: 10) else { break }
@@ -202,10 +204,12 @@ final class NativeFitnessUITests: XCTestCase {
             XCTAssertTrue(keyboard.contains(frame)); XCTAssertTrue(window.contains(frame))
             // A sustained element press completed without a UITextInput callback.
             // Activate the ordinary software-key touch-up path at its observed
-            // center. typeText injects unmarked literals instead of OS Pinyin.
+            // center, rooted in the app window to avoid remote keyboard AX
+            // coordinate ambiguity. typeText injects unmarked literals instead of OS Pinyin.
             // Save dispatch evidence before a callback assertion can abort.
             let before = ProcessInfo.processInfo.systemUptime
-            key.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
+                .withOffset(CGVector(dx: frame.midX - window.minX, dy: frame.midY - window.minY)).tap()
             let observation: [String: Any] = ["key": letter,
                 "frame": ["x": frame.minX, "y": frame.minY, "width": frame.width, "height": frame.height],
                 "point": ["x": frame.midX, "y": frame.midY],
