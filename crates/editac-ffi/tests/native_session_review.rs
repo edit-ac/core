@@ -175,6 +175,97 @@ fn sqlite_capture_compare_is_immutable_and_preserves_live_history_journal_and_pr
     reopened.dispose().unwrap();
 }
 #[test]
+fn capture_and_unavailable_comparisons_preserve_readonly_sqlite_and_pending_receipts() {
+    let f = Fixture::new();
+    let s = f.create();
+    let old = capture(&s, "before edit", None);
+    edit(&s, "xy");
+    s.set_permission(false, Some(0)).unwrap();
+    let snapshot = || {
+        let mut files: Vec<_> = std::fs::read_dir(&f.dir)
+            .unwrap()
+            .map(|entry| {
+                let entry = entry.unwrap();
+                (entry.file_name(), std::fs::read(entry.path()).unwrap())
+            })
+            .collect();
+        files.sort_by(|a, b| a.0.cmp(&b.0));
+        (
+            s.read(0).unwrap().revision,
+            s.history_state(0).unwrap(),
+            s.recovery_export().unwrap().checkpoint.bytes,
+            s.pending_updates()
+                .unwrap()
+                .into_iter()
+                .map(|p| (p.writer, p.sequence, p.checksum, p.bytes))
+                .collect::<Vec<_>>(),
+            files,
+        )
+    };
+    let baseline = snapshot();
+    assert_eq!(baseline.3.len(), 1, "exercise an actual pending receipt");
+    let current = capture(&s, "readonly capture", None);
+    assert_eq!(snapshot(), baseline, "capture itself must be read-only");
+    let owned = read(&s, current.clone());
+    assert_eq!(model(&s, old, current.clone()).attribution, "unknown");
+
+    let foreign = Fixture::new();
+    let other = foreign.create();
+    let missing = capture(&other, "foreign session", None);
+    other.dispose().unwrap();
+    let mut schema = current.clone();
+    schema.schema.push_str("-future");
+    let mut profile = current.clone();
+    profile.module_profile.push_str("-future");
+    let locked = capture(&s, "locked", Some("host-key-generation"));
+    for (unavailable, reason) in [
+        (missing, NativeReviewUnavailable::Missing),
+        (schema, NativeReviewUnavailable::IncompatibleSchema),
+        (profile, NativeReviewUnavailable::IncompatibleSchema),
+        (locked, NativeReviewUnavailable::KeyUnavailable),
+    ] {
+        for side in [NativeReviewSide::Before, NativeReviewSide::After] {
+            let (before, after) = match side {
+                NativeReviewSide::Before => (unavailable.clone(), current.clone()),
+                NativeReviewSide::After => (current.clone(), unavailable.clone()),
+            };
+            assert!(matches!(
+                s.compare_review_revisions(before, after, None, None, LIMIT).unwrap(),
+                NativeReviewComparison::Unavailable { side: got_side, reason: got_reason }
+                    if got_side == side && got_reason == reason
+            ));
+        }
+    }
+    s.set_review_retention(0, 0).unwrap();
+    assert!(matches!(
+        s.compare_review_revisions(current.clone(), current.clone(), None, None, LIMIT)
+            .unwrap(),
+        NativeReviewComparison::Unavailable {
+            side: NativeReviewSide::Before,
+            reason: NativeReviewUnavailable::Pruned
+        }
+    ));
+    // Widening does not resurrect the old handle; the new capture is retained.
+    s.set_review_retention(1, 32 * 1024 * 1024).unwrap();
+    let retained = capture(&s, "retained", None);
+    assert!(matches!(
+        s.compare_review_revisions(retained, current.clone(), None, None, LIMIT)
+            .unwrap(),
+        NativeReviewComparison::Unavailable {
+            side: NativeReviewSide::After,
+            reason: NativeReviewUnavailable::Pruned
+        }
+    ));
+    assert_eq!(snapshot(), baseline);
+    s.dispose().unwrap();
+    assert!(!owned.is_empty());
+    let reopened = NativeSession::open(f.options.clone()).unwrap();
+    unavailable(&reopened, current, NativeReviewUnavailable::Missing);
+    assert_eq!(reopened.read(0).unwrap().nodes[0].text, "AxyB");
+    assert_eq!(reopened.pending_updates().unwrap().len(), 1);
+    reopened.dispose().unwrap();
+}
+#[test]
 fn actual_rich_projection_preserves_marks_atoms_sources_and_complete_semantic_payloads() {
     let f = rich_fixture::Fixture::new();
     let s = f.open();
