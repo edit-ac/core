@@ -218,11 +218,13 @@ browserCase('bundled-public-default-has-zero-optional-work-requests-and-retains-
   await page.evaluate(() => window.configurationFixture.close());
   await page.addInitScript(installExtensionCounters); await page.addInitScript(installResourceCounters);
   const start = fact.requests.length;
-  await page.goto(new URL('minimal-default.html', fact.origin).href);
+  await page.goto(new URL(facts.minimalGraph.url, fact.origin).href);
   await page.waitForFunction(() => !!window.minimalFixture);
   const baseline = await page.evaluate(() => window.mobileResources());
   await page.evaluate(async () => { await window.minimalFixture.mount(); window.minimalFixture.select(); });
-  await page.keyboard.type('Saved ');
+  // One browser insertText event is one history operation; word-by-word typing
+  // deliberately has the existing whitespace history boundaries.
+  await page.keyboard.insertText('Saved ');
   const edited = await page.evaluate(async () => {
     const f = window.minimalFixture; await f.editor.settle(); const typed = f.text();
     const undo = f.editor.captureHistory(); undo.execute('undo'); undo.dispose(); const undone = f.text();

@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { before, after, test } from 'node:test';
 import { spawnSync } from 'node:child_process';
 import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { parse } from '@babel/parser';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { build } from 'esbuild';
@@ -80,4 +81,28 @@ for (const [path, symbol] of [ ['modules/search','documentSearch'], ['modules/re
 test('MWX-C01 absence guard rejects injected disabled feature code', () => {
   assert.throws(() => assertDisabledGraph(['node_modules/@edit-ac/web/dist/modules/slash.js']));
   assert.throws(() => assertDisabledGraph(['node_modules/@edit-ac/web/dist/modules/code/presenter.js']));
+});
+
+test('MWX-C01 installed native minimal graph omits disabled code and rejects a real eager import', async () => {
+  async function graph(entry) {
+    const seen = new Set();
+    async function visit(path) {
+      if (seen.has(path)) return; seen.add(path);
+      const ast = parse(await readFile(path, 'utf8'), { sourceType: 'module' });
+      for (const statement of ast.program.body) {
+        if (!['ImportDeclaration','ExportNamedDeclaration','ExportAllDeclaration'].includes(statement.type) || !statement.source) continue;
+        const name = statement.source.value;
+        const target = name.startsWith('.') ? resolve(dirname(path), name) : name === '@edit-ac/core' ? join(consumer, 'node_modules/@edit-ac/core/dist/index.js') : name === '@edit-ac/core/extensions' ? join(consumer, 'node_modules/@edit-ac/core/dist/extensions/index.js') : undefined;
+        assert.ok(target, `unresolved installed native import: ${name}`); await visit(target);
+      }
+    }
+    await visit(entry); return [...seen].sort();
+  }
+  const inputs = await graph(join(consumer, 'node_modules/@edit-ac/web/dist/editor.js'));
+  assertDisabledGraph(inputs); assert.ok(inputs.length > 0);
+  const control = join(consumer, 'eager-native.mjs');
+  await writeFile(control, `import { slashCommands } from "./node_modules/@edit-ac/web/dist/modules/slash.js"; globalThis.EagerNative=slashCommands;`);
+  const eager = await graph(control);
+  assert.throws(() => assertDisabledGraph(eager), /disabled optional presenter implementation/);
+  manifest.native = { inputs: inputs.map(path => path.replace(consumer, '<installed-consumer>')), realEagerControlRejected: true };
 });

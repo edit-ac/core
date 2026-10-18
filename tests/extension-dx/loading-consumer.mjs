@@ -87,9 +87,9 @@ export async function prepareLoadingConsumer(consumer, { output, facts, run }) {
   const minimal=await build({absWorkingDir:consumer,entryPoints:{minimal:join(consumer,'minimal.mjs')},outdir:join(version,'minimal'),bundle:true,splitting:true,format:'esm',platform:'browser',target:'es2022',metafile:true,logLevel:'silent',chunkNames:'chunks/[name]-[hash]'});
   const minimalEntry=Object.keys(minimal.metafile.outputs).find(key=>minimal.metafile.outputs[key].entryPoint==='minimal.mjs');
   const minimalEager=eagerInputs(minimal.metafile,minimalEntry);assertLightweight(minimalEager);assertDisabledPresenters(minimalEager);
-  facts.minimalGraph={entry:minimalEntry,eager:minimalEager,optionalOutputs:Object.entries(minimal.metafile.outputs).filter(([,value])=>Object.keys(value.inputs).some(input=>/\/extensions\/runtime\/|\/extensions\/(authoring|matching|spelling)\.js|\/modules\/(search|reorder|references|slash|content)\.js/.test(input))).map(([path])=>path.slice(path.indexOf('/minimal/')+1))};
+  facts.minimalGraph={url:base+'/minimal-default.html',entry:minimalEntry,eager:minimalEager,optionalOutputs:Object.entries(minimal.metafile.outputs).filter(([,value])=>Object.keys(value.inputs).some(input=>/\/extensions\/runtime\/|\/extensions\/(authoring|matching|spelling)\.js|\/modules\/(search|reorder|references|slash|content)\.js/.test(input))).map(([path])=>path.slice(path.indexOf('/minimal/')+1))};
   await writeFile(join(output,'minimal-metafile.json'),JSON.stringify(minimal.metafile,null,2));
-  await writeFile(join(site,'minimal-default.html'),`<!doctype html><html lang="en"><title>Minimal installed default</title><script type="module" src="${base}/minimal/minimal.js"></script></html>`);
+  await writeFile(join(version,'minimal-default.html'),`<!doctype html><html lang="en"><title>Minimal installed default</title><script type="module" src="${base}/minimal/minimal.js"></script></html>`);
   const result=await build({absWorkingDir:consumer,entryPoints:{session:join(consumer,'session.mjs'),markdown:markdownEntry},
     outdir:join(version,'bundle'),bundle:true,splitting:true,format:'esm',platform:'browser',target:'es2022',metafile:true,logLevel:'silent',
     chunkNames:'chunks/[name]-[hash]',assetNames:'assets/[name]-[hash]'});
