@@ -5,6 +5,8 @@ import type { EditorViewport } from '../platform/viewport.js';
 import { selectionFragment } from '../clipboard/fragment.js';
 import { inputTextDiagnostic, literalLineEndings } from '../input/characters.js';
 import { touchPanel, touchTarget } from './touch-controls.js';
+import { browserFormatProfiles, type FormatProfileSource } from './format-profiles.js';
+export type { FormatProfileSource, FormatProfileDirection } from './format-profiles.js';
 
 export type BaselineFormat = 'text' | 'markdown';
 export interface FormatControlsOptions {
@@ -14,6 +16,9 @@ export interface FormatControlsOptions {
   schedule?(signal: AbortSignal): Promise<void>;
   /** A host may lower, never raise, the existing clipboard/codec byte bound. */
   maxBytes?: number;
+  /** Host-authenticated installed metadata; called only by the named control.
+   * Loaders must honor the signal and enforce a bounded local transport. */
+  loadProfiles?(signal: AbortSignal): Promise<FormatProfileSource>;
 }
 export interface FormatControlsContext extends DocumentSearchContext {
   viewport?: EditorViewport;
@@ -57,6 +62,8 @@ export class FormatControls {
   readonly filename: HTMLInputElement;
   readonly preview: HTMLTextAreaElement;
   readonly output: HTMLTextAreaElement;
+  readonly profileCatalog: HTMLElement;
+  readonly fallbacks: HTMLElement;
   readonly #buttons = new Map<string, HTMLButtonElement>();
   readonly #listeners: [EventTarget, string, EventListener][] = [];
   readonly #releaseViewport: (() => void) | undefined;
@@ -83,10 +90,14 @@ export class FormatControls {
     this.importFormat = doc.createElement('select'); this.importFormat.setAttribute('aria-label', 'Import format');
     this.exportFormat = doc.createElement('select'); this.exportFormat.setAttribute('aria-label', 'Export format');
     for (const format of ['text', ...(context.engine.markdownAvailable ? ['markdown'] : [])] as BaselineFormat[]) {
-      for (const select of [this.importFormat, this.exportFormat]) { const option = doc.createElement('option'); option.value = format; option.textContent = profiles[format].label; select.append(option); }
+      for (const select of [this.importFormat, this.exportFormat]) { const option = doc.createElement('option'); option.value = format; option.textContent = `${select === this.importFormat ? 'Import' : 'Export'}: ${profiles[format].label}`; select.append(option); }
     }
     label('Import format ', this.importFormat); label('Export format ', this.exportFormat);
     const unavailable = doc.createElement('p'); unavailable.textContent = 'DOCX, ODT, RTF, EPUB, CSV/TSV and PDF export are unavailable in this browser integration. PDF is export-only; import is always rejected.'; this.panel.append(unavailable);
+    this.profileCatalog = doc.createElement('section'); this.profileCatalog.setAttribute('aria-label', 'Installed document format profiles');
+    this.profileCatalog.textContent = options.loadProfiles ? 'Installed converter metadata has not been loaded. Baseline text and optional Markdown actions are available below.' : 'No installed document-format profile source is connected. Baseline text and optional Markdown actions are available below.'; this.panel.append(this.profileCatalog);
+    if (options.loadProfiles) this.#button('profiles', 'Show installed format profiles', () => { void this.showProfiles(); });
+    this.fallbacks = doc.createElement('p'); this.fallbacks.setAttribute('aria-label', 'File and sharing alternatives'); this.panel.append(this.fallbacks);
     this.input = doc.createElement('input'); this.input.type = 'file'; this.input.accept = '.txt,.md,text/plain,text/markdown';
     this.input.setAttribute('aria-label', 'Import file (file-input fallback)'); label('Choose a local file ', this.input);
     this.#listen(this.input, 'change', () => { const file = this.input.files?.[0]; if (file) void this.prepareImport(file); else this.cancel(); this.input.value = ''; });
@@ -139,7 +150,38 @@ export class FormatControls {
   show(): void {
     if (this.#blocked()) return;
     if (!this.#target) this.#capture();
-    this.panel.hidden = false; this.#buttons.get('open')!.setAttribute('aria-expanded', 'true'); this.#message('Choose a file to preview, or explicitly prepare an export. No file or permission request has started.');
+    this.panel.hidden = false; this.#buttons.get('open')!.setAttribute('aria-expanded', 'true'); this.#describeFallbacks(); this.#message('Choose a file to preview, or explicitly prepare an export. No file or permission request has started.');
+  }
+  #describeFallbacks(): void {
+    const w = this.context.root.ownerDocument.defaultView!, n = w.navigator;
+    const pickers = w as unknown as { showOpenFilePicker?: unknown; showSaveFilePicker?: unknown };
+    const available = (value: unknown) => typeof value === 'function' ? 'available for an explicit tap; permission may be refused' : 'unavailable';
+    this.fallbacks.textContent = `System file picker: ${available(pickers.showOpenFilePicker)}. Use Choose a local file (file-input fallback). ` +
+      `System file save: ${available(pickers.showSaveFilePicker)}. Use Download file; delivery remains unverified. ` +
+      `File sharing: ${available(typeof n.canShare === 'function' ? n.share : undefined)}. Clipboard: ${available(n.clipboard?.writeText)}. ` +
+      'If refused, download the retained output or Select output for manual copy using the native Copy menu. ' +
+      (!w.isSecureContext || !n.userActivation?.isActive ? 'Advanced actions require a secure context and a fresh explicit tap. ' : '') +
+      'No permission has been requested; API presence does not establish permission or delivery.';
+  }
+  async showProfiles(): Promise<void> {
+    if (!this.options.loadProfiles) return;
+    const job = this.#begin(); if (!job) return;
+    this.#message('Loading installed profile metadata; no conversion has started.');
+    try {
+      const source = await this.options.loadProfiles(job.signal);
+      if (!this.#active(job)) return;
+      const rows = browserFormatProfiles(source), doc = this.context.root.ownerDocument;
+      const heading = doc.createElement('p'); heading.textContent = `Installed package: ${source.provenance}. These document-format actions are unavailable here; use the text or Markdown controls below. PDF is export-only.`;
+      const list = doc.createElement('ul');
+      for (const row of rows) { const item = doc.createElement('li'); item.textContent = `${row.format.toUpperCase()} ${row.direction}: ${row.profile}; fidelity: ${row.fidelity}`; list.append(item); }
+      this.profileCatalog.replaceChildren(heading, list);
+      this.#message('Installed profiles listed. Use the available baseline actions below; no conversion or permission request has started.');
+    } catch (error) {
+      if (this.#active(job)) {
+        this.profileCatalog.textContent = 'Installed profiles unavailable. Baseline file-input, download and selectable-text recovery remain available.';
+        this.#message(`${this.#reason(error)}. Retry Show installed format profiles; no document change.`);
+      }
+    } finally { this.#end(job); }
   }
   close(): void { this.cancel(); this.panel.hidden = true; this.#buttons.get('open')!.setAttribute('aria-expanded', 'false'); this.#buttons.get('open')!.focus({ preventScroll: true }); }
   setReadOnly(value: boolean): void { this.#readOnly = value; if (value) this.cancel(); }

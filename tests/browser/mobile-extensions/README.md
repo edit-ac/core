@@ -49,6 +49,20 @@ normalized textarea display. Unknown envelopes retain their generic source-only
 fallback; known embeds must reach their owning inert card before that fallback.
 No prepared fallback result establishes actual file, share, capture or OS delivery.
 
+The optional `formatControls({loadProfiles})` metadata port loads only when the
+user invokes **Show installed format profiles**. The host authenticates the
+installed package and its direction-specific proof, bounds the local metadata
+transport, and honors the supplied abort signal. It returns `{provenance,
+manifest}`; the presenter validates all browser rows before displaying any.
+Native rows are excluded, duplicate/invalid directions fail closed, and PDF
+import is always rejected. A catalog row grants no conversion or asset authority.
+The separate baseline selectors expose only connected text/Markdown actions;
+broad-format action integration remains unfinished. Cancellation, dismissal and
+disposal fence late catalog results, and metadata failure preserves baseline
+recovery. The formats harness authenticates the qualified canonical2 package
+hash and owner ancestry before installing its actual entry and manifest. It
+tests the catalog separately from conversion and actual OS delivery.
+
 The fixture rejects external requests, window opening, permission probes and
 capture. Hosts are hand-authored callbacks; no credentials or providers are used.
 Baseline resources and optional listener ownership are checked separately after
