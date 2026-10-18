@@ -7,6 +7,7 @@ npm run build
 npm run test:mobile-extensions -- --group capabilities
 npm run test:mobile-extensions -- --group menus
 npm run test:mobile-extensions -- --group content-controls
+npm run test:mobile-extensions -- --group formats
 node --test tests/consumers/mobile-extensions/disabled.test.mjs
 ```
 
@@ -24,8 +25,11 @@ The configured profile cases use the current extension facade. Advanced legacy
 code/table/reorder/slash/reference rows retain compatibility coverage separately.
 Required resources are counted by the existing mobile harness; optional allocation
 stacks and explicit emitted byte contributions are recorded separately. Prepared
-share rejection/absence tests exercise the existing baseline fallback port, not
-the future format presenter. Platform, actual OS input/AT, performance and release
+share rejection/absence capability tests exercise the existing baseline fallback
+port. The formats group separately runs the production optional format presenter,
+real Session/Markdown/IndexedDB, prepared OS transports and exact-byte browser
+downloads. Binary converter cells remain pending; these checks do not close
+MEX-1.6. Platform, actual OS input/AT, performance and release
 qualification remain in the original owning gates.
 
 

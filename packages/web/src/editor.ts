@@ -97,6 +97,7 @@ export class BrowserEditor {
   readonly #pasteTargets = new Set<() => void>();
   #hints: InputHintController | undefined;
   #capabilities: Promise<import('./platform/capabilities.js').BrowserCapabilities> | undefined;
+  #formats: import('./modules/formats.js').FormatControls | undefined;
   readonly #plainButton: HTMLButtonElement | undefined;
   #plainTarget: RetainedSelection | undefined;
   readonly #capturePlainTarget = (event: Event): void => {
@@ -251,6 +252,16 @@ export class BrowserEditor {
     if (!this.#surface) throw Error('Editor is not attached');
     return this.#surface.exportMarkdown(blocks);
   }
+  /** Explicitly imported optional factory. The host mounts its element; the
+   * editor owns teardown. No disabled format module enters the default graph. */
+  enableFormatControls(factory: import('./modules/formats.js').FormatControlsFactory): import('./modules/formats.js').FormatControls {
+    const session = this.#requireReady();
+    if (this.#formats && !this.#formats.disposed) return this.#formats;
+    const controls = factory({ root: this.root, engine: session.writer.engine, selection: this.#selection!,
+      commit: request => this.commit(request), blocked: () => this.#closing || this.#destroyed || !this.state.ready,
+      ...(this.#options.contentCodecs ? { contentCodecs: this.#options.contentCodecs } : {}), viewport: this.#surface!.viewport });
+    controls.setReadOnly(this.#readOnly); this.#formats = controls; return controls;
+  }
   #requireReady(): LocalSession {
     if (this.#closing || this.#destroyed || !this.state.ready || !this.#session) throw Error('Editor is not ready'); return this.#session;
   }
@@ -380,6 +391,7 @@ export class BrowserEditor {
   setReadOnly(value: boolean): void {
     if (this.#closing || this.#destroyed) throw Error('Editor is closing');
     this.#readOnly = value; this.#surface?.setReadOnly(value || !this.state.ready); this.root.setAttribute('aria-readonly', String(value || !this.state.ready));
+    this.#formats?.setReadOnly(value);
     if (value) { this.#plainTarget?.dispose(); this.#plainTarget = undefined; }
     if (this.#plainButton) this.#plainButton.disabled = value || !this.state.ready;
     this.lifecycle.update({ readOnly: value });
@@ -453,6 +465,7 @@ export class BrowserEditor {
         if (this.#plainButton) { this.#plainButton.disabled = true; this.#plainButton.removeEventListener('pointerdown', this.#capturePlainTarget); this.#plainButton.removeEventListener('click', this.#plainClick); }
         this.root.removeEventListener('keydown', this.#capturePlainTarget);
         this.#controls?.dispose(); this.#hints?.dispose();
+        this.#formats?.dispose();
         await this.#capabilities?.then(c => c.dispose(), () => {});
         for (const dispose of this.#pasteTargets) dispose();
         this.#surface?.dispose(); this.#unsubscribe?.();
