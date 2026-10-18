@@ -8,6 +8,13 @@ permission updates and shared-history results publish current catalog/history
 observations before control callbacks. Activation always rechecks Rust permission,
 revision and applicability. No second document, command catalog or history exists.
 
+The owned text responder exposes an `UndoManager` forwarding facade for AppKit
+enablement and undo/redo actions. It reads the same focused command availability,
+rechecks admission on activation, and disables native action registration. It
+does not override the containing view's undo manager, so nested host text controls
+retain their native history. This AppKit integration does not qualify Safari's
+browser Edit menu, which needs its own observed native-history integration.
+
 ## Portable structural and formatting actions
 
 `catalog` and `profileAvailability(id)` expose detached shared route/profile

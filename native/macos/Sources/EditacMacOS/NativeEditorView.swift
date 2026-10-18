@@ -20,6 +20,9 @@ public final class NativeEditorView: NSView {
     private var selectionGeneration: UInt64 = 0
     private var selectionWaiters: [UUID: CheckedContinuation<NativeSessionResponse, Error>] = [:]
     public private(set) lazy var commands = NativeCommands(view: self)
+    // Only owned text responders use this facade. Do not override this NSView's
+    // undoManager: unrelated nested host controls retain their native history.
+    lazy var commandUndoManager = NativeCommandUndoManager(view: self)
     public private(set) lazy var extensions = NativeExtensions(view: self)
     public private(set) lazy var attachments = NativeAttachments(view: self)
     public private(set) lazy var tables = NativeTableEditing(view: self)
