@@ -10,9 +10,23 @@ const viewportGeometry=()=>{if(window.mobileGeometryError)throw Error("prepared 
 async function mount(value){
  const options=typeof value==='string'?{text:value}:value;preparedViewport=!!options.viewport;
  runtime=await init('/core/wasm/editac_wasm_bg.wasm');
- const seed=runtime.createEngine({profile:'v5',documentId:identity.documentId,epoch:identity.epoch,nodes:options.nodes??[{text:options.embed?'':options.text}]});
+ const seed=runtime.createEngine({profile:'v5',documentId:identity.documentId,epoch:identity.epoch,nodes:options.nodes??[{text:(options.embed||options.tableSource)?'':options.text}]});
+ if(options.tableSource){
+  const {initMarkdown}=await import('/markdown/index.js');
+  const registration=seed.registerMarkdown(await initMarkdown('/markdown/wasm/editac_markdown_wasm_bg.wasm'));
+  const parsed=seed.importMarkdown(options.tableSource,{tables:true});
+  const at=seed.anchor(seed.read().visible[0].id,0,'right');
+  try{const plan=seed.prepare({kind:'fragment',origin:'mobile-source-seed',range:{anchor:at,focus:at},blocks:parsed.blocks});try{seed.commit(plan);}finally{seed.releasePlan(plan);}}
+  finally{seed.releaseAnchor(at);registration.dispose();}
+  const represented=seed.read().visible.slice();
+  const empty=n=>n.blockAttributes?.[0]==='paragraph'&&n.runs.every(r=>r.text==='');
+  while(represented.length>parsed.blocks.length&&empty(represented[0]))represented.shift();
+  while(represented.length>parsed.blocks.length&&empty(represented.at(-1)))represented.pop();
+  if(represented.length!==parsed.blocks.length)throw Error('source binding count');
+  window.mobileTableSource={source:options.tableSource,owners:represented.map(n=>n.id),opening:seed.checkpoint(),captures:0,disposals:0};
+ }
  if(options.code){const plan=seed.prepare({kind:'editor',origin:'mobile-seed-code',commands:[{type:'setCode',owner:seed.read().visible[0].id,language:options.language??'typescript'}]});try{seed.commit(plan);}finally{seed.releasePlan(plan);}}
- if(options.table){for(const tableNode of seed.read().visible.slice(0,options.tableCopies??1)){const owner=tableNode.id,at=seed.anchor(owner,0,'right');try{seed.commit(seed.prepare({kind:'fragment',origin:'mobile-seed-table',range:{anchor:at,focus:at},blocks:[{attributes:{type:'content',tuple:['module:editac.table',1,{alignments:['none','none','none','none'],rows:(options.tableRows??[['one','two','three','four'],['alpha','beta','gamma','delta']]).map(row=>row.map(t=>[[t,[]]])),source:'prepared table source'}]},runs:[{text:'prepared table source',marks:[]}]}]}));}finally{seed.releaseAnchor(at);}}}
+ if(options.table&&!options.tableSource){for(const tableNode of seed.read().visible.slice(0,options.tableCopies??1)){const owner=tableNode.id,at=seed.anchor(owner,0,'right');try{seed.commit(seed.prepare({kind:'fragment',origin:'mobile-seed-table',range:{anchor:at,focus:at},blocks:[{attributes:{type:'content',tuple:['module:editac.table',1,{alignments:['none','none','none','none'],rows:(options.tableRows??[['one','two','three','four'],['alpha','beta','gamma','delta']]).map(row=>row.map(t=>[[t,[]]])),source:'prepared table source'}]},runs:[{text:'prepared table source',marks:[]}]}]}));}finally{seed.releaseAnchor(at);}}}
  if(options.asset||options.embed){const owner=seed.read().visible[0].id,at=seed.anchor(owner,0,'right');const payload=options.asset??{type:options.inertType??'editac.embed',version:1,dataVersion:1,source:options.embed.source,payload:{url:options.embed.url,provider:options.embed.provider,fallback:options.embed.fallback}};try{const plan=seed.prepare({kind:'fragment',origin:'mobile-seed-host-content',range:{anchor:at,focus:at},blocks:[{attributes:{type:'content',tuple:[options.asset?'module:editac.asset':'module:editac.inert-extension',1,payload]},runs:[{text:options.asset?.fallback??options.embed.source,marks:[]}]}]});try{seed.commit(plan);}finally{seed.releasePlan(plan);}}finally{seed.releaseAnchor(at);}}
  let modules;
  if(options.marks){for(const mark of options.marks){const owner=seed.read().visible[mark.node??0].id;seed.commit(seed.prepare({kind:'editor',origin:'mobile-seed',commands:[{type:'markAt',owner,from:mark.from,to:mark.to,mark:mark.type,action:'apply'}]}));}}
@@ -56,6 +70,16 @@ async function bind(options={},modules){
  if((options.table||options.asset||options.embed)&&!options.presentersDisabled){
   const {contentModules}=await import('/web/modules/content.js');const contentOptions={};
   if(options.protectedCells)contentOptions.tableProtectedCells=()=>options.protectedCells;
+  if(options.tableSource&&!options.sourcePortAbsent)contentOptions.tableSource={
+   capture(owner){
+    const t=window.mobileTableSource;
+    const retained=editor.captureSourceBaseline(t.source,t.owners,{tables:true},t.opening);
+    let current;try{current=retained.sourceWithCurrentTable(owner);}finally{retained.dispose();}
+    const base=editor.captureSourceBaseline(current,t.owners,{tables:true});t.captures++;
+    return {originalSource:base.originalSource,prepareTableFormat:(...args)=>base.prepareTableFormat(...args),sourceWithCurrentTable:id=>base.sourceWithCurrentTable(id),dispose(){base.dispose();t.disposals++;}};
+   },
+   commitPrepared:plan=>editor.commitPrepared(plan),
+  };
   if(options.asset||options.embed){
    const state=window.contentHostState={calls:[],signals:[],canceled:[],mode:options.contentHost??'absent'};
    const record=(operation,request,signal)=>{state.calls.push({operation,request});state.signals.push(signal);if(state.mode==='rejected')throw Error('prepared host failure');};
@@ -71,9 +95,9 @@ async function bind(options={},modules){
  if(options.codeTools){const {codeCommands:factory}=await import('/web/extensions/code.js');codeCommands=context=>{selection=context.selection;return factory()(context);};}
  if(options.highlight){const {codeHighlighting}=await import('/web/modules/code/presenter.js');codeHighlight=codeHighlighting({enabled:options.highlight!=='disabled',createWorker(){window.highlightCounters.created++;return {onmessage:null,onerror:null,postMessage(message){window.highlightCounters.requests.push(message);queueMicrotask(()=>this.onmessage?.({data:{id:message.id,input:message.input,projection:{status:'highlighted',spans:[]},timing:{startup:0,transfer:0,work:0,application:0}}}));},terminate(){window.highlightCounters.terminated++;}};}});}
  if(options.reorder){const {reorderControls}=await import('/web/modules/reorder.js');reorder=context=>{selection=context.selection;return reorderControls()(context);};}
- if(options.triggers||options.palette){const {initMarkdown}=await import('/markdown/index.js'),{markdownExtension}=await import('/markdown/web.js'),{slashCommands}=await import('/web/modules/slash.js');markdown=markdownExtension(await initMarkdown('/markdown/wasm/editac_markdown_wasm_bg.wasm'));if(options.triggers)slash=slashCommands([{id:'paragraph',label:'Insert mobile paragraph',prepare:()=>({type:'fragment',blocks:[{attributes:{type:'paragraph'},runs:[{text:'mobile command',marks:[]}]}]})}]);}
+ if(options.triggers||options.palette||options.tableSource){const {initMarkdown}=await import('/markdown/index.js'),{markdownExtension}=await import('/markdown/web.js'),{slashCommands}=await import('/web/modules/slash.js');markdown=markdownExtension(await initMarkdown('/markdown/wasm/editac_markdown_wasm_bg.wasm'));if(options.triggers)slash=slashCommands([{id:'paragraph',label:'Insert mobile paragraph',prepare:()=>({type:'fragment',blocks:[{attributes:{type:'paragraph'},runs:[{text:'mobile command',marks:[]}]}]})}]);}
  if(options.referenceDisplay){const {referenceDisplay}=await import('/fixture/reference-display.mjs');const reference=referenceDisplay(),other=content;content=context=>reference(context)??other?.(context);}
- const legacyOptions={assetUrl:'/core/wasm/editac_wasm_bg.wasm',databaseName,identity,indexedDB,locks:navigator.locks,plainPasteControl:options.plainPasteControl??false,readOnly:options.readOnly,commandAllowed:name=>!options.deniedCommands?.includes(name),commandControls:options.commandControls,inputHints:options.inputHints,modules,markdown,slash,content,codeCommands,codeHighlight,reorder,references,search,contentCodecs:options.palette?{images:true,tables:true,callouts:true}:undefined,viewport:options.viewport?{requestedMode:options.requestedMode,geometry:viewportGeometry}:undefined,recover:async()=>session};
+ const legacyOptions={assetUrl:'/core/wasm/editac_wasm_bg.wasm',databaseName,identity,indexedDB,locks:navigator.locks,plainPasteControl:options.plainPasteControl??false,readOnly:options.readOnly,commandAllowed:name=>!options.deniedCommands?.includes(name),commandControls:options.commandControls,inputHints:options.inputHints,modules,markdown,slash,content,codeCommands,codeHighlight,reorder,references,search,contentCodecs:(options.palette||options.tableSource)?{images:true,tables:true,callouts:true}:undefined,viewport:options.viewport?{requestedMode:options.requestedMode,geometry:viewportGeometry}:undefined,recover:async()=>session};
  let editorOptions=legacyOptions;
  if(options.facade){
   const factories=await import('/web/extensions/configuration.js');
@@ -120,7 +144,7 @@ async function sibling(){
 async function recover(){
  runtime=await init('/core/wasm/editac_wasm_bg.wasm');
  session=await recoverLocalDocument({assetUrl:'/core/wasm/editac_wasm_bg.wasm',databaseName,identity,indexedDB,locks:navigator.locks});
- return bind({});
+ return bind(window.mobileTableSource?{table:true,tableSource:window.mobileTableSource.source}:{});
 }
 async function remoteStructure(index,wrap=false){
  const local=session.writer.engine,peer=runtime.restoreEngine(identity,local.checkpoint()),vector=local.stateVector();

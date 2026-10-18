@@ -388,8 +388,24 @@ revision rejects atomically, including a no-op. Existing history commands restor
 original table source and redo formatting. After reopening storage, supply the
 retained opening checkpoint as the fourth `captureSourceBaseline` argument to
 recover current source without a JavaScript serializer. Unsupported/ambiguous
-mappings reject; mobile formatting controls and platform qualification remain
-consumer work. This API does not automatically format tables during cell editing.
+mappings reject. This API does not automatically format tables during cell editing.
+
+`contentModules({tableSource})` adds a labeled, minimum 44px **Format table source**
+tap control to each supported table. Supply `capture(owner)` and
+`commitPrepared(plan)`; capture returns a fresh `SourceBaseline`, and commit must
+use the owning editor or Session storage. The presenter releases the plan and
+disposes the captured baseline on success or rejection. The control never imports
+a codec or captures a baseline on open. Without the port it stays unavailable.
+Readonly, composition, protected cells and unsupported table versions cannot format.
+
+For repeated formatting or undo/reopen recovery, retain the original source,
+owner IDs and opening checkpoint. In `capture(owner)`, capture against those
+retained inputs, recover `sourceWithCurrentTable(owner)`, dispose that recovery
+baseline, then return a new baseline captured against the recovered source and
+current revision. A semantic edit or incompatible source mapping rejects safely;
+the host must reconcile its source binding before offering another action.
+This portable browser control does not qualify device, OS input, accessibility,
+performance or release behavior.
 
 ## File and sharing controls
 

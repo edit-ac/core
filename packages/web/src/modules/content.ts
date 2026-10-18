@@ -5,7 +5,7 @@ import { attachmentPresenters, type AttachmentOptions } from './attachments/pres
 import { imagePresenters, type ImageOptions } from './images/presenter.js';
 import { leaveEditor } from '../input/focus.js';
 import { decodeTableClipboard, encodeRichTableClipboard, decodeRichTableClipboard, validateRichTableCells, type TableRichCell, type TableCellBlock } from './tables/clipboard.js';
-import type { EditorCommand, CommitResult, EngineHandle, Json, PrepareRequest, ProjectedNode } from '@edit-ac/core';
+import type { EditorCommand, CommitResult, EngineHandle, Json, PlanToken, PrepareRequest, ProjectedNode, SourceBaseline } from '@edit-ac/core';
 
 export interface ImageMetadata { url: string; alt: string; title: string; source: string }
 export interface ContentOptions extends ImageOptions, AttachmentOptions, EmbedOptions {
@@ -13,6 +13,14 @@ export interface ContentOptions extends ImageOptions, AttachmentOptions, EmbedOp
   imageUrl?: (metadata: Readonly<ImageMetadata>) => string | null;
   /** Host policy captured for each table action; coordinates are relative to the exact descriptor. */
   tableProtectedCells?: (node: ProjectedNode) => readonly (readonly [number, number])[];
+  /** Explicit source action only. Capture a fresh owning-codec baseline against
+   * the retained source/current revision; this view disposes it after the action.
+   * Commit through BrowserEditor.commitPrepared or the owning Session storage.
+   * The host retains original bytes/opening checkpoint for undo/reopen recovery. */
+  tableSource?: {
+    capture: (owner: string) => SourceBaseline;
+    commitPrepared: (plan: PlanToken) => CommitResult;
+  };
 }
 export interface ContentContext { element: HTMLElement; node: ProjectedNode; engine: EngineHandle; commit: (request: PrepareRequest) => CommitResult; readOnly: boolean }
 export interface ContentView { element: HTMLElement; update(node: ProjectedNode): boolean; setReadOnly(value: boolean): void; dispose(): void }
@@ -76,7 +84,7 @@ export function contentModules(options: ContentOptions = {}): ContentFactory {
     const descriptor = parse(context.node);
     if (!descriptor) return tableSourceFallback(context);
     if ('url' in descriptor) return;
-    return new BasicContentView(context, descriptor, imageUrl, options.tableProtectedCells);
+    return new BasicContentView(context, descriptor, imageUrl, options.tableProtectedCells, options.tableSource);
   };
 }
 /** An unsupported table stays inert and visibly source-preserving. */
@@ -109,7 +117,8 @@ class BasicContentView implements ContentView {
   private extendSelection = false;
   private readonly cellButtons: HTMLButtonElement[] = [];
   private readonly actions: HTMLButtonElement[] = [];
-  constructor(private readonly context: ContentContext, descriptor: ImageMetadata | Table, private readonly imageUrl: ContentOptions['imageUrl'], private readonly protectedCells: ContentOptions['tableProtectedCells']) {
+  private sourceAction: HTMLButtonElement | undefined;
+  constructor(private readonly context: ContentContext, descriptor: ImageMetadata | Table, private readonly imageUrl: ContentOptions['imageUrl'], private readonly protectedCells: ContentOptions['tableProtectedCells'], private readonly tableSource: ContentOptions['tableSource']) {
     this.node=context.node; this.readOnly=context.readOnly; this.kind='url' in descriptor ? 'image' : 'table';
     const doc=context.element.ownerDocument; this.element=doc.createElement('section'); this.element.dataset.contentModule=this.kind; this.element.contentEditable='false';
     this.status=doc.createElement('span'); this.status.setAttribute('role','status'); this.status.setAttribute('aria-live','polite');
@@ -125,6 +134,9 @@ class BasicContentView implements ContentView {
       this.listen(this.element,'beforeinput',()=>{this.focusEscape=false;});
       this.listen(this.element,'compositionstart',()=>{this.focusEscape=false;});
       const toolbar=doc.createElement('div'); touchPanel(toolbar);toolbar.setAttribute('role','group'); toolbar.setAttribute('aria-label','Table structure'); this.element.append(toolbar);
+      const sourceAction=doc.createElement('button');sourceAction.type='button';sourceAction.textContent='Format table source';
+      sourceAction.title=this.tableSource?'Format only this retained Markdown table':'Source formatting unavailable; original source preserved';
+      this.sourceAction=sourceAction;toolbar.append(sourceAction);this.listen(sourceAction,'click',()=>this.formatSource());
       for(const [label,action,after] of [
         ['Insert row before','insertRow',false],['Insert row after','insertRow',true],['Remove rows','deleteRow',false],
         ['Insert column before','insertColumn',false],['Insert column after','insertColumn',true],['Remove columns','deleteColumn',false],
@@ -224,6 +236,25 @@ class BasicContentView implements ContentView {
     this.setReadOnly(this.readOnly);return true;
   }
   private policy(): readonly (readonly [number,number])[] { return this.protectedCells?.(this.node) ?? []; }
+  private formatSource(): void {
+    if(this.disposed||this.readOnly||this.compositions.size||!this.tableSource)return;
+    let baseline: SourceBaseline | undefined, plan: PlanToken | undefined;
+    const selected=this.cells, first=this.firstCell, focus=this.focusCell;
+    try {
+      if((!Array.isArray(this.node.blockAttributes)||this.node.blockAttributes[1]!==1)||this.policy().length)throw Error('Unsupported or protected source');
+      baseline=this.tableSource.capture(this.node.id);
+      const prepared=baseline.prepareTableFormat(this.node.id,'module-table-source');plan=prepared.plan;
+      this.context.engine.history({type:'explicit'});
+      const result=this.tableSource.commitPrepared(plan);
+      if(result.caret)this.context.engine.releaseAnchor(result.caret);
+      if(selected){this.cells={...selected,expected:this.node.blockAttributes};this.firstCell=first;this.focusCell=focus;this.paintCells();}
+      this.status.textContent=prepared.changed?'Table source formatted.':'Table source already formatted.';
+    } catch { this.status.textContent='Source formatting unavailable for the current table; original source and data preserved.'; }
+    finally {
+      try { if(plan)this.context.engine.releasePlan(plan); }
+      finally { baseline?.dispose();this.context.engine.history({type:'boundary'}); }
+    }
+  }
   private selectedInput(): HTMLTextAreaElement | undefined {return this.controls.find(i=>Number(i.dataset.row)===this.cells?.row&&Number(i.dataset.column)===this.cells?.column);}
   private selectCells(row:number,column:number,extend:boolean):void {
     if(this.disposed||this.compositions.size)return;
@@ -358,6 +389,6 @@ class BasicContentView implements ContentView {
       if(result.caret)this.context.engine.releaseAnchor(result.caret);this.status.textContent='Cell updated.';
     }catch{this.status.textContent='Cell edit rejected; current data preserved.';if(node)this.update(node);}
   }
-  setReadOnly(value: boolean): void {this.readOnly=value;if(value){this.compositions.clear();const data=parse(this.node);if(data&&'rows' in data)for(const input of this.controls)input.value=cellText(data.rows[Number(input.dataset.row)]![Number(input.dataset.column)]!);}for(const input of this.controls)input.readOnly=value||this.kind==='image'||input.dataset.multiblock==='true';this.paintCells();}
+  setReadOnly(value: boolean): void {this.readOnly=value;if(value){this.compositions.clear();const data=parse(this.node);if(data&&'rows' in data)for(const input of this.controls)input.value=cellText(data.rows[Number(input.dataset.row)]![Number(input.dataset.column)]!);}for(const input of this.controls)input.readOnly=value||this.kind==='image'||input.dataset.multiblock==='true';if(this.sourceAction)this.sourceAction.disabled=value||!this.tableSource||(!Array.isArray(this.node.blockAttributes)||this.node.blockAttributes[1]!==1);this.paintCells();}
   dispose(): void {if(this.disposed)return;this.disposed=true;for(const [target,type,listener]of this.listeners)target.removeEventListener(type,listener);this.compositions.clear();for(const input of this.controls)input.readOnly=true;this.image?.removeAttribute('src');}
 }
