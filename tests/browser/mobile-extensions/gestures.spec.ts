@@ -218,13 +218,19 @@ test(`MWX-C15 ${reason} cancels capture, frames and selection without a command`
     else if(reason==='scale'||reason==='unavailable-geometry'){
       if(reason==='scale')(window as any).mobileGeometry.scale=2;else (window as any).mobileGeometryError=true;
       document.querySelector('#scroll-root').dispatchEvent(new Event('scroll'));
-    } else if(reason==='visual-resize')window.visualViewport.dispatchEvent(new Event('resize'));
+    } else if(reason==='resize'||reason==='visual-resize'){
+      // A resize notification alone may be a recoverable/no-op browser event.
+      // Exercise an actual unsafe geometry change through the shared owner.
+      (window as any).mobileGeometry.scale=2;
+      (window as any).mobileGeometry.visual.height=280;
+      (reason==='visual-resize'?window.visualViewport:window).dispatchEvent(new Event('resize'));
+    }
     else if(['blur','resize','orientationchange','pagehide'].includes(reason))window.dispatchEvent(new Event(reason));
     else grip.dispatchEvent(new PointerEvent(reason,{pointerId:(window as any).gesturePointer}));
   },reason);
   // Prepared geometry is sampled by the real coalesced viewport owner.
   // Wait for that notification before delivering a later release event.
-  if(reason==='scale'||reason==='unavailable-geometry')await frame(page);
+  if(['scale','unavailable-geometry','resize','visual-resize'].includes(reason)){await frame(page);released(await state(page));}
   await page.mouse.up();await frame(page);await terminalEvents(page);
   const retired=await page.evaluate(()=>(window as any).retired.pointerState);fact.retired=retired;released({pointer:retired});
   if(reason==='destroy'){
