@@ -1,0 +1,1200 @@
+{
+  "version": 1,
+  "parent": "WFE-3.1",
+  "sourceRoadmapRevision": "46877c766dcdf74b4c038bca6e55fd05cc4bb4090c49705694018befcbd3d7bb",
+  "requiredFamilies": [
+    "everyday-editing",
+    "rich-extensions",
+    "optional-formats",
+    "touch-browser",
+    "routes-react",
+    "local-persistence",
+    "readonly",
+    "collaboration-presence"
+  ],
+  "features": [
+    {
+      "id": "WEB-EDIT",
+      "parent": "WFE-3.1",
+      "family": "everyday-editing",
+      "requirement": "38 INT-1.2\u20131.12; Everyday editing behavior \u00a7\u00a7 Enter, formatting, deletion/navigation, input, history; optional spelling and code autoPair remain host-selected",
+      "owner": "PRIMARY",
+      "enabled": "default or host-selected",
+      "apis": [
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/index.ts",
+          "symbol": "mountEditor"
+        },
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/index.ts",
+          "symbol": "CommandChain"
+        },
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/index.ts",
+          "symbol": "Spelling"
+        }
+      ],
+      "oracles": "Real projected text/marks, UTF-16 directional targets, independent history and Session journal/durable reopen; nested control and stale command denial.",
+      "proofs": [
+        {
+          "id": "wfe-1.1",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "CMD-03-supplied-false",
+            "CMD-03-supplied-true",
+            "CMD-03-remote",
+            "CMD-03-invalid",
+            "CMD-03-reopen",
+            "CMD-03-atomic-rejection",
+            "CMD-05-save"
+          ]
+        }
+      ],
+      "nextAction": "Repair or authenticate the exact changed owner inputs reported by the ledger, then reuse the existing named dispatcher. No unchanged failed-check retry.",
+      "gap": "WFE-1.1 authenticates command/format/history/replacement/keyboard regressions. Authenticate existing original38 breaks/deletion/navigation/whitespace/parsing receipts too; command proof alone does not close everyday editing. Also authenticate extension-dx spellcheck and optional code-pair behavior against the same source."
+    },
+    {
+      "id": "WEB-COMMANDS",
+      "parent": "WFE-3.1",
+      "family": "everyday-editing",
+      "requirement": "38 CMD-01\u201305 / INT-1.16 command, replacement, nested ownership",
+      "owner": "PRIMARY",
+      "enabled": "default or host-selected",
+      "apis": [
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/index.ts",
+          "symbol": "commandCatalog"
+        },
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/index.ts",
+          "symbol": "CommandControls"
+        }
+      ],
+      "oracles": "Captured range differs from caret; command aliases share one commit; readonly/stale/cancel/dispose reject without mutation.",
+      "proofs": [
+        {
+          "id": "wfe-1.1",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "CMD-01-keyboard-false",
+            "CMD-01-menu-false",
+            "CMD-01-context-menu-false",
+            "CMD-01-toolbar-false",
+            "CMD-01-action-false",
+            "CMD-01-alias-false",
+            "CMD-01-cli-semantic-false",
+            "CMD-01-agent-semantic-false",
+            "CMD-01-keyboard-true",
+            "CMD-01-menu-true",
+            "CMD-01-context-menu-true",
+            "CMD-01-toolbar-true",
+            "CMD-01-action-true",
+            "CMD-01-alias-true",
+            "CMD-01-cli-semantic-true",
+            "CMD-01-agent-semantic-true",
+            "CMD-01-unsupported",
+            "CMD-01-alias-toggleItalic",
+            "CMD-01-alias-toggleUnderline",
+            "CMD-01-alias-toggleStrike",
+            "CMD-01-alias-toggleCode",
+            "CMD-01-alias-insertParagraph",
+            "CMD-01-alias-insertLineBreak",
+            "CMD-01-alias-deleteContentBackward",
+            "CMD-01-alias-deleteContentForward",
+            "CMD-01-link-history-alias",
+            "CMD-01-empty-replace",
+            "CMD-04-read-only",
+            "CMD-04-permission",
+            "CMD-04-cancel",
+            "CMD-04-foreign-focus",
+            "CMD-04-close-reopen",
+            "CMD-04-nested-input-bold",
+            "CMD-04-nested-input-replace",
+            "CMD-04-nested-textarea-bold",
+            "CMD-04-nested-textarea-replace",
+            "CMD-04-nested-select-bold",
+            "CMD-04-nested-select-replace",
+            "CMD-04-nested-contenteditable-bold",
+            "CMD-04-nested-contenteditable-replace",
+            "CMD-04-nested-textbox-bold",
+            "CMD-04-nested-textbox-replace",
+            "CMD-04-permission-keyboard",
+            "CMD-04-permission-toolbar",
+            "CMD-04-permission-captured",
+            "CMD-04-dialog-apply",
+            "CMD-04-dialog-read-only",
+            "CMD-04-dialog-permission",
+            "CMD-04-dialog-cancel-reopen",
+            "CMD-04-disposed",
+            "CMD-04-composition-mapping"
+          ]
+        }
+      ],
+      "nextAction": "Repair or authenticate the exact changed owner inputs reported by the ledger, then reuse the existing named dispatcher. No unchanged failed-check retry."
+    },
+    {
+      "id": "WEB-RICH-TRANSFER",
+      "parent": "WFE-3.1",
+      "family": "rich-extensions",
+      "requirement": "25 rich-content contracts / WFE-1.2 registered-inline-transfer; extension formatting and mixed-rich",
+      "owner": "PRIMARY",
+      "enabled": "default or host-selected",
+      "apis": [
+        {
+          "package": "@edit-ac/core/extensions",
+          "path": "packages/core/src/extensions/index.ts",
+          "symbol": "ExtensionTransferRegistry"
+        },
+        {
+          "package": "@edit-ac/web/modules",
+          "path": "packages/web/src/modules/index.ts",
+          "symbol": "extensionClipboardCodec"
+        }
+      ],
+      "oracles": "Expected marked fragments, opaque tuples and cell metadata; exactly one commit/history; undo/redo/reopen and preserved original typed recovery.",
+      "proofs": [
+        {
+          "id": "wfe-1.2",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "mark-bold",
+            "rich-rectangle",
+            "shape-preservation",
+            "invalid-offers"
+          ]
+        }
+      ],
+      "nextAction": "Repair or authenticate the exact changed owner inputs reported by the ledger, then reuse the existing named dispatcher. No unchanged failed-check retry."
+    },
+    {
+      "id": "WEB-TABLES",
+      "parent": "WFE-3.1",
+      "family": "rich-extensions",
+      "requirement": "25 \u00a7\u00a7 Table editing / Scoped cell formatting; WEX-1.1, WEX-1.3/WEX-1.4 rich table union",
+      "owner": "PARALLEL",
+      "enabled": "default or host-selected",
+      "apis": [
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/index.ts",
+          "symbol": "Tables"
+        },
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/index.ts",
+          "symbol": "contentModules"
+        }
+      ],
+      "oracles": "Independent bounded rectangle/cell text/marks/metadata, invalidated foreign focus, lossless structured copy and rejection atomicity.",
+      "proofs": [
+        {
+          "id": "wex-1.4",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "rich-rectangle",
+            "shape-preservation",
+            "rejections"
+          ]
+        }
+      ],
+      "nextAction": "Consume existing WEX-1.3 and WEX-1.4 delivery requests under integration.lock at a safe checkpoint; repair focused union cases only if affected.",
+      "gap": "Authenticate the independent table selection/command/invalidation return (WEX-1.1 delivery.json), in addition to final WEX-1.4 rich transfer union."
+    },
+    {
+      "id": "WEB-INLINE-MEDIA",
+      "parent": "WFE-3.1",
+      "family": "rich-extensions",
+      "requirement": "25 \u00a7\u00a7 Attachment/blob lifecycle, image/file/embed presentation, captured touch formatting; WEX-1.4",
+      "owner": "PARALLEL",
+      "enabled": "default or host-selected",
+      "apis": [
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/index.ts",
+          "symbol": "contentModules"
+        },
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/index.ts",
+          "symbol": "attachmentPresenters"
+        },
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/index.ts",
+          "symbol": "embedPresenters"
+        }
+      ],
+      "oracles": "Marked fallback/caption and full descriptor/source survive rich copy and history; late/disposed surface cannot commit.",
+      "proofs": [
+        {
+          "id": "wex-1.4",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "image-caption-bold",
+            "image-caption-italic",
+            "image-caption-underline",
+            "image-caption-strike",
+            "image-caption-code",
+            "image-caption-link",
+            "file-caption-bold",
+            "file-caption-italic",
+            "file-caption-underline",
+            "file-caption-strike",
+            "file-caption-code",
+            "file-caption-link",
+            "reference-label"
+          ]
+        }
+      ],
+      "nextAction": "Repair or authenticate the exact changed owner inputs reported by the ledger, then reuse the existing named dispatcher. No unchanged failed-check retry.",
+      "gap": "Authenticate existing image-lifecycle, attachment-actions and controlled-embeds presenter/lifecycle receipts; caption transfer is only their transfer prerequisite."
+    },
+    {
+      "id": "WEB-SLASH",
+      "parent": "WFE-3.1",
+      "family": "rich-extensions",
+      "requirement": "25 \u00a7 Slash, references and reorder; 38 INT-1.9; WEX-1.2",
+      "owner": "PARALLEL",
+      "enabled": "default or host-selected",
+      "apis": [
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/index.ts",
+          "symbol": "slashCommands"
+        },
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/index.ts",
+          "symbol": "SlashPresenter"
+        }
+      ],
+      "oracles": "Bounded filtered catalog, keyboard/pointer/touch activation, local history/reopen, preserved errors and cancellation.",
+      "proofs": [
+        {
+          "id": "wex-1.2",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "catalog-bound",
+            "activation-pointer",
+            "activation-touch",
+            "activation-keyboard",
+            "preserve-cancel",
+            "preserve-readonly"
+          ]
+        }
+      ],
+      "nextAction": "Repair or authenticate the exact changed owner inputs reported by the ledger, then reuse the existing named dispatcher. No unchanged failed-check retry."
+    },
+    {
+      "id": "WEB-REFERENCES",
+      "parent": "WFE-3.1",
+      "family": "rich-extensions",
+      "requirement": "25 \u00a7 Slash, references and reorder; existing reference presenter owner; link enrichment and private-link display",
+      "owner": "PARALLEL",
+      "enabled": "default or host-selected",
+      "apis": [
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/index.ts",
+          "symbol": "References"
+        },
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/index.ts",
+          "symbol": "referenceSuggestions"
+        },
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/index.ts",
+          "symbol": "PrivateReferenceView"
+        },
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/index.ts",
+          "symbol": "linkEnrichment"
+        }
+      ],
+      "oracles": "Permission-checked catalog and private-label fallback; descriptor identity retained across copied/marked label.",
+      "proofs": [
+        {
+          "id": "wex-1.4",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "reference-label"
+          ]
+        }
+      ],
+      "nextAction": "Authenticate the independent reference catalog/permission presenter receipt as well as marked-label transfer before closing feature proof.",
+      "gap": "Authenticate reference-presenters and modules-references catalog/permission/browser receipts; marked-label transfer is only a prerequisite. Include link-enrichment/private-link-display source compatibility; no remote fetch is enabled by this inventory."
+    },
+    {
+      "id": "WEB-SEARCH-CODE",
+      "parent": "WFE-3.1",
+      "family": "rich-extensions",
+      "requirement": "25 \u00a7 First-party document search and code conveniences; original DSK search/code owners",
+      "owner": "PARALLEL",
+      "enabled": "default or host-selected",
+      "apis": [
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/index.ts",
+          "symbol": "documentSearch"
+        },
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/index.ts",
+          "symbol": "codeCommands"
+        },
+        {
+          "package": "@edit-ac/web/modules",
+          "path": "packages/web/src/modules/index.ts",
+          "symbol": "codeHighlighting"
+        }
+      ],
+      "oracles": "Expected literal search matches/replacement, source-preserving code edits and UTF-16 highlight spans; history/readonly/cancel.",
+      "proofs": [],
+      "nextAction": "Repair or authenticate the exact changed owner inputs reported by the ledger, then reuse the existing named dispatcher. No unchanged failed-check retry.",
+      "gap": "Authenticate exact current receipts architecture/evidence/desktop-interactions/document-search/receipt.json, code-commands/receipt.json and code-highlight; transfer proof does not substitute for presenter behavior."
+    },
+    {
+      "id": "WEB-MATH-REORDER",
+      "parent": "WFE-3.1",
+      "family": "rich-extensions",
+      "requirement": "25 \u00a7\u00a7 Code, Slash/references/reorder; existing math/reorder owner",
+      "owner": "PARALLEL",
+      "enabled": "default or host-selected",
+      "apis": [
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/index.ts",
+          "symbol": "MathNotation"
+        },
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/index.ts",
+          "symbol": "reorderControls"
+        }
+      ],
+      "oracles": "Source-preserving math fallback and one semantic reorder, no mutation for stale/readonly/cancelled gestures.",
+      "proofs": [],
+      "nextAction": "Repair or authenticate the exact changed owner inputs reported by the ledger, then reuse the existing named dispatcher. No unchanged failed-check retry.",
+      "gap": "Authenticate existing modules-math and modules-reorder public-browser receipts against the current union; source/render behavior remains required."
+    },
+    {
+      "id": "WEB-MARKDOWN",
+      "parent": "WFE-3.1",
+      "family": "optional-formats",
+      "requirement": "25 optional Markdown owner; WEX-2.1 direction inventory; product ?markdown",
+      "owner": "PARALLEL",
+      "enabled": "explicit ?markdown / host codec",
+      "apis": [
+        {
+          "package": "@edit-ac/markdown",
+          "path": "packages/markdown/src/index.ts",
+          "symbol": "initMarkdown"
+        },
+        {
+          "package": "@edit-ac/markdown/web",
+          "path": "packages/markdown/src/web.ts",
+          "symbol": "markdownExtension"
+        }
+      ],
+      "oracles": "Declared opt-in parser and literal disabled fallback, exact source preservation, isolated registration disposal.",
+      "proofs": [],
+      "nextAction": "Repair or authenticate the exact changed owner inputs reported by the ledger, then reuse the existing named dispatcher. No unchanged failed-check retry.",
+      "gap": "Consume exact optional-format delivery, then authenticate enabled installed-SDK Markdown product union; old default product proof does not enable Markdown."
+    },
+    {
+      "id": "WEB-CONVERSION",
+      "parent": "WFE-3.1",
+      "family": "optional-formats",
+      "requirement": "27 \u00a7 Direction/fidelity profiles; WEX-2.1 all 13 browser directions, PDF export-only",
+      "owner": "PARALLEL",
+      "enabled": "host-authorized browser format controller",
+      "apis": [
+        {
+          "package": "@edit-ac/web/formats",
+          "path": "packages/web/src/modules/formats.ts",
+          "symbol": "FormatControls"
+        }
+      ],
+      "oracles": "Independent DOCX/ODT/EPUB/PDF readers, original media bytes, one durable commit, bounded cancellation/recovery without staged leaks.",
+      "proofs": [],
+      "nextAction": "Process requests/web-feature-browser-formats-wex-2.1-20261019.json at safe integration checkpoint; preserve original27 native-media and qualification gates.",
+      "gap": "Exact owner return exists at ../../edit-ac-parallel-clients/architecture/evidence/web-feature-first-20261018/wex-2.1/delivery.json; consume its pending distinct integration request and authenticate its TAP/package/fixture pins."
+    },
+    {
+      "id": "WEB-TOUCH",
+      "parent": "WFE-3.1",
+      "family": "touch-browser",
+      "requirement": "40 MBT/MBI/MBV/MBF/MBL/MBC portable predicates; WFE-2.2",
+      "owner": "PRIMARY",
+      "enabled": "default or host-selected",
+      "apis": [
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/index.ts",
+          "symbol": "EditorViewport"
+        },
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/index.ts",
+          "symbol": "CommandControls"
+        },
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/index.ts",
+          "symbol": "mountEditorSurface"
+        }
+      ],
+      "oracles": "Expected text/selection after actual browser pointer/input, bounded gesture teardown, viewport/focus state, lifecycle recovery; supplied platform events are prepared.",
+      "proofs": [
+        {
+          "id": "wfe-2.2",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "MBT-04-pointercancel",
+            "MBT-04-lostpointercapture",
+            "MBT-04-blur",
+            "MBT-04-Escape",
+            "MBT-04-read-only",
+            "MBT-04-dispose",
+            "MBT-04-bounded",
+            "MBI-01-null",
+            "MBI-01-Unidentified",
+            "MBI-01-noncancelable",
+            "MBI-01-missing-beforeinput",
+            "MBI-01-observer-first"
+          ]
+        }
+      ],
+      "nextAction": "Repair or authenticate the exact changed owner inputs reported by the ledger, then reuse the existing named dispatcher. No unchanged failed-check retry."
+    },
+    {
+      "id": "WEB-ASSISTANCE",
+      "parent": "WFE-3.1",
+      "family": "touch-browser",
+      "requirement": "39 optional transport lifecycle / AIN-1.3; WFE-2.1",
+      "owner": "PRIMARY",
+      "enabled": "host-selected assistance; OS input default",
+      "apis": [
+        {
+          "package": "@edit-ac/web/modules",
+          "path": "packages/web/src/modules/index.ts",
+          "symbol": "assistiveInput"
+        },
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/editor.ts",
+          "symbol": "assistive"
+        }
+      ],
+      "oracles": "Prepared host packets through actual Session/WASM/IndexedDB, exact UTF-16 text, capture invalidation, permission/cancel/recovery and independent presenter ownership.",
+      "proofs": [
+        {
+          "id": "wfe-2.1",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "utf16-surrogate",
+            "utf16-combining",
+            "utf16-zwj",
+            "utf16-flag",
+            "utf16-rtl",
+            "revoke-cancel",
+            "revoke-blur",
+            "revoke-read-only",
+            "revoke-permission",
+            "revoke-registration"
+          ]
+        }
+      ],
+      "nextAction": "Repair or authenticate the exact changed owner inputs reported by the ledger, then reuse the existing named dispatcher. No unchanged failed-check retry."
+    },
+    {
+      "id": "WEB-MOBILE-EXTENSIONS",
+      "parent": "WFE-3.1",
+      "family": "touch-browser",
+      "requirement": "41 MWX-1.1\u20131.7,1.9 portable extension predicates; no MWX-1.8 device/overhead qualification",
+      "owner": "PARALLEL",
+      "enabled": "default or host-selected",
+      "apis": [
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/index.ts",
+          "symbol": "CommandControls"
+        },
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/index.ts",
+          "symbol": "References"
+        },
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/index.ts",
+          "symbol": "Tables"
+        }
+      ],
+      "oracles": "Captured touch-format target, clipboard original formats and stale gesture invalidation through public host adapters.",
+      "proofs": [],
+      "nextAction": "Consume changed WEX-2.2 portable owner return when delivered; do not wait for device predicates or modify active other-lane checkout.",
+      "gap": "WEX-2.2 owner is active; wait only for exact portable mobile-extension API/case return, while independent ledger/source work continues."
+    },
+    {
+      "id": "WEB-ROUTES",
+      "parent": "WFE-3.1",
+      "family": "routes-react",
+      "requirement": "PWE-1.2/1.3/1.5 installed SDK Task/comment, React StrictMode and document route",
+      "owner": "PRIMARY",
+      "enabled": "default or host-selected",
+      "apis": [
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/sdk.ts",
+          "symbol": "createEditor"
+        },
+        {
+          "package": "@edit-ac/react",
+          "path": "packages/react/src/index.ts",
+          "symbol": "EditorHost"
+        }
+      ],
+      "oracles": "Independent document identities, opposite mount order, route save/restore/Back, scoped errors/disposal and one common resource graph.",
+      "proofs": [
+        {
+          "id": "pwe-1.5",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "mixed-task-first",
+            "mixed-comment-first",
+            "equal-task-first",
+            "equal-comment-first",
+            "strictmode-route-restore",
+            "installed-common-resources"
+          ]
+        }
+      ],
+      "nextAction": "Repair or authenticate the exact changed owner inputs reported by the ledger, then reuse the existing named dispatcher. No unchanged failed-check retry."
+    },
+    {
+      "id": "WEB-LOCAL",
+      "parent": "WFE-3.1",
+      "family": "local-persistence",
+      "requirement": "PWE-1.4/1.5 local save/reopen/offline shell and corruption/denial recovery",
+      "owner": "PRIMARY",
+      "enabled": "default or host-selected",
+      "apis": [
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/sdk.ts",
+          "symbol": "createEditor"
+        },
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/index.ts",
+          "symbol": "openEditorStorage"
+        }
+      ],
+      "oracles": "Actual IndexedDB reopen of distinct identities, denied/missing/corrupt checkpoints never reseed, failed append retains live unsaved content and deliberate isolated recovery bytes.",
+      "proofs": [
+        {
+          "id": "pwe-1.5",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "independent-local-commits",
+            "offline-shell-reload-reopen",
+            "append-failure-keeps-live-replica",
+            "missing-checkpoint-never-reseeds",
+            "corrupt-checkpoint-never-reseeds"
+          ]
+        }
+      ],
+      "nextAction": "Repair or authenticate the exact changed owner inputs reported by the ledger, then reuse the existing named dispatcher. No unchanged failed-check retry."
+    },
+    {
+      "id": "WEB-READONLY",
+      "parent": "WFE-3.1",
+      "family": "readonly",
+      "requirement": "PWE-1.2/1.3/1.4 readonly admission and permission revocation",
+      "owner": "PRIMARY",
+      "enabled": "default or host-selected",
+      "apis": [
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/editor.ts",
+          "symbol": "setReadOnly"
+        },
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/index.ts",
+          "symbol": "mountEditor"
+        }
+      ],
+      "oracles": "Exact original content after denied input/commands, named identity stays readonly on reopen; sibling remains independent.",
+      "proofs": [
+        {
+          "id": "pwe-1.5",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "readonly-admission-and-revocation",
+            "readonly-authority",
+            "readonly-revocation-preserves-content"
+          ]
+        }
+      ],
+      "nextAction": "Repair or authenticate the exact changed owner inputs reported by the ledger, then reuse the existing named dispatcher. No unchanged failed-check retry."
+    },
+    {
+      "id": "WEB-COLLABORATION",
+      "parent": "WFE-3.1",
+      "family": "collaboration-presence",
+      "requirement": "host-enabled public sync/presence; original synchronization entry and offline-collaboration owner",
+      "owner": "PRIMARY",
+      "enabled": "host-authorized transport only; sample has no hosted sync",
+      "apis": [
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/editor.ts",
+          "symbol": "attachSync"
+        },
+        {
+          "package": "@edit-ac/web",
+          "path": "packages/web/src/editor.ts",
+          "symbol": "connectCollaboration"
+        }
+      ],
+      "oracles": "Real Yrs replica convergence and durable/outbox receipts across prepared transport loss/reorder/duplicate/reconnect; awareness remains transient.",
+      "proofs": [],
+      "nextAction": "Use the existing prepared socket pair and browser offline-collaboration dispatcher; no hosted service or external integration.",
+      "gap": "Authenticate architecture/evidence/synchronization-entry/receipt.json plus existing browser offline-collaboration/presence cases for the current SDK; default product checkpoint explicitly excludes peer reconnect."
+    },
+    {
+      "id": "WEB-AI-OPTIONAL",
+      "parent": "WFE-3.1",
+      "family": "rich-extensions",
+      "requirement": "25 RCH-2 optional AI writing contract; prepared-only host extension",
+      "owner": "PARALLEL",
+      "enabled": "explicit host extension only; absent from task sample default",
+      "apis": [
+        {
+          "package": "@edit-ac/web/ai",
+          "path": "packages/web/src/extensions/ai/actions.ts",
+          "symbol": "AiActions"
+        },
+        {
+          "package": "@edit-ac/web/ai/completion",
+          "path": "packages/web/src/extensions/ai/completion.ts",
+          "symbol": "AiCompletion"
+        }
+      ],
+      "oracles": "Captured target/proposal review, stale/revoked/disposed denial, one semantic acceptance/history; provider transport must remain mocked.",
+      "proofs": [],
+      "nextAction": "Read paid-inference policy before changing/running AI tests; use existing deterministic prepared transports only; no paid calls or live dogfood.",
+      "gap": "Locate exact original RCH-2 prepared-browser case receipt and source applicability; default product and generic COMPLETE names do not prove optional AI behavior."
+    }
+  ],
+  "proofs": [
+    {
+      "id": "wfe-1.1",
+      "owner": "PRIMARY",
+      "command": "npm run test:interactions -- --group command-surfaces",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-1.1/canonical/chromium/receipt.json",
+          "sha256": "570441059ebd5fb113ce4d59d885a75eb3c174cfda56acc30151aa57967cf022"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-1.1/canonical/firefox/receipt.json",
+          "sha256": "e153f66b8fb252a0468d3d6d621d751c281009cb7d1cfda862cd0ada5607ef20"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-1.1/canonical/webkit/receipt.json",
+          "sha256": "8d045a1be63f7327a6f788ab365b1af4ebd1e8a0784ea10fcbc3ae0be021f1c7"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-1.1/regressions/formatting/chromium/receipt.json",
+          "sha256": "bbdec3f082103abf2883cd4c259597c8bf1c03f6811cb9ca1dadc258302e5b71"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-1.1/regressions/formatting/firefox/receipt.json",
+          "sha256": "7f9b44315b9630de8d1c4731ae5bf25ef2e6d62659048579ba0b7faacffa939f"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-1.1/regressions/formatting/webkit/receipt.json",
+          "sha256": "e14ddd93ba0cccdfd307249151b3f3a754993369fae4aaea74aff7ea60674f10"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-1.1/regressions/history/chromium/receipt.json",
+          "sha256": "81033940173f88d554cc31fd4976062b73e8a95d99d2900a5fbba6ca52b11d00"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-1.1/regressions/history/firefox/receipt.json",
+          "sha256": "46eba468741866769fa5c4e4107ce69394b463cf072678bb6c57be32c8f52ab2"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-1.1/regressions/history/webkit/receipt.json",
+          "sha256": "1e2e42629e32101bb36ccf03ad5eb371dc001180a3d7cc7684419b430be2ab3a"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-1.1/regressions/keyboard/chromium/receipt.json",
+          "sha256": "ad726c0e7b258ec656f1b784bb4fda4ac9a4e2aa8beaf11f399e11712451945e"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-1.1/regressions/keyboard/firefox/receipt.json",
+          "sha256": "c7309d5d72afbeac870296c5b2aae32db02cc54c4496284c8de7c3d3527d0509"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-1.1/regressions/keyboard/webkit/receipt.json",
+          "sha256": "ca703bee6755b430afeb4f5826e5dc9223d260f4ddcd82f95e60de3032529ae3"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-1.1/regressions/keyboard-tables/chromium/receipt.json",
+          "sha256": "c3ecf66edc9b659fb7c66571144493d231e21b953092f6300636de3b9d9dc077"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-1.1/regressions/keyboard-tables/firefox/receipt.json",
+          "sha256": "355e3bb771c02a5743e2ca677466be50eebf88715b76d85107f8908e163718ce"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-1.1/regressions/keyboard-tables/webkit/receipt.json",
+          "sha256": "6fc2d119d1fdad024c41cfefebd147ac224f60a6f1af50d1473fb369085e577f"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-1.1/regressions/replacement/chromium/receipt.json",
+          "sha256": "ab148f33586b7725d6f341a6757f4abb983486dc0565770add5a2c4886e0c431"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-1.1/regressions/replacement/firefox/receipt.json",
+          "sha256": "870cbdb1f249fb2880bbc856a99b478aef3c83d3a2d76e45ac9549a7f4225820"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-1.1/regressions/replacement/webkit/receipt.json",
+          "sha256": "02b426b36d95a8ba52ceb6599762cde1a2abd223ca57940e70ef8f782a8bde65"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-1.1/sources.json",
+          "sha256": "2988128e134c0e2496054b69472278553b648e4d4b6280b824f04612e4783d68"
+        }
+      ]
+    },
+    {
+      "id": "wfe-1.2",
+      "owner": "PRIMARY",
+      "command": "npm run test:browser -- shared-rich-transfer",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-1.2/canonical/chromium/extension-formatting/receipt.json",
+          "sha256": "a123bd641788723b08d4f05efaefa6a47a1be092c5896657749210da7d1f5860"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-1.2/canonical/chromium/extension-formatting-mixed/receipt.json",
+          "sha256": "30c9bf0c0a16c6201fbb81b3f0233fb41de99b960f462e0bad0d545675c8bbef"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-1.2/canonical/chromium/registered-inline-transfer/receipt.json",
+          "sha256": "ff6fe34be600fba9f3d4c01a2932fbf44e39bd07418638b83f494b1fa5bb1b4e"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-1.2/canonical/firefox/extension-formatting/receipt.json",
+          "sha256": "eb20848a42414f6d6d71c63a19cc8722a4ab3d731fe7dbf97495968c20367f88"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-1.2/canonical/firefox/extension-formatting-mixed/receipt.json",
+          "sha256": "aa94dd41d3d8e7cce1b0b02c119583e94fb6d5a005905f3ad181ebf145e9960e"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-1.2/canonical/firefox/registered-inline-transfer/receipt.json",
+          "sha256": "3335a4639864d52c446f1b49a58314101053bf6df90508ea08bf34b4453d466c"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-1.2/canonical/webkit/extension-formatting/receipt.json",
+          "sha256": "29ed5930250e16638fc5c78fbf85c8ec8194cc49c945402acf0dacc42da0b482"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-1.2/canonical/webkit/extension-formatting-mixed/receipt.json",
+          "sha256": "1e932ba694d42fc41fd891b60961fe5fb9cd863fe69efff72aa5b4d094931437"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-1.2/canonical/webkit/registered-inline-transfer/receipt.json",
+          "sha256": "466e0f3c34e8bda853683c0bf38bc57a00e3b2b7616badb22dce43557694d87f"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-1.2/sources.json",
+          "sha256": "6345d40493c30413b8c8146609333025cffe513f362b6af34b883ce2c21cda19"
+        }
+      ]
+    },
+    {
+      "id": "wfe-2.1",
+      "owner": "PRIMARY",
+      "command": "npm run test:browser -- assistive-dictation; npm run test:browser -- assistive-presenter",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.1/dictation-repaired/chromium/receipt.json",
+          "sha256": "500a17e602a69c24734fbf12f908cd016b12c03139431593f845915d3197f086"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.1/dictation-repaired/firefox/receipt.json",
+          "sha256": "044deba3b8b9cee5c6b1df1ab0e6a63e589cd92af1fb8fb66b8e8ddcca3f9ccd"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.1/dictation-repaired/webkit/receipt.json",
+          "sha256": "cfc1db7cad2620cc48b0777b2e23a695cbfd045a924a5dd8ecf87a11cd4d49e3"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.1/presenter-final/chromium/receipt.json",
+          "sha256": "b776b0d7ba234b3bb1218d943c61998db3017d1b60943706454d3732259ad4f9"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.1/presenter-final/firefox/receipt.json",
+          "sha256": "4dc7a20eda973680b363bb9dc0585b01b1ec5f7358deeffb318effd79ca26d9b"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.1/presenter-final/webkit/receipt.json",
+          "sha256": "2b8822e4df0ad0713387f94d1b2de8468db97f0073cbaef7a184e9828080a081"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.1/source-pins.json",
+          "sha256": "916a4f76ff609bb37e5bd4d5b5d4c6e5c3e15a0df7dae60da98b8d6891416a2d"
+        }
+      ]
+    },
+    {
+      "id": "wfe-2.2",
+      "owner": "PRIMARY",
+      "command": "npm run test:mobile-web -- --group <harness|touch|input|viewport|focus|lifecycle|capabilities|modules|checkpoint|toolbar>",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/chromium/harness/receipt.json",
+          "sha256": "86b97f4f74e128e3a5df1c3e7c9a59852c6785191e2a450b102d18871773674c"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/chromium-repaired/touch/receipt.json",
+          "sha256": "98fb624093d0e610a640de04da211e4b755a56bec4c9bee8bed2d00cb927032c"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/final-chromium/input/receipt.json",
+          "sha256": "9f87af09dffaee018352543d9115af4d0e62d0898757f8330b1c21a2c88546f4"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/final-chromium/viewport/receipt.json",
+          "sha256": "6582b4ac16687c480da45d1c0cd05ed5a7a3c05b36292b809f798f98d34c4472"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/chromium-repaired/focus/receipt.json",
+          "sha256": "e4aac31bd22f3465e50fc9f593e13792ca719ae310120bf1d4dc8df7c492f2b0"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/chromium-repaired/lifecycle/receipt.json",
+          "sha256": "27e1b6df25564d11259a29e699bd07f8d18c8bd7956a456766b3b8c89ca94122"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/chromium-repaired/capabilities/receipt.json",
+          "sha256": "5ffccc67d8685bca5a585ddb6b429ca9a6b874a337e303d4b8fdb06fdf2120de"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/chromium-final/modules/receipt.json",
+          "sha256": "c5a747901a48abe58099c61331a1a68b9779441bb276017f2efeb130b729c2d9"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/chromium-final/checkpoint/receipt.json",
+          "sha256": "77806cb07565189861e2c97fba3db261a2580ed25017cc004b5d6ae7c452fb84"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/chromium-toolbar-repaired/receipt.json",
+          "sha256": "bb0bda4040d6bca860d910f018dcb6dd82537aa2f42b6ac6b67f0b06e57b3914"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/webkit/harness/receipt.json",
+          "sha256": "d4218d15b32a25ca09c0fc115d35ee879faaac2b217bec3292b352c474ed7803"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/webkit-final/touch/receipt.json",
+          "sha256": "5562f87bf28f2a94cefdd7e86155e5ede13286b865e631a895c93715623e6b03"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/webkit/input/receipt.json",
+          "sha256": "fca5261fba363eeac112360b3dbe2d7a5f89b3b0645f7aff0185ac8557ad41de"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/webkit/viewport/receipt.json",
+          "sha256": "2f2bb46a5542f9e4b7845bb3bb6b456f73dc135dfb64806a5d5bd3e29cc989ee"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/webkit/focus/receipt.json",
+          "sha256": "da5f766c76c50b1bdda9663a43d0667798ff478a32d60baf15dafac57c3e9514"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/webkit/lifecycle/receipt.json",
+          "sha256": "66e9f4b72ddad26c5c27041c3831904ce955f89a0ecb93021cb65d53dc25c994"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/webkit/capabilities/receipt.json",
+          "sha256": "21dc4c161afe181cd57584a95ea3243ffe585097565dc287944029745ceeb3fd"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/webkit-final/modules/receipt.json",
+          "sha256": "aeff245081379a79f0d89f1875bd6760d8d657a71ed73528ca638039213844f2"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/webkit-final/checkpoint/receipt.json",
+          "sha256": "9bb58bd5d6c8cfd99d708a80026f961b0348edf0ab69a42e8ea584e87f02c5b1"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/webkit-toolbar-repaired/receipt.json",
+          "sha256": "31d3ecbbaa770a81969cf2879bd20f1d58a40356b6a71a395304e87ce1b0c373"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/firefox/harness/receipt.json",
+          "sha256": "7d298c79562f091d4eb2bbce90e0cb50978af7c2a8db8cdc1d3e0df875e55c3c"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/firefox-final/touch/receipt.json",
+          "sha256": "513f9daae1d1f09b975f227b89cbaf5aff9193613a9c0911b8e409c9ee527d07"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/firefox/input/receipt.json",
+          "sha256": "31d06df2e2c4f98a98e77ef057da0ab0fa10e0d1532f0c7fb2a2e64982a772da"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/firefox/viewport/receipt.json",
+          "sha256": "86b05c713ff8287a38782c72f620983d1b2cbd9f22fa78dbc5827071babcc0b0"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/firefox/focus/receipt.json",
+          "sha256": "b2f7692cedb630cc5dd1f111a5dd4555a4d80aed4912020fdc97e62e78b57328"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/firefox/lifecycle/receipt.json",
+          "sha256": "173d51a229c56d59e88093891d89579f4eb13b7c687d844bc20a9798ca92e7f8"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/firefox/capabilities/receipt.json",
+          "sha256": "8354e94b40e6d0fa7f1a2a143ba69ce29833e80a38e44ed6a0ec65d20717cc4a"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/firefox/modules/receipt.json",
+          "sha256": "b47ad8a417d29b508f1a10035e3a08ce046a1b44a7ee77ebea4684e112cec320"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/firefox/checkpoint/receipt.json",
+          "sha256": "1979d541f586d56c96e120bc666c70f6846edec39e4bccab71996b6c72972d25"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/firefox-toolbar-repaired/receipt.json",
+          "sha256": "b36369227145b59d92121967b2872759887faec18abeaa8b03edc35aa5afd8d1"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/source-pins.json",
+          "sha256": "fbc1060c7b05c17b4cfab6ae2df010bad8dd0db967475b01e54ea66e15bdc5bc"
+        }
+      ]
+    },
+    {
+      "id": "wex-1.4",
+      "owner": "PARALLEL",
+      "command": "npm run test:browser -- extension-formatting-mixed; npm run test:browser -- extension-formatting",
+      "receipts": [
+        {
+          "path": "../../edit-ac-parallel-clients/architecture/evidence/web-feature-first-20261018/wex-1.4/run-2-integrated/chromium/mixed/receipt.json",
+          "sha256": "ac248114412d2aba44bafb6156626dcd0188e3ed4eda77b7547d48f1f6b7a9fd"
+        },
+        {
+          "path": "../../edit-ac-parallel-clients/architecture/evidence/web-feature-first-20261018/wex-1.4/run-2-integrated/chromium/receipt.json",
+          "sha256": "099d952e24d86964c8468393dc32fc42b2673f348979df1d820abe26486876e2"
+        },
+        {
+          "path": "../../edit-ac-parallel-clients/architecture/evidence/web-feature-first-20261018/wex-1.4/run-2-integrated/firefox/mixed/receipt.json",
+          "sha256": "12bd1971547bc7c29dc4addd43f590b0b73e7b3605a378859d331cb79ac28834"
+        },
+        {
+          "path": "../../edit-ac-parallel-clients/architecture/evidence/web-feature-first-20261018/wex-1.4/run-2-integrated/firefox/receipt.json",
+          "sha256": "5dd2802c99ea52677978bd4e6584b3deaa17446015a3f7ec5e482ff940f9a559"
+        },
+        {
+          "path": "../../edit-ac-parallel-clients/architecture/evidence/web-feature-first-20261018/wex-1.4/run-2-integrated/webkit/mixed/receipt.json",
+          "sha256": "0e759f4d8a66dd0e140773fc8972492622641c94ac560ef87d773cd99710aac3"
+        },
+        {
+          "path": "../../edit-ac-parallel-clients/architecture/evidence/web-feature-first-20261018/wex-1.4/run-2-integrated/webkit/receipt.json",
+          "sha256": "975ea592c99c28d556e23586c2161ef91b6b7dc9ff1d912cd9adf1859072e396"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../../edit-ac-parallel-clients/architecture/evidence/web-feature-first-20261018/wex-1.4/delivery.json",
+          "sha256": "ed7c159d4d3ced1f81af87f94ecfaa224770ec1fb0b7ec590f7a9501c458d5c3",
+          "field": [
+            "sources"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wex-1.2",
+      "owner": "PARALLEL",
+      "command": "npm run test:browser -- slash-context",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wex-1.2/run-1/chromium/baseline/receipt.json",
+          "sha256": "8d59e555e55cede54c6d64c3221e154e2362820f72b58ea5d8c929318a3951a2"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wex-1.2/run-1/chromium/receipt.json",
+          "sha256": "907a9472688dd939ce861b6ec4202fa93963afaf35b860e06b900cabe731dda9"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wex-1.2/run-1/firefox/baseline/receipt.json",
+          "sha256": "c43fd5014f90cbb9f964eba30b16aec37e2abbc83cec754e8ee43e283cac4a0b"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wex-1.2/run-1/firefox/receipt.json",
+          "sha256": "0a8655e1e038e3f6790c986756c41cdae7c2b0cb703aedf8625e04f52f157151"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wex-1.2/run-1/webkit/baseline/receipt.json",
+          "sha256": "45b0e13213be1a2600befc19bbf68b6e5918fc0994b97c70a6ee5427770243c4"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wex-1.2/run-1/webkit/receipt.json",
+          "sha256": "baabc3c4d68fd8e5c29b20471a686e468a969240815143fafb168d1dde24283e"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wex-1.2/source-pins.json",
+          "sha256": "76ebcebe70d672bd3b2595f8abbefc5f559ae359905cfc05bb74ca72cc14fd4d"
+        }
+      ]
+    },
+    {
+      "id": "pwe-1.5",
+      "owner": "PARALLEL/product",
+      "command": "node tests/scenarios/run.mjs web-product-checkpoint",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/browser-product-workflows-20261018/pwe-1.5/2026-10-18T21-07-16-811Z/chromium/web-task-workspace/receipt.json",
+          "sha256": "12b20a476cb4ae19889e3d856d75e841b3f70df7e93ae5348cd9949ce8ae2bb3",
+          "packageDirectory": "../architecture/evidence/browser-product-workflows-20261018/pwe-1.5/2026-10-18T21-07-16-811Z"
+        },
+        {
+          "path": "../architecture/evidence/browser-product-workflows-20261018/pwe-1.5/2026-10-18T21-10-25-787Z/chromium/web-react-routes/receipt.json",
+          "sha256": "fe2e388f58c411aab2004fb80040233e277c06633076542d3171fc3d96d6ec3e",
+          "packageDirectory": "../architecture/evidence/browser-product-workflows-20261018/pwe-1.5/2026-10-18T21-10-25-787Z"
+        },
+        {
+          "path": "../architecture/evidence/browser-product-workflows-20261018/pwe-1.5/2026-10-18T21-07-16-811Z/chromium/web-local-recovery/receipt.json",
+          "sha256": "25f1f20cb8855675d1b36237707a1ad20a7ff6e92553d942d0599cc0250ccf5f",
+          "packageDirectory": "../architecture/evidence/browser-product-workflows-20261018/pwe-1.5/2026-10-18T21-07-16-811Z"
+        },
+        {
+          "path": "../architecture/evidence/browser-product-workflows-20261018/pwe-1.5/2026-10-18T21-07-16-811Z/firefox/web-task-workspace/receipt.json",
+          "sha256": "7ee0e2aa9d797391633074a59aa86c4b91ed6544944bc5a69773ba7bd627c2e3",
+          "packageDirectory": "../architecture/evidence/browser-product-workflows-20261018/pwe-1.5/2026-10-18T21-07-16-811Z"
+        },
+        {
+          "path": "../architecture/evidence/browser-product-workflows-20261018/pwe-1.5/2026-10-18T21-10-25-787Z/firefox/web-react-routes/receipt.json",
+          "sha256": "581f8fa147ce5dfdf64bb6f2b0f9a66c6e1eb9f71a9af4b377890af786bed223",
+          "packageDirectory": "../architecture/evidence/browser-product-workflows-20261018/pwe-1.5/2026-10-18T21-10-25-787Z"
+        },
+        {
+          "path": "../architecture/evidence/browser-product-workflows-20261018/pwe-1.5/2026-10-18T21-07-16-811Z/firefox/web-local-recovery/receipt.json",
+          "sha256": "e588e0b1fae1b8e17ca53605b2cf9e9551526d177abb5499e68a113b3a9ac6d4",
+          "packageDirectory": "../architecture/evidence/browser-product-workflows-20261018/pwe-1.5/2026-10-18T21-07-16-811Z"
+        },
+        {
+          "path": "../architecture/evidence/browser-product-workflows-20261018/pwe-1.5/2026-10-18T21-07-16-811Z/webkit/web-task-workspace/receipt.json",
+          "sha256": "0b7933fad50c8cd0223ff5a3b8bc7bc20f771ebfe15252bb2b2bed80c5c1715e",
+          "packageDirectory": "../architecture/evidence/browser-product-workflows-20261018/pwe-1.5/2026-10-18T21-07-16-811Z"
+        },
+        {
+          "path": "../architecture/evidence/browser-product-workflows-20261018/pwe-1.5/2026-10-18T21-10-25-787Z/webkit/web-react-routes/receipt.json",
+          "sha256": "6fa6f282d588ed9c049b193f5c85ead6e66ae2e53e9b4f9959a52e3b88f7a50a",
+          "packageDirectory": "../architecture/evidence/browser-product-workflows-20261018/pwe-1.5/2026-10-18T21-10-25-787Z"
+        },
+        {
+          "path": "../architecture/evidence/browser-product-workflows-20261018/pwe-1.5/2026-10-18T21-07-16-811Z/webkit/web-local-recovery/receipt.json",
+          "sha256": "551f418c78048ab05058080e73b141a52dfdbaf248793708714874547b5374dd",
+          "packageDirectory": "../architecture/evidence/browser-product-workflows-20261018/pwe-1.5/2026-10-18T21-07-16-811Z"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/browser-product-workflows-20261018/pwe-1.5/2026-10-18T21-10-25-787Z/receipt.json",
+          "sha256": "89fd79028fefcfa86097bd027b5bc3655fde4cf05b52fd64abd84603156a7261",
+          "field": [
+            "sources"
+          ]
+        }
+      ],
+      "sdkRevision": "12c4a734e38c9dbb153c63cbfeb626b565ff8c20"
+    }
+  ],
+  "limits": [
+    "Existing evidence authentication is not new feature execution or a complete alpha checkpoint.",
+    "Raw receipts retain their original failures and package/fixture/runtime pins; only named successful final receipts are indexed here.",
+    "Source drift is unresolved; no changed input is silently excluded. API text references are navigation, not behavioral proof.",
+    "Every original native/device/OS/IME/AT predicate remains unchecked in roadmap43; performance/size/security/release campaigns and public docs are later phases.",
+    "Cloud28 remains deferred; local saves do not claim remote durability. No push, publication, deployment, external integrations, credentials or paid inference."
+  ]
+}
