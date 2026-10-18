@@ -6,7 +6,26 @@ import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { digest, verifyPins } from '../../../scripts/architecture-budgets.mjs';
-import { inspectNativeInput, inspectNativeCJK, inspectNativeBuild, inspectNativeWorkload } from '../../../scripts/native-input-evidence.mjs';
+import { inspectNativeInput, inspectNativeCJK, inspectPinyinDispatches, inspectNativeBuild, inspectNativeWorkload, inspectNativeEditWindows } from '../../../scripts/native-input-evidence.mjs';
+// Prepared detector controls qualify ordering sensitivity only, never runtime support.
+const windowSamples=Array.from({length:12},(_,i)=>({inputAt:100+i*10,layoutDoneAt:105+i*10}));
+const windowResources=[{at:10},{at:20},...windowSamples.map(s=>({at:s.layoutDoneAt+1})),{at:230},{at:240}];
+test('prepared native edit windows accept serialized callbacks and associated resources',()=>{
+  inspectNativeEditWindows(windowSamples,windowResources);
+});
+for(const [name,mutate,reason] of [
+  ['reordered edits',(s,r)=>{[s[0],s[1]]=[s[1],s[0]];[r[2],r[3]]=[r[3],r[2]];},/overlapping or reordered/],
+  ['overlapping edits',s=>s[0].layoutDoneAt=s[1].inputAt+1,/overlapping or reordered/],
+  ['resource before acknowledgment',(s,r)=>r[2].at=s[0].layoutDoneAt-0.001,/resource outside acknowledged/],
+  ['resource after next input',(s,r)=>r[2].at=s[1].inputAt+0.001,/resource outside acknowledged/],
+  ['missing resource',(s,r)=>r.pop(),/missing native edit resources/],
+  ['nonfinite input',s=>s[0].inputAt=NaN,/invalid native edit window/],
+  ['reversed layout',s=>s[0].layoutDoneAt=s[0].inputAt-1,/invalid native edit window/],
+  ['empty edits',s=>s.length=0,/missing native edit windows/],
+]) test('prepared native edit windows reject '+name,()=>{
+  const samples=structuredClone(windowSamples),resources=structuredClone(windowResources);
+  mutate(samples,resources);assert.throws(()=>inspectNativeEditWindows(samples,resources),reason);
+});
 const root = fileURLToPath(new URL('../../../',import.meta.url));
 const read = p => readFile(resolve(root,p));
 const profileBytes = await read('benchmarks/profiles/native-input-v1.json'), profile = JSON.parse(profileBytes);
@@ -17,6 +36,12 @@ const result = JSON.parse(await read(index.directory+'/native-result.json'));
 const accessibility = JSON.parse(await read(index.directory+'/accessibility.json'));
 const cjk = JSON.parse(await read(index.directory+'/cjk-result.json'));
 const cjkAX = JSON.parse(await read(index.directory+'/cjk-accessibility.json'));
+const pinyinDispatches=[];
+for(const path of Object.keys(receipt.artifacts).filter(p=>p.startsWith('attachments/') && p.endsWith('.json'))) {
+  const dispatch=JSON.parse(await read(index.directory+'/'+path));
+  if(dispatch.transport==='single ordinary OS touch at observed software-key center; no replay or setter') pinyinDispatches.push(dispatch);
+}
+pinyinDispatches.sort((a,b)=>a.before-b.before);
 let observations, cjkObservations;
 const workloadObservations=[];
 const rejectedControls=[];
@@ -25,7 +50,14 @@ const nativeBuild = Object.fromEntries(await Promise.all([
 ].map(async([key,path])=>[key,await read(index.directory+'/'+path)])));
 test('fresh native execution binds actual current target features, compiler and rebuilt library/app',async()=>{
   const cargo=spawnSync(resolve(homedir(),'.cargo/bin/cargo'),['+1.97.1','tree','--locked','--offline','--target','aarch64-apple-ios-sim','-p','editac-ffi','--features','fitness-trace','--edges','normal,build,features','--prefix','none','--format','{p}|{f}'],{cwd:root,encoding:'utf8'});
-  assert.equal(cargo.status,0,cargo.stderr); assert.equal(cargo.stdout,nativeBuild.graph.toString());
+  assert.equal(cargo.status,0,cargo.stderr);
+  // A qualified build may move between isolated and owning worktrees. Compare
+  // only that root spelling canonically; exact source/manifest pins below and
+  // every external dependency/version/feature and retained artifact still bind.
+  const originalWorkspace=receipt.checks.find(c=>c.id==='native-build')?.workspace;
+  assert(typeof originalWorkspace==='string' && originalWorkspace.startsWith('/'));
+  const graphAt=(value,workspace)=>value.split(resolve(workspace)+'/').join('<workspace>/');
+  assert.equal(graphAt(cargo.stdout,root),graphAt(nativeBuild.graph.toString(),originalWorkspace));
   const rustc=spawnSync(resolve(homedir(),'.cargo/bin/rustc'),['+1.97.1','-vV'],{cwd:root,encoding:'utf8'});
   assert.equal(rustc.status,0,rustc.stderr); assert.equal(rustc.stdout,nativeBuild.rustc.toString());
   inspectNativeBuild(receipt,{...nativeBuild,
@@ -58,16 +90,23 @@ test('native build admission rejects failed build or altered feature command',()
   }
 });
 for (const path of ['Cargo.toml','Cargo.lock','native/ios/fitness/NativeFitness.swift','native/ios/fitness/NativeFitnessUITests.swift',
-  'tests/native/fixtures/bounded-abi.json']) test('native source admission rejects changed '+path,async()=>{
+  'native/ios/fitness/Info.plist','tests/native/fixtures/bounded-abi.json']) test('native source admission rejects changed '+path,async()=>{
   assert(receipt.sourceInputs[path]); await assert.rejects(verifyPins(root,{[path]:'0'.repeat(64)}));
 });
 test('native OS keyboard, accessibility client, semantic preservation and display callbacks admit exact target runtime artifacts', async () => {
   assert.equal(digest(bytes), index.receiptHash); assert.equal(digest(profileBytes),receipt.profileHash);
+  const preflight = JSON.parse(await read(index.directory+'/runtime-ready.json'));
+  assert.deepEqual(receipt.runtimePreflight,preflight);
+  for (const field of ['applicationActive','sceneActive','keyWindow']) assert.equal(preflight[field],true);
+  assert(Number.isSafeInteger(preflight.pid) && preflight.pid>0);
+  for (const id of ['installer-start','installer-ready','runtime-install','runtime-launch','runtime-container','runtime-terminate']) {
+    const check=receipt.checks.find(c=>c.id===id); assert(check && check.exit===0 && check.timeout===false);
+  }
   const fitness = JSON.parse(await read('benchmarks/profiles/fitness-v1.json'));
   assert.equal(profile.limits.inputVisiblePhoneMs,fitness.limits.phone['input-visible']);
   const sources=['.node-version','scripts/prepare-native-workloads.mjs','benchmarks/fixtures.mjs','crates/editac-ffi/examples/fitness-seed.rs','fixtures/schema-v5/mapping.rs','fixtures/schema-v5/seed.json','benchmarks/profiles/native-input-v1.json','tests/native/ios-fitness.py','native/ios/fitness/NativeFitness.swift',
-    'native/ios/fitness/NativeFitnessUITests.swift','tests/native/fixtures/bounded-abi.json','Cargo.toml','Cargo.lock'];
-  for (const crate of ['editac-core','editac-ffi','editac-wasm']) {
+    'native/ios/fitness/NativeFitnessUITests.swift','native/ios/fitness/Info.plist','tests/native/fixtures/bounded-abi.json','Cargo.toml','Cargo.lock'];
+  for (const crate of ['editac-core','editac-ffi','editac-wasm','editac-session','editac-markdown','editac-diff']) {
     sources.push(`crates/${crate}/Cargo.toml`);
     for(const path of await readdir(resolve(root,`crates/${crate}/src`),{recursive:true})) if(path.endsWith('.rs')) sources.push(`crates/${crate}/src/${path}`);
   }
@@ -84,6 +123,9 @@ test('native OS keyboard, accessibility client, semantic preservation and displa
   observations = inspectNativeInput(profile,receipt,result,accessibility);
 });
 const mutations = {
+  'missing append focus clocks': (r,n) => delete n.focusReadiness,
+  'reversed append focus clocks': (r,n) => n.focusReadiness.readyAt=0,
+  'wrong append focus selection': (r,n) => n.focusReadiness.selectionUtf16=[0,0],
   'missing native focus acknowledgment': (r,n) => delete n.cases.find(c=>c.id==='os-keyboard-committed-source').observed.focusRequests,
   'unbounded native focus retries': (r,n) => n.cases.find(c=>c.id==='os-keyboard-committed-source').observed.focusRequests=4,
   'skipped native case': (r,n) => n.counts.skipped++,
@@ -118,10 +160,26 @@ for (const [name,mutate] of Object.entries(mutations)) test('native admission re
   });
 });
 test('OS Pinyin candidate composition, commit, cancellation and accessibility geometry admit exact native artifacts',()=>{
-  cjkObservations=inspectNativeCJK(profile,receipt,cjk,cjkAX);
+  cjkObservations=inspectNativeCJK(profile,receipt,cjk,cjkAX,pinyinDispatches);
+});
+for(const [name,mutate] of Object.entries({
+  'missing key':d=>d.pop(),
+  'reordered keys':d=>[d[0],d[1]]=[d[1],d[0]],
+  'unmarked literal transport':d=>d[0].transport='KeyboardEvents.typeText',
+  'key outside keyboard':d=>d[0].frame.y=0,
+  'wrong tap point':d=>d[0].point.x+=1,
+  'reversed dispatch interval':d=>d[0].after=d[0].before-1
+})) test('CJK admission rejects '+name+' software-key dispatch',()=>{
+  assert.doesNotThrow(()=>inspectPinyinDispatches(pinyinDispatches));
+  const changed=structuredClone(pinyinDispatches);mutate(changed);assert.throws(()=>inspectPinyinDispatches(changed));
 });
 const cjkMutations={
-  'invented CJK focus request':(r,n)=>n.cases[1].observed.focusRequests=1,
+  'missing CJK focus request':(r,n)=>n.cases[1].observed.focusRequests=0,
+  'unbounded CJK focus requests':(r,n)=>n.cases[1].observed.focusRequests=4,
+  'missing CJK focus clocks':(r,n)=>delete n.focusReadiness,
+  'wrong CJK focus selection':(r,n)=>n.focusReadiness.selectionUtf16=[0,0],
+  'reversed CJK focus clocks':(r,n)=>n.focusReadiness.readyAt=0,
+  'missing OS CJK dispatch transport':(r,n,a)=>delete a.transport,
   'missing marked input':(r,n)=>n.compositionEvents=n.compositionEvents.filter(e=>!e.marked),
   'wrong keyboard':(r,n)=>n.compositionEvents[0].inputMode='en-US',
   'marked text commits early':(r,n)=>n.compositionEvents.find(e=>e.marked).committedAfter+='x',
@@ -140,9 +198,9 @@ const cjkMutations={
   'composition AX source corruption':(r,n,a)=>a.keys[0].source+='n'
 };
 for(const [name,mutate] of Object.entries(cjkMutations)) test('CJK admission rejects '+name,()=>{
-  assert.doesNotThrow(()=>inspectNativeCJK(profile,receipt,cjk,cjkAX), 'valid current CJK contrast');
+  assert.doesNotThrow(()=>inspectNativeCJK(profile,receipt,cjk,cjkAX,pinyinDispatches), 'valid current CJK contrast');
   const r=structuredClone(receipt),n=structuredClone(cjk),a=structuredClone(cjkAX); mutate(r,n,a);
-  assert.throws(()=>inspectNativeCJK(profile,r,n,a),error=>{
+  assert.throws(()=>inspectNativeCJK(profile,r,n,a,pinyinDispatches),error=>{
     rejectedControls.push({family:'CJK',name,reason:error.message.slice(0,512)}); return true;
   });
 });
@@ -174,6 +232,10 @@ for (const name of ['Task','Long']) {
     'unbounded focus retries':v=>v[2].focusRequests=4,
     'missing native attribution':v=>delete v[2].samples[0].rustTrace,
     'missing anchor attribution':v=>delete v[2].samples[0].anchorDoneAt,
+    'missing storage attribution':v=>delete v[2].samples[0].storageDoneAt,
+    'reversed selection attribution':v=>v[2].samples[0].selectionDoneAt=v[2].samples[0].storageDoneAt-1,
+    'broadened layout range':v=>v[2].samples[0].layoutRangeUtf16[1]=v[2].setup.projectedUtf16Units,
+    'missing incremental TextKit mode':v=>delete v[2].setup.allowsNonContiguousLayout,
     'reversed request construction':v=>v[2].samples[0].batchStartAt=v[2].samples[0].focusDoneAt-1,
     'missing Rust JSON span':v=>delete v[2].samples[0].rustTrace.resultJsonMs,
     'nonfinite Rust commit':v=>v[2].samples[0].rustTrace.commitMs=Infinity,
@@ -191,6 +253,10 @@ for (const name of ['Task','Long']) {
       'unbounded focus retries': /missing actual workload focus acknowledgment/,
       'missing native attribution': /missing native Rust trace version/,
       'missing anchor attribution': /native attribution timeline/,
+      'missing storage attribution': /native attribution timeline/,
+      'reversed selection attribution': /native attribution timeline/,
+      'broadened layout range': /changed-character layout range/,
+      'missing incremental TextKit mode': /missing incremental TextKit mode/,
       'reversed request construction': /native attribution timeline/,
       'missing Rust JSON span': /missing native Rust span/,
       'nonfinite Rust commit': /missing native Rust span/,
