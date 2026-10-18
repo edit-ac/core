@@ -8,4 +8,14 @@ session.then(async s=>{const receipt:AssetOperationReceipt=await s.enqueue('stab
 const documentReceipt:{updateId:string}=null as unknown as AssetOperationReceipt;
 // @ts-expect-error explicit source grant is mandatory
 session.then(s=>s.enqueue('node',{version:1,operationId:'id',identity:grant.identity,action:'ingest',byteLimit:1}));
+session.then(async s=>{
+  const request={version:1 as const,operationId:'stage_original',identity:grant.identity,action:'ingest' as const,byteLimit:32};
+  const staged:AssetOperationReceipt=await s.stageOriginal('import_job','prepared_original',request,grant,new Uint8Array([0,255]));
+  const source:Uint8Array=await s.preparedSource('import_job','prepared_original',grant);
+  const fences:readonly string[]=(await s.inspect()).fencedJobs;
+  await s.fenceJob('import_job');
+  // @ts-expect-error staging requires explicit authority
+  await s.stageOriginal('import_job','other',request,new Uint8Array([1]));
+  void [staged,source,fences];
+});
 void raw;

@@ -2,7 +2,7 @@
 //! separate acceptance gates; all plans here stage the entire batch first.
 use super::text::{TextError, TextOrigin};
 use crate::{
-    document::{Document, DocumentError, DocumentIdentity, ReplayUpdate, MAX_RESTORE_BYTES},
+    document::{Document, DocumentError, DocumentIdentity, MAX_RESTORE_BYTES, ReplayUpdate},
     editor_mapping as m,
 };
 use std::collections::VecDeque;
@@ -369,7 +369,7 @@ impl Document {
             text::TextCommand,
         };
         use crate::anchors::{Bias, Resolution, Selection};
-        use crate::{document::BlockAttributes, Utf16Offset};
+        use crate::{Utf16Offset, document::BlockAttributes};
         super::fragment::validate(blocks).map_err(|_| EditorError::InvalidCommand)?;
         // Edge atoms need editable cuts around them. Otherwise assigning an
         // opaque tuple to the first/last destination could absorb unrelated
@@ -2670,9 +2670,9 @@ mod transaction_tests {
     #[test]
     fn initial_text_reuses_read_only_plan_but_later_text_observes_staged_state() {
         use crate::{
+            Utf16Offset,
             anchors::{Bias, Selection},
             commands::text::TextCommand,
-            Utf16Offset,
         };
         for stable in [false, true] {
             let document_id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa68";
@@ -2920,8 +2920,8 @@ mod transaction_tests {
     fn v5_witnessed_cross_source_literal_conversion_is_silent_then_commits_once() {
         use super::super::blocks::BlockCommand;
         use super::super::text::TextCommand;
-        use crate::anchors::{Bias, Selection};
         use crate::Utf16Offset;
+        use crate::anchors::{Bias, Selection};
         let identity = DocumentIdentity::v5(
             "cccccccc-cccc-4ccc-8ccc-cccccccccc55",
             "dddddddd-dddd-4ddd-8ddd-dddddddddd55",
@@ -3014,11 +3014,12 @@ mod transaction_tests {
             n.runs.iter().map(|r| r.text.as_str()).collect::<String>(),
             "a\n\nd"
         );
-        assert!(n
-            .runs
-            .iter()
-            .filter(|r| r.text.contains('\n'))
-            .all(|r| r.attributes.is_empty()));
+        assert!(
+            n.runs
+                .iter()
+                .filter(|r| r.text.contains('\n'))
+                .all(|r| r.attributes.is_empty())
+        );
         assert_eq!(
             d.read()
                 .state_vector()

@@ -11,6 +11,7 @@ import plistlib
 import shlex
 import shutil
 import subprocess
+import time
 
 CORE = Path(__file__).resolve().parents[2]
 BUNDLE = 'ac.edit.nativefitness'
@@ -33,7 +34,7 @@ def project(directory, library):
         ids = [conf(name+'-'+mode, settings) for mode in ['Debug', 'Release']]
         return obj(name+'-configs', '{isa=XCConfigurationList; buildConfigurations='+refs(ids)+'; defaultConfigurationIsVisible=0; defaultConfigurationName=Release;}')
     common = {'ARCHS':'arm64','ONLY_ACTIVE_ARCH':'YES','SDKROOT':'iphonesimulator','IPHONEOS_DEPLOYMENT_TARGET':'26.5','SWIFT_VERSION':'5.0','TARGETED_DEVICE_FAMILY':'1','CODE_SIGNING_ALLOWED':'NO','GENERATE_INFOPLIST_FILE':'YES','SWIFT_OPTIMIZATION_LEVEL':q('-O'),'CLANG_ENABLE_MODULES':'YES'}
-    appSettings = dict(common, PRODUCT_BUNDLE_IDENTIFIER=q(BUNDLE), PRODUCT_NAME=q('NativeFitness'), INFOPLIST_KEY_UILaunchScreen_Generation='YES',
+    appSettings = dict(common, PRODUCT_BUNDLE_IDENTIFIER=q(BUNDLE), PRODUCT_NAME=q('NativeFitness'), GENERATE_INFOPLIST_FILE='NO', INFOPLIST_FILE=q(CORE/'native/ios/fitness/Info.plist'),
         SWIFT_INCLUDE_PATHS=q(CORE/'crates/editac-ffi/generated'), OTHER_SWIFT_FLAGS=refs([q('-Xcc'),q('-fmodule-map-file='+str(CORE/'crates/editac-ffi/generated/EditacNativeFFI.modulemap'))]),
         OTHER_LDFLAGS=refs([q(library),q('-lc++')]))
     testSettings = dict(common, PRODUCT_BUNDLE_IDENTIFIER=q(BUNDLE+'.uitests'), PRODUCT_NAME=q('NativeFitnessUITests'), TEST_TARGET_NAME=q('NativeFitness'))
@@ -104,7 +105,8 @@ def main():
         sdk = run('sdk',['xcrun','--sdk','iphonesimulator','--show-sdk-path']).strip(); env['SDKROOT'] = sdk; env['IPHONEOS_DEPLOYMENT_TARGET'] = '26.5'
         assert run('sdk-version',['xcrun','--sdk','iphonesimulator','--show-sdk-version']).strip() == '26.5'
         sources = [CORE/'.node-version', CORE/'scripts/prepare-native-workloads.mjs', CORE/'benchmarks/fixtures.mjs', CORE/'crates/editac-ffi/examples/fitness-seed.rs', CORE/'fixtures/schema-v5/mapping.rs', CORE/'fixtures/schema-v5/seed.json', profilePath,Path(__file__),CORE/'native/ios/fitness/NativeFitness.swift',CORE/'native/ios/fitness/NativeFitnessUITests.swift',CORE/'tests/native/fixtures/bounded-abi.json',CORE/'Cargo.toml',CORE/'Cargo.lock']
-        for crate in ['editac-core','editac-ffi','editac-wasm']:
+        sources += [CORE/'native/ios/fitness/Info.plist']
+        for crate in ['editac-core','editac-ffi','editac-wasm','editac-session','editac-markdown','editac-diff']:
             sources += [CORE/f'crates/{crate}/Cargo.toml'] + sorted((CORE/f'crates/{crate}/src').rglob('*.rs'))
         sources += sorted((CORE/'crates/editac-ffi/generated').glob('*'))
         record['sourceInputs'] = {str(p.relative_to(CORE)):digest(p) for p in sources if p.is_file()}
@@ -128,6 +130,11 @@ def main():
         run('workload-seeds',['node','scripts/prepare-native-workloads.mjs',output/'fixtures',output/'fitness-seed'],timeout=900)
         project(output/'NativeFitness.xcodeproj',library)
         run('xcode-build',['xcodebuild','build-for-testing','-project',output/'NativeFitness.xcodeproj','-scheme','NativeFitness','-configuration','Release','-destination','generic/platform=iOS Simulator','-derivedDataPath',derived,'CODE_SIGNING_ALLOWED=NO'],timeout=900)
+        executable = derived/'Build/Products/Release-iphonesimulator/NativeFitness.app/NativeFitness'
+        if executable.exists():
+            shutil.copy2(executable,output/'NativeFitness')
+            shutil.copytree(executable.parent,output/'NativeFitness.app')
+            shutil.copy2(library,output/'libeditac_ffi.a')
         simulator = run('simulator-create',['xcrun','simctl','create','editac-PRF07-'+str(os.getpid()),profile['device'],profile['runtime']]).strip()
         record['metadata']['simulator'] = {'udid':simulator,'device':profile['device'],'runtime':profile['runtime'],'ownership':'created by this harness'}
         # Configure only this new, private simulator before first boot. Actual
@@ -138,7 +145,51 @@ def main():
         values['AppleLanguages'] = ['en-US', 'zh-Hans']
         preferences.parent.mkdir(parents=True, exist_ok=True); preferences.write_bytes(plistlib.dumps(values))
         shutil.copy2(preferences, output/'simulator-keyboard-preferences.plist')
-        run('simulator-boot' ,['xcrun','simctl','boot',simulator]); run('simulator-ready',['xcrun','simctl','bootstatus',simulator,'-b'],timeout=300)
+        # First boot migrates a fresh private device. On an 8 GiB host this can
+        # exceed five minutes while other builds run. This is setup admission,
+        # not an input/layout budget; retain the bounded wait and its log.
+        run('simulator-boot' ,['xcrun','simctl','boot',simulator]); run('simulator-ready',['xcrun','simctl','bootstatus',simulator,'-b'],timeout=600)
+        # Attach the actual private device to a foreground Simulator window.
+        # Headless boot/UI service readiness alone does not observe host focus.
+        run('simulator-ui-open',['open','-a','Simulator','--args','-CurrentDeviceUDID',simulator],timeout=30)
+        macSdk = run('host-sdk-path',['xcrun','--sdk','macosx','--show-sdk-path']).strip()
+        hostFocus = run('simulator-host-foreground',['xcrun','--sdk','macosx','swift','-sdk',macSdk,'-e','import AppKit; print(NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "unavailable")'],timeout=60).strip()
+        assert hostFocus == 'com.apple.iphonesimulator', 'Private simulator host is not foreground: '+hostFocus
+        record['simulatorHostForeground'] = hostFocus
+        # Boot completion does not guarantee the install coordinator's XPC
+        # service is running. Start this private simulator's declared service,
+        # then retain its actual launchd state before making one install request.
+        installerPid = run('installer-start',['xcrun','simctl','spawn',simulator,'launchctl','kickstart','-p','user/foreground/com.apple.installcoordinationd']).strip()
+        installerPids = [line.strip() for line in installerPid.splitlines() if line.strip().isdigit()]
+        assert len(installerPids)==1 and int(installerPids[0])>0, installerPid
+        installerPid = installerPids[0]
+        # kickstart may return while launchd still reports xpcproxy. Observe the
+        # actual state with a bounded setup wait; never restart/reinstall in a loop.
+        installerDeadline = time.monotonic() + 60
+        installerObservation = 0
+        while True:
+            installerObservation += 1
+            installerState = run('installer-observation-'+str(installerObservation),['xcrun','simctl','spawn',simulator,'launchctl','print','user/foreground/com.apple.installcoordinationd'],timeout=10)
+            if 'state = running' in installerState: break
+            assert time.monotonic() < installerDeadline, 'Installer did not reach running state; see retained installer observations'
+            time.sleep(2)
+        installerState = run('installer-ready',['xcrun','simctl','spawn',simulator,'launchctl','print','user/foreground/com.apple.installcoordinationd'],timeout=10)
+        assert 'state = running' in installerState, 'Installer stopped before admission; see installer-ready.log'
+        record['installerPreflight'] = {'label':'com.apple.installcoordinationd','pid':int(installerPid),'state':'running'}
+        # Observe one real foreground UIKit turn before starting the AX client.
+        # Boot completion alone previously preceded an AX initialization timeout.
+        # No keyboard payload, helper test or result is produced by this preflight.
+        run('runtime-install',['xcrun','simctl','install',simulator,derived/'Build/Products/Release-iphonesimulator/NativeFitness.app'])
+        run('runtime-launch',['xcrun','simctl','launch',simulator,BUNDLE])
+        runtimeContainer = Path(run('runtime-container',['xcrun','simctl','get_app_container',simulator,BUNDLE,'data']).strip())
+        runtimeReady = runtimeContainer/'Documents/runtime-ready.json'
+        deadline = time.monotonic() + 30
+        while not runtimeReady.exists() and time.monotonic() < deadline: time.sleep(0.25)
+        readiness = json.loads(runtimeReady.read_text())
+        assert all(readiness.get(k) is True for k in ['applicationActive','sceneActive','keyWindow']), readiness
+        shutil.copy2(runtimeReady,output/'runtime-ready.json')
+        record['runtimePreflight'] = readiness
+        run('runtime-terminate',['xcrun','simctl','terminate',simulator,BUNDLE])
         # Actual XCUITest injects OS keyboard events and queries/actions OS accessibility.
         run('xctest',['xcodebuild','test-without-building','-project',output/'NativeFitness.xcodeproj','-scheme','NativeFitness','-configuration','Release','-destination','platform=iOS Simulator,id='+simulator,'-derivedDataPath',derived,'-resultBundlePath',output/'NativeFitness.xcresult','-parallel-testing-enabled','NO','CODE_SIGNING_ALLOWED=NO'],timeout=900,allowFailure=True)
         xctest = record['checks'][-1]
@@ -173,11 +224,6 @@ def main():
                     except (ValueError,UnicodeError): pass
         if len(matches) == 1: (output/'accessibility.json').write_text(json.dumps(matches[0],indent=2)+'\n')
         if len(cjkMatches) == 1: (output/'cjk-accessibility.json').write_text(json.dumps(cjkMatches[0],indent=2,ensure_ascii=False)+'\n')
-        executable = derived/'Build/Products/Release-iphonesimulator/NativeFitness.app/NativeFitness'
-        if executable.exists():
-            shutil.copy2(executable,output/'NativeFitness')
-            shutil.copytree(executable.parent,output/'NativeFitness.app')
-            shutil.copy2(library,output/'libeditac_ffi.a')
         assert xctest['exit'] == 0 and not xctest['timeout'], 'XCTest failed; retained result/summary/attachments'
         assert result is not None, 'actual native app result missing'
         assert result['counts'] == {'executed':5,'passed':5,'failed':0,'skipped':0}, result['counts']
