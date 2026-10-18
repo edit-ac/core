@@ -1,3 +1,5 @@
+import type { RetainedSelection } from '../dom/selection.js';
+import { touchTarget, touchPanel } from '../modules/touch-controls.js';
 import { CODE_PAIRS, codeContext, commitCodeEdit, executeCodeCommand } from '@edit-ac/core/extensions';
 import type { CodeAction, CodeEdit } from '@edit-ac/core/extensions';
 import type { CommitResult, PatchSubscription } from '@edit-ac/core';
@@ -14,6 +16,8 @@ const actions: readonly [CodeAction,string][] = [['moveUp','Move code lines up']
 /** Browser policy only. All text and history effects go through prepared semantics. */
 export class CodeCommandsPresenter {
   readonly element: HTMLElement; readonly status: HTMLElement;
+  // Capture the existing semantic anchors before a touch moves native focus.
+  #target: RetainedSelection | undefined;
   #readOnly = false; #disposed = false; #direct: string | undefined;
   #pair: {owner: string; offset: number; open: string; close: string; revision: number} | undefined;
   readonly #subscription: PatchSubscription;
@@ -21,19 +25,20 @@ export class CodeCommandsPresenter {
   constructor(readonly context: DocumentSearchContext, readonly options: CodeCommandsOptions) {
     const doc=context.root.ownerDocument;
     this.element=doc.createElement('div');this.element.contentEditable='false';this.element.dataset.codeCommands='';this.element.setAttribute('role','group');this.element.setAttribute('aria-label','Code editing commands');
-    for(const [action,label] of actions){const b=doc.createElement('button');b.type='button';b.textContent=label;
-      this.#listen(b,'pointerdown',e=>e.preventDefault());this.#listen(b,'click',()=>this.execute(action));this.element.append(b);}
+    touchPanel(this.element);this.element.style.display='flex';this.element.style.flexWrap='wrap';this.element.style.gap='4px';
+    for(const [action,label] of actions){const b=doc.createElement('button');b.type='button';b.textContent=label;touchTarget(b);
+      this.#listen(b,'pointerdown',e=>{this.#target?.dispose();this.#target=undefined;if(this.#blocked()){e.preventDefault();return;}this.#target=context.selection.retain();if((e as PointerEvent).pointerType==='touch')b.focus({preventScroll:true});else e.preventDefault();});this.#listen(b,'pointercancel',()=>{this.#target?.dispose();this.#target=undefined;});this.#listen(b,'click',()=>this.execute(action));this.element.append(b);}
     this.status=doc.createElement('span');this.status.setAttribute('role','status');this.status.setAttribute('aria-live','polite');this.element.append(this.status);context.root.after(this.element);
-    this.#listen(context.root,'pointerdown',()=>{this.#pair=undefined;this.#direct=undefined;});
-    this.#subscription=context.engine.subscribe({type:'all'},patch=>{if(patch.update || patch.operation==='Remote'){this.#pair=undefined;this.#direct=undefined;}});
+    this.#listen(context.root,'pointerdown',()=>{this.#pair=undefined;this.#direct=undefined;this.#target?.dispose();this.#target=undefined;});
+    this.#subscription=context.engine.subscribe({type:'all'},patch=>{if(patch.update || patch.operation==='Remote'){this.#target?.dispose();this.#target=undefined;this.#pair=undefined;this.#direct=undefined;}});
   }
   #listen(target:EventTarget,type:string,fn:EventListener){target.addEventListener(type,fn);this.#listeners.push([target,type,fn]);}
   #blocked(){return this.#readOnly || this.#disposed || !!this.context.blocked?.();}
   #apply(result:CommitResult | undefined){if(!result)return;try{this.context.root.focus();if(result.selection)this.context.selection.restoreRange(result.selection);}finally{if(result.caret)this.context.engine.releaseAnchor(result.caret);if(result.selection){this.context.engine.releaseAnchor(result.selection.anchor);this.context.engine.releaseAnchor(result.selection.focus);}}}
   execute(action:CodeAction):boolean {
-    if(this.#blocked())return false;
-    const retained=this.context.selection.retain();if(!retained){this.status.textContent='Select code first';return false;}
-    try{const result=executeCodeCommand(this.context.engine,retained.range,action,r=>this.context.commit(r));this.#apply(result);this.status.textContent=result?'Code command applied':'Code boundary; unchanged';return true;}
+    if(this.#blocked()){this.#target?.dispose();this.#target=undefined;return false;}
+    const retained=this.#target??this.context.selection.retain();this.#target=undefined;if(!retained){this.status.textContent='Select code first';return false;}
+    try{const result=executeCodeCommand(this.context.engine,retained.range,action,r=>this.context.commit(r));if(result)this.#apply(result);else{this.context.root.focus();this.context.selection.restoreRange(retained.range);}this.status.textContent=result?'Code command applied':'Code boundary; unchanged';return true;}
     catch(error){this.status.textContent=error instanceof Error?error.message:'Code command unavailable';return false;}finally{retained.dispose();}
   }
   /** Only the input owner calls this after composition admission, before key dispatch. */
@@ -86,6 +91,6 @@ export class CodeCommandsPresenter {
       this.#apply(commitCodeEdit(this.context.engine,c,edit,'code:pair-backspace',r=>this.context.commit(r)));return true;
     }catch{return false;}finally{retained.dispose();}
   }
-  setReadOnly(value:boolean){this.#readOnly=value;this.#pair=undefined;this.#direct=undefined;for(const b of this.element.querySelectorAll('button'))b.disabled=value;}
-  dispose(){if(this.#disposed)return;this.#disposed=true;this.#subscription.dispose();this.#pair=undefined;this.#direct=undefined;for(const [t,k,f]of this.#listeners)t.removeEventListener(k,f);this.element.remove();}
+  setReadOnly(value:boolean){this.#target?.dispose();this.#target=undefined;this.#readOnly=value;this.#pair=undefined;this.#direct=undefined;for(const b of this.element.querySelectorAll('button'))b.disabled=value;}
+  dispose(){if(this.#disposed)return;this.#disposed=true;this.#target?.dispose();this.#target=undefined;this.#subscription.dispose();this.#pair=undefined;this.#direct=undefined;for(const [t,k,f]of this.#listeners)t.removeEventListener(k,f);this.element.remove();}
 }

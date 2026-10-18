@@ -1,3 +1,4 @@
+import { touchTarget, touchPanel } from './touch-controls.js';
 import { nextPresenterSequence } from './presenter-sequence.js';
 import { DocumentSearchSession } from '@edit-ac/core/extensions';
 import type { DocumentSearchMatch } from '@edit-ac/core/extensions';
@@ -27,6 +28,7 @@ export class DocumentSearchPresenter {
   readonly session: DocumentSearchSession;
   readonly #listeners: [EventTarget, string, EventListener][] = [];
   readonly #replace: HTMLButtonElement; readonly #replaceAll: HTMLButtonElement;
+  #pointerTarget: RetainedSelection | undefined;
   #captured: RetainedSelection | undefined; #latest: RetainedSelection | undefined; #disposed = false; #open = false; #readOnly = false; #deliberate = false; #generation = 0;
   #highlight = `editac-find-${nextPresenterSequence()}`;
   constructor(readonly context: DocumentSearchContext, readonly options: DocumentSearchOptions = {}) {
@@ -34,16 +36,16 @@ export class DocumentSearchPresenter {
     this.element = doc.createElement('div'); this.element.contentEditable = 'false';
     this.element.dataset.documentSearch = '';
     const button = (name: string, action: () => void) => {
-      const b = doc.createElement('button'); b.type = 'button'; b.textContent = name;
+      const b = doc.createElement('button'); b.type = 'button'; b.textContent = name; touchTarget(b);
       this.#listen(b, 'click', () => action()); return b;
     };
     this.button = button('Find in document', () => this.show()); this.element.append(this.button);
     const scoped = button('Find in selection', () => this.show(true)); this.element.append(scoped);
-    this.#listen(scoped, 'pointerdown', event => { event.preventDefault(); });
+    this.#capturePointer(scoped);
     const style = doc.createElement('style'); style.textContent = `::highlight(${this.#highlight}) { background-color: #ffe082; color: #111; }`; this.element.append(style);
-    this.#listen(this.button, 'pointerdown', event => { event.preventDefault(); });
-    this.panel = doc.createElement('section'); this.panel.setAttribute('role', 'search'); this.panel.setAttribute('aria-label', 'Document find and replace'); this.panel.hidden = true;
-    const input = (label: string) => { const i = doc.createElement('input'); i.type = 'text'; i.setAttribute('aria-label', label); this.panel.append(i); return i; };
+    this.#capturePointer(this.button);
+    this.panel = doc.createElement('section'); this.panel.setAttribute('role', 'search'); this.panel.setAttribute('aria-label', 'Document find and replace'); this.panel.hidden = true; touchPanel(this.panel);
+    const input = (label: string) => { const i = doc.createElement('input'); i.type = 'text'; i.setAttribute('aria-label', label); touchTarget(i); i.style.maxWidth='100%'; this.panel.append(i); return i; };
     this.query = input('Find text'); this.query.maxLength = 257;
     this.replacement = input('Replacement text');
     this.panel.append(button('Previous match', () => this.navigate(true)), button('Next match', () => this.navigate()));
@@ -59,6 +61,7 @@ export class DocumentSearchPresenter {
       if (key.key === 'Escape') { key.preventDefault(); this.close(); }
       else if (key.key === 'Enter' && key.target === this.query) { key.preventDefault(); this.navigate(key.shiftKey); }
     });
+    this.#listen(context.root,'pointerdown',()=>{this.#pointerTarget?.dispose();this.#pointerTarget=undefined;});
     for (const type of ['pointerdown', 'keydown', 'focusin']) this.#listen(context.root, type, () => { if (this.#open) this.#deliberate = true; });
     for (const type of ['focusout', 'pointerup', 'keyup']) this.#listen(context.root, type, () => {
       if (!this.#open || !this.#deliberate) return;
@@ -69,9 +72,19 @@ export class DocumentSearchPresenter {
   }
   get open(): boolean { return this.#open; }
   #listen(target: EventTarget, type: string, listener: EventListener): void { target.addEventListener(type, listener); this.#listeners.push([target, type, listener]); }
+  #capturePointer(button: HTMLButtonElement): void {
+    this.#listen(button,'pointerdown',event=>{
+      this.#pointerTarget?.dispose();this.#pointerTarget=undefined;
+      if(this.#disposed||this.context.blocked?.()){event.preventDefault();return;}
+      this.#pointerTarget=this.context.selection.retain();
+      if((event as PointerEvent).pointerType==='touch')button.focus({preventScroll:true});else event.preventDefault();
+    });
+    this.#listen(button,'pointercancel',()=>{this.#pointerTarget?.dispose();this.#pointerTarget=undefined;});
+  }
   show(selectionScope = false): void {
-    if (this.#disposed || this.context.blocked?.()) return;
-    this.close(false); this.#captured = this.context.selection.retain();
+    if (this.#disposed || this.context.blocked?.()) {this.#pointerTarget?.dispose();this.#pointerTarget=undefined;return;}
+    const target=this.#pointerTarget;this.#pointerTarget=undefined;
+    this.close(false); this.#captured = target??this.context.selection.retain();
     try { this.session.capture(this.#captured?.range, selectionScope); }
     catch { this.#captured?.dispose(); this.#captured = undefined; return; }
     this.#open = true; this.#deliberate = false; this.panel.hidden = false;
@@ -135,6 +148,7 @@ export class DocumentSearchPresenter {
   setReadOnly(value: boolean): void { if (this.#disposed) return; this.#readOnly = value; this.session.invalidate(); if (this.#open) this.#render(); }
   close(restore = true): void {
     if (this.#disposed) return;
+    this.#pointerTarget?.dispose();this.#pointerTarget=undefined;
     const focused = this.element.contains(this.context.root.ownerDocument.activeElement);
     this.#generation++; this.#open = false; this.panel.hidden = true; this.#registry()?.delete(this.#highlight);
     if (restore && focused) {
@@ -145,7 +159,7 @@ export class DocumentSearchPresenter {
   }
   dispose(): void {
     if (this.#disposed) return;
-    this.close(false); this.#disposed = true; this.session.dispose();
+    this.#pointerTarget?.dispose();this.#pointerTarget=undefined;this.close(false); this.#disposed = true; this.session.dispose();
     for (const [target, type, listener] of this.#listeners) target.removeEventListener(type, listener);
     this.element.remove();
   }

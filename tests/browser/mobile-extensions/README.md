@@ -6,6 +6,7 @@ Run from core with the repository's Node/npm toolchain:
 npm run build
 npm run test:mobile-extensions -- --group capabilities
 npm run test:mobile-extensions -- --group menus
+npm run test:mobile-extensions -- --group content-controls
 node --test tests/consumers/mobile-extensions/disabled.test.mjs
 ```
 
@@ -75,3 +76,11 @@ and navigation hosts are deterministic callbacks; no external requests are allow
 `EDITAC_MOBILE_EXTENSIONS_BROWSER` selects Chromium, Firefox or WebKit. Firefox
 uses a desktop viewport with touch enabled because Playwright does not support
 its `isMobile` option. Every result keeps that provenance and source/package hashes.
+
+Content-controls covers packed touch code/search/table actions, target layout,
+prepared highlight fallback, range selection and table presenter invalidation.
+It does not prove selected Markdown source formatting: the existing Rust
+SourceBaseline formatter has no packed browser API. That MWX-C12 criterion and
+MEX-1.3 stay open until the shared owner supplies a qualified boundary.
+Language/copy controls are not advertised by the current code-command profile.
+Native selection/scroll/zoom observations remain pending MWX-1.8.

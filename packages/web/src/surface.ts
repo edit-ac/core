@@ -275,6 +275,7 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
     if(input.slash) { viewport.addControls(input.slash.control); viewport.addControls(input.slash.menu); }
     if(input.references) { viewport.addControls(input.references.control); viewport.addControls(input.references.menu); }
     if(input.codeCommands) viewport.addControls(input.codeCommands.element);
+    if(input.search) viewport.addControls(input.search.element);
     const boundViewport = viewport;
     page = new PageLifecycle(root, suspended => {
       if (suspended) { boundInput.suspend(); boundViewport.suspend(); options.onSuspend?.(); }
