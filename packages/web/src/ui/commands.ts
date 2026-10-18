@@ -40,7 +40,8 @@ export class CommandControls {
     if (event.key === 'Enter') {
       event.preventDefault();
       const entry = [...this.#buttons].find(([id, button]) => id !== 'search' && !button.hidden && !button.disabled);
-      if (entry) void this.activate(entry[0]);
+      // Query submission chooses a control; activation remains explicit.
+      if (entry) entry[1].focus();
       return;
     }
     if (event.key !== 'Escape') return;

@@ -1,4 +1,5 @@
 import { nextPresenterSequence } from '../presenter-sequence.js';
+import { touchTarget, touchPanel } from '../touch-controls.js';
 import type { ContentContext, ContentView, ImageMetadata } from '../content.js';
 import { imageLimits, inspectImage, validateImagePayload, type ImageLimits } from './policy.js';
 import { renderContentRuns } from '../transfer.js';
@@ -15,7 +16,13 @@ export interface ImageAssetPort {
   /** Read cancellation only. Host retains recovery bytes and global binary/refcount ownership. */
   cancel?(request: Readonly<ImageAssetRequest>): void;
 }
-export interface ImageOptions { imageUrl?: (metadata: Readonly<ImageMetadata>) => string | null; imageAssets?: ImageAssetPort; imageLimits?: Partial<ImageLimits> }
+export interface ImageOptions {
+  imageUrl?: (metadata: Readonly<ImageMetadata>) => string | null;
+  imageAssets?: ImageAssetPort;
+  imageLimits?: Partial<ImageLimits>;
+  /** Explicit loading keeps mobile/offline cards inert until the user asks. */
+  imageLoading?: 'automatic' | 'explicit';
+}
 type Descriptor = ImageMetadata | ImageAssetDescriptor;
 const identityEqual = (a: ImageAssetIdentity | undefined,b: ImageAssetIdentity) => a?.host === b.host && a?.key === b.key;
 export function imageDescriptor(node: ContentContext['node']): Descriptor | undefined {
@@ -34,10 +41,11 @@ function authorizedUrl(value: string, legacy: boolean): string {
 const failures = new Set(['missing','offline','locked','queued','revoked','failed','unavailable','unauthorized','media-unsupported','animated-unsupported','png-profile-unsupported','decoder-unavailable','encoded-byte-limit','decoded-size-limit','decoded-size-mismatch','malformed','canceled']);
 /** One bounded pool per configured content factory. No pending queue or polling. */
 export function imagePresenters(options: ImageOptions): (context: ContentContext) => ContentView | undefined {
+  if(options.imageLoading!==undefined&&!['automatic','explicit'].includes(options.imageLoading))throw Error('Invalid image loading policy');
   const limits=imageLimits(options.imageLimits); let active=0;
   return context => {
     const descriptor=imageDescriptor(context.node); if (!descriptor) return;
-    const doc=context.element.ownerDocument, retry=doc.createElement('button'), element=doc.createElement('section'), image=doc.createElement('img'), status=doc.createElement('p'), alt=doc.createElement('p'), source=doc.createElement('textarea');
+    const doc=context.element.ownerDocument, retry=doc.createElement('button'), cancel=doc.createElement('button'), element=doc.createElement('section'), image=doc.createElement('img'), status=doc.createElement('p'), alt=doc.createElement('p'), source=doc.createElement('textarea');
     const events=['keydown','keyup','beforeinput','input','compositionstart','compositionupdate','compositionend','copy','cut','paste','pointerdown','pointermove','pointerup','pointercancel','dragstart','dragover','drop','dragend'];
     const contain=(event:Event)=>event.stopPropagation();
     let current=context.node;
@@ -45,9 +53,12 @@ export function imagePresenters(options: ImageOptions): (context: ContentContext
     element.addEventListener('copy',copy);
     for(const type of events)element.addEventListener(type,contain);
     element.dataset.contentModule='image'; element.contentEditable='false'; status.setAttribute('role','status'); source.readOnly=true; source.setAttribute('aria-label','Image source'); image.hidden=true; retry.type='button';retry.textContent='Load image';element.append(image,alt,source,status,retry);
+    cancel.type='button';cancel.textContent='Cancel image load';element.append(cancel);
+    for(const control of [retry,cancel,source])touchTarget(control);
+    touchPanel(source);source.style.width='100%';image.style.maxWidth='100%';image.style.height='auto';element.style.minWidth='0';
     let disposed=false, key='', stop=()=>{};
-    const setState=(value:string)=>{element.dataset.imageState=value;retry.hidden=['ready','loading','disposed'].includes(value);status.textContent=`Image ${value}; source preserved.`;};
-    function update(node: ContentContext['node']): boolean {
+    const setState=(value:string)=>{element.dataset.imageState=value;retry.hidden=['ready','loading','disposed'].includes(value);cancel.hidden=value!=='loading';status.textContent=`Image ${value}; source preserved.`;};
+    function update(node: ContentContext['node'], activate=false): boolean {
       const d=imageDescriptor(node); if (disposed || !d) return false;
       current=node;
       if (!('url' in d)) renderContentRuns(alt,node);
@@ -56,6 +67,7 @@ export function imagePresenters(options: ImageOptions): (context: ContentContext
       image.alt=legacy?d.alt:d.metadata.alt; image.title=legacy?d.title:d.metadata.caption; if(legacy)alt.textContent=image.alt || 'Image'; source.value=d.source;
       image.hidden=true;image.removeAttribute('src');
       if (legacy ? !options.imageUrl : !options.imageAssets) {setState('missing');return true;}
+      if(options.imageLoading==='explicit'&&!activate){setState('inactive');return true;}
       if (active>=limits.concurrency) {setState('busy');return true;}
       active++;
       const controller=new AbortController(); let live=true, slot=true, ownedUrl:string|undefined, decoder:HTMLImageElement|undefined, request:ImageAssetRequest|undefined, timer:ReturnType<typeof setTimeout>|undefined;
@@ -94,8 +106,9 @@ export function imagePresenters(options: ImageOptions): (context: ContentContext
       return true;
     }
     const originalUpdate=update;
-    retry.onclick=()=>{key='';originalUpdate(current);};
+    retry.onclick=()=>{if(disposed||element.dataset.imageState==='loading')return;key='';originalUpdate(current,true);};
+    cancel.onclick=()=>{if(disposed)return;stop();setState('canceled');retry.focus({preventScroll:true});};
     update(context.node);
-    return {element,update(node){current=node;return update(node);},setReadOnly(){},dispose(){if(disposed)return;disposed=true;retry.onclick=null;element.removeEventListener('copy',copy);for(const type of events)element.removeEventListener(type,contain);stop();image.removeAttribute('src');image.hidden=true;setState('disposed');}};
+    return {element,update(node){current=node;return update(node);},setReadOnly(){},dispose(){if(disposed)return;disposed=true;retry.onclick=null;cancel.onclick=null;element.removeEventListener('copy',copy);for(const type of events)element.removeEventListener(type,contain);stop();image.removeAttribute('src');image.hidden=true;setState('disposed');}};
   };
 }

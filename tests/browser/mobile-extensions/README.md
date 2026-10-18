@@ -6,6 +6,8 @@ Run from core with the repository's Node/npm toolchain:
 npm run build
 npm run test:mobile-extensions -- --group capabilities
 npm run test:mobile-extensions -- --group menus
+npm run test:mobile-extensions -- --group content-controls
+npm run test:mobile-extensions -- --group formats
 node --test tests/consumers/mobile-extensions/disabled.test.mjs
 ```
 
@@ -23,8 +25,11 @@ The configured profile cases use the current extension facade. Advanced legacy
 code/table/reorder/slash/reference rows retain compatibility coverage separately.
 Required resources are counted by the existing mobile harness; optional allocation
 stacks and explicit emitted byte contributions are recorded separately. Prepared
-share rejection/absence tests exercise the existing baseline fallback port, not
-the future format presenter. Platform, actual OS input/AT, performance and release
+share rejection/absence capability tests exercise the existing baseline fallback
+port. The formats group separately runs the production optional format presenter,
+real Session/Markdown/IndexedDB, prepared OS transports and exact-byte browser
+downloads. Binary converter cells remain pending; these checks do not close
+MEX-1.6. Platform, actual OS input/AT, performance and release
 qualification remain in the original owning gates.
 
 
@@ -75,3 +80,43 @@ and navigation hosts are deterministic callbacks; no external requests are allow
 `EDITAC_MOBILE_EXTENSIONS_BROWSER` selects Chromium, Firefox or WebKit. Firefox
 uses a desktop viewport with touch enabled because Playwright does not support
 its `isMobile` option. Every result keeps that provenance and source/package hashes.
+
+Content-controls covers packed touch code/search/table actions, target layout,
+prepared highlight fallback, range selection and table presenter invalidation.
+It does not prove selected Markdown source formatting: the existing Rust
+SourceBaseline formatter has no packed browser API. That MWX-C12 criterion and
+MEX-1.3 stay open until the shared owner supplies a qualified boundary.
+Language/copy controls are not advertised by the current code-command profile.
+Native selection/scroll/zoom observations remain pending MWX-1.8.
+
+Gestures (`--group gestures`) reuses the packed production reorder owner and
+BrowserEditor/Session/WASM/IndexedDB. MWX-C13–C16 cover intrinsic touch targets,
+selection-preserving tap/drag/undo, nested auto-scroll, terminal/capture cleanup,
+viewport disruption and stable remote targets. Image/table inventories explicitly
+advertise no portable resize command; no new dimension field is introduced.
+Prepared mobile geometry and pointer events remain separate from real
+MWX-1.8 device/native scroll, zoom, IME and accessibility qualification.
+
+Asset/embed prerequisite integration:
+
+```sh
+npm run test:mobile-extensions -- --group assets
+```
+
+The assets suite consumes installed production BrowserEditor, Session, WASM and
+IndexedDB with prepared image/attachment/embed hosts. `contentModules` accepts
+`imageLoading: 'explicit'` to show a source/alt-text card and Load image action
+without resolving or fetching on mount. The compatibility default remains
+`automatic` for hosts already supplying an image policy. Image/file cancellation
+and embed deactivation release presenter-owned work; embedding requires a fresh
+explicit authority check. These controls use intrinsic 44 CSS pixel targets and
+bounded source views. Prepared host responses and viewport changes are mechanics
+checks, with actual picker/camera/clipboard/device behavior still unqualified.
+
+Passing this suite does **not** close MEX-1.5: MWX-C17 file-input/capture and
+MWX-C18 binary ingestion/upload/background lifecycle require an exposed owning
+AssetWork browser adapter. Existing resolve-url/open/download ports cannot ingest.
+The mixed-file clipboard rows qualify existing HTML/plain precedence and recovery,
+not insertion of binary bytes or durable upload. Do not add a second journal or
+serializer to replace the missing Session boundary. Preserve its admission receipt
+and retry only when a qualified pinned owner return changes that prerequisite.

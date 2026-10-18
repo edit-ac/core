@@ -1,3 +1,4 @@
+import { touchTarget, touchPanel } from './touch-controls.js';
 import { embedPresenters, type EmbedOptions } from './embeds/presenter.js';
 import { extensionSourcePresenter } from './transfer.js';
 import { attachmentPresenters, type AttachmentOptions } from './attachments/presenter.js';
@@ -105,6 +106,7 @@ class BasicContentView implements ContentView {
   private firstCell: { row: number; column: number } | undefined;
   private focusCell: { row: number; column: number } | undefined;
   private literalPaste = false;
+  private extendSelection = false;
   private readonly cellButtons: HTMLButtonElement[] = [];
   private readonly actions: HTMLButtonElement[] = [];
   constructor(private readonly context: ContentContext, descriptor: ImageMetadata | Table, private readonly imageUrl: ContentOptions['imageUrl'], private readonly protectedCells: ContentOptions['tableProtectedCells']) {
@@ -115,14 +117,14 @@ class BasicContentView implements ContentView {
       this.image=doc.createElement('img'); this.description=doc.createElement('p'); this.element.append(this.image,this.description);
       const source=doc.createElement('textarea'); source.readOnly=true; source.setAttribute('aria-label','Image source'); this.controls.push(source); this.element.append(source);
     } else {
-      this.element.style.overflowX='auto'; this.element.style.maxWidth='100%';
+      this.element.style.maxWidth='100%'; this.element.style.minWidth='0';
       this.element.tabIndex=0;
       this.element.setAttribute('aria-label','Table cell selection');
       const help=doc.createElement('p');help.textContent='Table keyboard help: Tab/Shift+Tab moves cells. Tab at the last cell adds one allowed row. Escape then Tab/Shift+Tab leaves the editor. Alt+Enter selects cells; arrows move the cell selection.';this.element.append(help);
       this.listen(this.element,'focusout',()=>{this.focusEscape=false;});
       this.listen(this.element,'beforeinput',()=>{this.focusEscape=false;});
       this.listen(this.element,'compositionstart',()=>{this.focusEscape=false;});
-      const toolbar=doc.createElement('div'); toolbar.setAttribute('role','group'); toolbar.setAttribute('aria-label','Table structure'); this.element.append(toolbar);
+      const toolbar=doc.createElement('div'); touchPanel(toolbar);toolbar.setAttribute('role','group'); toolbar.setAttribute('aria-label','Table structure'); this.element.append(toolbar);
       for(const [label,action,after] of [
         ['Insert row before','insertRow',false],['Insert row after','insertRow',true],['Remove rows','deleteRow',false],
         ['Insert column before','insertColumn',false],['Insert column after','insertColumn',true],['Remove columns','deleteColumn',false],
@@ -153,7 +155,7 @@ class BasicContentView implements ContentView {
         this.status.textContent=current.cells?.some(row=>row.some(cell=>cell.paragraphs.length!==1))?'Formatted cells copied with block boundaries; literal fallback unavailable for multiple blocks.':'Formatted cells copied; HTML and plain text fallbacks are literal.';
         if(type==='cut')this.rectangle(null);
       });
-      const formatting=doc.createElement('div');formatting.setAttribute('role','group');formatting.setAttribute('aria-label','Format selected cells');this.element.append(formatting);
+      const formatting=doc.createElement('div');touchPanel(formatting);formatting.setAttribute('role','group');formatting.setAttribute('aria-label','Format selected cells');this.element.append(formatting);
       const link=doc.createElement('input');link.type='url';link.setAttribute('aria-label','Table cell link');formatting.append(link);
       for(const [label,mark] of [['Bold cells','bold'],['Italic cells','italic'],['Underline cells','underline'],['Strike cells','strike'],['Code cells','code'],['Link cells','link'],['Remove cell link','link']] as const){
         const button=doc.createElement('button');button.type='button';button.textContent=label;formatting.append(button);this.actions.push(button);
@@ -167,13 +169,14 @@ class BasicContentView implements ContentView {
       }
       const literal=doc.createElement('input');literal.type='checkbox';literal.setAttribute('aria-label','Paste cells as literal text');this.listen(literal,'change',()=>{this.literalPaste=literal.checked;});formatting.append(literal);
       const literalLabel=doc.createElement('span');literalLabel.textContent='Paste cells as literal text';formatting.append(literalLabel);
-      const table=doc.createElement('table'); table.setAttribute('aria-label','Simple table'); const body=doc.createElement('tbody'); table.append(body); this.element.append(table);
-      const selectionControls=doc.createElement('div');selectionControls.setAttribute('role','group');selectionControls.setAttribute('aria-label','Select table cells');this.element.append(selectionControls);
+      const table=doc.createElement('table'); table.setAttribute('aria-label','Simple table'); const body=doc.createElement('tbody'); table.append(body); const scroller=doc.createElement('div');scroller.dataset.tableScroll='';scroller.style.overflowX='auto';scroller.style.maxWidth='100%';scroller.append(table);this.element.append(scroller);
+      const selectionControls=doc.createElement('div');selectionControls.setAttribute('role','group');selectionControls.setAttribute('aria-label','Select table cells');touchPanel(selectionControls);this.element.append(selectionControls);
+      const extend=doc.createElement('button');extend.type='button';extend.textContent='Extend table selection';extend.setAttribute('aria-pressed','false');selectionControls.append(extend);this.listen(extend,'click',()=>{this.extendSelection=!this.extendSelection;extend.setAttribute('aria-pressed',String(this.extendSelection));});
       const data=descriptor as Table;
       data.rows.forEach((row,r)=>{const tr=doc.createElement('tr'); body.append(tr); row.forEach((_,c)=>{
         const header=data.cells?.[r]?.[c]?.header ?? r===0;const td=doc.createElement(header?'th':'td'); if(header)td.setAttribute('scope','col'); td.style.textAlign=data.alignments[c]==='none'?'':data.alignments[c]!; tr.append(td);
         const select=doc.createElement('button');select.type='button';select.textContent=`Select row ${r+1} column ${c+1}`;select.setAttribute('aria-label',`Select cell row ${r+1} column ${c+1}`);select.setAttribute('aria-pressed','false');this.cellButtons.push(select);selectionControls.append(select);
-        this.listen(select,'click',event=>this.selectCells(r,c,(event as MouseEvent).shiftKey));
+        this.listen(select,'click',event=>this.selectCells(r,c,this.extendSelection||(event as MouseEvent).shiftKey));
         const preview=doc.createElement('div'); this.previews.push(preview); td.append(preview);
         const input=doc.createElement('textarea'); input.rows=1; input.setAttribute('aria-label',`Table row ${r+1} column ${c+1}`); input.dataset.row=String(r); input.dataset.column=String(c); this.controls.push(input); td.append(input);
         this.listen(input,'focus',()=>this.leaveCells());
@@ -187,6 +190,7 @@ class BasicContentView implements ContentView {
         });
       });});
     }
+    for(const control of this.element.querySelectorAll<HTMLElement>('button,input,textarea')){touchTarget(control);if(control.tagName!=='BUTTON')control.style.maxWidth='100%';}
     for (const input of this.controls) this.listen(input,'copy',event=>{const e=event as ClipboardEvent;if(e.clipboardData){e.clipboardData.setData('text/plain',input.value.slice(input.selectionStart,input.selectionEnd));e.preventDefault();}});
     // Native controls own temporary text, selection, composition and clipboard.
     for (const type of ['keydown','keyup','beforeinput','input','compositionstart','compositionupdate','compositionend','copy','cut','paste','pointerdown','pointermove','pointerup','pointercancel','dragstart','dragover','drop','dragend']) this.listen(this.element,type,event=>event.stopPropagation());

@@ -46,6 +46,8 @@ test('MWX-C01 installed minimal editor imports without browser globals or networ
     for(const key of ['document','window','navigator','indexedDB'])Object.defineProperty(globalThis,key,{get(){throw Error('import '+key)}});
     const m=await import(${JSON.stringify(join(consumer, 'node_modules/@edit-ac/web/dist/editor.js'))});
     if(typeof m.BrowserEditor!=='function')throw Error('missing BrowserEditor');
+    const formats=await import(${JSON.stringify(join(consumer, 'node_modules/@edit-ac/web/dist/modules/formats.js'))});
+    if(typeof formats.formatControls()!=='function')throw Error('missing inert format factory');
   `], 'ssr.log');
   manifest.ssr = 'passed';
 });
@@ -66,6 +68,7 @@ for (const [name, source] of [
   assert.deepEqual(manifest.graphs[name].assets, [], 'disabled CSS/assets emitted');
 });
 for (const [path, symbol] of [ ['modules/search','documentSearch'], ['modules/reorder','reorderControls'],
+  ['modules/formats','formatControls'],
   ['modules/slash','slashCommands'], ['modules/references','referenceSuggestions'],
   ['extensions/runtime/search','documentSearch'], ['extensions/runtime/reorder','reorderControls'], ['extensions/runtime/slash','slashCommands'], ['extensions/runtime/references','referenceSuggestions'], ['extensions/runtime/content','contentModules'], ['modules/code/presenter','codeHighlighting'], ['modules/code/worker','createHighlightWorker'],
   ['extensions/authoring','Extension'], ['extensions/matching','attachPatternMatching'], ['extensions/spelling','Spelling']

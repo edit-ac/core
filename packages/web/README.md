@@ -390,3 +390,30 @@ retained opening checkpoint as the fourth `captureSourceBaseline` argument to
 recover current source without a JavaScript serializer. Unsupported/ambiguous
 mappings reject; mobile formatting controls and platform qualification remain
 consumer work. This API does not automatically format tables during cell editing.
+
+## File and sharing controls
+
+Explicitly import the optional baseline presenter after the editor is ready:
+
+```ts
+import { formatControls } from '@edit-ac/web/formats';
+
+await editor.ready;
+const controls = editor.enableFormatControls(formatControls());
+toolbar.append(controls.element);
+```
+
+The editor owns disposal and read-only changes. Disabled consumers omit the
+presenter. Opening its menu starts no conversion, picker, permission or network
+request. UTF-8 text is literal; Markdown appears only with an initialized optional
+codec and uses its semantic subset and diagnostics. Imports preview before an
+explicit confirmation, retain the opening selection, and reject a changed
+revision. The existing Session owns the single import transaction and undo group.
+
+Prepared exports retain their revision, filename, media type and bounded bytes.
+Save, download, share and copy require separate actions. Rejected or canceled
+delivery retains output and offers download or native text selection/manual copy.
+A requested download or completed share does not establish OS delivery. Binary
+conversion is unavailable in this browser integration; PDF input is always
+rejected under the export-only policy. Browser fixtures do not qualify actual
+device file pickers, clipboard, sharing or accessibility services.

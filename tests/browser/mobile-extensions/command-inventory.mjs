@@ -6,7 +6,7 @@ export const commandProfiles = [
   { id: 'reorder', owner: 'modules/reorder.ts', options: { reorder: true, nodes: [{text:'alpha'},{text:'beta'},{text:'gamma'}] }, selector: '[aria-label="Reorder block"]',
     commands: ['Move block up','Move block down','Drag selected block'], permission: 'read-only/blocked context; no separate host permission port' },
   { id: 'table', owner: 'modules/content.ts', options: { table: true }, selector: '[data-content-module="table"]',
-    commands: ['Insert row before','Insert row after','Remove rows','Insert column before','Insert column after','Remove columns',
+    commands: ['Extend table selection','Insert row before','Insert row after','Remove rows','Insert column before','Insert column after','Remove columns',
       'Bold cells','Italic cells','Underline cells','Strike cells','Code cells','Link cells','Remove cell link',
       'Paragraph cells','Heading 1 cells','Heading 2 cells','Heading 3 cells','Heading 4 cells','Heading 5 cells','Heading 6 cells','Code block cells',
       'Header cells','Body cells','Align cells none','Align cells left','Align cells center','Align cells right'], derivedControls: Array.from({length:2},(_,r)=>Array.from({length:4},(_,c)=>`Select row ${r+1} column ${c+1}`)).flat(), permission: 'read-only and protected-cell policy; no global grant inferred' },

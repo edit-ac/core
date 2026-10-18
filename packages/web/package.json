@@ -67,6 +67,11 @@
       "types": "./dist/extensions/highlighting.d.ts",
       "import": "./dist/extensions/highlighting.js",
       "default": "./dist/extensions/highlighting.js"
+    },
+    "./formats": {
+      "types": "./dist/modules/formats.d.ts",
+      "import": "./dist/modules/formats.js",
+      "default": "./dist/modules/formats.js"
     }
   },
   "scripts": {

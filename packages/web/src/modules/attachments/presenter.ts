@@ -2,6 +2,7 @@ import { FRAGMENT_MIME, encodeContentFragment } from '../../clipboard/fragment.j
 import { renderContentRuns } from '../transfer.js';
 import type { ContentContext, ContentFactory } from '../content.js';
 import type { ImageAssetDescriptor, ImageAssetIdentity } from '../images/presenter.js';
+import { touchTarget, touchPanel } from '../touch-controls.js';
 
 /** Same descriptor and action vocabulary as editac_core::modules::assets. */
 export type AttachmentDescriptor = Omit<ImageAssetDescriptor, 'kind'> & { kind: 'file' };
@@ -53,8 +54,12 @@ export function attachmentPresenters(options: AttachmentOptions = {}): ContentFa
     status.setAttribute('role','status'); source.readOnly = true; source.setAttribute('aria-label','Attachment source'); copy.type = 'button'; copy.textContent = 'Select source to copy';
     copy.onclick = () => { source.focus(); source.select(); status.textContent = 'Copy selected source. Stable attachment identity is included; binary data is unavailable.'; };
     element.append(label,detail,status,source,copy,...buttons);
+    const cancel=doc.createElement('button');cancel.type='button';cancel.textContent='Cancel file action';cancel.hidden=true;element.append(cancel);
+    for(const control of [copy,source,cancel,...buttons])touchTarget(control);
+    touchPanel(source);source.style.width='100%';element.style.minWidth='0';
     let disposed = false, key = '', current = context.node, stop: (() => void) | undefined;
-    const setState = (state: string) => { element.dataset.attachmentState = state; status.textContent = `File ${state}. Binary data is not included in source or clipboard.`; };
+    const setState = (state: string) => { element.dataset.attachmentState = state;cancel.hidden=!['authorizing','working'].includes(state); status.textContent = `File ${state}. Binary data is not included in source or clipboard.`; };
+    cancel.onclick=()=>{if(disposed||!stop)return;stop();setState('canceled');buttons[0]!.focus({preventScroll:true});};
     const present = () => {
       element.setAttribute('aria-label',data!.metadata.filename); label.textContent = data!.metadata.filename;
       const fallback = doc.createElement('span'); fallback.dataset.attachmentFallback = ''; renderContentRuns(fallback, current);
@@ -95,6 +100,6 @@ export function attachmentPresenters(options: AttachmentOptions = {}): ContentFa
     element.addEventListener('copy',onCopy);
     const update = (node: ContentContext['node']) => { const next = descriptor(node); if (disposed || !next) return false; const nextKey = JSON.stringify(next); current = node; if (key !== nextKey) { stop?.(); data = next; key = nextKey; present(); } else if (!stop) present(); return true; };
     update(context.node);
-    return {element,update,setReadOnly(){},dispose(){ if (disposed) return; disposed = true; stop?.(); for (const b of buttons) { b.onclick = null; b.disabled = true; } copy.onclick = null; element.removeEventListener('copy',onCopy); for (const type of events) element.removeEventListener(type,contain); setState('disposed'); }};
+    return {element,update,setReadOnly(){},dispose(){ if (disposed) return; disposed = true; stop?.(); for (const b of buttons) { b.onclick = null; b.disabled = true; } copy.onclick = null;cancel.onclick=null; element.removeEventListener('copy',onCopy); for (const type of events) element.removeEventListener(type,contain); setState('disposed'); }};
   };
 }
