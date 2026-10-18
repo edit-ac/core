@@ -15,6 +15,7 @@ fn report(r: &writer::Report) -> Value {
 fn attempt(input: &[u8], kind: &str) -> Result<Value, String> {
     let table = kind == "table";
     let odt = kind == "odt";
+    let docx = kind == "docx";
     let started = Instant::now();
     let now = || started.elapsed().as_millis() as u64;
     let request: Value = serde_json::from_slice(input).map_err(|_| "FORMAT_CHECKPOINT_INVALID")?;
@@ -23,6 +24,9 @@ fn attempt(input: &[u8], kind: &str) -> Result<Value, String> {
     }
     #[cfg(not(feature = "qualification"))]
     if request.get("laterText").is_some() {
+        return Err("FORMAT_PROFILE_UNAVAILABLE".into());
+    }
+    if docx && request["profile"].as_str() != Some("edit-ac-docx-v1") {
         return Err("FORMAT_PROFILE_UNAVAILABLE".into());
     }
     if odt && request["profile"].as_str() != Some("edit-ac-odt-v1") {
@@ -54,11 +58,17 @@ fn attempt(input: &[u8], kind: &str) -> Result<Value, String> {
             },
         )
     };
-    #[cfg(feature = "odt-export")]
-    let mut media = super::odt::Media::from_request(&request)?;
+    #[cfg(any(feature = "odt-export", feature = "docx-export"))]
+    let mut media = super::media::Media::from_request(&request)?;
     #[cfg(feature = "odt-export")]
     let profile = if odt {
         editac_formats::odt::export::PROFILE
+    } else {
+        profile
+    };
+    #[cfg(feature = "docx-export")]
+    let profile = if docx {
+        editac_formats::docx::export::PROFILE
     } else {
         profile
     };
@@ -117,7 +127,9 @@ fn attempt(input: &[u8], kind: &str) -> Result<Value, String> {
         limits.output_bytes = n;
     }
     let spec = JobSpec {
-        id: if odt {
+        id: if docx {
+            "native-docx-export"
+        } else if odt {
             "native-odt-export"
         } else if table {
             "native-table-export"
@@ -128,12 +140,14 @@ fn attempt(input: &[u8], kind: &str) -> Result<Value, String> {
         direction: Direction::Export,
         original: b"",
         filename: match profile.format {
+            "docx" => "snapshot.docx",
             "odt" => "snapshot.odt",
             "csv" => "selected.csv",
             "tsv" => "selected.tsv",
             _ => "snapshot.rtf",
         },
         media_type: match profile.format {
+            "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             "odt" => "application/vnd.oasis.opendocument.text",
             "csv" => "text/csv",
             "tsv" => "text/tab-separated-values",
@@ -201,8 +215,8 @@ fn attempt(input: &[u8], kind: &str) -> Result<Value, String> {
             .map_err(|e| format!("edit:{e:?}"))?;
     }
     let at_export = owner.service().session().document().checkpoint().bytes;
-    #[cfg(feature = "odt-export")]
-    if odt {
+    #[cfg(any(feature = "odt-export", feature = "docx-export"))]
+    if odt || docx {
         media.cancellation = Some(job.cancellation());
     }
     let result = if odt {
@@ -211,6 +225,15 @@ fn attempt(input: &[u8], kind: &str) -> Result<Value, String> {
             super::odt::write(&mut job, &request, &mut media, now)
         }
         #[cfg(not(feature = "odt-export"))]
+        {
+            return Err("FORMAT_PROFILE_UNAVAILABLE".into());
+        }
+    } else if docx {
+        #[cfg(feature = "docx-export")]
+        {
+            super::docx::write(&mut job, &request, &mut media, now)
+        }
+        #[cfg(not(feature = "docx-export"))]
         {
             return Err("FORMAT_PROFILE_UNAVAILABLE".into());
         }
@@ -237,8 +260,12 @@ fn attempt(input: &[u8], kind: &str) -> Result<Value, String> {
         == owner.service().read(0).unwrap().snapshot.visible;
     let current = format!("{:?}", owner.service().read(now()).unwrap().revision);
     let asset_reads = 0;
-    #[cfg(feature = "odt-export")]
-    let asset_reads = if odt { media.reads } else { asset_reads };
+    #[cfg(any(feature = "odt-export", feature = "docx-export"))]
+    let asset_reads = if odt || docx {
+        media.reads
+    } else {
+        asset_reads
+    };
     Ok(match result {
         Ok((artifact, diagnostics)) => {
             json!({"state":"passed","profile":profile.id,"direction":"export","originalSha256":hash(input),"sourceCheckpointSha256":source_hash,"artifact":artifact.bytes(),"artifactSha256":hash(artifact.bytes()),"revision":format!("{:?}",artifact.revision()),"capturedRevision":captured,"currentRevision":current,"report":diagnostics,"liveUnchanged":unchanged,"reopen":reopen,"laterEdit":at_export!=before,"activeJobs":pool.active(),"assets":asset_reads,"networkCalls":0})
@@ -261,5 +288,11 @@ pub fn convert_table(input: &[u8]) -> Value {
 #[cfg(feature = "odt-export")]
 pub fn convert_odt(input: &[u8]) -> Value {
     attempt(input, "odt")
+        .unwrap_or_else(|code| json!({"state":"rejected","code":code,"liveUnchanged":true}))
+}
+
+#[cfg(feature = "docx-export")]
+pub fn convert_docx(input: &[u8]) -> Value {
+    attempt(input, "docx")
         .unwrap_or_else(|code| json!({"state":"rejected","code":code,"liveUnchanged":true}))
 }

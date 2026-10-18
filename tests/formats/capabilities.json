@@ -4148,6 +4148,191 @@
         "fixtures/formats/odt/supported.xml",
         "fixtures/formats/docx/probe/pixel.png"
       ]
+    },
+    "consumers-native-docx-export": {
+      "gate": "CNV-1.18-C2-N-DX",
+      "boundary": "Actual isolated native captured semantic DOCX export with explicit caller-approved originals through shared Session/jobs/AssetWork/writer; immutable optional source package, independent ZIP/XML and macOS textutil semantic/corruption checks, complete diagnostics/recovery/resources/correlation/notices and full caller costs. No host/platform/release claim.",
+      "commands": [
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats-native/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--",
+            "--test-threads=1"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--features",
+            "docx-codecs,jobs,odt-export",
+            "--test",
+            "docx_export",
+            "--test",
+            "odt_export",
+            "--test",
+            "jobs",
+            "--test",
+            "profiles"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/native/native.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/native/export.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/native/table.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/native/table-export.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/native/docx-export.test.mjs"
+          ],
+          "kind": "node-test"
+        }
+      ],
+      "inputs": [
+        "crates/editac-formats-native/Cargo.lock",
+        "crates/editac-formats-native/Cargo.toml",
+        "crates/editac-formats-native/README.md",
+        "crates/editac-formats-native/bootstrap.py",
+        "crates/editac-formats-native/runner.py",
+        "crates/editac-formats-native/src/docx.rs",
+        "crates/editac-formats-native/src/export.rs",
+        "crates/editac-formats-native/src/fixture.rs",
+        "crates/editac-formats-native/src/heap.rs",
+        "crates/editac-formats-native/src/main.rs",
+        "crates/editac-formats-native/src/media.rs",
+        "crates/editac-formats-native/src/odt.rs",
+        "crates/editac-formats-native/src/table.rs",
+        "crates/editac-formats/src/docx/export.rs",
+        "crates/editac-formats/src/odt/export.rs",
+        "crates/editac-formats/src/table_text/export.rs",
+        "crates/editac-formats/src/table_text/import.rs",
+        "fixtures/formats/native/rtf-loss.rtf",
+        "fixtures/formats/rtf/export/reader-probe.rtf",
+        "tests/formats/consumers/docx-fixture.json",
+        "tests/formats/consumers/native/case.py",
+        "tests/formats/consumers/native/docx-export-case.py",
+        "tests/formats/consumers/native/docx-export.test.mjs",
+        "tests/formats/consumers/native/docx-oracle.py",
+        "tests/formats/consumers/native/export-case.py",
+        "tests/formats/consumers/native/export.test.mjs",
+        "tests/formats/consumers/native/native.test.mjs",
+        "tests/formats/consumers/native/odt-export-case.py",
+        "tests/formats/consumers/native/odt-export.test.mjs",
+        "tests/formats/consumers/native/odt-oracle.py",
+        "tests/formats/consumers/native/prepare.py",
+        "tests/formats/consumers/native/table-case.py",
+        "tests/formats/consumers/native/table-export-case.py",
+        "tests/formats/consumers/native/table-export-oracle.py",
+        "tests/formats/consumers/native/table-export.test.mjs",
+        "tests/formats/consumers/native/table-oracle.py",
+        "tests/formats/consumers/native/table.test.mjs",
+        "tests/formats/consumers/odt-fixture.json",
+        "tests/formats/rtf-reader.py",
+        "tests/formats/run.mjs"
+      ]
+    },
+    "consumers-native-docx-export-reader-repair": {
+      "gate": "CNV-1.18-C2-N-DX",
+      "boundary": "Actual isolated native captured semantic DOCX export with explicit caller-approved originals through shared Session/jobs/AssetWork/writer; immutable optional source package, independent ZIP/XML and macOS textutil semantic/corruption checks, complete diagnostics/recovery/resources/correlation/notices and full caller costs. No host/platform/release claim.",
+      "commands": [
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/native/docx-reader-repair.test.mjs"
+          ],
+          "kind": "node-test"
+        }
+      ],
+      "inputs": [
+        "crates/editac-formats-native/Cargo.lock",
+        "crates/editac-formats-native/Cargo.toml",
+        "crates/editac-formats-native/README.md",
+        "crates/editac-formats-native/bootstrap.py",
+        "crates/editac-formats-native/runner.py",
+        "crates/editac-formats-native/src/docx.rs",
+        "crates/editac-formats-native/src/export.rs",
+        "crates/editac-formats-native/src/fixture.rs",
+        "crates/editac-formats-native/src/heap.rs",
+        "crates/editac-formats-native/src/main.rs",
+        "crates/editac-formats-native/src/media.rs",
+        "crates/editac-formats-native/src/odt.rs",
+        "crates/editac-formats-native/src/table.rs",
+        "crates/editac-formats/src/docx/export.rs",
+        "crates/editac-formats/src/odt/export.rs",
+        "crates/editac-formats/src/table_text/export.rs",
+        "crates/editac-formats/src/table_text/import.rs",
+        "fixtures/formats/native/rtf-loss.rtf",
+        "fixtures/formats/rtf/export/reader-probe.rtf",
+        "tests/formats/consumers/docx-fixture.json",
+        "tests/formats/consumers/native/case.py",
+        "tests/formats/consumers/native/docx-export-case.py",
+        "tests/formats/consumers/native/docx-export.test.mjs",
+        "tests/formats/consumers/native/docx-oracle.py",
+        "tests/formats/consumers/native/docx-reader-repair.test.mjs",
+        "tests/formats/consumers/native/export-case.py",
+        "tests/formats/consumers/native/export.test.mjs",
+        "tests/formats/consumers/native/native.test.mjs",
+        "tests/formats/consumers/native/odt-export-case.py",
+        "tests/formats/consumers/native/odt-export.test.mjs",
+        "tests/formats/consumers/native/odt-oracle.py",
+        "tests/formats/consumers/native/prepare.py",
+        "tests/formats/consumers/native/table-case.py",
+        "tests/formats/consumers/native/table-export-case.py",
+        "tests/formats/consumers/native/table-export-oracle.py",
+        "tests/formats/consumers/native/table-export.test.mjs",
+        "tests/formats/consumers/native/table-oracle.py",
+        "tests/formats/consumers/native/table.test.mjs",
+        "tests/formats/consumers/odt-fixture.json",
+        "tests/formats/rtf-reader.py",
+        "tests/formats/run.mjs"
+      ]
     }
   }
 }

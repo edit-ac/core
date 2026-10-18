@@ -12,6 +12,7 @@ publish = false
 qualification = []
 odt-import = ["editac-formats/odt-import"]
 odt-export = ["editac-formats/odt-export"]
+docx-export = ["editac-formats/docx-codecs", "editac-formats/jobs"]
 
 [dependencies]
 editac-formats = { path = "../editac-formats", default-features = false, features = ["rtf-import", "rtf-export", "table-text-import", "table-text-export"] }

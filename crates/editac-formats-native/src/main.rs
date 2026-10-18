@@ -1,9 +1,13 @@
 //! Private worker for runner.py. Public conversion semantics come exclusively
 //! from editac-formats and the shared Session; no independent writable model.
+#[cfg(feature = "docx-export")]
+mod docx;
 mod export;
 #[cfg(feature = "qualification")]
 mod fixture;
 mod heap;
+#[cfg(any(feature = "odt-export", feature = "docx-export"))]
+mod media;
 #[cfg(feature = "odt-export")]
 mod odt;
 #[cfg(feature = "odt-import")]
@@ -222,6 +226,7 @@ fn main() {
         && mode != "table-export"
         && mode != "odt-export"
         && mode != "odt-import"
+        && mode != "docx-export"
     {
         eprintln!("FORMAT_PROFILE_UNAVAILABLE");
         std::process::exit(78);
@@ -249,6 +254,15 @@ fn main() {
                 export::convert_odt(&input)
             }
             #[cfg(not(feature = "odt-export"))]
+            {
+                json!({"state":"rejected","code":"FORMAT_PROFILE_UNAVAILABLE","liveUnchanged":true})
+            }
+        } else if mode == "docx-export" {
+            #[cfg(feature = "docx-export")]
+            {
+                export::convert_docx(&input)
+            }
+            #[cfg(not(feature = "docx-export"))]
             {
                 json!({"state":"rejected","code":"FORMAT_PROFILE_UNAVAILABLE","liveUnchanged":true})
             }

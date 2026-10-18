@@ -82,7 +82,12 @@ pub fn make() -> Value {
         id.clone(),
         &[InitialNode {
             kind: "block".into(),
-            text: if kind == "odt" { "" } else { "base" }.into(),
+            text: if kind == "odt" || kind == "docx" {
+                ""
+            } else {
+                "base"
+            }
+            .into(),
         }],
         p,
     )
@@ -107,9 +112,13 @@ pub fn make() -> Value {
     };
     let mut j =
         PreparedJob::begin(&o, spec, &JobPool::new(1).unwrap(), Box::new(NativePort), 0).unwrap();
-    let bs = if kind == "odt" {
+    let bs = if kind == "docx" {
+        let mut blocks = odt_fixture();
+        blocks[0].runs[0].text = "DOCX 🙂 heading".into();
+        blocks
+    } else if kind == "odt" {
         odt_fixture()
-    } else if kind == "odt-loss" {
+    } else if kind == "odt-loss" || kind == "docx-loss" {
         let mut blocks = odt_fixture();
         blocks[2].attributes = Some(BlockAttributes::Code("rust".into()));
         blocks.push(FragmentBlock {

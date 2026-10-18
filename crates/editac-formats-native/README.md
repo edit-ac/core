@@ -151,3 +151,19 @@ before full native ODT import can be qualified. No lossy approval bypasses it.
 
 `consumers-native-odt-import-text` qualifies only this prerequisite. It cannot close
 N-OI, the complete native/profile/target matrix or downstream platform/release gates.
+
+### Optional native DOCX export
+
+Build with `--features docx-export` and call `runner.run_docx_export` with the
+reviewed executable hash and a serialized initialized Session checkpoint request.
+The explicit `edit-ac-docx-v1` profile accepts caller-approved `{host,key,bytes}`
+originals independently of document metadata. The sandbox denies ambient files,
+network and child processes. Missing grants reject; there is no remote fallback.
+The writer reports package/page/metadata defaults and unsupported image alt/caption
+or code-mark fidelity. Loss requires explicit `approveLoss: true`. Keep the exact
+`Result.original` envelope (checkpoint plus approved originals) for recovery on
+every outcome. Completion identifies the captured revision and never marks a
+host document saved. Qualification uses immutable local source packages, actual
+Session/job/AssetWork conversion, independent generated-package/textutil checks
+and complete caller costs; this adds no native host UI, Word layout, crash
+durability, platform support or release claim.
