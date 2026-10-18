@@ -1,0 +1,30 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Spelling policy observation fixture</title>
+<script type="importmap">{"imports":{"@edit-ac/core":"/core/index.js","@edit-ac/core/extensions":"/core/extensions/index.js","@edit-ac/web":"/web/index.js"}}</script>
+<body><h1>Spelling policy observation fixture</h1>
+<p>Prepared checker data qualifies adapter behavior. Record actual browser, OS, user preferences, locale and native suggestion observations separately. Effective platform availability remains unknown until observed.</p>
+<label>Spelling <select id="mode"><option>platform</option><option>off</option><option>custom</option></select></label>
+<label>Autocorrection <select id="autocorrection"><option>inherit</option><option>on</option><option>off</option></select></label>
+<label>Locale hint <input id="locale" value="en"></label>
+<label><input id="overlap" type="checkbox">Allow possible native/custom presentation overlap</label>
+<button id="open" type="button">Add editor</button>
+<p id="diagnostics" role="status"></p>
+<p>Each editor uses an isolated prepared document. Type a delimiter after <code>teh</code> to request the explicit custom suggestion. Use native OS menus in platform mode; ordinary typing alone never claims OS support. Reload to clear these temporary fixture instances.</p>
+<script type="module">
+import '/fixture/session.mjs';
+const status = document.getElementById('diagnostics');
+async function open() {
+  const mode = document.getElementById('mode').value;
+  if(mode === 'custom' && !document.getElementById('overlap').checked) { status.textContent = 'Custom mode requires an explicit overlap choice.'; return; }
+  const locale = document.getElementById('locale').value;
+  try {
+    const state = await window.spellingFixture.start({ mode, autocorrection: document.getElementById('autocorrection').value,
+      ...(locale ? {locale} : {unknownLocale:true}), text: 'teh' });
+    state.editor.root.setAttribute('aria-label', `${mode} spelling editor`);
+    status.textContent = JSON.stringify({requested:state.editor.platformPreferences.requested, observed:state.editor.platformPreferences.observed,
+      spellcheckAttribute:state.editor.root.getAttribute('spellcheck'), autocorrectAttribute:state.editor.root.getAttribute('autocorrect')});
+    window.latestSpellingObservation = state;
+  } catch(error) { status.textContent = error.message; }
+}
+document.getElementById('open').addEventListener('click', open);
+await open(); document.documentElement.dataset.previewReady = 'true';
+</script></body></html>

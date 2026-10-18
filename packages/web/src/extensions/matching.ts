@@ -9,14 +9,16 @@ export interface PatternPermissionV1 {
 }
 export interface PatternWindowV1 { readonly text: string; readonly start: number; readonly changedStart: number; readonly changedEnd: number }
 export interface PatternMatchV1 { readonly start: number; readonly end: number; readonly text: string }
-export type PatternResolutionV1 = { readonly status: 'available'; readonly href: string } | { readonly status: 'missing' | 'forbidden' | 'unavailable' };
+export type PatternResolutionV1 = { readonly status: 'available'; readonly href: string } | { readonly status: 'replacement'; readonly replacement: string } | { readonly status: 'missing' | 'forbidden' | 'unavailable' };
 export type PatternStatusV1 = 'pending' | 'applied' | 'missing' | 'forbidden' | 'unavailable' | 'invalid' | 'stale' | 'cancelled' | 'deadline' | 'saturated' | 'failed';
 export interface PatternOptionsV1 {
   /** Trusted synchronous callback; relative UTF-16 coordinates in this bounded window. */
   readonly match: (window: Readonly<PatternWindowV1>) => readonly PatternMatchV1[];
   readonly permission: () => Readonly<PatternPermissionV1>;
   readonly resolve: (request: Readonly<{ text: string; requestId: number; signal: AbortSignal; principal: string; tenant: string; authority: string }>) => PatternResolutionV1 | Promise<PatternResolutionV1>;
-  /** Prepared application only. Default is one link mark preserving source text. */
+  /** Explicit result family; link is the compatibility default. */
+  readonly application?: 'link' | 'replacement';
+  /** Prepared link application only. Replacement uses the shared formatting route. */
   readonly prepare?: (application: Readonly<{ range: StableRange; text: string; href: string }>) => PrepareRequest;
   readonly paste?: 'ignore' | 'match';
   /** Explicit literal bypass, including host-specific input origins. */
@@ -61,6 +63,7 @@ let sequence = 0;
 export function attachPatternMatching(options: PatternOptionsV1, context: ExtensionContextV1, ports: PatternPorts): PatternControllerV1 {
   if (!options || typeof options.match !== 'function' || typeof options.resolve !== 'function' || typeof options.permission !== 'function' || (options.paste !== undefined && !['ignore','match'].includes(options.paste))) throw Error('Invalid pattern hooks/paste policy');
   if (['prepare','literal','onStatus'].some(key => { const callback = options[key as 'prepare' | 'literal' | 'onStatus']; return callback !== undefined && typeof callback !== 'function'; })) throw Error('Invalid optional pattern hook');
+  if ((options.application !== undefined && !['link','replacement'].includes(options.application)) || (options.application === 'replacement' && options.prepare)) throw Error('Invalid pattern application family');
   options = Object.freeze({ ...options });
   const radius = integer(options.contextUtf16, 128, 1, 1024), matches = integer(options.maxMatches, 8, 1, 32);
   const concurrency = integer(options.concurrency, 4, 1, 8), queue = integer(options.queue, 16, 0, 32);
@@ -122,14 +125,17 @@ export function attachPatternMatching(options: PatternOptionsV1, context: Extens
       // Copy only bounded admitted fields. Never retain private descriptions/errors.
       let value: PatternResolutionV1;
       if (raw?.status === 'available') {
-        if (typeof raw.href !== 'string' || raw.href.length > 2048 || !safeLink(raw.href) || !/^https?:\/\//i.test(raw.href) || new URL(raw.href).username || new URL(raw.href).password) { status('invalid'); return; }
+        if (options.application === 'replacement' || typeof raw.href !== 'string' || raw.href.length > 2048 || !safeLink(raw.href) || !/^https?:\/\//i.test(raw.href) || new URL(raw.href).username || new URL(raw.href).password) { status('invalid'); return; }
         value = Object.freeze({ status: 'available', href: safeLink(raw.href)! });
+      } else if (raw?.status === 'replacement') {
+        if (options.application !== 'replacement' || typeof raw.replacement !== 'string' || !raw.replacement.length || raw.replacement.length > 256 || /[\u0000-\u001f\u007f]/u.test(raw.replacement)) { status('invalid'); return; }
+        value = Object.freeze({ status: 'replacement', replacement: raw.replacement });
       } else if (raw && ['missing','forbidden','unavailable'].includes(raw.status)) value = Object.freeze({ status: raw.status }) as PatternResolutionV1;
       else { status('invalid'); return; }
       if (service.check(captured) || abort.signal.aborted || !current(target.range, match.text)) { status('stale'); return; }
       if (entries) { cache.delete(cacheKey); cache.set(cacheKey, { value, expires: performance.now() + (value.status === 'available' ? ttl : Math.min(ttl,250)) }); while (cache.size > entries) cache.delete(cache.keys().next().value!); }
-      if (value.status !== 'available') { status(value.status); return; }
-      const request = options.prepare ? options.prepare(Object.freeze({ range: Object.freeze({ ...target.range }), text: match.text, href: value.href })) :
+      if (value.status !== 'available' && value.status !== 'replacement') { status(value.status); return; }
+      const request = value.status === 'replacement' ? context.replacement(target.range, value.replacement) : options.prepare ? options.prepare(Object.freeze({ range: Object.freeze({ ...target.range }), text: match.text, href: value.href })) :
         { kind: 'format' as const, origin: `extension:${id}`, marks: [{ range: target.range, mark: 'link' as const, action: 'apply' as const, href: value.href }], blocks: [] };
       // Host prepare may reenter permission, edits, invalidation or teardown.
       if (service.check(captured) || abort.signal.aborted || !current(target.range, match.text) || !context.can(request)) { status('stale'); return; }
@@ -137,7 +143,7 @@ export function attachPatternMatching(options: PatternOptionsV1, context: Extens
       try { context.commit(request); } finally { applying = false; }
       status('applied');
     } catch { status('failed'); }
-    finally { if (pending.get(key) === job) pending.delete(key); target.dispose(); }
+    finally { if (pending.get(key) === job) pending.delete(key); abort.abort(); target.dispose(); }
   };
   const subscription = context.subscribe({ kinds: ['Text','Editor','Format','Structure','Remote','Undo','Redo'] }, event => {
     if (event.type !== 'patch' || disposed || applying) return;

@@ -1,3 +1,4 @@
+import { admitSpelling } from './spelling.js';
 import { isAuthored, admitAuthoring, authoringAdapters } from './authoring.js';
 import { FIRST_PARTY_FEATURES } from '@edit-ac/core/extensions';
 import type { ProfileEnvironment } from '@edit-ac/core/extensions';
@@ -116,7 +117,7 @@ export function prepareSurfaceConfiguration(options: EditorSurfaceOptions, schem
     ...((options.preset === 'default' || options.preset === 'document') ? { preset: options.preset } : {}),
     ...(options.formatting ? { formatting: options.formatting } : {}), ...(options.collaboration !== undefined ? { collaboration: options.collaboration } : {}),
     ...(options.platform ? { platform: options.platform } : {}), ...(options.assets ? { assets: options.assets } : {}) }, options.extensionEnvironment ?? { schema, capabilities: ['commands','source-fallback', ...(hosts.references ? ['host-resolver'] : [])] });
-  if (prepared.configuration.platform?.spellcheck === 'custom') throw new ExtensionConfigurationError('missing-checker', 'editor', 'platform.spellcheck', 'Custom checking requires the explicit checker adapter delivered by EXT-1.18');
+  admitSpelling(prepared.configuration.platform, options.extensions ?? []);
   for (const extension of prepared.extensions) {
     const factory = adapters.get(extension.feature.id);
     if (isAuthored((options.extensions ?? [])[prepared.extensions.indexOf(extension)]!)) continue;

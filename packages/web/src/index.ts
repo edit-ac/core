@@ -88,3 +88,6 @@ export { Extension } from './extensions/authoring.js';
 export type { ExtensionCreateV1, ExtensionHooksV1, ExtensionContextV1, ExtensionInputV1, ExtensionDiagnosticV1 } from './extensions/authoring.js';
 
 export type { PatternPermissionV1, PatternWindowV1, PatternMatchV1, PatternResolutionV1, PatternStatusV1, PatternOptionsV1, PatternControllerV1 } from './extensions/matching.js';
+
+export { Spelling } from './extensions/spelling.js';
+export type { SpellingOptionsV1, SpellingHostV1, SpellingCheckerV1, SpellingSuggestionV1 } from './extensions/spelling.js';

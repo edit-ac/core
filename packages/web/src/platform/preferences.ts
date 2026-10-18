@@ -9,7 +9,7 @@ export class PlatformPreferenceController {
   constructor(readonly root: HTMLElement, policy: PlatformPreferencesV1 = {}) {
     this.observation = Object.freeze({ requested: Object.freeze({ ...policy }), observed: 'unknown' });
     // Platform mode deliberately leaves explicit and inherited spelling alone.
-    if (policy.spellcheck === 'off') this.#set('spellcheck', 'false');
+    if ((policy.spellcheck === 'off' || policy.spellcheck === 'custom')) this.#set('spellcheck', 'false');
     if (policy.autocorrection && policy.autocorrection !== 'inherit') this.#set('autocorrect', policy.autocorrection);
     if (policy.locale !== undefined) this.#set('lang', policy.locale);
   }

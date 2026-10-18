@@ -196,6 +196,11 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
         }
         return Object.freeze({ revision: result.revision });
       },
+      replacement: (range, text) => {
+        const active = root.ownerDocument.activeElement;
+        if (active instanceof Element && active !== root && active.closest('input,textarea,[contenteditable="true"],[role="textbox"]')) throw Error('Correction target lost editable focus');
+        return input!.keyboard.formatting.replacement(range, text, 'extension:spelling-correction');
+      },
       captureCommand: (name, target) => input!.keyboard.captureCommand(name, target),
       captureTarget: () => selection!.retain(),
       matching: {
