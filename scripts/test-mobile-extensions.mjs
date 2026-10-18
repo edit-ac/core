@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { reconcileFormats } from '../tests/browser/mobile-extensions/format-contract.mjs';
 import { requireTestNode } from './test-toolchain.mjs';
 import { assertIndex, selectGroup } from '../tests/browser/mobile-extensions/index.mjs';
 await requireTestNode();
@@ -30,3 +31,9 @@ assert.equal(browser.counts.executed, browser.counts.passed);
 assert.equal(browser.counts.failed, 0); assert.equal(browser.counts.skipped, 0);
 assert.equal(browser.sourcesUnchanged, true);
 assert.ok(browser.cleanup.browserExited && browser.cleanup.serverClosed && browser.cleanup.consumerRemoved, 'missing task teardown');
+
+if (process.argv[3] === 'formats') {
+  const reconciliation = reconcileFormats(browser);
+  reconciliation.browserReceiptSha256 = receipt.browserReceiptSha256;
+  writeFileSync(join(output, 'format-reconciliation.json'), JSON.stringify(reconciliation, null, 2));
+}

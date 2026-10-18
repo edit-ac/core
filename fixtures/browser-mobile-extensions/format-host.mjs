@@ -9,9 +9,9 @@ export function installFormatPlatform(mode = 'absent') {
   const record = async (action, file) => state.calls.push({action,filename:file.name,mediaType:file.type,bytes:Array.from(new Uint8Array(await file.arrayBuffer()))});
   Object.defineProperty(navigator,'share',{configurable:true,value:mode==='absent'?undefined:async data=>{await record('share',data.files[0]);if(['denied','canceled'].includes(mode))denied();if(mode==='delayed')await new Promise(resolve=>{state.release=resolve;});}});
   Object.defineProperty(navigator,'canShare',{configurable:true,value:mode==='absent'?undefined:data=>{state.calls.push({action:'canShare',filename:data.files[0].name,mediaType:data.files[0].type});return mode!=='unsupported';}});
-  Object.defineProperty(navigator,'clipboard',{configurable:true,value:mode==='absent'?undefined:{async writeText(text){state.calls.push({action:'copy',text});if(['denied','canceled'].includes(mode))denied();}}});
+  Object.defineProperty(navigator,'clipboard',{configurable:true,value:mode==='absent'?undefined:{async writeText(text){state.calls.push({action:'copy',text});if(['denied','canceled'].includes(mode))denied();if(mode==='delayed')await new Promise(resolve=>{state.release=resolve;});}}});
   window.showOpenFilePicker=mode==='absent'?undefined:async()=>{state.calls.push({action:'pick'});if(['denied','canceled'].includes(mode))denied();if(mode==='delayed')await new Promise(resolve=>{state.release=resolve;});return [{async getFile(){state.calls.push({action:'getFile'});return new File(['picked 😀'],'prepared.txt',{type:'text/plain'});}}];};
-  window.showSaveFilePicker=mode==='absent'?undefined:async options=>{state.calls.push({action:'save',options});if(['denied','canceled'].includes(mode))denied();if(mode==='delayed')await new Promise(resolve=>{state.release=resolve;});return {async createWritable(){state.calls.push({action:'createWritable'});return {async write(file){await record('write',file);if(mode==='write-failure')throw Error('Prepared write failure');if(mode==='delayed-write')await new Promise(resolve=>{state.release=resolve;});},async close(){state.calls.push({action:'close'});if(mode==='close-failure')throw Error('Prepared close failure');},async abort(){state.aborts++;}};}};};
+  window.showSaveFilePicker=mode==='absent'?undefined:async options=>{state.calls.push({action:'save',options});if(['denied','canceled'].includes(mode))denied();if(mode==='delayed')await new Promise(resolve=>{state.release=resolve;});return {async createWritable(){state.calls.push({action:'createWritable'});if(mode==='delayed-writer')await new Promise(resolve=>{state.release=resolve;});return {async write(file){await record('write',file);if(mode==='write-failure')throw Error('Prepared write failure');if(['delayed-write','delayed-write-failure'].includes(mode))await new Promise(resolve=>{state.release=resolve;});if(mode==='delayed-write-failure')throw Error('Prepared late write failure');},async close(){state.calls.push({action:'close'});if(mode==='close-failure')throw Error('Prepared close failure');},async abort(){state.aborts++;}};}};};
   if(navigator.permissions)navigator.permissions.query=()=>{state.permissions++;throw Error('No real permission probes');};
   const create=URL.createObjectURL.bind(URL),revoke=URL.revokeObjectURL.bind(URL);
   URL.createObjectURL=blob=>{const url=create(blob);state.urls.add(url);state.created++;return url;};
@@ -43,7 +43,14 @@ export async function mountFormats(options = {}) {
        const {createFormatClient}=await import('/fixture/installed-formats/dist/index.js');
        const client=createFormatClient();
        return {prepareImport(engine,request){state.clientCalls.push({direction:'import',format:request.format});return client.prepareImport(engine,request);},
-         export(engine,request){state.clientCalls.push({direction:'export',format:request.format});return client.export(engine,request);},
+         async export(engine,request){state.clientCalls.push({direction:'export',format:request.format});
+           const pending=client.export(engine,request);
+           state.exportStarted=true;
+           const result=await pending;
+           state.exportResult={revision:result.revision,bytes:Array.from(result.bytes)};
+           if(options.export==='paused')await new Promise(resolve=>{state.releaseExport=resolve;});
+           if(options.export==='wrong-revision')return {...result,revision:result.revision+1};
+           return result;},
          cancel(){client.cancel();},dispose(){state.clientDisposals++;client.dispose();}};
      }}:{}),
      ...(options.catalog?{loadProfiles:async signal=>{

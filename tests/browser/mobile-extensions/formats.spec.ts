@@ -39,13 +39,15 @@ const {probe,facts}=browserHarness('mobile-extensions','fixtures/browser-mobile-
     '../architecture/specs/document-conversion.md','../architecture/specs/formats.md','../architecture/tests/mobile-extension-cases.md',
     mediaSourcePath,'fixtures/formats/docx/probe/pixel.png','fixtures/browser-mobile-extensions/session.mjs','fixtures/browser-mobile-extensions/index.html','fixtures/browser-mobile-extensions/format-host.mjs',
     'tests/browser/mobile-extensions/formats.spec.ts','tests/browser/mobile-extensions/index.mjs','tests/browser/mobile-extensions/case-index.json',
+    'tests/browser/mobile-extensions/format-contract.mjs','tests/browser/mobile-extensions/format-predicates.json','tests/browser/mobile-extensions/README.md',
     'tests/mobile-web/resources.mjs','tests/browser/mobile-extensions/resources.mjs','scripts/test-mobile-extensions.mjs','packages/web/package.json',
     ...['modules/formats','modules/format-profiles','modules/touch-controls','clipboard/fragment','clipboard/html','dom/selection','editor','platform/viewport'].flatMap(n=>[`packages/web/src/${n}.ts`,`packages/web/dist/${n}.js`])],
 });
 facts.binding={gate:'MEX-1.6',ids:['MWX-C21','MWX-C22','MWX-C23','MWX-C24'],
   semantics:'actual installed BrowserEditor/Session/WASM/IndexedDB/Markdown, authenticated document-format worker, touch selectors and explicit Session confirmation',
   platform:'prepared OS transports; browser download request only; no actual OS/device delivery claim',
-  pending:'stable original/media adoption and full captured export/share lifecycle remain MFA-1.2/1.3; complete original-case reconciliation remains MFA-1.4; broader MEX-1.6 stays unchecked'};
+  registration:'format-predicates.json maps original portable predicates to required passing cases; the dispatcher emits bound reconciliation',
+  pending:'actual device/OS delivery, native handles/IME/AT, timing/cost/budget and release remain unqualified; broader original platform gates stay unchecked'};
 const ui=page=>page.getByRole('group',{name:'File and sharing controls',exact:true});
 const button=(page,name)=>ui(page).getByRole('button',{name,exact:true});
 const status=page=>ui(page).getByRole('status');
@@ -61,8 +63,8 @@ async function mount(page,options={},mode='absent'){
 async function state(page){return page.evaluate(async()=>{const s=await(window as any).inputFixture.state();return {nodes:s.nodes,history:s.history,patches:s.patches,journal:s.journal,selection:s.selection};});}
 async function artifact(page){return page.evaluate(()=>{const a=(window as any).formats.artifact;return a?{...a,bytes:Array.from(a.bytes)}:null;});}
 async function transport(page){return page.evaluate(()=>{const p=(window as any).formatPlatform;return {calls:p.calls,permissions:p.permissions,aborts:p.aborts,urls:[...p.urls],created:p.created,revoked:p.revoked};});}
-async function finish(page,baseline,fact){
- const before=await state(page);
+async function finish(page,baseline,fact,finalState=undefined){
+ const before=finalState??await state(page);
  await page.evaluate(async()=>{await(window as any).inputFixture.destroy();});await frames(page);
  fact.resources={baseline,after:await page.evaluate(()=>(window as any).mobileResources())};assert.deepEqual(fact.resources.after,baseline);
  fact.optional=await page.evaluate(()=>(window as any).mobileExtensionResources());assert.equal(fact.optional.listeners,0);
@@ -441,4 +443,94 @@ for(const action of ['cancel','background','dispose'])test(`MFA-1.2 ${action} fe
  await page.evaluate(async()=>{(window as any).formatState.releaseIngest();await(window as any).formats.settle();});await frames(page);
  const after=await state(page),proof=await inspectOriginals(page);assert.deepEqual(after.nodes,before.nodes);assert.deepEqual(after.history,before.history);assert.deepEqual(after.journal,before.journal);assert.equal(proof.receipt,null);assert.ok(proof.work.prepared.every(p=>!p.active));
  assert.ok(await page.evaluate(()=>(window as any).formatState.signals.every(s=>s.aborted)));fact.import=proof;await finish(page,baseline,fact);
+}));
+
+// MFA-1.3: the actual installed public worker remains the conversion boundary;
+// only its local scheduling and OS delivery transports are prepared fixtures.
+test('MFA-1.3 a revision change during lazy loading rejects rather than silently exporting a later edit',()=>probe('MFA-1.3-lazy-revision',async(page,fact)=>{
+ const baseline=await installed(page,{client:'paused'});await prepare(page);const previous=await artifact(page);
+ await ui(page).getByLabel('Export format',{exact:true}).selectOption('rtf');await button(page,'Prepare export').tap();
+ await page.waitForFunction(()=>!!(window as any).formatState.releaseClient);
+ await page.evaluate(async()=>{await(window as any).inputFixture.remote(0,0,'later ');(window as any).formatState.releaseClient();});
+ await page.waitForFunction(()=>!(window as any).formats.busy);
+ assert.match(await status(page).innerText(),/export-revision-changed; prepare again/);assert.deepEqual(await artifact(page),previous);
+ assert.deepEqual(await page.evaluate(()=>(window as any).formatState.clientCalls),[]);assert.deepEqual((await transport(page)).calls,[]);
+ await prepareDocument(page,'rtf');const fresh=await artifact(page);assert.ok(fresh.text.includes('later'));assert.ok(fresh.revision>previous.revision);await finish(page,baseline,fact);
+}));
+for(const format of ['rtf','docx'])test(`MFA-1.3 ${format} worker output retains the requested revision after later edits`,()=>probe(`MFA-1.3-fixed-${format}`,async(page,fact)=>{
+ const baseline=await installed(page,{export:'paused'}),revision=await page.evaluate(()=>(window as any).inputFixture.engine.read().revision);
+ await ui(page).getByLabel('Export format',{exact:true}).selectOption(format);await button(page,'Prepare export').tap();
+ await page.waitForFunction(()=>!!(window as any).formatState.releaseExport);
+ const expected=await page.evaluate(()=>(window as any).formatState.exportResult);
+ await page.evaluate(async()=>{await(window as any).inputFixture.remote(0,0,'later ');(window as any).formatState.releaseExport();});await page.waitForFunction(()=>!(window as any).formats.busy);
+ const a=await artifact(page);assert.equal(a.revision,revision);assert.deepEqual(a.bytes,expected.bytes);assert.ok(await page.evaluate(r=>(window as any).inputFixture.engine.read().revision>r,revision));
+ if(format==='rtf'){assert.ok(a.text.includes('qualified body'));assert.equal(a.text.includes('later'),false);}
+ fact.output={revision,sha256:createHash('sha256').update(Buffer.from(a.bytes)).digest('hex'),bytes:a.bytes.length};
+ assert.deepEqual((await transport(page)).calls,[]);await finish(page,baseline,fact);
+}));
+for(const event of ['cancel','pagehide','background','composition','readonly','close','dispose'])test(`MFA-1.3 ${event} fences completed but unpublished qualified export and preserves previous output`,()=>probe(`MFA-1.3-worker-${event}`,async(page,fact)=>{
+ const baseline=await installed(page,{export:'paused'});await prepare(page);const previous=await artifact(page);
+ await ui(page).getByLabel('Export format',{exact:true}).selectOption('docx');await button(page,'Prepare export').tap();await page.waitForFunction(()=>!!(window as any).formatState.releaseExport);
+ const beforeTeardown=await state(page);
+ await page.evaluate(async event=>{const c=(window as any).formats;
+  if(event==='cancel')c.cancel();else if(event==='pagehide')window.dispatchEvent(new Event('pagehide'));
+  else if(event==='background'){Object.defineProperty(document,'visibilityState',{configurable:true,value:'hidden'});document.dispatchEvent(new Event('visibilitychange'));}
+  else if(event==='composition')(window as any).inputFixture.root.dispatchEvent(new CompositionEvent('compositionstart'));
+  else if(event==='readonly')c.setReadOnly(true);else if(event==='close')c.close();else await(window as any).inputFixture.destroy();
+  (window as any).formatState.releaseExport();
+ },event);await frames(page);
+ assert.deepEqual(await artifact(page),event==='dispose'?null:previous);assert.deepEqual((await transport(page)).calls,[]);
+ if(event!=='dispose')assert.match(await page.evaluate(()=>(window as any).formats.status.textContent),/^Canceled/);await finish(page,baseline,fact,event==='dispose'?beforeTeardown:undefined);
+}));
+for(const reason of ['wrong-revision','bound'])test(`MFA-1.3 qualified ${reason} rejects output and retains prior recovery`,()=>probe(`MFA-1.3-output-${reason}`,async(page,fact)=>{
+ const baseline=await installed(page,reason==='bound'?{maxBytes:256}:{export:'wrong-revision'});await prepare(page);const previous=await artifact(page);
+ await prepareDocument(page,'docx');assert.match(await status(page).innerText(),reason==='bound'?/format-byte-limit/:/export-revision-mismatch/);
+ assert.deepEqual(await artifact(page),previous);assert.deepEqual((await transport(page)).calls,[]);await finish(page,baseline,fact);
+}));
+for(const format of ['rtf','docx'])for(const mode of ['absent','unsupported','denied','canceled'])test(`MFA-1.3 qualified ${format} ${mode} sharing keeps exact download or manual recovery`,()=>probe(`MFA-1.3-recovery-${format}-${mode}`,async(page,fact)=>{
+ const baseline=await installed(page,{},mode);await prepareDocument(page,format,`recovery exact.${format}`);const a=await artifact(page),before=await state(page);
+ await button(page,'Share file').tap();await page.waitForFunction(()=>!(window as any).formats.busy);assert.match(await status(page).innerText(),/Output retained.*No delivery is claimed/);
+ if(mode==='canceled')assert.match(await status(page).innerText(),/Canceled by the user/);
+ assert.deepEqual(await artifact(page),a);let calls=(await transport(page)).calls;assert.equal(calls.some(c=>['save','write','copy'].includes(c.action)),false);
+ const share=calls.find(c=>c.action==='share');if(share)assert.deepEqual(share,{action:'share',filename:a.filename,mediaType:a.mediaType,bytes:a.bytes});
+ await button(page,'Copy output').tap();await page.waitForFunction(()=>!(window as any).formats.busy);
+ await button(page,'Select output for manual copy').tap();
+ if(format==='rtf')assert.deepEqual(await page.evaluate(()=>{const e=(window as any).formats.output;return [e===document.activeElement,e.selectionStart,e.selectionEnd,e.value];}),[true,0,a.text.length,a.text]);
+ else assert.equal((await transport(page)).calls.some(c=>c.action==='copy'),false);
+ const downloadPromise=page.waitForEvent('download');await button(page,'Download file').tap();const download=await downloadPromise;
+ assert.equal(download.suggestedFilename(),a.filename);const stream=await download.createReadStream(),chunks=[];for await(const chunk of stream!)chunks.push(chunk);assert.deepEqual(Buffer.concat(chunks),Buffer.from(a.bytes));
+ assert.deepEqual(await artifact(page),a);assert.deepEqual(await state(page),before);calls=(await transport(page)).calls;assert.equal(calls.some(c=>['save','write'].includes(c.action)),false);
+ fact.output={revision:a.revision,sha256:createHash('sha256').update(Buffer.from(a.bytes)).digest('hex'),bytes:a.bytes.length,mediaType:a.mediaType};await finish(page,baseline,fact);
+}));
+for(const action of ['save','download','share','copy'])test(`MFA-1.3 qualified ${action} cannot start without activation`,()=>probe(`MFA-1.3-activation-${action}`,async(page,fact)=>{
+ const baseline=await installed(page,{},'success');await prepareDocument(page,'rtf');const a=await artifact(page);
+ await page.evaluate(async action=>{Object.defineProperty(navigator,'userActivation',{configurable:true,value:{isActive:false}});await(window as any).formats.deliver(action);},action);
+ assert.match(await status(page).innerText(),/explicit-user-activation-required/);assert.deepEqual((await transport(page)).calls,[]);assert.deepEqual(await artifact(page),a);await finish(page,baseline,fact);
+}));
+for(const mode of ['delayed-writer','delayed-write-failure'])test(`MFA-1.3 canceled ${mode} aborts once and never closes or reports success`,()=>probe(`MFA-1.3-save-${mode}`,async(page,fact)=>{
+ const baseline=await installed(page,{},mode);await prepareDocument(page,'docx');const a=await artifact(page);
+ await button(page,'Save file').tap();await page.waitForFunction(()=>!!(window as any).formatPlatform.release);await button(page,'Cancel preparation').tap();await page.evaluate(()=>(window as any).formatPlatform.release());await frames(page);
+ const p=await transport(page);assert.equal(p.aborts,1);assert.equal(p.calls.some(c=>c.action==='close'),false);if(mode==='delayed-writer')assert.equal(p.calls.some(c=>c.action==='write'),false);
+ assert.match(await status(page).innerText(),/^Canceled/);assert.deepEqual(await artifact(page),a);await finish(page,baseline,fact);
+}));
+test('MFA-1.3 canceled clipboard completion cannot overwrite recovery status or trigger another effect',()=>probe('MFA-1.3-copy-late',async(page,fact)=>{
+ const baseline=await installed(page,{},'delayed');await prepareDocument(page,'rtf');const a=await artifact(page);
+ await button(page,'Copy output').tap();await page.waitForFunction(()=>!!(window as any).formatPlatform.release);await button(page,'Cancel preparation').tap();await page.evaluate(()=>(window as any).formatPlatform.release());await frames(page);
+ assert.match(await status(page).innerText(),/^Canceled/);assert.deepEqual(await artifact(page),a);assert.deepEqual((await transport(page)).calls,[{action:'copy',text:a.text}]);await finish(page,baseline,fact);
+}));
+
+test('MFA-1.3 cancellation terminates an actual public worker during its blocked bootstrap and retains output',()=>probe('MFA-1.3-worker-inflight',async(page,fact)=>{
+ const baseline=await installed(page);await prepare(page);const previous=await artifact(page);
+ let release;const gate=new Promise<void>(resolve=>{release=resolve;});
+ let block;const blocked=new Promise<void>(resolve=>{block=resolve;});
+ await page.route('**/installed-formats/dist/worker.js',async route=>{block();await gate;await route.abort();});
+ try {
+  await ui(page).getByLabel('Export format',{exact:true}).selectOption('docx');
+  const workerRequest=page.waitForRequest(request=>request.url().endsWith('/installed-formats/dist/worker.js'));
+  await button(page,'Prepare export').tap();await workerRequest;await blocked;
+  await button(page,'Cancel preparation').tap();
+  await page.waitForFunction(()=>!(window as any).formats.busy);
+  release();await frames(page);assert.deepEqual(await artifact(page),previous);assert.match(await status(page).innerText(),/^Canceled/);
+  assert.deepEqual((await transport(page)).calls,[]);await finish(page,baseline,fact);
+ } finally {release();}
 }));
