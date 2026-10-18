@@ -4,6 +4,8 @@ mod export;
 #[cfg(feature = "qualification")]
 mod fixture;
 mod heap;
+#[cfg(feature = "odt-export")]
+mod odt;
 mod table;
 #[cfg(feature = "qualification")]
 use std::io::Write;
@@ -216,6 +218,7 @@ fn main() {
         && mode != "csv-import"
         && mode != "tsv-import"
         && mode != "table-export"
+        && mode != "odt-export"
     {
         eprintln!("FORMAT_PROFILE_UNAVAILABLE");
         std::process::exit(78);
@@ -228,7 +231,16 @@ fn main() {
     let mut result = if input.len() > LIMITS.input_bytes {
         json!({"state":"rejected","code":"FORMAT_INPUT_LIMIT","liveUnchanged":true})
     } else {
-        if mode == "rtf-export" {
+        if mode == "odt-export" {
+            #[cfg(feature = "odt-export")]
+            {
+                export::convert_odt(&input)
+            }
+            #[cfg(not(feature = "odt-export"))]
+            {
+                json!({"state":"rejected","code":"FORMAT_PROFILE_UNAVAILABLE","liveUnchanged":true})
+            }
+        } else if mode == "rtf-export" {
             export::convert(&input)
         } else if mode == "table-export" {
             export::convert_table(&input)

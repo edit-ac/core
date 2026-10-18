@@ -19,7 +19,7 @@ def run(args, name, cwd=ROOT):
 
 def digest(data): return hashlib.sha256(data).hexdigest()
 manifest = 'crates/editac-formats-native/Cargo.toml'
-metadata = json.loads(run(['cargo','metadata','--manifest-path',manifest,'--locked','--offline','--filter-platform','aarch64-apple-darwin','--format-version=1'],'metadata'))
+metadata = json.loads(run(['cargo','metadata','--manifest-path',manifest,'--locked','--offline','--filter-platform','aarch64-apple-darwin','--format-version=1','--features','odt-export'],'metadata'))
 nodes={n['id']:n for n in metadata['resolve']['nodes']}
 root=metadata['resolve']['root']; reached=set(); pending=[root]
 while pending:
@@ -56,6 +56,8 @@ fixtures = ['tests/formats/rtf-reader.py','fixtures/formats/rtf/export/reader-pr
 for p in fixtures:
     if not (ROOT/p).is_file(): raise RuntimeError('missing exact fixture: '+p)
 fixtures += [str(p.relative_to(ROOT)) for p in (ROOT/'fixtures/formats/table-text').rglob('*') if p.is_file()]
+fixtures += ['tests/formats/consumers/odt-fixture.json','tests/formats/consumers/inspect-odt.py']
+fixtures += [str(p.relative_to(ROOT)) for p in (ROOT/'fixtures/formats/odt/export/schema').rglob('*') if p.is_file()]
 paths.update(fixtures)
 paths.update(str(p.relative_to(ROOT)) for p in (ROOT/'tests/formats/consumers/native').glob('*') if p.is_file())
 source_pins = {}
@@ -91,7 +93,7 @@ for package in sorted(metadata['packages'],key=lambda p:p['name']):
         data=p.read_bytes();notices.append(p.name+'\n'+data.decode()+'\n');notice_pins[str(p)]=digest(data)
 (OUT/'THIRD-PARTY-NOTICES.txt').write_text(''.join(notices))
 # Default and qualification executables are independently pinned and preserved.
-for label,features in [('native',[]),('native-probe',['--features','qualification'])]:
+for label,features in [('native',[]),('native-probe',['--features','qualification']),('odt-native',['--features','odt-export']),('odt-probe',['--features','odt-export,qualification'])]:
     run(['cargo','build','--manifest-path',manifest,'--locked','--offline',*features], 'build-'+label,consumer)
     built=OUT.parent/'build-target/debug/editac-formats-native'
     shutil.copy2(built,OUT/label)
@@ -99,6 +101,6 @@ receipt=dict(schemaVersion=1, archive=str(archive),archiveSha256=archive_hash,ar
     consumer=str(consumer),sourcePins=source_pins,noticePins=notice_pins,dependencies=records,
     noticesSha256=digest((OUT/'THIRD-PARTY-NOTICES.txt').read_bytes()),
     fixtures={p:digest((ROOT/p).read_bytes()) for p in fixtures},
-    binaries={label:dict(path=str(OUT/label),sha256=digest((OUT/label).read_bytes()),bytes=(OUT/label).stat().st_size) for label in ('native','native-probe')})
+    binaries={label:dict(path=str(OUT/label),sha256=digest((OUT/label).read_bytes()),bytes=(OUT/label).stat().st_size) for label in ('native','native-probe','odt-native','odt-probe')})
 (OUT/'prepared.json').write_text(json.dumps(receipt,indent=2)+'\n')
 print(json.dumps(dict(sourceMembers=len(source_pins),dependencies=len(records),archiveBytes=receipt['archiveBytes'],binaries=receipt['binaries'])))

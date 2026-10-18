@@ -66,6 +66,7 @@ fn fixture() -> Vec<FragmentBlock> {
 }
 
 pub fn make() -> Value {
+    let kind = std::env::args().nth(2).unwrap_or_default();
     let id = DocumentIdentity::v5(
         "27000000-0000-4000-8000-000000000099",
         "27000000-0000-4000-8000-000000000000",
@@ -81,7 +82,7 @@ pub fn make() -> Value {
         id.clone(),
         &[InitialNode {
             kind: "block".into(),
-            text: "base".into(),
+            text: if kind == "odt" { "" } else { "base" }.into(),
         }],
         p,
     )
@@ -106,8 +107,26 @@ pub fn make() -> Value {
     };
     let mut j =
         PreparedJob::begin(&o, spec, &JobPool::new(1).unwrap(), Box::new(NativePort), 0).unwrap();
-    let kind = std::env::args().nth(2).unwrap_or_default();
-    let bs = if kind == "loss" {
+    let bs = if kind == "odt" {
+        odt_fixture()
+    } else if kind == "odt-loss" {
+        let mut blocks = odt_fixture();
+        blocks[2].attributes = Some(BlockAttributes::Code("rust".into()));
+        blocks.push(FragmentBlock {
+            attributes: Some(BlockAttributes::Unknown(
+                Content::Image {
+                    url: "https://example.invalid/image.png".into(),
+                    alt: "unsupported image".into(),
+                    title: String::new(),
+                    source: "unsupported image".into(),
+                }
+                .tuple()
+                .unwrap(),
+            )),
+            ..para(vec![run("unsupported image", vec![])])
+        });
+        blocks
+    } else if kind == "loss" {
         vec![
             FragmentBlock {
                 attributes: Some(BlockAttributes::Heading(2)),
@@ -205,4 +224,78 @@ pub fn make() -> Value {
         .find(|n| matches!(&n.block_attributes, Some(BlockAttributes::Unknown(_))))
         .map(|n| n.id.clone());
     json!({"nonTableBlock":o.service().read(0).unwrap().snapshot.visible[0].id,"selectedTable":selected,"documentId":"27000000-0000-4000-8000-000000000099","epoch":id.epoch,"writerId":cp.writer_id,"checkpointSha256":hash(&cp.bytes),"checkpoint":cp.bytes})
+}
+
+fn odt_fixture() -> Vec<FragmentBlock> {
+    use editac_core::commands::lists::ContainerStyle;
+    use editac_core::modules::assets::*;
+    let mut heading = para(vec![run("ODT 🙂 heading", vec![])]);
+    heading.attributes = Some(BlockAttributes::Heading(2));
+    let linked = para(vec![
+        run("Bold & <literal>", vec![(Mark::Bold, None)]),
+        run(
+            " linked",
+            vec![(Mark::Link, Some("https://example.test/safe".into()))],
+        ),
+    ]);
+    let unicode = para(vec![
+        run(
+            "Unicode e\u{301} العربية\tline\nlast\rreturn",
+            vec![
+                (Mark::Italic, None),
+                (Mark::Underline, None),
+                (Mark::Strike, None),
+            ],
+        ),
+        run(" code literal", vec![(Mark::Code, None)]),
+    ]);
+    let mut first = para(vec![run("First item", vec![])]);
+    first.containers = vec![("list".into(), ContainerStyle::Ordered { start: 3 })];
+    let mut nested = para(vec![run("Nested bullet 🙂", vec![])]);
+    nested.containers = vec![
+        ("list".into(), ContainerStyle::Ordered { start: 3 }),
+        ("nested".into(), ContainerStyle::Unordered),
+    ];
+    let mut second = para(vec![run("Second item", vec![])]);
+    second.containers = first.containers.clone();
+    let descriptor = AssetDescriptor {
+        identity: AssetIdentity {
+            host: "fixture-host".into(),
+            key: "docx-original".into(),
+        },
+        kind: AssetKind::Image,
+        metadata: AssetMetadata {
+            filename: "pixel.png".into(),
+            media_type: "image/png".into(),
+            byte_length: Some(70),
+            sha256: Some("4ff6ab670a58c14270e034e2090d9a432caa263a14e0a25785386b0c12f880b5".into()),
+            width: Some(1),
+            height: Some(1),
+            duration_ms: None,
+            alt: "Original pixel 🙂".into(),
+            caption: "local original".into(),
+        },
+        fallback: "Original pixel 🙂".into(),
+        source: String::new(),
+    };
+    let mut image = para(vec![run("Original pixel 🙂", vec![])]);
+    image.attributes = Some(BlockAttributes::Unknown(
+        Content::Asset { descriptor }.tuple().unwrap(),
+    ));
+    let mut table = para(vec![run("Cell A\tCell 🙂", vec![])]);
+    table.attributes = Some(BlockAttributes::Unknown(
+        Content::Table {
+            alignments: vec![Alignment::None; 2],
+            rows: vec![vec![
+                vec![run("Cell A", vec![])],
+                vec![run("Cell 🙂", vec![])],
+            ]],
+            source: String::new(),
+        }
+        .tuple()
+        .unwrap(),
+    ));
+    vec![
+        heading, linked, unicode, first, nested, second, image, table,
+    ]
 }

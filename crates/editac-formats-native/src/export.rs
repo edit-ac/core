@@ -12,7 +12,9 @@ use editac_session::ports::{CheckpointRecord, LocalStore};
 fn report(r: &writer::Report) -> Value {
     json!({"diagnostics":r.diagnostics.iter().map(|d|json!({"code":d.code,"location":d.location,"lossy":d.lossy})).collect::<Vec<_>>(),"nodes":r.nodes,"utf16Units":r.utf16_units})
 }
-fn attempt(input: &[u8], table: bool) -> Result<Value, String> {
+fn attempt(input: &[u8], kind: &str) -> Result<Value, String> {
+    let table = kind == "table";
+    let odt = kind == "odt";
     let started = Instant::now();
     let now = || started.elapsed().as_millis() as u64;
     let request: Value = serde_json::from_slice(input).map_err(|_| "FORMAT_CHECKPOINT_INVALID")?;
@@ -21,6 +23,9 @@ fn attempt(input: &[u8], table: bool) -> Result<Value, String> {
     }
     #[cfg(not(feature = "qualification"))]
     if request.get("laterText").is_some() {
+        return Err("FORMAT_PROFILE_UNAVAILABLE".into());
+    }
+    if odt && request["profile"].as_str() != Some("edit-ac-odt-v1") {
         return Err("FORMAT_PROFILE_UNAVAILABLE".into());
     }
     let (profile, dialect) = if table {
@@ -48,6 +53,14 @@ fn attempt(input: &[u8], table: bool) -> Result<Value, String> {
                 newline: editac_formats::table_text::export::Newline::Lf,
             },
         )
+    };
+    #[cfg(feature = "odt-export")]
+    let mut media = super::odt::Media::from_request(&request)?;
+    #[cfg(feature = "odt-export")]
+    let profile = if odt {
+        editac_formats::odt::export::PROFILE
+    } else {
+        profile
     };
     let id = DocumentIdentity::v5(
         request["documentId"]
@@ -104,7 +117,9 @@ fn attempt(input: &[u8], table: bool) -> Result<Value, String> {
         limits.output_bytes = n;
     }
     let spec = JobSpec {
-        id: if table {
+        id: if odt {
+            "native-odt-export"
+        } else if table {
             "native-table-export"
         } else {
             "native-rtf-export"
@@ -113,11 +128,13 @@ fn attempt(input: &[u8], table: bool) -> Result<Value, String> {
         direction: Direction::Export,
         original: b"",
         filename: match profile.format {
+            "odt" => "snapshot.odt",
             "csv" => "selected.csv",
             "tsv" => "selected.tsv",
             _ => "snapshot.rtf",
         },
         media_type: match profile.format {
+            "odt" => "application/vnd.oasis.opendocument.text",
             "csv" => "text/csv",
             "tsv" => "text/tab-separated-values",
             _ => "application/rtf",
@@ -184,7 +201,20 @@ fn attempt(input: &[u8], table: bool) -> Result<Value, String> {
             .map_err(|e| format!("edit:{e:?}"))?;
     }
     let at_export = owner.service().session().document().checkpoint().bytes;
-    let result = if table {
+    #[cfg(feature = "odt-export")]
+    if odt {
+        media.cancellation = Some(job.cancellation());
+    }
+    let result = if odt {
+        #[cfg(feature = "odt-export")]
+        {
+            super::odt::write(&mut job, &request, &mut media, now)
+        }
+        #[cfg(not(feature = "odt-export"))]
+        {
+            return Err("FORMAT_PROFILE_UNAVAILABLE".into());
+        }
+    } else if table {
         editac_formats::table_text::export::export(
             &mut job, request["selectedTable"].as_str(), dialect,
             request["approveLoss"].as_bool().unwrap_or(false), now,
@@ -206,9 +236,12 @@ fn attempt(input: &[u8], table: bool) -> Result<Value, String> {
     let reopen = reopened.service().read(0).unwrap().snapshot.visible
         == owner.service().read(0).unwrap().snapshot.visible;
     let current = format!("{:?}", owner.service().read(now()).unwrap().revision);
+    let asset_reads = 0;
+    #[cfg(feature = "odt-export")]
+    let asset_reads = if odt { media.reads } else { asset_reads };
     Ok(match result {
         Ok((artifact, diagnostics)) => {
-            json!({"state":"passed","profile":profile.id,"direction":"export","originalSha256":hash(input),"sourceCheckpointSha256":source_hash,"artifact":artifact.bytes(),"artifactSha256":hash(artifact.bytes()),"revision":format!("{:?}",artifact.revision()),"capturedRevision":captured,"currentRevision":current,"report":diagnostics,"liveUnchanged":unchanged,"reopen":reopen,"laterEdit":at_export!=before,"activeJobs":pool.active(),"assets":0,"networkCalls":0})
+            json!({"state":"passed","profile":profile.id,"direction":"export","originalSha256":hash(input),"sourceCheckpointSha256":source_hash,"artifact":artifact.bytes(),"artifactSha256":hash(artifact.bytes()),"revision":format!("{:?}",artifact.revision()),"capturedRevision":captured,"currentRevision":current,"report":diagnostics,"liveUnchanged":unchanged,"reopen":reopen,"laterEdit":at_export!=before,"activeJobs":pool.active(),"assets":asset_reads,"networkCalls":0})
         }
         Err((reason, diagnostics)) => {
             json!({"state":"rejected","code":reason,"report":diagnostics,"liveUnchanged":unchanged,"reopen":reopen,"activeJobs":pool.active()})
@@ -216,11 +249,17 @@ fn attempt(input: &[u8], table: bool) -> Result<Value, String> {
     })
 }
 pub fn convert(input: &[u8]) -> Value {
-    attempt(input, false)
+    attempt(input, "rtf")
         .unwrap_or_else(|code| json!({"state":"rejected","code":code,"liveUnchanged":true}))
 }
 
 pub fn convert_table(input: &[u8]) -> Value {
-    attempt(input, true)
+    attempt(input, "table")
+        .unwrap_or_else(|code| json!({"state":"rejected","code":code,"liveUnchanged":true}))
+}
+
+#[cfg(feature = "odt-export")]
+pub fn convert_odt(input: &[u8]) -> Value {
+    attempt(input, "odt")
         .unwrap_or_else(|code| json!({"state":"rejected","code":code,"liveUnchanged":true}))
 }

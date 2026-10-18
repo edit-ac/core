@@ -109,3 +109,22 @@ profiles preserve formula-like strings. Missing selections reject and outside
 content has diagnostics. Retain Result.original (checkpoint envelope) for recovery.
 Output completion never marks a host revision saved. Native UI, file saves,
 independent viewer qualification and release support remain platform-owner gates.
+
+
+ODF1.3 export is an independent optional native build: `cargo build --locked
+--offline --features odt-export --manifest-path crates/editac-formats-native/Cargo.toml`.
+`runner.run_odt_export(binary, reviewed_sha256, request_bytes)` accepts the same
+initialized checkpoint envelope, explicit `profile: "edit-ac-odt-v1"` and optional
+`approveLoss`. The trusted caller may add `approvedAssets`, at most64 records
+`{host,key,bytes}` granting read access to those exact local originals. A document
+asset descriptor is never a grant. No path, URL, network or ambient asset lookup
+is accepted. Missing grants/read failures/hash or media mismatches reject the
+whole output and preserve the checkpoint request. Keep `Result.original` under
+the caller's retention policy; it includes explicitly supplied approved bytes.
+The shared ODT writer and AssetWork authorization produce the artifact; no new
+semantic serializer or persistence model is introduced. Fixed captured revision,
+complete loss reports, original PNGs, local schema/independent reader validation,
+resource enforcement and cold/repeat costs qualify this native adapter only.
+Other directions, OS viewer/UI/save integration and release remain independent.
+The default native build excludes the ODT ZIP/XML codecs; all codecs/fonts remain
+absent from the minimum editor and disabled formats graph.

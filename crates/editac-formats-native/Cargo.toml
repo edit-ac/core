@@ -10,6 +10,7 @@ publish = false
 
 [features]
 qualification = []
+odt-export = ["editac-formats/odt-export"]
 
 [dependencies]
 editac-formats = { path = "../editac-formats", default-features = false, features = ["rtf-import", "rtf-export", "table-text-import", "table-text-export"] }
