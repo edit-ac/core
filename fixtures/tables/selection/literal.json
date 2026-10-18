@@ -1,16 +1,56 @@
 {
-  "id": "RCH-1.8-literal-v1",
-  "profile": "literal simple cells; exact dimensions; quoted TSV/plain; no cell-internal CR/LF or rich markup",
-  "cells": [["tab\tinside", "a \"quote\" & <tag> 😀"], ["", "עברית é"]],
+  "id": "RCH-1.8-literal-v2",
+  "profile": "literal simple cells; exact dimensions; quoted TSV/plain with cell-internal LF; no CR or rich markup",
+  "cells": [
+    [
+      "tab\tinside",
+      "a \"quote\" & <tag> 😀"
+    ],
+    [
+      "",
+      "עברית é"
+    ]
+  ],
   "tsv": "\"tab\tinside\"\t\"a \"\"quote\"\" & <tag> 😀\"\n\tעברית é",
   "rejected": [
-    {"text/plain": "\"unterminated\tvalue"},
-    {"text/plain": "\"closed\"trailing\tvalue"},
-    {"text/plain": "\"new\nline\"\tvalue"},
-    {"text/plain": "one\ttwo\nthree"},
-    {"text/html": "lost<table><tr><td>a</td><td>b</td></tr></table>"},
-    {"text/html": "<table onclick=\"alert(1)\"><tr><td>a</td><td>b</td></tr></table>", "text/plain": "a\tb"},
-    {"text/html": "<table><tr><td>a</td><td>b</td></tr></table><table><tr><td>lost</td></tr></table>"},
-    {"text/html": "<table><tr><td rowspan=\"2\">a</td><td>b</td></tr></table>", "text/tab-separated-values": "a\tb"}
-  ]
+    {
+      "text/plain": "\"unterminated\tvalue"
+    },
+    {
+      "text/plain": "\"closed\"trailing\tvalue"
+    },
+    {
+      "text/plain": "one\ttwo\nthree"
+    },
+    {
+      "text/html": "lost<table><tr><td>a</td><td>b</td></tr></table>"
+    },
+    {
+      "text/html": "<table onclick=\"alert(1)\"><tr><td>a</td><td>b</td></tr></table>",
+      "text/plain": "a\tb"
+    },
+    {
+      "text/html": "<table><tr><td>a</td><td>b</td></tr></table><table><tr><td>lost</td></tr></table>"
+    },
+    {
+      "text/html": "<table><tr><td rowspan=\"2\">a</td><td>b</td></tr></table>",
+      "text/tab-separated-values": "a\tb"
+    }
+  ],
+  "admittedLinefeed": {
+    "offer": {
+      "text/plain": "\"new\nline\"\tvalue"
+    },
+    "cells": [
+      [
+        "head",
+        "other mail"
+      ],
+      [
+        "new\nline",
+        "value"
+      ]
+    ],
+    "copied": "\"new\nline\"\tvalue"
+  }
 }
