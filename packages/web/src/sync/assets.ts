@@ -230,3 +230,6 @@ export class AssetSession {
     return this.#disposing;
   }
 }
+
+export { assetInputControls, AssetInputControls } from '../modules/asset-input.js';
+export type { AssetInputOptions, AssetInputFactory } from '../modules/asset-input.js';

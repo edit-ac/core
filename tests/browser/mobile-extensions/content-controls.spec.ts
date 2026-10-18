@@ -6,7 +6,7 @@ import { installExtensionCounters } from './resources.mjs';
 import { installResourceCounters } from '../../mobile-web/resources.mjs';
 
 const { probe, facts } = browserHarness('mobile-extensions', 'fixtures/browser-mobile-extensions', {
-  autoMount: false, testFile: 'tests/browser/mobile-extensions/content-controls.spec.ts', assertSourcesUnchanged: true,
+  autoMount: false, markdown: true, testFile: 'tests/browser/mobile-extensions/content-controls.spec.ts', assertSourcesUnchanged: true,
   contextOptions: { viewport: { width: 390, height: 740 }, hasTouch: true, isMobile: process.env.EDITAC_MOBILE_EXTENSIONS_BROWSER !== 'firefox' },
   serverOptions: { recordRequests: true }, beforeNavigate: async (page, fact) => {
     fact.unexpectedRequests=[];fact.unexpectedPages=[];
@@ -19,8 +19,8 @@ const { probe, facts } = browserHarness('mobile-extensions', 'fixtures/browser-m
     });
     await page.route('**/*',route=>{const url=route.request().url();if(new URL(url).origin!==new URL(fact.origin).origin){fact.unexpectedRequests.push(url);return route.abort();}return route.continue();});
     await page.addInitScript(installResourceCounters); await page.addInitScript(installExtensionCounters); },
-  sourcePaths: ['../.roadmap-runner/overnight-features-20261018/.roadmap-runner/02-mobile-extension-features-f5cf70ae3d13/source-0d7e6b959a8a.md', '../architecture/specs/editor-interactions.md', '../architecture/specs/link-resolution.md','fixtures/browser-mobile-extensions/reference-display.mjs', 'packages/web/src/modules/references/display.ts', 'packages/web/dist/modules/references/display.js', 'packages/web/src/modules/links/activation.ts', 'packages/core/src/links/activation.ts','packages/web/src/modules/touch-controls.ts', 'packages/web/dist/modules/touch-controls.js', 'packages/web/src/ui/commands.ts', 'packages/web/dist/ui/commands.js','packages/web/src/extensions/highlighting.ts', 'packages/web/src/extensions/assets.ts', 'packages/web/src/extensions/math.ts', 'tests/consumers/mobile-extensions/graph.mjs', 'scripts/build-extension-runtime.mjs','packages/web/src/modules/presenter-sequence.ts','packages/web/src/extensions/authoring-metadata.ts','packages/web/src/extensions/spelling-metadata.ts','packages/web/src/modules/slash-metadata.ts','packages/web/src/dom/pattern-text.ts', ...['search','reorder','slash','references','content'].flatMap(n=>[`packages/web/src/extensions/runtime/${n}.ts`,`packages/web/dist/extensions/runtime/${n}.js`]),'packages/web/dist/extensions/runtime/manifest.json',...browserInputSources, 'fixtures/browser-mobile-extensions/session.mjs', 'fixtures/browser-mobile-extensions/index.html',
-    'tests/browser/mobile-extensions/content-controls.spec.ts','fixtures/code-commands/cases.json','packages/web/src/modules/code/presenter.ts','packages/web/src/modules/code/scheduler.ts', 'tests/browser/mobile-extensions/content-host-matrix.ts', 'tests/browser/mobile-extensions/command-matrix.ts', 'tests/browser/mobile-extensions/command-inventory.mjs',
+  sourcePaths: ['../.roadmap-runner/mobile-consumer-resume-20261018/.roadmap-runner/mobile-consumer-resume-a9a92485d0f9/source-0c13fe7e377e.md', '../architecture/specs/editor-interactions.md', '../architecture/specs/link-resolution.md','fixtures/browser-mobile-extensions/reference-display.mjs', 'packages/web/src/modules/references/display.ts', 'packages/web/dist/modules/references/display.js', 'packages/web/src/modules/links/activation.ts', 'packages/core/src/links/activation.ts','packages/web/src/modules/touch-controls.ts', 'packages/web/dist/modules/touch-controls.js', 'packages/web/src/ui/commands.ts', 'packages/web/dist/ui/commands.js','packages/web/src/extensions/highlighting.ts', 'packages/web/src/extensions/assets.ts', 'packages/web/src/extensions/math.ts', 'tests/consumers/mobile-extensions/graph.mjs', 'scripts/build-extension-runtime.mjs','packages/web/src/modules/presenter-sequence.ts','packages/web/src/extensions/authoring-metadata.ts','packages/web/src/extensions/spelling-metadata.ts','packages/web/src/modules/slash-metadata.ts','packages/web/src/dom/pattern-text.ts', ...['search','reorder','slash','references','content'].flatMap(n=>[`packages/web/src/extensions/runtime/${n}.ts`,`packages/web/dist/extensions/runtime/${n}.js`]),'packages/web/dist/extensions/runtime/manifest.json',...browserInputSources, 'fixtures/browser-mobile-extensions/session.mjs', 'fixtures/browser-mobile-extensions/index.html',
+    'tests/browser/mobile-extensions/content-controls.spec.ts','fixtures/code-commands/cases.json','packages/web/src/modules/content.ts','packages/web/dist/modules/content.js','packages/core/src/engine.ts','packages/core/dist/engine.js','packages/markdown/src/index.ts','packages/markdown/dist/index.js','packages/web/src/modules/code/presenter.ts','packages/web/src/modules/code/scheduler.ts', 'tests/browser/mobile-extensions/content-host-matrix.ts', 'tests/browser/mobile-extensions/command-matrix.ts', 'tests/browser/mobile-extensions/command-inventory.mjs',
     'fixtures/rich-content/asset-descriptors.json', 'packages/core/src/extensions/profiles.ts', 'packages/web/src/commands/catalog.ts',
     ...['modules/images/presenter','modules/attachments/presenter','modules/embeds/presenter','modules/content','modules/reorder','modules/search','modules/references','modules/slash','extensions/code'].flatMap(n=>[`packages/web/src/${n}.ts`,`packages/web/dist/${n}.js`]),
     'tests/browser/mobile-extensions/index.mjs', 'tests/browser/mobile-extensions/case-index.json',
@@ -32,7 +32,7 @@ facts.binding = { gate: 'MEX-1.3', ids: ['MWX-C09','MWX-C10','MWX-C11','MWX-C12'
   platform: 'production desktop browser with prepared mobile viewport/touch/composition; original MWX-1.8 pending',
   targetRule: '44 CSS px minimum width and height for each named action',
   semantics: 'real BrowserEditor/Session/WASM/IndexedDB; hand-authored host and geometry only',
-  unfinishedCriteria: ['MWX-C12 selected Markdown SOURCE formatter has no public packed browser boundary; cell-formatting proof does not close MEX-1.3'] };
+  unfinishedCriteria: ['Original device/OS/IME/AT/performance/budget/release qualification remains pending'] };
 async function frame(page) { await page.evaluate(() => new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())))); }
 async function mount(page, options = {}) {
   await page.waitForFunction(() => !!(window as any).inputFixture);
@@ -170,4 +170,64 @@ test('MWX-C09 canceled code pointer releases its target before another selection
  const baseline=await mount(page,{code:true,codeTools:true,text:'a\nb\nc'}),before=await state(page);await select(page,0,1);
  await page.getByRole('button',{name:'Indent code lines',exact:true}).dispatchEvent('pointerdown',{pointerType:'touch',pointerId:17});await page.getByRole('button',{name:'Indent code lines',exact:true}).dispatchEvent('pointercancel',{pointerType:'touch',pointerId:17});assert.deepEqual((await state(page)).nodes,before.nodes);
  await select(page,2,3);await tap(page,'Indent code lines');assert.equal(text(await state(page)),'a\n  b\nc');assert.equal((await state(page)).history.undoGroups,1);await undo(page);assert.deepEqual((await state(page)).nodes,before.nodes);await finish(page,baseline,fact);
+}));
+
+// Full raw-source bindings come from the actual optional Markdown codec, never a
+// fixture serializer. Unrelated tables and code exercise the production view map.
+const rawSource = 'Before  **unchanged** 😀\r\n\r\n| a | bb |\r\n| :- | -: |\r\n| `x\\|y` | é |\r\n\r\nBetween   unchanged\n\n| c | dd |\n| - | - |\n| اسم | é |\n\n' +
+  Array.from({length:20},(_,i)=>`Unrelated ${i}  unchanged\n\n| x${i} | y |\n| - | - |\n| z | q |\n\n\`\`\`js\nconst n${i} = "😀";\n\`\`\`\n\n`).join('') + 'After\tunchanged';
+async function recoveredSource(page, owner) {
+  return page.evaluate(owner=>{
+    const f=(window as any).inputFixture,t=(window as any).mobileTableSource;
+    const base=f.surface.captureSourceBaseline(t.source,t.owners,{tables:true},t.opening);
+    try{return base.sourceWithCurrentTable(owner);}finally{base.dispose();}
+  },owner);
+}
+for(const selected of [0,1])test(`MWX-C12 touch source format ${selected} preserves exact bytes, history and durable recovery`,()=>probe(`MWX-C12-source-${selected}`,async(page,fact)=>{
+ const baseline=await mount(page,{table:true,tableSource:rawSource}),before=await state(page);
+ const tables=before.nodes.filter(n=>n.blockAttributes?.[0]==='module:editac.table'),owner=tables[selected].id;
+ const view=page.locator(`[data-node-id="${owner}"] [data-content-module="table"]`);
+ await view.getByRole('button',{name:'Select cell row 2 column 1',exact:true}).tap();
+ const native=await view.getByRole('textbox',{name:'Table row 2 column 1',exact:true}).elementHandle();
+ const target=await view.getByRole('button',{name:'Format table source',exact:true}).boundingBox();assert.ok(target&&target.width>=44&&target.height>=44);
+ await page.evaluate(()=>{(window as any).contentCounters.updates=[];});
+ await view.getByRole('button',{name:'Format table source',exact:true}).tap();await frame(page);
+ const after=await state(page),formatted=await recoveredSource(page,owner);
+ const old=before.nodes.find(n=>n.id===owner),fresh=after.nodes.find(n=>n.id===owner);
+ assert.notEqual(fresh.blockAttributes[2].source,old.blockAttributes[2].source);
+ assert.equal(formatted,rawSource.replace(old.blockAttributes[2].source,fresh.blockAttributes[2].source),'only selected raw span changes');
+ const withoutSource=n=>({...n,blockAttributes:[...n.blockAttributes.slice(0,2),{...n.blockAttributes[2],source:''}]});
+ assert.deepEqual(withoutSource(fresh),withoutSource(old));
+ assert.deepEqual(after.nodes.filter(n=>n.id!==owner),before.nodes.filter(n=>n.id!==owner));assert.equal(after.history.undoGroups,1);
+ assert.equal(await native.evaluate(e=>e.isConnected),true,'source-only update retains native control identity');
+ assert.equal(await view.getByRole('button',{name:'Select cell row 2 column 1',exact:true}).getAttribute('aria-pressed'),'true');
+ const updates=await page.evaluate(()=>(window as any).contentCounters.updates);assert.ok(updates.length>0);assert.ok(updates.every(id=>id===owner));
+ await undo(page);assert.equal(await recoveredSource(page,owner),rawSource);
+ await page.evaluate(()=>{(window as any).inputFixture.engine.history({type:'redo'});});await frame(page);assert.equal(await recoveredSource(page,owner),formatted);
+ await view.getByRole('button',{name:'Format table source',exact:true}).tap();await frame(page);assert.equal((await state(page)).history.undoGroups,1,'idempotent formatting creates no update');
+ const lifetimes=await page.evaluate(()=>{const t=(window as any).mobileTableSource;return {captures:t.captures,disposals:t.disposals};});assert.ok(lifetimes.captures>=2);assert.equal(lifetimes.captures,lifetimes.disposals);
+ await page.evaluate(async()=>{const f=(window as any).inputFixture;await f.destroy();await f.recover();});await frame(page);
+ assert.equal(await recoveredSource(page,owner),formatted,'IndexedDB reopen retains source and original byte recovery');
+ const cell=page.locator(`[data-node-id="${owner}"]`).getByRole('textbox',{name:'Table row 2 column 1',exact:true});
+ await page.evaluate(()=>{(window as any).contentCounters.updates=[];});await cell.fill('edited 😀');await frame(page);
+ const edited=await state(page);assert.deepEqual(edited.nodes.filter(n=>n.id!==owner),after.nodes.filter(n=>n.id!==owner));
+ assert.ok((await page.evaluate(()=>(window as any).contentCounters.updates)).every(id=>id===owner));
+ await page.evaluate(()=>{const f=(window as any).inputFixture;f.select(f.ids.at(-1),0);});
+ await undo(page);assert.deepEqual((await state(page)).nodes,after.nodes);
+ fact.snapshots.push({owner,before,after,edited,formatted,updates,lifetimes});await finish(page,baseline,fact);
+}));
+for(const mode of ['absent','readonly','protected','composing','changed','over-limit'])test(`MWX-C12 source ${mode} preserves original data`,()=>probe(`MWX-C12-source-${mode}`,async(page,fact)=>{
+ const baseline=await mount(page,{table:true,tableSource:rawSource,sourcePortAbsent:mode==='absent',readOnly:mode==='readonly',protectedCells:mode==='protected'?[[0,0]]:undefined});
+ const before=await state(page),owner=before.nodes.find(n=>n.blockAttributes?.[0]==='module:editac.table').id;
+ const view=page.locator(`[data-node-id="${owner}"]`),button=view.getByRole('button',{name:'Format table source',exact:true});
+ if(mode==='absent'||mode==='readonly')assert.equal(await button.isDisabled(),true);
+ else {
+  if(mode==='composing')await view.getByRole('textbox',{name:'Table row 2 column 1',exact:true}).dispatchEvent('compositionstart');
+  if(mode==='changed')await view.getByRole('textbox',{name:'Table row 2 column 1',exact:true}).fill('changed source semantics');
+  if(mode==='over-limit')await page.evaluate(()=>{(window as any).mobileTableSource.source='x'.repeat(1048577);});
+  const captured=await state(page);await button.tap();await frame(page);assert.deepEqual((await state(page)).nodes,captured.nodes);assert.equal((await state(page)).history.undoGroups,captured.history.undoGroups);
+  if(mode!=='composing')assert.match(await view.getByRole('status').textContent(),/original source and data preserved/);
+ }
+ const current=await state(page);if(mode!=='changed')assert.deepEqual(current.nodes,before.nodes);
+ fact.snapshots.push({mode,before,current});await finish(page,baseline,fact);
 }));

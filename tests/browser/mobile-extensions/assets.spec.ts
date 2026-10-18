@@ -28,8 +28,8 @@ const { probe, facts } = browserHarness('mobile-extensions', 'fixtures/browser-m
       if(new URL(url).origin!==new URL(fact.origin).origin){fact.unexpectedRequests.push(url);return route.abort();}return route.continue();});
     await page.addInitScript(()=>{const urls=new Set<string>(),create=URL.createObjectURL.bind(URL),revoke=URL.revokeObjectURL.bind(URL);(window as any).assetUrls={urls,created:0,revoked:0};URL.createObjectURL=blob=>{const url=create(blob);urls.add(url);(window as any).assetUrls.created++;return url;};URL.revokeObjectURL=url=>{if(urls.delete(url))(window as any).assetUrls.revoked++;revoke(url);};});
     await page.addInitScript(installResourceCounters); await page.addInitScript(installExtensionCounters); },
-  sourcePaths: ['../.roadmap-runner/overnight-features-20261018/.roadmap-runner/02-mobile-extension-features-f5cf70ae3d13/source-0d7e6b959a8a.md', '../architecture/specs/editor-interactions.md', '../architecture/specs/link-resolution.md','fixtures/browser-mobile-extensions/reference-display.mjs', 'packages/web/src/modules/references/display.ts', 'packages/web/dist/modules/references/display.js', 'packages/web/src/modules/links/activation.ts', 'packages/core/src/links/activation.ts','packages/web/src/modules/touch-controls.ts', 'packages/web/dist/modules/touch-controls.js', 'packages/web/src/ui/commands.ts', 'packages/web/dist/ui/commands.js','packages/web/src/extensions/highlighting.ts', 'packages/web/src/extensions/assets.ts', 'packages/web/src/extensions/math.ts', 'tests/consumers/mobile-extensions/graph.mjs', 'scripts/build-extension-runtime.mjs','packages/web/src/modules/presenter-sequence.ts','packages/web/src/extensions/authoring-metadata.ts','packages/web/src/extensions/spelling-metadata.ts','packages/web/src/modules/slash-metadata.ts','packages/web/src/dom/pattern-text.ts', ...['search','reorder','slash','references','content'].flatMap(n=>[`packages/web/src/extensions/runtime/${n}.ts`,`packages/web/dist/extensions/runtime/${n}.js`]),'packages/web/dist/extensions/runtime/manifest.json',...browserInputSources, 'fixtures/browser-mobile-extensions/session.mjs', 'fixtures/browser-mobile-extensions/index.html',
-    'tests/browser/mobile-extensions/assets.spec.ts', ...['pixel.png','malformed.png','huge.png'].map(n=>'fixtures/browser-image-lifecycle/'+n), 'fixtures/browser-mobile-extensions/asset-host.mjs', '../architecture/specs/rich-content-extensions.md', 'tests/browser/mobile-extensions/content-host-matrix.ts', 'tests/browser/mobile-extensions/command-matrix.ts', 'tests/browser/mobile-extensions/command-inventory.mjs',
+  sourcePaths: ['../.roadmap-runner/mobile-consumer-resume-20261018/.roadmap-runner/mobile-consumer-resume-a9a92485d0f9/source-0c13fe7e377e.md', '../architecture/specs/editor-interactions.md', '../architecture/specs/link-resolution.md','fixtures/browser-mobile-extensions/reference-display.mjs', 'packages/web/src/modules/references/display.ts', 'packages/web/dist/modules/references/display.js', 'packages/web/src/modules/links/activation.ts', 'packages/core/src/links/activation.ts','packages/web/src/modules/touch-controls.ts', 'packages/web/dist/modules/touch-controls.js', 'packages/web/src/ui/commands.ts', 'packages/web/dist/ui/commands.js','packages/web/src/extensions/highlighting.ts', 'packages/web/src/extensions/assets.ts', 'packages/web/src/extensions/math.ts', 'tests/consumers/mobile-extensions/graph.mjs', 'scripts/build-extension-runtime.mjs','packages/web/src/modules/presenter-sequence.ts','packages/web/src/extensions/authoring-metadata.ts','packages/web/src/extensions/spelling-metadata.ts','packages/web/src/modules/slash-metadata.ts','packages/web/src/dom/pattern-text.ts', ...['search','reorder','slash','references','content'].flatMap(n=>[`packages/web/src/extensions/runtime/${n}.ts`,`packages/web/dist/extensions/runtime/${n}.js`]),'packages/web/dist/extensions/runtime/manifest.json',...browserInputSources, 'fixtures/browser-mobile-extensions/session.mjs', 'fixtures/browser-mobile-extensions/index.html',
+    'tests/browser/mobile-extensions/assets.spec.ts', 'fixtures/browser-mobile-extensions/asset-input.mjs', 'packages/web/src/modules/asset-input.ts', 'packages/web/dist/modules/asset-input.js', 'packages/web/src/sync/assets.ts', 'packages/web/dist/sync/assets.js', 'packages/web/src/storage/owner.ts', 'packages/web/src/storage/index.ts', ...['pixel.png','malformed.png','huge.png'].map(n=>'fixtures/browser-image-lifecycle/'+n), 'fixtures/browser-mobile-extensions/asset-host.mjs', '../architecture/specs/rich-content-extensions.md', 'tests/browser/mobile-extensions/content-host-matrix.ts', 'tests/browser/mobile-extensions/command-matrix.ts', 'tests/browser/mobile-extensions/command-inventory.mjs',
     'fixtures/rich-content/asset-descriptors.json', 'packages/core/src/extensions/profiles.ts', 'packages/web/src/commands/catalog.ts',
     ...['modules/images/presenter','modules/attachments/presenter','modules/embeds/presenter','modules/content','modules/reorder','modules/search','modules/references','modules/slash','extensions/code'].flatMap(n=>[`packages/web/src/${n}.ts`,`packages/web/dist/${n}.js`]),
     'tests/browser/mobile-extensions/index.mjs', 'tests/browser/mobile-extensions/case-index.json',
@@ -40,7 +40,7 @@ const { probe, facts } = browserHarness('mobile-extensions', 'fixtures/browser-m
 facts.binding = {gate:'MEX-1.5', ids:['MWX-C17','MWX-C18','MWX-C19','MWX-C20'],
  semantics:'actual packed BrowserEditor/Session/WASM/IndexedDB; prepared viewport/pointer/remote edits',
  platform:'desktop Chromium/Firefox/WebKit mechanics; original MWX-1.8 device/OS/native/IME/AT pending',
- incomplete:'MWX-C17 picker/capture and binary ingestion lack an owning browser port; parent remains open',
+ incomplete:'Device/OS/native/IME/AT/performance/release remain deferred; portable picker/ingest uses actual AssetSession',
  targetRule:'intrinsic 44 CSS px width/height, scoped touch-action:none on explicit drag handle only'};
 async function frame(page) { await page.evaluate(() => new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())))); }
 async function mount(page, options = {}) {
@@ -209,4 +209,127 @@ for(const htmlImage of [false,true])test(`MWX-C18 prepared mixed files/image/HTM
  assert.equal(text.split(htmlImage?'Alternate plain':'Chosen once').length-1,1);assert.ok(!text.includes(htmlImage?'Chosen once':'Alternate plain'));if(htmlImage)assert.ok(fact.mixed.recovery.some(r=>r.reason==='html-img-requires-extension-codec'));assert.equal(after.nodes.filter(n=>n.blockAttributes?.[0]==='module:editac.asset').length,1);
  assert.equal(after.history.undoGroups,before.history.undoGroups+1);assert.equal(after.journal.length,before.journal.length+1);assert.deepEqual((await control(page)).calls,[]);
  fact.binaryQualification='existing HTML/plain representation precedence only; file-byte ingestion remains unavailable';await finish(page,baseline,fact);
+}));
+
+
+async function inputSetup(page, options={}) {
+ await page.waitForFunction(()=>!!(window as any).inputFixture);
+ const baseline=await page.evaluate(()=>(window as any).mobileResources());
+ await page.evaluate(async options=>{const {setup}=await import('/fixture/asset-input.mjs');await setup(options);},options);
+ return baseline;
+}
+const inputState=page=>page.evaluate(()=>(window as any).assetInput.inspect());
+async function choose(page,label='Add file',buffer=Buffer.from([0,255,13,10,128,42])) {
+ const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:label,exact:true}).click();
+ await (await chooser).setFiles({name:'prepared.bin',mimeType:'application/octet-stream',buffer});
+}
+async function inputFinish(page,baseline,fact) {
+ await page.evaluate(()=>(window as any).assetInput.close());await frame(page);
+ const after=await page.evaluate(()=>(window as any).mobileResources());fact.resources={baseline,after};assert.deepEqual(after,baseline);
+ assert.deepEqual(await page.evaluate(()=>(window as any).mobileAuthorityProbes),{permissions:0,capture:0,open:0});
+ assert.deepEqual(fact.unexpectedRequests,[]);assert.deepEqual(fact.unexpectedPages,[]);
+ assert.deepEqual(await page.evaluate(()=>[...(window as any).assetUrls.urls]),[]);
+}
+test('MEX-1.5-C4 MWX-C17 bounded file picker commits one owned asset, distinct receipts, exact original, history and reopen',()=>probe('MWX-C17-file-atomic',async(page,fact)=>{
+ const baseline=await inputSetup(page),before=await inputState(page);
+ assert.deepEqual(before.calls,[]);assert.equal(await page.getByRole('button',{name:'Take photo (optional)',exact:true}).count(),0);
+ await choose(page);const after=await inputState(page);fact.before=before;fact.after=after;
+ assert.equal(after.entries.length,1);assert.equal(after.entries[0].origin,'editac:local:asset-input');
+ assert.equal(after.nodes.filter(n=>n.blockAttributes?.[0]==='module:editac.asset').length,1);
+ assert.equal(after.effects.length,1);assert.deepEqual(after.effects[0].bytes,[0,255,13,10,128,42]);
+ assert.ok(after.receipt.localCommit);assert.ok(after.receipt.content);assert.equal(after.recovery,undefined);
+ const bytes=await page.evaluate(async()=>{const s=(window as any).assetInput,p=(await s.assets.inspect()).prepared[0];return Array.from(await s.assets.preparedSource(p.job,p.reference,{identity:p.request.identity,actions:['read']}));});
+ assert.deepEqual(bytes,[0,255,13,10,128,42]);
+ await page.evaluate(async()=>{const s=(window as any).assetInput;s.owner.engine.history({type:'undo'});await s.owner.flush({target:'local'});});
+ const undo=await inputState(page);assert.deepEqual(undo.nodes,before.nodes);
+ await page.evaluate(async()=>{const s=(window as any).assetInput;s.owner.engine.history({type:'redo'});await s.owner.flush({target:'local'});});
+ assert.deepEqual((await inputState(page)).nodes,after.nodes);
+ await page.evaluate(()=>(window as any).assetInput.reopen());const reopened=await inputState(page);
+ assert.deepEqual(reopened.nodes,after.nodes);assert.deepEqual(reopened.calls,after.calls,'reopen does no host work');assert.deepEqual(reopened.errors,[]);
+ await inputFinish(page,baseline,fact);
+}));
+for(const capture of [undefined,'environment'])test(`MEX-1.5-C4 MWX-C17 ${capture??'absent'} capture cancel preserves content and file fallback`,()=>probe(`MWX-C17-capture-${capture??'absent'}`,async(page,fact)=>{
+ const baseline=await inputSetup(page,{capture}),before=await inputState(page);
+ const label=capture?'Take photo (optional)':'Add file';
+ const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:label,exact:true}).click();await chooser;
+ await page.evaluate(capture=>{const s=(window as any).assetInput;(capture?s.controls.camera:s.controls.input).dispatchEvent(new Event('cancel'));},capture);
+ const canceled=await inputState(page);assert.deepEqual(canceled.checkpoint,before.checkpoint);assert.deepEqual(canceled.calls,[]);
+ assert.equal(canceled.assets.fencedJobs.length,1);await choose(page);assert.equal((await inputState(page)).effects.length,1);
+ await inputFinish(page,baseline,fact);
+}));
+for(const mode of ['denied','revoked','offline','oversized'])test(`MEX-1.5-C4 MWX-C18 ${mode} retains original and never inserts a descriptor first`,()=>probe(`MWX-C18-input-${mode}`,async(page,fact)=>{
+ const baseline=await inputSetup(page,{mode,maxBytes:mode==='oversized'?4:32}),before=await inputState(page);
+ await choose(page);const after=await inputState(page);fact.after=after;
+ assert.deepEqual(after.checkpoint,before.checkpoint);assert.deepEqual(after.history,before.history);assert.deepEqual(after.entries,[]);
+ assert.equal(after.recovery,'prepared.bin');assert.equal(after.effects.length,0);assert.equal(after.assets.fencedJobs.length,1);
+ await inputFinish(page,baseline,fact);
+}));
+for(const mode of ['delayed-describe','delayed-host'])test(`MEX-1.5-C4 MWX-C18 ${mode} cancellation fences late callbacks and preserves sibling bytes`,()=>probe(`MWX-C18-late-${mode}`,async(page,fact)=>{
+ const baseline=await inputSetup(page,{mode}),before=await inputState(page);await choose(page);
+ await page.waitForFunction(()=>(window as any).assetInput.waiting.length>0);
+ await page.getByRole('button',{name:'Cancel adding asset',exact:true}).click();
+ await page.evaluate(()=>{const s=(window as any).assetInput;s.release();});
+ const after=await inputState(page);fact.after=after;assert.deepEqual(after.checkpoint,before.checkpoint);assert.deepEqual(after.entries,[]);
+ assert.equal(after.assets.fencedJobs.length,1);assert.equal(after.recovery,'prepared.bin');
+ assert.ok(await page.evaluate(()=>(window as any).assetInput.signals.some(s=>s.aborted)));
+ await inputFinish(page,baseline,fact);
+}));
+test('MEX-1.5-C4 MWX-C18 changed target rejects delayed picker insertion and leaves recovery usable',()=>probe('MWX-C18-target-change',async(page,fact)=>{
+ const baseline=await inputSetup(page,{mode:'delayed-describe'});await choose(page);await page.waitForFunction(()=>(window as any).assetInput.waiting.length>0);
+ await page.evaluate(async()=>{const s=(window as any).assetInput;await s.edit();s.release();});
+ const after=await inputState(page);assert.equal(after.nodes.filter(n=>n.blockAttributes?.[0]==='module:editac.asset').length,0);assert.equal(after.effects.length,0);assert.equal(after.entries.length,1);assert.equal(after.recovery,'prepared.bin');
+ await inputFinish(page,baseline,fact);
+}));
+test('MEX-1.5-C4 MWX-C18 mixed binary and HTML paste inserts one asset without HTML echo',()=>probe('MWX-C18-binary-precedence',async(page,fact)=>{
+ const baseline=await inputSetup(page);
+ await page.evaluate(()=>{const s=(window as any).assetInput,d=new DataTransfer();d.items.add(new File([new Uint8Array([0,255,42])],'prepared.bin',{type:'application/octet-stream'}));d.setData('text/html','<p>unwanted duplicate</p>');d.setData('text/plain','unwanted duplicate');const event=new ClipboardEvent('paste',{bubbles:true,cancelable:true});Object.defineProperty(event,'clipboardData',{value:d});s.controls.context.root.dispatchEvent(event);});
+ const after=await inputState(page);fact.after=after;assert.equal(after.entries.length,1);assert.equal(after.effects.length,1);assert.deepEqual(after.effects[0].bytes,[0,255,42]);assert.ok(!JSON.stringify(after.nodes).includes('unwanted duplicate'));
+ await inputFinish(page,baseline,fact);
+}));
+for(const boundary of ['background','readOnly','dispose'])test(`MEX-1.5-C4 MWX-C18 ${boundary} fences pending original before late success`,()=>probe(`MWX-C18-boundary-${boundary}`,async(page,fact)=>{
+ const baseline=await inputSetup(page,{mode:'delayed-host'});await choose(page);await page.waitForFunction(()=>(window as any).assetInput.waiting.length>0);
+ await page.evaluate(async boundary=>{const s=(window as any).assetInput;
+  if(boundary==='background')window.dispatchEvent(new Event('pagehide'));
+  if(boundary==='readOnly')s.surface.setReadOnly(true);
+  if(boundary==='dispose'){await s.surface.dispose();s.surfaceDisposed=true;}
+  s.release();await s.controls.settle();
+ },boundary);
+ const after=await inputState(page);fact.after=after;assert.equal(after.entries.length,0);assert.equal(after.nodes.filter(n=>n.blockAttributes?.[0]==='module:editac.asset').length,0);assert.equal(after.assets.fencedJobs.length,1);
+ await inputFinish(page,baseline,fact);
+}));
+test('MEX-1.5-C4 MWX-C17 declined capture retains usable file fallback and intrinsic labeled touch targets',()=>probe('MWX-C17-capture-declined',async(page,fact)=>{
+ const baseline=await inputSetup(page,{capture:'environment',mode:'denied'});
+ for(const name of ['Add file','Take photo (optional)','Cancel adding asset']){
+  const rect=await page.getByRole('button',{name,exact:true}).evaluate(e=>{const s=getComputedStyle(e),r=e.getBoundingClientRect();return {minWidth:s.minWidth,minHeight:s.minHeight,width:r.width,height:r.height};});
+  assert.ok(parseFloat(rect.minWidth)>=44&&parseFloat(rect.minHeight)>=44&&rect.width>=44&&rect.height>=44);
+ }
+ await choose(page,'Take photo (optional)');assert.equal((await inputState(page)).entries.length,0);
+ await page.evaluate(()=>(window as any).assetInput.mode='available');await choose(page);
+ const after=await inputState(page);assert.equal(after.entries.length,1);assert.equal(after.effects.length,1);
+ await inputFinish(page,baseline,fact);
+}));
+test('MEX-1.5-C4 MWX-C18 cancellation preserves independent staged sibling original and captured selection',()=>probe('MWX-C18-input-sibling',async(page,fact)=>{
+ const baseline=await inputSetup(page,{mode:'delayed-describe'});
+ await page.evaluate(async()=>{const s=(window as any).assetInput,identity={host:'sibling',key:'kept'};await s.assets.stageOriginal('sibling_job','sibling_original',{version:1,identity,action:'ingest',operationId:'sibling_op',byteLimit:8},{identity,actions:['ingest','read']},new Uint8Array([7,8]));});
+ await choose(page);await page.waitForFunction(()=>(window as any).assetInput.waiting.length>0);
+ await page.getByRole('button',{name:'Cancel adding asset',exact:true}).click();await page.evaluate(()=>(window as any).assetInput.release());
+ const after=await inputState(page);assert.equal(after.entries.length,0);assert.equal(after.assets.prepared.find(p=>p.job==='sibling_job').active,true);
+ const result=await page.evaluate(async()=>{const s=(window as any).assetInput,selection=getSelection();return {bytes:Array.from(await s.assets.preparedSource('sibling_job','sibling_original',{identity:{host:'sibling',key:'kept'},actions:['read']})),anchor:selection.anchorOffset,focus:selection.focusOffset};});
+ assert.deepEqual(result,{bytes:[7,8],anchor:2,focus:2});await inputFinish(page,baseline,fact);
+}));
+test('MEX-1.5-C4 MWX-C18 structured clipboard owner precedes external binary representation',()=>probe('MWX-C18-structured-precedence',async(page,fact)=>{
+ const baseline=await inputSetup(page);
+ const result=await page.evaluate(()=>{const s=(window as any).assetInput,root=s.controls.context.root,text=document.createTreeWalker(root.querySelector('[data-node-id]'),NodeFilter.SHOW_TEXT).nextNode();root.focus();getSelection().setBaseAndExtent(text,0,text,2);
+  const d=new DataTransfer();const copy=new ClipboardEvent('copy',{bubbles:true,cancelable:true});Object.defineProperty(copy,'clipboardData',{value:d});root.dispatchEvent(copy);
+  const raw=d.getData('application/x-edit-ac-fragment+json');d.items.add(new File(['binary'],'prepared.bin',{type:'application/octet-stream'}));const paste=new ClipboardEvent('paste',{bubbles:true,cancelable:true});Object.defineProperty(paste,'clipboardData',{value:d});root.dispatchEvent(paste);return {raw};
+ });
+ assert.ok(result.raw);const after=await inputState(page);assert.equal(after.effects.length,0);assert.equal(await page.evaluate(()=>(window as any).assetInput.descriptions.length),0);assert.equal(after.nodes.filter(n=>n.blockAttributes?.[0]==='module:editac.asset').length,0);
+ await inputFinish(page,baseline,fact);
+}));
+test('MEX-1.5-C4 MWX-C17 prepared captured image retains exact original and safe alt metadata without implicit decode',()=>probe('MWX-C17-image-original',async(page,fact)=>{
+ const baseline=await inputSetup(page,{capture:'environment'}),buffer=readFileSync('fixtures/browser-image-lifecycle/pixel.png');
+ const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Take photo (optional)',exact:true}).click();await (await chooser).setFiles({name:'pixel.png',mimeType:'image/png',buffer});
+ const after=await inputState(page);fact.after=after;assert.equal(after.entries.length,1);assert.deepEqual(after.effects[0].bytes,Array.from(buffer));
+ const image=after.nodes.find(n=>n.blockAttributes?.[0]==='module:editac.asset').blockAttributes[2];assert.equal(image.kind,'image');assert.equal(image.metadata.alt,'Prepared alt 😀 אב');
+ assert.deepEqual(fact.assetFetches,[]);await inputFinish(page,baseline,fact);
 }));
