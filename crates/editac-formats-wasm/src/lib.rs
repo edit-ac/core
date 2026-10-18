@@ -6,7 +6,7 @@ use editac_core::{
     document::{DocumentIdentity, InitializedCheckpoint},
     interchange::{identity, transfer_value},
 };
-use editac_formats::{Direction, LIMITS, Profile, docx, epub, job::*, odt, rtf, table_text};
+use editac_formats::{Direction, LIMITS, Profile, docx, epub, job::*, odt, pdf, rtf, table_text};
 use editac_session::{
     assets::{AssetHost, HostOutcome},
     ports::PortError,
@@ -135,6 +135,27 @@ impl epub::export::OriginalAssetHost for ApprovedAssets<'_> {
         docx::export::OriginalAssetHost::read_original(self, request)
     }
 }
+impl pdf::export::OriginalAssetHost for ApprovedAssets<'_> {
+    fn read_original(&mut self, request: &AssetRequest) -> Result<Vec<u8>, PortError> {
+        docx::export::OriginalAssetHost::read_original(self, request)
+    }
+}
+// Exact reviewed OFL faces are part of this optional module, never host fonts.
+// The build receipt pins all bytes/notices; the renderer revalidates their hashes.
+fn publication_fonts() -> pdf::export::Fonts<'static> {
+    pdf::export::Fonts {
+        base: [
+            include_bytes!("../../../fixtures/formats/fonts/NotoSans-Regular.ttf"),
+            include_bytes!("../../../fixtures/formats/fonts/NotoNaskhArabic-Regular.ttf"),
+        ],
+        rich: Some([
+            include_bytes!("../../../fixtures/formats/fonts/NotoSans-Bold.ttf"),
+            include_bytes!("../../../fixtures/formats/fonts/NotoSans-Italic.ttf"),
+            include_bytes!("../../../fixtures/formats/fonts/NotoSans-BoldItalic.ttf"),
+            include_bytes!("../../../fixtures/formats/fonts/NotoSansMono-Regular.ttf"),
+        ]),
+    }
+}
 // The public browser attachment owner currently requires a live node before
 // ingest. Never pretend worker-local staging is durable host ingestion and never
 // insert a descriptor before its originals are admitted. This explicit port
@@ -209,6 +230,7 @@ fn profile(format: &str, import: bool, safe: bool) -> Result<Profile, Value> {
         ("docx", false, false) => docx::export::PROFILE,
         ("odt", false, false) => odt::export::PROFILE,
         ("epub", false, false) => epub::export::PROFILE,
+        ("pdf", false, false) => pdf::export::PROFILE,
         ("docx", true, false) => docx::import::STRUCTURE_PROFILE,
         ("rtf", true, false) => rtf::import::PROFILE,
         ("rtf", false, false) => rtf::export::PROFILE,
@@ -348,7 +370,7 @@ pub fn convert_value_with_assets(
             filename: &filename,
             media_type,
             target,
-            limits: LIMITS,
+            limits: if r.format == "pdf" { p.limits } else { LIMITS },
             timeout: 10000,
             memory_bytes: MEMORY,
         },
@@ -476,6 +498,14 @@ pub fn convert_value_with_assets(
         let c = epub::export::export(&mut job, None, approve, &mut host, || 0)
             .map_err(|e|json!({"ok":false,"code":"ConversionRejected","reason":e.reason,"diagnostics":e.report.diagnostics.iter().map(|d|json!({"code":d.code,"location":d.location,"lossy":d.lossy})).collect::<Vec<_>>(),"action":"Retain the captured checkpoint; supply explicitly granted original assets or review loss diagnostics."}))?;
         json!({"ok":true,"bytes":c.artifact.bytes(),"diagnostics":c.report.diagnostics.iter().map(|d|json!({"code":d.code,"location":d.location,"lossy":d.lossy})).collect::<Vec<_>>(),"assetCount":c.report.assets,"originalAssetBytes":c.report.original_bytes})
+    } else if r.format == "pdf" {
+        let mut host = ApprovedAssets {
+            records: &r.assets,
+            bytes: assets,
+        };
+        let c = pdf::export::export_with_assets(&mut job, publication_fonts(), &mut host, approve, || 0)
+            .map_err(|e|json!({"ok":false,"code":"ConversionRejected","reason":e.reason,"diagnostics":e.report.diagnostics.iter().map(|d|json!({"code":d.code,"location":d.location,"lossy":d.lossy})).collect::<Vec<_>>(),"action":"Retain the captured checkpoint; use supported publication content and explicitly authorized originals, or review loss diagnostics."}))?;
+        json!({"ok":true,"bytes":c.artifact.bytes(),"diagnostics":c.report.diagnostics.iter().map(|d|json!({"code":d.code,"location":d.location,"lossy":d.lossy})).collect::<Vec<_>>(),"pages":c.report.pages,"shapedBytes":c.report.shaped_bytes,"assetCount":c.report.images.len(),"originalAssetBytes":c.report.original_bytes,"pixels":c.report.pixels})
     } else if r.format == "rtf" {
         let c = rtf::export::export(&mut job, None, approve, || 0).map_err(|e|json!({"ok":false,"code":"ConversionRejected","reason":e.reason,"diagnostics":e.report.diagnostics.iter().map(|d|json!({"code":d.code,"location":d.location,"lossy":d.lossy})).collect::<Vec<_>>(),"action":"Review representability diagnostics; retain the captured source."}))?;
         json!({"ok":true,"bytes":c.artifact.bytes(),"diagnostics":c.report.diagnostics.iter().map(|d|json!({"code":d.code,"location":d.location,"lossy":d.lossy})).collect::<Vec<_>>()})
@@ -512,6 +542,9 @@ mod tests {
     use super::*;
     use editac_core::document::InitialNode;
     fn fixture() -> (Value, Vec<u8>) {
+        fixture_text("Hello 🙂")
+    }
+    fn fixture_text(text: &str) -> (Value, Vec<u8>) {
         static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
         let id = format!(
             "27000000-0000-4000-8000-{:012x}",
@@ -524,7 +557,7 @@ mod tests {
             i.clone(),
             &[InitialNode {
                 kind: "block".into(),
-                text: "Hello 🙂".into(),
+                text: text.into(),
             }],
             HostPolicy::default(),
         )
@@ -583,6 +616,33 @@ mod tests {
         assert_eq!(
             convert_value(&r.to_string(), b"PK", &c).unwrap_err()["code"],
             "FORMAT_UNAVAILABLE"
+        );
+    }
+    #[test]
+    fn public_pdf_uses_pinned_publication_renderer_and_remains_export_only() {
+        let (mut r, c) = fixture_text("Hello publication");
+        r["direction"] = json!("export");
+        r["format"] = json!("pdf");
+        let v = convert_value(&r.to_string(), &[], &c).unwrap();
+        assert_eq!(v["profile"], "edit-ac-pdf-publication-v1");
+        let bytes = v["bytes"].as_array().unwrap();
+        assert_eq!(
+            bytes[..5],
+            [json!(37), json!(80), json!(68), json!(70), json!(45)]
+        );
+        assert_eq!(v["pages"], 1);
+        assert_eq!(v["assetCount"], 0);
+        assert!(
+            v["diagnostics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|d| d["code"] == "LAYOUT_DEFAULTS")
+        );
+        r["direction"] = json!("import");
+        assert_eq!(
+            convert_value(&r.to_string(), b"%PDF-", &c).unwrap_err()["code"],
+            "FORMAT_EXPORT_ONLY"
         );
     }
     #[test]

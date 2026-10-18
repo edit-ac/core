@@ -2135,6 +2135,315 @@
         "crates/editac-formats/src/epub/export.rs",
         "packages/formats/README.md"
       ]
+    },
+    "consumers-pdf-export": {
+      "gate": "CNV-1.18-C2-PX",
+      "boundary": "Actual packed bounded PDF worker + captured Session/approved original assets/pinned fonts; independent generated-artifact logical/glyph/layout proof; full original direction/native matrix remains open",
+      "commands": [
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--features",
+            "rtf-import,rtf-export,table-text-import,table-text-export,docx-codecs,odt-export,odt-import,epub-export,epub-import,pdf-export",
+            "--test",
+            "rtf_import",
+            "--test",
+            "rtf_export",
+            "--test",
+            "table_text_import",
+            "--test",
+            "table_text_export",
+            "--test",
+            "jobs",
+            "--test",
+            "profiles",
+            "--test",
+            "docx_export",
+            "--test",
+            "docx_import_text",
+            "--test",
+            "docx_import_structure",
+            "--test",
+            "container_limits",
+            "--test",
+            "odt_export",
+            "--test",
+            "epub_export",
+            "--test",
+            "pdf_export",
+            "--test",
+            "pdf_structure",
+            "--test",
+            "pdf_probe"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats-wasm/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--lib"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/browser.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/contracts.test.mjs"
+          ],
+          "kind": "node-test"
+        }
+      ],
+      "inputs": [
+        "crates/editac-formats-wasm/Cargo.toml",
+        "crates/editac-formats-wasm/Cargo.lock",
+        "crates/editac-formats-wasm/src/lib.rs",
+        "scripts/build-formats.mjs",
+        "packages/formats/package.json",
+        "packages/formats/capabilities.json",
+        "packages/formats/src/index.js",
+        "packages/formats/src/worker.js",
+        "packages/formats/src/index.d.ts",
+        "tests/formats/consumers/prepare.mjs",
+        "tests/formats/consumers/browser.test.mjs",
+        "tests/formats/consumers/contracts.test.mjs",
+        "tests/formats/consumers/inspect.py",
+        "tests/formats/consumers/coverage.test.mjs",
+        "tests/formats/consumers/docx-fixture.json",
+        "tests/formats/consumers/inspect-docx.py",
+        "tests/formats/consumers/docx-import-fixtures.py",
+        "tests/formats/consumers/inspect-docx-import.py",
+        "tests/formats/consumers/inspect-odt.py",
+        "crates/editac-formats/src/odt/export.rs",
+        "fixtures/formats/odt/export/schema/OpenDocument-v1.3-schema.rng",
+        "fixtures/formats/odt/export/schema/OpenDocument-v1.3-manifest-schema.rng",
+        "tests/formats/consumers/odt-fixture.json",
+        "tests/formats/consumers/epub-fixture.json",
+        "tests/formats/consumers/inspect-epub.py",
+        "tests/formats/inspect-epub-export.py",
+        "crates/editac-formats/src/epub/export.rs",
+        "tests/formats/consumers/pdf-fixtures.json",
+        "crates/editac-formats/src/pdf/export.rs",
+        "crates/editac-formats/src/pdf/export_assets.rs",
+        "tests/formats/inspect-pdf-export.py",
+        "tests/formats/inspect-pdf-rich.py",
+        "tests/formats/inspect-pdf-structure.py",
+        "tests/formats/inspect-pdf-arabic.py",
+        "tests/formats/pdf-logical-text.py",
+        "fixtures/formats/fonts/provenance.json",
+        "fixtures/formats/fonts/rich-provenance.json",
+        "scripts/build-formats.mjs",
+        "tests/formats/run.mjs",
+        "packages/formats/README.md",
+        "fixtures/formats/fonts/NotoSans-Regular.ttf",
+        "fixtures/formats/fonts/NotoNaskhArabic-Regular.ttf",
+        "fixtures/formats/fonts/NotoSans-Bold.ttf",
+        "fixtures/formats/fonts/NotoSans-Italic.ttf",
+        "fixtures/formats/fonts/NotoSans-BoldItalic.ttf",
+        "fixtures/formats/fonts/NotoSansMono-Regular.ttf",
+        "fixtures/formats/fonts/OFL.txt"
+      ]
+    },
+    "consumers-pdf-export-repair": {
+      "gate": "CNV-1.18-C2-PX",
+      "boundary": "Actual packed bounded PDF worker + captured Session/approved original assets/pinned fonts; independent generated-artifact logical/glyph/layout proof; full original direction/native matrix remains open",
+      "commands": [
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/browser.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/contracts.test.mjs"
+          ],
+          "kind": "node-test"
+        }
+      ],
+      "inputs": [
+        "crates/editac-formats-wasm/Cargo.toml",
+        "crates/editac-formats-wasm/Cargo.lock",
+        "crates/editac-formats-wasm/src/lib.rs",
+        "scripts/build-formats.mjs",
+        "packages/formats/package.json",
+        "packages/formats/capabilities.json",
+        "packages/formats/src/index.js",
+        "packages/formats/src/worker.js",
+        "packages/formats/src/index.d.ts",
+        "tests/formats/consumers/prepare.mjs",
+        "tests/formats/consumers/browser.test.mjs",
+        "tests/formats/consumers/contracts.test.mjs",
+        "tests/formats/consumers/inspect.py",
+        "tests/formats/consumers/coverage.test.mjs",
+        "tests/formats/consumers/docx-fixture.json",
+        "tests/formats/consumers/inspect-docx.py",
+        "tests/formats/consumers/docx-import-fixtures.py",
+        "tests/formats/consumers/inspect-docx-import.py",
+        "tests/formats/consumers/inspect-odt.py",
+        "crates/editac-formats/src/odt/export.rs",
+        "fixtures/formats/odt/export/schema/OpenDocument-v1.3-schema.rng",
+        "fixtures/formats/odt/export/schema/OpenDocument-v1.3-manifest-schema.rng",
+        "tests/formats/consumers/odt-fixture.json",
+        "tests/formats/consumers/epub-fixture.json",
+        "tests/formats/consumers/inspect-epub.py",
+        "tests/formats/inspect-epub-export.py",
+        "crates/editac-formats/src/epub/export.rs",
+        "tests/formats/consumers/pdf-fixtures.json",
+        "crates/editac-formats/src/pdf/export.rs",
+        "crates/editac-formats/src/pdf/export_assets.rs",
+        "tests/formats/inspect-pdf-export.py",
+        "tests/formats/inspect-pdf-rich.py",
+        "tests/formats/inspect-pdf-structure.py",
+        "tests/formats/inspect-pdf-arabic.py",
+        "tests/formats/pdf-logical-text.py",
+        "fixtures/formats/fonts/provenance.json",
+        "fixtures/formats/fonts/rich-provenance.json"
+      ]
+    },
+    "consumers-pdf-export-contract-repair": {
+      "gate": "CNV-1.18-C2-PX",
+      "boundary": "Actual packed bounded PDF worker + captured Session/approved original assets/pinned fonts; independent generated-artifact logical/glyph/layout proof; full original direction/native matrix remains open",
+      "commands": [
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/contracts.test.mjs"
+          ],
+          "kind": "node-test"
+        }
+      ],
+      "inputs": [
+        "crates/editac-formats-wasm/Cargo.toml",
+        "crates/editac-formats-wasm/Cargo.lock",
+        "crates/editac-formats-wasm/src/lib.rs",
+        "scripts/build-formats.mjs",
+        "packages/formats/package.json",
+        "packages/formats/capabilities.json",
+        "packages/formats/src/index.js",
+        "packages/formats/src/worker.js",
+        "packages/formats/src/index.d.ts",
+        "tests/formats/consumers/prepare.mjs",
+        "tests/formats/consumers/browser.test.mjs",
+        "tests/formats/consumers/contracts.test.mjs",
+        "tests/formats/consumers/inspect.py",
+        "tests/formats/consumers/coverage.test.mjs",
+        "tests/formats/consumers/docx-fixture.json",
+        "tests/formats/consumers/inspect-docx.py",
+        "tests/formats/consumers/docx-import-fixtures.py",
+        "tests/formats/consumers/inspect-docx-import.py",
+        "tests/formats/consumers/inspect-odt.py",
+        "crates/editac-formats/src/odt/export.rs",
+        "fixtures/formats/odt/export/schema/OpenDocument-v1.3-schema.rng",
+        "fixtures/formats/odt/export/schema/OpenDocument-v1.3-manifest-schema.rng",
+        "tests/formats/consumers/odt-fixture.json",
+        "tests/formats/consumers/epub-fixture.json",
+        "tests/formats/consumers/inspect-epub.py",
+        "tests/formats/inspect-epub-export.py",
+        "crates/editac-formats/src/epub/export.rs",
+        "tests/formats/consumers/pdf-fixtures.json",
+        "crates/editac-formats/src/pdf/export.rs",
+        "crates/editac-formats/src/pdf/export_assets.rs",
+        "tests/formats/inspect-pdf-export.py",
+        "tests/formats/inspect-pdf-rich.py",
+        "tests/formats/inspect-pdf-structure.py",
+        "tests/formats/inspect-pdf-arabic.py",
+        "tests/formats/pdf-logical-text.py",
+        "fixtures/formats/fonts/provenance.json",
+        "fixtures/formats/fonts/rich-provenance.json"
+      ]
+    },
+    "consumers-pdf-export-page-fixture-repair": {
+      "gate": "CNV-1.18-C2-PX",
+      "boundary": "Actual packed bounded PDF worker + captured Session/approved original assets/pinned fonts; independent generated-artifact logical/glyph/layout proof; full original direction/native matrix remains open",
+      "commands": [
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "--test-name-pattern=PDF denied/missing/corrupt/oversized originals",
+            "tests/formats/consumers/browser.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/contracts.test.mjs"
+          ],
+          "kind": "node-test"
+        }
+      ],
+      "inputs": [
+        "crates/editac-formats-wasm/Cargo.toml",
+        "crates/editac-formats-wasm/Cargo.lock",
+        "crates/editac-formats-wasm/src/lib.rs",
+        "scripts/build-formats.mjs",
+        "packages/formats/package.json",
+        "packages/formats/capabilities.json",
+        "packages/formats/src/index.js",
+        "packages/formats/src/worker.js",
+        "packages/formats/src/index.d.ts",
+        "tests/formats/consumers/prepare.mjs",
+        "tests/formats/consumers/browser.test.mjs",
+        "tests/formats/consumers/contracts.test.mjs",
+        "tests/formats/consumers/inspect.py",
+        "tests/formats/consumers/coverage.test.mjs",
+        "tests/formats/consumers/docx-fixture.json",
+        "tests/formats/consumers/inspect-docx.py",
+        "tests/formats/consumers/docx-import-fixtures.py",
+        "tests/formats/consumers/inspect-docx-import.py",
+        "tests/formats/consumers/inspect-odt.py",
+        "crates/editac-formats/src/odt/export.rs",
+        "fixtures/formats/odt/export/schema/OpenDocument-v1.3-schema.rng",
+        "fixtures/formats/odt/export/schema/OpenDocument-v1.3-manifest-schema.rng",
+        "tests/formats/consumers/odt-fixture.json",
+        "tests/formats/consumers/epub-fixture.json",
+        "tests/formats/consumers/inspect-epub.py",
+        "tests/formats/inspect-epub-export.py",
+        "crates/editac-formats/src/epub/export.rs",
+        "tests/formats/consumers/pdf-fixtures.json",
+        "crates/editac-formats/src/pdf/export.rs",
+        "crates/editac-formats/src/pdf/export_assets.rs",
+        "tests/formats/inspect-pdf-export.py",
+        "tests/formats/inspect-pdf-rich.py",
+        "tests/formats/inspect-pdf-structure.py",
+        "tests/formats/inspect-pdf-arabic.py",
+        "tests/formats/pdf-logical-text.py",
+        "fixtures/formats/fonts/provenance.json",
+        "fixtures/formats/fonts/rich-provenance.json"
+      ]
     }
   }
 }

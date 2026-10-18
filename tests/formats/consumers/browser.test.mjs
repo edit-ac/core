@@ -1,7 +1,7 @@
 import test,{before,after} from 'node:test';
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
-import {readFileSync,writeFileSync,statSync} from 'node:fs';
+import {readFileSync,writeFileSync,statSync,mkdirSync} from 'node:fs';
 import {resolve,extname,sep} from 'node:path';
 import {chromium} from 'playwright';
 import {createConnection} from 'node:net';
@@ -12,7 +12,8 @@ const root=resolve(packed.consumer,'node_modules');
 const docxFixture=JSON.parse(readFileSync('tests/formats/consumers/docx-fixture.json'));
 const epubFixture=JSON.parse(readFileSync('tests/formats/consumers/epub-fixture.json'));
 const odtFixture=JSON.parse(readFileSync('tests/formats/consumers/odt-fixture.json'));
-let server,controller,browser,url;
+const pdfFixtures=JSON.parse(readFileSync('tests/formats/consumers/pdf-fixtures.json'));
+let server,controller,browser,url,publicationProbeRequests=0;
 function sampleMemory(){
  if(!controller)return null;
  const r=spawnSync('/bin/ps',['-axo','pid=,ppid=,rss='],{encoding:'utf8'});if(r.status!==0)return null;
@@ -20,11 +21,12 @@ function sampleMemory(){
  const ids=new Set([controller.process().pid]);let more=true;while(more){more=false;for(const p of rows)if(ids.has(p.ppid)&&!ids.has(p.pid)){ids.add(p.pid);more=true;}}
  const processes=rows.filter(p=>ids.has(p.pid));return {time:Date.now(),sumRssBytes:processes.reduce((n,p)=>n+p.bytes,0),processes};
 }
-const evidence={cases:[],processes:[],resources:[],remoteRequests:[],workers:0,cleanup:{},scope:'CNV-1.18 C1/DI-T/DX/OX/EX actual packed Chromium workers and live shared Session/AssetSession; original parent remains open for missing directions and targets'};
+const evidence={cases:[],processes:[],resources:[],remoteRequests:[],workers:0,cleanup:{},scope:'CNV-1.18 C1/DI-T/DX/OX/EX/PX actual packed Chromium workers and live shared Session/AssetSession; original parent remains open for missing directions and targets'};
 const save=()=>writeFileSync(resolve(output,'browser-receipt.json'),JSON.stringify(evidence,null,2)+'\n');
 before(async()=>{
  server=createServer((req,res)=>{
   let name=decodeURIComponent(new URL(req.url,'http://localhost').pathname);
+  if(name==='/forbidden-publication-resource'){publicationProbeRequests++;res.writeHead(403).end();return;}
   if(name==='/'||name==='/disabled/'){const prefix=name==='/disabled/'?'/disabled':'';res.setHeader('Content-Type','text/html');res.end(`<script type="importmap">{"imports":{"@edit-ac/core":"${prefix}/@edit-ac/core/dist/index.js","@edit-ac/formats":"${prefix}/@edit-ac/formats/dist/index.js","@edit-ac/web/assets":"${prefix}/@edit-ac/web/dist/sync/assets.js"}}</script><body>Local packed format consumer</body>`);return;}
   const directory=name.startsWith('/disabled/')?resolve(packed.disabled,'node_modules'):root;if(name.startsWith('/disabled/'))name=name.slice('/disabled'.length);
   const file=resolve(directory,'.'+name);if(!file.startsWith(directory+sep)){res.writeHead(403).end();return;}
@@ -343,4 +345,91 @@ test('EPUB complete cold/warm snapshot/worker/artifact/reopen costs include orig
   for(const phase of ['cold','warm']){const start=performance.now(),heapBefore=performance.memory.usedJSHeapSize;const assets=await AssetSession.open(engine,indexedDB,databaseName);const bytes=await assets.retainedSource(image.id,{identity:f.descriptor.identity,actions:['read']});const p=await client.export(engine,{format:'epub',approveLoss:true,originalAssets:[{identity:f.descriptor.identity,actions:['read'],bytes}]});const reopened=runtime.restoreEngine(p.recovery.identity,p.recovery);const captured=text(reopened);reopened.dispose();await assets.dispose('suspend');values.push({phase,completeMs:performance.now()-start,heapBefore,heapAfter:performance.memory.usedJSHeapSize,metrics:p.metrics,artifactBytes:p.bytes.length,captured,scope:'AssetSession open/reconcile/read authorization + retained byte read + immutable source capture + worker bootstrap/Session/writer/package/transfer + checkpoint reopen + service suspension; excludes preexisting document/asset authoring and independent validation'});}
   client.dispose();engine.dispose();return values;
  },epubFixture));for(const m of r){assert.ok(m.completeMs>0);assert.ok(m.artifactBytes>0);assert.match(m.captured,/EPUB 🙂 heading/);assert.ok(m.metrics.wasmLinearBytes<=67108864);}evidence.epubResources=r;save();
+});
+
+test('packed PDF export uses captured rich semantics and AssetSession-authorized exact originals',async()=>{
+ const r=await check('pdf-export-assets',page=>page.evaluate(async f=>{
+  const {engine,client,range}=make();
+  engine.commit(engine.prepare({kind:'fragment',origin:'epub-fixture',range,blocks:f.blocks}));
+  const image=engine.read().visible.find(n=>n.blockAttributes?.[0]==='module:editac.asset');
+  const {AssetSession}=await import('@edit-ac/web/assets');
+  const databaseName='pdf-'+crypto.randomUUID();const session=await AssetSession.open(engine,indexedDB,databaseName);
+  const grant={identity:f.descriptor.identity,actions:['ingest','read']};
+  const request={version:1,operationId:'retain_docx_original',identity:f.descriptor.identity,action:'ingest',byteLimit:f.pixel.length};
+  const receipt=await session.enqueue(image.id,request,grant,Uint8Array.from(f.pixel));
+  const bytes=await session.retainedSource(image.id,{identity:f.descriptor.identity,actions:['read']});
+  let deniedRead=false;try{await session.retainedSource(image.id,{identity:f.descriptor.identity,actions:[]});}catch{deniedRead=true;}
+  const start=performance.now();const originalAssets=[{identity:f.descriptor.identity,actions:['read'],bytes}];
+  const pending=client.export(engine,{format:'pdf',approveLoss:true,originalAssets});
+  bytes.fill(0);originalAssets[0].identity={host:'changed',key:'changed'};
+  const node=engine.read().visible[0].id;const a=engine.anchor(node,0,'right');engine.commit(engine.prepare({kind:'editor',origin:'later',commands:[{type:'insert',at:a,text:'LATER'}]}));engine.releaseAnchor(a);
+  const result=await pending;const reopened=runtime.restoreEngine(result.recovery.identity,result.recovery);const captured=text(reopened);reopened.dispose();
+  const value={bytes:Array.from(result.bytes),diagnostics:result.diagnostics,metrics:result.metrics,completeMs:performance.now()-start,deniedRead,receipt,captured,current:text(engine),oldRevision:result.revision,newRevision:engine.read().revision,linearBytes:result.metrics.wasmLinearBytes,assetCount:result.assetCount,originalAssetBytes:result.originalAssetBytes};
+  await session.dispose('suspend');const recovered=await AssetSession.open(engine,indexedDB,databaseName);value.retainedAfterSuspend=Array.from(await recovered.retainedSource(image.id,{identity:f.descriptor.identity,actions:['read']}));value.recoveredIntents=(await recovered.inspect()).intents;await recovered.dispose('retire');client.dispose();engine.dispose();return value;
+ },pdfFixtures.structure));
+ assert.deepEqual(r.retainedAfterSuspend,pdfFixtures.structure.pixel);assert.ok(r.recoveredIntents.every(i=>i.status==='Pending'));assert.equal(r.deniedRead,true);assert.equal(r.receipt.kind,'assetOperation');assert.ok(r.current.includes('LATER'));assert.ok(!r.captured.includes('LATER'));assert.ok(r.newRevision>r.oldRevision);assert.equal(r.assetCount,1);assert.equal(r.originalAssetBytes,pdfFixtures.structure.pixel.length);assert.ok(r.linearBytes<=67108864);assert.ok(r.diagnostics.some(d=>d.code==='LAYOUT_DEFAULTS'));assert.deepEqual(r.diagnostics.filter(d=>d.lossy).map(d=>d.code).sort(),[]);
+ const directory=resolve(output,'pdf-structure');mkdirSync(directory,{recursive:true});writeFileSync(resolve(directory,'structure-publication.pdf'),Buffer.from(r.bytes));
+});
+
+test('packed PDF text/Arabic/multipage and rich lists/links use the qualified publication renderer',async()=>{
+ for(const kind of ['text','rich']){
+  const r=await check('pdf-'+kind,page=>page.evaluate(async ({kind,f})=>{
+   let engine,client;
+   if(kind==='text'){
+    const id='27000000-0000-4000-8000-'+String(window.nextFixture++).padStart(12,'0');
+    engine=runtime.createEngine({profile:'v5',documentId:id,epoch:'27000000-0000-4000-8000-000000000000',nodes:f.text.map(text=>({text}))});
+    const {createFormatClient}=await import('@edit-ac/formats');client=createFormatClient();
+   }else{const made=make();engine=made.engine;client=made.client;engine.commit(engine.prepare({kind:'fragment',origin:'pdf-rich',range:made.range,blocks:f.richBlocks}));}
+   const before=text(engine),revision=engine.read().revision;const result=await client.export(engine,{format:'pdf'});
+   const recovered=runtime.restoreEngine(result.recovery.identity,result.recovery);const recoveredText=text(recovered);recovered.dispose();
+   const value={bytes:Array.from(result.bytes),profile:result.profile,diagnostics:result.diagnostics,pages:result.pages,metrics:result.metrics,unchanged:before===text(engine)&&revision===engine.read().revision,recovered:before===recoveredText};
+   client.dispose();engine.dispose();return value;
+  },{kind,f:pdfFixtures}));
+  assert.equal(r.profile,'edit-ac-pdf-publication-v1');assert.ok(r.pages>1);assert.equal(r.unchanged,true);assert.equal(r.recovered,true);assert.deepEqual(r.diagnostics.filter(d=>d.lossy),[]);assert.ok(r.metrics.wasmLinearBytes<=67108864);
+  const directory=resolve(output,'pdf-'+kind);mkdirSync(directory,{recursive:true});writeFileSync(resolve(directory,kind+'-publication.pdf'),Buffer.from(r.bytes));
+ }
+});
+test('PDF denied/missing/corrupt/oversized originals, unsupported semantics and page budget fail atomically',async()=>{
+ const r=await check('pdf-failures',page=>page.evaluate(async f=>{
+  const {engine,client,range}=make();engine.commit(engine.prepare({kind:'fragment',origin:'pdf-fixture',range,blocks:f.blocks}));const before=text(engine),revision=engine.read().revision;
+  const results=[];
+  for(const mode of ['missing','denied','wrong-identity','corrupt','oversized']){
+   let bytes=Uint8Array.from(f.pixel);if(mode==='corrupt')bytes[bytes.length-1]^=1;if(mode==='oversized')bytes=new Uint8Array(1048577);
+   const assets=mode==='missing'?[]:[{identity:mode==='wrong-identity'?{host:'wrong',key:'wrong'}:f.descriptor.identity,actions:mode==='denied'?[]:['read'],bytes}];
+   try{await client.export(engine,{format:'pdf',originalAssets:assets});results.push({mode,unexpected:true});}catch(e){results.push({mode,code:e.code,reason:e.report.reason,recoverable:!!e.recovery});}
+  }
+  const abort=new AbortController();const pending=client.export(engine,{format:'pdf',signal:abort.signal,originalAssets:[{identity:f.descriptor.identity,actions:['read'],bytes:Uint8Array.from(f.pixel)}]});abort.abort();let cancel;try{await pending;}catch(e){cancel={code:e.code,recoverable:!!e.recovery};}
+  const unchanged=before===text(engine)&&revision===engine.read().revision;client.dispose();engine.dispose();
+  const plain=make();plain.engine.commit(plain.engine.prepare({kind:'fragment',origin:'pdf-unsupported',range:plain.range,blocks:[{runs:[{text:'literal code',marks:[]}],attributes:{type:'code',language:'rust'}}]}));
+  const unsupported=[];for(const approveLoss of [false,true]){try{await plain.client.export(plain.engine,{format:'pdf',approveLoss});unsupported.push({unexpected:true});}catch(e){unsupported.push({code:e.code,diagnostics:e.report.diagnostics,recoverable:!!e.recovery});}}
+  plain.client.dispose();plain.engine.dispose();
+  const large=make();large.engine.commit(large.engine.prepare({kind:'fragment',origin:'pdf-page-limit',range:large.range,blocks:[{runs:[{text:'Page limit\n'.repeat(200),marks:[]}],attributes:null}]}));
+  let pageLimit;try{await large.client.export(large.engine,{format:'pdf'});}catch(e){pageLimit={code:e.code,reason:e.report.reason,recoverable:!!e.recovery};}large.client.dispose();large.engine.dispose();
+  return {results,cancel,unchanged,unsupported,pageLimit};
+ },pdfFixtures.structure));
+ assert.equal(r.unchanged,true);assert.deepEqual(r.results.map(x=>x.code),['ConversionRejected','ConversionRejected','ConversionRejected','ConversionRejected','ResourceLimit']);assert.ok(r.results.every(x=>x.recoverable));assert.equal(r.cancel.code,'Cancelled');assert.equal(r.cancel.recoverable,true);assert.ok(r.unsupported.every(x=>x.recoverable&&x.diagnostics.some(d=>d.lossy)));assert.equal(r.pageLimit.code,'ConversionRejected');assert.equal(r.pageLimit.recoverable,true);assert.match(r.pageLimit.reason,/PAGE_LIMIT/);
+});
+
+test('PDF complete cold/warm snapshot/worker/artifact/reopen costs include original assets',async()=>{
+ const r=await check('pdf-export-costs',page=>page.evaluate(async f=>{
+  const values=[];const {engine,client,range}=make();engine.commit(engine.prepare({kind:'fragment',origin:'epub-fixture',range,blocks:f.blocks}));
+  const {AssetSession}=await import('@edit-ac/web/assets');const databaseName='pdf-cost-'+crypto.randomUUID();const image=engine.read().visible.find(n=>n.blockAttributes?.[0]==='module:editac.asset');
+  const initial=await AssetSession.open(engine,indexedDB,databaseName);await initial.enqueue(image.id,{version:1,operationId:'retain_cost_original',identity:f.descriptor.identity,action:'ingest',byteLimit:f.pixel.length},{identity:f.descriptor.identity,actions:['ingest']},Uint8Array.from(f.pixel));await initial.dispose('suspend');
+  for(const phase of ['cold','warm']){const start=performance.now(),heapBefore=performance.memory.usedJSHeapSize;const assets=await AssetSession.open(engine,indexedDB,databaseName);const bytes=await assets.retainedSource(image.id,{identity:f.descriptor.identity,actions:['read']});const p=await client.export(engine,{format:'pdf',approveLoss:true,originalAssets:[{identity:f.descriptor.identity,actions:['read'],bytes}]});const reopened=runtime.restoreEngine(p.recovery.identity,p.recovery);const captured=text(reopened);reopened.dispose();await assets.dispose('suspend');values.push({phase,completeMs:performance.now()-start,heapBefore,heapAfter:performance.memory.usedJSHeapSize,metrics:p.metrics,artifactBytes:p.bytes.length,captured,scope:'AssetSession open/reconcile/read authorization + retained byte read + immutable source capture + bundled fonts/module bootstrap/Session/shaping/layout/render/transfer + checkpoint reopen + service suspension; excludes preexisting document/asset authoring and independent validation'});}
+  client.dispose();engine.dispose();return values;
+ },pdfFixtures.structure));for(const m of r){assert.ok(m.completeMs>0);assert.ok(m.artifactBytes>0);assert.match(m.captured,/Before table/);assert.ok(m.metrics.wasmLinearBytes<=67108864);}evidence.pdfResources=r;save();
+});
+
+test('packed publication worker CSP actually denies network and uses an enforceable WASM linear ceiling',async()=>{
+ const context=await browser.newContext();const page=await context.newPage();const before=publicationProbeRequests;
+ try{
+  await page.goto(url);
+  const workerEvent=page.waitForEvent('worker');
+  await page.evaluate(()=>{window.publicationProbe=new Worker('/@edit-ac/formats/dist/worker.js',{type:'module'});});
+  const worker=await workerEvent;
+  const denied=await worker.evaluate(async()=>{try{await fetch('/forbidden-publication-resource');return false;}catch{return true;}});
+  assert.equal(denied,true);assert.equal(publicationProbeRequests,before);
+  await page.evaluate(()=>publicationProbe.terminate());
+  evidence.pdfIsolation={workerCspNetworkDenied:true,forbiddenServerRequests:publicationProbeRequests-before,linearCeiling:'same exact pinned module memory.grow refusal exercised by packed cold/warm resource test',wholeProcessHardLimit:false};save();
+ }finally{await page.evaluate(()=>window.publicationProbe?.terminate()).catch(()=>{});await context.close();}
 });

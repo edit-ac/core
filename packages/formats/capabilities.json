@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "owner": "CNV-1.18-C1/C2-DX/C2-DI-T / C2-EX",
+  "owner": "CNV-1.18-C1/C2-DX/C2-DI-T / C2-EX / C2-PX",
   "state": "implementation-pending-qualification",
   "directions": [
     {
@@ -110,6 +110,20 @@
         "epub-export",
         "jobs"
       ]
+    },
+    {
+      "format": "pdf",
+      "direction": "export",
+      "profile": "edit-ac-pdf-publication-v1",
+      "target": "browser-worker-wasm32",
+      "fixture": "tests/formats/consumers/pdf-fixtures.json",
+      "fidelity": "bounded-semantic-publication",
+      "feature": "pdf-export",
+      "requiredFeatures": [
+        "pdf-export",
+        "jobs"
+      ],
+      "isolation": "Bundled bounded WASM module; host worker CSP connect-src none; 64MiB linear memory, 10s outer termination; no whole-process RSS hard limit"
     }
   ],
   "additionalProfiles": [
@@ -119,8 +133,7 @@
   "unavailable": [
     "docx-import-media",
     "odt-import",
-    "epub-import",
-    "pdf-export"
+    "epub-import"
   ],
   "pdfImport": "FORMAT_EXPORT_ONLY",
   "runtimeMemory": {
@@ -137,7 +150,7 @@
     "inputBytes": 1048576,
     "checkpointBytes": 1048576,
     "resultEnvelopeCharacters": 8388608,
-    "moduleAssetBytes": 8388608,
+    "moduleAssetBytes": 16777216,
     "wallMs": 10000,
     "originalAssetBytes": 1048576
   }

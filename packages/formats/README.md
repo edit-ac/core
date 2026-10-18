@@ -6,7 +6,7 @@ The base editor does not depend on this package. Build with
 `node scripts/build-formats.mjs` using the locked Node/Rust/bindgen toolchains.
 
 The initial public worker return covers the existing bounded RTF 1.9.1 profile and
-explicit UTF-8 CSV/TSV table dialects and semantic DOCX/ODT/EPUB export and DOCX text/list/simple-table import. DOCX media import, ODT/EPUB import and PDF export are unavailable
+explicit UTF-8 CSV/TSV table dialects and semantic DOCX/ODT/EPUB and bounded PDF publication export and DOCX text/list/simple-table import. DOCX media import and ODT/EPUB import are unavailable
 at this package boundary until separately packaged and qualified. PDF import is
 always export-only, including a PDF signature mislabeled as another supported
 format. Existing native adapters retain their own evidence and limitations.
@@ -35,7 +35,7 @@ write/close with that captured revision, and keeps later edits dirty.
 One client admits one job; one module realm admits at most two active workers. AbortSignal, `cancel()` or `dispose()` terminates the
 worker and fences results. The deadline defaults to 10s and can only be reduced.
 Input and checkpoint are each bounded to 1MiB; the adapter has existing output,
-node and parser budgets; the result envelope is bounded to 8MiB. The compiled
+node and parser budgets; the result envelope is bounded to 8MiB. The bundled module fetch is capped at16MiB including fonts. The compiled
 WASM memory has a 64MiB maximum. This bounds linear memory, not the browser's total
 JS/renderer heap. A trap retains original recovery bytes and does not commit.
 
@@ -46,12 +46,12 @@ fetch/socket APIs; hosts must serve the worker with `connect-src 'none'`
 and a suitable script/WASM CSP and serve immutable same-origin assets. CSP enforcement,
 whole-process memory policy, cross-engine host integration, journal durability,
 asset ingest, native sandboxing and reader/manual/platform/release qualification
-remain explicit roadmap31–36/37 work. No fonts, remote converter, provider,
+remain explicit roadmap31–36/37 work. No remote converter, provider,
 credentials or network fallback are included. Costs reported by tests include
 checkpoint capture, worker startup/load, Session restore, conversion, transfer,
 live commit/reopen and worker termination; memory samples state their limits.
 
-DOCX, ODT and EPUB export use their existing optional semantic writers and captured checkpoint.
+DOCX, ODT, EPUB and PDF export use their existing optional semantic writers and captured checkpoint.
 Supply `originalAssets: [{identity, actions: ['read'], bytes}]` for each admitted
 PNG. Obtain bytes through the owning attachment service (for example
 `AssetSession.retainedSource(reference, grant)`), with explicit host permission.
@@ -81,3 +81,15 @@ and modified time is fixed; source/private metadata is omitted with diagnostics.
 Authorized original PNG bytes, alt text and captions are preserved. Unsupported
 content requires explicit loss approval and retains the captured recovery checkpoint.
 No fixed-layout, pagination, DRM, scripts or implicit remote resources are supported.
+
+PDF export uses the qualified bounded publication profile with selectable shaped
+Latin/Arabic text, rich marks/headings/lists, rectangular tables and approved
+original PNG images. Six exact licensed Noto faces are embedded in the optional
+WASM module; the build receipt pins their bytes and includes OFL notices. There
+is no host-font lookup or resource download selected by document content. The
+worker has the same 64MiB linear-memory cap, outer termination/deadline and denied
+network policy. The publication profile caps text at64KiB, pages at8 and output
+at4MiB; exceeding a limit returns no partial artifact. Missing font coverage,
+mixed-script or unsupported structures return diagnostics/recovery. The declared
+layout is420x360pt with28pt margins, not arbitrary original pagination. PDF import
+is rejected; PDF/UA, archival compliance and native host integration remain open.

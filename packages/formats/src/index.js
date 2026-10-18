@@ -6,6 +6,8 @@ export class FormatError extends Error {
   }
 }
 const MAX_INPUT = 1048576;
+// Includes the reviewed publication renderer and six pinned font faces.
+const MAX_MODULE = 16 * 1048576;
 let workerPermits=0;const MAX_WORKERS=2;
 const MAX_OUTPUT = 8 * 1048576;
 /** A client owns at most one conversion worker; caller retains live Engine/anchors. */
@@ -72,10 +74,10 @@ export function createFormatClient() {
         if(!compiledModule){
           const response=await fetch(new URL('./runtime/editac_formats_wasm_bg.wasm',import.meta.url),{signal:bootstrap.signal,credentials:'omit'});
           if(!response.ok)throw Error('UnavailableAsset');
-          if(Number(response.headers.get('content-length'))>8*1048576)throw Error('ResourceLimit');
+          if(Number(response.headers.get('content-length'))>MAX_MODULE)throw Error('ResourceLimit');
           const reader=response.body?.getReader();if(!reader)throw Error('UnavailableAsset');
           const chunks=[];let length=0;
-          try {for(;;){const {done,value}=await reader.read();if(done)break;if(length+value.length>8*1048576){await reader.cancel();throw Error('ResourceLimit');}length+=value.length;chunks.push(value);}}
+          try {for(;;){const {done,value}=await reader.read();if(done)break;if(length+value.length>MAX_MODULE){await reader.cancel();throw Error('ResourceLimit');}length+=value.length;chunks.push(value);}}
           finally{reader.releaseLock();}
           const bytes=new Uint8Array(length);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}
           const module=await WebAssembly.compile(bytes);if(settled)return;compiledModule=module;

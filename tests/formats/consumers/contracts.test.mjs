@@ -19,12 +19,12 @@ test('default Rust graph and packed base editor omit optional converters and fon
  const graph=run('cargo',['tree','--manifest-path','crates/editac-formats/Cargo.toml','--locked','--offline','-e','normal'],'disabled-rust-graph');assert.equal(graph.trim().split('\n').length,1);
  assert.equal(existsSync(resolve(packed.disabled,'node_modules/@edit-ac/formats')),false);assert.equal(existsSync(resolve(packed.disabled,'node_modules/@edit-ac/core/dist/index.js')),true);
  const base=packed.archives.find(a=>a.name==='core');assert.ok(base.files.length>0);assert.ok(!base.files.some(f=>/formats|\.ttf$|\.otf$|krilla|docx|epub|csv-core/i.test(f.path)));
- const enabled=run('cargo',['tree','--manifest-path','crates/editac-formats-wasm/Cargo.toml','--locked','--offline','-e','normal'],'enabled-text-graph');assert.match(enabled,/csv-core v0.1.13/);assert.match(enabled,/docx-rs v0.4.22/);assert.match(enabled,/zip v8.6.0/);assert.ok(!/krilla|reqwest|tokio|image v/.test(enabled));
+ const enabled=run('cargo',['tree','--manifest-path','crates/editac-formats-wasm/Cargo.toml','--locked','--offline','-e','normal'],'enabled-text-graph');assert.match(enabled,/csv-core v0.1.13/);assert.match(enabled,/docx-rs v0.4.22/);assert.match(enabled,/zip v8.6.0/);assert.match(enabled,/krilla v0.8.2/);assert.ok(!/reqwest|tokio/.test(enabled));assert.match(readFileSync(resolve(packed.consumer,'node_modules/@edit-ac/formats/THIRD-PARTY-NOTICES.txt'),'utf8'),/SIL OPEN FONT LICENSE/);
  const notices=readFileSync(resolve(packed.consumer,'node_modules/@edit-ac/formats/THIRD-PARTY-NOTICES.txt'),'utf8');assert.match(notices,/csv-core 0.1.13/);assert.match(notices,/docx-rs 0.4.22/);assert.match(notices,/MIT|Permission is hereby granted/);assert.match(notices,/Apache/);
  writeFileSync(resolve(output,'size-receipt.json'),JSON.stringify({baseArchive:base.bytes,baseUnpacked:base.unpackedSize,formatsArchive:packed.archives.find(a=>a.name==='formats').bytes,formatsUnpacked:packed.archives.find(a=>a.name==='formats').unpackedSize,disabledScope:'packed core package + no-feature Rust format graph; format package is not a base dependency'},null,2)+'\n');
 });
 test('installed public declarations typecheck against the packed SDK',()=>{
- const path=resolve(packed.consumer,'consumer.ts');writeFileSync(path,`import {createFormatClient, type Options} from '@edit-ac/formats';\nimport type {EngineHandle, StableRange} from '@edit-ac/core';\ndeclare const e:EngineHandle;declare const range:StableRange;const o:Options={format:'csv',newline:'lf',header:true};\nconst client=createFormatClient();const p=await client.prepareImport(e,{...o,range,source:new Uint8Array()});p.commit();const exported=await client.export(e,{format:'rtf'});exported.bytes.byteLength;const docx=await client.export(e,{format:'docx',originalAssets:[{identity:{host:'local',key:'image'},actions:['read'],bytes:new Uint8Array(70)}]});docx.bytes.byteLength;const odt=await client.export(e,{format:'odt'});odt.bytes.byteLength;const epub=await client.export(e,{format:'epub'});epub.bytes.byteLength;client.dispose();\n`);
+ const path=resolve(packed.consumer,'consumer.ts');writeFileSync(path,`import {createFormatClient, type Options} from '@edit-ac/formats';\nimport type {EngineHandle, StableRange} from '@edit-ac/core';\ndeclare const e:EngineHandle;declare const range:StableRange;const o:Options={format:'csv',newline:'lf',header:true};\nconst client=createFormatClient();const p=await client.prepareImport(e,{...o,range,source:new Uint8Array()});p.commit();const exported=await client.export(e,{format:'rtf'});exported.bytes.byteLength;const docx=await client.export(e,{format:'docx',originalAssets:[{identity:{host:'local',key:'image'},actions:['read'],bytes:new Uint8Array(70)}]});docx.bytes.byteLength;const odt=await client.export(e,{format:'odt'});odt.bytes.byteLength;const epub=await client.export(e,{format:'epub'});epub.bytes.byteLength;const pdf=await client.export(e,{format:'pdf'});pdf.bytes.byteLength;client.dispose();\n`);
  run(process.execPath,[resolve('node_modules/typescript/bin/tsc'),'--noEmit','--strict','--module','nodenext','--moduleResolution','nodenext','--target','es2022','--lib','es2022,dom',path],'consumer-types');
 });
 test('independent readers inspect actual browser-produced RTF and exact/safe CSV/TSV artifacts',()=>{
@@ -52,4 +52,14 @@ test('independent EPUB reader verifies chapters/navigation/metadata/semantics/as
  assert.ok(process.env.EDITAC_EPUB_READER_PYTHON,'explicit offline EbookLib/lxml reader required');
  const r=JSON.parse(run(process.env.EDITAC_EPUB_READER_PYTHON,['tests/formats/consumers/inspect-epub.py',output],'browser-epub-independent'));
  assert.equal(r.state,'passed');assert.equal(r.negativeMutations,9);assert.equal(r.fixtures.supported.chapters,2);
+});
+
+test('independent actual packed PDF text/rich/structure, Arabic glyph/layout and mutation oracles',()=>{
+ assert.ok(process.env.EDITAC_PDF_PYTHON,'explicit pinned offline PDF readers required');
+ for(const kind of ['text','rich','structure']){
+  const args=['tests/formats/inspect-pdf-'+(kind==='text'?'export':kind)+'.py',resolve(output,'pdf-'+kind),'fixtures/formats/pdf/export/'+kind+'.json'];
+  if(kind==='structure')args.push('fixtures/formats/pdf/export/panels.png');
+  run(process.env.EDITAC_PDF_PYTHON,args,'browser-pdf-'+kind+'-independent');
+  if(kind==='text')run(process.env.EDITAC_PDF_PYTHON,['tests/formats/inspect-pdf-arabic.py',resolve(output,'pdf-text'),'fixtures/formats/pdf/export/arabic-glyphs.json'],'browser-pdf-arabic-independent');
+ }
 });
