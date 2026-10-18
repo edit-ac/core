@@ -1,5 +1,6 @@
 import type { CommitResult, EngineHandle, MoveTarget, PatchSubscription, PrepareRequest, ProjectedNode } from '@edit-ac/core';
 import type { DOMSelection, RetainedSelection } from '../dom/selection.js';
+import { touchTarget } from './touch-controls.js';
 
 export interface ReorderContext {
   root: HTMLElement;
@@ -18,6 +19,7 @@ const blockDragMime = 'application/x-editac-block';
 interface PointerSession {
   id: number; x: number; y: number; startX: number; startY: number; threshold: number;
   active: boolean; sampled: boolean; destination?: { parent: MoveTarget; before: MoveTarget | null; hovered: MoveTarget; after: boolean } | undefined;
+  observedDestination?: MoveTarget;
 }
 interface Target { target: MoveTarget; selection: RetainedSelection }
 
@@ -29,9 +31,9 @@ export class ReorderPresenter {
   private readonly grip: HTMLButtonElement;
   private pointer: PointerSession | undefined;
   private frame: number | undefined;
-  private readonly work = { frames: 0, hitTests: 0, geometryReads: 0, scrollWrites: 0 };
+  private readonly work = { frames: 0, hitTests: 0, geometryReads: 0, scrollAncestorChecks: 0, scrollWrites: 0 };
   /** Derived interaction diagnostics; no document state or retained DOM references. */
-  get pointerState() { return { ...this.work, active: !!this.pointer?.active, pendingFrame: this.frame !== undefined, captured: !!this.pointer, retainedSelection: !!this.session?.selection.active, listeners: this.listeners.length, subscribed: !this.disposed }; }
+  get pointerState() { return { ...this.work, destinationId: this.pointer?.observedDestination?.id, active: !!this.pointer?.active, pendingFrame: this.frame !== undefined, captured: !!this.pointer, retainedSelection: !!this.session?.selection.active, listeners: this.listeners.length, subscribed: !this.disposed }; }
   private readonly nodes = new Map<string, ProjectedNode>();
   private readonly subscription: PatchSubscription;
   private readonly listeners: [EventTarget, string, EventListener, boolean | AddEventListenerOptions][] = [];
@@ -40,6 +42,7 @@ export class ReorderPresenter {
   private composing = false;
   private escapeFocus = false;
   private disposed = false;
+  private committing = false;
   private readonly dragScope: string;
   private dragSequence = 0;
   private dragToken: string | undefined;
@@ -50,15 +53,24 @@ export class ReorderPresenter {
     this.controls = doc.createElement('div');
     this.controls.setAttribute('role', 'group'); this.controls.setAttribute('aria-label', 'Reorder block');
     this.controls.contentEditable = 'false';
+    this.controls.style.display = 'flex'; this.controls.style.flexWrap = 'wrap';
+    this.controls.style.maxWidth = '100%';
     this.up = doc.createElement('button'); this.down = doc.createElement('button');
     for (const [button, label] of [[this.up, 'Move block up'], [this.down, 'Move block down']] as const) {
-      button.type = 'button'; button.style.minWidth = button.style.minHeight = '44px'; button.textContent = label; this.controls.append(button);
-      this.listen(button, 'pointerdown', () => { this.begin(); });
+      button.type = 'button'; button.textContent = label; this.controls.append(button);
+      this.listen(button, 'pointerdown', event => {
+        const pointer = event as PointerEvent;
+        if (pointer.button !== 0 || !pointer.isPrimary || pointer.defaultPrevented) return;
+        if (this.blocked()) { pointer.preventDefault(); return; }
+        // WebKit needs the native compatibility click after a touch. Capture
+        // first, then focus inside this presenter without losing that intent.
+        if (this.begin() && pointer.pointerType === 'touch') button.focus({ preventScroll: true });
+      });
     }
     this.grip = doc.createElement('button'); this.grip.type = 'button';
     this.grip.textContent = 'Drag selected block'; this.grip.setAttribute('aria-label', 'Drag selected block');
-    this.grip.style.minWidth = this.grip.style.minHeight = '44px';
     this.grip.style.touchAction = 'none'; this.controls.append(this.grip);
+    for (const button of [this.up, this.down, this.grip]) touchTarget(button);
     this.listen(this.grip, 'pointerdown', event => {
       const e = event as PointerEvent;
       if (e.defaultPrevented || e.button !== 0 || !e.isPrimary || this.pointer || !this.begin()) return;
@@ -109,6 +121,9 @@ export class ReorderPresenter {
       }
     }, { capture: true, passive: true });
     this.listen(doc.defaultView!, 'blur', () => { if (this.pointer) { this.restore(); this.cancel(); } });
+    const cancelGeometry = () => { if (this.pointer) { this.cancel(); this.status.textContent = 'Move canceled. Viewport changed.'; } };
+    for (const type of ['resize', 'orientationchange', 'pagehide']) this.listen(doc.defaultView!, type, cancelGeometry, { passive: true });
+    if (doc.defaultView!.visualViewport) this.listen(doc.defaultView!.visualViewport, 'resize', cancelGeometry, { passive: true });
     this.up.setAttribute('aria-keyshortcuts', 'Alt+ArrowUp'); this.down.setAttribute('aria-keyshortcuts', 'Alt+ArrowDown');
     this.status = doc.createElement('span'); this.status.setAttribute('role', 'status');
     this.status.setAttribute('aria-live', 'polite'); this.controls.append(this.status); root.after(this.controls);
@@ -117,6 +132,16 @@ export class ReorderPresenter {
       for (const change of patch.nodes) {
         if (change.type === 'visible') this.nodes.set(change.node.id, change.node);
         else this.nodes.delete(change.type === 'removed' ? change.id : change.node.id);
+      }
+      // Release capture/frames immediately when a captured identity is replaced,
+      // not only after the next pointer event. Unrelated text edits stay valid.
+      if (this.pointer && this.session && !this.committing) {
+        const source = this.nodes.get(this.session.target.id), destination = this.pointer.observedDestination;
+        const hovered = destination && this.nodes.get(destination.id);
+        if (source?.editor?.version !== this.session.target.version ||
+          destination && (hovered?.editor?.version !== destination.version || hovered?.parent !== source?.parent)) {
+          this.cancel(); this.status.textContent = 'Move canceled. Target changed.';
+        }
       }
     });
     this.listen(this.up, 'click', () => { this.moveBy(-1); });
@@ -170,6 +195,10 @@ export class ReorderPresenter {
       }
     }, true);
     this.listen(root, 'dragstart', event => {
+      // Native selected-text dragging belongs to the input/clipboard owner.
+      // Only an explicitly mapped module handle opts into block dragging.
+      const handle = (event.target as Element | null)?.closest('[data-editac-reorder-handle][draggable="true"]');
+      if (!handle || !context.selection.renderer.ownsModuleDecoration(handle)) return;
       const drag = event as DragEvent, id = nodeAt(event, true), node = id && this.nodes.get(id);
       if (event.defaultPrevented || !drag.dataTransfer || !node || this.blocked() || !(this.session?.target.id === id || this.begin(id))) return;
       this.dragToken = `${this.dragScope}:${++this.dragSequence}`;
@@ -246,12 +275,13 @@ export class ReorderPresenter {
       }
       const command = { type: 'move' as const, target: this.session.target, parent, before };
       this.context.engine.history({ type: 'boundary' });
+      this.committing = true;
       const result = this.context.commit({ kind: 'editor', origin: 'module-reorder', commands: [command] });
       if (result.caret) this.context.engine.releaseAnchor(result.caret);
       this.context.engine.history({ type: 'boundary' });
       this.restore(); this.status.textContent = 'Block moved.'; return true;
     } catch { this.restore(); this.status.textContent = 'Block could not be moved. Document unchanged.'; return false; }
-    finally { this.cancel(); }
+    finally { this.committing = false; this.cancel(); }
   }
   moveBy(direction: -1 | 1): boolean {
     if (this.blocked() || (direction !== -1 && direction !== 1)) return false;
@@ -300,19 +330,35 @@ export class ReorderPresenter {
         const after = p.y >= (rect.top + rect.bottom) / 2;
         // Capture the hovered identity now; defer sibling lookup until release.
         p.destination = { parent: this.target(node.parent), before: this.target(node.id), hovered: this.target(node.id), after };
+        // Keep the last observed identity across coordinate refresh/auto-scroll
+        // so a remote deletion cannot disappear into a new geometry sample.
+        p.observedDestination = p.destination.hovered;
         this.status.textContent = `Move ${after ? 'after' : 'before'} block ${node.order + 1}.`;
       }
     }
     if (!p.destination) this.status.textContent = 'No move destination.';
     if (scroll) {
-      const scroller = root.scrollHeight > root.clientHeight ? root : doc.scrollingElement;
-      const bounds = scroller === root ? root.getBoundingClientRect() : { top: 0, bottom: doc.defaultView!.innerHeight, left: 0, right: doc.defaultView!.innerWidth };
+      // The editing host may live inside a scrollable panel. Walk only its
+      // ancestors (bounded), never the document's blocks, to find that owner.
+      let scroller: Element | null = root;
+      let depth = 0;
+      for (; scroller && depth < 32; depth++, scroller = scroller.parentElement) {
+        this.work.scrollAncestorChecks++;
+        if (scroller.scrollHeight > scroller.clientHeight && /^(auto|scroll|overlay)$/.test(doc.defaultView!.getComputedStyle(scroller).overflowY)) break;
+      }
+      if (!scroller || depth === 32) scroller = doc.scrollingElement;
+      const bounds = scroller && scroller !== doc.scrollingElement ? scroller.getBoundingClientRect() : { top: 0, bottom: doc.defaultView!.innerHeight, left: 0, right: doc.defaultView!.innerWidth };
       this.work.geometryReads++;
       const edge = Math.min(48, (bounds.bottom - bounds.top) / 4);
       const delta = p.y < bounds.top + edge ? -16 : p.y > bounds.bottom - edge ? 16 : 0;
       if (scroller && delta && p.y >= bounds.top && p.y <= bounds.bottom && p.x >= bounds.left && p.x <= bounds.right) {
         const top = scroller.scrollTop; scroller.scrollTop += delta; this.work.scrollWrites++;
-        if (scroller.scrollTop !== top) this.schedulePointer();
+        if (scroller.scrollTop !== top) {
+          // The sampled destination precedes our scroll write. A release before
+          // the queued scroll notification must validate the new coordinates,
+          // rather than treating our own auto-scroll as a remote target change.
+          p.destination = undefined; p.sampled = false; this.schedulePointer();
+        }
       }
     }
   }

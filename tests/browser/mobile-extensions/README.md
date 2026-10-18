@@ -84,3 +84,11 @@ SourceBaseline formatter has no packed browser API. That MWX-C12 criterion and
 MEX-1.3 stay open until the shared owner supplies a qualified boundary.
 Language/copy controls are not advertised by the current code-command profile.
 Native selection/scroll/zoom observations remain pending MWX-1.8.
+
+Gestures (`--group gestures`) reuses the packed production reorder owner and
+BrowserEditor/Session/WASM/IndexedDB. MWX-C13–C16 cover intrinsic touch targets,
+selection-preserving tap/drag/undo, nested auto-scroll, terminal/capture cleanup,
+viewport disruption and stable remote targets. Image/table inventories explicitly
+advertise no portable resize command; no new dimension field is introduced.
+Prepared mobile geometry and pointer events remain separate from real
+MWX-1.8 device/native scroll, zoom, IME and accessibility qualification.

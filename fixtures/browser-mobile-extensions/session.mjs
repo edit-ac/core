@@ -26,6 +26,8 @@ async function mount(value){
 }
 async function bind(options={},modules){
  disposed=false;patches=[];
+ window.gestureCommands=[];
+ if(options.gestureAudit){const commit=session.storage.commit.bind(session.storage);session.storage.commit=request=>{window.gestureCommands.push(structuredClone(request));return commit(request);};}
  session.writer.engine.history({type:'clear'});ids=session.writer.engine.read().visible.map(n=>n.id);
  subscription=session.writer.engine.subscribe({type:'all'},p=>patches.push({origin:p.origin,update:!!p.update,revision:p.revision}));
  let markdown,slash,content,codeCommands,reorder,references,search,codeHighlight;
@@ -118,4 +120,12 @@ async function recover(){
  session=await recoverLocalDocument({assetUrl:'/core/wasm/editac_wasm_bg.wasm',databaseName,identity,indexedDB,locks:navigator.locks});
  return bind({});
 }
-window.inputFixture={remoteJoin,recover,sibling,deliver,mutate,mount,select,settle,state,destroy,host,capability,requestCapability,get engine(){return session?.writer.engine},get root(){return root},get ids(){return ids},remote,get selection(){return selection},get pointer(){return editor.reorder?.pointerState},get surface(){return editor}};
+async function remoteStructure(index,wrap=false){
+ const local=session.writer.engine,peer=runtime.restoreEngine(identity,local.checkpoint()),vector=local.stateVector();
+ try{const nodes=peer.read().visible,node=nodes.find(n=>n.id===ids[index]);
+  const commands=wrap?[{type:'wrap',targets:[node.id],style:{type:'quote'}}]:[{type:'move',target:{id:node.id,version:node.editor.version},parent:{id:'@root',version:'base'},before:{id:ids[0],version:nodes.find(n=>n.id===ids[0]).editor.version}}];
+  const plan=peer.prepare({kind:'editor',origin:'mobile-peer-structure',commands});try{const result=peer.commit(plan);if(result.caret)peer.releaseAnchor(result.caret);}finally{peer.releasePlan(plan);}
+  local.applyUpdate(peer.encodeUpdate(vector));await settle();
+ }finally{peer.dispose();}
+}
+window.inputFixture={remoteStructure,remoteJoin,recover,sibling,deliver,mutate,mount,select,settle,state,destroy,host,capability,requestCapability,get engine(){return session?.writer.engine},get root(){return root},get ids(){return ids},remote,get selection(){return selection},get pointer(){return editor.reorder?.pointerState},get surface(){return editor}};
