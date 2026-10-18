@@ -119,9 +119,14 @@ test('MBT-04/05 burst hover coalesces without semantic writes and cancellation l
 }));
 test('XFR-07 owned autoscroll refreshes a real mapped destination and commits a single move',()=>probe('XFR-07-autoscroll-drop',async(page,fact)=>{
  const baseline=await mount(page,30),before=await state(page,fact);await start(page);await hover(page,2,true);await page.waitForFunction(()=>(window as any).inputFixture.pointer.scrollWrites>=2);
- // Move back to a stable visible destination after the owned scroll. The
- // drop still revalidates its engine identity/version against current geometry.
- const target=await page.evaluate(()=>{const f=(window as any).inputFixture,r=f.root.getBoundingClientRect(),blocks=[...f.root.querySelectorAll(':scope > [data-node-id]')];const i=blocks.findIndex((b:Element)=>{const d=b.getBoundingClientRect();return d.top>r.top+30&&d.bottom<r.bottom-30;});const b=blocks[i].getBoundingClientRect();return {index:i,x:b.x+30,y:b.y+b.height*.7};});assert.ok(target.index>0);await page.mouse.move(target.x,target.y);await frames(page);zero(before,await state(page));await page.mouse.up();const order=Array.from({length:30},(_,i)=>i);order.splice(0,1);order.splice(target.index,0,0);one(before,await state(page,fact),order);assert.equal((await pointer(page)).pendingFrame,false);assert.equal((await pointer(page)).captured,false);await clean(page,baseline,fact);
+ // Stop owned autoscroll before reading a destination rectangle. Otherwise a
+ // queued frame may scroll between evaluate() and the native mouse move.
+ const viewport=await page.locator('#projection').boundingBox();assert.ok(viewport);
+ await page.mouse.move(viewport.x+viewport.width/2,viewport.y+viewport.height/2);await frames(page);
+ const stable=await pointer(page);await frames(page);assert.equal((await pointer(page)).scrollWrites,stable.scrollWrites);
+ fact.stablePointer=stable;
+ // The drop still revalidates engine identity/version against current geometry.
+ const target=await page.evaluate(()=>{const f=(window as any).inputFixture,r=f.root.getBoundingClientRect(),blocks=[...f.root.querySelectorAll(':scope > [data-node-id]')];const i=blocks.findIndex((b:Element)=>{const d=b.getBoundingClientRect();return d.top>r.top+60&&d.bottom<r.bottom-60;});const b=blocks[i].getBoundingClientRect();return {index:i,x:b.x+30,y:b.y+b.height*.7};});assert.ok(target.index>0);await page.mouse.move(target.x,target.y);await frames(page);assert.equal((await pointer(page)).destinationId,before.nodes[target.index].id);zero(before,await state(page));await page.mouse.up();const order=Array.from({length:30},(_,i)=>i);order.splice(0,1);order.splice(target.index,0,0);one(before,await state(page,fact),order);assert.equal((await pointer(page)).pendingFrame,false);assert.equal((await pointer(page)).captured,false);await clean(page,baseline,fact);
 }));
 
 test('MBT-07 prepared Text-target dragstart keeps native text ownership without reorder errors',()=>probe('MBT-07-text-target',async(page,fact)=>{
