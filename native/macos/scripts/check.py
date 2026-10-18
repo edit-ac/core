@@ -28,7 +28,7 @@ SUITES = {
     "table-editing": ("EditacMacOSTableEditingTests.TableEditingTests", 17),
     "table-projection": ("EditacMacOSTableProjectionTests.TableProjectionTests", 14),
     "styles": ("EditacMacOSStylesTests.StylesTests", 12),
-    "commands": ("EditacMacOSCommandsTests.CommandsTests", 36),
+    "commands": ("EditacMacOSCommandsTests.CommandsTests", 37),
     "composition": ("EditacMacOSCompositionTests.CompositionTests", 22),
     "edits": ("EditacMacOSEditsTests.EditsTests", 10),
     "projection": ("EditacMacOSProjectionTests.ProjectionTests", 22),
