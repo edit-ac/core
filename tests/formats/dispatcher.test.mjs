@@ -13,6 +13,7 @@ test('unknown and absent suites fail instead of falling through', () => {
   assert.equal(select(manifest, 'rtf-export').gate, 'CNV-1.13');
   assert.equal(select(manifest, 'epub-export').gate, 'CNV-1.15');
   assert.equal(select(manifest, 'consumers').gate, 'CNV-1.18');
+  for (const name of ['consumers-native', 'consumers-native-runtime-repair']) assert.equal(select(manifest, name).gate, 'CNV-1.18-C2-N-RTF');
   for (const name of ['consumers-epub-export','consumers-epub-export-repair','consumers-epub-export-contract-repair']) assert.equal(select(manifest,name).gate,'CNV-1.18-C2-EX');
   assert.equal(select(manifest, 'table-text-import').gate, 'CNV-1.16');
   assert.equal(select(manifest, 'docx-dependencies').gate, 'CNV-1.3');
