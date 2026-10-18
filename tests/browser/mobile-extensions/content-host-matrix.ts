@@ -5,8 +5,8 @@ import { commandProfiles } from './command-inventory.mjs';
 const descriptors=JSON.parse(readFileSync('fixtures/rich-content/asset-descriptors.json','utf8')).descriptors;
 const embed={url:'https://content.invalid/watch?v=prepared',provider:'prepared-video',fallback:'Prepared safe card',source:'<oembed url="https://content.invalid/watch?v=prepared">'};
 const contentProfiles=[
- {id:'image',selector:'[data-content-module="image"]',options:{asset:descriptors.find(x=>x.kind==='image')},commands:['Load image'],owner:'modules/images/presenter.ts'},
- {id:'file',selector:'[data-content-module="attachment"]',options:{asset:descriptors.find(x=>x.kind==='file')},commands:['Select source to copy','Open file','Download file'],owner:'modules/attachments/presenter.ts'},
+ {id:'image',selector:'[data-content-module="image"]',options:{asset:descriptors.find(x=>x.kind==='image')},commands:['Load image','Cancel image load'],owner:'modules/images/presenter.ts'},
+ {id:'file',selector:'[data-content-module="attachment"]',options:{asset:descriptors.find(x=>x.kind==='file')},commands:['Select source to copy','Open file','Download file','Cancel file action'],owner:'modules/attachments/presenter.ts'},
  {id:'embed',selector:'[data-content-module="embed"]',options:{embed},commands:['Refresh card','Activate embed','Deactivate embed'],owner:'modules/embeds/presenter.ts'},
 ];
 export function registerContentHostMatrix({probe,mount,snapshot,finish,frame}) {

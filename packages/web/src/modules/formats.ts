@@ -135,10 +135,19 @@ export class FormatControls {
     this.element = doc.createElement('div'); this.element.contentEditable = 'false';
     this.element.setAttribute('role', 'group'); this.element.setAttribute('aria-label', 'File and sharing controls');
     this.element.dataset.formatControls = '';
+    this.element.style.minWidth = '0'; this.element.style.maxWidth = '100%';
+    this.element.style.overflowWrap = 'anywhere';
     const open = this.#button('open', 'File and sharing', () => this.panel.hidden ? this.show() : this.close());
     open.setAttribute('aria-expanded', 'false');
     this.panel = doc.createElement('div'); this.panel.hidden = true; touchPanel(this.panel); this.element.append(this.panel);
-    const label = (name: string, field: HTMLElement) => { const text = doc.createElement('label'); text.append(name, field); this.panel.append(text); touchTarget(field); };
+    const label = (name: string, field: HTMLElement) => {
+      const text = doc.createElement('label'); text.style.display = 'block';
+      text.append(name, field); this.panel.append(text); touchTarget(field);
+      // Native selects and file inputs otherwise retain their intrinsic width.
+      // Keep recovery fields reachable even with long filenames/profile labels.
+      field.style.maxWidth = '100%'; field.style.minWidth = '44px';
+      if (!(field instanceof doc.defaultView!.HTMLInputElement) || field.type !== 'checkbox') field.style.width = '100%';
+    };
     this.importFormat = doc.createElement('select'); this.importFormat.setAttribute('aria-label', 'Import format');
     this.exportFormat = doc.createElement('select'); this.exportFormat.setAttribute('aria-label', 'Export format');
     for (const format of ['text', ...(context.engine.markdownAvailable ? ['markdown'] : [])] as BaselineFormat[]) {
@@ -189,6 +198,7 @@ export class FormatControls {
   #listen(target: EventTarget, type: string, listener: EventListener): void { target.addEventListener(type, listener); this.#listeners.push([target, type, listener]); }
   #button(id: string, label: string, action: () => void): HTMLButtonElement {
     const button = this.context.root.ownerDocument.createElement('button'); button.type = 'button'; button.textContent = label; touchTarget(button);
+    button.style.maxWidth = '100%'; button.style.whiteSpace = 'normal'; button.style.overflowWrap = 'anywhere';
     // WebKit does not focus buttons on touch activation. The opening control
     // captures its native selection before focus in its own pointer handler.
     if (id !== 'open') this.#listen(button, 'pointerdown', event => { if ((event as PointerEvent).pointerType === 'touch') button.focus({ preventScroll: true }); });
