@@ -2,7 +2,7 @@
   "contractVersion": 1,
   "id": "native.macos.pending.v1",
   "implementation": {
-    "revision": "4ab137538713633c744d00f5454b14ff8d96f9b7",
+    "revision": "4c2d98b89ee840b12d305efb2303871a89f8121f",
     "package": "EditacMacOS",
     "version": "0.0.0"
   },
@@ -453,7 +453,7 @@
     },
     {
       "path": "native/macos/tests/Commands/CommandsTests.swift",
-      "sha256": "a9d9ab01a437a11c577ab8da6338e69e8b73171d9f87cc4074a13474b5994de2"
+      "sha256": "061aa3898ed4fb3044fe31aa916ceaddb813a69997c83fd0030235143f8aabcc"
     },
     {
       "path": "native/macos/scripts/check.py",
