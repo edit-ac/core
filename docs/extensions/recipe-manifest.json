@@ -1,0 +1,133 @@
+{
+  "schemaVersion": 1,
+  "facadeApiVersion": 1,
+  "owners": {
+    "canonical": "core",
+    "publicRendering": [
+      "DOC-1.34",
+      "DOC-1.35"
+    ]
+  },
+  "packages": {
+    "@edit-ac/core": "0.0.0",
+    "@edit-ac/web": "0.0.0"
+  },
+  "recipes": [
+    {
+      "id": "getting-started",
+      "source": "examples/extensions/documentation/getting-started.ts",
+      "startLine": 1,
+      "endLine": 13,
+      "sha256": "2bdd5cb6b0963680fa641f6b89dd55c301feaccb988446664ecd8d545806908f",
+      "guide": "docs/extensions/getting-started-v1.md",
+      "exports": "openLocal",
+      "output": "getting-started.ts"
+    },
+    {
+      "id": "behavior",
+      "source": "examples/extensions/documentation/behavior.ts",
+      "startLine": 1,
+      "endLine": 19,
+      "sha256": "9571a95637cbadb34c570ec84022f302e73eed3f87f95dee0787e98b5971c9ae",
+      "guide": "docs/extensions/api-v1.md",
+      "exports": "Emphasis",
+      "output": "behavior.ts"
+    },
+    {
+      "id": "data",
+      "source": "examples/extensions/documentation/data.ts",
+      "startLine": 1,
+      "endLine": 21,
+      "sha256": "dd1824c480fb85667995d31a983207c8f3b5864b384c49209cd8eb8561681077",
+      "guide": "docs/extensions/api-v1.md",
+      "exports": "ReviewMark,TicketAtom",
+      "output": "data.ts"
+    },
+    {
+      "id": "lifecycle",
+      "source": "examples/extensions/documentation/lifecycle.ts",
+      "startLine": 1,
+      "endLine": 24,
+      "sha256": "12be71878f95a81cba497f7390126f42a54bc9cf0486ef6d6c952f5ed422d06c",
+      "guide": "docs/extensions/api-v1.md",
+      "exports": "lifecycleRecipe",
+      "output": "lifecycle.ts"
+    },
+    {
+      "id": "task-links",
+      "source": "examples/extensions/task-links/task-links.ts",
+      "startLine": 1,
+      "endLine": 70,
+      "sha256": "9d7bd0fc22722a51cac2ed7db32b1f19d23337d6ff55ea606dd845cc8a308a55",
+      "guide": "docs/extensions/recipes-v1.md",
+      "exports": "createTaskLinks",
+      "output": "task-links.ts"
+    },
+    {
+      "id": "catalog",
+      "source": "examples/extensions/task-links/catalog.ts",
+      "startLine": 1,
+      "endLine": 10,
+      "sha256": "348a5d716f1efe26f800b2782fe25273cd952a2cb5c570143a0a446cec3f444f",
+      "guide": "docs/extensions/recipes-v1.md",
+      "exports": "preparedTaskCatalog",
+      "output": "catalog.ts"
+    },
+    {
+      "id": "spellcheck",
+      "source": "examples/extensions/spellcheck/spellcheck.ts",
+      "startLine": 1,
+      "endLine": 24,
+      "sha256": "dca4b0afffa0abe3ded58fa59547f19f388d5b8976f9c0eb81c4e3e95005b4d7",
+      "guide": "docs/extensions/recipes-v1.md",
+      "exports": "preparedSpelling",
+      "output": "spellcheck.ts"
+    },
+    {
+      "id": "parsing",
+      "source": "examples/extensions/parsing/parsing.ts",
+      "startLine": 1,
+      "endLine": 35,
+      "sha256": "3556f7827d34f369fcea9cb9ae5c0e85c2a0163e201c35d6aea0953a4ebea978",
+      "guide": "docs/extensions/recipes-v1.md",
+      "exports": "Notes",
+      "output": "parsing.ts"
+    },
+    {
+      "id": "url-insert",
+      "source": "examples/extensions/url-insert/url-insert.ts",
+      "startLine": 1,
+      "endLine": 61,
+      "sha256": "7c3a3a26e84ee21160188cabefd52facba89ab5a683093b6022117dbcdd44cf7",
+      "guide": "docs/extensions/recipes-v1.md",
+      "exports": "createUrlInsert",
+      "output": "url-insert.ts"
+    }
+  ],
+  "guides": [
+    {
+      "path": "docs/extensions/getting-started-v1.md",
+      "sha256": "6a0a3ce4db41f00853567072f7b72875cfc416ac3c871f76d859225f7184588a"
+    },
+    {
+      "path": "docs/extensions/api-v1.md",
+      "sha256": "dd35080079e4e5810f9bdbcc79f8c3cf3265d9475ec518e37169d67b6e67b41a"
+    },
+    {
+      "path": "docs/extensions/recipes-v1.md",
+      "sha256": "0631a852edb22a74e41baad41fb40c7c0472ba552b07f1b744ede949c94265a2"
+    },
+    {
+      "path": "docs/extensions/migration-v1.md",
+      "sha256": "6c638ba943e63019a1efd367bc40d6ca733db07affbac7c9d6c1c5a3286cd3cf"
+    },
+    {
+      "path": "docs/extensions/hosting-v1.md",
+      "sha256": "61c09d237ba56d29d02f003d229df88694f4db5a5ed9cafd31ffe962d1ed22ba"
+    },
+    {
+      "path": "docs/extensions/packaging-v1.md",
+      "sha256": "b5727c8b7523e7770d3c48407fda661f08a0a5e760b3ea7eb50ea0fe54c3d1bf"
+    }
+  ]
+}

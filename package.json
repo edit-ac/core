@@ -47,6 +47,7 @@
     "check:markdown-codec": "npm run build:wasm:markdown && npm run build && node --test tests/markdown-codec.test.mjs",
     "test:interactions": "node scripts/test-interactions.mjs",
     "test:web": "node scripts/test-web.mjs",
+    "test:mobile-extensions": "node scripts/test-mobile-extensions.mjs",
     "test:mobile-web": "node scripts/test-mobile-web.mjs",
     "preview:mobile-web": "node scripts/preview-mobile-web.mjs"
   },

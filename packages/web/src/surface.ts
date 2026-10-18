@@ -1,6 +1,13 @@
+let matchingSequence = 0;
+import { attachAuthoring } from './extensions/authoring.js';
 import { configuredSurfaceOptions, prepareSurfaceConfiguration, type EditorFacadeOptionsV1 } from './extensions/configuration.js';
 import type { PreparedEditorConfigurationV1, PlatformObservationV1 } from './extensions/contract.js';
 import { ExtensionConfigurationError } from './extensions/contract.js';
+import { markdownResource } from './extensions/markdown-resource.js';
+import { configuredResource } from './extensions/resource.js';
+import { literalShortcuts } from './input/shortcuts.js';
+import { editorStoragePorts, type EditorStorageOwner } from './storage/owner.js';
+import type { AttachSyncOptions, SyncAttachment } from './sync/attachment.js';
 import { PlatformPreferenceController } from './platform/preferences.js';
 import { PageLifecycle } from './lifecycle.js';
 import { EditorViewport, type ViewportOptions } from './platform/viewport.js';
@@ -14,6 +21,8 @@ import type { ModuleRuntime, ModuleRuntimeOptions } from './modules/runtime.js';
 import type { ClipboardCodec } from './clipboard/fragment.js';
 
 export interface EditorSurfaceOptions extends Partial<EditorFacadeOptionsV1> {
+  /** Advanced borrowed mount: the same existing local storage owner supplies commit/sync. */
+  storageOwner?: EditorStorageOwner;
   viewport?: ViewportOptions;
   shortcutProfile?: import('./commands/catalog.js').ShortcutProfile;
   commandAllowed?: (command: import('./commands/catalog.js').PortableCommand) => boolean;
@@ -22,7 +31,7 @@ export interface EditorSurfaceOptions extends Partial<EditorFacadeOptionsV1> {
   assistive?: import('./modules/assistive-input.js').AssistivePresenterFactory;
   search?: import('./modules/search.js').DocumentSearchFactory;
   markdown?: import('./input/shortcuts.js').MarkdownAdapter;
-  codeHighlight?: import("./modules/code/presenter.js").CodeHighlightFactory;
+  codeHighlight?: import("./modules/code/presenter.js").CodeHighlightFactory | import('./extensions/highlighting.js').ManagedCodeHighlightFactory;
   content?: import('./modules/content.js').ContentFactory;
   reorder?: import('./modules/reorder.js').ReorderFactory;
   links?: LinkEnrichmentFactory;
@@ -44,6 +53,14 @@ export interface EditorSurface {
   readonly ready: Promise<void>;
   readonly extensionStatus: Readonly<Record<string, import('./extensions/contract.js').ExtensionStatusV1>>;
   readonly extensionConfiguration: PreparedEditorConfigurationV1 | undefined;
+  /** Explicitly load or retry an optional adapter; command-lazy codecs never gate input. */
+  loadExtension(id: string): Promise<void>;
+  exportMarkdown(blocks: readonly import('@edit-ac/core').FragmentBlock[]): Promise<import('@edit-ac/core').MarkdownExport>;
+  readonly collaborationStatus: import('./extensions/contract.js').ExtensionStatusV1;
+  readonly syncAttachment: SyncAttachment | undefined;
+  attachSync(options: AttachSyncOptions): Promise<SyncAttachment>;
+  connectCollaboration(): Promise<void>;
+  disconnectCollaboration(): void;
   readonly platformPreferences: PlatformObservationV1;
   readonly viewport: EditorViewport;
   readonly pointerSelection: import('./selection/pointer.js').PointerSelection;
@@ -59,6 +76,8 @@ export interface EditorSurface {
   captureToolbar(): import('./commands/formatting.js').ToolbarTarget | undefined;
   readonly commands: typeof import('./commands/catalog.js').commandCatalog;
   captureCommand(name: string, supplied?: import('@edit-ac/core').StableRange): import('./commands/catalog.js').CapturedCommand | undefined;
+  takeExtensionErrors(): readonly import('./extensions/authoring.js').ExtensionDiagnosticV1[];
+  runExtensionCommand(id: string, name: string, argument?: import('@edit-ac/core').Json): CommitResult | undefined;
   captureHistory(): import('./input/keyboard.js').HistoryTarget | undefined;
   settle(): Promise<void>;
   setReadOnly(value: boolean): void;
@@ -88,7 +107,46 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
   let selection: DOMSelection | undefined, input: TextInput | undefined;
   let links: LinkEnrichment | undefined;
   let markdown: import('@edit-ac/core').PatchSubscription | undefined;
+  const resource = markdownResource(prepared, (adapter, enableInput) => {
+    if (!input) throw Error('Input is not attached');
+    const registration = engine.registerMarkdown(adapter.codec);
+    try {
+      if (enableInput) {
+        input.shortcuts = adapter.createShortcuts(engine, commit);
+        input.clipboard.plainTextPolicy = 'markdown';
+      }
+    } catch (error) {
+      registration.dispose(); input.shortcuts = literalShortcuts(); throw error;
+    }
+    return () => {
+      registration.dispose();
+      if (input && enableInput) { input.shortcuts = literalShortcuts(); input.clipboard.plainTextPolicy = 'literal'; }
+    };
+  });
+  const contentFactories = new Map<string, import('./modules/content.js').ContentFactory>();
+  const contentResources = ['editac.images', 'editac.tables'].map(id => configuredResource(prepared, id, async signal => {
+    const { contentModules } = await import('./modules/content.js');
+    if (signal.aborted) return { dispose() {} };
+    const factory = contentModules();
+    contentFactories.set(id, context => {
+      const tuple = context.node.blockAttributes;
+      const type = Array.isArray(tuple) ? tuple[0] : undefined;
+      const metadata = Array.isArray(tuple) ? tuple[2] : undefined;
+      const imageAsset = type === 'module:editac.asset' && metadata && typeof metadata === 'object' && !Array.isArray(metadata) && metadata.kind === 'image';
+      const enabled = id === 'editac.tables' ? type === 'module:editac.table' : type === 'module:editac.image' || imageAsset;
+      return enabled ? factory(context) : undefined;
+    });
+    renderer.setContentFactory(context => {
+      for (const selected of contentFactories.values()) { const view = selected(context); if (view) return view; }
+      return undefined;
+    });
+    return { dispose() { contentFactories.delete(id); } };
+  }));
+  const resources = [resource, ...contentResources];
+  let authoring: ReturnType<typeof attachAuthoring> | undefined;
   const disposeAdapters = (): void => {
+    authoring?.dispose();
+    for (const owned of resources) owned.dispose();
     page?.dispose(); viewport?.dispose();
     try { links?.dispose(); } finally { try { input?.dispose(); } finally { try { selection?.dispose(); } finally { try { renderer.dispose(); } finally { markdown?.dispose(); } } } }
   };
@@ -113,8 +171,57 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
     input.shortcuts.enabled=options.typingShortcuts??true;
     input.clipboard.plainTextPolicy = options.plainTextPolicy ?? (options.preset === 'minimal' || !engine.markdownAvailable ? 'literal' : 'markdown');
     input.clipboard.contentCodecs = options.contentCodecs ?? {};
-    input.setReadOnly(options.readOnly ?? false);
-    root.setAttribute('aria-readonly', String(options.readOnly ?? false));
+    let authorityGeneration = 0;
+    const matchingIdentity = engine.read().identity;
+    const matchingSession = `surface-${++matchingSequence}`;
+    let requestedReadOnly = options.readOnly ?? false;
+    let requiredReady = !resources.some(owned => owned.required);
+    const setReadOnly = (value: boolean) => {
+      authorityGeneration++;
+      requestedReadOnly = value;
+      input!.setReadOnly(value || !requiredReady);
+      root.setAttribute('aria-readonly', String(value || !requiredReady));
+    };
+    setReadOnly(requestedReadOnly);
+    authoring = attachAuthoring(prepared, renderer.moduleRuntime, {
+      blocked: () => input!.extensionBlocked,
+      can: request => engine.can(request),
+      commit: request => {
+        if (!engine.can(request)) throw Error('Extension command is inapplicable; source and history retained');
+        engine.history({ type: 'boundary' }); engine.history({ type: 'explicit' });
+        const result = commit(request);
+        try { if (!input!.extensionBlocked) {
+          if (result.selection) selection!.restoreRange(result.selection);
+          else if (result.caret) selection!.move(result.caret);
+        } } finally {
+          if (result.selection) { engine.releaseAnchor(result.selection.anchor); engine.releaseAnchor(result.selection.focus); }
+          if (result.caret) engine.releaseAnchor(result.caret);
+        }
+        return Object.freeze({ revision: result.revision });
+      },
+      replacement: (range, text) => {
+        const active = root.ownerDocument.activeElement;
+        if (active instanceof Element && active !== root && active.closest('input,textarea,[contenteditable="true"],[role="textbox"]')) throw Error('Correction target lost editable focus');
+        return input!.keyboard.formatting.replacement(range, text, 'extension:spelling-correction');
+      },
+      captureCommand: (name, target) => input!.keyboard.captureCommand(name, target),
+      captureTarget: () => selection!.retain(),
+      matching: {
+        identity: `${matchingIdentity.documentId}:${matchingIdentity.epoch}`, session: matchingSession,
+        generation: () => authorityGeneration, available: () => !input!.extensionBlocked,
+        resolve: token => engine.resolve(token), read: (owner, start, end) => renderer.patternText(owner, start, end),
+        capture(owner, start, end) {
+          if (input!.extensionBlocked) return;
+          const tokens: import('@edit-ac/core').AnchorToken[] = [];
+          try {
+            tokens.push(engine.anchor(owner, start, 'right')); tokens.push(engine.anchor(owner, end, 'left'));
+            let released = false;
+            return { range: { anchor: tokens[0]!, focus: tokens[1]! }, dispose() { if (released) return; released = true; for (const token of tokens) engine.releaseAnchor(token); } };
+          } catch { for (const token of tokens) engine.releaseAnchor(token); return; }
+        },
+      },
+    });
+    input.extensionInput = authoring.hasInput ? authoring.handle : undefined;
     const boundInput = input, boundSelection = selection;
     viewport = new EditorViewport(root, options.viewport, recoverable => {
       if (!recoverable) boundSelection.pointer.cancel();
@@ -130,7 +237,25 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
       else { boundInput.resume(); boundViewport.resume(); }
     });
     let disposed = false;
-    return { platformPreferences: preferences.observation, viewport: boundViewport, renderer, selection: boundSelection, input: boundInput, pointerSelection: boundSelection.pointer,
+    const loadExtension = async (id: string) => {
+      const owned = resources.find(candidate => candidate.id === id && candidate.configured);
+      if (!owned) throw Error('No configured asynchronous adapter: ' + id);
+      await owned.load();
+      if (disposed) throw Error('Editor surface is disposed');
+      requiredReady = resources.every(candidate => !candidate.required || candidate.status.state === 'ready'); setReadOnly(requestedReadOnly);
+    };
+    const ready = Promise.all(resources.filter(owned => owned.required).map(owned => loadExtension(owned.id))).then(() => {});
+    void ready.catch(() => {});
+    return { ready, loadExtension, setReadOnly, runExtensionCommand: authoring.runCommand, takeExtensionErrors: () => authoring!.diagnostics.splice(0),
+      get extensionStatus() { return Object.freeze(Object.fromEntries((prepared?.extensions ?? []).map(e => [e.feature.id,
+        resources.find(owned => owned.id === e.feature.id)?.status ?? Object.freeze({ state: disposed ? 'cancelled' as const : 'ready' as const, generation: 1 })]))); },
+      async exportMarkdown(blocks: readonly import('@edit-ac/core').FragmentBlock[]) {
+        const captured = structuredClone(blocks);
+        if (options.markdown) return engine.exportMarkdown(captured);
+        await loadExtension('editac.markdown');
+        return resource.adapter!.codec.exportMarkdown(captured);
+      },
+      platformPreferences: preferences.observation, viewport: boundViewport, renderer, selection: boundSelection, input: boundInput, pointerSelection: boundSelection.pointer,
       dispose(): void {
         if (disposed) return; disposed = true;
         root.contentEditable = 'false'; root.setAttribute('aria-readonly', 'true');
@@ -142,18 +267,87 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
   }
 }
 
-/** Mount a synchronous view over a host-owned engine, without a storage service. */
+/** Mount a view over a host-owned replica; an explicit storage owner enables managed sync. */
 export function mountEditorSurface(root: HTMLElement, engine: EngineHandle, options: EditorSurfaceOptions = {}): EditorSurface {
   const prepared = prepareSurfaceConfiguration(options, engine.read().identity.schema);
-  if (prepared?.configuration.collaboration) throw new ExtensionConfigurationError('requires-storage-owner', 'editor', 'collaboration', 'Use createEditor for managed sync; borrowed surfaces retain host-owned sync');
+  const policy = prepared?.configuration.collaboration;
+  let ports: ReturnType<typeof editorStoragePorts> | undefined;
+  if (options.storageOwner) {
+    try { ports = editorStoragePorts(options.storageOwner); } catch {
+      throw new ExtensionConfigurationError('invalid-storage-owner', 'editor', 'storageOwner', 'Use openEditorStorage for this exact replica');
+    }
+    if (ports.writer.engine !== engine) throw new ExtensionConfigurationError('incompatible-storage-owner', 'editor', 'storageOwner', 'Mount the engine belonging to this storage owner');
+    if (options.commit) throw new ExtensionConfigurationError('legacy-conflict', 'editor', 'commit', 'The explicit storage owner supplies the only commit port');
+  }
+  if (policy && !ports) throw new ExtensionConfigurationError('requires-storage-owner', 'editor', 'collaboration', 'Supply openEditorStorage for managed borrowed sync');
   const release = reserveEditorSurface(root);
+  let disposed = false, generation = 0;
+  let controller: AbortController | undefined, attachment: SyncAttachment | undefined;
+  let collaborationStatus: import('./extensions/contract.js').ExtensionStatusV1 = Object.freeze({ state: 'idle', generation: 0 });
+  let requestedReadOnly = options.readOnly ?? false;
+  let localReady = !prepared?.requiredReady.some(id => ['editac.markdown','editac.images','editac.tables'].includes(id));
+  let isReady = localReady && (!policy || policy.readiness !== 'remote');
+  const requireLive = () => { if (disposed) throw Error('Editor surface is disposed'); };
+  const requireReady = () => { requireLive(); if (!isReady) throw Error('Editor surface is not ready'); };
+  const disconnect = () => {
+    controller?.abort(); controller = undefined; generation++; attachment?.detach();
+    collaborationStatus = Object.freeze({ state: 'cancelled', generation });
+  };
   try {
-    const binding = bindEditorSurface(root, engine, options, prepared);
-    let disposed = false;
-    const requireLive = () => { if (disposed) throw Error('Editor surface is disposed'); };
+    const owner = ports;
+    const binding = bindEditorSurface(root, engine, { ...options, readOnly: requestedReadOnly || !isReady,
+      ...(owner ? { commit: request => { requireReady(); if (requestedReadOnly) throw Error('Editor surface is read-only'); return owner.storage.commit(request); } } : {}) }, prepared);
+    const attach = async (syncOptions: AttachSyncOptions): Promise<SyncAttachment> => {
+      requireLive(); if (!localReady || !owner) throw Error('Managed sync requires a ready local storage owner');
+      const currentGeneration = ++generation;
+      const { attachStoredSync } = await import('./sync/attachment.js');
+      requireLive();
+      if (generation !== currentGeneration) throw Error('Sync attachment superseded');
+      const next = await attachStoredSync({ root, selection: binding.selection, engine, storage: owner.storage,
+        indexedDB: owner.indexedDB, databaseName: owner.databaseName,
+        current: () => !disposed && generation === currentGeneration,
+        onDetach: detached => {
+          if (attachment === detached) { attachment = undefined; controller?.abort(); controller = undefined;
+            collaborationStatus = Object.freeze({ state: 'cancelled', generation: ++generation }); }
+        } }, syncOptions);
+      const previous = attachment; attachment = next; previous?.detach(); return next;
+    };
+    const connect = async () => {
+      requireLive(); if (!localReady || !policy) throw Error('Collaboration is not configured or locally ready');
+      disconnect(); const currentController = new AbortController(); controller = currentController;
+      const currentGeneration = generation;
+      const current = () => !disposed && !currentController.signal.aborted && controller === currentController;
+      collaborationStatus = Object.freeze({ state: 'loading', generation: currentGeneration });
+      try {
+        const { connectConfiguredCollaboration } = await import('./sync/configured.js');
+        if (!current()) throw Error('Collaboration superseded');
+        await connectConfiguredCollaboration(policy, { signal: currentController.signal, generation: currentGeneration, current, attach });
+        collaborationStatus = Object.freeze({ state: 'ready', generation: currentGeneration });
+        if (!isReady && policy.readiness === 'remote') { isReady = true; binding.setReadOnly(requestedReadOnly); }
+      } catch (error) {
+        if (current()) collaborationStatus = Object.freeze({ state: 'failed', generation: currentGeneration, code: 'attachment-failed', retryable: true });
+        throw error;
+      }
+    };
+    const finish = async (adaptersReady = false) => {
+      if (!adaptersReady) await binding.ready; requireLive(); localReady = true;
+      if (policy && policy.readiness === 'remote') await connect();
+      else { isReady = true; binding.setReadOnly(requestedReadOnly); if (policy) void connect().catch(() => {}); }
+    };
+    const ready = finish(); void ready.catch(() => {});
     return {
-      ready: Promise.resolve(),
-      get extensionStatus() { return Object.freeze(Object.fromEntries((prepared?.extensions ?? []).map(e => [e.feature.id, Object.freeze({ state: disposed ? 'cancelled' as const : 'ready' as const, generation: 1 })]))); },
+      ready,
+      async loadExtension(id) {
+        requireLive(); await binding.loadExtension(id);
+        if (!isReady && prepared?.requiredReady.every(name => binding.extensionStatus[name]?.state === 'ready')) await finish(true);
+      },
+      exportMarkdown(blocks) { requireReady(); return binding.exportMarkdown(blocks); },
+      get collaborationStatus() { return collaborationStatus; },
+      get syncAttachment() { return attachment; },
+      async attachSync(syncOptions) { requireReady(); disconnect(); return attach(syncOptions); },
+      connectCollaboration: connect,
+      disconnectCollaboration: disconnect,
+      get extensionStatus() { return binding.extensionStatus; },
       extensionConfiguration: prepared,
       platformPreferences: binding.platformPreferences,
       get viewport() { return binding.viewport; },
@@ -166,14 +360,16 @@ export function mountEditorSurface(root: HTMLElement, engine: EngineHandle, opti
       get slash() { return binding.input.slash; },
       get moduleRuntime() { return binding.renderer.moduleRuntime; },
       get recovery() { return binding.input.recovery.map(({ text, reason }) => ({ text, reason })); },
-      captureTextTransfer() { requireLive(); return binding.input.textDrag.capture(); },
-      captureToolbar() { requireLive(); return binding.input.keyboard.captureToolbar(); },
+      takeExtensionErrors() { return binding.takeExtensionErrors(); },
+      runExtensionCommand(id, name, argument) { requireReady(); return binding.runExtensionCommand(id, name, argument); },
+      captureTextTransfer() { requireReady(); return binding.input.textDrag.capture(); },
+      captureToolbar() { requireReady(); return binding.input.keyboard.captureToolbar(); },
       get commands() { return binding.input.keyboard.commands; },
-      captureCommand(name, supplied) { requireLive(); return binding.input.keyboard.captureCommand(name, supplied); },
-      captureHistory() { requireLive(); return binding.input.keyboard.captureHistory(); },
-      settle() { requireLive(); return binding.input.settle(); },
-      setReadOnly(value) { requireLive(); binding.input.setReadOnly(value); root.setAttribute('aria-readonly', String(value)); },
-      dispose() { if (disposed) return; disposed = true; try { binding.dispose(); } finally { release(); } },
+      captureCommand(name, supplied) { requireReady(); return binding.input.keyboard.captureCommand(name, supplied); },
+      captureHistory() { requireReady(); return binding.input.keyboard.captureHistory(); },
+      settle() { requireReady(); return binding.input.settle(); },
+      setReadOnly(value) { requireLive(); requestedReadOnly = value; binding.setReadOnly(value || !isReady); },
+      dispose() { if (disposed) return; disposed = true; disconnect(); try { binding.dispose(); } finally { release(); } },
     };
-  } catch (error) { release(); throw error; }
+  } catch (error) { disposed = true; disconnect(); release(); throw error; }
 }

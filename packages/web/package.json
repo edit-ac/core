@@ -62,6 +62,11 @@
       "types": "./dist/extensions/ai/completion.d.ts",
       "import": "./dist/extensions/ai/completion.js",
       "default": "./dist/extensions/ai/completion.js"
+    },
+    "./highlighting": {
+      "types": "./dist/extensions/highlighting.d.ts",
+      "import": "./dist/extensions/highlighting.js",
+      "default": "./dist/extensions/highlighting.js"
     }
   },
   "scripts": {

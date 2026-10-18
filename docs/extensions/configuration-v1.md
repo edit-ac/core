@@ -3,12 +3,13 @@
 `createEditor`, `mountEditor`, and `mountEditorSurface` accept `extensions`,
 `formatting`, `platform`, `collaboration`, and `assets`. Configuration is admitted
 before a root is reserved or recovery starts. `extensions: []` selects local
-editing without a provider. The initial executable factories are
-`DocumentSearch.configure()` and `BlockReorder.configure()`; their presenters,
+editing without a provider. Shipped factories include `DocumentSearch`,
+`BlockReorder`, `Images`, `Tables`, `MathNotation`, `References`, `SlashCommands`, and `Markdown`. Their codecs, presenters,
 commands, cleanup and history remain the existing implementations. Factories
-return separate frozen values, including their portable options. Unknown or
-unimplemented adapters fail before attachment. Custom authoring belongs to
-EXT-1.15; optional parser/rendering/converter loaders belong to SDK-1.12.
+return separate frozen values. Unknown or modified adapters fail before
+attachment. Custom authoring uses the [public version 1 API](api-v1.md); optional hosting and loading
+are described in [the loading guide](loading-v1.md). The catalog entries for Code and Pairs are still
+contract fixtures and are not advertised as qualified facade factories.
 
 ```ts
 import { createEditor, DocumentSearch, BlockReorder } from '@edit-ac/web';
@@ -26,13 +27,70 @@ await editor.ready;
 locking and engine asset ports. Opening never creates or replaces that document.
 `extensionConfiguration` exposes the frozen admission result, and
 `extensionStatus` reports each selected feature's attachment status. Required
-input presenters are attached before `ready`. No command-lazy exporter is
-advertised by this implementation. Borrowed `mountEditorSurface` handles expose
-the same readiness/status policy and leave persistence and engine disposal to
-their host. Managed collaboration requires `createEditor`/`mountEditor`, whose
-storage owner already supplies the durable outbox. Borrowed surfaces reject
-managed collaboration before attachment; their existing host-owned sync remains
-available.
+input adapters are attached before `ready`. `Markdown.configure()` waits for the
+qualified codec and installs its existing typing and paste adapter. Install the
+optional `@edit-ac/markdown` package alongside `@edit-ac/web`; a direct browser
+host maps `@edit-ac/markdown/web` to that package's `dist/web.js`. Its default WASM
+URL is relative to that entry. `assets.manifest.markdown` or `assets.baseURL`
+provides the single explicit override; `assets.manifest.markdownModule` selects
+the dedicated module entry. The module import initializes no codec until selected.
+The loading guide defines the optional installation and bundled-host recipe.
+
+`Markdown.configure({ input: false })` is command-lazy: ordinary input remains
+literal and ready while `editor.exportMarkdown(blocks)` loads the exporter on
+its first explicit call. This method snapshots the supplied blocks before its
+asynchronous boundary. It returns the existing codec's diagnostics and recovery
+blocks without mutating the editor. The borrowed surface exposes the same method.
+Per-feature status reports idle/loading/ready/failed/cancelled and a generation;
+`loadExtension('editac.markdown')` explicitly retries a failed codec, with at most
+three attachment attempts including the first. A failed
+required adapter rejects the original `ready` promise and keeps canonical source
+read-only. Await `loadExtension` to resume that same replica after repair. Failed
+module resolution may require installing the optional package and remounting;
+an asset failure can be retried in place. Disposal cancels each attachment even
+when compatible immutable module initialization continues for another consumer.
+
+`Images` and `Tables` load the existing source-preserving content presenters on
+activation. Without a host image asset service, Images shows its retained source
+and unavailable state and does not fetch a document URL automatically. Table
+edits use the existing prepared commands and shared undo. A factory never
+implicitly selects another family.
+
+Borrowed `mountEditorSurface` leaves engine and persistence disposal to its host.
+For managed collaboration on that path, recover the existing owner once with
+`openEditorStorage(localRecoveryOptions)` and pass its engine and `storageOwner`:
+
+```ts
+import { openEditorStorage, mountEditorSurface } from '@edit-ac/web';
+const owner = await openEditorStorage(localRecoveryOptions);
+const surface = mountEditorSurface(root, owner.engine, {
+  extensions: [], storageOwner: owner,
+  collaboration: { connect: hostConnector },
+});
+await surface.ready;
+// Keep the same owner across view remounts. Destroy it only when the host closes it.
+surface.dispose();
+await owner.destroy({ policy: 'flush' });
+```
+
+This bridge delegates to the same local storage, durable outbox, SyncSession and
+presence implementations as `createEditor`. The owner must belong to the exact
+engine; conflicting commit ports fail before attachment. A borrowed view without
+that owner retains its existing explicit host commit/sync path and rejects managed
+collaboration. Disposing a view cancels connector/attachment work without destroying
+the host's history or recoverable unsent edits.
+
+`MathNotation.configure()` admits the existing math atom definition and uses its
+qualified source-preserving preview; it introduces no new engine semantics.
+`References.configure({ host, triggers })` accepts the existing versioned reference
+host or legacy resolver. `SlashCommands.configure({ commands, literal })` captures
+existing prepared command callbacks and bounded metadata once. Neither resolves references nor prepares slash actions on configuration or startup. Keep these original immutable configured
+values: copying or serializing them drops their intentionally non-document host
+bindings and is rejected before attachment. Reusing a value creates independent
+presenters, requests and cancellation for each editor. Resolver permissions and
+command preparation still go through their existing owners; callbacks receive no
+new writable model. Selecting Images/Tables also configures their existing
+Markdown codec options when Markdown is selected.
 
 `defaultPreset()` expands to an empty extension list with the existing Task
 editing defaults. `documentPreset()` adds the qualified Search and Reorder
@@ -77,6 +135,8 @@ commands unavailable until an authorized attachment succeeds. Identity and wire
 admission stay with the existing sync adapter. `collaborationStatus` distinguishes
 loading, ready, failed and cancelled; errors are observable without rejecting local
 readiness. `connectCollaboration()` retries/replaces the connection;
+local readiness does not imply that the lazily imported connector has started.
+Await the explicit connection operation when the host needs remote attachment.
 `disconnectCollaboration()` aborts pending work and detaches it. Public legacy
 `attachSync()` supersedes pending facade work and preserves its legacy unauthorized
 handle behavior. Neither detach nor reconnect recreates the replica/history or
@@ -95,10 +155,10 @@ An advanced `assets` override is one absolute base URL or manifest. The engine
 base URL points to the directory containing `editac_wasm_bg.wasm`; a manifest
 uses `engine` for that file. It overrides the recovery bootstrap `assetUrl`.
 Compatible editors must retain the existing runtime's identical asset URL.
-Borrowed engines are already initialized by their host. Optional feature chunks,
-broader managed asset discovery, MIME/CSP/CORS qualification and omitted-package
-graphs remain SDK-1.12 work. No runtime or optional assets are fetched by importing
-the facade on a server.
+Borrowed engines are already initialized by their host. The
+[loading guide](loading-v1.md) covers independent feature entries, the single
+host manifest, MIME/CSP/CORS diagnostics and omitted-package bundling. No runtime
+or optional assets are fetched by importing the facade on a server.
 
 The executable installed consumer and declaration fixture live in
 `tests/extension-dx/configuration-consumer/`. The `configuration` test group uses

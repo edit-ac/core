@@ -1,3 +1,4 @@
+import { patternText } from '../extensions/matching.js';
 import { invisibleCharacterSummary } from '../input/characters.js';
 import type { EngineHandle, Json, Patch, PatchSubscription, ProjectedNode } from "@edit-ac/core";
 
@@ -25,14 +26,14 @@ export class DOMRenderer {
   #disposed = false;
   readonly #held = new Set<string>();
   readonly #deferred = new Map<string, Patch["nodes"][number]>();
-  readonly #code: import("../modules/code/presenter.js").CodeHighlightPresenter | undefined;
+  readonly #code: import("../extensions/highlighting.js").CodeHighlightAttachment | undefined;
   patchBoundary: { before(): void; after(): void } | undefined;
   #revision: number;
   readonly #modules: ModuleRegistry | undefined;
   readonly moduleRuntime: ModuleRuntime | undefined;
   readonly #engine: EngineHandle;
-  readonly #options: { codeHighlight?: import("../modules/code/presenter.js").CodeHighlightFactory; readOnly?: boolean; modules?: ModuleRegistry; moduleRuntime?: ModuleRuntimeOptions; content?: ContentFactory; commit?: (request: import('@edit-ac/core').PrepareRequest) => import('@edit-ac/core').CommitResult };
-  constructor(readonly root: HTMLElement, engine: EngineHandle, options: { codeHighlight?: import("../modules/code/presenter.js").CodeHighlightFactory; readOnly?: boolean; modules?: ModuleRegistry; moduleRuntime?: ModuleRuntimeOptions; content?: ContentFactory; commit?: (request: import('@edit-ac/core').PrepareRequest) => import('@edit-ac/core').CommitResult } = {}) {
+  readonly #options: { codeHighlight?: import("../modules/code/presenter.js").CodeHighlightFactory | import('../extensions/highlighting.js').ManagedCodeHighlightFactory; readOnly?: boolean; modules?: ModuleRegistry; moduleRuntime?: ModuleRuntimeOptions; content?: ContentFactory; commit?: (request: import('@edit-ac/core').PrepareRequest) => import('@edit-ac/core').CommitResult };
+  constructor(readonly root: HTMLElement, engine: EngineHandle, options: { codeHighlight?: import("../modules/code/presenter.js").CodeHighlightFactory | import('../extensions/highlighting.js').ManagedCodeHighlightFactory; readOnly?: boolean; modules?: ModuleRegistry; moduleRuntime?: ModuleRuntimeOptions; content?: ContentFactory; commit?: (request: import('@edit-ac/core').PrepareRequest) => import('@edit-ac/core').CommitResult } = {}) {
     this.#engine = engine;
     this.#options = options;
     this.#modules = options.modules?.freeze();
@@ -59,6 +60,10 @@ export class DOMRenderer {
     if (summary) entry.content.title = summary; else entry.content.removeAttribute('title');
   }
   isHeld(id: string): boolean { return this.#held.has(id); }
+  /** Bounded committed projection access for async target revalidation. */
+  patternText(id: string, start: number, end: number): string | undefined {
+    const node = this.#entries.get(id)?.node; return node ? patternText(node, start, end) : undefined;
+  }
   getBlock(id: string): HTMLElement | undefined { return this.#entries.get(id)?.content; }
   /** Only renderer-mounted presenter DOM owns temporary input/display mutations.
    * Authored data attributes cannot confer ownership of canonical source. */
@@ -96,6 +101,15 @@ export class DOMRenderer {
       .sort((a, b) => a.node.order - b.node.order).map(entry => entry.node.id);
   }
   setReadOnly(value: boolean): void { if (!this.#disposed) { this.root.contentEditable = value ? "false" : "true"; for (const entry of this.#entries.values()) entry.contentView?.setReadOnly(value); } }
+  /** One-time optional presenter activation; canonical nodes and history stay unchanged. */
+  setContentFactory(factory: ContentFactory): void {
+    if (this.#disposed) throw Error('Renderer is disposed');
+    this.#options.content = factory;
+    this.patchBoundary?.before();
+    try {
+      for (const entry of this.#entries.values()) if (!this.#held.has(entry.node.id)) this.#update(entry.node, this.#entries.get(entry.node.parent)?.node);
+    } finally { this.patchBoundary?.after(); }
+  }
   dispose(): void {
     if (this.#disposed) return;
     this.#disposed = true; this.#code?.dispose(); this.#subscription.dispose(); this.root.contentEditable = "false";
@@ -273,12 +287,13 @@ export class DOMRenderer {
       // document strings as markup, URLs or executable behavior.
       let resolved: ReturnType<ModuleRegistry['resolve']>;
       try { resolved = this.#modules?.resolve(key, value, run.text); } catch { resolved = undefined; }
-      const wrapper = this.root.ownerDocument.createElement(resolved?.presentation?.tag ?? 'span');
+      const presentation = resolved?.presentation ?? (resolved ? this.moduleRuntime?.presentation(resolved.definition.type) : undefined);
+      const wrapper = this.root.ownerDocument.createElement(presentation?.tag ?? 'span');
       wrapper.dataset.moduleType = key.slice('module:'.length);
-      if (!resolved?.presentation) wrapper.dataset.moduleFallback = 'text';
-      if (resolved?.definition.kind === 'inline-atom' && resolved.presentation) wrapper.contentEditable = 'false';
+      if (!presentation) wrapper.dataset.moduleFallback = 'text';
+      if (resolved?.definition.kind === 'inline-atom' && presentation) wrapper.contentEditable = 'false';
       target.append(wrapper); target = wrapper;
-      if (resolved?.presentation && this.moduleRuntime) {
+      if (resolved && presentation && this.moduleRuntime) {
         const decoration = this.root.ownerDocument.createElement('span');
         decoration.dataset.moduleView = ''; decoration.contentEditable = 'false'; wrapper.append(decoration);
         const view = this.moduleRuntime.mountView(decoration, { type: resolved.definition.type, version: resolved.definition.version,

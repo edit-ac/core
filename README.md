@@ -20,6 +20,13 @@ packed artifacts. The guide explains supported formats, asset hosting, save
 statuses, host authentication/uploads and cleanup. Native UI and device input
 parity are not established.
 
+Choose individual extensions with the [one-import extension guide](docs/extensions/getting-started-v1.md),
+then use the [typed authoring API](docs/extensions/api-v1.md) and
+[executable recipes](docs/extensions/recipes-v1.md). Exact source ranges, package
+versions and documentation drift checks are pinned in the
+[recipe manifest](docs/extensions/recipe-manifest.json). Advanced low-level
+integration and migration remain separate guides.
+
 ## Workspace
 
 | Path | Responsibility |

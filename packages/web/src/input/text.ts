@@ -39,6 +39,22 @@ export class TextInput {
   readonly #events = new WeakMap<Event, TextIntent>();
   readonly #entrySelections = new WeakMap<TextIntent, { anchor: EditorPosition; focus: EditorPosition }>();
   readonly #listeners: [string, EventListener][] = [];
+  extensionInput: ((input: import('../extensions/authoring.js').ExtensionInputV1) => boolean) | undefined;
+  get extensionBlocked(): boolean { return this.#readOnly || this.#disposed || this.#composition.active; }
+  #handleExtension(event: Event): boolean {
+    if (!this.extensionInput || this.extensionBlocked || event.defaultPrevented || !event.cancelable || (event as InputEvent).isComposing) return false;
+    const key = event as KeyboardEvent, input = event as InputEvent;
+    const type = event.type === 'keydown' ? 'key' : event.type === 'beforeinput' ? 'input' : event.type === 'paste' ? 'paste' : undefined;
+    if (!type || type === 'input' && this.#key && this.#key.disposition !== 'native-pending') return false;
+    const text = type === 'paste' ? (event as ClipboardEvent).clipboardData?.getData('text/plain') ?? '' : input.data ?? '';
+    if (text.length > 4096) return false;
+    const value = Object.freeze({ type, key: type === 'key' ? key.key : type === 'input' ? input.inputType : 'text/plain', text, primary: !!(key.ctrlKey || key.metaKey), shift: !!key.shiftKey, alt: !!key.altKey });
+    if (!this.extensionInput(value)) return false;
+    const intent = type === 'key' ? this.#create('key') : this.#key ?? this.#create('beforeinput');
+    intent.disposition = 'committed'; this.#events.set(event, intent); this.#pending = intent;
+    if (type === 'key') this.#key = intent;
+    event.preventDefault(); return true;
+  }
   shortcuts: TypingShortcutAdapter;
   references: import('../modules/references.js').ReferencePresenter | undefined;
   reorder: import('../modules/reorder.js').ReorderPresenter | undefined;
@@ -192,6 +208,7 @@ export class TextInput {
       if (this.#pending === owner) this.#pending = undefined;
     }
     if (this.textDrag.handle(event)) return;
+    if (event.type === 'paste' && this.#handleExtension(event)) return;
     if (this.clipboard.handle(event)) return;
     const input = event as InputEvent, key = event as KeyboardEvent;
     const trace: Trace = { type: event.type, trusted: event.isTrusted, generation: this.#generation, inputType: input.inputType, cancelable: event.cancelable };
@@ -220,6 +237,7 @@ export class TextInput {
       }
       return;
     }
+    if (this.#handleExtension(event)) return;
     if(event.type==='keydown') {
       this.shortcuts.key(key.key);
       this.#directKey=key.key;

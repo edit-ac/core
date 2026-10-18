@@ -1,5 +1,9 @@
 # Write a portable mark and atom
 
+For the current `Extension.create` facade, start with the [typed authoring API](api-v1.md)
+and [one-import recipes](recipes-v1.md). This guide retains the advanced portable
+registry tutorial and its separate qualification evidence.
+
 The executable example in `examples/extensions/` registers `demo.highlight` (a
 mark) and `demo.badge` (an inline atom) through `@edit-ac/core/extensions`.
 Both use bounded text and data attributes already admitted by the engine. The
