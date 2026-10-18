@@ -193,6 +193,9 @@ pub(crate) struct Bridge {
     patch_sequence: u64,
 }
 impl Bridge {
+    pub fn asset_work(&self, input: &str) -> Result<Value> {
+        crate::assets::transaction(self.doc.identity(), input)
+    }
     pub fn create(input: &str) -> Result<Self> {
         let c: Create = parse(input, "create")?;
         let _ = c.profile;

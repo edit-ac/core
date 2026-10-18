@@ -39,6 +39,14 @@ impl Engine {
             .map(|b| Self { inner: Some(b) })
             .map_err(error_value)
     }
+    pub fn asset_work(&self, input: &str) -> Result<String, JsValue> {
+        output(
+            self.inner
+                .as_ref()
+                .ok_or_else(|| disposed("assetWork"))
+                .and_then(|b| b.asset_work(input)),
+        )
+    }
     pub fn checkpoint_metadata(&self) -> Result<String, JsValue> {
         output(
             self.inner

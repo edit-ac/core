@@ -40,8 +40,8 @@ async function bind(){
  if (window.markdownAdapter) protocol.shortcuts=window.markdownAdapter.createShortcuts(session.writer.engine, request=>session.storage.commit(request));
  otherBlock=ids[1]?renderer.getBlock(ids[1]):undefined;otherText=otherBlock?document.createTreeWalker(otherBlock,NodeFilter.SHOW_TEXT).nextNode():undefined;
 }
-async function reopen(){
- await destroy();
+async function reopen(options){
+ await destroy(options);
  session=await recoverLocalDocument({assetUrl:'/core/wasm/editac_wasm_bg.wasm',databaseName,identity,indexedDB,locks:navigator.locks});
  await bind();await settle();
 }
@@ -68,12 +68,12 @@ async function remoteReplace(start,end,text,id=ids[0]) {
  await session.storage.flush({target:'local'});
 }
 async function apply(bytes){session.writer.engine.applyUpdate({identity,bytes:new Uint8Array(bytes)});await session.storage.flush({target:'local'});}
-async function destroy(){
+async function destroy(options={}){
  // Setup can fail before any adapter is attached. Release what exists, and
  // make repeated teardown safe without hiding a storage flush failure.
  protocol?.dispose();selection?.dispose();renderer?.dispose();
  protocol=undefined;selection=undefined;renderer=undefined;
  const active=session;session=undefined;
- if(active)await active.storage.destroy({policy:'flush'});
+ if(active)await active.storage.destroy({policy:'flush',...options});
 }
 window.inputFixture={commit(request){return session.storage.commit(request)},disableMarkdown(){markdownRegistration?.dispose();protocol.shortcuts.enabled=false;},mount,reopen,select,event,mutate,settle,state,remote,remoteReplace,apply,destroy,get commandResults(){return commandResults},get ids(){return ids},get root(){return root},get protocol(){return protocol},get storage(){return session.storage},get engine(){return session.writer.engine},get renderer(){return renderer},get selection(){return selection}};

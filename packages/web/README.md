@@ -417,3 +417,37 @@ A requested download or completed share does not establish OS delivery. Binary
 conversion is unavailable in this browser integration; PDF input is always
 rejected under the export-only policy. Browser fixtures do not qualify actual
 device file pickers, clipboard, sharing or accessibility services.
+
+### Retained local asset work
+
+Enable the optional Session companion on the existing storage owner:
+
+```ts
+const assets = await storage.enableAssets(indexedDB, databaseName);
+const receipt = await assets.enqueue(assetNodeId, {
+  version: 1, operationId: 'host_unique_ingest_id', identity,
+  action: 'ingest', byteLimit: bytes.byteLength || 1,
+}, grant, bytes);
+await assets.runOne(receipt.operationId, true, hostTransport);
+```
+
+The matching asset descriptor must already be committed at `assetNodeId`. The
+explicit grant scopes actions to its identity. Bytes are copied and retained in
+an atomic transaction with the existing Rust AssetWork journal. A receipt with
+`kind: 'assetOperation'` never acknowledges document persistence. Disabled hosts
+can omit the companion. Opening or recovering it makes no host requests.
+
+`hostTransport.authorize` returns fresh explicit authority; `execute` enforces it
+at effect time, deduplicates operation IDs and acknowledges cancellation only
+when outstanding effects are fenced. `runOne` performs one explicit attempt.
+There are no timers or automatic retries. `retainedSource(nodeId, readGrant)`
+recovers exact bytes. `retire(nodeId, identity, uniquePrefix)` fences canceled work
+and queues scoped cancel/release actions for explicit dispatch. Source bytes
+remain retained until release acknowledgment. No lifecycle method writes a node.
+
+Deletion and replacement are reconciled before recovered dispatch and completion.
+Undo cannot reactivate retired work. Storage destruction defaults to retirement
+and aborts transports; `{policy: 'flush', assetPolicy: 'suspend'}` retains pending
+IDs and source bytes for restart. Reopen with the same document database and
+explicitly resume work. Picker/capture UI and actual OS delivery remain separate
+consumer qualification.

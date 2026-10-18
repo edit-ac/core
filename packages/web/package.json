@@ -72,6 +72,11 @@
       "types": "./dist/modules/formats.d.ts",
       "import": "./dist/modules/formats.js",
       "default": "./dist/modules/formats.js"
+    },
+    "./assets": {
+      "types": "./dist/sync/assets.d.ts",
+      "import": "./dist/sync/assets.js",
+      "default": "./dist/sync/assets.js"
     }
   },
   "scripts": {

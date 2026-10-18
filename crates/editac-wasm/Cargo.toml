@@ -17,6 +17,7 @@ foundation-fixture = []
 fitness-trace = []
 
 [dependencies]
+editac-session = { path = "../editac-session", features = ["asset-serde"] }
 editac-html = { path = "../editac-html", default-features = false }
 editac-core = { path = "../editac-core" }
 wasm-bindgen.workspace = true

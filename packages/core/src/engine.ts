@@ -1,3 +1,14 @@
+export interface AssetIdentity { host: string; key: string }
+export type AssetAction = "authorize" | "ingest" | "read" | "cache" | "publish" | "resolve-url" | "cancel" | "release-reference" | "open" | "download";
+export interface AssetGrant { identity: AssetIdentity; actions: readonly AssetAction[] }
+export interface AssetRequest { version: 1; operationId: string; identity: AssetIdentity; action: AssetAction; byteLimit: number }
+export interface AssetPublication { operationId: string; identity: AssetIdentity }
+export interface AssetIntent { reference: string; request: AssetRequest; status: "Pending" | "Complete" | "Canceled" | { Published: AssetPublication }; attempts: number }
+export type AssetWorkAction = {type:"validate";request:AssetRequest;grant:AssetGrant} | {type:"inspect"} | {type:"enqueue";reference:string;request:AssetRequest;grant:AssetGrant}
+ | {type:"retire";reference:string;identity:AssetIdentity;prefix:string}
+ | {type:"begin";operation:string;online:boolean;grant:AssetGrant}
+ | {type:"complete";operation:string;receipt:AssetPublication|null;grant:AssetGrant};
+export interface AssetWorkResult { journal: string; intents: readonly AssetIntent[]; result: AssetIntent | {operationId:string} | null }
 /** Explicit v5 creation; importing this module never allocates a replica. */
 export interface CreateOptions {
   profile: "v5";
@@ -150,6 +161,8 @@ export type HTMLNode = { kind: "text"; text: string } | { kind: "inert" } | {
   kind: "element"; tag: string; attributes: readonly { name: string; value: string; namespaced: boolean }[]; children: readonly HTMLNode[];
 };
 export interface EngineHandle {
+  /** Pure Rust transaction over an opaque per-document asset journal. */
+  assetWork(journal: string | null, action: AssetWorkAction): AssetWorkResult;
   readonly markdownAvailable: boolean;
   /** Explicit per-document opt-in; disposal removes only this registration. */
   registerMarkdown(codec: MarkdownCodec): PatchSubscription;
@@ -190,6 +203,7 @@ export class EngineError extends Error {
 }
 /** Internal compiled boundary; application clients use EngineHandle. */
 export interface RawEngine {
+  asset_work(input: string): string;
   validate_fragment(input: string): string;
   import_html(input: string): string;
   read(): string; anchor(input: string): string; resolve(token: string): string;
@@ -371,6 +385,7 @@ function ownHandle(allocation: RawEngine): EngineHandle {
   const importMarkdown = (source: string, options: MarkdownOptions = {}): PreparedMarkdown => use("importMarkdown", () => codec("importMarkdown").importMarkdown(source, options));
   const exportMarkdown = (blocks: readonly FragmentBlock[], options: MarkdownOptions = {}): MarkdownExport => use("exportMarkdown", () => codec("exportMarkdown").exportMarkdown(blocks, options));
   return Object.freeze({
+    assetWork: (journal: string | null, action: AssetWorkAction) => use("assetWork", e => JSON.parse(e.asset_work(encode({journal,action}, "assetWork"))) as AssetWorkResult),
     read: () => use("read", e => JSON.parse(e.read()) as Snapshot),
     validateFragment: (input: string) => use("validateFragment", e => {
       if (typeof input !== "string") throw new EngineError("InvalidInput", "validateFragment", "expected fragment JSON");
