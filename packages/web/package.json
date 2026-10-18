@@ -70,7 +70,7 @@
     }
   },
   "scripts": {
-    "build": "tsc --project tsconfig.json && node ../../scripts/build-math-assets.mjs",
+    "build": "tsc --project tsconfig.json && node ../../scripts/build-extension-runtime.mjs && node ../../scripts/build-math-assets.mjs",
     "typecheck": "tsc --project tsconfig.json --noEmit"
   },
   "devDependencies": {

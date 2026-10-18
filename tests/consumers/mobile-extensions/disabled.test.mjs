@@ -10,7 +10,7 @@ import { assertLightweight, eagerInputs } from '../../extension-dx/loading-consu
 import { requireTestNode } from '../../../scripts/test-toolchain.mjs';
 
 // Limits are declared before measurement; no timing or device qualification.
-const forbidden = /\/(?:modules\/(?:slash|references|reorder|search|content|math|images|embeds|assets|formats)(?:\/|\.js)|extensions\/(?:spelling|authoring|matching|parsing)\.js)/;
+const forbidden = /\/(?:modules\/(?:slash|references|reorder|search|content|math|images|embeds|assets|formats)(?:\/|\.js)|extensions\/(?:(?:spelling|authoring|matching|parsing)\.js|runtime\/))/;
 export function assertDisabledGraph(inputs) {
   assertLightweight(inputs);
   assert.deepEqual(inputs.filter(path => forbidden.test('/' + path)), [], 'disabled optional presenter implementation in minimal consumer');
@@ -68,6 +68,7 @@ for (const [name, source] of [
 });
 for (const [path, symbol] of [ ['modules/search','documentSearch'], ['modules/reorder','reorderControls'],
   ['modules/slash','slashCommands'], ['modules/references','referenceSuggestions'],
+  ['extensions/runtime/search','documentSearch'], ['extensions/runtime/reorder','reorderControls'], ['extensions/runtime/slash','slashCommands'], ['extensions/runtime/references','referenceSuggestions'], ['extensions/runtime/content','contentModules'],
   ['extensions/authoring','Extension'], ['extensions/matching','attachPatternMatching'], ['extensions/spelling','Spelling']
 ]) test(`MWX-C01 emitted eager-import control rejects ${path}`, async () => {
   const target = join(consumer, 'node_modules/@edit-ac/web/dist', `${path}.js`);

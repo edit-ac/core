@@ -1,3 +1,4 @@
+import { nextPresenterSequence } from './presenter-sequence.js';
 import { ServiceLifecycle } from '../services/lifecycle.js';
 import type { ServiceClock, ServiceScope, ServiceFailure } from '../services/lifecycle.js';
 import type { FragmentBlock, PrepareRequest } from '@edit-ac/core';
@@ -30,7 +31,6 @@ export interface ReferenceLookupOptions {
   context?: () => Readonly<{ document: string; session: string; revision: string }>;
   clock?: ServiceClock;
 }
-let lookupSequence = 0;
 /** Bounded host search admission, reusable by headless/native presenters.
  * Constructing, reading stored atoms and disposal never call resolve/catalog. */
 export class ReferenceLookupSession {
@@ -38,7 +38,7 @@ export class ReferenceLookupSession {
   private accepted: string | undefined;
   private targets: readonly Readonly<ReferenceTarget>[] = [];
   private disposed = false;
-  private readonly defaultSession = `reference-${++lookupSequence}`;
+  private readonly defaultSession = `reference-${nextPresenterSequence()}`;
   private readonly service: ServiceLifecycle;
   private acceptedScope: Readonly<ServiceScope> | undefined;
   lastOutcome: 'ready' | ServiceFailure | undefined;
@@ -128,7 +128,6 @@ export function referenceSuggestions(resolve: ReferenceResolver | ReferenceHostV
   return context => new ReferencePresenter(context, resolve, Object.freeze(triggers));
 }
 interface Session { target: RetainedSelection; node: string; subscription: { dispose(): void } }
-let sequence = 0;
 /** A transient host search UI. Only the engine commits the chosen inert atom. */
 export class ReferencePresenter {
   readonly menu: HTMLElement;
@@ -153,7 +152,7 @@ export class ReferencePresenter {
   private readonly listeners: [EventTarget, string, EventListener][] = [];
   constructor(private readonly context: SlashContext, resolve: ReferenceResolver | ReferenceHostV1, private readonly triggers: readonly string[] = []) {
     const doc = context.root.ownerDocument;
-    this.menu = doc.createElement('div'); this.menu.id = `editac-references-${++sequence}`; this.menu.hidden = true;
+    this.menu = doc.createElement('div'); this.menu.id = `editac-references-${nextPresenterSequence()}`; this.menu.hidden = true;
     this.menu.setAttribute('role', 'dialog'); this.menu.setAttribute('aria-label', 'Reference suggestions');
     this.search = doc.createElement('input'); this.search.type = 'search'; this.search.maxLength = 128;
     this.search.setAttribute('aria-label', 'Search references'); this.search.setAttribute('autocomplete', 'off');

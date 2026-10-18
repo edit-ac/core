@@ -1,3 +1,4 @@
+import { nextPresenterSequence } from '../presenter-sequence.js';
 import type { ProjectedNode } from '@edit-ac/core';
 import type { ContentContext, ContentFactory, ContentView } from '../content.js';
 import { LinkActivation } from '../links/activation.js';
@@ -36,7 +37,6 @@ function reference(node: ProjectedNode): Reference | undefined {
 export function privateReferenceDisplay(options: PrivateReferenceDisplayOptions): ContentFactory {
   return context => reference(context.node) ? new PrivateReferenceView(context, options) : undefined;
 }
-let sequence = 0;
 export class PrivateReferenceView implements ContentView {
   readonly element: HTMLElement;
   private node: ProjectedNode;
@@ -136,7 +136,7 @@ export class PrivateReferenceView implements ContentView {
     if (this.disposed) return;
     this.cancel(); this.fallback();
     try {
-      const request = this.request('render', `view-${++sequence}`), generation = this.generation;
+      const request = this.request('render', `view-${nextPresenterSequence()}`), generation = this.generation;
       const result = this.options.cached(request);
       if (!this.disposed && generation === this.generation && result) this.display(result, this.request('render', request.requestId));
     } catch { if (!this.disposed) this.fallback(); }
@@ -145,7 +145,7 @@ export class PrivateReferenceView implements ContentView {
     if (this.disposed || !this.activation) return;
     try {
       // Capture the stored identity at the event. Displayed metadata is never an activation input.
-      const request = this.request('render', `activate-${++sequence}`);
+      const request = this.request('render', `activate-${nextPresenterSequence()}`);
       const state = this.activation.perform({ kind: 'activate', request });
       if (!this.disposed && state !== 'available') this.fallback(state);
     } catch { if (!this.disposed) this.fallback(); }
@@ -157,7 +157,7 @@ export class PrivateReferenceView implements ContentView {
     const controller = new AbortController(); this.pending = controller;
     const generation = this.generation;
     try {
-      const request = this.request('explicit-refresh', `refresh-${++sequence}`);
+      const request = this.request('explicit-refresh', `refresh-${nextPresenterSequence()}`);
       const admission = admitLinkRequest(request, request.host);
       if (admission.status !== 'ready') { this.fallback(admission.status); return; }
       this.status.textContent = 'Refreshing reference'; this.element.setAttribute('aria-busy', 'true');

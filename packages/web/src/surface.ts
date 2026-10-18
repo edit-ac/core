@@ -125,7 +125,7 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
   });
   const contentFactories = new Map<string, import('./modules/content.js').ContentFactory>();
   const contentResources = ['editac.images', 'editac.tables'].map(id => configuredResource(prepared, id, async signal => {
-    const { contentModules } = await import('./modules/content.js');
+    const { contentModules } = await import('./extensions/runtime/content.js');
     if (signal.aborted) return { dispose() {} };
     const factory = contentModules();
     contentFactories.set(id, context => {
@@ -160,28 +160,28 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
       attached = undefined;
     };
     try {
-    if (id === 'editac.search') {
-      const { documentSearch } = await import('./modules/search.js');
-      if (signal.aborted) return { dispose() {} };
-      input!.attachSearch(documentSearch()); attached = input!.search;
-    } else if (id === 'editac.reorder') {
-      const { reorderControls } = await import('./modules/reorder.js');
-      if (signal.aborted) return { dispose() {} };
-      input!.attachReorder(reorderControls()); attached = input!.reorder; releases.push(viewport!.addControls(input!.reorder!.controls));
-    } else if (id === 'editac.slash') {
-      const { slashCommands } = await import('./modules/slash.js');
-      if (signal.aborted) return { dispose() {} };
-      if (!hosts?.slash) throw Error('Missing admitted slash host');
-      input!.attachSlash(slashCommands(hosts.slash.commands, { literal: hosts.slash.literal }));
-      attached = input!.slash; releases.push(viewport!.addControls(input!.slash!.control), viewport!.addControls(input!.slash!.menu));
-    } else {
-      const { referenceSuggestions } = await import('./modules/references.js');
-      if (signal.aborted) return { dispose() {} };
-      if (!hosts?.references) throw Error('Missing admitted reference host');
-      input!.attachReferences(referenceSuggestions(hosts.references.host, { triggers: hosts.references.triggers }));
-      attached = input!.references; releases.push(viewport!.addControls(input!.references!.control), viewport!.addControls(input!.references!.menu));
-    }
-    return { dispose };
+      if (id === 'editac.search') {
+        const { documentSearch } = await import('./extensions/runtime/search.js');
+        if (signal.aborted) return { dispose() {} };
+        input!.attachSearch(documentSearch()); attached = input!.search;
+      } else if (id === 'editac.reorder') {
+        const { reorderControls } = await import('./extensions/runtime/reorder.js');
+        if (signal.aborted) return { dispose() {} };
+        input!.attachReorder(reorderControls()); attached = input!.reorder; releases.push(viewport!.addControls(input!.reorder!.controls));
+      } else if (id === 'editac.slash') {
+        const { slashCommands } = await import('./extensions/runtime/slash.js');
+        if (signal.aborted) return { dispose() {} };
+        if (!hosts?.slash) throw Error('Missing admitted slash host');
+        input!.attachSlash(slashCommands(hosts.slash.commands, { literal: hosts.slash.literal }));
+        attached = input!.slash; releases.push(viewport!.addControls(input!.slash!.control), viewport!.addControls(input!.slash!.menu));
+      } else {
+        const { referenceSuggestions } = await import('./extensions/runtime/references.js');
+        if (signal.aborted) return { dispose() {} };
+        if (!hosts?.references) throw Error('Missing admitted reference host');
+        input!.attachReferences(referenceSuggestions(hosts.references.host, { triggers: hosts.references.triggers }));
+        attached = input!.references; releases.push(viewport!.addControls(input!.references!.control), viewport!.addControls(input!.references!.menu));
+      }
+      return { dispose };
     } catch (error) { dispose(); throw error; }
   }));
   const resources = [resource, ...contentResources, ...presenterResources];

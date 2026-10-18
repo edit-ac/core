@@ -1,7 +1,7 @@
 // Observe allocation stacks from the actual packaged optional implementations.
 // Existing mobileResources separately counts required BrowserEditor/Session work.
 export function installExtensionCounters() {
-  const optional = /\/web\/(?:modules\/(?:slash|references|reorder|search|content|code|images|embeds|assets|formats)|extensions\/(?:authoring|matching|spelling|code|math))/;
+  const optional = /\/web\/(?:modules\/(?:slash|references|reorder|search|content|code|images|embeds|assets|formats)|extensions\/(?:runtime|authoring|matching|spelling|code|math))/;
   const owned = [], listeners = [];
   const owner = () => new Error().stack?.split('\n').find(line => optional.test(line))?.trim();
   const record = kind => { const source = owner(); if (source) owned.push({ kind, source }); };
