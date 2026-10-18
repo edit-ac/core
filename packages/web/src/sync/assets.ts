@@ -87,9 +87,9 @@ export class AssetSession {
     for(const [id,pending] of this.#pending) {if(pending.reference===reference){pending.controller.abort();this.#pending.delete(id);}}
   }
   async reconcile():Promise<void> {
-    this.#alive();const {intents}=await this.inspect();
+    this.#alive();const {intents,prepared}=await this.inspect();
     const seen=new Set<string>();
-    for(const intent of intents){if(seen.has(intent.reference))continue;seen.add(intent.reference);
+    for(const intent of intents){if(prepared.some(p=>p.active&&p.reference===intent.reference))continue;if(seen.has(intent.reference))continue;seen.add(intent.reference);
       if(!intents.some(i=>i.reference===intent.reference&&i.request.action==='cancel')&&!this.#live(intent.reference,intent.request.identity))await this.retire(referenceOwner(intent.reference),intent.request.identity,`retire_${intent.reference}`);
     }
   }

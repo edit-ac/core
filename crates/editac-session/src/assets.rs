@@ -1,5 +1,5 @@
-//! Durable host work on the existing per-document store. No binary bytes or URLs,
-//! semantic mutations, automatic retries, or binary deletion enter this journal.
+//! Durable host work and prepared originals in the existing per-document store.
+//! No URLs, semantic mutations, automatic retries, or global binary deletion.
 use crate::ports::{Durability, LocalStore, PortError};
 use editac_core::modules::assets::{
     AssetAction, AssetCommitReceipt, AssetGrant, AssetIdentity, AssetRequest,
@@ -16,6 +16,45 @@ pub const MAX_ATTEMPTS: u32 = 8;
 pub struct AssetJournal {
     intents: Vec<AssetIntent>,
     retired: Vec<String>,
+    #[cfg_attr(feature = "asset-serde", serde(default))]
+    prepared: Vec<PreparedOriginal>,
+}
+
+/// Immutable original owned by an import job, independently of live descriptors.
+/// Persisted with its ingest intent in the same asset transaction, never in Yrs.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "asset-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "asset-serde", serde(deny_unknown_fields))]
+pub struct PreparedOriginal {
+    pub job: String,
+    pub reference: String,
+    pub request: AssetRequest,
+    pub grant_actions: Vec<AssetAction>,
+    pub bytes: Vec<u8>,
+}
+impl PreparedOriginal {
+    fn grant(&self) -> AssetGrant {
+        AssetGrant {
+            identity: self.request.identity.clone(),
+            actions: self.grant_actions.clone(),
+        }
+    }
+    fn validate(&self) -> Result<(), PortError> {
+        valid_key(&self.job)?;
+        valid_key(&self.reference)?;
+        self.request
+            .validate(&self.grant())
+            .map_err(|_| PortError::Permission)?;
+        if self.request.action != AssetAction::Ingest || self.bytes.is_empty() {
+            return Err(PortError::InvalidRecord);
+        }
+        if self.bytes.len() as u64 > self.request.byte_limit
+            || self.bytes.len() as u64 > MAX_CACHE_BYTES
+        {
+            return Err(PortError::ResourceLimit);
+        }
+        Ok(())
+    }
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "asset-serde", derive(serde::Serialize, serde::Deserialize))]
@@ -78,6 +117,13 @@ impl AssetJournal {
     pub fn intents(&self) -> &[AssetIntent] {
         &self.intents
     }
+    pub fn prepared(&self) -> &[PreparedOriginal] {
+        &self.prepared
+    }
+    /// Reconciliation must distinguish uncommitted job ownership from live nodes.
+    pub fn is_prepared(&self, reference: &str) -> bool {
+        !self.is_retired(reference) && self.prepared.iter().any(|p| p.reference == reference)
+    }
     pub fn is_retired(&self, reference: &str) -> bool {
         self.retired.iter().any(|r| r == reference)
     }
@@ -108,6 +154,26 @@ impl AssetJournal {
     pub(crate) fn validate(&self) -> Result<(), PortError> {
         if self.intents.len() > MAX_ASSET_INTENTS || self.retired.len() > MAX_ASSET_INTENTS {
             return Err(PortError::ResourceLimit);
+        }
+        if self.prepared.len() > MAX_ASSET_INTENTS {
+            return Err(PortError::ResourceLimit);
+        }
+        let mut retained = 0u64;
+        for (i, original) in self.prepared.iter().enumerate() {
+            original.validate()?;
+            retained += original.bytes.len() as u64;
+            if self.prepared[..i]
+                .iter()
+                .any(|p| p.reference == original.reference)
+                || !self.intents.iter().any(|intent| {
+                    intent.reference == original.reference && intent.request == original.request
+                })
+            {
+                return Err(PortError::Integrity);
+            }
+        }
+        if retained > MAX_CACHE_BYTES {
+            return Err(PortError::Quota);
         }
         for (i, intent) in self.intents.iter().enumerate() {
             valid_key(&intent.reference)?;
@@ -183,6 +249,11 @@ impl AssetJournal {
             })
             .sum::<usize>()
             + self.retired.iter().map(String::len).sum::<usize>()
+            + self
+                .prepared
+                .iter()
+                .map(|p| p.bytes.len() + p.job.len() + p.reference.len() + 1024)
+                .sum::<usize>()
     }
     fn enqueue(&mut self, reference: &str, request: AssetRequest) -> Result<(), PortError> {
         valid_key(reference)?;
@@ -250,6 +321,77 @@ pub struct AssetWork<'a, S: AssetStore> {
 impl<'a, S: AssetStore> AssetWork<'a, S> {
     pub fn new(store: &'a S) -> Self {
         Self { store }
+    }
+    /// Retain before inserting any node. Failure leaves caller-owned input intact;
+    /// CommitUnknown requires recovery/retry of this exact job/reference/request.
+    pub fn stage_original(
+        &self,
+        job: &str,
+        reference: &str,
+        request: AssetRequest,
+        grant: &AssetGrant,
+        bytes: &[u8],
+    ) -> Result<AssetIntentReceipt, PortError> {
+        request.validate(grant).map_err(|_| PortError::Permission)?;
+        valid_key(job)?;
+        valid_key(reference)?;
+        if request.action != AssetAction::Ingest || bytes.is_empty() {
+            return Err(PortError::InvalidRecord);
+        }
+        if bytes.len() as u64 > request.byte_limit || bytes.len() as u64 > MAX_CACHE_BYTES {
+            return Err(PortError::ResourceLimit);
+        }
+        let original = PreparedOriginal {
+            job: job.into(),
+            reference: reference.into(),
+            request,
+            grant_actions: grant.actions.clone(),
+            bytes: bytes.into(),
+        };
+        original.validate()?;
+        let operation_id = original.request.operation_id.clone();
+        self.store.update_assets(|j| {
+            if j.is_retired(reference) {
+                return Err(PortError::Conflict);
+            }
+            if let Some(old) = j.prepared.iter().find(|p| p.reference == reference) {
+                return if old == &original {
+                    Ok(())
+                } else {
+                    Err(PortError::Conflict)
+                };
+            }
+            // A live/sibling intent cannot be claimed retroactively by a job.
+            if j.intents.iter().any(|i| i.reference == reference) {
+                return Err(PortError::Conflict);
+            }
+            j.enqueue(reference, original.request.clone())?;
+            j.prepared.push(original);
+            j.validate()
+        })?;
+        Ok(AssetIntentReceipt {
+            operation_id,
+            durability: self.store.capabilities().durability,
+        })
+    }
+    /// Explicit read authority is checked independently of the captured ingest grant.
+    /// Retired originals remain recoverable; retirement never means binary deletion.
+    pub fn prepared_source(
+        &self,
+        job: &str,
+        reference: &str,
+        grant: &AssetGrant,
+    ) -> Result<Vec<u8>, PortError> {
+        let journal = self.store.asset_journal()?;
+        let original = journal
+            .prepared
+            .iter()
+            .find(|p| p.job == job && p.reference == reference)
+            .ok_or(PortError::Conflict)?;
+        let mut request = original.request.clone();
+        request.action = AssetAction::Read;
+        request.validate(grant).map_err(|_| PortError::Permission)?;
+        Ok(original.bytes.clone())
     }
     pub fn enqueue(
         &self,

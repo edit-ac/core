@@ -431,6 +431,258 @@ fn failed_local_commit_never_dispatches_and_unknown_commit_deduplicates() {
     queue(&s, AssetAction::Ingest, "op");
     assert_eq!(s.asset_journal().unwrap().intents().len(), 1);
 }
+// PMS-1.1: deterministic prepared originals use the real asset/store transaction.
+const ORIGINAL: &[u8] = &[0, 255, 13, 10, 128, 42];
+fn stage(
+    store: &impl AssetStore,
+    job: &str,
+    reference: &str,
+    operation: &str,
+) -> Result<AssetIntentReceipt, PortError> {
+    AssetWork::new(store).stage_original(
+        job,
+        reference,
+        request(AssetAction::Ingest, operation),
+        &grant(AssetAction::Ingest),
+        ORIGINAL,
+    )
+}
+#[test]
+fn prepared_original_has_no_live_document_revision_or_history_effect() {
+    let scope = DocumentIdentity::v5(
+        "ac120000-0000-4000-8000-000000000013",
+        "ac120000-0000-4000-8000-000000000002",
+    )
+    .unwrap();
+    let store = Arc::new(MemoryStore::new(scope.clone(), StoreLimits::default()).unwrap());
+    let doc = Document::create(
+        CreationPermit::authorize_new(scope.clone()).unwrap(),
+        &[InitialNode {
+            kind: "block".into(),
+            text: "".into(),
+        }],
+    )
+    .unwrap();
+    store
+        .publish(0, CheckpointRecord::new(doc.checkpoint(), vec![]).unwrap())
+        .unwrap();
+    let session = Session::open(store.clone(), &scope, CachedPermission::LOCAL).unwrap();
+    let before = session.document().checkpoint().bytes;
+    let persisted = store
+        .recover(&scope)
+        .unwrap()
+        .checkpoint
+        .checkpoint()
+        .bytes
+        .clone();
+    let visible = session.document().snapshot().unwrap().visible;
+    let history = session.document().history_state();
+    let revision = session.observed_revision().unwrap();
+    let generation = store.generation(&scope).unwrap();
+    stage(&store, "import_a", "prepared_a", "stage_a").unwrap();
+    let j = store.asset_journal().unwrap();
+    assert!(j.is_prepared("prepared_a"));
+    assert_eq!(j.prepared()[0].request.identity, asset());
+    assert_eq!(j.prepared()[0].grant_actions, vec![AssetAction::Ingest]);
+    assert_eq!(j.prepared()[0].bytes, ORIGINAL);
+    assert_eq!(
+        AssetWork::new(&store)
+            .prepared_source("import_a", "prepared_a", &grant(AssetAction::Read))
+            .unwrap(),
+        ORIGINAL
+    );
+    assert_eq!(store.generation(&scope).unwrap(), generation);
+    assert!(store.pending(&scope).unwrap().is_empty());
+    assert_eq!(session.document().checkpoint().bytes, before);
+    assert_eq!(session.document().history_state(), history);
+    assert_eq!(session.observed_revision().unwrap(), revision);
+    assert_eq!(
+        store.recover(&scope).unwrap().checkpoint.checkpoint().bytes,
+        persisted
+    );
+    let reopened = Session::open(store, &scope, CachedPermission::LOCAL).unwrap();
+    assert_eq!(reopened.document().snapshot().unwrap().visible, visible);
+    assert_eq!(reopened.observed_revision().unwrap(), revision);
+}
+#[test]
+fn prepared_original_denial_limits_and_reads_preserve_source_and_state() {
+    let store = memory();
+    stage(&store, "import_a", "prepared_a", "stage_a").unwrap();
+    let before = store.asset_journal().unwrap();
+    let work = AssetWork::new(&store);
+    assert_eq!(
+        work.stage_original(
+            "import_b",
+            "prepared_b",
+            request(AssetAction::Ingest, "denied"),
+            &grant(AssetAction::Read),
+            ORIGINAL
+        ),
+        Err(PortError::Permission)
+    );
+    let mut bounded = request(AssetAction::Ingest, "bounded");
+    bounded.byte_limit = 1;
+    assert_eq!(
+        work.stage_original(
+            "import_b",
+            "prepared_b",
+            bounded,
+            &grant(AssetAction::Ingest),
+            ORIGINAL
+        ),
+        Err(PortError::ResourceLimit)
+    );
+    assert_eq!(
+        work.stage_original(
+            "import_b",
+            "prepared_b",
+            request(AssetAction::Ingest, "empty"),
+            &grant(AssetAction::Ingest),
+            &[]
+        ),
+        Err(PortError::InvalidRecord)
+    );
+    assert_eq!(
+        work.prepared_source("import_a", "prepared_a", &grant(AssetAction::Ingest)),
+        Err(PortError::Permission)
+    );
+    assert_eq!(
+        work.prepared_source("import_b", "prepared_a", &grant(AssetAction::Read)),
+        Err(PortError::Conflict)
+    );
+    assert_eq!(store.asset_journal().unwrap(), before);
+    assert_eq!(ORIGINAL, &[0, 255, 13, 10, 128, 42]);
+}
+#[test]
+fn prepared_original_retries_do_not_claim_live_or_sibling_references() {
+    let store = memory();
+    queue(&store, AssetAction::Ingest, "live_a");
+    assert_eq!(
+        stage(&store, "import_a", "node_ref", "other"),
+        Err(PortError::Conflict)
+    );
+    stage(&store, "import_a", "prepared_a", "stage_a").unwrap();
+    stage(&store, "import_b", "prepared_b", "stage_b").unwrap();
+    let before = store.asset_journal().unwrap();
+    stage(&store, "import_a", "prepared_a", "stage_a").unwrap();
+    assert_eq!(
+        stage(&store, "import_b", "prepared_a", "stage_a"),
+        Err(PortError::Conflict)
+    );
+    assert_eq!(
+        AssetWork::new(&store).stage_original(
+            "import_a",
+            "prepared_a",
+            request(AssetAction::Ingest, "stage_a"),
+            &grant(AssetAction::Ingest),
+            b"changed"
+        ),
+        Err(PortError::Conflict)
+    );
+    assert_eq!(store.asset_journal().unwrap(), before);
+    AssetWork::new(&store)
+        .retire("prepared_a", &asset(), "cleanup_a")
+        .unwrap();
+    let j = store.asset_journal().unwrap();
+    assert!(!j.is_prepared("prepared_a"));
+    assert!(j.is_prepared("prepared_b"));
+    assert!(!j.is_retired("node_ref"));
+    assert_eq!(
+        stage(&store, "import_a", "prepared_a", "stage_a"),
+        Err(PortError::Conflict)
+    );
+    assert_eq!(
+        AssetWork::new(&store)
+            .prepared_source("import_a", "prepared_a", &grant(AssetAction::Read))
+            .unwrap(),
+        ORIGINAL
+    );
+}
+#[test]
+fn prepared_original_failed_and_unknown_transactions_are_recoverable() {
+    let store = FaultInjectedStore::new(identity(), StoreLimits::default()).unwrap();
+    for (boundary, expected) in [
+        (FaultBoundary::BeforeWrite, PortError::Unavailable),
+        (FaultBoundary::BeforeCommit, PortError::Unavailable),
+    ] {
+        store
+            .inject(InjectedFault {
+                boundary,
+                error: PortError::Unavailable,
+            })
+            .unwrap();
+        assert_eq!(
+            stage(&store, "import_a", "prepared_a", "stage_a"),
+            Err(expected)
+        );
+        assert!(store.asset_journal().unwrap().prepared().is_empty());
+        assert!(store.asset_journal().unwrap().intents().is_empty());
+    }
+    store
+        .inject(InjectedFault {
+            boundary: FaultBoundary::AfterCommit,
+            error: PortError::Unavailable,
+        })
+        .unwrap();
+    assert_eq!(
+        stage(&store, "import_a", "prepared_a", "stage_a"),
+        Err(PortError::CommitUnknown)
+    );
+    stage(&store, "import_a", "prepared_a", "stage_a").unwrap();
+    assert_eq!(store.asset_journal().unwrap().intents().len(), 1);
+    assert_eq!(
+        AssetWork::new(&store)
+            .prepared_source("import_a", "prepared_a", &grant(AssetAction::Read))
+            .unwrap(),
+        ORIGINAL
+    );
+}
+#[test]
+fn prepared_original_store_quota_rolls_back_intent_and_bytes_together() {
+    let store = MemoryStore::new(
+        identity(),
+        StoreLimits {
+            max_record_bytes: 2048,
+            ..StoreLimits::default()
+        },
+    )
+    .unwrap();
+    let bytes = vec![17; 2048];
+    let mut r = request(AssetAction::Ingest, "stage_a");
+    r.byte_limit = 2048;
+    assert_eq!(
+        AssetWork::new(&store).stage_original(
+            "import_a",
+            "prepared_a",
+            r,
+            &grant(AssetAction::Ingest),
+            &bytes
+        ),
+        Err(PortError::ResourceLimit)
+    );
+    assert_eq!(bytes, vec![17; 2048]);
+    assert_eq!(store.asset_journal().unwrap(), AssetJournal::default());
+}
+#[cfg(feature = "asset-serde")]
+#[test]
+fn prepared_original_old_journal_and_untrusted_recovery_validation() {
+    let old: AssetJournal = serde_json::from_str(r#"{"intents":[],"retired":[]}"#).unwrap();
+    assert!(old.prepared().is_empty());
+    let store = memory();
+    stage(&store, "import_a", "prepared_a", "stage_a").unwrap();
+    let before = store.asset_journal().unwrap();
+    let mut encoded = serde_json::to_value(&before).unwrap();
+    encoded["prepared"][0]["grant_actions"] = serde_json::json!(["read"]);
+    let malformed: AssetJournal = serde_json::from_value(encoded).unwrap();
+    assert_eq!(
+        store.update_assets(|j| {
+            *j = malformed;
+            Ok(())
+        }),
+        Err(PortError::Permission)
+    );
+    assert_eq!(store.asset_journal().unwrap(), before);
+}
 #[cfg(feature = "native-store")]
 mod native {
     use super::*;
@@ -467,6 +719,93 @@ mod native {
                 let _ = std::fs::remove_dir_all(self.path.parent().unwrap());
             }
         }
+    }
+    #[test]
+    fn prepared_original_sqlite_reopen_preserves_exact_bytes_grants_and_siblings() {
+        let f = Fixture::new();
+        let s = f.create();
+        let before = s
+            .recover(&identity())
+            .unwrap()
+            .checkpoint
+            .checkpoint()
+            .bytes
+            .clone();
+        stage(&s, "import_a", "prepared_a", "stage_a").unwrap();
+        stage(&s, "import_b", "prepared_b", "stage_b").unwrap();
+        drop(s);
+        let s = f.reopen();
+        let j = s.asset_journal().unwrap();
+        assert_eq!(j.prepared().len(), 2);
+        assert!(j.is_prepared("prepared_a"));
+        assert!(j.is_prepared("prepared_b"));
+        assert_eq!(j.prepared()[0].grant_actions, vec![AssetAction::Ingest]);
+        assert_eq!(j.prepared()[0].request.identity, asset());
+        assert_eq!(
+            AssetWork::new(&s)
+                .prepared_source("import_a", "prepared_a", &grant(AssetAction::Read))
+                .unwrap(),
+            ORIGINAL
+        );
+        assert_eq!(
+            s.recover(&identity())
+                .unwrap()
+                .checkpoint
+                .checkpoint()
+                .bytes,
+            before
+        );
+        assert!(s.pending(&identity()).unwrap().is_empty());
+        AssetWork::new(&s)
+            .retire("prepared_a", &asset(), "cleanup_a")
+            .unwrap();
+        drop(s);
+        let s = f.reopen();
+        assert!(!s.asset_journal().unwrap().is_prepared("prepared_a"));
+        assert!(s.asset_journal().unwrap().is_prepared("prepared_b"));
+        assert_eq!(
+            AssetWork::new(&s)
+                .prepared_source("import_a", "prepared_a", &grant(AssetAction::Read))
+                .unwrap(),
+            ORIGINAL
+        );
+    }
+    #[test]
+    fn prepared_original_sqlite_failure_and_unknown_ack_recover_atomically() {
+        let f = Fixture::new();
+        let s = f.create();
+        s.inject_once(InjectedFault {
+            boundary: FaultBoundary::BeforeCommit,
+            error: PortError::Quota,
+        })
+        .unwrap();
+        assert_eq!(
+            stage(&s, "import_a", "prepared_a", "stage_a"),
+            Err(PortError::Quota)
+        );
+        drop(s);
+        let s = f.reopen();
+        assert!(s.asset_journal().unwrap().intents().is_empty());
+        assert!(s.asset_journal().unwrap().prepared().is_empty());
+        s.inject_once(InjectedFault {
+            boundary: FaultBoundary::AfterCommit,
+            error: PortError::Unavailable,
+        })
+        .unwrap();
+        assert_eq!(
+            stage(&s, "import_a", "prepared_a", "stage_a"),
+            Err(PortError::CommitUnknown)
+        );
+        drop(s);
+        let s = f.reopen();
+        stage(&s, "import_a", "prepared_a", "stage_a").unwrap();
+        assert_eq!(s.asset_journal().unwrap().intents().len(), 1);
+        assert_eq!(
+            AssetWork::new(&s)
+                .prepared_source("import_a", "prepared_a", &grant(AssetAction::Read))
+                .unwrap(),
+            ORIGINAL
+        );
     }
     #[test]
     fn sqlite_reopen_retains_pending_ids_and_document_checkpoint() {
