@@ -236,9 +236,24 @@ def run_odt_import(binary, binary_sha256, original, *, approve_loss=False,
     return _run(binary,binary_sha256,original,'odt-import',
                 ('approve-loss' if approve_loss else 'strict',),wall_ms,output_bytes,cancel)
 
-def _odt_import_completion_valid(payload, original, args):
+def run_docx_import(binary, binary_sha256, original, *, approve_loss=False,
+                   wall_ms=4000, output_bytes=MAX_OUTPUT, cancel=None):
+    """New local Session only. Media is unavailable pending shared atomic adoption.
+
+    Keep Result.original under host retention policy on every outcome.
+    """
+    if type(approve_loss) is not bool:
+        data=bytes(original)
+        return Result(dict(state='unavailable',code='FORMAT_REQUEST_INVALID',executed=0,
+                           outputAccepted=False,childExited=True,originalSha256=hashlib.sha256(data).hexdigest()),data)
+    return _run(binary,binary_sha256,original,'docx-import',
+                ('approve-loss' if approve_loss else 'strict',),wall_ms,output_bytes,cancel)
+
+def _container_import_completion_valid(payload, original, args):
     try:
         report=payload['report']
+        if not isinstance(report,dict) or not isinstance(report.get('diagnostics'),list):return False
+        if not all(isinstance(d,dict) and all(isinstance(d.get(k),str) and d[k] for k in ('code','location','action')) and type(d.get('lossy')) is bool for d in report['diagnostics']):return False
         return (payload.get('commits') == 1 and type(payload['commits']) is int and
                 all(type(payload.get(k)) is int and payload[k] == 1 for k in ('historyGroups','updates')) and
                 all(type(payload.get(k)) is int and payload[k] == 0 for k in ('activeJobs','assets','networkCalls')) and
@@ -247,7 +262,7 @@ def _odt_import_completion_valid(payload, original, args):
                 isinstance(payload.get('preparedBlocks'),list) and len(payload['preparedBlocks']) > 0 and
                 type(report['blocks']) is int and report['blocks'] == len(payload['preparedBlocks']) and
                 type(report['stagedBytes']) is int and report['stagedBytes'] == 0 and isinstance(report['diagnostics'],list) and
-                (not report['diagnostics'] or payload['lossApproved']) and
+                (not any(d['lossy'] for d in report['diagnostics']) or payload['lossApproved']) and
                 isinstance(payload.get('snapshotBlocks'),list) and
                 isinstance(payload['checkpoint'],list) and all(type(b) is int and 0 <= b <= 255 for b in payload['checkpoint']) and
                 hashlib.sha256(bytes(payload['checkpoint'])).hexdigest() == payload['checkpointSha256'])
@@ -340,7 +355,7 @@ def _run(binary, binary_sha256, original, mode, args=(), wall_ms=4000,
                    hardRustHeapBytes=RUST_HEAP, peakObservedRssBytes=0, rssSamples=0,
                    maxSampleIntervalMs=0, peakHostRssBytes=0, peakObservedHostAndWorkerRssBytes=0, resourceModel='hard Rust requested heap; RLIMIT_CPU/FSIZE/NOFILE; wall/cancel; sampled process RSS')
     if mode in ('odt-export','odt-import'): outcome['profile'] = 'edit-ac-odt-v1'
-    if mode == 'docx-export': outcome['profile'] = 'edit-ac-docx-v1'
+    if mode in ('docx-export','docx-import'): outcome['profile'] = 'edit-ac-docx-v1'
     if mode == 'epub-export': outcome['profile'] = 'edit-ac-epub-v1'
     if mode == 'pdf-export': outcome['profile'] = 'edit-ac-pdf-publication-v1'
     if mode == 'table-export':
@@ -354,7 +369,7 @@ def _run(binary, binary_sha256, original, mode, args=(), wall_ms=4000,
             raise ValueError('FORMAT_RESOURCE_PROFILE_UNAVAILABLE')
         if platform.system() != 'Darwin' or platform.machine() != 'arm64' or not pathlib.Path(SANDBOX).is_file():
             raise ValueError('FORMAT_ISOLATION_UNAVAILABLE')
-        if mode not in ('csv-import', 'tsv-import', 'rtf-import', 'rtf-export', 'table-export', 'odt-export', 'docx-export', 'epub-export', 'pdf-export', 'odt-import', 'export-fixture', 'read', 'write', 'network', 'child', 'spin', 'heap', 'output'):
+        if mode not in ('csv-import', 'tsv-import', 'rtf-import', 'rtf-export', 'table-export', 'odt-export', 'docx-export', 'epub-export', 'pdf-export', 'odt-import', 'docx-import', 'export-fixture', 'read', 'write', 'network', 'child', 'spin', 'heap', 'output'):
             raise ValueError('FORMAT_PROFILE_UNAVAILABLE')
         binary = pathlib.Path(binary).resolve(strict=True)
         if not binary.is_file() or _file_hash(binary) != binary_sha256:
@@ -453,7 +468,7 @@ def _run(binary, binary_sha256, original, mode, args=(), wall_ms=4000,
                     raise ValueError('FORMAT_COMPLETION_INVALID')
                 if not isinstance(payload, dict):
                     raise ValueError('FORMAT_COMPLETION_INVALID')
-                if mode in ('csv-import', 'tsv-import', 'rtf-import', 'rtf-export', 'table-export', 'odt-export', 'docx-export', 'epub-export', 'pdf-export', 'odt-import'):
+                if mode in ('csv-import', 'tsv-import', 'rtf-import', 'rtf-export', 'table-export', 'odt-export', 'docx-export', 'epub-export', 'pdf-export', 'odt-import', 'docx-import'):
                     if payload.get('state') not in ('passed', 'rejected'):
                         raise ValueError('FORMAT_COMPLETION_INVALID')
                     if payload['state'] == 'passed':
@@ -464,8 +479,8 @@ def _run(binary, binary_sha256, original, mode, args=(), wall_ms=4000,
                         if mode in ('csv-import','tsv-import'):
                             if not _table_completion_valid(payload, original, args):
                                 raise ValueError('FORMAT_COMPLETION_INVALID')
-                        elif mode == 'odt-import':
-                            if not _odt_import_completion_valid(payload,original,args):
+                        elif mode in ('odt-import','docx-import'):
+                            if not _container_import_completion_valid(payload,original,args):
                                 raise ValueError('FORMAT_COMPLETION_INVALID')
                         elif mode == 'rtf-import':
                             if (not all(payload.get(k) for k in ('undo', 'redo', 'reopen')) or
