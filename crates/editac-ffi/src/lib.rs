@@ -1,5 +1,8 @@
 //! Preparation ABI. One private serial executor per handle; owned output only.
 //! The browser/native translators compile the exact same semantic bridge source.
+#[path = "../../editac-wasm/src/assets.rs"]
+#[allow(dead_code)]
+mod assets;
 #[path = "../../editac-wasm/src/bridge.rs"]
 #[allow(dead_code)]
 mod bridge;
