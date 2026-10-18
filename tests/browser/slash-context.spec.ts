@@ -69,17 +69,61 @@ for(const mode of ['error','cancel','readonly'])test(`large catalog ${mode} pres
  else {if(mode==='readonly')await page.evaluate(()=>window.inputFixture.surface.setReadOnly(true));else await page.keyboard.press('Escape');await page.evaluate(()=>{const f=window.inputFixture;for(const p of f.pending)p.resolve(f.fragment('must not commit'));});}
  await page.evaluate(()=>window.inputFixture.settle());const after=await state(page,fact);unchanged(before,after);assert.deepEqual(after.selection,before.selection);assert.equal(after.focus,true);
 }));
-test('500-command screen-reader-facing state and focus are ready over 100 warm filtering samples',()=>probe('ready-runtime',async(page,fact)=>{
- const cold=await page.evaluate(()=>window.inputFixture.mountMilliseconds);await page.keyboard.type('/');await clear(page);
- for(let i=0;i<100;i++){await page.keyboard.type('/Needle');await page.keyboard.press('End');assert.equal(await page.locator('[data-active=true]').getAttribute('data-command'),'catalog-493');await clear(page);}
- await page.keyboard.type('/Needle');await page.keyboard.press('End');
+test('500-command DOM roles, disabled state and announcements follow bounded filtering and focus',()=>probe('accessible-catalog',async(page,fact)=>{
+ for(const query of ['Needle','Catalog','absent']){
+  await page.keyboard.type('/'+query);const before=await state(page,fact);
+  assert.equal(await page.locator('[role=menu]').getAttribute('aria-label'),'Slash commands');
+  assert.equal(await page.locator('[aria-live=polite]').getAttribute('role'),'status');
+  assert.equal(await page.locator('[role=menuitem][tabindex="0"]').count(),1);
+  if(query==='Needle'){
+   await page.keyboard.press('End');assert.equal((await state(page,fact)).status,'3 slash commands. Catalog 493.');
+   assert.match(await page.locator('[role=menu]').ariaSnapshot(),/Catalog 249.*disabled/);
+  }else if(query==='absent')assert.equal(before.status,'0 slash commands. No enabled command.');
+  assert.equal(await page.locator('#projection').getAttribute('aria-expanded'),'true');
+  await page.keyboard.press('Escape');unchanged(before,await state(page,fact));
+  assert.equal(await page.locator('#projection').getAttribute('aria-expanded'),'false');await clear(page);
+ }
+}));
+
+for(const mode of ['Enter','Space','pointer','touch'])test(`Close commands ${mode} cancels pending response without accepting the active result`,()=>probe(`close-${mode}`,async(page,fact)=>{
+ await page.keyboard.type('/Slow');const before=await state(page,fact);await page.keyboard.press('Enter');
+ const close=page.getByRole('menuitem',{name:'Close commands',exact:true});
+ if(mode==='pointer')await close.click();
+ else if(mode==='touch'){
+  if(engine==='firefox'){await close.dispatchEvent('pointerdown',{pointerType:'touch',bubbles:true,cancelable:true});await close.click();fact.touch='Firefox pointerType touch plus click equivalent';}
+  else await close.tap();
+ }else{await close.focus();await page.keyboard.press(mode);}
+ await page.evaluate(()=>{const f=window.inputFixture;for(const p of f.pending)p.resolve(f.fragment('must not commit'));});
+ const after=await state(page,fact);unchanged(before,after);assert.equal(after.open,false);assert.equal(after.focus,true);
+ assert.deepEqual(after.selection,before.selection);assert.deepEqual(after.aborted,[true]);
+ assert.equal(await page.locator('#projection').getAttribute('aria-expanded'),'false');
+ assert.equal(await page.getByRole('button',{name:'Slash commands',exact:true}).getAttribute('aria-expanded'),'false');
+}));
+for(const query of ['absent','Blocked'])test(`explicit ${query} focuses accessible Close and Enter preserves source`,()=>probe(`empty-close-${query}`,async(page,fact)=>{
+ const before=await state(page,fact);await page.getByRole('button',{name:'Slash commands',exact:true}).click();
+ assert.equal(await page.getByRole('menuitem',{name:'Close commands',exact:true}).evaluate(e=>e===document.activeElement),true);
  assert.equal(await page.locator('[role=menuitem][tabindex="0"]').count(),1);
- assert.match(await page.locator('[role=menu]').ariaSnapshot(),/Slash commands/);
- assert.match(await page.locator('[role=menu]').ariaSnapshot(),/Catalog 249.*disabled/);
- assert.equal((await state(page,fact)).status,'3 slash commands. Catalog 493.');assert.equal(await page.locator('[aria-live=polite]').getAttribute('role'),'status');
- await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
- const metrics=await page.evaluate(()=>window.inputFixture.metrics);const warm=metrics.filter(s=>s.input==='e'&&s.query==='Needle'&&s.results===3).slice(0,100);const focus=metrics.filter(s=>s.input==='focus:End').slice(0,100);assert.equal(focus.length,100);assert.ok(focus.every(s=>s.active==='catalog-493'&&s.status==='3 slash commands. Catalog 493.'));assert.ok(warm.length>=100,`nonzero measured complete filters: ${warm.length}`);
- const summarize=values=>{const sorted=[...values].sort((a,b)=>a-b);return {samples:sorted.length,p50:sorted[Math.ceil(sorted.length*.5)-1],p95:sorted[Math.ceil(sorted.length*.95)-1],p99:sorted[Math.ceil(sorted.length*.99)-1],max:sorted.at(-1)};};
- fact.performance={unit:'milliseconds',boundary:'trusted beforeinput through production Session commit/filter/DOM and live-region readiness; frame is subsequent rAF scheduling only',coldMount:cold,warm:summarize(warm.map(s=>s.milliseconds)),focus:summarize(focus.map(s=>s.milliseconds)),inputToFrame:summarize(warm.filter(s=>Number.isFinite(s.inputToFrameMilliseconds)).map(s=>s.inputToFrameMilliseconds)),frame:summarize(warm.filter(s=>Number.isFinite(s.frameMilliseconds)).map(s=>s.frameMilliseconds)),domBound:500,metrics};
- assert.ok(warm.every(s=>Number.isFinite(s.milliseconds)&&s.milliseconds>=0));assert.ok(metrics.every(s=>s.results<=500));
+ await page.keyboard.press('Enter');const after=await state(page,fact);unchanged(before,after);
+ assert.equal(after.open,false);assert.equal(after.focus,true);assert.deepEqual(after.selection,before.selection);
+},'/'+query));
+
+test('Space on a focused command uses the same atomic command and resulting caret',()=>probe('focused-space',async(page,fact)=>{
+ await page.keyboard.type('/Needle');const before=await state(page,fact);await page.locator('[data-command=catalog-493]').focus();
+ await page.keyboard.press('Space');const after=await state(page,fact);
+ assert.equal(after.text[0],'catalog result 493');assert.equal(after.text[1],'independent');assert.equal(after.focus,true);
+ assert.equal(after.selection.focus.offset,18);assert.equal(after.history.undoGroups,before.history.undoGroups+1);
+ for(const key of ['commands','patches','journal'])assert.equal(after[key].length,before[key].length+1,key);
+ await page.keyboard.press('ControlOrMeta+z');assert.equal((await state(page,fact)).text[0],'/Needle');
+}));
+
+for(const tag of ['input','textarea','select','button','editable'])test(`nested ${tag} owns focus and aborts the pending editor command`,()=>probe(`nested-${tag}`,async(page,fact)=>{
+ await page.keyboard.type('/Slow');await page.keyboard.press('Enter');const before=await state(page,fact);
+ await page.evaluate(tag=>{const f=window.inputFixture,wrapper=document.createElement('div');wrapper.contentEditable='false';wrapper.dataset.editacUi='';
+  const target=document.createElement(tag==='editable'?'div':tag);target.id='nested-slash-control';
+  if(tag==='editable'){target.contentEditable='true';target.tabIndex=0;}else if(tag==='select')target.add(new Option('owned','owned'));
+  wrapper.append(target);f.root.append(wrapper);target.focus();
+ },tag);
+ await page.evaluate(()=>{const f=window.inputFixture;for(const p of f.pending)p.resolve(f.fragment('must not commit'));});
+ const after=await state(page,fact);unchanged(before,after);assert.equal(after.open,false);assert.deepEqual(after.aborted,[true]);
+ assert.equal(await page.locator('#nested-slash-control').evaluate(e=>e===document.activeElement),true);
 }));

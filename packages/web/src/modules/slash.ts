@@ -83,7 +83,7 @@ export class SlashPresenter {
     this.listen(this.menu, 'focusin', event => {
       const id = (event.target as HTMLElement).dataset.command;
       const index = this.results.findIndex(command => command.id === id);
-      if (index >= 0) { this.active = this.results[index]!.disabled ? -1 : index; this.updateActive(); }
+      this.active = index >= 0 && !this.results[index]!.disabled ? index : -1; this.updateActive();
     });
     this.listen(this.menu, 'keydown', event => {
       if (!this.handle(event)) {
@@ -121,7 +121,12 @@ export class SlashPresenter {
   private inside(target: Element | null): boolean {
     if (!target) return false;
     const root = this.context.root;
-    if (root.contains(target) || this.menu.contains(target) || target === this.control) return true;
+    if (this.menu.contains(target) || target === this.control || target === root) return true;
+    if (root.contains(target)) {
+      // Embedded native controls and nested editors own their own focus/input.
+      if (target.closest('input,textarea,select,button,[role="textbox"]')) return false;
+      return target.closest('[contenteditable]') === root;
+    }
     // A named host toolbar can share the captured command target. Native text
     // controls still own their input and cannot keep an editor popup alive.
     if (target.closest('input,textarea,select,[contenteditable="true"],[role="textbox"]')) return false;
@@ -223,12 +228,15 @@ export class SlashPresenter {
     if (this.status.textContent !== text) this.status.textContent = text;
   }
   private updateActive(): void {
-    [...this.menu.children].forEach((item, index) => { (item as HTMLElement).tabIndex = index === this.active ? 0 : -1; item.setAttribute('data-active', String(index === this.active)); });
+    [...this.menu.children].forEach((item, index) => {
+      const active = index === this.active || this.active < 0 && (item as HTMLElement).dataset.dismiss !== undefined;
+      (item as HTMLElement).tabIndex = active ? 0 : -1; item.setAttribute('data-active', String(index === this.active));
+    });
     this.announce();
   }
   private focusActive(): void {
     this.updateActive();
-    (this.menu.children[this.active] as HTMLElement | undefined)?.focus();
+    ((this.active >= 0 ? this.menu.children[this.active] : this.menu.querySelector('[data-dismiss]')) as HTMLElement | null)?.focus();
   }
   handle(event: Event): boolean {
     if (event.defaultPrevented) return false;
@@ -240,6 +248,13 @@ export class SlashPresenter {
     if (!this.session || event.type !== 'keydown') return false;
     const key = event as KeyboardEvent;
     if (key.isComposing || key.key === 'Process' || key.key === 'Dead' || key.ctrlKey || key.metaKey || key.altKey || key.getModifierState('AltGraph')) return false;
+    const item = (key.target as Element | null)?.closest<HTMLElement>('[role="menuitem"]');
+    if (item && this.menu.contains(item) && !key.shiftKey && (key.key === 'Enter' || key.key === ' ')) {
+      event.preventDefault();
+      if (item.dataset.dismiss !== undefined) this.dismiss(true);
+      else if (item.dataset.command) void this.activate(item.dataset.command);
+      return true;
+    }
     if (key.key === 'Tab') { this.dismiss(true); return false; }
     if (key.key === 'Escape') { this.dismiss(true); this.context.focusEscape(key); event.preventDefault(); return true; }
     if (key.key === 'Enter' && key.shiftKey) { this.dismiss(true); return false; }
