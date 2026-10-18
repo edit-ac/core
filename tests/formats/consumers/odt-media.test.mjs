@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {registerImportLifecycleTests} from './import-lifecycle.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync,writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
@@ -131,3 +132,5 @@ mediaTest('ODT packed worker denies ambient fetch and rebuilt WASM enforces line
  const f=await mediaSetup(),snapshot=f.snapshot();let error;try{await f.prepare({source:new Uint8Array(1048577)});}catch(e){error={code:e.code,bytes:e.original.length};}const unchanged=JSON.stringify(snapshot)===JSON.stringify(f.snapshot());await f.close();return {before,after,refused,error,unchanged};});
  assert.ok(r.refused);assert.equal(r.before,r.after);assert.ok(r.after<=67108864);assert.equal(r.error.code,'ResourceLimit');assert.equal(r.error.bytes,1048577);assert.ok(r.unchanged);return {denied,...r};
 });
+
+registerImportLifecycleTests(mediaTest,source);

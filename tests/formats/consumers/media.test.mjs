@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {registerImportLifecycleTests} from './import-lifecycle.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync,writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
@@ -111,3 +112,5 @@ mediaTest('DOCX media immutable complete unsupported report cannot bypass loss a
  const r=await page.evaluate(async()=>{const f=await mediaSetup(),before=f.snapshot();const p=await f.prepare({source:Uint8Array.from(mediaInput.lossSource),approveLoss:false}),diagnostics=structuredClone(p.diagnostics);p.diagnostics.length=0;let error;try{await p.commitAssets(f.owner,f.job,f.host,f.sourceGrant);}catch(e){error={code:e.code,original:Array.from(e.original),recovery:!!e.recovery};}const after=f.snapshot(),journal=await f.assets.inspect();await f.close();return {before,after,diagnostics,error,journal};});
  assert.ok(r.diagnostics.some(d=>d.lossy));assert.equal(r.error.code,'LossApprovalRequired');assert.deepEqual(r.error.original,lossSource);assert.ok(r.error.recovery);assert.deepEqual(r.before,r.after);assert.equal(r.journal.prepared.length,0);return r;
 });
+
+registerImportLifecycleTests(mediaTest,source);
