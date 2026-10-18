@@ -16,6 +16,8 @@ unsafe_code = "forbid"
 
 [features]
 default = []
+table-text-export = ["jobs", "dep:yrs"]
+table-text-import = ["jobs", "dep:csv-core", "dep:yrs"]
 pdf-export = ["pdf-probe", "jobs", "krilla/raster-images", "dep:flate2"]
 pdf-probe = ["dep:krilla", "dep:rustybuzz"]
 container-codecs = ["dep:zip", "dep:quick-xml", "dep:flate2"]
@@ -105,6 +107,8 @@ name = "container_probe"
 required-features = ["docx-codecs", "jobs"]
 
 [dependencies]
+csv-core = { version = "=0.1.13", default-features = false, optional = true }
+yrs = { version = "=0.28.0", features = ["small-client"], optional = true }
 editac-html = { path = "../editac-html", default-features = false, optional = true }
 serde_json = { version = "=1.0.152", optional = true }
 krilla = { version = "=0.8.2", default-features = false, features = ["simple-text"], optional = true }
@@ -152,3 +156,19 @@ required-features = ["epub-export"]
 [[example]]
 name = "epub_export"
 required-features = ["epub-export"]
+
+[[test]]
+name = "table_text_import"
+required-features = ["table-text-import"]
+
+[[example]]
+name = "table_text_import"
+required-features = ["table-text-import"]
+
+[[test]]
+name = "table_text_export"
+required-features = ["table-text-export", "table-text-import"]
+
+[[example]]
+name = "table_text_export"
+required-features = ["table-text-export"]

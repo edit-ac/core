@@ -323,3 +323,6 @@ pub mod rtf;
 
 #[cfg(any(feature = "epub-import", feature = "epub-export"))]
 pub mod epub;
+
+#[cfg(any(feature = "table-text-import", feature = "table-text-export"))]
+pub mod table_text;
