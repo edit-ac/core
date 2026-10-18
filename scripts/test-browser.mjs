@@ -15,6 +15,7 @@ suites['mobile-extension-formatting'] = ['tests/browser/mobile-extension-formatt
 suites['extension-formatting'] = ['tests/browser/extension-formatting.spec.ts','tests/browser/extension-formatting-mixed.spec.ts'];
 suites['registered-inline-transfer'] = ['tests/browser/registered-inline-transfer.spec.ts'];
 suites['shared-rich-transfer'] = [...suites['extension-formatting'], ...suites['registered-inline-transfer']];
+suites['table-invalidation'] = ['tests/browser/table-invalidation.spec.ts'];
 suites['table-selection'] = ['tests/browser/table-selection.spec.ts'];
 suites['table-command'] = ['tests/browser/table-command.spec.ts'];
 suites['code-highlight'] = ['tests/browser/code-highlight.spec.ts'];

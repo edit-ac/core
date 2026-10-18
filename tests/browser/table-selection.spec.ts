@@ -53,7 +53,7 @@ for(const mime of ['text/tab-separated-values','text/plain','text/html'])test(`Q
  await p.evaluate(()=>window.inputFixture.engine.history({type:'undo'}));assert.deepEqual((await state(p,f)).nodes,cleared.nodes);await p.evaluate(()=>window.inputFixture.engine.history({type:'redo'}));assert.deepEqual((await state(p,f)).nodes,after.nodes);
  await p.evaluate(()=>window.inputFixture.reopen());assert.deepEqual((await state(p,f)).nodes,after.nodes);
 },{plainTable:true}));
-test('Malformed quoting, internal newlines and lossy HTML reject atomically, including fallback offers',()=>probe('lossless-rejection',async(p,f)=>{
+test('Malformed quoting and lossy HTML reject atomically, including fallback offers',()=>probe('lossless-rejection',async(p,f)=>{
  const before=await state(p,f);await choose(p,2,1);await choose(p,2,2,true);
  for(const data of literal.rejected){await clipboard(p,'paste',data);unchanged(before,await state(p,f));}
  for(const data of [{'text/plain':'😀'.repeat(270000)+'\tx'},{'text/plain':Array(129).fill('x').join('\t')},{'text/plain':'x'.repeat(1048577)}, {'text/html':'<table><tr><td>😀</td><td>'+ '😀'.repeat(270000)+'</td></tr></table>'}]){await clipboard(p,'paste',data);unchanged(before,await state(p,f));}
@@ -69,3 +69,18 @@ test('Keyboard and pointer oversized rectangles retain the last valid selection 
  const before=await state(p,f);await choose(p,1,1);await section(p).press('Control+Shift+End');assert.deepEqual(await selected(p),[[0,0]]);assert.match(await section(p).getByRole('status').textContent(),/128 cells/);
  await choose(p,9,16,true);assert.deepEqual(await selected(p),[[0,0]]);unchanged(before,await state(p,f));
 },{tableSource:'|'+Array(16).fill('head').join('|')+'|\n|'+Array(16).fill('---').join('|')+'|\n'+Array(8).fill('|'+Array(16).fill('cell').join('|')+'|').join('\n')}));
+
+
+test('Quoted cell LF preserves boundaries and native previews through copy, history and reopen',()=>probe('quoted-cell-linefeed',async(p,f)=>{
+ const before=await state(p,f);await choose(p,2,1);await choose(p,2,2,true);
+ await clipboard(p,'paste',literal.admittedLinefeed.offer);const after=await state(p,f);oneEffect(before,after);
+ assert.deepEqual(cells(after),literal.admittedLinefeed.cells);
+ assert.equal(await section(p).getByRole('textbox',{name:'Table row 2 column 1',exact:true}).inputValue(),'new\nline');
+ assert.equal(await section(p).locator('tr').count(),2);
+ await choose(p,2,1);await choose(p,2,2,true);const copy=await clipboard(p,'copy');
+ assert.equal(copy.data['text/plain'],literal.admittedLinefeed.copied);unchanged(after,await state(p,f));
+ await p.evaluate(()=>window.inputFixture.engine.history({type:'undo'}));assert.deepEqual((await state(p,f)).nodes,before.nodes);
+ await p.evaluate(()=>window.inputFixture.engine.history({type:'redo'}));assert.deepEqual((await state(p,f)).nodes,after.nodes);
+ await p.evaluate(()=>window.inputFixture.reopen());assert.deepEqual((await state(p,f)).nodes,after.nodes);
+ assert.equal(await section(p).getByRole('textbox',{name:'Table row 2 column 1',exact:true}).inputValue(),'new\nline');
+}));

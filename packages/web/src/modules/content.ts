@@ -99,6 +99,12 @@ function tableSourceFallback(context: ContentContext): ContentView | undefined {
 class BasicContentView implements ContentView {
   readonly element: HTMLElement;
   private node: ProjectedNode;
+  // One validated descriptor and bounded cell index per view. Browser table layout
+  // owns geometry; retained cell/control DOM keeps its native layout dependencies.
+  private descriptor: ImageMetadata | Table;
+  private descriptorKey: string | undefined;
+  private readonly cellContentKeys: string[] = [];
+  private readonly cellElements: HTMLElement[] = [];
   private readonly kind: 'image' | 'table';
   private readOnly: boolean;
   private focusEscape = false;
@@ -119,7 +125,7 @@ class BasicContentView implements ContentView {
   private readonly actions: HTMLButtonElement[] = [];
   private sourceAction: HTMLButtonElement | undefined;
   constructor(private readonly context: ContentContext, descriptor: ImageMetadata | Table, private readonly imageUrl: ContentOptions['imageUrl'], private readonly protectedCells: ContentOptions['tableProtectedCells'], private readonly tableSource: ContentOptions['tableSource']) {
-    this.node=context.node; this.readOnly=context.readOnly; this.kind='url' in descriptor ? 'image' : 'table';
+    this.node=context.node; this.descriptor=descriptor; this.readOnly=context.readOnly; this.kind='url' in descriptor ? 'image' : 'table';
     const doc=context.element.ownerDocument; this.element=doc.createElement('section'); this.element.dataset.contentModule=this.kind; this.element.contentEditable='false';
     this.status=doc.createElement('span'); this.status.setAttribute('role','status'); this.status.setAttribute('aria-live','polite');
     if (this.kind === 'image') {
@@ -166,7 +172,7 @@ class BasicContentView implements ContentView {
       for(const type of ['copy','cut','paste'])this.listen(this.element,type,event=>{
         const e=event as ClipboardEvent;if(e.target!==this.element||!this.cells||!e.clipboardData)return;
         e.preventDefault();if(type==='paste'){this.pasteCells(e.clipboardData);return;}
-        const current=parse(this.node);if(!current||!('rows'in current))return;
+        const current=this.descriptor;if(!current||!('rows'in current))return;
         const {row,column,rows,columns}=this.cells;
         const matrix=current.cells ? current.cells.slice(row,row+rows).map(r=>r.slice(column,column+columns)) : current.rows.slice(row,row+rows).map(r=>r.slice(column,column+columns));
         try{for(const [type,value] of Object.entries(encodeRichTableClipboard(doc,matrix)))e.clipboardData.setData(type,value);}
@@ -193,7 +199,7 @@ class BasicContentView implements ContentView {
       const extend=doc.createElement('button');extend.type='button';extend.textContent='Extend table selection';extend.setAttribute('aria-pressed','false');selectionControls.append(extend);this.listen(extend,'click',()=>{this.extendSelection=!this.extendSelection;extend.setAttribute('aria-pressed',String(this.extendSelection));});
       const data=descriptor as Table;
       data.rows.forEach((row,r)=>{const tr=doc.createElement('tr'); body.append(tr); row.forEach((_,c)=>{
-        const header=data.cells?.[r]?.[c]?.header ?? r===0;const td=doc.createElement(header?'th':'td'); if(header)td.setAttribute('scope','col'); td.style.textAlign=data.alignments[c]==='none'?'':data.alignments[c]!; tr.append(td);
+        const header=data.cells?.[r]?.[c]?.header ?? r===0;const td=doc.createElement(header?'th':'td'); if(header)td.setAttribute('scope','col'); td.style.textAlign=data.alignments[c]==='none'?'':data.alignments[c]!; tr.append(td);this.cellElements.push(td);
         const select=doc.createElement('button');select.type='button';select.textContent=`Select row ${r+1} column ${c+1}`;select.setAttribute('aria-label',`Select cell row ${r+1} column ${c+1}`);select.setAttribute('aria-pressed','false');this.cellButtons.push(select);selectionControls.append(select);
         this.listen(select,'click',event=>this.selectCells(r,c,this.extendSelection||(event as MouseEvent).shiftKey));
         const preview=doc.createElement('div'); this.previews.push(preview); td.append(preview);
@@ -218,10 +224,12 @@ class BasicContentView implements ContentView {
   private listen(target: EventTarget,type: string,listener: EventListener): void {target.addEventListener(type,listener);this.listeners.push([target,type,listener]);}
   update(node: ProjectedNode): boolean {
     if(this.disposed)return false;
-    const data=parse(node);if(!data||('url' in data)!==(this.kind==='image'))return false;
+    const descriptorKey=JSON.stringify(node.blockAttributes);
+    const data=descriptorKey===this.descriptorKey?this.descriptor:parse(node);
+    if(!data||('url' in data)!==(this.kind==='image'))return false;
     if('rows' in data&&(data.rows.length*(data.alignments.length)!==this.controls.length||data.alignments.length!==Number(this.controls.at(-1)?.dataset.column)+1))return false;
     if(this.cells&&JSON.stringify(this.cells.expected)!==JSON.stringify(node.blockAttributes))this.leaveCells();
-    this.node=node;
+    this.node=node;this.descriptor=data;this.descriptorKey=descriptorKey;
     if('url' in data){
       this.image!.alt=data.alt; this.image!.title=data.title; this.description!.textContent=data.alt;
       if(this.controls[0]!.value!==data.source)this.controls[0]!.value=data.source;
@@ -230,11 +238,23 @@ class BasicContentView implements ContentView {
       const at=r*data.alignments.length+c,input=this.controls[at]!,preview=this.previews[at]!;
       const blocks=data.cells?.[r]?.[c]?.paragraphs ?? [{style:['paragraph'],runs}];
       const value=blocks.map(block=>cellText(block.runs)).join('\n'); if(!this.compositions.has(input)&&input.value!==value){const start=input.selectionStart,end=input.selectionEnd;input.value=value;input.setSelectionRange(Math.min(start,value.length),Math.min(end,value.length));}
-      const cell=input.closest('td,th') as HTMLElement;
+      const cell=this.cellElements[at]!;
       // Header changes may replace the cell tag without replacing its native control.
       const header=data.cells?.[r]?.[c]?.header ?? r===0;
-      if ((cell.tagName==='TH')!==header) { const replacement=preview.ownerDocument.createElement(header?'th':'td');for(const attr of [...cell.attributes])replacement.setAttribute(attr.name,attr.value);if(!header)replacement.removeAttribute('scope');else replacement.setAttribute('scope','col');replacement.append(...cell.childNodes);cell.replaceWith(replacement); }
-      (input.closest('td,th') as HTMLElement).style.textAlign=data.alignments[c]==='none'?'':data.alignments[c]!;
+      if ((cell.tagName==='TH')!==header) {
+        const active=cell.contains(input.ownerDocument.activeElement),start=input.selectionStart,end=input.selectionEnd,direction=input.selectionDirection;
+        const replacement=preview.ownerDocument.createElement(header?'th':'td');
+        for(const attr of [...cell.attributes])replacement.setAttribute(attr.name,attr.value);
+        if(header)replacement.setAttribute('scope','col');else replacement.removeAttribute('scope');
+        replacement.append(...cell.childNodes);cell.replaceWith(replacement);this.cellElements[at]=replacement;
+        if(active){input.focus({preventScroll:true});input.setSelectionRange(start,end,direction);}
+      }
+      const alignment=data.alignments[c]==='none'?'':data.alignments[c]!;
+      if(this.cellElements[at]!.style.textAlign!==alignment)this.cellElements[at]!.style.textAlign=alignment;
+      // V1 synthesis and V2 decoding may differ in object field order.
+      const contentKey=JSON.stringify(blocks.map(block=>[block.style,block.runs]));
+      if(this.cellContentKeys[at]===contentKey)return;
+      this.cellContentKeys[at]=contentKey;
       preview.replaceChildren();for(const block of blocks){const style=block.style;const container=preview.ownerDocument.createElement(style[0]==='heading'?`h${style[1]}`:style[0]==='code'?'pre':'p');if(style[0]==='code')container.dataset.language=String(style[1]);preview.append(container);
         for(const [text,marks] of block.runs){let target:HTMLElement=container;for(const [mark,href] of marks){const tag={bold:'strong',italic:'em',strike:'s',underline:'u',code:'code',link:'a'}[mark];if(!tag)continue;const el=preview.ownerDocument.createElement(tag);if(mark==='link'&&safeUrl(href, true)){(el as HTMLAnchorElement).href=href!;(el as HTMLAnchorElement).rel='noopener noreferrer';}target.append(el);target=el;}target.append(preview.ownerDocument.createTextNode(text));}
       }
@@ -262,10 +282,10 @@ class BasicContentView implements ContentView {
       finally { baseline?.dispose();this.context.engine.history({type:'boundary'}); }
     }
   }
-  private selectedInput(): HTMLTextAreaElement | undefined {return this.controls.find(i=>Number(i.dataset.row)===this.cells?.row&&Number(i.dataset.column)===this.cells?.column);}
+  private selectedInput(): HTMLTextAreaElement | undefined {const s=this.cells,data=this.descriptor;return s&&'rows' in data?this.controls[s.row*data.alignments.length+s.column]:undefined;}
   private selectCells(row:number,column:number,extend:boolean):void {
     if(this.disposed||this.compositions.size)return;
-    const data=parse(this.node);if(!data||!('rows'in data)||!Number.isInteger(row)||!Number.isInteger(column)||row<0||column<0||row>=data.rows.length||column>=data.alignments.length)return;
+    const data=this.descriptor;if(!data||!('rows'in data)||!Number.isInteger(row)||!Number.isInteger(column)||row<0||column<0||row>=data.rows.length||column>=data.alignments.length)return;
     const first=extend&&this.firstCell?this.firstCell:{row,column};
     const rows=Math.abs(first.row-row)+1,columns=Math.abs(first.column-column)+1;
     if(rows*columns>128){this.status.textContent='Selection limit is 128 cells; current selection preserved.';return;}
@@ -274,7 +294,7 @@ class BasicContentView implements ContentView {
     this.paintCells();this.element.focus();this.status.textContent=`${rows} rows by ${columns} columns selected. Arrows move; Shift extends; Enter edits; Tab uses native focus order. Delete clears contents; use Remove rows or columns to change structure.`;
   }
   private navigateCells(event:KeyboardEvent):boolean {
-    const data=parse(this.node),focus=this.focusCell;
+    const data=this.descriptor,focus=this.focusCell;
     if(!focus||!data||!('rows'in data)||event.altKey||event.metaKey)return false;
     let {row,column}=focus;
     switch(event.key){
@@ -291,7 +311,7 @@ class BasicContentView implements ContentView {
     if(row===focus.row&&column===focus.column){this.status.textContent='Table edge; no row or column added. Tab uses native focus order.';return true;}
     this.selectCells(row,column,event.shiftKey);return true;
   }
-  private paintCells():void {if(this.kind!=='table')return;const s=this.cells;for(let at=0;at<this.controls.length;at++){const input=this.controls[at]!,r=Number(input.dataset.row),c=Number(input.dataset.column);const selected=!!s&&r>=s.row&&r<s.row+s.rows&&c>=s.column&&c<s.column+s.columns;this.cellButtons[at]!.setAttribute('aria-pressed',String(selected));const td=input.closest('td,th') as HTMLElement;td.toggleAttribute('data-cell-selected',selected);td.style.outline=selected?'2px solid Highlight':'';}for(const button of this.actions)button.disabled=this.readOnly||!s;}
+  private paintCells():void {if(this.kind!=='table')return;const s=this.cells;for(let at=0;at<this.controls.length;at++){const input=this.controls[at]!,r=Number(input.dataset.row),c=Number(input.dataset.column);const selected=!!s&&r>=s.row&&r<s.row+s.rows&&c>=s.column&&c<s.column+s.columns;if(this.cellButtons[at]!.getAttribute('aria-pressed')!==String(selected))this.cellButtons[at]!.setAttribute('aria-pressed',String(selected));const td=this.cellElements[at]!;if(td.hasAttribute('data-cell-selected')!==selected){td.toggleAttribute('data-cell-selected',selected);td.style.outline=selected?'2px solid Highlight':'';}}for(const button of this.actions){const disabled=this.readOnly||!s;if(button.disabled!==disabled)button.disabled=disabled;}}
   private leaveCells():void {this.cells=undefined;this.firstCell=undefined;this.focusCell=undefined;this.paintCells();}
   private tableHistory(event: KeyboardEvent): boolean {
     const mac=/Mac|iPhone|iPad/.test(this.element.ownerDocument.defaultView?.navigator.platform??'');
@@ -323,7 +343,7 @@ class BasicContentView implements ContentView {
     const index=this.controls.indexOf(input),next=index+(event.shiftKey?-1:1);
     if(next>=0 && next<this.controls.length){event.preventDefault();this.controls[next]!.focus();return true;}
     if(!event.shiftKey && !event.repeat && !this.readOnly) {
-      const data=parse(this.node);
+      const data=this.descriptor;
       try {
         if(data && 'rows' in data && data.rows.length<128 && !this.policy().length) {
           const container=this.context.element, row=data.rows.length;
@@ -350,7 +370,7 @@ class BasicContentView implements ContentView {
     finally{this.context.engine.history({type:'boundary'});}
   }
   private styleCells(style: (string | number)[]):void {
-    const s=this.cells,data=parse(this.node);if(!s||!data||!('rows'in data))return;
+    const s=this.cells,data=this.descriptor;if(!s||!data||!('rows'in data))return;
     try {
       const cells:TableRichCell[][]=[];
       for(let r=s.row;r<s.row+s.rows;r++){const line:TableRichCell[]=[];cells.push(line);for(let c=s.column;c<s.column+s.columns;c++){
@@ -378,14 +398,14 @@ class BasicContentView implements ContentView {
   }
   private pasteCells(data:DataTransfer):void {
     try{const rich=this.literalPaste?undefined:decodeRichTableClipboard(data);
-      if(rich){const s=this.cells;if(s)this.commitTable({type:'tableRichRectangle',owner:this.node.id,...s,cells:(Array.isArray(rich[0]?.[0]) && (parse(this.node) as Table)?.cells ? (rich as Run[][][]).map((row,r)=>row.map((runs,c)=>({...((parse(this.node) as Table).cells![s.row+r]![s.column+c]!),paragraphs:[{style:['paragraph'],runs}]}))) : rich) as unknown as Json,protected:this.policy()});}
+      if(rich){const s=this.cells;if(s)this.commitTable({type:'tableRichRectangle',owner:this.node.id,...s,cells:(Array.isArray(rich[0]?.[0]) && (this.descriptor as Table)?.cells ? (rich as Run[][][]).map((row,r)=>row.map((runs,c)=>({...((this.descriptor as Table).cells![s.row+r]![s.column+c]!),paragraphs:[{style:['paragraph'],runs}]}))) : rich) as unknown as Json,protected:this.policy()});}
       else this.rectangle(decodeTableClipboard(this.element.ownerDocument,data,this.literalPaste));}
     catch{this.status.textContent='Unsupported table clipboard; dimensions and simple unmerged literal cells are required.';}
   }
   private edit(input: HTMLTextAreaElement, expected: Json = this.node.blockAttributes): void {
     if(this.disposed)return;
     if(input.dataset.multiblock==='true'){this.status.textContent='Multiple cell blocks are preserved; inline text editing is unavailable.';this.update(this.node);return;}
-    if(this.readOnly){const data=parse(this.node);if(data&&'rows' in data)input.value=cellText(data.rows[Number(input.dataset.row)]![Number(input.dataset.column)]!);return;}
+    if(this.readOnly){const data=this.descriptor;if(data&&'rows' in data)input.value=cellText(data.rows[Number(input.dataset.row)]![Number(input.dataset.column)]!);return;}
     const node=this.context.engine.read().visible.find(n=>n.id===this.node.id),data=node&&parse(node);
     if(data&&'rows' in data&&JSON.stringify(expected)===JSON.stringify(node!.blockAttributes)&&cellText(data.rows[Number(input.dataset.row)]![Number(input.dataset.column)]!)===input.value)return;
     try{
@@ -396,6 +416,6 @@ class BasicContentView implements ContentView {
       if(result.caret)this.context.engine.releaseAnchor(result.caret);this.status.textContent='Cell updated.';
     }catch{this.status.textContent='Cell edit rejected; current data preserved.';if(node)this.update(node);}
   }
-  setReadOnly(value: boolean): void {this.readOnly=value;if(value){this.compositions.clear();const data=parse(this.node);if(data&&'rows' in data)for(const input of this.controls)input.value=cellText(data.rows[Number(input.dataset.row)]![Number(input.dataset.column)]!);}for(const input of this.controls)input.readOnly=value||this.kind==='image'||input.dataset.multiblock==='true';if(this.sourceAction)this.sourceAction.disabled=value||!this.tableSource||(!Array.isArray(this.node.blockAttributes)||this.node.blockAttributes[1]!==1);this.paintCells();}
-  dispose(): void {if(this.disposed)return;this.disposed=true;for(const [target,type,listener]of this.listeners)target.removeEventListener(type,listener);this.compositions.clear();for(const input of this.controls)input.readOnly=true;this.image?.removeAttribute('src');}
+  setReadOnly(value: boolean): void {this.readOnly=value;if(value){this.compositions.clear();const data=this.descriptor;if(data&&'rows' in data)for(const input of this.controls){const r=Number(input.dataset.row),c=Number(input.dataset.column);const text=data.cells?.[r]?.[c]?.paragraphs.map(block=>cellText(block.runs)).join('\n')??cellText(data.rows[r]![c]!);if(input.value!==text)input.value=text;}}for(const input of this.controls){const readOnly=value||this.kind==='image'||input.dataset.multiblock==='true';if(input.readOnly!==readOnly)input.readOnly=readOnly;}if(this.sourceAction)this.sourceAction.disabled=value||!this.tableSource||(!Array.isArray(this.node.blockAttributes)||this.node.blockAttributes[1]!==1);this.paintCells();}
+  dispose(): void {if(this.disposed)return;this.disposed=true;for(const [target,type,listener]of this.listeners)target.removeEventListener(type,listener);this.compositions.clear();this.cellContentKeys.length=0;this.cellElements.length=0;this.descriptorKey=undefined;for(const input of this.controls)input.readOnly=true;this.image?.removeAttribute('src');}
 }
