@@ -29,6 +29,9 @@ impl From<Grant> for AssetGrant {
 #[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
 enum Action {
     Inspect,
+    FenceJob {
+        job: String,
+    },
     Validate {
         request: AssetRequest,
         grant: Grant,
@@ -106,6 +109,10 @@ pub(crate) fn transaction(identity: &DocumentIdentity, input: &str) -> Result<Va
     let work = AssetWork::new(&store);
     let result = match input.action {
         Action::Inspect => json!(null),
+        Action::FenceJob { job } => {
+            work.fence_job(&job).map_err(fail)?;
+            json!(null)
+        }
         Action::Validate { request, grant } => {
             request
                 .validate(&grant.into())
@@ -186,12 +193,14 @@ pub(crate) fn transaction(identity: &DocumentIdentity, input: &str) -> Result<Va
         .map(|p| {
             json!({
                 "job":p.job,"reference":p.reference,"request":p.request,
-                "grantActions":p.grant_actions,"byteLength":p.bytes.len(),
+                "grantActions":p.grant_actions,"byteLength":p.bytes.len(),"adoptedReference":p.adopted_reference,
                 "active":journal.is_prepared(&p.reference)
             })
         })
         .collect();
-    Ok(json!({"journal":raw,"intents":journal.intents(),"prepared":prepared,"result":result}))
+    Ok(
+        json!({"journal":raw,"intents":journal.intents(),"prepared":prepared,"fencedJobs":journal.fenced_jobs(),"result":result}),
+    )
 }
 
 #[cfg(test)]
@@ -225,6 +234,40 @@ mod tests {
     }
     fn stage() -> Value {
         json!({"type":"stageOriginal","job":"import_a","reference":"prepared_a","request":request("stage_a","ingest"),"grant":grant(),"bytes":[0,255,13,10,128,42]})
+    }
+    #[test]
+    fn prepared_job_codec_fence_survives_roundtrip_and_blocks_empty_job_late_stage() {
+        let empty = call(None, json!({"type":"fenceJob","job":"import_a"}));
+        assert_eq!(empty["fencedJobs"], json!(["import_a"]));
+        assert!(
+            transaction(
+                &identity(),
+                &json!({"journal":empty["journal"],"action":stage()}).to_string()
+            )
+            .is_err()
+        );
+        let staged = call(None, stage());
+        let fenced = call(
+            staged["journal"].as_str(),
+            json!({"type":"fenceJob","job":"import_a"}),
+        );
+        assert_eq!(fenced["prepared"][0]["active"], false);
+        assert_eq!(fenced["intents"][0]["status"], "Canceled");
+        assert_eq!(fenced["intents"].as_array().unwrap().len(), 3);
+        let recovered = call(fenced["journal"].as_str(), json!({"type":"inspect"}));
+        assert_eq!(recovered["fencedJobs"], json!(["import_a"]));
+        assert_eq!(
+            call(
+                fenced["journal"].as_str(),
+                json!({"type":"fenceJob","job":"import_a"})
+            ),
+            fenced
+        );
+        let source = call(
+            fenced["journal"].as_str(),
+            json!({"type":"preparedSource","job":"import_a","reference":"prepared_a","grant":grant()}),
+        );
+        assert_eq!(source["result"], json!([0, 255, 13, 10, 128, 42]));
     }
     #[test]
     fn prepared_original_codec_roundtrip_ownership_and_fresh_read_authority() {

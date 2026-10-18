@@ -12,7 +12,7 @@ const {probe}=browserHarness('asset-ingest','fixtures/browser-input',{
   for(const name of ['core','web'])await symlink(join(consumer,name,'package'),join(consumer,'node_modules/@edit-ac',name));
   await writeFile(join(consumer,'package.json'),JSON.stringify({private:true,type:'module'}));
   const input=join(consumer,'public-types.ts');await copyFile('tests/consumers/asset-ingest/public-types.ts',input);
-  await run(process.execPath,[resolve('node_modules/typescript/bin/tsc'),'--noEmit','--strict','--skipLibCheck','--module','nodenext','--moduleResolution','nodenext','--target','es2022','--lib','es2022,dom,dom.iterable',input],'public-types.log');facts.publicTypes={passed:true,invalidExamples:2};
+  await run(process.execPath,[resolve('node_modules/typescript/bin/tsc'),'--noEmit','--strict','--skipLibCheck','--module','nodenext','--moduleResolution','nodenext','--target','es2022','--lib','es2022,dom,dom.iterable',input],'public-types.log');facts.publicTypes={passed:true,invalidExamples:3};
   const fixture=join(consumer,'fixture');await mkdir(fixture);
   for(const file of ['index.html','session.mjs'])await copyFile('fixtures/browser-input/'+file,join(fixture,file));
   await copyFile('fixtures/browser-asset-ingest/host.mjs',join(fixture,'host.mjs'));return fixture;
