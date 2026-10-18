@@ -35,3 +35,18 @@ These are browser bootstrap receipts. They do not establish the original
 all-platform capability matrix, later two-editor/React/recovery outcomes, or release
 qualification. Reuse an existing receipt only when its owning source and exact
 artifact hashes still match.
+
+Local save/offline/recovery workflow: `node tests/scenarios/run.mjs web-local-recovery`.
+This runs the actual installed SDK/WASM and IndexedDB with prepared browser API
+failures. It includes an explicitly cached offline shell, real offline reload and
+per-document commits/reopen, pending/error status, permission revocation, failed
+append retention, deliberate isolated recovery downloads, initial/open denial and
+missing/corrupt checkpoint handling. Receipts and screenshots are under PWE-1.4.
+No remote service, credentials or paid provider is involved.
+
+Integrated product checkpoint: `node tests/scenarios/run.mjs web-product-checkpoint`.
+It authenticates one installed core/web/React site, then executes the existing
+workspace, React/routes and recovery cases in all three installed Playwright
+engines (93 required cases). Every child receipt and screenshot is kept under
+PWE-1.5. Missing runtimes or cases remain failures. Launch the same site manually
+with `node examples/task-editor/product.mjs`; see its README for steps and limits.

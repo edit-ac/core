@@ -2,16 +2,19 @@ import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { chromium } from 'playwright';
+import { chromium, firefox, webkit } from 'playwright';
+const engine = process.env.EDITAC_PRODUCT_BROWSER ?? 'chromium';
+const browserType = { chromium, firefox, webkit }[engine];
+assert.ok(browserType, 'Unknown browser profile: ' + engine);
 import { requireTestNode } from '../../scripts/test-toolchain.mjs';
 import { startFixtureServer } from '../browser/fixture-server.mjs';
 import { loadScenario, validateScenario, root } from './run.mjs';
 import { prepareProductHarness, sha } from './harness.mjs';
 await requireTestNode();
 const { manifest, scenario } = await loadScenario('web-task-workspace');
-const output = resolve(root, '../architecture/evidence/browser-product-workflows-20261018/pwe-1.2', new Date().toISOString().replace(/[:.]/g, '-'));
+const output = process.env.EDITAC_PRODUCT_CASE_OUTPUT ?? resolve(root, '../architecture/evidence/browser-product-workflows-20261018/pwe-1.2', new Date().toISOString().replace(/[:.]/g, '-'));
 await mkdir(output, { recursive: true });
-const facts = { parent: scenario.parent, scenario: 'web-task-workspace', command: ['node', 'tests/scenarios/run.mjs', 'web-task-workspace'], output, profile: manifest.profile, commands: [], cases: [], processes: [], teardown: [], scope: manifest.scope };
+const facts = { parent: scenario.parent, scenario: 'web-task-workspace', command: ['node', 'tests/scenarios/run.mjs', 'web-task-workspace'], output, profile: { ...manifest.profile, engine }, commands: [], cases: [], processes: [], teardown: [], scope: manifest.scope };
 let server, controller, browser, activePage;
 async function teardown() {
   for (const [name, resource] of [['browser connection', browser], ['Chromium controller', controller], ['fixture listener', server]]) {
@@ -45,9 +48,9 @@ try {
   const {site}=await prepareProductHarness(output,facts,scenario);
   server=await startFixtureServer({fixtureDirectory:join(site,'fixture'),coreDirectory:join(site,'core'),webDirectory:join(site,'web'),recordRequests:true});
   facts.processes.push({pid:process.pid,launcher:process.execPath,workspace:root,port:server.port,purpose:'PWE-1.2 installed SDK fixture',log:join(output,'receipt.json')});
-  controller=await chromium.launchServer({headless:true});
-  facts.processes.push({pid:controller.process().pid,launcher:controller.process().spawnfile,workspace:root,purpose:'PWE-1.2 Chromium',log:join(output,'receipt.json')});
-  browser=await chromium.connect(controller.wsEndpoint());facts.browserVersion=browser.version();
+  controller=await browserType.launchServer({headless:true});
+  facts.processes.push({pid:controller.process().pid,launcher:controller.process().spawnfile,workspace:root,purpose:'PWE-1.2 '+engine,log:join(output,'receipt.json')});
+  browser=await browserType.connect(controller.wsEndpoint());facts.browserVersion=browser.version();
   const page=activePage=await browser.newPage(), errors=[];page.setDefaultTimeout(8000);page.on('pageerror',e=>errors.push(e.message));
   const ready=async(target=page,suffix='')=>{await target.goto(server.url+suffix);await target.evaluate(async()=>{await (await import('/fixture/editor.mjs')).ready;});};
   const select=async(selector,all=false)=>{await page.locator(selector+' [data-node-id]').first().click();await page.keyboard.press(all?'Meta+a':'End');};

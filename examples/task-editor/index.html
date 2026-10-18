@@ -14,6 +14,9 @@ button { font: inherit; margin: .5rem .5rem .5rem 0; }
 #task-panel > [role="menu"], #task-panel > [role="dialog"] { position: static !important; }
 </style>
 <h1>Local task workspace</h1>
+<nav><a href="/fixture/index.html">Offline workspace</a> · <a href="/fixture/react.html?route=tasks">React task and comment</a> · <a href="/fixture/react.html?route=document">Document body</a></nav>
+<button id="prepare-offline">Prepare offline reload</button>
+<p id="offline-message" role="status">Prepare this app before disconnecting. Documents stay in this browser.</p>
 <section id="task-panel"><h2>Task description</h2>
 <p>Edit this task or paste Markdown. Your document stays in this browser. Sync requires an authorized transport supplied by the host.</p>
 <div id="editor" aria-label="Task document"></div>
@@ -22,13 +25,16 @@ button { font: inherit; margin: .5rem .5rem .5rem 0; }
 <button id="export-recovery">Export recovery</button>
 <p>Use Editing commands for marks and links; Slash commands inserts lists, checklists, tables and local images. References uses a prepared local catalog. Open with ?readonly to inspect without editing. Native/mobile input and release performance remain unqualified. The host owns authentication and uploads.</p>
 <p id="message" role="status">Opening task…</p>
+<button id="task-readonly">Make task readonly</button>
 <button id="dispose-task">Close task editor</button>
 </section>
 <section id="comment-panel"><h2>Plain comment</h2>
 <p>Literal text only. Rich commands, images and references are disabled.</p>
 <div id="comment" aria-label="Plain comment"></div>
 <button id="comment-save" disabled>Save comment locally</button>
+<button id="comment-reopen" disabled>Reopen comment offline</button>
 <button id="comment-export-recovery">Export comment recovery</button>
+<button id="comment-readonly">Make comment readonly</button>
 <p id="comment-message" role="status">Opening comment…</p></section>
 <script type="module" src="/fixture/editor.mjs"></script>
 </html>
