@@ -48,6 +48,10 @@ enum Action {
         reference: String,
         grant: Grant,
     },
+    IngestSource {
+        reference: String,
+        grant: Grant,
+    },
     Enqueue {
         reference: String,
         request: AssetRequest,
@@ -107,7 +111,7 @@ pub(crate) fn transaction(identity: &DocumentIdentity, input: &str) -> Result<Va
             .map_err(fail)?;
     }
     let work = AssetWork::new(&store);
-    let result = match input.action {
+    let mut result = match input.action {
         Action::Inspect => json!(null),
         Action::FenceJob { job } => {
             work.fence_job(&job).map_err(fail)?;
@@ -140,6 +144,22 @@ pub(crate) fn transaction(identity: &DocumentIdentity, input: &str) -> Result<Va
                 work.prepared_source(&job, &reference, &grant.into())
                     .map_err(fail)?
             )
+        }
+        Action::IngestSource { reference, grant } => {
+            let journal = store.asset_journal().map_err(fail)?;
+            let original = journal
+                .prepared()
+                .iter()
+                .find(|p| p.reference == reference)
+                .ok_or_else(|| err("InvalidInput", "assetWork", "prepared source missing"))?;
+            if !journal.is_prepared(&reference) {
+                return Err(err("EngineRejected", "assetWork", "prepared source fenced"));
+            }
+            original
+                .request
+                .validate(&grant.into())
+                .map_err(|e| err("InvalidInput", "assetWork", format!("{e:?}")))?;
+            json!(original.bytes)
         }
         Action::Enqueue {
             reference,
@@ -185,6 +205,22 @@ pub(crate) fn transaction(identity: &DocumentIdentity, input: &str) -> Result<Va
         }
     };
     let journal = store.asset_journal().map_err(fail)?;
+    if let Some(reference) = result
+        .get("reference")
+        .and_then(Value::as_str)
+        .map(str::to_owned)
+    {
+        result["hostReference"] = json!(journal.host_reference(&reference));
+    }
+    let intents: Vec<_> = journal
+        .intents()
+        .iter()
+        .map(|intent| {
+            let mut value = json!(intent);
+            value["hostReference"] = json!(journal.host_reference(&intent.reference));
+            value
+        })
+        .collect();
     let raw = serde_json::to_string(&(scope, &journal))
         .map_err(|e| err("InvalidInput", "assetWork", e.to_string()))?;
     let prepared: Vec<_> = journal
@@ -199,8 +235,65 @@ pub(crate) fn transaction(identity: &DocumentIdentity, input: &str) -> Result<Va
         })
         .collect();
     Ok(
-        json!({"journal":raw,"intents":journal.intents(),"prepared":prepared,"fencedJobs":journal.fenced_jobs(),"result":result}),
+        json!({"journal":raw,"intents":intents,"prepared":prepared,"fencedJobs":journal.fenced_jobs(),"result":result}),
     )
+}
+
+pub(crate) fn adoption(
+    identity: &DocumentIdentity,
+    raw: &str,
+    job: &str,
+    references: &[String],
+    targets: &[(String, AssetIdentity)],
+) -> Result<String, Error> {
+    use editac_session::assets::{PreparedAssetBinding, WorkStatus};
+    // Reuse the existing scope, bounds and integrity admission before transfer.
+    transaction(
+        identity,
+        &json!({"journal":raw,"action":{"type":"inspect"}}).to_string(),
+    )?;
+    let (scope, journal): (String, AssetJournal) = serde_json::from_str(raw)
+        .map_err(|e| err("InvalidInput", "prepareAssetCommit", e.to_string()))?;
+    if references.len() != targets.len() || references.is_empty() {
+        return Err(err(
+            "EngineRejected",
+            "prepareAssetCommit",
+            "exact new asset references required",
+        ));
+    }
+    let bindings = references
+        .iter()
+        .zip(targets)
+        .map(|(reference, (target, identity))| {
+            if !journal.intents().iter().any(|i| {
+                i.reference == *reference
+                    && i.request.action == AssetAction::Ingest
+                    && i.status == WorkStatus::Complete
+            }) {
+                return Err(err(
+                    "EngineRejected",
+                    "prepareAssetCommit",
+                    "original ingest must complete before insertion",
+                ));
+            }
+            Ok(PreparedAssetBinding {
+                reference: reference.clone(),
+                target: target.clone(),
+                identity: identity.clone(),
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let candidate = journal
+        .prepare_adoption(job, &bindings)
+        .map_err(|e| err("EngineRejected", "prepareAssetCommit", format!("{e:?}")))?;
+    let raw = serde_json::to_string(&(scope, candidate))
+        .map_err(|e| err("InvalidInput", "prepareAssetCommit", e.to_string()))?;
+    // A successful transfer must remain readable through the bounded codec.
+    transaction(
+        identity,
+        &json!({"journal":raw,"action":{"type":"inspect"}}).to_string(),
+    )?;
+    Ok(raw)
 }
 
 #[cfg(test)]

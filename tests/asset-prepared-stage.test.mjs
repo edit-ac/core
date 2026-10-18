@@ -81,12 +81,12 @@ check('aborted stage transaction retains input without writing journal or docume
   assert.equal(r.failed,true);assert.deepEqual(r.before,r.after);assert.equal(r.state.prepared.length,0);assert.equal(r.state.intents.length,0);assert.deepEqual(r.source,[0,255,13,10,128,42]);fact.result=r;
 });
 check('suspension reopens original without host work; retirement fences opaque references and cleanup is explicit',async fact=>{
-  const r=await page.evaluate(async()=>{const f=window.fixture;await f.stage();await f.reopen();const recovered=await f.session.inspect();let premature=false;const calls=[],host={authorize:async r=>{calls.push(['authorize',r.operationId]);return f.grant;},execute:async(reference,r,bytes)=>{calls.push(['execute',r.action,reference,bytes]);return null;}};
-    try{await f.session.runOne('stage_a',true,host);}catch{premature=true;}const automatic=calls.length;
+  const r=await page.evaluate(async()=>{const f=window.fixture;await f.stage();await f.reopen();const recovered=await f.session.inspect();let dispatched=false;const calls=[],host={authorize:async r=>{calls.push(['authorize',r.operationId]);return f.grant;},execute:async(reference,r,bytes)=>{calls.push(['execute',r.action,reference,bytes]);return null;}};
+    const automatic=calls.length;dispatched=await f.session.runOne('stage_a',true,host);
     await f.session.dispose('retire');f.session=await (await import('/web/sync/assets.js')).AssetSession.open(f.engine,indexedDB,f.database);
     const fenced=await f.session.inspect();for(const action of ['cancel','release-reference']){const i=fenced.intents.find(i=>i.request.action===action);await f.session.runOne(i.request.operationId,true,host);}
-    return {recovered,fenced,premature,automatic,calls,source:Array.from(await f.session.preparedSource('job_a','prepared_a',f.grant)),state:await f.session.inspect()};});
-  assert.equal(r.recovered.prepared[0].active,true);assert.equal(r.automatic,0);assert.equal(r.premature,true);assert.deepEqual(r.fenced.fencedJobs,['job_a']);assert.deepEqual(r.calls.filter(c=>c[0]==='execute').map(c=>c[1]),['cancel','release-reference']);assert.deepEqual(r.source,[0,255,13,10,128,42]);assert.equal(r.state.intents[0].status,'Canceled');fact.result=r;
+    return {recovered,fenced,dispatched,automatic,calls,source:Array.from(await f.session.preparedSource('job_a','prepared_a',f.grant)),state:await f.session.inspect()};});
+  assert.equal(r.recovered.prepared[0].active,true);assert.equal(r.automatic,0);assert.equal(r.dispatched,true);assert.deepEqual(r.fenced.fencedJobs,['job_a']);assert.deepEqual(r.calls.filter(c=>c[0]==='execute').map(c=>c[1]),['ingest','cancel','release-reference']);assert.deepEqual(r.source,[0,255,13,10,128,42]);assert.equal(r.state.intents[0].status,'Complete');fact.result=r;
 });
 
 check('retiring session rejects queued and newly arriving stages before closure and shares teardown completion',async fact=>{

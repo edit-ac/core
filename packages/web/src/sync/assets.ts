@@ -1,5 +1,5 @@
-import type { AssetGrant, AssetIdentity, AssetIntent, AssetPublication, AssetRequest, AssetWorkAction, AssetWorkResult, EngineHandle, PatchSubscription } from '@edit-ac/core';
-import { identityKey, openStorageDatabase } from '../storage/journal.js';
+import type { AssetGrant, AssetIdentity, AssetIntent, AssetPublication, AssetRequest, AssetWorkAction, AssetWorkResult, EngineHandle, PatchSubscription, PlanToken, CommitResult } from '@edit-ac/core';
+import { appendJournalEntry, prepareJournalEntry, type LocalCommit, type JournalUpdate, identityKey, openStorageDatabase } from '../storage/journal.js';
 import { completeTransaction, strictTransaction } from '../storage/transaction.js';
 
 export interface AssetHostTransport {
@@ -10,6 +10,7 @@ export interface AssetHostTransport {
   execute(reference: string, request: Readonly<AssetRequest>, bytes: Uint8Array | null,
     signal: AbortSignal): Promise<AssetPublication | null>;
 }
+export interface PreparedAssetCommitReceipt { content: CommitResult; localCommit: LocalCommit }
 export interface AssetOperationReceipt { kind: 'assetOperation'; operationId: string; durability: IDBTransactionDurability | 'unknown' }
 interface Source { identity: AssetIdentity; bytes: Uint8Array }
 interface RecordState { journal: string | null; sources: {reference:string;source:Source}[] }
@@ -27,6 +28,16 @@ const maxBytes=64*1024*1024;
  * IndexedDB stores its opaque journal and host-retained bytes in one transaction.
  * Construction/recovery never contacts a host or dispatches recovered work. */
 export class AssetSession {
+  #commits=new Set<Promise<PreparedAssetCommitReceipt>>();
+  #committingUpdate: { receipt: LocalCommit; update: JournalUpdate } | null = null;
+  /** @internal Bind the durable receipt to the exact patch, including reentrant observers. */
+  committedReceipt(update: JournalUpdate): LocalCommit | null {
+    const committed=this.#committingUpdate, expected=committed?.update;
+    return committed&&expected&&identityKey(update.identity)===identityKey(expected.identity)
+      &&update.writerId===expected.writerId&&update.sequence===expected.sequence&&update.origin===expected.origin
+      &&update.bytes.length===expected.bytes.length&&update.bytes.every((b,i)=>b===expected.bytes[i])
+      ? {...committed.receipt}:null;
+  }
   #closed=false; #closing=false; #disposing:Promise<void>|null=null; #generation=0; #pending=new Map<string,{controller:AbortController;reference:string}>();
   #subscription:PatchSubscription; #reconcile:Promise<void>=Promise.resolve(); #failure:unknown=null;
   private constructor(readonly engine:EngineHandle,readonly database:IDBDatabase,readonly key:string) {
@@ -87,6 +98,50 @@ export class AssetSession {
     const references=new Set(result.prepared.filter(p=>p.job===job&&!p.active).map(p=>p.reference));
     for(const [id,pending] of this.#pending){const intent=result.intents.find(i=>i.request.operationId===id);if(references.has(pending.reference)&&intent&&!['cancel','release-reference'].includes(intent.request.action)){pending.controller.abort();this.#pending.delete(id);}}
   }
+  /** Persist the exact Rust insertion and job-only adoption together before
+   * applying the same plan once. Reopen replays even after a pre-apply crash. */
+  commitPrepared(plan: PlanToken, job: string, references: readonly string[], options: { signal?: AbortSignal } = {}): Promise<PreparedAssetCommitReceipt> {
+    const pending=this.#commitPrepared(plan,job,references,options);this.#commits.add(pending);
+    void pending.finally(()=>this.#commits.delete(pending)).catch(()=>{});return pending;
+  }
+  async #commitPrepared(plan: PlanToken, job: string, references: readonly string[], options: { signal?: AbortSignal } = {}): Promise<PreparedAssetCommitReceipt> {
+    this.#accepting();
+    const ownedReferences=[...references], signal=options.signal;
+    const canceled=()=>{this.#accepting();if(signal?.aborted)throw new DOMException('Prepared import canceled','AbortError');};
+    let reservation: ReturnType<EngineHandle['reserveAssetCommit']> | undefined;
+    try {
+      canceled();
+      const initial=await this.inspect();canceled();
+      reservation=this.engine.reserveAssetCommit(plan,initial.journal,job,ownedReferences);
+      const entry=await prepareJournalEntry(reservation.update);canceled();
+      const candidate=reservation;
+      const tx=strictTransaction(this.database,['assets','updates']);
+      const abort=()=>{try{tx.abort();}catch{/* Completion linearizes adoption. */}};
+      signal?.addEventListener('abort',abort,{once:true});
+      let localCommit: LocalCommit;
+      try {
+        localCommit=await completeTransaction(tx,'Prepared import transaction aborted',()=>({state:'localCommitted' as const,updateId:entry.updateId,durability:tx.durability??'unknown'}),({watch})=>{
+          const store=tx.objectStore('assets');
+          watch(store.get(this.key),(state:RecordState|undefined)=>{
+            canceled();
+            if(!state||state.journal!==initial.journal)throw Error('Asset journal changed during prepared import');
+            state.journal=candidate.journal;
+            watch(store.put(state,this.key));
+            appendJournalEntry(tx,entry,watch);
+          });
+        });
+      } finally {signal?.removeEventListener('abort',abort);}
+      // No await/cancellation after durable success and before the reserved commit.
+      this.#committingUpdate={receipt:localCommit,update:entry};
+      try {return {content:candidate.commit(),localCommit};}
+      finally {this.#committingUpdate=null;}
+    } catch(error) {
+      reservation?.abort();
+      try {await this.fenceJob(job);}
+      catch(cleanupError){throw new AggregateError([error,cleanupError],'Prepared import failed; durable job cleanup remains pending');}
+      throw error;
+    } finally {reservation?.abort();}
+  }
   async enqueue(reference:string,request:AssetRequest,grant:AssetGrant,bytes?:Uint8Array):Promise<AssetOperationReceipt> {
     this.#accepting();reference=referenceKey(reference);if(bytes!==undefined&&!(bytes instanceof Uint8Array))throw TypeError("Uint8Array source required");request=clone(request);grant=clone(grant);const retained=bytes===undefined?undefined:new Uint8Array(bytes);
     if(request.action==='ingest'&&(!retained||retained.length===0||retained.length>request.byteLimit))throw Error('Bounded retained ingest bytes required');
@@ -108,7 +163,9 @@ export class AssetSession {
     await this.#transaction(()=>({type:'inspect'}),state=>{
       const source=state.sources.find(s=>s.reference===reference)?.source;
       if(source){this.engine.assetWork(state.journal,{type:'validate',request:{version:1,operationId:'read_source',identity:source.identity,action:'read',byteLimit:Math.max(1,source.bytes.length)},grant});bytes=new Uint8Array(source.bytes);}
-    });return bytes;
+    });
+    if(!bytes){const state=await this.inspect();const original=state.prepared.find(p=>p.adoptedReference===reference);if(original)bytes=await this.preparedSource(original.job,original.reference,grant);}
+    return bytes;
   }
   async retire(reference:string,identity:AssetIdentity,prefix:string):Promise<void> {
     this.#alive();reference=referenceKey(reference);identity=clone(identity);
@@ -129,7 +186,8 @@ export class AssetSession {
     if(this.#pending.has(operation))throw Error('Asset operation already running');
     const intent=(await this.inspect()).intents.find(i=>i.request.operationId===operation);
     if(!intent)throw Error('Unknown asset operation');if(intent.status!=='Pending')return false;
-    if(!['cancel','release-reference'].includes(intent.request.action)&&(await this.inspect()).prepared.some(p=>p.reference===intent.reference))throw Error('Prepared original requires atomic adoption before host dispatch');
+    const original=(await this.inspect()).prepared.find(p=>p.reference===intent.reference&&p.active);
+    const preparedIngest=!!original&&intent.request.action==='ingest';
     this.#accepting();
     const controller=new AbortController(),generation=this.#generation;this.#pending.set(operation,{controller,reference:intent.reference});
     try {
@@ -138,22 +196,23 @@ export class AssetSession {
       // Reconcile again after asynchronous permission resolution.
       await this.reconcile();if(controller.signal.aborted)throw Error('Asset operation canceled');
       const begun=await this.#transaction(state=>{
-        if(intent.request.action==='ingest'){const source=state.sources.find(s=>s.reference===intent.reference)?.source;if(!source||!same(source.identity,intent.request.identity)||source.bytes.length>intent.request.byteLimit)throw Error('Retained source missing or incompatible');}
-        if(!['cancel','release-reference'].includes(intent.request.action)&&!this.#live(intent.reference,intent.request.identity))return {type:'retire',reference:intent.reference,identity:intent.request.identity,prefix:`retire_${intent.reference}`};
+        if(intent.request.action==='ingest'&&!preparedIngest){const source=state.sources.find(s=>s.reference===intent.reference)?.source;if(!source||!same(source.identity,intent.request.identity)||source.bytes.length>intent.request.byteLimit)throw Error('Retained source missing or incompatible');}
+        if(!preparedIngest&&!['cancel','release-reference'].includes(intent.request.action)&&!this.#live(intent.reference,intent.request.identity))return {type:'retire',reference:intent.reference,identity:intent.request.identity,prefix:`retire_${intent.reference}`};
         return {type:'begin',operation,online,grant};
       });
       const captured=begun.result as AssetIntent|null;if(!captured)return false;
       let bytes:Uint8Array|null=null;
-      await this.#transaction(()=>({type:'inspect'}),state=>{const source=state.sources.find(s=>s.reference===captured.reference)?.source;bytes=source?new Uint8Array(source.bytes):null;});
+      if(preparedIngest){const source=await this.#transaction(()=>({type:'ingestSource',reference:captured.reference,grant}));bytes=Uint8Array.from(source.result as readonly number[]);}
+      else await this.#transaction(()=>({type:'inspect'}),state=>{const source=state.sources.find(s=>s.reference===captured.reference)?.source;bytes=source?new Uint8Array(source.bytes):null;});
       if(controller.signal.aborted||generation!==this.#generation)throw Error('Asset operation canceled');
-      if(!['cancel','release-reference'].includes(captured.request.action)&&!this.#live(captured.reference,captured.request.identity)){await this.retire(referenceOwner(captured.reference),captured.request.identity,`retire_${captured.reference}`);return false;}
-      const receipt=await host.execute(captured.reference,clone(captured.request),bytes,controller.signal);
-      if(generation!==this.#generation)return false;
+      if(!preparedIngest&&!['cancel','release-reference'].includes(captured.request.action)&&!this.#live(captured.reference,captured.request.identity)){await this.retire(referenceOwner(captured.reference),captured.request.identity,`retire_${captured.reference}`);return false;}
+      const receipt=await host.execute(captured.hostReference,clone(captured.request),bytes,controller.signal);
+      if(generation!==this.#generation||controller.signal.aborted)return false;
       const completionGrant=clone(await host.authorize(clone(captured.request),controller.signal));
-      if(generation!==this.#generation)return false;
+      if(generation!==this.#generation||controller.signal.aborted)return false;
       await this.reconcile();
       await this.#transaction(()=>{
-        if(!['cancel','release-reference'].includes(captured.request.action)&&!this.#live(captured.reference,captured.request.identity))return {type:'retire',reference:captured.reference,identity:captured.request.identity,prefix:`retire_${captured.reference}`};
+        if(!preparedIngest&&!['cancel','release-reference'].includes(captured.request.action)&&!this.#live(captured.reference,captured.request.identity))return {type:'retire',reference:captured.reference,identity:captured.request.identity,prefix:`retire_${captured.reference}`};
         return {type:'complete',operation,receipt:clone(receipt),grant:completionGrant};
       },state=>{
         if(captured.request.action==='release-reference')state.sources=state.sources.filter(s=>s.reference!==captured.reference);
@@ -165,7 +224,7 @@ export class AssetSession {
   async dispose(policy:'suspend'|'retire'):Promise<void> {
     if(this.#closed)return;if(policy!=="suspend"&&policy!=="retire")throw Error("Explicit asset disposal policy required");if(this.#disposing)return this.#disposing;this.#alive();this.#closing=true;this.#generation++;for(const p of this.#pending.values())p.controller.abort();this.#pending.clear();
     this.#disposing=(async()=>{
-      try {if(policy==='retire'){const {intents,prepared}=await this.inspect();for(const job of new Set(prepared.map(p=>p.job)))await this.fenceJob(job);for(const i of intents){if(prepared.some(p=>p.reference===i.reference))continue;await this.retire(referenceOwner(i.reference),i.request.identity,`dispose_${i.reference}`);}}}
+      try {await Promise.allSettled([...this.#commits]);if(policy==='retire'){const {intents,prepared}=await this.inspect();for(const job of new Set(prepared.map(p=>p.job)))await this.fenceJob(job);for(const i of intents){if(prepared.some(p=>p.reference===i.reference))continue;await this.retire(referenceOwner(i.reference),i.request.identity,`dispose_${i.reference}`);}}}
       finally {this.#closed=true;this.#subscription.dispose();this.database.close();}
     })();
     return this.#disposing;

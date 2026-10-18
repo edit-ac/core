@@ -319,6 +319,14 @@ impl AssetJournal {
                 })
                 .sum::<usize>()
     }
+    /// Host effects retain the original scoped reference across content adoption.
+    /// Changing the live node binding must not orphan the host's ingest reference.
+    pub fn host_reference<'a>(&'a self, reference: &'a str) -> &'a str {
+        self.prepared
+            .iter()
+            .find(|p| p.adopted_reference.as_deref() == Some(reference))
+            .map_or(reference, |p| p.reference.as_str())
+    }
     /// Prepare job-only reference transfer for the shared content/store commit.
     /// The caller MUST persist this candidate with the exact planned content update
     /// in one transaction after comparing the input journal. This method writes
@@ -684,7 +692,11 @@ impl<'a, S: AssetStore> AssetWork<'a, S> {
             return Ok(false);
         };
         let grant = authorized.ok_or(PortError::Permission)?;
-        let outcome = host.execute(&captured.reference, &captured.request)?;
+        let journal = self.store.asset_journal()?;
+        let outcome = host.execute(
+            journal.host_reference(&captured.reference),
+            &captured.request,
+        )?;
         self.complete(operation_id, outcome, &grant)?;
         Ok(true)
     }

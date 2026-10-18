@@ -2,17 +2,18 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {mkdir,copyFile,symlink,writeFile,readFile} from 'node:fs/promises';
 import {join,resolve} from 'node:path';
+import {initializePreparedAssets, preparedAssetCases} from './prepared-asset-cases.mjs';
 import {browserHarness} from './browser-harness.ts';
 const descriptor=JSON.parse(await readFile('fixtures/rich-content/asset-descriptors.json','utf8')).descriptors[0];
 const {probe}=browserHarness('asset-ingest','fixtures/browser-input',{
  assertSourcesUnchanged:true,serverOptions:{recordRequests:true},
- sourcePaths:['crates/editac-session/Cargo.toml','crates/editac-wasm/Cargo.toml','Cargo.lock','scripts/build-wasm-notices.mjs','scripts/share-wasm-glue.mjs','packages/web/package.json','tests/browser/fixture-server.mjs','crates/editac-session/src/assets.rs','crates/editac-session/src/ports/memory.rs','crates/editac-wasm/src/assets.rs','crates/editac-wasm/src/engine.rs','packages/core/src/index.ts','packages/web/src/sync/assets.ts','packages/web/src/storage/journal.ts','packages/web/src/storage/index.ts','fixtures/browser-input/session.mjs','fixtures/browser-asset-ingest/host.mjs','fixtures/rich-content/asset-descriptors.json','tests/consumers/asset-ingest/public-types.ts'],
+ sourcePaths:['tests/browser/prepared-asset-cases.mjs','tests/asset-prepared-adoption.test.mjs','packages/core/src/engine.ts','packages/web/src/storage/owner.ts','crates/editac-wasm/src/bridge.rs','crates/editac-core/src/commands/editor.rs','crates/editac-session/Cargo.toml','crates/editac-wasm/Cargo.toml','Cargo.lock','scripts/build-wasm-notices.mjs','scripts/share-wasm-glue.mjs','packages/web/package.json','tests/browser/fixture-server.mjs','crates/editac-session/src/assets.rs','crates/editac-session/src/ports/memory.rs','crates/editac-wasm/src/assets.rs','crates/editac-wasm/src/engine.rs','packages/core/src/index.ts','packages/web/src/sync/assets.ts','packages/web/src/storage/journal.ts','packages/web/src/storage/index.ts','fixtures/browser-input/session.mjs','fixtures/browser-asset-ingest/host.mjs','fixtures/rich-content/asset-descriptors.json','tests/consumers/asset-ingest/public-types.ts'],
  async prepareConsumer(consumer,{facts,run}){
   await mkdir(join(consumer,'node_modules/@edit-ac'),{recursive:true});
   for(const name of ['core','web'])await symlink(join(consumer,name,'package'),join(consumer,'node_modules/@edit-ac',name));
   await writeFile(join(consumer,'package.json'),JSON.stringify({private:true,type:'module'}));
   const input=join(consumer,'public-types.ts');await copyFile('tests/consumers/asset-ingest/public-types.ts',input);
-  await run(process.execPath,[resolve('node_modules/typescript/bin/tsc'),'--noEmit','--strict','--skipLibCheck','--module','nodenext','--moduleResolution','nodenext','--target','es2022','--lib','es2022,dom,dom.iterable',input],'public-types.log');facts.publicTypes={passed:true,invalidExamples:3};
+  await run(process.execPath,[resolve('node_modules/typescript/bin/tsc'),'--noEmit','--strict','--skipLibCheck','--module','nodenext','--moduleResolution','nodenext','--target','es2022','--lib','es2022,dom,dom.iterable',input],'public-types.log');facts.publicTypes={passed:true,invalidExamples:4};
   const fixture=join(consumer,'fixture');await mkdir(fixture);
   for(const file of ['index.html','session.mjs'])await copyFile('fixtures/browser-input/'+file,join(fixture,file));
   await copyFile('fixtures/browser-asset-ingest/host.mjs',join(fixture,'host.mjs'));return fixture;
@@ -77,3 +78,16 @@ test('failed host effect retries recovered exact operation through idempotent tr
 test('recovery reconciles deletion while suspended before any host dispatch',()=>probe('recovery-deleted-target',async(page,fact)=>{
  await setup(page);const r=await page.evaluate(async()=>{const f=window.inputFixture,a=window.assetFixture;await a.session.enqueue(a.owner,a.request('deleted_recovery'),a.grant,new Uint8Array([9]));await a.session.dispose('suspend');await a.remove();await f.reopen({assetPolicy:'suspend'});a.session=await f.storage.enableAssets(indexedDB,'browser-input');const automatic=a.host.state.calls.length,ran=await a.session.runOne('deleted_recovery',true,a.host);return {automatic,ran,intents:(await a.session.inspect()).intents,exists:f.engine.read().visible.some(n=>n.id===a.owner&&n.blockAttributes?.[0]==='module:editac.asset'),bytes:Array.from(await a.session.retainedSource(a.owner,a.grant))};});fact.snapshots.push(r);assert.equal(r.automatic,0);assert.equal(r.ran,false);assert.equal(r.exists,false);assert.equal(r.intents[0].status,'Canceled');assert.deepEqual(r.bytes,[9]);
 }));
+
+// PMS-1.3: these cases share the actual lifecycle integration definitions, but
+// execute only from this harness's immutable installed-layout core/web packages.
+let preparedSequence=0;
+preparedAssetCases((name, action)=>{
+ const id='prepared-'+String(++preparedSequence).padStart(2,'0');
+ test('packed prepared media: '+name,()=>probe(id,async(page,fact)=>{
+  await initializePreparedAssets(page,descriptor);
+  await page.evaluate(()=>window.setup(1));
+  try { await action(page,fact); }
+  finally { await page.evaluate(()=>window.fixture.close()); }
+ }));
+},descriptor);

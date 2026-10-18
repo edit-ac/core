@@ -47,6 +47,14 @@ impl Engine {
                 .and_then(|b| b.asset_work(input)),
         )
     }
+    pub fn prepare_asset_commit(&self, token: &str, input: &str) -> Result<String, JsValue> {
+        output(
+            self.inner
+                .as_ref()
+                .ok_or_else(|| disposed("prepareAssetCommit"))
+                .and_then(|b| b.prepare_asset_commit(token, input)),
+        )
+    }
     pub fn checkpoint_metadata(&self) -> Result<String, JsValue> {
         output(
             self.inner

@@ -19,3 +19,16 @@ session.then(async s=>{
   void [staged,source,fences];
 });
 void raw;
+import type {PlanToken, PreparedAssetCommit} from '@edit-ac/core';
+import type {PreparedAssetCommitReceipt} from '@edit-ac/web/assets';
+import type {EditorStorageOwner} from '@edit-ac/web';
+declare const plan:PlanToken,storage:EditorStorageOwner;
+session.then(async s=>{
+ const receipt:PreparedAssetCommitReceipt=await s.commitPrepared(plan,'job',['original'],{signal:new AbortController().signal});
+ const durable:string=receipt.localCommit.updateId;
+ const reserved:PreparedAssetCommit=e.reserveAssetCommit(plan,raw.journal,'job',['original']);reserved.abort();
+ await storage.commitPreparedAssets(plan,'job',['original']);
+ // @ts-expect-error prepared insertion requires a job and exact original references
+ await s.commitPrepared(plan);
+ void durable;
+});

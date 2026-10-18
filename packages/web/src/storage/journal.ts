@@ -74,6 +74,22 @@ function equalEntry(a: JournalEntry, b: JournalEntry): boolean {
     && a.bytes instanceof Uint8Array && a.bytes.length === b.bytes.length && a.bytes.every((v, i) => v === b.bytes[i]);
 }
 
+/** Prepare before opening IndexedDB: never await cryptographic work inside a transaction. */
+export async function prepareJournalEntry(input: JournalUpdate): Promise<JournalEntry> {
+  const update = ownUpdate(input), hash = await checksum(update.bytes);
+  return { ...update, checksum: hash, updateId: updateId(update, hash) };
+}
+/** Shared update admission, including the asset/content transaction. */
+export function appendJournalEntry(transaction: IDBTransaction, entry: JournalEntry,
+  watch: import('./transaction.js').TransactionControl['watch']): void {
+  const store = transaction.objectStore(storeName);
+  watch(store.get([entry.identity.documentId, entry.identity.epoch, entry.identity.schema, entry.writerId, entry.sequence]), existing => {
+    if (existing !== undefined) {
+      if (!equalEntry(existing as JournalEntry, entry)) throw new JournalIntegrityError('Journal key collision or corrupt existing update');
+    } else watch(store.add(entry));
+  });
+}
+
 /** Internal adapter, not yet a published editor API. No unload handler or enqueue acknowledgment. */
 export class UpdateJournal {
   readonly #database: IDBDatabase;
@@ -84,23 +100,18 @@ export class UpdateJournal {
     return new UpdateJournal(await openStorageDatabase(factory, name));
   }
 
+  get databaseName(): string { return this.#database.name; }
+
   close(): void { this.#database.close(); }
 
   /** Captures owned input before the first await. Repeated identity is a no-op; collisions abort. */
   async append(input: JournalUpdate): Promise<LocalCommit> {
-    const update = ownUpdate(input);
-    const hash = await checksum(update.bytes);
-    const entry: JournalEntry = { ...update, checksum: hash, updateId: updateId(update, hash) };
+    const entry = await prepareJournalEntry(input);
     const transaction = strictTransaction(this.#database, storeName);
     return completeTransaction(transaction, "Journal transaction aborted",
       () => ({ state: "localCommitted", updateId: entry.updateId, durability: transaction.durability ?? "unknown" }),
       ({ watch }) => {
-        const store = transaction.objectStore(storeName);
-        watch(store.get([entry.identity.documentId, entry.identity.epoch, entry.identity.schema, entry.writerId, entry.sequence]), existing => {
-          if (existing !== undefined) {
-            if (!equalEntry(existing as JournalEntry, entry)) throw new JournalIntegrityError("Journal key collision or corrupt existing update");
-          } else watch(store.add(entry));
-        });
+        appendJournalEntry(transaction, entry, watch);
       });
   }
 

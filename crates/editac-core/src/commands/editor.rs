@@ -210,6 +210,9 @@ pub struct PreparedEditorEdit {
     entry_selection: Option<crate::anchors::Selection>,
 }
 impl PreparedEditorEdit {
+    pub fn origin(&self) -> &str {
+        self.origin.as_str()
+    }
     pub fn result_caret(&self) -> Option<&crate::anchors::Anchor> {
         self.result_caret.as_ref()
     }
@@ -2595,13 +2598,27 @@ impl Document {
         )
         .map_err(EditorError::Admission)
     }
-    pub fn commit_editor(&mut self, plan: PreparedEditorEdit) -> Result<EditorCommit, EditorError> {
+    /// Read-only admission for a host that must durably store the exact update
+    /// before committing this same plan. The host must serialize live admission
+    /// until commit/abort; this is neither a commit nor a second history owner.
+    pub fn preview_editor(&self, plan: &PreparedEditorEdit) -> Result<ReplayUpdate, EditorError> {
         if self.identity() != &plan.identity || self.writer_id() != plan.writer {
             return Err(EditorError::Text(TextError::WrongReplica));
         }
         if self.revision() != plan.revision || self.checkpoint().bytes != plan.baseline {
             return Err(EditorError::Text(TextError::StalePlan));
         }
+        self.revision()
+            .checked_add(1)
+            .ok_or(EditorError::ResourceLimit)?;
+        crate::ownership::decode(&plan.update).map_err(error)?;
+        Ok(ReplayUpdate {
+            identity: self.identity().clone(),
+            bytes: plan.update.clone(),
+        })
+    }
+    pub fn commit_editor(&mut self, plan: PreparedEditorEdit) -> Result<EditorCommit, EditorError> {
+        self.preview_editor(&plan)?;
         let revision = self
             .revision()
             .checked_add(1)

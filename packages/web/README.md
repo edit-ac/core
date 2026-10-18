@@ -451,3 +451,33 @@ and aborts transports; `{policy: 'flush', assetPolicy: 'suspend'}` retains pendi
 IDs and source bytes for restart. Reopen with the same document database and
 explicitly resume work. Picker/capture UI and actual OS delivery remain separate
 consumer qualification.
+
+### Prepared media before insertion
+
+Use `openEditorStorage(options)` to recover the shared storage owner, then
+`await owner.enableAssets()` to open its lazy AssetWork companion. Retain each
+approved original with `assets.stageOriginal(job, reference, request, grant, bytes)`
+and explicitly ingest it with `assets.runOne(operationId, online, host)`. Host
+authorization, idempotency and cancellation fencing remain required; reopening
+never dispatches host work.
+
+Prepare the content through `owner.engine.prepare(...)`. Call
+`await owner.commitPreparedAssets(plan, job, references, {signal})`, passing
+original reference keys in the inserted asset nodes' visible order, and release
+the plan in `finally`. Rust derives the actual target node IDs and rejects stale
+plans, wrong identities, missing/extra references or incomplete ingestion. The
+returned `localCommit` acknowledges the single content/asset storage transaction;
+`content` is the one live Rust history commit. A storage abort or cancellation
+before that transaction completes inserts nothing and fences uncommitted job
+work. Cancellation after durable adoption preserves the committed references.
+Originals remain available through `preparedSource` with a fresh read grant,
+including after fencing or reopen.
+
+`assets.commitPrepared` exposes the same durable boundary for hosts that already
+own a shared engine and database. Keep that database paired with its ordinary
+checkpoint/update recovery. `engine.reserveAssetCommit` is the lower-level
+storage protocol: persist its exact update and candidate journal atomically before
+calling `commit`, or call `abort` without changing content. It temporarily rejects
+other semantic mutations; do not hold it across host work. Job tombstones remain
+bounded to256, originals to64MiB, and each WASM JSON request to2MiB. This local
+integration does not claim optional-format or packed cross-browser qualification.
