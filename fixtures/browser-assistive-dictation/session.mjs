@@ -21,7 +21,7 @@ async function mount(value='') {
  const originalCommit=session.storage.commit.bind(session.storage);session.storage.commit=request=>{commands.push(request);if(window.rejectCommand)throw Error('injected-command-rejection');return originalCommit(request);};
  session.writer.engine.history({type:'clear'});ids=session.writer.engine.read().visible.map(n=>n.id);
  subscription=session.writer.engine.subscribe({type:'all'},patch=>patches.push({operation:patch.operation,origin:patch.origin,update:!!patch.update}));
- window.commandPermission=true;
+ window.commandPermission=!config.permissionDenied;
  window.assistiveRegistration=new AssistiveRegistration();
  if(!config.absent)window.assistiveRegistration.register({version:1,enabled:!config.disabled,capabilities:config.statusOnly?['status']:['commands','status','host-transport'],limits:{textBytes:1024,statusBytes:512,commands:16,results:16,sessions:1,timeoutMs:config.timeoutMs??10000},transport:config.statusOnly?null:{input:'transcript',locality:'unknown',permissionOwner:'host',retention:'none',cancellation:'best-effort',canStop:!config.noStop}});
  window.hostActions=[];
@@ -29,7 +29,7 @@ async function mount(value='') {
  const host={host:{transport:window.mockTransport,allowed:()=>window.commandPermission,commit:request=>{const result=session.storage.commit(request);if(window.failAfterCommit){if(result.selection){session.writer.engine.releaseAnchor(result.selection.anchor);session.writer.engine.releaseAnchor(result.selection.focus);}throw Error('prepared-post-commit-failure');}return result;}}};
 
  surface=new BrowserEditor(root,{assetUrl:'/core/wasm/editac_wasm_bg.wasm',databaseName,identity,indexedDB,locks:navigator.locks,
-   assistive:assistiveInput(window.assistiveRegistration,host),
+   assistive:assistiveInput(window.assistiveRegistration,config.noHost?{}:host),
    markdown,search:documentSearch(),plainPasteControl:false,shortcutProfile:config.shortcutProfile,commandAllowed:()=>window.commandPermission,
    readOnly:config.readOnly,slash:slashCommands([{id:'alpha',label:'Alpha',prepare:()=>fragment('chosen')}]),
    recover:async()=>session});
