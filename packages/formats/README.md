@@ -6,7 +6,7 @@ The base editor does not depend on this package. Build with
 `node scripts/build-formats.mjs` using the locked Node/Rust/bindgen toolchains.
 
 The initial public worker return covers the existing bounded RTF 1.9.1 profile and
-explicit UTF-8 CSV/TSV table dialects and semantic DOCX/ODT/EPUB and bounded PDF publication export and DOCX text/list/simple-table/original-PNG import. ODT/EPUB import are unavailable
+explicit UTF-8 CSV/TSV table dialects and semantic DOCX/ODT/EPUB and bounded PDF publication export and DOCX/ODT text/marks/lists/simple-table/original-PNG import. EPUB import is unavailable
 at this package boundary until separately packaged and qualified. PDF import is
 always export-only, including a PDF signature mislabeled as another supported
 format. Existing native adapters retain their own evidence and limitations.
@@ -80,7 +80,7 @@ recoverable via `assets.preparedSource(job, reference, freshReadGrant)` after su
 cleanup remains explicit. Ordinary `commit()` refuses media. No remote conversion,
 implicit grants, insertion compensation or layout/source-byte fidelity is claimed.
 
-ODT export uses the qualified ODF 1.3 semantic writer with the same approved original PNG transport. It preserves the declared text/marks/headings/lists/v1 tables/links and image accessibility labels, reports regenerated package/style/metadata defaults, and rejects unapproved loss. ODT import remains unavailable in this public worker. Independent reader/schema qualification covers generated artifacts, not arbitrary suite layout or native platform wiring.
+ODT export uses the qualified ODF 1.3 semantic writer with the same approved original PNG transport. It preserves the declared text/marks/headings/lists/v1 tables/links and image accessibility labels, reports regenerated package/style/metadata defaults, and rejects unapproved loss. ODT import reuses the guarded ODF1.3 mapper and the explicit media grants, source retention and atomic adoption described above. Encrypted input is rejected before parsing ciphertext; remote images remain inert with diagnostics. Unsupported style/layout/fields retain complete original bytes and require loss approval. Independent reader/schema qualification covers generated artifacts, not arbitrary suite layout or native platform wiring.
 
 EPUB export uses the qualified EPUB3.3 reflowable profile: top-level headings
 start deterministic chapters, the flat TOC follows spine order, and the first

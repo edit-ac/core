@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "owner": "CNV-1.18-C1/C2-DX/C2-DI-T / C2-EX / C2-PX / C2-DI-M",
+  "owner": "CNV-1.18-C1/C2-DX/C2-DI-T / C2-EX / C2-PX / C2-DI-M / C2-OI",
   "state": "implementation-pending-qualification",
   "directions": [
     {
@@ -124,6 +124,21 @@
         "jobs"
       ],
       "isolation": "Bundled bounded WASM module; host worker CSP connect-src none; 64MiB linear memory, 10s outer termination; no whole-process RSS hard limit"
+    },
+    {
+      "format": "odt",
+      "direction": "import",
+      "profile": "edit-ac-odt-v1",
+      "target": "browser-worker-wasm32",
+      "fixture": "tests/formats/consumers/odt-import-fixtures.py",
+      "fidelity": "odf13-semantic-v1",
+      "feature": "odt-import",
+      "requiredFeatures": [
+        "odt-import",
+        "jobs"
+      ],
+      "media": "Explicit exact-hash grants; real original retention and host ingest before atomic shared storage adoption",
+      "complete": true
     }
   ],
   "additionalProfiles": [
@@ -131,7 +146,6 @@
     "edit-ac-tsv-spreadsheet-safe-v1"
   ],
   "unavailable": [
-    "odt-import",
     "epub-import"
   ],
   "pdfImport": "FORMAT_EXPORT_ONLY",

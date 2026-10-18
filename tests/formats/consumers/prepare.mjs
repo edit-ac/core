@@ -7,6 +7,7 @@ const output=resolve(process.env.EDITAC_FORMATS_OUTPUT ?? '.artifacts/formats/co
 const commands=[];
 function run(p,args,cwd){const r=spawnSync(p,args,{cwd,encoding:'utf8',timeout:180000,maxBuffer:32*1024*1024});const n=commands.length;writeFileSync(resolve(output,`prepare-${n}.log`),(r.stdout??'')+(r.stderr??''));commands.push({program:p,args,cwd,exit:r.status,signal:r.signal});writeFileSync(resolve(output,'prepare-commands.json'),JSON.stringify(commands,null,2)+'\n');if(r.error||r.status!==0)throw r.error??Error(`prepare ${n}: ${r.status}`);return r.stdout;}
 run('python3',['tests/formats/consumers/docx-import-fixtures.py',resolve(output,'docx-import-fixtures')],process.cwd());
+run('python3',['tests/formats/consumers/odt-import-fixtures.py',resolve(output,'odt-import-fixtures')],process.cwd());
 const archives=[];
 for(const name of ['core','formats','web']){
  const raw=run('npm',['pack','--ignore-scripts','--json','--pack-destination',output],resolve('packages',name));

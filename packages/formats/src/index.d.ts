@@ -1,4 +1,4 @@
-import type { EngineHandle, StableRange, FragmentBlock, CommitResult, Checkpoint } from '@edit-ac/core';
+import type { EngineHandle, StableRange, FragmentBlock, CommitResult, Checkpoint, AssetGrant } from '@edit-ac/core';
 export type Format = 'rtf' | 'csv' | 'tsv' | 'docx' | 'odt' | 'epub' | 'pdf';
 export interface Options {
   format: Format; source?: Uint8Array; filename?: string; mediaType?: string; range?: StableRange; selected?: string;
@@ -7,7 +7,7 @@ export interface Options {
   /** Caller-authorized original bytes (for example AssetSession.retainedSource).
    * Captured immutably with the checkpoint; aggregate maximum 1 MiB. */
   /** Exact content hash and explicit host identity/grant; never inferred from a document locator. */
-  importGrants?: readonly {sha256:readonly number[];identity:{host:string;key:string};actions:readonly ('ingest'|'read'|'cancel'|'release-reference')[]}[];
+  importGrants?: readonly (AssetGrant & {sha256:readonly number[]})[];
   originalAssets?: readonly {identity:{host:string;key:string};actions:readonly 'read'[];bytes:Uint8Array}[];
   safe?: boolean; approveLoss?: boolean; signal?: AbortSignal; timeoutMs?: number;
 }
