@@ -3463,6 +3463,202 @@
         "fixtures/formats/epub/nav.xhtml",
         "fixtures/formats/epub/container.xml"
       ]
+    },
+    "consumers-native-table-import": {
+      "gate": "CNV-1.18-C2-N-TI",
+      "boundary": "Actual isolated native CSV/TSV explicit-dialect import, shared Session/jobs/history/reopen, complete original retention/diagnostics, authority/resource/cancellation safety, independent committed semantics, immutable package/notices/disabled graph and full costs. No host wiring, platform or release claim.",
+      "commands": [
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats-native/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--",
+            "--test-threads=1"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--features",
+            "table-text-import",
+            "--test",
+            "table_text_import",
+            "--test",
+            "jobs",
+            "--test",
+            "profiles"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/native/native.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/native/export.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/native/table.test.mjs"
+          ],
+          "kind": "node-test"
+        }
+      ],
+      "inputs": [
+        "crates/editac-formats-native/Cargo.lock",
+        "crates/editac-formats-native/Cargo.toml",
+        "crates/editac-formats-native/README.md",
+        "crates/editac-formats-native/bootstrap.py",
+        "crates/editac-formats-native/runner.py",
+        "crates/editac-formats-native/src/export.rs",
+        "crates/editac-formats-native/src/fixture.rs",
+        "crates/editac-formats-native/src/heap.rs",
+        "crates/editac-formats-native/src/main.rs",
+        "crates/editac-formats-native/src/table.rs",
+        "crates/editac-formats/src/table_text/import.rs",
+        "fixtures/formats/native/rtf-loss.rtf",
+        "fixtures/formats/rtf/export/reader-probe.rtf",
+        "tests/formats/consumers/native/case.py",
+        "tests/formats/consumers/native/export-case.py",
+        "tests/formats/consumers/native/export.test.mjs",
+        "tests/formats/consumers/native/native.test.mjs",
+        "tests/formats/consumers/native/prepare.py",
+        "tests/formats/consumers/native/table-case.py",
+        "tests/formats/consumers/native/table-oracle.py",
+        "tests/formats/consumers/native/table.test.mjs",
+        "tests/formats/rtf-reader.py"
+      ]
+    },
+    "consumers-native-table-import-completion-repair": {
+      "gate": "CNV-1.18-C2-N-TI",
+      "boundary": "Actual isolated native CSV/TSV explicit-dialect import, shared Session/jobs/history/reopen, complete original retention/diagnostics, authority/resource/cancellation safety, independent committed semantics, immutable package/notices/disabled graph and full costs. No host wiring, platform or release claim. Reuse 68 allocator/portable mapper/job/profile cases only on exact unchanged compiled inputs; requalify current packaged runtime after writerId completion type repair.",
+      "commands": [
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/native/native.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/native/export.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/native/table.test.mjs"
+          ],
+          "kind": "node-test"
+        }
+      ],
+      "inputs": [
+        "crates/editac-formats-native/Cargo.lock",
+        "crates/editac-formats-native/Cargo.toml",
+        "crates/editac-formats-native/README.md",
+        "crates/editac-formats-native/bootstrap.py",
+        "crates/editac-formats-native/runner.py",
+        "crates/editac-formats-native/src/export.rs",
+        "crates/editac-formats-native/src/fixture.rs",
+        "crates/editac-formats-native/src/heap.rs",
+        "crates/editac-formats-native/src/main.rs",
+        "crates/editac-formats-native/src/table.rs",
+        "crates/editac-formats/src/table_text/import.rs",
+        "fixtures/formats/native/rtf-loss.rtf",
+        "fixtures/formats/rtf/export/reader-probe.rtf",
+        "tests/formats/consumers/native/case.py",
+        "tests/formats/consumers/native/export-case.py",
+        "tests/formats/consumers/native/export.test.mjs",
+        "tests/formats/consumers/native/native.test.mjs",
+        "tests/formats/consumers/native/prepare.py",
+        "tests/formats/consumers/native/table-case.py",
+        "tests/formats/consumers/native/table-oracle.py",
+        "tests/formats/consumers/native/table.test.mjs",
+        "tests/formats/rtf-reader.py"
+      ]
+    },
+    "consumers-native-table-import-oracle-repair": {
+      "gate": "CNV-1.18-C2-N-TI",
+      "boundary": "Actual isolated native CSV/TSV explicit-dialect import, shared Session/jobs/history/reopen, complete original retention/diagnostics, authority/resource/cancellation safety, independent committed semantics, immutable package/notices/disabled graph and full costs. No host wiring, platform or release claim. Independent oracle repair admits only the existing shared insertion empty-paragraph boundaries, then checks the unique rich table exactly; reuse 99 compiled/runtime cases only on exact unchanged runtime inputs. Python3.9-compatible independent reader; explicit length assertions precede ordinary zip.",
+      "commands": [
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "--test-name-pattern=exact preflight",
+            "tests/formats/consumers/native/native.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "--test-name-pattern=native table import: (csv|tsv|dialects|oracle-negatives)$",
+            "tests/formats/consumers/native/table.test.mjs"
+          ],
+          "kind": "node-test"
+        }
+      ],
+      "inputs": [
+        "crates/editac-formats-native/Cargo.lock",
+        "crates/editac-formats-native/Cargo.toml",
+        "crates/editac-formats-native/README.md",
+        "crates/editac-formats-native/bootstrap.py",
+        "crates/editac-formats-native/runner.py",
+        "crates/editac-formats-native/src/export.rs",
+        "crates/editac-formats-native/src/fixture.rs",
+        "crates/editac-formats-native/src/heap.rs",
+        "crates/editac-formats-native/src/main.rs",
+        "crates/editac-formats-native/src/table.rs",
+        "crates/editac-formats/src/table_text/import.rs",
+        "fixtures/formats/native/rtf-loss.rtf",
+        "fixtures/formats/rtf/export/reader-probe.rtf",
+        "tests/formats/consumers/native/case.py",
+        "tests/formats/consumers/native/export-case.py",
+        "tests/formats/consumers/native/export.test.mjs",
+        "tests/formats/consumers/native/native.test.mjs",
+        "tests/formats/consumers/native/prepare.py",
+        "tests/formats/consumers/native/table-case.py",
+        "tests/formats/consumers/native/table-oracle.py",
+        "tests/formats/consumers/native/table.test.mjs",
+        "tests/formats/rtf-reader.py"
+      ]
     }
   }
 }

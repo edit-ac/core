@@ -62,6 +62,64 @@ def run(binary, binary_sha256, original, *, wall_ms=4000, output_bytes=MAX_OUTPU
         _ACTIVE.release()
 
 
+def run_table(binary, binary_sha256, original, *, dialect, wall_ms=4000,
+              output_bytes=MAX_OUTPUT, cancel=None):
+    """Import a text table using an explicit reviewed dialect; never detect/evaluate.
+
+    delimiter: comma/tab; quote: double; escape: double; encoding: utf8/utf8-bom;
+    newline: lf/crlf; header: none/first-row; ragged: reject. All seven required.
+    Originals remain caller-owned on every outcome. Completion creates a new
+    shared Session; subsequent host insertion/save is separately authorized.
+    """
+    data = bytes(original)
+    required = dict(delimiter=('comma','tab'), quote=('double',), escape=('double',),
+                    encoding=('utf8','utf8-bom'), newline=('lf','crlf'),
+                    header=('none','first-row'), ragged=('reject',))
+    if (not isinstance(dialect, dict) or set(dialect) != set(required) or
+        any(dialect[k] not in values for k, values in required.items())):
+        return Result(dict(schemaVersion=1, state='unavailable', code='FORMAT_DIALECT_REQUIRED',
+                           executed=0, outputAccepted=False, childExited=True,
+                           originalSha256=hashlib.sha256(data).hexdigest()), data)
+    # Freeze all caller-owned values before process startup.
+    args = tuple(dialect[k] for k in ('newline','encoding','header'))
+    mode = 'csv-import' if dialect['delimiter']=='comma' else 'tsv-import'
+    if not _ACTIVE.acquire(blocking=False):
+        return Result(dict(schemaVersion=1, state='unavailable', code='FORMAT_BUSY', executed=0,
+                           outputAccepted=False, childExited=True, originalSha256=hashlib.sha256(data).hexdigest()), data)
+    try:
+        return _run(binary, binary_sha256, data, mode, args, wall_ms, output_bytes, cancel)
+    finally:
+        _ACTIVE.release()
+
+
+def _table_completion_valid(payload, original, args):
+    """Admit only a complete correlated immutable table completion."""
+    try:
+        report = payload['report']
+        checkpoint = payload['checkpoint']
+        return (payload.get('dialect') == list(args) and
+                isinstance(checkpoint, list) and bool(checkpoint) and
+                all(type(n) is int and 0 <= n <= 255 for n in checkpoint) and
+                hashlib.sha256(bytes(checkpoint)).hexdigest() == payload.get('checkpointSha256') and
+                all(payload.get(k) is True for k in ('undo','redo','reopen')) and
+                payload.get('commits') == 1 and payload.get('activeJobs') == 0 and
+                payload.get('assets') == 0 and payload.get('networkCalls') == 0 and
+                isinstance(payload.get('documentId'), str) and type(payload.get('writerId')) is int and 0 < payload['writerId'] < 2**64 and
+                isinstance(report, dict) and report.get('diagnostics') == [] and
+                type(report.get('scannedBytes')) is int and report['scannedBytes'] == len(original) and
+                type(report.get('rows')) is int and 0 < report['rows'] <= 128 and
+                type(report.get('columns')) is int and 0 < report['columns'] <= 32 and
+                type(report.get('cells')) is int and report['cells'] == report['rows']*report['columns'] <= 1024 and
+                type(report.get('utf16Units')) is int and 0 <= report['utf16Units'] <= 262144 and
+                report.get('headerRows') == int(args[2]=='first-row') and
+                report.get('bomRemoved') is original.startswith(b'\xef\xbb\xbf') and
+                isinstance(payload.get('snapshotBlocks'), list) and
+                isinstance(payload.get('preparedBlocks'), list) and
+                0 < payload.get('peakRustHeapBytes', 0) <= RUST_HEAP)
+    except (ValueError, TypeError, KeyError, IndexError):
+        return False
+
+
 def run_export(binary, binary_sha256, checkpoint_request, *, wall_ms=4000,
                output_bytes=MAX_OUTPUT, cancel=None):
     """Export an initialized checkpoint through the captured shared Session writer.
@@ -123,7 +181,7 @@ def _run(binary, binary_sha256, original, mode, args=(), wall_ms=4000,
     start = time.monotonic()
     original = bytes(original)
     outcome = dict(schemaVersion=1, state='unavailable', code=None, executed=0,
-                   profile='edit-ac-rtf-v1', direction='export' if mode == 'rtf-export' else 'import',
+                   profile={'csv-import':'edit-ac-csv-v1','tsv-import':'edit-ac-tsv-v1'}.get(mode,'edit-ac-rtf-v1'), direction='export' if mode == 'rtf-export' else 'import',
                    target=platform.platform(), originalSha256=hashlib.sha256(original).hexdigest(),
                    originalBytes=len(original), childExited=True, outputAccepted=False,
                    hardRustHeapBytes=RUST_HEAP, peakObservedRssBytes=0, rssSamples=0,
@@ -136,7 +194,7 @@ def _run(binary, binary_sha256, original, mode, args=(), wall_ms=4000,
             raise ValueError('FORMAT_RESOURCE_PROFILE_UNAVAILABLE')
         if platform.system() != 'Darwin' or platform.machine() != 'arm64' or not pathlib.Path(SANDBOX).is_file():
             raise ValueError('FORMAT_ISOLATION_UNAVAILABLE')
-        if mode not in ('rtf-import', 'rtf-export', 'export-fixture', 'read', 'write', 'network', 'child', 'spin', 'heap', 'output'):
+        if mode not in ('csv-import', 'tsv-import', 'rtf-import', 'rtf-export', 'export-fixture', 'read', 'write', 'network', 'child', 'spin', 'heap', 'output'):
             raise ValueError('FORMAT_PROFILE_UNAVAILABLE')
         binary = pathlib.Path(binary).resolve(strict=True)
         if not binary.is_file() or _file_hash(binary) != binary_sha256:
@@ -235,7 +293,7 @@ def _run(binary, binary_sha256, original, mode, args=(), wall_ms=4000,
                     raise ValueError('FORMAT_COMPLETION_INVALID')
                 if not isinstance(payload, dict):
                     raise ValueError('FORMAT_COMPLETION_INVALID')
-                if mode in ('rtf-import', 'rtf-export'):
+                if mode in ('csv-import', 'tsv-import', 'rtf-import', 'rtf-export'):
                     if payload.get('state') not in ('passed', 'rejected'):
                         raise ValueError('FORMAT_COMPLETION_INVALID')
                     if payload['state'] == 'passed':
@@ -243,7 +301,10 @@ def _run(binary, binary_sha256, original, mode, args=(), wall_ms=4000,
                             payload.get('profile') != outcome['profile'] or
                             payload.get('hardRustHeapBytes') != RUST_HEAP):
                             raise ValueError('FORMAT_COMPLETION_INVALID')
-                        if mode == 'rtf-import':
+                        if mode in ('csv-import','tsv-import'):
+                            if not _table_completion_valid(payload, original, args):
+                                raise ValueError('FORMAT_COMPLETION_INVALID')
+                        elif mode == 'rtf-import':
                             if (not all(payload.get(k) for k in ('undo', 'redo', 'reopen')) or
                                 hashlib.sha256(bytes(payload.get('checkpoint', []))).hexdigest() != payload.get('checkpointSha256')):
                                 raise ValueError('FORMAT_COMPLETION_INVALID')

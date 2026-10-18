@@ -12,7 +12,7 @@ publish = false
 qualification = []
 
 [dependencies]
-editac-formats = { path = "../editac-formats", default-features = false, features = ["rtf-import", "rtf-export"] }
+editac-formats = { path = "../editac-formats", default-features = false, features = ["rtf-import", "rtf-export", "table-text-import"] }
 editac-core = { path = "../editac-core" }
 editac-session = { path = "../editac-session" }
 serde_json = "=1.0.152"

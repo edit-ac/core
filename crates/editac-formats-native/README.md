@@ -1,4 +1,4 @@
-# Optional standalone native RTF consumer
+# Optional standalone native format consumer
 
 This unpublished, independent workspace consumes the public `editac-formats`,
 `editac-core` and `editac-session` APIs. It does not enter the minimum editor graph.
@@ -15,7 +15,7 @@ replace a host document. Host insertion and platform wiring are outside this pro
 Unsupported RTF constructs return the full recoverable diagnostic report. There is
 no implicit lossy approval. PDF input is rejected by the shared export-only policy.
 The separately qualified RTF export route is described below; other native
-formats/directions remain unqualified by this package.
+formats/directions except the table import route below remain unqualified by this package.
 
 The runner installs deny-default filesystem, network and process policy before
 conversion. Only the pinned executable, OS loader paths and inherited bounded
@@ -71,3 +71,29 @@ shared Session checkpoints through the existing fragment/job API. Production
 builds omit this command. Independent macOS `textutil` and a separate HTML semantic
 oracle inspect only generated artifacts outside the conversion sandbox. Native
 RTF profiles use declared writer defaults and no bundled fonts or media assets.
+
+`run_table(binary, binary_sha256, original, *, dialect, wall_ms=4000,
+output_bytes=4194304, cancel=None)` imports CSV/TSV through the qualified strict
+text-table mapper. `dialect` requires exactly seven fields: `delimiter`
+(`comma`/`tab`), `quote` (`double`), `escape` (`double`), `encoding`
+(`utf8`/`utf8-bom`), `newline` (`lf`/`crlf`), `header` (`none`/`first-row`),
+and `ragged` (`reject`). There is no detection or implicit type/formula evaluation.
+The selected delimiter fixes the direction/profile; unsupported choices fail before
+process startup. Header rows remain content and receive explicit cell flags.
+The profile allows at most128 rows,32 columns,1024 cells,8192 UTF-16 units per cell
+and262144 units total, subject also to the shared input/output/job limits.
+Quoted LF is preserved; CR inside a cell is recoverably unsupported by the shared
+descriptor. Malformed quoting, newlines, ragged rows, invalid UTF-8/BOM policy and
+resource exhaustion reject without returning a partial committed document.
+
+The new Session checkpoint includes exact inert table source (without the optional
+encoding BOM), rich-table cell/header semantics, and history. Complete original
+bytes including BOM remain in `Result.original` on every outcome; hosts must retain
+those bytes alongside their checkpoint under their retention policy. Checkpoint
+reopen alone is not a promise of original file byte recovery. Success reports
+exact scanned bytes/dimensions/UTF-16 units/BOM handling. The runner validates
+profile/input/dialect/checkpoint/report correlation before returning completion.
+Cold/warm measurements include process bootstrap, sandbox, parse, mapping, commit,
+undo/redo, reopen, checkpoint and result transfer. Codec notices are in the native
+source-package receipt; this route has no fonts/media assets. CSV/TSV export,
+native host wiring and release remain separate unfinished gates.

@@ -55,6 +55,7 @@ for folder in ('schema-v4','schema-v5'):
 fixtures = ['tests/formats/rtf-reader.py','fixtures/formats/rtf/export/reader-probe.rtf','fixtures/formats/rtf/supported.rtf','fixtures/formats/native/rtf-loss.rtf']
 for p in fixtures:
     if not (ROOT/p).is_file(): raise RuntimeError('missing exact fixture: '+p)
+fixtures += [str(p.relative_to(ROOT)) for p in (ROOT/'fixtures/formats/table-text').rglob('*') if p.is_file()]
 paths.update(fixtures)
 paths.update(str(p.relative_to(ROOT)) for p in (ROOT/'tests/formats/consumers/native').glob('*') if p.is_file())
 source_pins = {}

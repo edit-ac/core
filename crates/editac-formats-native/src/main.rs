@@ -4,6 +4,7 @@ mod export;
 #[cfg(feature = "qualification")]
 mod fixture;
 mod heap;
+mod table;
 #[cfg(feature = "qualification")]
 use std::io::Write;
 #[global_allocator]
@@ -210,7 +211,8 @@ fn main() {
         println!("{v}");
         return;
     }
-    if mode != "rtf-import" && mode != "rtf-export" {
+    if mode != "rtf-import" && mode != "rtf-export" && mode != "csv-import" && mode != "tsv-import"
+    {
         eprintln!("FORMAT_PROFILE_UNAVAILABLE");
         std::process::exit(78);
     }
@@ -224,6 +226,8 @@ fn main() {
     } else {
         if mode == "rtf-export" {
             export::convert(&input)
+        } else if mode == "csv-import" || mode == "tsv-import" {
+            table::convert(&input, &mode, &std::env::args().skip(2).collect::<Vec<_>>())
         } else {
             convert(&input)
         }
