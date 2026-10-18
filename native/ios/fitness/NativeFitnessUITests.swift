@@ -2,27 +2,39 @@ import XCTest
 
 final class NativeFitnessUITests: XCTestCase {
     func dismissKeyboardTutorial(_ app: XCUIApplication) throws -> Bool {
-        // iOS can expose the same keyboard onboarding button both through the
-        // legacy keyboard tree and UIContinuousPathIntroductionView. A unique
-        // element lookup fails before a real touch can dismiss that sheet.
-        let tutorial = app.buttons.matching(identifier: "Continue").firstMatch
-        guard tutorial.waitForExistence(timeout: 5) else { return false }
-        let r = tutorial.frame, window = app.windows.firstMatch.frame
-        XCTAssertTrue(window.contains(r)); XCTAssertGreaterThan(r.width, 0); XCTAssertGreaterThan(r.height, 0)
-        // The first-use sheet replaces the keyboard. XCTest can report its
-        // visible Continue button as non-hittable because it lies outside the
-        // keyboard AX rectangle. Touch the observed in-window button center;
-        // actual disappearance below is required, never a queued-tap receipt.
-        let before = ProcessInfo.processInfo.systemUptime
-        tutorial.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        let record: [String: Any] = ["action": "single OS touch at observed keyboard tutorial button center",
-            "frame": ["x": r.minX, "y": r.minY, "width": r.width, "height": r.height],
-            "point": ["x": r.midX, "y": r.midY], "before": before, "after": ProcessInfo.processInfo.systemUptime]
-        let data = try JSONSerialization.data(withJSONObject: record, options: [.sortedKeys])
-        let attachment = XCTAttachment(data: data, uniformTypeIdentifier: "public.json")
-        attachment.name = "keyboard tutorial screen dispatch"; attachment.lifetime = .keepAlways; add(attachment)
-        XCTAssertTrue(tutorial.waitForNonExistence(timeout: 10))
-        return true
+        var touched = false
+        for attempt in 1...3 {
+            // Keyboard introductions can duplicate AX entries and present a
+            // second panel with the same Continue label. Observe each panel.
+            let anyContinue = app.buttons.matching(identifier: "Continue").firstMatch
+            guard anyContinue.waitForExistence(timeout: 5) else { return touched }
+            let introduction = app.otherElements["UIContinuousPathIntroductionView"].firstMatch
+            let tutorial = introduction.exists
+                ? introduction.buttons.matching(identifier: "Continue").firstMatch : anyContinue
+            let windowElement = app.windows.firstMatch
+            let r = tutorial.frame, window = windowElement.frame
+            XCTAssertTrue(window.contains(r)); XCTAssertGreaterThan(r.width, 0); XCTAssertGreaterThan(r.height, 0)
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = "keyboard onboarding before touch \(attempt)"
+            screenshot.lifetime = .keepAlways; add(screenshot)
+            // Anchor the observed screen point to the app window. Remote
+            // keyboard AX elements can have unreliable element coordinates.
+            let before = ProcessInfo.processInfo.systemUptime
+            windowElement.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
+                .withOffset(CGVector(dx: r.midX - window.minX, dy: r.midY - window.minY)).tap()
+            touched = true
+            let gone = anyContinue.waitForNonExistence(timeout: 10)
+            let record: [String: Any] = ["action": "OS touch at window-relative center of observed onboarding control",
+                "attempt": attempt, "disappearedAfterTouch": gone,
+                "frame": ["x": r.minX, "y": r.minY, "width": r.width, "height": r.height],
+                "point": ["x": r.midX, "y": r.midY], "before": before, "after": ProcessInfo.processInfo.systemUptime]
+            let data = try JSONSerialization.data(withJSONObject: record, options: [.sortedKeys])
+            let attachment = XCTAttachment(data: data, uniformTypeIdentifier: "public.json")
+            attachment.name = "keyboard tutorial screen dispatch \(attempt)"; attachment.lifetime = .keepAlways; add(attachment)
+            if gone { return true }
+        }
+        XCTFail("OS keyboard onboarding remained after three observed control touches")
+        throw NSError(domain: "NativeFitnessTutorial", code: 1)
     }
     func focus(_ app: XCUIApplication, button: XCUIElement, status: XCUIElement, value: String) throws {
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
