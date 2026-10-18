@@ -1,7 +1,7 @@
 // This is a post-generation optimization for the pinned wasm-bindgen 0.2.129
 // web ABI. Match complete bodies, not arbitrary JavaScript or future bindgen ABIs.
 const methods = [
-  ['anchor', 'input'], ['can', 'input'], ['commit', 'token'],
+  ['asset_work', 'input'], ['anchor', 'input'], ['can', 'input'], ['commit', 'token'],
   ['export_anchor', 'token'], ['history', 'input'],
   ['import_anchor', 'input'],
   ['prepare', 'input'], ['resolve', 'token'],

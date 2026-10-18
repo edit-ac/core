@@ -137,6 +137,15 @@ fn exercise(source: &str, selected: usize) -> String {
     assert_eq!(d.history_state().undo_groups, 1);
     assert_eq!(base.source_with_current_table(&d, owner).unwrap(), expected);
     let after = d.snapshot().unwrap();
+    assert_eq!(
+        after.source_reads, 0,
+        "metadata formatting reads no shared text"
+    );
+    assert!(
+        !after.structure_rebuilt,
+        "metadata formatting never rebuilds topology"
+    );
+
     assert_eq!(before.visible.len(), after.visible.len());
     for (old, new) in before.visible.iter().zip(&after.visible) {
         if old.id == *owner {

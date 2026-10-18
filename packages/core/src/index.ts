@@ -1,6 +1,6 @@
 import { createHandle, restoreHandle, type Checkpoint, type ReplayUpdate, type DocumentIdentity, type CreateOptions, type EngineHandle, type RawEngine } from "./engine.js";
 export type { CreateOptions, EngineHandle, CommitResult, AnchorToken, PortableAnchor, PlanToken, Bias, StableRange, ContainerStyle, MoveTarget, EditorCommand, EditorPosition, TextCommand, FormatAction, MarkCommand, BlockFormatCommand, PrepareRequest, Json, ProjectedNode, Snapshot, AnchorResolution, HistoryRequest, HistoryState, DocumentIdentity, Checkpoint, ReplayUpdate, PatchScope, Patch, PatchSubscription, ObserverError } from "./engine.js";
-export type { FragmentBlock, FragmentRun, PreparedMarkdown, MarkdownDiagnostic, MarkdownExport, MarkdownExtension, MarkdownOptions, MarkdownCodec } from "./engine.js";
+export type { FragmentBlock, FragmentRun, PreparedMarkdown, MarkdownDiagnostic, MarkdownExport, MarkdownExtension, MarkdownOptions, MarkdownCodec, SourceBaseline, TableSourceRequest, TableSourceResult } from "./engine.js";
 export { EngineError } from "./engine.js";
 export type { EngineErrorCode } from "./engine.js";
 
@@ -51,3 +51,5 @@ export function init(assetUrl: string): Promise<EngineRuntime> {
 export * from "./links/index.js";
 
 export type { HTMLNode } from "./engine.js";
+
+export type { AssetIdentity, AssetAction, AssetGrant, AssetRequest, AssetPublication, AssetIntent, AssetWorkAction, AssetWorkResult } from "./engine.js";

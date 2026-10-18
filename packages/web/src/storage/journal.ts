@@ -119,7 +119,7 @@ export class UpdateJournal {
 /** Shared schema upgrade for journal, checkpoint and receipt adapters. */
 export function openStorageDatabase(factory: IDBFactory, name: string): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
-      const request = factory.open(name, 3);
+      const request = factory.open(name, 4);
       let rejected = false;
       request.onupgradeneeded = () => {
         if (!request.result.objectStoreNames.contains(storeName)) {
@@ -127,6 +127,7 @@ export function openStorageDatabase(factory: IDBFactory, name: string): Promise<
           store.createIndex("documentEpochSchema", ["identity.documentId", "identity.epoch", "identity.schema"]);
         }
         if (!request.result.objectStoreNames.contains("checkpoints")) request.result.createObjectStore("checkpoints");
+        if (!request.result.objectStoreNames.contains("assets")) request.result.createObjectStore("assets");
         if (!request.result.objectStoreNames.contains("receipts")) request.result.createObjectStore("receipts");
       };
       request.onerror = () => reject(request.error);

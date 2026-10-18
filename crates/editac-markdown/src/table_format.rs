@@ -16,13 +16,26 @@ use editac_core::{
 pub struct PreparedTableFormat {
     edit: PreparedSourceEdit,
     checkpoint: InitializedCheckpoint,
+    replacement_source: String,
 }
 impl PreparedTableFormat {
-    pub(crate) fn new(edit: PreparedSourceEdit, checkpoint: InitializedCheckpoint) -> Self {
-        Self { edit, checkpoint }
+    pub(crate) fn new(
+        edit: PreparedSourceEdit,
+        checkpoint: InitializedCheckpoint,
+        replacement_source: String,
+    ) -> Self {
+        Self {
+            edit,
+            checkpoint,
+            replacement_source,
+        }
     }
     pub fn source(&self) -> &str {
         &self.edit.source
+    }
+    /// Exact selected-table bytes approved by the codec, never a document serializer.
+    pub fn replacement_source(&self) -> &str {
+        &self.replacement_source
     }
     pub fn changed(&self) -> bool {
         self.edit.changed != 0

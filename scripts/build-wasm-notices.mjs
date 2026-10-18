@@ -7,12 +7,18 @@ const result=spawnSync('cargo',['metadata','--locked','--offline','--filter-plat
 if(result.error||result.status!==0)throw result.error??Error(result.stderr);
 const metadata=JSON.parse(result.stdout);
 const markdown = process.argv.includes('--markdown');
-const nodes=new Map(metadata.resolve.nodes.map(n=>[n.id,n]));
-const ids=new Set(),todo=[metadata.packages.find(p=>p.name===(markdown ? 'editac-markdown-wasm' : 'editac-wasm')).id];
-// Test-only edges are not part of a distributed WASM artifact.
-while(todo.length){
- const id=todo.pop();if(ids.has(id))continue;ids.add(id);
- todo.push(...nodes.get(id).deps.filter(d=>d.dep_kinds.some(k=>k.kind!=='dev')).map(d=>d.pkg));
+// Workspace metadata unifies features from unrelated native consumers. Ask
+// Cargo for the selected artifact's normal/build closure before choosing notices.
+const selected = markdown ? 'editac-markdown-wasm' : 'editac-wasm';
+const tree=spawnSync('cargo',['tree','--locked','--offline','-p',selected,'--target','wasm32-unknown-unknown','--edges','normal,build','--prefix','none','--format','{p}'],{encoding:'utf8',maxBuffer:16*1024*1024});
+if(tree.error||tree.status!==0)throw tree.error??Error(tree.stderr);
+const ids=new Set();
+for(const line of tree.stdout.trim().split('\n')){
+ const match=line.match(/^(\S+) v(\S+)(?: |$)/);
+ if(!match)throw Error(`Unrecognized Cargo package: ${line}`);
+ const packages=metadata.packages.filter(p=>p.name===match[1]&&p.version===match[2]);
+ if(packages.length!==1)throw Error(`Ambiguous Cargo package: ${line}`);
+ ids.add(packages[0].id);
 }
 const notices=['Third-party notices for the locked edit.ac WASM build. Includes its build dependencies.\n'];
 for(const pkg of metadata.packages.sort((a,b)=>a.name.localeCompare(b.name))){

@@ -17,6 +17,7 @@ foundation-fixture = []
 fitness-trace = []
 
 [dependencies]
+editac-session = { path = "../editac-session", features = ["asset-serde"] }
 editac-html = { path = "../editac-html", default-features = false }
 editac-core = { path = "../editac-core" }
 wasm-bindgen.workspace = true
@@ -26,3 +27,6 @@ serde_json = "=1.0.152"
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+editac-markdown-wasm = { path = "../editac-markdown-wasm" }

@@ -1,10 +1,11 @@
 //! Bounded JSON boundary shared by native fixture proofs and the compiled bridge.
 //! Every fallible parse/translation/preparation precedes a live commit.
 use editac_core::interchange::{
-    err, identity, kernel, parse, transfer_blocks, Affinity, Command, CommandAction as Action,
-    CommandRange as Range, MarkName, Result, TransferBlock,
+    Affinity, Command, CommandAction as Action, CommandRange as Range, MarkName, Result,
+    TransferBlock, err, identity, kernel, parse, transfer_blocks,
 };
 use editac_core::{
+    Utf16Offset,
     anchors::{Anchor, Bias, Resolution, Selection},
     commands::{
         editor::{EditorCommand, PreparedEditorEdit},
@@ -13,13 +14,12 @@ use editac_core::{
     },
     document::{
         BlockAttributes, CreationPermit, Document, DocumentIdentity, InitialNode,
-        InitializedCheckpoint, ReplayUpdate, MAX_RESTORE_BYTES,
+        InitializedCheckpoint, MAX_RESTORE_BYTES, ReplayUpdate,
     },
     history::{HistoryConfig, HistoryGroup},
-    Utf16Offset,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::BTreeMap;
 
 const MAX_PLANS: usize = 128;
@@ -179,6 +179,10 @@ enum Plan {
     Text(PreparedTextEdit),
     Editor(PreparedEditorEdit, ResultTokens),
     Format(PreparedFormatBatch),
+    TableSource {
+        checkpoint: Vec<u8>,
+        plan: Option<PreparedEditorEdit>,
+    },
 }
 
 pub(crate) struct Bridge {
@@ -189,6 +193,9 @@ pub(crate) struct Bridge {
     patch_sequence: u64,
 }
 impl Bridge {
+    pub fn asset_work(&self, input: &str) -> Result<Value> {
+        crate::assets::transaction(self.doc.identity(), input)
+    }
     pub fn create(input: &str) -> Result<Self> {
         let c: Create = parse(input, "create")?;
         let _ = c.profile;
@@ -591,6 +598,49 @@ impl Bridge {
         self.plans.insert(token.clone(), plan);
         Ok(json!({"token":token, "revision": self.doc.revision()}))
     }
+    /// Codec-approved inert source, guarded by the exact captured live checkpoint.
+    pub fn prepare_table_source(&mut self, input: &str, checkpoint: &[u8]) -> Result<Value> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Request {
+            owner: String,
+            expected: Value,
+            source: String,
+            origin: String,
+        }
+        let r: Request = parse(input, "prepareTableSource")?;
+        if checkpoint.len() > MAX_RESTORE_BYTES || checkpoint != self.doc.checkpoint().bytes {
+            return Err(err("EngineRejected", "prepareTableSource", "StalePlan"));
+        }
+        if self.plans.len() >= MAX_PLANS {
+            return Err(err("ResourceLimit", "prepareTableSource", "plan limit"));
+        }
+        let origin = TextOrigin::new(&r.origin).map_err(|e| kernel("prepareTableSource", e))?;
+        let expected = yrs::Any::from_json(&r.expected.to_string())
+            .map_err(|e| kernel("prepareTableSource", e))?;
+        let changed = !matches!(editac_core::modules::content::Content::from_tuple(&expected),
+            Ok(Some(editac_core::modules::content::Content::Table { source, .. })) if source == r.source);
+        let plan = self
+            .doc
+            .prepare_editor(
+                &[EditorCommand::TableSource {
+                    target: r.owner,
+                    expected,
+                    source: r.source,
+                }],
+                &origin,
+            )
+            .map_err(|e| kernel("prepareTableSource", e))?;
+        let token = self.token("plan")?;
+        self.plans.insert(
+            token.clone(),
+            Plan::TableSource {
+                checkpoint: checkpoint.to_vec(),
+                plan: changed.then_some(plan),
+            },
+        );
+        Ok(json!({"token":token,"revision":self.doc.revision()}))
+    }
     pub fn release_plan(&mut self, token: &str) {
         self.plans.remove(token);
     }
@@ -604,6 +654,16 @@ impl Bridge {
         })?;
         let mut result = json!({"revision":self.doc.revision()});
         match plan {
+            Plan::TableSource { checkpoint, plan } => {
+                if checkpoint != self.doc.checkpoint().bytes {
+                    return Err(err("EngineRejected", "commit", "StalePlan"));
+                }
+                if let Some(plan) = plan {
+                    self.doc
+                        .commit_editor(plan)
+                        .map_err(|e| kernel("commit", e))?;
+                }
+            }
             Plan::Text(p) => {
                 self.doc.commit_text(p).map_err(|e| kernel("commit", e))?;
             }
@@ -867,9 +927,10 @@ mod atomic_selection_tests {
         b.release_anchor(&token);
         let plan = b.prepare(&request).unwrap();
         assert_eq!(b.anchor_slots(), MAX_ANCHORS);
-        assert!(b
-            .capture(&json!({"node":node,"offset":0,"bias":"left"}).to_string())
-            .is_err());
+        assert!(
+            b.capture(&json!({"node":node,"offset":0,"bias":"left"}).to_string())
+                .is_err()
+        );
         b.release_plan(plan["token"].as_str().unwrap());
         assert_eq!(b.anchor_slots(), MAX_ANCHORS - 2);
         assert_eq!(b.doc_state(), old);
@@ -1064,3 +1125,7 @@ mod fragment_transfer_tests {
         assert_eq!(b.doc_state(), before);
     }
 }
+
+#[cfg(test)]
+#[path = "table_source_cases.rs"]
+mod table_source_cases;

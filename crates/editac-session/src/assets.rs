@@ -11,15 +11,15 @@ pub const MAX_CACHE_BYTES: u64 = 64 * 1024 * 1024;
 pub const MAX_ATTEMPTS: u32 = 8;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-#[cfg_attr(feature = "native-store", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "native-store", serde(deny_unknown_fields))]
+#[cfg_attr(feature = "asset-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "asset-serde", serde(deny_unknown_fields))]
 pub struct AssetJournal {
     intents: Vec<AssetIntent>,
     retired: Vec<String>,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "native-store", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "native-store", serde(deny_unknown_fields))]
+#[cfg_attr(feature = "asset-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "asset-serde", serde(deny_unknown_fields))]
 pub struct AssetIntent {
     pub reference: String,
     pub request: AssetRequest,
@@ -27,7 +27,7 @@ pub struct AssetIntent {
     pub attempts: u32,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "native-store", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "asset-serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum WorkStatus {
     Pending,
     Complete,
@@ -346,6 +346,28 @@ impl<'a, S: AssetStore> AssetWork<'a, S> {
         online: bool,
         host: &mut impl AssetHost,
     ) -> Result<bool, PortError> {
+        let mut authorized = None;
+        let Some(captured) = self.begin_dispatch(operation_id, online, |request| {
+            let grant = host.authorize(request)?;
+            authorized = Some(grant.clone());
+            Ok(grant)
+        })?
+        else {
+            return Ok(false);
+        };
+        let grant = authorized.ok_or(PortError::Permission)?;
+        let outcome = host.execute(&captured.reference, &captured.request)?;
+        self.complete(operation_id, outcome, &grant)?;
+        Ok(true)
+    }
+    /// Persist one authorized attempt before asynchronous host work. Completion
+    /// must reauthorize through `complete`; no host effect runs in this transaction.
+    pub fn begin_dispatch(
+        &self,
+        operation_id: &str,
+        online: bool,
+        authorize: impl FnOnce(&AssetRequest) -> Result<AssetGrant, PortError>,
+    ) -> Result<Option<AssetIntent>, PortError> {
         let j = self.store.asset_journal()?;
         let intent = j
             .intents
@@ -353,12 +375,12 @@ impl<'a, S: AssetStore> AssetWork<'a, S> {
             .find(|i| i.request.operation_id == operation_id)
             .ok_or(PortError::InvalidRecord)?;
         if intent.status != WorkStatus::Pending {
-            return Ok(false);
+            return Ok(None);
         }
         if !online {
             return Err(PortError::Unavailable);
         }
-        let grant = host.authorize(&intent.request)?;
+        let grant = authorize(&intent.request)?;
         intent
             .request
             .validate(&grant)
@@ -386,12 +408,7 @@ impl<'a, S: AssetStore> AssetWork<'a, S> {
             i.attempts += 1;
             Ok(Some(i.clone()))
         })?;
-        let Some(captured) = captured else {
-            return Ok(false);
-        };
-        let outcome = host.execute(&captured.reference, &captured.request)?;
-        self.complete(operation_id, outcome, &grant)?;
-        Ok(true)
+        Ok(captured)
     }
     /// Public completion boundary for hosts with asynchronous transport. Late results
     /// on a retired reference are ignored; matching receipts never touch the document.

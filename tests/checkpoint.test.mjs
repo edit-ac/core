@@ -118,7 +118,7 @@ check('actual Chromium atomic publication, abort boundaries, reopen and corrupt-
         for(const phase of ['before-success','after-success']){boundary=phase;try{await storage.publish(point,ids);}catch(e){errors.push(e.name);}boundary='';storage.close();storage=await CheckpointStorage.open(indexedDB,'checkpoint-integration');observed.push((await storage.restore(initial.identity,replay)).value);}
         await storage.publish(point,ids);if(completed!==2)throw Error('Publication acknowledgment preceded transaction completion');storage.close();storage=await CheckpointStorage.open(indexedDB,'checkpoint-integration');observed.push((await storage.restore(initial.identity,replay)).value);
         // Simulate durable corruption in latest point; previous and journal remain intact.
-        const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('checkpoint-integration',3);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
+        const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('checkpoint-integration',4);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
         try{await new Promise((resolve,reject)=>{const tx=db.transaction('checkpoints','readwrite'),store=tx.objectStore('checkpoints'),key=JSON.stringify([initial.identity.documentId,initial.identity.epoch,initial.identity.schema]),r=store.get(key);r.onsuccess=()=>{r.result.latest.checkpoint.bytes[0]^=1;store.put(r.result,key);};tx.oncomplete=resolve;tx.onabort=()=>reject(tx.error);});}finally{db.close();}
         const fallback=await storage.restore(initial.identity,replay);observed.push(fallback.value);
         const retained=await journal.read(initial.identity);

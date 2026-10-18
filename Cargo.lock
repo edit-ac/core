@@ -893,6 +893,8 @@ version = "0.0.0"
 dependencies = [
  "editac-core",
  "editac-html",
+ "editac-markdown-wasm",
+ "editac-session",
  "serde",
  "serde_json",
  "wasm-bindgen",

@@ -1,4 +1,4 @@
-//! Stateless codec. Exports no Engine, replica, mutation, history or anchor owner.
+//! Optional codec. Checkpoint snapshots are read-only; live mutation/history stay in Engine.
 use editac_core::interchange::{
     Result, TransferBlock, kernel, parse, transfer_blocks, transfer_value,
 };
@@ -108,5 +108,138 @@ mod tests {
             export_value(&blocks.to_string()).unwrap_err().code,
             "EngineRejected"
         );
+    }
+}
+
+// Stateless source adapter: restore bounded snapshots only for the existing codec
+// checks. Never commit either snapshot or allocate a second live writable owner.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+struct SnapshotIdentity {
+    profile: String,
+    schema: String,
+    protocol_version: u32,
+    update_encoding: u32,
+    offsets: String,
+    document_id: String,
+    epoch: String,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+struct SnapshotInput {
+    identity: SnapshotIdentity,
+    initialized: bool,
+    writer_id: u32,
+}
+impl SnapshotInput {
+    fn restore(self, bytes: &[u8]) -> Result<editac_core::document::Document> {
+        use editac_core::document::{
+            Document, DocumentIdentity, InitializedCheckpoint, MAX_RESTORE_BYTES,
+        };
+        if bytes.len() > MAX_RESTORE_BYTES {
+            return Err(editac_core::interchange::err(
+                "ResourceLimit",
+                "tableSource",
+                "checkpoint limit",
+            ));
+        }
+        let i = self.identity;
+        let expected =
+            DocumentIdentity::v5(&i.document_id, &i.epoch).map_err(|e| kernel("tableSource", e))?;
+        let identity = DocumentIdentity {
+            profile: i.profile,
+            schema: i.schema,
+            protocol_version: i.protocol_version,
+            update_encoding: i.update_encoding,
+            offsets: i.offsets,
+            document_id: i.document_id,
+            epoch: i.epoch,
+        };
+        let checkpoint = InitializedCheckpoint {
+            identity,
+            initialized: self.initialized,
+            writer_id: self.writer_id,
+            bytes: bytes.to_vec(),
+        };
+        Document::restore(&expected, &checkpoint, &[]).map_err(|e| kernel("tableSource", e))
+    }
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+struct TableSourceInput {
+    baseline: SnapshotInput,
+    current: SnapshotInput,
+    source: String,
+    owners: Vec<String>,
+    action: String,
+    owner: String,
+    origin: String,
+    #[serde(default)]
+    images: bool,
+    #[serde(default)]
+    tables: bool,
+    #[serde(default)]
+    callouts: bool,
+}
+#[wasm_bindgen]
+pub fn table_source(
+    input: &str,
+    baseline: &[u8],
+    current: &[u8],
+) -> std::result::Result<String, JsValue> {
+    output(table_source_value(input, baseline, current))
+}
+pub fn table_source_value(input: &str, baseline: &[u8], current: &[u8]) -> Result<Value> {
+    use editac_markdown::{
+        optional::Codecs,
+        reconcile::{SourceBaseline, SourceMode},
+    };
+    let r: TableSourceInput = parse(input, "tableSource")?;
+    let opening = r.baseline.restore(baseline)?;
+    let live = r.current.restore(current)?;
+    let base = SourceBaseline::capture(
+        &opening,
+        &r.source,
+        SourceMode::Markdown(Codecs {
+            images: r.images,
+            tables: r.tables,
+            callouts: r.callouts,
+        }),
+        &r.owners,
+    )
+    .map_err(|e| kernel("tableSource", e))?;
+    match r.action.as_str() {
+        "capture" => Ok(json!({"source":base.source()})),
+        "recover" => Ok(
+            json!({"source":base.source_with_current_table(&live,&r.owner).map_err(|e|kernel("tableSource",e))?}),
+        ),
+        "prepare" => {
+            let origin = editac_core::commands::text::TextOrigin::new(&r.origin)
+                .map_err(|e| kernel("tableSource", e))?;
+            // Re-encoding two restored Yrs replicas need not produce identical
+            // update ordering. Guard the original supplied bytes, then use the
+            // same read-only opening replica for the native strict prepare.
+            if baseline != current || live.identity() != opening.identity() {
+                return Err(editac_core::interchange::err(
+                    "EngineRejected",
+                    "tableSource",
+                    "StalePlan",
+                ));
+            }
+            let plan = base
+                .prepare_table_format(&opening, &r.owner, &origin)
+                .map_err(|e| kernel("tableSource", e))?;
+            let block = opening
+                .fragment_for_node(&r.owner)
+                .map_err(|e| kernel("tableSource", e))?;
+            Ok(
+                json!({"source":plan.source(),"changed":plan.changed(),"replacement":plan.replacement_source(),"expected":editac_core::interchange::value(&block.attributes.expect("qualified table attributes").tuple())}),
+            )
+        }
+        _ => Err(editac_core::interchange::err(
+            "InvalidInput",
+            "tableSource",
+            "unknown source operation",
+        )),
     }
 }

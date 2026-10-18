@@ -85,6 +85,7 @@ pub enum ProjectionError {
 #[derive(Clone, Debug, Default)]
 struct Pending {
     structural: bool,
+    metadata: BTreeSet<String>,
     texts: BTreeSet<String>,
     ranges: Vec<TouchedRange>,
 }
@@ -136,7 +137,7 @@ impl ProjectionIndex {
     }
     fn with_profile(doc: &Doc, stable_presentation: bool) -> Self {
         let txn = doc.transact();
-        let roots: Vec<_> = ROOTS
+        let (names, roots): (Vec<_>, Vec<_>) = ROOTS
             .iter()
             .copied()
             .chain([
@@ -147,8 +148,8 @@ impl ProjectionIndex {
                 "registry-list-item-attributes",
                 "registry-entity-controls",
             ])
-            .filter_map(|name| txn.get_map(name))
-            .collect();
+            .filter_map(|name| txn.get_map(name).map(|map| (name, map)))
+            .unzip();
         drop(txn);
         let pending = Arc::new(Mutex::new(Pending {
             structural: true,
@@ -159,14 +160,23 @@ impl ProjectionIndex {
             NEXT_INDEX.fetch_add(1, Ordering::Relaxed)
         );
         let inspected = Arc::new(Mutex::new(None));
-        for (i, map) in roots.iter().enumerate() {
+        for (name, map) in names.into_iter().zip(&roots) {
             let pending = pending.clone();
             let inspected = inspected.clone();
             map.observe_deep(key.clone(), move |txn, events| {
                 let mut p = pending.lock().unwrap();
                 *inspected.lock().unwrap() = None;
                 for event in events.iter() {
-                    if i == 1 {
+                    // Collect keys only. Whether a descriptor change is source-only
+                    // is validated after the transaction, against the cached owner.
+                    if name == BLOCK_ATTRIBUTES {
+                        if let Event::Map(map) = event {
+                            p.metadata
+                                .extend(map.keys(txn).keys().map(|id| id.to_string()));
+                            continue;
+                        }
+                    }
+                    if name == ROOTS[1] {
                         if let Event::Map(map) = event {
                             p.texts
                                 .extend(map.keys(txn).keys().map(|id| id.to_string()));
@@ -215,6 +225,7 @@ impl ProjectionIndex {
             return Ok(snapshot.clone());
         }
         if cached.general_retained.is_some()
+            && pending.metadata.is_empty()
             && !pending.structural
             && pending.texts.is_empty()
             && pending.ranges.is_empty()
@@ -244,6 +255,9 @@ impl ProjectionIndex {
             .is_some()
         {
             return self.refresh_general(pending, cache);
+        }
+        if !pending.metadata.is_empty() {
+            pending.structural = true;
         }
         let txn = self.doc.transact();
         if self.roots.len() < ROOTS.len() {
@@ -406,6 +420,7 @@ impl ProjectionIndex {
             retained_structure: None,
         };
         pending.texts.clear();
+        pending.metadata.clear();
         pending.structural = false;
         Ok(snapshot)
     }
@@ -430,20 +445,127 @@ impl ProjectionIndex {
             retained_structure: cache.general_retained.as_ref().map(|v| v.as_ref().clone()),
         }
     }
+    /// Source metadata cannot affect ownership, text, list ordinals or fallback
+    /// presentation. Update only derived cached tuples, retaining the canonical
+    /// snapshot's other fields. Anything outside this exact v1 delta falls back
+    /// to the qualified full replay below.
+    fn refresh_table_source_metadata(
+        &self,
+        pending: &mut Pending,
+        cache: &mut Cache,
+    ) -> Result<Option<Snapshot>, ProjectionError> {
+        let txn = self.doc.transact();
+        let attributes = txn
+            .get_map(BLOCK_ATTRIBUTES)
+            .ok_or(ProjectionError::InvalidSchema)?;
+        let mut replacements = BTreeMap::new();
+        for id in &pending.metadata {
+            let Some(old) = cache.visible.get(id).or_else(|| cache.recovery.get(id)) else {
+                return Ok(None);
+            };
+            let Some(Out::Any(tuple)) = attributes.get(&txn, id) else {
+                return Ok(None);
+            };
+            let Some(old_attributes) = &old.block_attributes else {
+                return Ok(None);
+            };
+            if !table_source_delta(&old_attributes.tuple(), &tuple) {
+                return Ok(None);
+            }
+            let mut node = old.as_ref().clone();
+            node.block_attributes = Some(
+                crate::document::parse_editor_tuple(&tuple)
+                    .map_err(|_| ProjectionError::InvalidSchema)?,
+            );
+            replacements.insert(id.clone(), (Arc::new(node), tuple));
+        }
+        let Some(retained) = &cache.general_retained else {
+            return Ok(None);
+        };
+        let Any::Map(root) = retained.as_ref() else {
+            return Err(ProjectionError::InvalidOwnership);
+        };
+        let mut root = root.as_ref().clone();
+        let Some(Any::Map(raw)) = root.get("retained") else {
+            return Err(ProjectionError::InvalidOwnership);
+        };
+        let mut raw = raw.as_ref().clone();
+        for (id, (_, tuple)) in &replacements {
+            raw.insert(id.clone(), tuple.clone());
+        }
+        root.insert("retained".into(), Any::Map(raw.into()));
+        for key in ["visible", "deleted"] {
+            let Some(Any::Array(nodes)) = root.get(key) else {
+                return Err(ProjectionError::InvalidOwnership);
+            };
+            let mut nodes = nodes.to_vec();
+            for node in &mut nodes {
+                let Any::Map(fields) = node else {
+                    return Err(ProjectionError::InvalidOwnership);
+                };
+                let Some(Any::String(id)) = fields.get("id") else {
+                    return Err(ProjectionError::InvalidOwnership);
+                };
+                if let Some((_, tuple)) = replacements.get(id.as_ref()) {
+                    let mut next = fields.as_ref().clone();
+                    next.insert("tuple".into(), tuple.clone());
+                    *node = Any::Map(next.into());
+                }
+            }
+            root.insert(key.into(), Any::Array(nodes.into()));
+        }
+        let mut changed = BTreeSet::new();
+        for (id, (node, _)) in replacements {
+            let destination = if cache.visible.contains_key(&id) {
+                &mut cache.visible
+            } else {
+                &mut cache.recovery
+            };
+            if destination
+                .get(&id)
+                .is_some_and(|old| old.as_ref() != node.as_ref())
+            {
+                changed.insert(id.clone());
+                destination.insert(id, node);
+            }
+        }
+        cache.general_retained = Some(Arc::new(Any::Map(root.into())));
+        pending.metadata.clear();
+        let mut snapshot = Self::unchanged_general(cache);
+        snapshot.changed_nodes = changed;
+        Ok(Some(snapshot))
+    }
     fn refresh_general(
         &self,
         pending: &mut Pending,
         cache: &mut Cache,
     ) -> Result<Snapshot, ProjectionError> {
+        if self.stable_presentation
+            && cache.general_retained.is_some()
+            && !pending.structural
+            && pending.texts.is_empty()
+            && pending.ranges.is_empty()
+            && !pending.metadata.is_empty()
+        {
+            if let Some(snapshot) = self.refresh_table_source_metadata(pending, cache)? {
+                return Ok(snapshot);
+            }
+            pending.structural = true;
+        }
+        if !pending.metadata.is_empty() {
+            pending.structural = true;
+        }
         if cache.general_retained.is_some()
+            && pending.metadata.is_empty()
             && !pending.structural
             && pending.texts.is_empty()
             && pending.ranges.is_empty()
         {
             return Ok(Self::unchanged_general(cache));
         }
-        let (view, retained, editor) = crate::editor::projection(&self.doc, self.stable_presentation)
-            .map_err(|_| ProjectionError::InvalidOwnership)?;
+        let (view, retained, editor) =
+            crate::editor::projection(&self.doc, self.stable_presentation)
+                .map_err(|_| ProjectionError::InvalidOwnership)?;
         let txn = self.doc.transact();
         let texts = txn
             .get_map(ROOTS[1])
@@ -585,8 +707,30 @@ impl ProjectionIndex {
         cache.ready = true;
         pending.structural = false;
         pending.texts.clear();
+        pending.metadata.clear();
         Ok(snapshot)
     }
+}
+// Validate the complete inert descriptors before reusing ownership/text caches.
+// Source is the only differing field; no semantic table edit takes this path.
+fn table_source_delta(before: &Any, after: &Any) -> bool {
+    use crate::modules::content::Content;
+    if !matches!(Content::from_tuple(before), Ok(Some(Content::Table { .. })))
+        || !matches!(Content::from_tuple(after), Ok(Some(Content::Table { .. })))
+    {
+        return false;
+    }
+    let (Any::Array(a), Any::Array(b)) = (before, after) else {
+        return false;
+    };
+    let (Some(Any::Map(a)), Some(Any::Map(b))) = (a.get(2), b.get(2)) else {
+        return false;
+    };
+    let mut a = a.as_ref().clone();
+    let mut b = b.as_ref().clone();
+    a.remove("source");
+    b.remove("source");
+    a == b
 }
 impl Drop for ProjectionIndex {
     fn drop(&mut self) {
