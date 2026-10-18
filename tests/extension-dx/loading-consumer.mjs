@@ -1,4 +1,4 @@
-import { assertDisabledPresenters } from '../consumers/mobile-extensions/graph.mjs';
+import { assertDisabledOutputs, assertDisabledPresenters } from '../consumers/mobile-extensions/graph.mjs';
 import assert from 'node:assert/strict';
 import { build } from 'esbuild';
 import { readFile, writeFile, mkdir, cp, readdir } from 'node:fs/promises';
@@ -86,7 +86,7 @@ export async function prepareLoadingConsumer(consumer, { output, facts, run }) {
   await writeFile(join(consumer,'minimal.mjs'),minimalSource);
   const minimal=await build({absWorkingDir:consumer,entryPoints:{minimal:join(consumer,'minimal.mjs')},outdir:join(version,'minimal'),bundle:true,splitting:true,format:'esm',platform:'browser',target:'es2022',metafile:true,logLevel:'silent',chunkNames:'chunks/[name]-[hash]'});
   const minimalEntry=Object.keys(minimal.metafile.outputs).find(key=>minimal.metafile.outputs[key].entryPoint==='minimal.mjs');
-  const minimalEager=eagerInputs(minimal.metafile,minimalEntry);assertLightweight(minimalEager);assertDisabledPresenters(minimalEager);
+  const minimalEager=eagerInputs(minimal.metafile,minimalEntry);assertLightweight(minimalEager);assertDisabledPresenters(minimalEager);assertDisabledOutputs(minimal.metafile.outputs);
   facts.minimalGraph={url:base+'/minimal-default.html',entry:minimalEntry,eager:minimalEager,optionalOutputs:Object.entries(minimal.metafile.outputs).filter(([,value])=>Object.keys(value.inputs).some(input=>/\/extensions\/runtime\/|\/extensions\/(authoring|matching|spelling)\.js|\/modules\/(search|reorder|references|slash|content)\.js/.test(input))).map(([path])=>path.slice(path.indexOf('/minimal/')+1))};
   await writeFile(join(output,'minimal-metafile.json'),JSON.stringify(minimal.metafile,null,2));
   await writeFile(join(version,'minimal-default.html'),`<!doctype html><html lang="en"><title>Minimal installed default</title><script type="module" src="${base}/minimal/minimal.js"></script></html>`);
@@ -102,7 +102,9 @@ export async function prepareLoadingConsumer(consumer, { output, facts, run }) {
   }
   facts.graph={entry,eager,features,omittedOptionalInstallation:true,allInputs:Object.keys(meta.inputs),baseline:'Yrs/update/local storage remain in core; no engine binary or size-budget claim'};
   assert.ok(Object.keys(features).some(path=>path.includes('/sync/attachment.js')));
-  assert.ok(Object.keys(features).some(path=>path.includes('/modules/math-renderer.js')));
+  assert.ok(!Object.keys(features).some(path=>path.includes('/modules/math-renderer.js') || path.includes('/modules/code/presenter.js')), 'host-addressed optional renderers must not be emitted into this consumer');
+  facts.graph.externalFeatures = ['modules/math.js', 'modules/math-renderer.js', 'modules/code/presenter.js', 'modules/code/worker.js'];
+  for (const path of facts.graph.externalFeatures) assert.ok((await readFile(join(version, 'web', path))).length, 'missing installed optional asset: '+path);
   const native=new Map();
   async function traverse(path) {
     if(native.has(path))return;const text=await readFile(path,'utf8');const edges=[];native.set(path,edges);
@@ -125,8 +127,9 @@ export async function prepareLoadingConsumer(consumer, { output, facts, run }) {
   await writeFile(join(output,'eager-control-metafile.json'),JSON.stringify(corrupted.metafile,null,2));
   const imports={'@edit-ac/core':paths.core+'/index.js','@edit-ac/core/extensions':paths.core+'/extensions/index.js','@edit-ac/web':paths.web+'/index.js','@edit-ac/markdown/web':paths.markdown+'/web.js'};
   const bundled=process.env.EDITAC_LOADING_HOST==='bundler';
-  const assets=bundled?{manifest:{markdownModule:paths.bundle+'/markdown.js',markdown:paths.markdown+'/wasm/editac_markdown_wasm_bg.wasm'}}:undefined;
-  const hostManifest={manifest:{engine:paths.core+'/wasm/editac_wasm_bg.wasm',markdownModule:bundled?paths.bundle+'/markdown.js':paths.markdown+'/web.js',markdown:paths.markdown+'/wasm/editac_markdown_wasm_bg.wasm',mathModule:paths.web+'/modules/math.js',highlightWorker:paths.web+'/modules/code/worker-entry.js',highlightBackend:paths.web+'/modules/code/backend/editac_highlighting.js'}};
+  const presenterAssets=Object.fromEntries(['search','reorder','slash','references','content'].map(name=>[name+'Module',paths.web+'/extensions/runtime/'+name+'.js']));
+  const assets=bundled?{manifest:{...presenterAssets,mathModule:paths.web+'/modules/math.js',markdownModule:paths.bundle+'/markdown.js',markdown:paths.markdown+'/wasm/editac_markdown_wasm_bg.wasm'}}:undefined;
+  const hostManifest={manifest:{...presenterAssets,engine:paths.core+'/wasm/editac_wasm_bg.wasm',markdownModule:bundled?paths.bundle+'/markdown.js':paths.markdown+'/web.js',markdown:paths.markdown+'/wasm/editac_markdown_wasm_bg.wasm',mathModule:paths.web+'/modules/math.js',highlightModule:paths.web+'/modules/code/presenter.js',highlightTransport:paths.web+'/modules/code/worker.js',highlightWorker:paths.web+'/modules/code/worker-entry.js',highlightBackend:paths.web+'/modules/code/backend/editac_highlighting.js'}};
   // Runtime configuration requires absolute host URLs. The recipe serializes
   // paths so the same immutable tree can be deployed at any authorized origin.
   await writeFile(join(output,'host-manifest.json'),JSON.stringify({identity:id,assets:hostManifest},null,2));

@@ -35,7 +35,7 @@ function featureChunk(pattern){const entry=Object.entries(facts.graph.features).
 test('SDK-1.12 installed native and bundler eager graphs exclude optional implementations; real eager control rejected',()=>{
   assertLightweight(facts.graph.eager);assertLightweight(facts.nativeGraph.eager);
   assert.equal(facts.graph.omittedOptionalInstallation,true);assert.equal(facts.controls.realEagerBundleRejected,true);
-  assert.ok(Object.keys(facts.graph.features).length>=8);assert.equal(facts.converters.length,2);
+  assert.ok(Object.keys(facts.graph.features).length>=5);assert.equal(facts.graph.externalFeatures.length,4);assert.equal(facts.converters.length,2);
   assert.ok(facts.converters.every(cell=>cell.state==='unavailable'));
 });
 
@@ -171,9 +171,46 @@ browserCase('presence assets remain absent with awareness off and load only for 
   assert.equal(result.attached,true);assert.equal(result.state,'cancelled');assert.equal(result.localState,'ready');assert.ok(featureRequests(fact,/\/sync\/presence\.js$/).length>=1);fact.snapshots.push(result);
 });
 
+browserCase('configured presenter asset manifest loads each selected owner without host work or content changes', async (page, fact) => {
+  const results = await page.evaluate(async () => {
+    const f = window.configurationFixture;
+    let calls = 0;
+    const selected = [f.DocumentSearch.configure(), f.BlockReorder.configure(), f.Images.configure(), f.Tables.configure(),
+      f.SlashCommands.configure({ commands: [{ id: 'safe', label: 'Safe', prepare() { calls++; return undefined; } }] }),
+      f.References.configure({ host() { calls++; return []; } })];
+    const results = [];
+    for (const extension of selected) {
+      const editor = await f.open(f.options({ extensions: [extension] }));
+      const feature = extension.feature.id.split('.').at(-1);
+      results.push({ feature, state: editor.extensionStatus[extension.feature.id].state,
+        text: f.content(editor), presenter: ['search', 'reorder', 'slash', 'references'].includes(feature) ? !!editor[feature] : true });
+      await editor.destroy({ policy: 'report' });
+    }
+    return { results, calls };
+  });
+  assert.equal(results.calls, 0, 'opening presenters never calls optional hosts');
+  assert.deepEqual(results.results.map(row => row.feature), ['search','reorder','images','tables','slash','references']);
+  for (const row of results.results) assert.deepEqual(row, { feature: row.feature, state: 'ready', text: 'Alpha beta', presenter: true });
+  fact.presenterAssets = results;
+});
+
+browserCase('mixed bundled legacy and asset-loaded presenters have distinct accessible IDs', async (page, fact) => {
+  const result = await page.evaluate(async () => {
+    const f = window.configurationFixture, host = () => [], commands = [{ id: 'safe', label: 'Safe', prepare: () => undefined }];
+    const legacy = f.surface({ search: f.documentSearch(), slash: f.slashCommands(commands), references: f.referenceSuggestions(host) });
+    const managed = f.surface(f.options({ extensions: [f.DocumentSearch.configure(), f.SlashCommands.configure({ commands }), f.References.configure({ host })] }));
+    await Promise.all([legacy.surface.ready, managed.surface.ready]);
+    return { ids: [legacy.surface.slash.menu.id, legacy.surface.references.menu.id, managed.surface.slash.menu.id, managed.surface.references.menu.id],
+      texts: [f.content(legacy.engine), f.content(managed.engine)], distinct: legacy.surface.search !== managed.surface.search };
+  });
+  assert.equal(new Set(result.ids).size, 4);
+  assert.deepEqual(result.texts, ['Alpha beta', 'Alpha beta']); assert.equal(result.distinct, true);
+  fact.mixedPresenterIds = result;
+});
+
 browserCase('math implementation and KaTeX load on first selected presentation with source unchanged',async(page,fact)=>{
   assert.equal(featureRequests(fact,/\/modules\/math(?:-renderer)?\.js|katex/).length,0);
-  await page.evaluate(async()=>{const f=window.configurationFixture,e=f.engine('');f.fill(e,[{attributes:{type:'paragraph'},runs:[{text:'LaTeX source: x^2',marks:[],attributes:{'module:editac.math':[1,{latex:'x^2',display:false}]}}]}]);window.mathSource=JSON.stringify(e.read().visible);window.mathEngine=e;window.b=f.mountEditorSurface(f.root(),e,{extensions:[f.MathNotation.configure()]});f.surfaces.push(window.b);await window.b.ready;});
+  await page.evaluate(async()=>{const f=window.configurationFixture,e=f.engine('');f.fill(e,[{attributes:{type:'paragraph'},runs:[{text:'LaTeX source: x^2',marks:[],attributes:{'module:editac.math':[1,{latex:'x^2',display:false}]}}]}]);window.mathSource=JSON.stringify(e.read().visible);window.mathEngine=e;window.b=f.mountEditorSurface(f.root(),e,f.options({extensions:[f.MathNotation.configure()]}));f.surfaces.push(window.b);await window.b.ready;});
   await page.waitForFunction(()=>document.querySelector('[data-math-state="rendered"] math'));
   const result=await page.evaluate(()=>({same:window.mathSource===JSON.stringify(window.mathEngine.read().visible),text:window.configurationFixture.content(window.mathEngine),errors:window.b.moduleRuntime.takeErrors()}));assert.equal(result.same,true);assert.equal(result.text,'LaTeX source: x^2');assert.deepEqual(result.errors,[]);assert.ok(featureRequests(fact,/\/modules\/math-renderer\.js|katex/).length>=1);fact.snapshots.push(result);
 });
@@ -205,10 +242,10 @@ browserCase('managed highlighting uses qualified independent worker/backend and 
 
 browserCase('disposing a pending highlighting presenter creates no worker or late style',async(page,fact)=>{
   let release;const gate=new Promise(r=>{release=r;});let reached=false;
-  const suffix=process.env.EDITAC_LOADING_HOST==='bundler'?featureChunk(/\/modules\/code\/presenter\.js$/):'presenter.js';
+  const suffix='presenter.js';
   await page.route('**/'+suffix,async route=>{reached=true;await gate;await route.continue();});
   try{
-    await page.evaluate(async()=>{const f=window.configurationFixture,e=f.engine('const late = 1;'),id=e.read().visible.find(n=>n.kind==='block').id;e.commit(e.prepare({kind:'editor',origin:'local:fixture',commands:[{type:'setCode',owner:id,language:'typescript'}]}));const factory=f.managedCodeHighlighting();window.b=f.mountEditorSurface(f.root(),e,{codeHighlight:renderer=>(window.highlight=factory(renderer))});f.surfaces.push(window.b);await window.b.ready;});
+    await page.evaluate(async()=>{const f=window.configurationFixture,e=f.engine('const late = 1;'),id=e.read().visible.find(n=>n.kind==='block').id;e.commit(e.prepare({kind:'editor',origin:'local:fixture',commands:[{type:'setCode',owner:id,language:'typescript'}]}));const factory=f.managedCodeHighlighting({assets:window.loadingManifest});window.b=f.mountEditorSurface(f.root(),e,{codeHighlight:renderer=>(window.highlight=factory(renderer))});f.surfaces.push(window.b);await window.b.ready;});
     for(let i=0;i<100&&!reached;i++)await new Promise(r=>setTimeout(r,10));assert.equal(reached,true);await page.evaluate(()=>window.b.dispose());release();await page.waitForTimeout(50);
     const result=await page.evaluate(()=>({state:window.highlight.status.state,workers:window.loadingObservations.workers,styles:document.querySelectorAll('style').length}));assert.deepEqual(result,{state:'cancelled',workers:0,styles:0});fact.snapshots.push(result);
   }finally{release();}

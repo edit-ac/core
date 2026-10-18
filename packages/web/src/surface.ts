@@ -5,6 +5,7 @@ import type { PreparedEditorConfigurationV1, PlatformObservationV1 } from './ext
 import { ExtensionConfigurationError } from './extensions/contract.js';
 import { markdownResource } from './extensions/markdown-resource.js';
 import { configuredResource } from './extensions/resource.js';
+import { importPresenterModule } from './extensions/assets.js';
 import { literalShortcuts } from './input/shortcuts.js';
 import { editorStoragePorts, type EditorStorageOwner } from './storage/owner.js';
 import type { AttachSyncOptions, SyncAttachment } from './sync/attachment.js';
@@ -125,7 +126,7 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
   });
   const contentFactories = new Map<string, import('./modules/content.js').ContentFactory>();
   const contentResources = ['editac.images', 'editac.tables'].map(id => configuredResource(prepared, id, async signal => {
-    const { contentModules } = await import('./extensions/runtime/content.js');
+    const { contentModules } = await importPresenterModule<typeof import('./extensions/runtime/content.js')>(prepared?.configuration.assets, 'content');
     if (signal.aborted) return { dispose() {} };
     const factory = contentModules();
     contentFactories.set(id, context => {
@@ -161,21 +162,21 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
     };
     try {
       if (id === 'editac.search') {
-        const { documentSearch } = await import('./extensions/runtime/search.js');
+        const { documentSearch } = await importPresenterModule<typeof import('./extensions/runtime/search.js')>(prepared?.configuration.assets, 'search');
         if (signal.aborted) return { dispose() {} };
         input!.attachSearch(documentSearch()); attached = input!.search;
       } else if (id === 'editac.reorder') {
-        const { reorderControls } = await import('./extensions/runtime/reorder.js');
+        const { reorderControls } = await importPresenterModule<typeof import('./extensions/runtime/reorder.js')>(prepared?.configuration.assets, 'reorder');
         if (signal.aborted) return { dispose() {} };
         input!.attachReorder(reorderControls()); attached = input!.reorder; releases.push(viewport!.addControls(input!.reorder!.controls));
       } else if (id === 'editac.slash') {
-        const { slashCommands } = await import('./extensions/runtime/slash.js');
+        const { slashCommands } = await importPresenterModule<typeof import('./extensions/runtime/slash.js')>(prepared?.configuration.assets, 'slash');
         if (signal.aborted) return { dispose() {} };
         if (!hosts?.slash) throw Error('Missing admitted slash host');
         input!.attachSlash(slashCommands(hosts.slash.commands, { literal: hosts.slash.literal }));
         attached = input!.slash; releases.push(viewport!.addControls(input!.slash!.control), viewport!.addControls(input!.slash!.menu));
       } else {
-        const { referenceSuggestions } = await import('./extensions/runtime/references.js');
+        const { referenceSuggestions } = await importPresenterModule<typeof import('./extensions/runtime/references.js')>(prepared?.configuration.assets, 'references');
         if (signal.aborted) return { dispose() {} };
         if (!hosts?.references) throw Error('Missing admitted reference host');
         input!.attachReferences(referenceSuggestions(hosts.references.host, { triggers: hosts.references.triggers }));

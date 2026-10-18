@@ -1,3 +1,4 @@
-/** One package-local ID source shared by synchronous and asynchronous presenters. */
-let sequence = 0;
-export function nextPresenterSequence(): number { return ++sequence; }
+/** View/request IDs stay unique across native ESM and bundled presenter copies.
+ * Nothing reads browser globals at import; these IDs never enter document state.
+ */
+export function nextPresenterSequence(): string { return crypto.randomUUID(); }

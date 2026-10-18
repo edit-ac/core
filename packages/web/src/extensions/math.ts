@@ -4,10 +4,10 @@ import { extensionAsset, importExtensionModule } from './assets.js';
 
 /** Small view adapter only. Source/history stay in the existing runtime. */
 export function managedMathRenderer(assets?: ExtensionAssetsV1): ModuleRenderer {
-  const url = extensionAsset(assets, 'mathModule', 'math.js');
+  const url = extensionAsset(assets, 'mathModule', 'math.js') ?? new URL('../modules/math.js', import.meta.url).href;
   return { mount(element, initial) {
     let current = initial, disposed = false, view: ModuleView | undefined;
-    const pending = url ? importExtensionModule<typeof import('../modules/math.js')>(url) : import('../modules/math.js');
+    const pending = importExtensionModule<typeof import('../modules/math.js')>(url);
     element.dataset.mathState = 'loading';
     void pending.then(module => {
       if (disposed) return;

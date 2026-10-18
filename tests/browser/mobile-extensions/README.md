@@ -49,3 +49,16 @@ Baseline resources and optional listener ownership are checked separately after
 disposal. Current Code/Pairs registry contract-fixture status is preserved, and
 future mobile format/assistance/formatting adapters remain in their own parents;
 these tests do not admit them or close platform/performance/release predicates.
+
+The disabled graph guard checks every emitted contribution, including lazy chunks,
+for both the native-minimal and public-default bundle entries. Eager-import
+absence alone is insufficient. Real optional-module counterfactual bundles must
+fail both guards. Enabled native ESM consumers use package-relative presenter
+URLs; bundled hosts use the existing asset manifest/base URL. Presenter manifest
+keys are `searchModule`, `reorderModule`, `slashModule`, `referencesModule` and
+`contentModule`; math uses `mathModule`. Managed highlighting uses
+`highlightModule` and `highlightTransport` alongside its worker/backend URLs. This is host configuration, never content.
+View/request IDs remain unique across legacy bundled and separately loaded
+presenters without a shared global counter or document-state mutation.
+The installed loading consumer supplies and exercises these URLs separately from
+the minimal consumer, which emits and requests none of those optional artifacts.

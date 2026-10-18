@@ -1,4 +1,4 @@
-import { assertDisabledPresenters } from './graph.mjs';
+import { assertDisabledOutputs, assertDisabledPresenters } from './graph.mjs';
 import assert from 'node:assert/strict';
 import { before, after, test } from 'node:test';
 import { spawnSync } from 'node:child_process';
@@ -62,11 +62,12 @@ for (const [name, source] of [
     contributions: Object.entries(bundle.metafile.outputs).flatMap(([file, value]) => Object.entries(value.inputs).map(([source, info]) => ({ file: file.replace(resolve(output), '<output>'), source: source.replace(consumer, '<installed-consumer>'), bytes: info.bytesInOutput }))),
     assets: Object.keys(bundle.metafile.outputs).filter(path => !/\.js$/.test(path)) };
   assertDisabledGraph(inputs);
+  assertDisabledOutputs(bundle.metafile.outputs);
   assert.deepEqual(manifest.graphs[name].assets, [], 'disabled CSS/assets emitted');
 });
 for (const [path, symbol] of [ ['modules/search','documentSearch'], ['modules/reorder','reorderControls'],
   ['modules/slash','slashCommands'], ['modules/references','referenceSuggestions'],
-  ['extensions/runtime/search','documentSearch'], ['extensions/runtime/reorder','reorderControls'], ['extensions/runtime/slash','slashCommands'], ['extensions/runtime/references','referenceSuggestions'], ['extensions/runtime/content','contentModules'],
+  ['extensions/runtime/search','documentSearch'], ['extensions/runtime/reorder','reorderControls'], ['extensions/runtime/slash','slashCommands'], ['extensions/runtime/references','referenceSuggestions'], ['extensions/runtime/content','contentModules'], ['modules/code/presenter','codeHighlighting'], ['modules/code/worker','createHighlightWorker'],
   ['extensions/authoring','Extension'], ['extensions/matching','attachPatternMatching'], ['extensions/spelling','Spelling']
 ]) test(`MWX-C01 emitted eager-import control rejects ${path}`, async () => {
   const target = join(consumer, 'node_modules/@edit-ac/web/dist', `${path}.js`);
@@ -74,13 +75,15 @@ for (const [path, symbol] of [ ['modules/search','documentSearch'], ['modules/re
   const entry = Object.entries(bundle.metafile.outputs).find(([, value]) => value.entryPoint === '<stdin>')[0];
   const inputs = eagerInputs(bundle.metafile, entry);
   assert.ok(inputs.some(input => input.endsWith(`/dist/${path}.js`)), 'real control implementation missing');
-  assert.throws(() => assertDisabledGraph(inputs), /disabled optional presenter implementation/);
+  assert.throws(() => assertDisabledGraph(inputs), /disabled (?:optional presenter )?implementation/);
+  assert.throws(() => assertDisabledOutputs(bundle.metafile.outputs), /disabled optional presenter implementation/);
   manifest.controls ??= []; manifest.controls.push({ path, detected: true, inputs: inputs.map(input => input.replace(consumer, '<installed-consumer>')) });
   await writeFile(join(output, 'controls', path, 'metafile.json'), JSON.stringify(bundle.metafile, null, 2));
 });
 test('MWX-C01 absence guard rejects injected disabled feature code', () => {
   assert.throws(() => assertDisabledGraph(['node_modules/@edit-ac/web/dist/modules/slash.js']));
   assert.throws(() => assertDisabledGraph(['node_modules/@edit-ac/web/dist/modules/code/presenter.js']));
+  assert.throws(() => assertDisabledOutputs({ 'deferred.js': { inputs: { 'node_modules/@edit-ac/web/dist/extensions/runtime/search.js': { bytesInOutput: 12 } } } }), /disabled optional presenter implementation/);
 });
 
 test('MWX-C01 installed native minimal graph omits disabled code and rejects a real eager import', async () => {

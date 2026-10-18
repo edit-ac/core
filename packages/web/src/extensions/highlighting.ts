@@ -2,7 +2,7 @@ import type { ProjectedNode } from '@edit-ac/core';
 import type { DOMRenderer } from '../dom/render.js';
 import type { CodeHighlightOptions, CodeHighlightPresenter } from '../modules/code/presenter.js';
 import type { ExtensionAssetsV1, ExtensionStatusV1 } from './contract.js';
-import { extensionAsset } from './assets.js';
+import { extensionAsset, importExtensionModule } from './assets.js';
 
 /** The existing DOM renderer consumes this view-only lifetime port. */
 export type CodeHighlightAttachment = Pick<CodeHighlightPresenter, 'update' | 'hold' | 'remove' | 'dispose'>;
@@ -30,9 +30,11 @@ export function managedCodeHighlighting(options: ManagedCodeHighlightOptions = {
       if (status.generation >= 3) throw Error('Highlight retry limit reached');
       const generation = status.generation + 1;
       status = Object.freeze({ state: 'loading', generation });
-      pending = import('../modules/code/presenter.js').then(async ({ codeHighlighting }) => {
+      const presenterUrl = extensionAsset(options.assets, 'highlightModule', 'highlight-presenter.js') ?? new URL('../modules/code/presenter.js', import.meta.url).href;
+      pending = importExtensionModule<typeof import('../modules/code/presenter.js')>(presenterUrl).then(async ({ codeHighlighting }) => {
         if (disposed) return;
-        const { createHighlightWorker } = await import('../modules/code/worker.js');
+        const transportUrl = extensionAsset(options.assets, 'highlightTransport', 'highlight-transport.js') ?? new URL('../modules/code/worker.js', import.meta.url).href;
+        const { createHighlightWorker } = await importExtensionModule<typeof import('../modules/code/worker.js')>(transportUrl);
         if (disposed) return;
         const worker = extensionAsset(options.assets, 'highlightWorker', 'highlight-worker.js') ?? new URL('../modules/code/worker-entry.js', import.meta.url).href;
         const backend = extensionAsset(options.assets, 'highlightBackend', 'editac_highlighting.js') ?? new URL('../modules/code/backend/editac_highlighting.js', import.meta.url).href;
