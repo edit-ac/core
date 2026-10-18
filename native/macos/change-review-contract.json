@@ -1,0 +1,155 @@
+{
+  "contractVersion": 1,
+  "gate": "DSK-1.18",
+  "consumerGate": "NRC-1.2",
+  "command": "bash native/macos/scripts/check.sh change-review",
+  "suite": "change-review",
+  "filter": "EditacMacOSChangeReview(PresentationTests.ChangeReviewPresentationTests|Tests.ChangeReviewTests)",
+  "expectedCases": 32,
+  "package": {
+    "name": "EditacMacOS",
+    "product": "EditacMacOS",
+    "targets": [
+      "EditacNativeFFI",
+      "EditacNative",
+      "EditacMacOS",
+      "EditacMacOSChangeReviewTests",
+      "EditacMacOSChangeReviewPresentationTests"
+    ]
+  },
+  "suites": {
+    "EditacMacOSChangeReviewPresentationTests.ChangeReviewPresentationTests": {
+      "path": "native/macos/tests/ChangeReviewPresentation/ChangeReviewPresentationTests.swift",
+      "cases": [
+        "testExactSourceRetainsWireHashesAndNewlineMetadata",
+        "testProjectedMarkdownCarriesNormalizationAndVersionLabels",
+        "testSemanticFormattingHasIndependentFacet",
+        "testSemanticMovementDoesNotHideOtherFacets",
+        "testOpaquePayloadsAndRetainedStructureRemainInertVisibleText",
+        "testReadOnlyViewRejectsInputDeletionCutPasteAndAccessibilityWrites",
+        "testNativeLabelsExposeProfileScopeRevisionAndUnknownAttribution",
+        "testTrustedHostEvidenceIsSeparateFromPortableAttribution",
+        "testStaleRevisionRemainsVisibleAndNavigable",
+        "testDifferentDocumentAndProfileCannotAppearCurrent",
+        "testUTF16SectionRangesSelectExactDetachedContent",
+        "testNativeNavigationButtonsRouteWithoutLiveMutationCallback",
+        "testDisposeClearsOwnedDataAndIgnoresLateUpdates",
+        "testTwoReviewViewsRetainIndependentSelectionAndStaleness",
+        "testUnknownEnvelopeVersionRejected",
+        "testPortableAttributionCannotForgeTrustedEvidence",
+        "testPresentationLimitsRejectBeforeRendering",
+        "testLargeExportRetainsLastLineWithoutTruncation",
+        "testFormattingOnlyAndEmptyComparisonRemainExplicit",
+        "testReloadResetsCapturedRangesAndSelection",
+        "testActualSharedConcurrentExportRetainsCombinedFacets",
+        "testDetachedReviewDoesNotChangeActualSQLiteSessionOrHistory",
+        "testUnifiedNavigationKeepsOriginalLineCoordinatesAndExactWire",
+        "testNativeLayoutFitsDeclaredReviewWidthAndExposesTextGeometry"
+      ]
+    },
+    "EditacMacOSChangeReviewTests.ChangeReviewTests": {
+      "path": "native/macos/tests/ChangeReview/ChangeReviewTests.swift",
+      "cases": [
+        "testActualCaptureReadComparePreservesSemanticPayloadNavigationAndHistory",
+        "testTrustedHostEvidenceStaysSeparateFromActualPortablePayload",
+        "testLiveAdvanceRetainsHistoricalContentAndDetachedNavigation",
+        "testTwoViewsAndIndependentSessionsDoNotShareStateOrDisposeOwner",
+        "testMissingPrunedIncompatibleAndKeyUnavailableStayTypedAndVisible",
+        "testStaleCaptureAndResourceLimitDoNotMutateOrEraseReview",
+        "testReopenKeepsSQLiteDocumentButReportsProcessLocalRevisionsMissing",
+        "testReadOnlyCaptureAndQueuedDisposalPreserveOwnerAndSuppressDelivery"
+      ]
+    }
+  },
+  "criteria": [
+    {
+      "id": "DSK-1.18-read-only",
+      "criterion": "Read-only unified/semantic changes",
+      "cases": [
+        "EditacMacOSChangeReviewPresentationTests.ChangeReviewPresentationTests.testReadOnlyViewRejectsInputDeletionCutPasteAndAccessibilityWrites",
+        "EditacMacOSChangeReviewPresentationTests.ChangeReviewPresentationTests.testExactSourceRetainsWireHashesAndNewlineMetadata",
+        "EditacMacOSChangeReviewPresentationTests.ChangeReviewPresentationTests.testSemanticFormattingHasIndependentFacet",
+        "EditacMacOSChangeReviewTests.ChangeReviewTests.testReadOnlyCaptureAndQueuedDisposalPreserveOwnerAndSuppressDelivery"
+      ]
+    },
+    {
+      "id": "DSK-1.18-profile-labels",
+      "criterion": "Retain profile labels",
+      "cases": [
+        "EditacMacOSChangeReviewPresentationTests.ChangeReviewPresentationTests.testProjectedMarkdownCarriesNormalizationAndVersionLabels",
+        "EditacMacOSChangeReviewPresentationTests.ChangeReviewPresentationTests.testNativeLabelsExposeProfileScopeRevisionAndUnknownAttribution",
+        "EditacMacOSChangeReviewPresentationTests.ChangeReviewPresentationTests.testDifferentDocumentAndProfileCannotAppearCurrent"
+      ]
+    },
+    {
+      "id": "DSK-1.18-attribution",
+      "criterion": "Retain trusted/unknown attribution without authenticating labels",
+      "cases": [
+        "EditacMacOSChangeReviewPresentationTests.ChangeReviewPresentationTests.testTrustedHostEvidenceIsSeparateFromPortableAttribution",
+        "EditacMacOSChangeReviewPresentationTests.ChangeReviewPresentationTests.testPortableAttributionCannotForgeTrustedEvidence",
+        "EditacMacOSChangeReviewTests.ChangeReviewTests.testTrustedHostEvidenceStaysSeparateFromActualPortablePayload"
+      ]
+    },
+    {
+      "id": "DSK-1.18-stale",
+      "criterion": "Stale revisions remain visible",
+      "cases": [
+        "EditacMacOSChangeReviewPresentationTests.ChangeReviewPresentationTests.testStaleRevisionRemainsVisibleAndNavigable",
+        "EditacMacOSChangeReviewTests.ChangeReviewTests.testLiveAdvanceRetainsHistoricalContentAndDetachedNavigation",
+        "EditacMacOSChangeReviewTests.ChangeReviewTests.testMissingPrunedIncompatibleAndKeyUnavailableStayTypedAndVisible"
+      ]
+    },
+    {
+      "id": "DSK-1.18-I1-accessible-navigation",
+      "criterion": "Accessible native views with range navigation",
+      "cases": [
+        "EditacMacOSChangeReviewPresentationTests.ChangeReviewPresentationTests.testUTF16SectionRangesSelectExactDetachedContent",
+        "EditacMacOSChangeReviewPresentationTests.ChangeReviewPresentationTests.testNativeNavigationButtonsRouteWithoutLiveMutationCallback",
+        "EditacMacOSChangeReviewPresentationTests.ChangeReviewPresentationTests.testNativeLayoutFitsDeclaredReviewWidthAndExposesTextGeometry",
+        "EditacMacOSChangeReviewPresentationTests.ChangeReviewPresentationTests.testUnifiedNavigationKeepsOriginalLineCoordinatesAndExactWire",
+        "EditacMacOSChangeReviewTests.ChangeReviewTests.testActualCaptureReadComparePreservesSemanticPayloadNavigationAndHistory"
+      ]
+    },
+    {
+      "id": "DSK-1.18-I1-shared-contract",
+      "criterion": "Reuse roadmap-13 algorithm/revision/attribution contracts",
+      "cases": [
+        "EditacMacOSChangeReviewPresentationTests.ChangeReviewPresentationTests.testActualSharedConcurrentExportRetainsCombinedFacets",
+        "EditacMacOSChangeReviewPresentationTests.ChangeReviewPresentationTests.testOpaquePayloadsAndRetainedStructureRemainInertVisibleText",
+        "EditacMacOSChangeReviewTests.ChangeReviewTests.testActualCaptureReadComparePreservesSemanticPayloadNavigationAndHistory",
+        "EditacMacOSChangeReviewTests.ChangeReviewTests.testReopenKeepsSQLiteDocumentButReportsProcessLocalRevisionsMissing"
+      ]
+    },
+    {
+      "id": "DSK-1.18-I1-live-isolation",
+      "criterion": "Never rewind live replica; isolate history and views",
+      "cases": [
+        "EditacMacOSChangeReviewPresentationTests.ChangeReviewPresentationTests.testDetachedReviewDoesNotChangeActualSQLiteSessionOrHistory",
+        "EditacMacOSChangeReviewTests.ChangeReviewTests.testActualCaptureReadComparePreservesSemanticPayloadNavigationAndHistory",
+        "EditacMacOSChangeReviewTests.ChangeReviewTests.testTwoViewsAndIndependentSessionsDoNotShareStateOrDisposeOwner",
+        "EditacMacOSChangeReviewTests.ChangeReviewTests.testStaleCaptureAndResourceLimitDoNotMutateOrEraseReview"
+      ]
+    },
+    {
+      "id": "DSK-1.18-V1",
+      "criterion": "Canonical change-review with nonzero matching tests",
+      "cases": [
+        "EditacMacOSChangeReviewTests.ChangeReviewTests.testActualCaptureReadComparePreservesSemanticPayloadNavigationAndHistory",
+        "EditacMacOSChangeReviewTests.ChangeReviewTests.testTrustedHostEvidenceStaysSeparateFromActualPortablePayload",
+        "EditacMacOSChangeReviewTests.ChangeReviewTests.testLiveAdvanceRetainsHistoricalContentAndDetachedNavigation",
+        "EditacMacOSChangeReviewTests.ChangeReviewTests.testTwoViewsAndIndependentSessionsDoNotShareStateOrDisposeOwner",
+        "EditacMacOSChangeReviewTests.ChangeReviewTests.testMissingPrunedIncompatibleAndKeyUnavailableStayTypedAndVisible",
+        "EditacMacOSChangeReviewTests.ChangeReviewTests.testStaleCaptureAndResourceLimitDoNotMutateOrEraseReview",
+        "EditacMacOSChangeReviewTests.ChangeReviewTests.testReopenKeepsSQLiteDocumentButReportsProcessLocalRevisionsMissing",
+        "EditacMacOSChangeReviewTests.ChangeReviewTests.testReadOnlyCaptureAndQueuedDisposalPreserveOwnerAndSuppressDelivery"
+      ]
+    }
+  ],
+  "provenance": {
+    "runtime": "macos-os-host",
+    "cpu": "arm64",
+    "x86_64": "build-only",
+    "historicalPresentation": "prepared ingress; not actual Session integration",
+    "qualification": "development original DSK-1.18 only; no physical/AT/IME/performance/release promotion"
+  }
+}
