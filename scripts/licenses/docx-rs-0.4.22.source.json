@@ -1,0 +1,7 @@
+{
+  "version": "0.4.22",
+  "license": "MIT",
+  "sha256": "718ca36cb18f8ee3ddf9fdffc5f12fc17fad6328d40d8f13bee0a6daa7e1416e",
+  "source": "https://raw.githubusercontent.com/bokuweb/docx-rs/f04cf8b47a925b2b6fff850dcb75069aae89dab4/LICENSE",
+  "qualifiedEvidence": "architecture/evidence/document-conversion/docx-dependencies-20261017/licenses.json"
+}

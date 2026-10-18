@@ -1,0 +1,31 @@
+{
+  "commit": "3ffdf0588cf98050aad6edba51ca70162e1fb5b5",
+  "files": {
+    "krilla-0.8.2.LICENSE_MIT": {
+      "source": "https://raw.githubusercontent.com/LaurenzV/krilla/3ffdf0588cf98050aad6edba51ca70162e1fb5b5/LICENSE_MIT",
+      "sha256": "9d1eb142840c7acfd5511b4dd298cece3f0053f5809228906445cd8a3365592f",
+      "bytes": 1071
+    },
+    "krilla-0.8.2.LICENSE_APACHE": {
+      "source": "https://raw.githubusercontent.com/LaurenzV/krilla/3ffdf0588cf98050aad6edba51ca70162e1fb5b5/LICENSE_APACHE",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "bytes": 11358
+    },
+    "krilla-0.8.2.NOTICE.md": {
+      "source": "https://raw.githubusercontent.com/LaurenzV/krilla/3ffdf0588cf98050aad6edba51ca70162e1fb5b5/NOTICE.md",
+      "sha256": "7aa87a70e18c9c160b5a14e24b46a8e407858b21fed635920c701657b4bd7976",
+      "bytes": 1366
+    },
+    "krilla-0.8.2.crates_krilla_icc_LICENSE": {
+      "source": "https://raw.githubusercontent.com/LaurenzV/krilla/3ffdf0588cf98050aad6edba51ca70162e1fb5b5/crates/krilla/icc/LICENSE",
+      "sha256": "469d87b5fa48f8aaf69e25f4fcac3a309c97dbb7d561b917638abdb640e004d9",
+      "bytes": 6552
+    },
+    "krilla-0.8.2.MPL-2.0": {
+      "source": "https://www.mozilla.org/media/MPL/2.0/index.txt",
+      "sha256": "3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04",
+      "bytes": 16726,
+      "reason": "Krilla exact upstream NOTICE acknowledges resvg-derived content_draw_path"
+    }
+  }
+}

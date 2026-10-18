@@ -431,6 +431,258 @@ fn failed_local_commit_never_dispatches_and_unknown_commit_deduplicates() {
     queue(&s, AssetAction::Ingest, "op");
     assert_eq!(s.asset_journal().unwrap().intents().len(), 1);
 }
+// PMS-1.1: deterministic prepared originals use the real asset/store transaction.
+const ORIGINAL: &[u8] = &[0, 255, 13, 10, 128, 42];
+fn stage(
+    store: &impl AssetStore,
+    job: &str,
+    reference: &str,
+    operation: &str,
+) -> Result<AssetIntentReceipt, PortError> {
+    AssetWork::new(store).stage_original(
+        job,
+        reference,
+        request(AssetAction::Ingest, operation),
+        &grant(AssetAction::Ingest),
+        ORIGINAL,
+    )
+}
+#[test]
+fn prepared_original_has_no_live_document_revision_or_history_effect() {
+    let scope = DocumentIdentity::v5(
+        "ac120000-0000-4000-8000-000000000013",
+        "ac120000-0000-4000-8000-000000000002",
+    )
+    .unwrap();
+    let store = Arc::new(MemoryStore::new(scope.clone(), StoreLimits::default()).unwrap());
+    let doc = Document::create(
+        CreationPermit::authorize_new(scope.clone()).unwrap(),
+        &[InitialNode {
+            kind: "block".into(),
+            text: "".into(),
+        }],
+    )
+    .unwrap();
+    store
+        .publish(0, CheckpointRecord::new(doc.checkpoint(), vec![]).unwrap())
+        .unwrap();
+    let session = Session::open(store.clone(), &scope, CachedPermission::LOCAL).unwrap();
+    let before = session.document().checkpoint().bytes;
+    let persisted = store
+        .recover(&scope)
+        .unwrap()
+        .checkpoint
+        .checkpoint()
+        .bytes
+        .clone();
+    let visible = session.document().snapshot().unwrap().visible;
+    let history = session.document().history_state();
+    let revision = session.observed_revision().unwrap();
+    let generation = store.generation(&scope).unwrap();
+    stage(&store, "import_a", "prepared_a", "stage_a").unwrap();
+    let j = store.asset_journal().unwrap();
+    assert!(j.is_prepared("prepared_a"));
+    assert_eq!(j.prepared()[0].request.identity, asset());
+    assert_eq!(j.prepared()[0].grant_actions, vec![AssetAction::Ingest]);
+    assert_eq!(j.prepared()[0].bytes, ORIGINAL);
+    assert_eq!(
+        AssetWork::new(&store)
+            .prepared_source("import_a", "prepared_a", &grant(AssetAction::Read))
+            .unwrap(),
+        ORIGINAL
+    );
+    assert_eq!(store.generation(&scope).unwrap(), generation);
+    assert!(store.pending(&scope).unwrap().is_empty());
+    assert_eq!(session.document().checkpoint().bytes, before);
+    assert_eq!(session.document().history_state(), history);
+    assert_eq!(session.observed_revision().unwrap(), revision);
+    assert_eq!(
+        store.recover(&scope).unwrap().checkpoint.checkpoint().bytes,
+        persisted
+    );
+    let reopened = Session::open(store, &scope, CachedPermission::LOCAL).unwrap();
+    assert_eq!(reopened.document().snapshot().unwrap().visible, visible);
+    assert_eq!(reopened.observed_revision().unwrap(), revision);
+}
+#[test]
+fn prepared_original_denial_limits_and_reads_preserve_source_and_state() {
+    let store = memory();
+    stage(&store, "import_a", "prepared_a", "stage_a").unwrap();
+    let before = store.asset_journal().unwrap();
+    let work = AssetWork::new(&store);
+    assert_eq!(
+        work.stage_original(
+            "import_b",
+            "prepared_b",
+            request(AssetAction::Ingest, "denied"),
+            &grant(AssetAction::Read),
+            ORIGINAL
+        ),
+        Err(PortError::Permission)
+    );
+    let mut bounded = request(AssetAction::Ingest, "bounded");
+    bounded.byte_limit = 1;
+    assert_eq!(
+        work.stage_original(
+            "import_b",
+            "prepared_b",
+            bounded,
+            &grant(AssetAction::Ingest),
+            ORIGINAL
+        ),
+        Err(PortError::ResourceLimit)
+    );
+    assert_eq!(
+        work.stage_original(
+            "import_b",
+            "prepared_b",
+            request(AssetAction::Ingest, "empty"),
+            &grant(AssetAction::Ingest),
+            &[]
+        ),
+        Err(PortError::InvalidRecord)
+    );
+    assert_eq!(
+        work.prepared_source("import_a", "prepared_a", &grant(AssetAction::Ingest)),
+        Err(PortError::Permission)
+    );
+    assert_eq!(
+        work.prepared_source("import_b", "prepared_a", &grant(AssetAction::Read)),
+        Err(PortError::Conflict)
+    );
+    assert_eq!(store.asset_journal().unwrap(), before);
+    assert_eq!(ORIGINAL, &[0, 255, 13, 10, 128, 42]);
+}
+#[test]
+fn prepared_original_retries_do_not_claim_live_or_sibling_references() {
+    let store = memory();
+    queue(&store, AssetAction::Ingest, "live_a");
+    assert_eq!(
+        stage(&store, "import_a", "node_ref", "other"),
+        Err(PortError::Conflict)
+    );
+    stage(&store, "import_a", "prepared_a", "stage_a").unwrap();
+    stage(&store, "import_b", "prepared_b", "stage_b").unwrap();
+    let before = store.asset_journal().unwrap();
+    stage(&store, "import_a", "prepared_a", "stage_a").unwrap();
+    assert_eq!(
+        stage(&store, "import_b", "prepared_a", "stage_a"),
+        Err(PortError::Conflict)
+    );
+    assert_eq!(
+        AssetWork::new(&store).stage_original(
+            "import_a",
+            "prepared_a",
+            request(AssetAction::Ingest, "stage_a"),
+            &grant(AssetAction::Ingest),
+            b"changed"
+        ),
+        Err(PortError::Conflict)
+    );
+    assert_eq!(store.asset_journal().unwrap(), before);
+    AssetWork::new(&store)
+        .retire("prepared_a", &asset(), "cleanup_a")
+        .unwrap();
+    let j = store.asset_journal().unwrap();
+    assert!(!j.is_prepared("prepared_a"));
+    assert!(j.is_prepared("prepared_b"));
+    assert!(!j.is_retired("node_ref"));
+    assert_eq!(
+        stage(&store, "import_a", "prepared_a", "stage_a"),
+        Err(PortError::Conflict)
+    );
+    assert_eq!(
+        AssetWork::new(&store)
+            .prepared_source("import_a", "prepared_a", &grant(AssetAction::Read))
+            .unwrap(),
+        ORIGINAL
+    );
+}
+#[test]
+fn prepared_original_failed_and_unknown_transactions_are_recoverable() {
+    let store = FaultInjectedStore::new(identity(), StoreLimits::default()).unwrap();
+    for (boundary, expected) in [
+        (FaultBoundary::BeforeWrite, PortError::Unavailable),
+        (FaultBoundary::BeforeCommit, PortError::Unavailable),
+    ] {
+        store
+            .inject(InjectedFault {
+                boundary,
+                error: PortError::Unavailable,
+            })
+            .unwrap();
+        assert_eq!(
+            stage(&store, "import_a", "prepared_a", "stage_a"),
+            Err(expected)
+        );
+        assert!(store.asset_journal().unwrap().prepared().is_empty());
+        assert!(store.asset_journal().unwrap().intents().is_empty());
+    }
+    store
+        .inject(InjectedFault {
+            boundary: FaultBoundary::AfterCommit,
+            error: PortError::Unavailable,
+        })
+        .unwrap();
+    assert_eq!(
+        stage(&store, "import_a", "prepared_a", "stage_a"),
+        Err(PortError::CommitUnknown)
+    );
+    stage(&store, "import_a", "prepared_a", "stage_a").unwrap();
+    assert_eq!(store.asset_journal().unwrap().intents().len(), 1);
+    assert_eq!(
+        AssetWork::new(&store)
+            .prepared_source("import_a", "prepared_a", &grant(AssetAction::Read))
+            .unwrap(),
+        ORIGINAL
+    );
+}
+#[test]
+fn prepared_original_store_quota_rolls_back_intent_and_bytes_together() {
+    let store = MemoryStore::new(
+        identity(),
+        StoreLimits {
+            max_record_bytes: 2048,
+            ..StoreLimits::default()
+        },
+    )
+    .unwrap();
+    let bytes = vec![17; 2048];
+    let mut r = request(AssetAction::Ingest, "stage_a");
+    r.byte_limit = 2048;
+    assert_eq!(
+        AssetWork::new(&store).stage_original(
+            "import_a",
+            "prepared_a",
+            r,
+            &grant(AssetAction::Ingest),
+            &bytes
+        ),
+        Err(PortError::ResourceLimit)
+    );
+    assert_eq!(bytes, vec![17; 2048]);
+    assert_eq!(store.asset_journal().unwrap(), AssetJournal::default());
+}
+#[cfg(feature = "asset-serde")]
+#[test]
+fn prepared_original_old_journal_and_untrusted_recovery_validation() {
+    let old: AssetJournal = serde_json::from_str(r#"{"intents":[],"retired":[]}"#).unwrap();
+    assert!(old.prepared().is_empty());
+    let store = memory();
+    stage(&store, "import_a", "prepared_a", "stage_a").unwrap();
+    let before = store.asset_journal().unwrap();
+    let mut encoded = serde_json::to_value(&before).unwrap();
+    encoded["prepared"][0]["grant_actions"] = serde_json::json!(["read"]);
+    let malformed: AssetJournal = serde_json::from_value(encoded).unwrap();
+    assert_eq!(
+        store.update_assets(|j| {
+            *j = malformed;
+            Ok(())
+        }),
+        Err(PortError::Permission)
+    );
+    assert_eq!(store.asset_journal().unwrap(), before);
+}
 #[cfg(feature = "native-store")]
 mod native {
     use super::*;
@@ -467,6 +719,93 @@ mod native {
                 let _ = std::fs::remove_dir_all(self.path.parent().unwrap());
             }
         }
+    }
+    #[test]
+    fn prepared_original_sqlite_reopen_preserves_exact_bytes_grants_and_siblings() {
+        let f = Fixture::new();
+        let s = f.create();
+        let before = s
+            .recover(&identity())
+            .unwrap()
+            .checkpoint
+            .checkpoint()
+            .bytes
+            .clone();
+        stage(&s, "import_a", "prepared_a", "stage_a").unwrap();
+        stage(&s, "import_b", "prepared_b", "stage_b").unwrap();
+        drop(s);
+        let s = f.reopen();
+        let j = s.asset_journal().unwrap();
+        assert_eq!(j.prepared().len(), 2);
+        assert!(j.is_prepared("prepared_a"));
+        assert!(j.is_prepared("prepared_b"));
+        assert_eq!(j.prepared()[0].grant_actions, vec![AssetAction::Ingest]);
+        assert_eq!(j.prepared()[0].request.identity, asset());
+        assert_eq!(
+            AssetWork::new(&s)
+                .prepared_source("import_a", "prepared_a", &grant(AssetAction::Read))
+                .unwrap(),
+            ORIGINAL
+        );
+        assert_eq!(
+            s.recover(&identity())
+                .unwrap()
+                .checkpoint
+                .checkpoint()
+                .bytes,
+            before
+        );
+        assert!(s.pending(&identity()).unwrap().is_empty());
+        AssetWork::new(&s)
+            .retire("prepared_a", &asset(), "cleanup_a")
+            .unwrap();
+        drop(s);
+        let s = f.reopen();
+        assert!(!s.asset_journal().unwrap().is_prepared("prepared_a"));
+        assert!(s.asset_journal().unwrap().is_prepared("prepared_b"));
+        assert_eq!(
+            AssetWork::new(&s)
+                .prepared_source("import_a", "prepared_a", &grant(AssetAction::Read))
+                .unwrap(),
+            ORIGINAL
+        );
+    }
+    #[test]
+    fn prepared_original_sqlite_failure_and_unknown_ack_recover_atomically() {
+        let f = Fixture::new();
+        let s = f.create();
+        s.inject_once(InjectedFault {
+            boundary: FaultBoundary::BeforeCommit,
+            error: PortError::Quota,
+        })
+        .unwrap();
+        assert_eq!(
+            stage(&s, "import_a", "prepared_a", "stage_a"),
+            Err(PortError::Quota)
+        );
+        drop(s);
+        let s = f.reopen();
+        assert!(s.asset_journal().unwrap().intents().is_empty());
+        assert!(s.asset_journal().unwrap().prepared().is_empty());
+        s.inject_once(InjectedFault {
+            boundary: FaultBoundary::AfterCommit,
+            error: PortError::Unavailable,
+        })
+        .unwrap();
+        assert_eq!(
+            stage(&s, "import_a", "prepared_a", "stage_a"),
+            Err(PortError::CommitUnknown)
+        );
+        drop(s);
+        let s = f.reopen();
+        stage(&s, "import_a", "prepared_a", "stage_a").unwrap();
+        assert_eq!(s.asset_journal().unwrap().intents().len(), 1);
+        assert_eq!(
+            AssetWork::new(&s)
+                .prepared_source("import_a", "prepared_a", &grant(AssetAction::Read))
+                .unwrap(),
+            ORIGINAL
+        );
     }
     #[test]
     fn sqlite_reopen_retains_pending_ids_and_document_checkpoint() {
@@ -820,4 +1159,359 @@ fn reference_release_waits_for_acknowledged_host_cancellation() {
         .run_one("retire_release", true, &mut h)
         .unwrap();
     assert_eq!(h.releases, 1);
+}
+
+// PMS-1.2 pre-insertion prerequisite. Atomic adoption is a separate unfinished proof.
+#[test]
+fn prepared_job_empty_fence_blocks_late_stage_and_is_idempotent() {
+    let store = memory();
+    let work = AssetWork::new(&store);
+    work.fence_job("early_cancel").unwrap();
+    let before = store.asset_journal().unwrap();
+    assert!(before.is_job_fenced("early_cancel"));
+    work.fence_job("early_cancel").unwrap();
+    assert_eq!(store.asset_journal().unwrap(), before);
+    assert_eq!(
+        stage(&store, "early_cancel", "late_ref", "late_op"),
+        Err(PortError::Conflict)
+    );
+    assert_eq!(store.asset_journal().unwrap(), before);
+}
+#[test]
+fn prepared_job_fence_is_scoped_and_preserves_originals_and_late_completion_fence() {
+    let store = memory();
+    stage(&store, "job_a", "a1", "op_a1").unwrap();
+    stage(&store, "job_a", "a2", "op_a2").unwrap();
+    stage(&store, "job_b", "b1", "op_b1").unwrap();
+    let work = AssetWork::new(&store);
+    work.enqueue(
+        "live",
+        request(AssetAction::Ingest, "live_op"),
+        &grant(AssetAction::Ingest),
+    )
+    .unwrap();
+    work.begin_dispatch("op_a1", true, |_| Ok(grant(AssetAction::Ingest)))
+        .unwrap();
+    let before = store.asset_journal().unwrap();
+    work.fence_job("job_a").unwrap();
+    let after = store.asset_journal().unwrap();
+    assert_eq!(after.intents().len(), before.intents().len() + 4);
+    for reference in ["a1", "a2"] {
+        assert!(after.is_retired(reference));
+        assert!(!after.is_prepared(reference));
+        assert_eq!(
+            work.prepared_source("job_a", reference, &grant(AssetAction::Read))
+                .unwrap(),
+            ORIGINAL
+        );
+    }
+    for reference in ["b1", "live"] {
+        assert!(!after.is_retired(reference));
+        assert_eq!(
+            after.intents().iter().find(|i| i.reference == reference),
+            before.intents().iter().find(|i| i.reference == reference)
+        );
+    }
+    assert_eq!(
+        work.complete("op_a1", HostOutcome::Complete, &grant(AssetAction::Ingest)),
+        Ok(())
+    );
+    assert_eq!(store.asset_journal().unwrap(), after);
+}
+#[test]
+fn prepared_job_failed_fence_rolls_back_all_references_and_unknown_retry_recovers() {
+    let store = FaultInjectedStore::new(identity(), StoreLimits::default()).unwrap();
+    stage(&store, "job_a", "a1", "op_a1").unwrap();
+    stage(&store, "job_a", "a2", "op_a2").unwrap();
+    let before = store.asset_journal().unwrap();
+    for boundary in [FaultBoundary::BeforeWrite, FaultBoundary::BeforeCommit] {
+        store
+            .inject(InjectedFault {
+                boundary,
+                error: PortError::Unavailable,
+            })
+            .unwrap();
+        assert_eq!(
+            AssetWork::new(&store).fence_job("job_a"),
+            Err(PortError::Unavailable)
+        );
+        assert_eq!(store.asset_journal().unwrap(), before);
+    }
+    store
+        .inject(InjectedFault {
+            boundary: FaultBoundary::AfterCommit,
+            error: PortError::Unavailable,
+        })
+        .unwrap();
+    assert_eq!(
+        AssetWork::new(&store).fence_job("job_a"),
+        Err(PortError::CommitUnknown)
+    );
+    let committed = store.asset_journal().unwrap();
+    assert!(committed.is_job_fenced("job_a"));
+    AssetWork::new(&store).fence_job("job_a").unwrap();
+    assert_eq!(store.asset_journal().unwrap(), committed);
+    assert_eq!(committed.intents().len(), 6);
+}
+#[test]
+fn prepared_job_cleanup_ids_are_bounded_and_avoid_existing_operation_ids() {
+    let store = memory();
+    stage(&store, "job_a", "a1", &"x".repeat(256)).unwrap();
+    let work = AssetWork::new(&store);
+    work.enqueue(
+        "live",
+        request(AssetAction::Ingest, "job_fence_0_cancel"),
+        &grant(AssetAction::Ingest),
+    )
+    .unwrap();
+    work.fence_job("job_a").unwrap();
+    let j = store.asset_journal().unwrap();
+    assert!(
+        j.intents()
+            .iter()
+            .any(|i| i.request.operation_id == "job_fence_1_cancel")
+    );
+    assert_eq!(
+        j.intents()
+            .iter()
+            .find(|i| i.reference == "live")
+            .unwrap()
+            .status,
+        WorkStatus::Pending
+    );
+}
+#[test]
+fn prepared_job_tombstones_are_bounded_without_recycling() {
+    let store = memory();
+    for n in 0..MAX_ASSET_INTENTS {
+        AssetWork::new(&store)
+            .fence_job(&format!("job_{n}"))
+            .unwrap();
+    }
+    let before = store.asset_journal().unwrap();
+    assert_eq!(
+        AssetWork::new(&store).fence_job("overflow"),
+        Err(PortError::Backpressure)
+    );
+    AssetWork::new(&store).fence_job("job_0").unwrap();
+    assert_eq!(store.asset_journal().unwrap(), before);
+}
+#[cfg(feature = "native-store")]
+#[test]
+fn prepared_job_sqlite_fence_reopens_without_dispatch_and_preserves_source() {
+    use editac_session::store::NativeStore;
+    let path = std::env::temp_dir().join(format!("editac-pms-fence-{}.sqlite", std::process::id()));
+    // Unique session evidence path when requested; keep the database as proof.
+    let path = std::env::var_os("EDITAC_ASSET_EVIDENCE")
+        .map(|p| std::path::PathBuf::from(p).join("pms-job-fence.sqlite"))
+        .unwrap_or(path);
+    let s = NativeStore::create_new(&path, identity(), StoreLimits::default()).unwrap();
+    s.publish(0, base()).unwrap();
+    stage(&s, "job_a", "a1", "op_a1").unwrap();
+    stage(&s, "job_b", "b1", "op_b1").unwrap();
+    AssetWork::new(&s).fence_job("job_a").unwrap();
+    drop(s);
+    let s = NativeStore::open_existing(&path, identity(), StoreLimits::default()).unwrap();
+    let work = AssetWork::new(&s);
+    assert!(s.asset_journal().unwrap().is_job_fenced("job_a"));
+    assert!(s.asset_journal().unwrap().is_prepared("b1"));
+    assert_eq!(
+        work.prepared_source("job_a", "a1", &grant(AssetAction::Read))
+            .unwrap(),
+        ORIGINAL
+    );
+    assert_eq!(
+        stage(&s, "job_a", "late", "late_op"),
+        Err(PortError::Conflict)
+    );
+    assert!(
+        s.asset_journal()
+            .unwrap()
+            .intents()
+            .iter()
+            .all(|i| i.attempts == 0)
+    );
+    drop(s);
+    if std::env::var_os("EDITAC_ASSET_EVIDENCE").is_none() {
+        let _ = std::fs::remove_file(path);
+    }
+}
+
+fn binding(reference: &str, target: &str) -> PreparedAssetBinding {
+    PreparedAssetBinding {
+        reference: reference.into(),
+        target: target.into(),
+        identity: asset(),
+    }
+}
+#[test]
+fn prepared_adoption_candidate_is_pure_transfers_only_job_and_fences_unused_work() {
+    let store = memory();
+    for (job, reference, operation) in [
+        ("job_a", "a1", "op_a1"),
+        ("job_a", "a2", "op_a2"),
+        ("job_a", "unused", "op_unused"),
+        ("job_b", "b1", "op_b1"),
+    ] {
+        stage(&store, job, reference, operation).unwrap();
+    }
+    AssetWork::new(&store)
+        .enqueue(
+            "live",
+            request(AssetAction::Ingest, "live_op"),
+            &grant(AssetAction::Ingest),
+        )
+        .unwrap();
+    let before = store.asset_journal().unwrap();
+    let candidate = before
+        .prepare_adoption(
+            "job_a",
+            &[binding("a1", "new_node_1"), binding("a2", "new_node_2")],
+        )
+        .unwrap();
+    assert_eq!(
+        store.asset_journal().unwrap(),
+        before,
+        "planning must never persist an adoption"
+    );
+    assert!(candidate.is_job_fenced("job_a"));
+    assert!(candidate.is_retired("unused"));
+    assert!(!candidate.is_prepared("a1"));
+    assert!(!candidate.is_retired("new_node_1"));
+    assert_eq!(
+        candidate.prepared()[0].adopted_reference.as_deref(),
+        Some("new_node_1")
+    );
+    assert_eq!(candidate.prepared()[0].bytes, ORIGINAL);
+    assert_eq!(
+        candidate.prepared()[0].grant_actions,
+        vec![AssetAction::Ingest]
+    );
+    for (operation, reference) in [("op_a1", "new_node_1"), ("op_a2", "new_node_2")] {
+        let mut expected = before
+            .intents()
+            .iter()
+            .find(|i| i.request.operation_id == operation)
+            .unwrap()
+            .clone();
+        expected.reference = reference.into();
+        assert_eq!(
+            candidate
+                .intents()
+                .iter()
+                .find(|i| i.request.operation_id == operation),
+            Some(&expected)
+        );
+    }
+    for reference in ["b1", "live"] {
+        assert_eq!(
+            candidate
+                .intents()
+                .iter()
+                .find(|i| i.reference == reference),
+            before.intents().iter().find(|i| i.reference == reference)
+        );
+    }
+    // Apply only to this isolated lifecycle fixture. No content insertion proof is
+    // claimed: production must bind this candidate to the actual content transaction.
+    store
+        .update_assets(|j| {
+            *j = candidate.clone();
+            Ok(())
+        })
+        .unwrap();
+    AssetWork::new(&store).fence_job("job_a").unwrap();
+    assert_eq!(
+        store.asset_journal().unwrap(),
+        candidate,
+        "late cancel cannot retire committed bindings"
+    );
+    assert_eq!(
+        AssetWork::new(&store)
+            .prepared_source("job_a", "a1", &grant(AssetAction::Read))
+            .unwrap(),
+        ORIGINAL
+    );
+    assert_eq!(
+        stage(&store, "job_a", "late", "late_op"),
+        Err(PortError::Conflict)
+    );
+}
+#[test]
+fn prepared_adoption_candidate_rejects_sibling_live_retired_duplicate_and_wrong_identity_targets() {
+    let store = memory();
+    stage(&store, "job_a", "a1", "op_a1").unwrap();
+    stage(&store, "job_a", "a2", "op_a2").unwrap();
+    stage(&store, "job_b", "b1", "op_b1").unwrap();
+    let work = AssetWork::new(&store);
+    work.enqueue(
+        "live",
+        request(AssetAction::Ingest, "live_op"),
+        &grant(AssetAction::Ingest),
+    )
+    .unwrap();
+    work.retire("retired", &asset(), "retired_cleanup").unwrap();
+    let before = store.asset_journal().unwrap();
+    let mut foreign = binding("a1", "fresh");
+    foreign.identity.key = "foreign".into();
+    for bindings in [
+        vec![],
+        vec![binding("b1", "fresh")],
+        vec![binding("a1", "live")],
+        vec![binding("a1", "retired")],
+        vec![binding("a1", "a2")],
+        vec![binding("a1", "fresh"), binding("a1", "other")],
+        vec![binding("a1", "fresh"), binding("a2", "fresh")],
+        vec![foreign],
+    ] {
+        assert_eq!(
+            before.prepare_adoption("job_a", &bindings),
+            Err(PortError::Conflict)
+        );
+        assert_eq!(store.asset_journal().unwrap(), before);
+    }
+    work.fence_job("job_a").unwrap();
+    let fenced = store.asset_journal().unwrap();
+    assert_eq!(
+        fenced.prepare_adoption("job_a", &[binding("a1", "fresh")]),
+        Err(PortError::Conflict)
+    );
+}
+#[cfg(feature = "asset-serde")]
+#[test]
+fn prepared_adoption_codec_recovery_validates_targets_and_legacy_defaults() {
+    let store = memory();
+    stage(&store, "job_a", "a1", "op_a1").unwrap();
+    let before = store.asset_journal().unwrap();
+    let candidate = before
+        .prepare_adoption("job_a", &[binding("a1", "fresh")])
+        .unwrap();
+    let raw = serde_json::to_string(&candidate).unwrap();
+    let recovered: AssetJournal = serde_json::from_str(&raw).unwrap();
+    assert_eq!(candidate, recovered);
+    store
+        .update_assets(|j| {
+            *j = recovered;
+            Ok(())
+        })
+        .unwrap();
+    let mut malformed = serde_json::to_value(&candidate).unwrap();
+    malformed["prepared"][0]["adopted_reference"] = serde_json::json!("other");
+    let malformed: AssetJournal = serde_json::from_value(malformed).unwrap();
+    assert_eq!(
+        store.update_assets(|j| {
+            *j = malformed;
+            Ok(())
+        }),
+        Err(PortError::Integrity)
+    );
+    assert_eq!(store.asset_journal().unwrap(), candidate);
+    let mut legacy = serde_json::to_value(&before).unwrap();
+    legacy.as_object_mut().unwrap().remove("fenced_jobs");
+    legacy["prepared"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("adopted_reference");
+    let legacy: AssetJournal = serde_json::from_value(legacy).unwrap();
+    assert_eq!(legacy, before);
 }

@@ -2,7 +2,7 @@
   "contractVersion": 1,
   "id": "native.macos.pending.v1",
   "implementation": {
-    "revision": "8af8acde460cb1f36712ea827a01ed96524821a0",
+    "revision": "4de25f215cd0a92157f87173468ce29afd8e5f6f",
     "package": "EditacMacOS",
     "version": "0.0.0"
   },

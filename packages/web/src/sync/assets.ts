@@ -27,7 +27,7 @@ const maxBytes=64*1024*1024;
  * IndexedDB stores its opaque journal and host-retained bytes in one transaction.
  * Construction/recovery never contacts a host or dispatches recovered work. */
 export class AssetSession {
-  #closed=false; #generation=0; #pending=new Map<string,{controller:AbortController;reference:string}>();
+  #closed=false; #closing=false; #disposing:Promise<void>|null=null; #generation=0; #pending=new Map<string,{controller:AbortController;reference:string}>();
   #subscription:PatchSubscription; #reconcile:Promise<void>=Promise.resolve(); #failure:unknown=null;
   private constructor(readonly engine:EngineHandle,readonly database:IDBDatabase,readonly key:string) {
     this.#subscription=engine.subscribe({type:'all'},()=>{
@@ -40,6 +40,7 @@ export class AssetSession {
     try {await session.reconcile();return session;}catch(error){session.#subscription.dispose();db.close();throw error;}
   }
   #alive():void {if(this.#closed)throw Error('Asset Session disposed');if(this.#failure)throw this.#failure;}
+  #accepting():void {this.#alive();if(this.#closing)throw Error('Asset Session is closing');}
   #live(reference:string,identity:AssetIdentity):boolean {
     const node=this.engine.read().visible.find(node=>node.id===referenceOwner(reference));
     const tuple=node?.blockAttributes;
@@ -58,12 +59,40 @@ export class AssetSession {
     });
   }
   async inspect():Promise<AssetWorkResult> {this.#alive();return this.#transaction(()=>({type:'inspect'}));}
+  /** Retain approved original bytes before a descriptor exists. No host dispatch
+   * or document mutation. Job/reference/operation IDs are immutable and scoped. */
+  async stageOriginal(job:string,reference:string,request:AssetRequest,grant:AssetGrant,bytes:Uint8Array):Promise<AssetOperationReceipt> {
+    this.#accepting();
+    if(!(bytes instanceof Uint8Array))throw TypeError('Uint8Array source required');
+    if(reference.startsWith('node_'))throw Error('Prepared reference uses reserved live-node namespace');
+    if(bytes.length===0||bytes.length>maxBytes||bytes.length>request.byteLimit)throw RangeError('Bounded retained ingest bytes required');
+    const retained=Array.from(bytes),ownedRequest=clone(request),ownedGrant=clone(grant);
+    const result=await this.#transaction(()=>{
+      this.#accepting();
+      return {type:'stageOriginal',job,reference,request:ownedRequest,grant:ownedGrant,bytes:retained};
+    });
+    return {kind:'assetOperation',operationId:(result.result as {operationId:string}).operationId,durability:'unknown'};
+  }
+  /** Fresh read authority; available after cancellation for source recovery. */
+  async preparedSource(job:string,reference:string,grant:AssetGrant):Promise<Uint8Array> {
+    this.#alive();const ownedGrant=clone(grant);
+    const result=await this.#transaction(()=>{this.#alive();return {type:'preparedSource',job,reference,grant:ownedGrant};});
+    return Uint8Array.from(result.result as readonly number[]);
+  }
+  /** The Rust tombstone also fences an empty job and callbacks from older sessions.
+   * Source survives; cleanup effects still require explicit runOne authority. */
+  async fenceJob(job:string):Promise<void> {
+    this.#alive();
+    const result=await this.#transaction(()=>{this.#alive();return {type:'fenceJob',job};});
+    const references=new Set(result.prepared.filter(p=>p.job===job&&!p.active).map(p=>p.reference));
+    for(const [id,pending] of this.#pending){const intent=result.intents.find(i=>i.request.operationId===id);if(references.has(pending.reference)&&intent&&!['cancel','release-reference'].includes(intent.request.action)){pending.controller.abort();this.#pending.delete(id);}}
+  }
   async enqueue(reference:string,request:AssetRequest,grant:AssetGrant,bytes?:Uint8Array):Promise<AssetOperationReceipt> {
-    this.#alive();reference=referenceKey(reference);if(bytes!==undefined&&!(bytes instanceof Uint8Array))throw TypeError("Uint8Array source required");request=clone(request);grant=clone(grant);const retained=bytes===undefined?undefined:new Uint8Array(bytes);
+    this.#accepting();reference=referenceKey(reference);if(bytes!==undefined&&!(bytes instanceof Uint8Array))throw TypeError("Uint8Array source required");request=clone(request);grant=clone(grant);const retained=bytes===undefined?undefined:new Uint8Array(bytes);
     if(request.action==='ingest'&&(!retained||retained.length===0||retained.length>request.byteLimit))throw Error('Bounded retained ingest bytes required');
     if(retained&&request.action!=='ingest')throw Error('Only ingest accepts local bytes');
     const result=await this.#transaction(state=>{
-      this.#alive();if(!this.#live(reference,request.identity))throw Error('Asset target missing or replaced');
+      this.#accepting();if(!this.#live(reference,request.identity))throw Error('Asset target missing or replaced');
       return {type:'enqueue',reference,request,grant};
     },state=>{
       if(!retained)return;
@@ -87,19 +116,21 @@ export class AssetSession {
     for(const [id,pending] of this.#pending) {if(pending.reference===reference){pending.controller.abort();this.#pending.delete(id);}}
   }
   async reconcile():Promise<void> {
-    this.#alive();const {intents}=await this.inspect();
+    this.#alive();const {intents,prepared}=await this.inspect();
     const seen=new Set<string>();
-    for(const intent of intents){if(seen.has(intent.reference))continue;seen.add(intent.reference);
+    for(const intent of intents){if(prepared.some(p=>p.active&&p.reference===intent.reference))continue;if(seen.has(intent.reference))continue;seen.add(intent.reference);
       if(!intents.some(i=>i.reference===intent.reference&&i.request.action==='cancel')&&!this.#live(intent.reference,intent.request.identity))await this.retire(referenceOwner(intent.reference),intent.request.identity,`retire_${intent.reference}`);
     }
   }
   /** One explicit host attempt. No timers, startup dispatch or automatic retries. */
   async runOne(operation:string,online:boolean,host:AssetHostTransport):Promise<boolean> {
-    this.#alive();if(!host||typeof host.authorize!=="function"||typeof host.execute!=="function")throw Error("Asset host unsupported");
-    await this.#reconcile;await this.reconcile();this.#alive();
+    this.#accepting();if(!host||typeof host.authorize!=="function"||typeof host.execute!=="function")throw Error("Asset host unsupported");
+    await this.#reconcile;await this.reconcile();this.#accepting();
     if(this.#pending.has(operation))throw Error('Asset operation already running');
     const intent=(await this.inspect()).intents.find(i=>i.request.operationId===operation);
     if(!intent)throw Error('Unknown asset operation');if(intent.status!=='Pending')return false;
+    if(!['cancel','release-reference'].includes(intent.request.action)&&(await this.inspect()).prepared.some(p=>p.reference===intent.reference))throw Error('Prepared original requires atomic adoption before host dispatch');
+    this.#accepting();
     const controller=new AbortController(),generation=this.#generation;this.#pending.set(operation,{controller,reference:intent.reference});
     try {
       const grant=clone(await host.authorize(clone(intent.request),controller.signal));
@@ -132,8 +163,11 @@ export class AssetSession {
   /** suspend retains recovery work; retire fences all references before closure.
    * Host cancellation/release still requires explicit runOne before suspension. */
   async dispose(policy:'suspend'|'retire'):Promise<void> {
-    if(this.#closed)return;if(policy!=="suspend"&&policy!=="retire")throw Error("Explicit asset disposal policy required");this.#alive();this.#generation++;for(const p of this.#pending.values())p.controller.abort();this.#pending.clear();
-    try {if(policy==='retire'){const {intents}=await this.inspect();for(const i of intents)await this.retire(referenceOwner(i.reference),i.request.identity,`dispose_${i.reference}`);}}
-    finally {this.#closed=true;this.#subscription.dispose();this.database.close();}
+    if(this.#closed)return;if(policy!=="suspend"&&policy!=="retire")throw Error("Explicit asset disposal policy required");if(this.#disposing)return this.#disposing;this.#alive();this.#closing=true;this.#generation++;for(const p of this.#pending.values())p.controller.abort();this.#pending.clear();
+    this.#disposing=(async()=>{
+      try {if(policy==='retire'){const {intents,prepared}=await this.inspect();for(const job of new Set(prepared.map(p=>p.job)))await this.fenceJob(job);for(const i of intents){if(prepared.some(p=>p.reference===i.reference))continue;await this.retire(referenceOwner(i.reference),i.request.identity,`dispose_${i.reference}`);}}}
+      finally {this.#closed=true;this.#subscription.dispose();this.database.close();}
+    })();
+    return this.#disposing;
   }
 }

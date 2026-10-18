@@ -29,7 +29,25 @@ impl From<Grant> for AssetGrant {
 #[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
 enum Action {
     Inspect,
-    Validate { request: AssetRequest, grant: Grant },
+    FenceJob {
+        job: String,
+    },
+    Validate {
+        request: AssetRequest,
+        grant: Grant,
+    },
+    StageOriginal {
+        job: String,
+        reference: String,
+        request: AssetRequest,
+        grant: Grant,
+        bytes: Vec<u8>,
+    },
+    PreparedSource {
+        job: String,
+        reference: String,
+        grant: Grant,
+    },
     Enqueue {
         reference: String,
         request: AssetRequest,
@@ -91,7 +109,38 @@ pub(crate) fn transaction(identity: &DocumentIdentity, input: &str) -> Result<Va
     let work = AssetWork::new(&store);
     let result = match input.action {
         Action::Inspect => json!(null),
-        Action::Validate { request, grant } => { request.validate(&grant.into()).map_err(|e| err("InvalidInput", "assetWork", format!("{e:?}")))?; json!(null) },
+        Action::FenceJob { job } => {
+            work.fence_job(&job).map_err(fail)?;
+            json!(null)
+        }
+        Action::Validate { request, grant } => {
+            request
+                .validate(&grant.into())
+                .map_err(|e| err("InvalidInput", "assetWork", format!("{e:?}")))?;
+            json!(null)
+        }
+        Action::StageOriginal {
+            job,
+            reference,
+            request,
+            grant,
+            bytes,
+        } => {
+            let r = work
+                .stage_original(&job, &reference, request, &grant.into(), &bytes)
+                .map_err(fail)?;
+            json!({"operationId":r.operation_id})
+        }
+        Action::PreparedSource {
+            job,
+            reference,
+            grant,
+        } => {
+            json!(
+                work.prepared_source(&job, &reference, &grant.into())
+                    .map_err(fail)?
+            )
+        }
         Action::Enqueue {
             reference,
             request,
@@ -138,7 +187,20 @@ pub(crate) fn transaction(identity: &DocumentIdentity, input: &str) -> Result<Va
     let journal = store.asset_journal().map_err(fail)?;
     let raw = serde_json::to_string(&(scope, &journal))
         .map_err(|e| err("InvalidInput", "assetWork", e.to_string()))?;
-    Ok(json!({"journal":raw,"intents":journal.intents(),"result":result}))
+    let prepared: Vec<_> = journal
+        .prepared()
+        .iter()
+        .map(|p| {
+            json!({
+                "job":p.job,"reference":p.reference,"request":p.request,
+                "grantActions":p.grant_actions,"byteLength":p.bytes.len(),"adoptedReference":p.adopted_reference,
+                "active":journal.is_prepared(&p.reference)
+            })
+        })
+        .collect();
+    Ok(
+        json!({"journal":raw,"intents":journal.intents(),"prepared":prepared,"fencedJobs":journal.fenced_jobs(),"result":result}),
+    )
 }
 
 #[cfg(test)]
@@ -169,6 +231,125 @@ mod tests {
     }
     fn enqueue(operation: &str, action: &str) -> Value {
         json!({"type":"enqueue","reference":"n-1-2","request":request(operation,action),"grant":grant()})
+    }
+    fn stage() -> Value {
+        json!({"type":"stageOriginal","job":"import_a","reference":"prepared_a","request":request("stage_a","ingest"),"grant":grant(),"bytes":[0,255,13,10,128,42]})
+    }
+    #[test]
+    fn prepared_job_codec_fence_survives_roundtrip_and_blocks_empty_job_late_stage() {
+        let empty = call(None, json!({"type":"fenceJob","job":"import_a"}));
+        assert_eq!(empty["fencedJobs"], json!(["import_a"]));
+        assert!(
+            transaction(
+                &identity(),
+                &json!({"journal":empty["journal"],"action":stage()}).to_string()
+            )
+            .is_err()
+        );
+        let staged = call(None, stage());
+        let fenced = call(
+            staged["journal"].as_str(),
+            json!({"type":"fenceJob","job":"import_a"}),
+        );
+        assert_eq!(fenced["prepared"][0]["active"], false);
+        assert_eq!(fenced["intents"][0]["status"], "Canceled");
+        assert_eq!(fenced["intents"].as_array().unwrap().len(), 3);
+        let recovered = call(fenced["journal"].as_str(), json!({"type":"inspect"}));
+        assert_eq!(recovered["fencedJobs"], json!(["import_a"]));
+        assert_eq!(
+            call(
+                fenced["journal"].as_str(),
+                json!({"type":"fenceJob","job":"import_a"})
+            ),
+            fenced
+        );
+        let source = call(
+            fenced["journal"].as_str(),
+            json!({"type":"preparedSource","job":"import_a","reference":"prepared_a","grant":grant()}),
+        );
+        assert_eq!(source["result"], json!([0, 255, 13, 10, 128, 42]));
+    }
+    #[test]
+    fn prepared_original_codec_roundtrip_ownership_and_fresh_read_authority() {
+        let staged = call(None, stage());
+        let raw = staged["journal"].as_str().unwrap();
+        assert_eq!(staged["result"], json!({"operationId":"stage_a"}));
+        assert_eq!(staged["prepared"][0]["active"], true);
+        assert_eq!(staged["prepared"][0]["byteLength"], 6);
+        assert_eq!(staged["prepared"][0]["request"]["identity"], asset());
+        assert_eq!(staged["prepared"][0]["grantActions"], grant()["actions"]);
+        assert!(staged["prepared"][0].get("bytes").is_none());
+        assert_eq!(call(Some(raw), stage()), staged);
+        let read = json!({"type":"preparedSource","job":"import_a","reference":"prepared_a","grant":grant()});
+        assert_eq!(
+            call(Some(raw), read.clone())["result"],
+            json!([0, 255, 13, 10, 128, 42])
+        );
+        let mut denied = read;
+        denied["grant"]["actions"] = json!(["ingest"]);
+        assert!(
+            transaction(
+                &identity(),
+                &json!({"journal":raw,"action":denied}).to_string()
+            )
+            .is_err()
+        );
+        let retired = call(
+            Some(raw),
+            json!({"type":"retire","reference":"prepared_a","identity":asset(),"prefix":"cleanup_a"}),
+        );
+        assert_eq!(retired["prepared"][0]["active"], false);
+        let raw = retired["journal"].as_str().unwrap();
+        assert!(
+            transaction(
+                &identity(),
+                &json!({"journal":raw,"action":stage()}).to_string()
+            )
+            .is_err()
+        );
+    }
+    #[test]
+    fn prepared_original_codec_denial_conflict_and_old_journal_compatibility() {
+        let live = call(None, enqueue("live_a", "ingest"));
+        assert!(live["prepared"].as_array().unwrap().is_empty());
+        let mut claim = stage();
+        claim["reference"] = json!("n-1-2");
+        assert!(
+            transaction(
+                &identity(),
+                &json!({"journal":live["journal"],"action":claim}).to_string()
+            )
+            .is_err()
+        );
+        let staged = call(Some(live["journal"].as_str().unwrap()), stage());
+        for (field, value) in [
+            ("bytes", json!([4, 3, 2, 1])),
+            ("job", json!("import_b")),
+            ("grant", json!({"identity":asset(),"actions":[]})),
+        ] {
+            let mut invalid = stage();
+            invalid[field] = value;
+            assert!(
+                transaction(
+                    &identity(),
+                    &json!({"journal":staged["journal"],"action":invalid}).to_string()
+                )
+                .is_err()
+            );
+        }
+        let recovered = call(
+            Some(staged["journal"].as_str().unwrap()),
+            json!({"type":"inspect"}),
+        );
+        assert_eq!(recovered["intents"], staged["intents"]);
+        let mut legacy: Value = serde_json::from_str(live["journal"].as_str().unwrap()).unwrap();
+        legacy[1].as_object_mut().unwrap().remove("prepared");
+        assert!(
+            call(Some(&legacy.to_string()), json!({"type":"inspect"}))["prepared"]
+                .as_array()
+                .unwrap()
+                .is_empty()
+        );
     }
     #[test]
     fn asset_codec_idempotent_operation_receipts_and_scoped_recovery() {

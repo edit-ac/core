@@ -5,10 +5,14 @@ export interface AssetRequest { version: 1; operationId: string; identity: Asset
 export interface AssetPublication { operationId: string; identity: AssetIdentity }
 export interface AssetIntent { reference: string; request: AssetRequest; status: "Pending" | "Complete" | "Canceled" | { Published: AssetPublication }; attempts: number }
 export type AssetWorkAction = {type:"validate";request:AssetRequest;grant:AssetGrant} | {type:"inspect"} | {type:"enqueue";reference:string;request:AssetRequest;grant:AssetGrant}
+ | {type:"stageOriginal";job:string;reference:string;request:AssetRequest;grant:AssetGrant;bytes:readonly number[]}
+ | {type:"fenceJob";job:string}
+ | {type:"preparedSource";job:string;reference:string;grant:AssetGrant}
  | {type:"retire";reference:string;identity:AssetIdentity;prefix:string}
  | {type:"begin";operation:string;online:boolean;grant:AssetGrant}
  | {type:"complete";operation:string;receipt:AssetPublication|null;grant:AssetGrant};
-export interface AssetWorkResult { journal: string; intents: readonly AssetIntent[]; result: AssetIntent | {operationId:string} | null }
+export interface PreparedOriginal { adoptedReference:string|null; job:string; reference:string; request:AssetRequest; grantActions:readonly AssetAction[]; byteLength:number; active:boolean }
+export interface AssetWorkResult { fencedJobs:readonly string[]; journal: string; intents: readonly AssetIntent[]; prepared:readonly PreparedOriginal[]; result: AssetIntent | {operationId:string} | readonly number[] | null }
 /** Explicit v5 creation; importing this module never allocates a replica. */
 export interface CreateOptions {
   profile: "v5";

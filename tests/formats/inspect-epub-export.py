@@ -121,19 +121,22 @@ def mutate(data,path,transform):
             if info.filename==path:b=transform(b)
             z.writestr(info,b)
     return target.getvalue()
-results={}
-for name in ['supported','chapters','empty-title']:
-    data=(out/f'export-{name}.epub').read_bytes();expected=json.loads((out/f'expected-{name}.json').read_text());results[name]=verify(data,expected)
-# Each mutation must fail the same structural + source-derived semantic oracle.
-data=(out/'export-supported.epub').read_bytes();expected=json.loads((out/'expected-supported.json').read_text())
-with zipfile.ZipFile(io.BytesIO(data)) as z:
-    chapter=next(n for n in z.namelist() if n.startswith('EPUB/chapter-') and b'<strong>' in z.read(n))
-    image=next(n for n in z.namelist() if n.endswith('.png'))
-mutations=[('text',chapter,lambda b:b.replace(b'cell A',b'cell X')),('mark',chapter,lambda b:b.replace(b'<strong>',b'<em>').replace(b'</strong>',b'</em>')),('spine','EPUB/package.opf',lambda b:b.replace(b'<itemref idref="c0"/><itemref idref="c1"/>',b'<itemref idref="c1"/><itemref idref="c0"/>')),('toc','EPUB/nav.xhtml',lambda b:b.replace(b'chapter-0.xhtml',b'chapter-99.xhtml')),('image',image,lambda b:b[:-1]+bytes([b[-1]^1])),('active',chapter,lambda b:b.replace(b'</body>',b'<script>evil()</script></body>')),('metadata','EPUB/package.opf',lambda b:b.replace(b'>und<',b'>en<')),('remote',chapter,lambda b:b.replace(b'src="media/',b'src="https://evil.test/')),('alt',chapter,lambda b:b.replace(b'alt="alt ',b'alt="changed '))]
-for name,path,transform in mutations:
-    changed=mutate(data,path,transform);assert changed!=data,name
-    try:verify(changed,expected)
-    except (AssertionError,KeyError,E.XMLSyntaxError):pass
-    else:raise AssertionError('mutation accepted:'+name)
-summary={'state':'passed','reader':{p:importlib.metadata.version(p) for p in ['EbookLib','lxml','six']},'fixtures':results,'negativeMutations':len(mutations),'mutations':[m[0] for m in mutations]}
-(out/'independent-summary.json').write_text(json.dumps(summary,indent=2)+'\n');print(json.dumps(summary))
+def main():
+    results={}
+    for name in ['supported','chapters','empty-title']:
+        data=(out/f'export-{name}.epub').read_bytes();expected=json.loads((out/f'expected-{name}.json').read_text());results[name]=verify(data,expected)
+    # Each mutation must fail the same structural + source-derived semantic oracle.
+    data=(out/'export-supported.epub').read_bytes();expected=json.loads((out/'expected-supported.json').read_text())
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        chapter=next(n for n in z.namelist() if n.startswith('EPUB/chapter-') and b'<strong>' in z.read(n))
+        image=next(n for n in z.namelist() if n.endswith('.png'))
+    mutations=[('text',chapter,lambda b:b.replace(b'cell A',b'cell X')),('mark',chapter,lambda b:b.replace(b'<strong>',b'<em>').replace(b'</strong>',b'</em>')),('spine','EPUB/package.opf',lambda b:b.replace(b'<itemref idref="c0"/><itemref idref="c1"/>',b'<itemref idref="c1"/><itemref idref="c0"/>')),('toc','EPUB/nav.xhtml',lambda b:b.replace(b'chapter-0.xhtml',b'chapter-99.xhtml')),('image',image,lambda b:b[:-1]+bytes([b[-1]^1])),('active',chapter,lambda b:b.replace(b'</body>',b'<script>evil()</script></body>')),('metadata','EPUB/package.opf',lambda b:b.replace(b'>und<',b'>en<')),('remote',chapter,lambda b:b.replace(b'src="media/',b'src="https://evil.test/')),('alt',chapter,lambda b:b.replace(b'alt="alt ',b'alt="changed '))]
+    for name,path,transform in mutations:
+        changed=mutate(data,path,transform);assert changed!=data,name
+        try:verify(changed,expected)
+        except (AssertionError,KeyError,E.XMLSyntaxError):pass
+        else:raise AssertionError('mutation accepted:'+name)
+    summary={'state':'passed','reader':{p:importlib.metadata.version(p) for p in ['EbookLib','lxml','six']},'fixtures':results,'negativeMutations':len(mutations),'mutations':[m[0] for m in mutations]}
+    (out/'independent-summary.json').write_text(json.dumps(summary,indent=2)+'\n');print(json.dumps(summary))
+
+if __name__=='__main__': main()

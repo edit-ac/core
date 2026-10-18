@@ -1,5 +1,5 @@
-//! Durable host work on the existing per-document store. No binary bytes or URLs,
-//! semantic mutations, automatic retries, or binary deletion enter this journal.
+//! Durable host work and prepared originals in the existing per-document store.
+//! No URLs, semantic mutations, automatic retries, or global binary deletion.
 use crate::ports::{Durability, LocalStore, PortError};
 use editac_core::modules::assets::{
     AssetAction, AssetCommitReceipt, AssetGrant, AssetIdentity, AssetRequest,
@@ -16,6 +16,63 @@ pub const MAX_ATTEMPTS: u32 = 8;
 pub struct AssetJournal {
     intents: Vec<AssetIntent>,
     retired: Vec<String>,
+    #[cfg_attr(feature = "asset-serde", serde(default))]
+    prepared: Vec<PreparedOriginal>,
+    #[cfg_attr(feature = "asset-serde", serde(default))]
+    fenced_jobs: Vec<String>,
+}
+
+/// Immutable original owned by an import job, independently of live descriptors.
+/// Persisted with its ingest intent in the same asset transaction, never in Yrs.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "asset-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "asset-serde", serde(deny_unknown_fields))]
+pub struct PreparedOriginal {
+    pub job: String,
+    pub reference: String,
+    pub request: AssetRequest,
+    pub grant_actions: Vec<AssetAction>,
+    pub bytes: Vec<u8>,
+    #[cfg_attr(feature = "asset-serde", serde(default))]
+    pub adopted_reference: Option<String>,
+}
+/// A binding supplied by the shared insertion planner, never by a host effect.
+/// This primitive only prepares the existing journal; it cannot commit content.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PreparedAssetBinding {
+    pub reference: String,
+    pub target: String,
+    pub identity: AssetIdentity,
+}
+impl PreparedOriginal {
+    fn grant(&self) -> AssetGrant {
+        AssetGrant {
+            identity: self.request.identity.clone(),
+            actions: self.grant_actions.clone(),
+        }
+    }
+    fn validate(&self) -> Result<(), PortError> {
+        valid_key(&self.job)?;
+        valid_key(&self.reference)?;
+        if let Some(target) = &self.adopted_reference {
+            valid_key(target)?;
+            if target == &self.reference {
+                return Err(PortError::Conflict);
+            }
+        }
+        self.request
+            .validate(&self.grant())
+            .map_err(|_| PortError::Permission)?;
+        if self.request.action != AssetAction::Ingest || self.bytes.is_empty() {
+            return Err(PortError::InvalidRecord);
+        }
+        if self.bytes.len() as u64 > self.request.byte_limit
+            || self.bytes.len() as u64 > MAX_CACHE_BYTES
+        {
+            return Err(PortError::ResourceLimit);
+        }
+        Ok(())
+    }
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "asset-serde", derive(serde::Serialize, serde::Deserialize))]
@@ -78,6 +135,23 @@ impl AssetJournal {
     pub fn intents(&self) -> &[AssetIntent] {
         &self.intents
     }
+    pub fn prepared(&self) -> &[PreparedOriginal] {
+        &self.prepared
+    }
+    /// Reconciliation must distinguish uncommitted job ownership from live nodes.
+    pub fn is_prepared(&self, reference: &str) -> bool {
+        !self.is_retired(reference)
+            && self
+                .prepared
+                .iter()
+                .any(|p| p.reference == reference && p.adopted_reference.is_none())
+    }
+    pub fn is_job_fenced(&self, job: &str) -> bool {
+        self.fenced_jobs.iter().any(|j| j == job)
+    }
+    pub fn fenced_jobs(&self) -> &[String] {
+        &self.fenced_jobs
+    }
     pub fn is_retired(&self, reference: &str) -> bool {
         self.retired.iter().any(|r| r == reference)
     }
@@ -108,6 +182,55 @@ impl AssetJournal {
     pub(crate) fn validate(&self) -> Result<(), PortError> {
         if self.intents.len() > MAX_ASSET_INTENTS || self.retired.len() > MAX_ASSET_INTENTS {
             return Err(PortError::ResourceLimit);
+        }
+        if self.fenced_jobs.len() > MAX_ASSET_INTENTS {
+            return Err(PortError::ResourceLimit);
+        }
+        for (i, job) in self.fenced_jobs.iter().enumerate() {
+            valid_key(job)?;
+            if self.fenced_jobs[..i].contains(job)
+                || self.prepared.iter().any(|p| {
+                    p.job == *job && p.adopted_reference.is_none() && !self.is_retired(&p.reference)
+                })
+            {
+                return Err(PortError::Integrity);
+            }
+        }
+        if self.prepared.len() > MAX_ASSET_INTENTS {
+            return Err(PortError::ResourceLimit);
+        }
+        let mut retained = 0u64;
+        for (i, original) in self.prepared.iter().enumerate() {
+            original.validate()?;
+            if let Some(target) = &original.adopted_reference {
+                if !self.is_job_fenced(&original.job)
+                    || self.prepared.iter().any(|p| {
+                        p.reference == *target
+                            || (p.reference != original.reference
+                                && p.adopted_reference.as_ref() == Some(target))
+                    })
+                {
+                    return Err(PortError::Integrity);
+                }
+            }
+            retained += original.bytes.len() as u64;
+            if self.prepared[..i]
+                .iter()
+                .any(|p| p.reference == original.reference)
+                || !self.intents.iter().any(|intent| {
+                    intent.reference
+                        == *original
+                            .adopted_reference
+                            .as_ref()
+                            .unwrap_or(&original.reference)
+                        && intent.request == original.request
+                })
+            {
+                return Err(PortError::Integrity);
+            }
+        }
+        if retained > MAX_CACHE_BYTES {
+            return Err(PortError::Quota);
         }
         for (i, intent) in self.intents.iter().enumerate() {
             valid_key(&intent.reference)?;
@@ -183,6 +306,162 @@ impl AssetJournal {
             })
             .sum::<usize>()
             + self.retired.iter().map(String::len).sum::<usize>()
+            + self.fenced_jobs.iter().map(|j| j.len() + 8).sum::<usize>()
+            + self
+                .prepared
+                .iter()
+                .map(|p| {
+                    p.bytes.len()
+                        + p.job.len()
+                        + p.reference.len()
+                        + p.adopted_reference.as_ref().map_or(0, String::len)
+                        + 1024
+                })
+                .sum::<usize>()
+    }
+    /// Prepare job-only reference transfer for the shared content/store commit.
+    /// The caller MUST persist this candidate with the exact planned content update
+    /// in one transaction after comparing the input journal. This method writes
+    /// neither the store nor the document and cannot acknowledge an insertion.
+    pub fn prepare_adoption(
+        &self,
+        job: &str,
+        bindings: &[PreparedAssetBinding],
+    ) -> Result<Self, PortError> {
+        valid_key(job)?;
+        self.validate()?;
+        if self.is_job_fenced(job) || bindings.is_empty() || bindings.len() > MAX_ASSET_INTENTS {
+            return Err(PortError::Conflict);
+        }
+        for (n, binding) in bindings.iter().enumerate() {
+            valid_key(&binding.reference)?;
+            valid_key(&binding.target)?;
+            binding
+                .identity
+                .validate()
+                .map_err(|_| PortError::InvalidRecord)?;
+            if bindings[..n]
+                .iter()
+                .any(|b| b.reference == binding.reference || b.target == binding.target)
+                || self.is_retired(&binding.target)
+                || self.intents.iter().any(|i| i.reference == binding.target)
+                || self.prepared.iter().any(|p| p.reference == binding.target)
+            {
+                return Err(PortError::Conflict);
+            }
+            let original = self
+                .prepared
+                .iter()
+                .find(|p| p.job == job && p.reference == binding.reference)
+                .ok_or(PortError::Conflict)?;
+            if !self.is_prepared(&original.reference)
+                || original.request.identity != binding.identity
+            {
+                return Err(PortError::Conflict);
+            }
+        }
+        let mut next = self.clone();
+        // Transfer only validated job-owned references; original bytes/grants and
+        // idempotent operation IDs stay immutable for recovery and host retries.
+        for binding in bindings {
+            for intent in &mut next.intents {
+                if intent.reference == binding.reference {
+                    intent.reference = binding.target.clone();
+                }
+            }
+            next.prepared
+                .iter_mut()
+                .find(|p| p.reference == binding.reference)
+                .unwrap()
+                .adopted_reference = Some(binding.target.clone());
+        }
+        let unused: Vec<_> = next
+            .prepared
+            .iter()
+            .filter(|p| p.job == job && p.adopted_reference.is_none())
+            .map(|p| (p.reference.clone(), p.request.identity.clone()))
+            .collect();
+        for (reference, identity) in unused {
+            let prefix = next.cleanup_prefix()?;
+            next.retire_reference(&reference, &identity, &prefix)?;
+        }
+        if next.fenced_jobs.len() >= MAX_ASSET_INTENTS {
+            return Err(PortError::Backpressure);
+        }
+        next.fenced_jobs.push(job.into());
+        next.validate()?;
+        Ok(next)
+    }
+    fn cleanup_prefix(&self) -> Result<String, PortError> {
+        (0..=MAX_ASSET_INTENTS)
+            .map(|n| format!("job_fence_{n}"))
+            .find(|prefix| {
+                !self.intents.iter().any(|i| {
+                    i.request.operation_id == format!("{prefix}_cancel")
+                        || i.request.operation_id == format!("{prefix}_release")
+                })
+            })
+            .ok_or(PortError::Backpressure)
+    }
+    fn retire_reference(
+        &mut self,
+        reference: &str,
+        identity: &AssetIdentity,
+        operation_prefix: &str,
+    ) -> Result<(), PortError> {
+        let j = self;
+        if j.is_retired(reference) {
+            return Ok(());
+        }
+        if j.retired.len() >= MAX_ASSET_INTENTS || j.intents.len() + 2 > MAX_ASSET_INTENTS {
+            return Err(PortError::Backpressure);
+        }
+        if j.intents
+            .iter()
+            .any(|i| i.reference == reference && i.request.identity != *identity)
+        {
+            return Err(PortError::Conflict);
+        }
+        for (suffix, action) in [
+            ("cancel", AssetAction::Cancel),
+            ("release", AssetAction::ReleaseReference),
+        ] {
+            let request = AssetRequest {
+                version: 1,
+                operation_id: format!("{operation_prefix}_{suffix}"),
+                identity: identity.clone(),
+                action,
+                byte_limit: 1,
+            };
+            request
+                .validate(&AssetGrant {
+                    identity: identity.clone(),
+                    actions: vec![action],
+                })
+                .map_err(|_| PortError::InvalidRecord)?;
+            if j.intents
+                .iter()
+                .any(|i| i.request.operation_id == request.operation_id)
+            {
+                return Err(PortError::Conflict);
+            }
+            j.intents.push(AssetIntent {
+                reference: reference.into(),
+                request,
+                status: WorkStatus::Pending,
+                attempts: 0,
+            });
+        }
+        j.retired.push(reference.into());
+        for i in &mut j.intents {
+            if i.reference == reference
+                && !cleanup(i.request.action)
+                && i.status == WorkStatus::Pending
+            {
+                i.status = WorkStatus::Canceled;
+            }
+        }
+        Ok(())
     }
     fn enqueue(&mut self, reference: &str, request: AssetRequest) -> Result<(), PortError> {
         valid_key(reference)?;
@@ -251,6 +530,78 @@ impl<'a, S: AssetStore> AssetWork<'a, S> {
     pub fn new(store: &'a S) -> Self {
         Self { store }
     }
+    /// Retain before inserting any node. Failure leaves caller-owned input intact;
+    /// CommitUnknown requires recovery/retry of this exact job/reference/request.
+    pub fn stage_original(
+        &self,
+        job: &str,
+        reference: &str,
+        request: AssetRequest,
+        grant: &AssetGrant,
+        bytes: &[u8],
+    ) -> Result<AssetIntentReceipt, PortError> {
+        request.validate(grant).map_err(|_| PortError::Permission)?;
+        valid_key(job)?;
+        valid_key(reference)?;
+        if request.action != AssetAction::Ingest || bytes.is_empty() {
+            return Err(PortError::InvalidRecord);
+        }
+        if bytes.len() as u64 > request.byte_limit || bytes.len() as u64 > MAX_CACHE_BYTES {
+            return Err(PortError::ResourceLimit);
+        }
+        let original = PreparedOriginal {
+            job: job.into(),
+            reference: reference.into(),
+            request,
+            grant_actions: grant.actions.clone(),
+            bytes: bytes.into(),
+            adopted_reference: None,
+        };
+        original.validate()?;
+        let operation_id = original.request.operation_id.clone();
+        self.store.update_assets(|j| {
+            if j.is_job_fenced(job) || j.is_retired(reference) {
+                return Err(PortError::Conflict);
+            }
+            if let Some(old) = j.prepared.iter().find(|p| p.reference == reference) {
+                return if old == &original {
+                    Ok(())
+                } else {
+                    Err(PortError::Conflict)
+                };
+            }
+            // A live/sibling intent cannot be claimed retroactively by a job.
+            if j.intents.iter().any(|i| i.reference == reference) {
+                return Err(PortError::Conflict);
+            }
+            j.enqueue(reference, original.request.clone())?;
+            j.prepared.push(original);
+            j.validate()
+        })?;
+        Ok(AssetIntentReceipt {
+            operation_id,
+            durability: self.store.capabilities().durability,
+        })
+    }
+    /// Explicit read authority is checked independently of the captured ingest grant.
+    /// Retired originals remain recoverable; retirement never means binary deletion.
+    pub fn prepared_source(
+        &self,
+        job: &str,
+        reference: &str,
+        grant: &AssetGrant,
+    ) -> Result<Vec<u8>, PortError> {
+        let journal = self.store.asset_journal()?;
+        let original = journal
+            .prepared
+            .iter()
+            .find(|p| p.job == job && p.reference == reference)
+            .ok_or(PortError::Conflict)?;
+        let mut request = original.request.clone();
+        request.action = AssetAction::Read;
+        request.validate(grant).map_err(|_| PortError::Permission)?;
+        Ok(original.bytes.clone())
+    }
     pub fn enqueue(
         &self,
         reference: &str,
@@ -284,60 +635,37 @@ impl<'a, S: AssetStore> AssetWork<'a, S> {
         valid_key(operation_prefix)?;
         identity.validate().map_err(|_| PortError::InvalidRecord)?;
         self.store.update_assets(|j| {
-            if j.is_retired(reference) {
-                return Ok(());
-            }
-            if j.retired.len() >= MAX_ASSET_INTENTS || j.intents.len() + 2 > MAX_ASSET_INTENTS {
-                return Err(PortError::Backpressure);
-            }
-            if j.intents
-                .iter()
-                .any(|i| i.reference == reference && i.request.identity != *identity)
-            {
-                return Err(PortError::Conflict);
-            }
-            for (suffix, action) in [
-                ("cancel", AssetAction::Cancel),
-                ("release", AssetAction::ReleaseReference),
-            ] {
-                let request = AssetRequest {
-                    version: 1,
-                    operation_id: format!("{operation_prefix}_{suffix}"),
-                    identity: identity.clone(),
-                    action,
-                    byte_limit: 1,
-                };
-                request
-                    .validate(&AssetGrant {
-                        identity: identity.clone(),
-                        actions: vec![action],
-                    })
-                    .map_err(|_| PortError::InvalidRecord)?;
-                if j.intents
-                    .iter()
-                    .any(|i| i.request.operation_id == request.operation_id)
-                {
-                    return Err(PortError::Conflict);
-                }
-                j.intents.push(AssetIntent {
-                    reference: reference.into(),
-                    request,
-                    status: WorkStatus::Pending,
-                    attempts: 0,
-                });
-            }
-            j.retired.push(reference.into());
-            for i in &mut j.intents {
-                if i.reference == reference
-                    && !cleanup(i.request.action)
-                    && i.status == WorkStatus::Pending
-                {
-                    i.status = WorkStatus::Canceled;
-                }
-            }
+            j.retire_reference(reference, identity, operation_prefix)?;
             j.validate()
         })
     }
+    /// Durably fence even an empty job, before asynchronous authorization/staging.
+    /// Retire only its originals in one store transaction; source remains readable.
+    /// Exact retries are idempotent, including recovery from CommitUnknown.
+    pub fn fence_job(&self, job: &str) -> Result<(), PortError> {
+        valid_key(job)?;
+        self.store.update_assets(|j| {
+            if j.is_job_fenced(job) {
+                return Ok(());
+            }
+            if j.fenced_jobs.len() >= MAX_ASSET_INTENTS {
+                return Err(PortError::Backpressure);
+            }
+            let originals: Vec<_> = j
+                .prepared
+                .iter()
+                .filter(|p| p.job == job && p.adopted_reference.is_none())
+                .map(|p| (p.reference.clone(), p.request.identity.clone()))
+                .collect();
+            for (reference, identity) in originals {
+                let prefix = j.cleanup_prefix()?;
+                j.retire_reference(&reference, &identity, &prefix)?;
+            }
+            j.fenced_jobs.push(job.into());
+            j.validate()
+        })
+    }
+
     /// One explicit attempt, no loops, network discovery or ambient authorization.
     /// A crash after execute retries the exact ID; only the host can deduplicate bytes.
     pub fn run_one(
