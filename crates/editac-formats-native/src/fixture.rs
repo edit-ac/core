@@ -133,6 +133,47 @@ pub fn make() -> Value {
                 ..para(vec![run("x^2", vec![])])
             },
         ]
+    } else if kind == "table" || kind == "table-multiple" {
+        let cells = [
+            ["name", "formula", "empty"],
+            ["🙂 e\u{301}", "=1+1", ""],
+            ["a\nb", "+SUM(A1)", "he said \"yes\""],
+            ["tab\there", "-42", "@cmd"],
+        ];
+        let source = cells
+            .iter()
+            .map(|r| r.join("\t"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let mut blocks = vec![
+            para(vec![run("Outside selected table", vec![])]),
+            FragmentBlock {
+                runs: vec![run(&source, vec![])],
+                attributes: Some(BlockAttributes::Unknown(
+                    Content::Table {
+                        rows: cells
+                            .iter()
+                            .map(|r| {
+                                r.iter()
+                                    .map(|c| vec![run(c, vec![(Mark::Bold, None)])])
+                                    .collect()
+                            })
+                            .collect(),
+                        alignments: vec![Alignment::None; 3],
+                        source,
+                    }
+                    .tuple()
+                    .unwrap(),
+                )),
+                containers: vec![],
+                checked: None,
+            },
+            para(vec![run("Tail", vec![])]),
+        ];
+        if kind == "table-multiple" {
+            blocks.push(blocks[1].clone());
+        }
+        blocks
     } else if kind == "marks" {
         vec![para(
             (0..16)
@@ -154,5 +195,14 @@ pub fn make() -> Value {
     };
     j.finish_import(&mut o, &bs, 0).unwrap();
     let cp = o.service().session().document().checkpoint();
-    json!({"documentId":"27000000-0000-4000-8000-000000000099","epoch":id.epoch,"writerId":cp.writer_id,"checkpointSha256":hash(&cp.bytes),"checkpoint":cp.bytes})
+    let selected = o
+        .service()
+        .read(0)
+        .unwrap()
+        .snapshot
+        .visible
+        .iter()
+        .find(|n| matches!(&n.block_attributes, Some(BlockAttributes::Unknown(_))))
+        .map(|n| n.id.clone());
+    json!({"nonTableBlock":o.service().read(0).unwrap().snapshot.visible[0].id,"selectedTable":selected,"documentId":"27000000-0000-4000-8000-000000000099","epoch":id.epoch,"writerId":cp.writer_id,"checkpointSha256":hash(&cp.bytes),"checkpoint":cp.bytes})
 }

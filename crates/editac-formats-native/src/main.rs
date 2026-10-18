@@ -211,7 +211,11 @@ fn main() {
         println!("{v}");
         return;
     }
-    if mode != "rtf-import" && mode != "rtf-export" && mode != "csv-import" && mode != "tsv-import"
+    if mode != "rtf-import"
+        && mode != "rtf-export"
+        && mode != "csv-import"
+        && mode != "tsv-import"
+        && mode != "table-export"
     {
         eprintln!("FORMAT_PROFILE_UNAVAILABLE");
         std::process::exit(78);
@@ -226,6 +230,8 @@ fn main() {
     } else {
         if mode == "rtf-export" {
             export::convert(&input)
+        } else if mode == "table-export" {
+            export::convert_table(&input)
         } else if mode == "csv-import" || mode == "tsv-import" {
             table::convert(&input, &mode, &std::env::args().skip(2).collect::<Vec<_>>())
         } else {

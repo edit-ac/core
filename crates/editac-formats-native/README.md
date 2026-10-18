@@ -95,5 +95,17 @@ exact scanned bytes/dimensions/UTF-16 units/BOM handling. The runner validates
 profile/input/dialect/checkpoint/report correlation before returning completion.
 Cold/warm measurements include process bootstrap, sandbox, parse, mapping, commit,
 undo/redo, reopen, checkpoint and result transfer. Codec notices are in the native
-source-package receipt; this route has no fonts/media assets. CSV/TSV export,
-native host wiring and release remain separate unfinished gates.
+source-package receipt; this import route has no fonts/media assets. Native host
+wiring and release remain separate unfinished gates.
+
+Selected-table export: `runner.run_table_export(binary, reviewed_sha256, request_bytes)`
+accepts the initialized checkpoint envelope with an explicit `selectedTable` block
+ID, `profile` (`edit-ac-csv-v1`, `edit-ac-tsv-v1`, or separately named
+`edit-ac-{csv,tsv}-spreadsheet-safe-v1`), and `newline` (`lf`/`crlf`).
+UTF-8 without BOM, all fields quoted with doubled quotes, a final newline and
+all rows retained are fixed policies. Rich-format loss requires `approveLoss: true`.
+Spreadsheet-safe profiles prefix dangerous text and report each transform; exact
+profiles preserve formula-like strings. Missing selections reject and outside
+content has diagnostics. Retain Result.original (checkpoint envelope) for recovery.
+Output completion never marks a host revision saved. Native UI, file saves,
+independent viewer qualification and release support remain platform-owner gates.

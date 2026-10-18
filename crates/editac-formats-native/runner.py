@@ -139,7 +139,20 @@ def run_export(binary, binary_sha256, checkpoint_request, *, wall_ms=4000,
         _ACTIVE.release()
 
 
-def _export_completion_valid(payload, original):
+def run_table_export(binary, binary_sha256, checkpoint_request, *, wall_ms=4000,
+                     output_bytes=MAX_OUTPUT, cancel=None):
+    """Export one explicitly selected captured table; preserve request for recovery."""
+    if not _ACTIVE.acquire(blocking=False):
+        data = bytes(checkpoint_request)
+        return Result(dict(schemaVersion=1, state='unavailable', code='FORMAT_BUSY', executed=0,
+                           outputAccepted=False, childExited=True, originalSha256=hashlib.sha256(data).hexdigest()), data)
+    try:
+        return _run(binary, binary_sha256, checkpoint_request, 'table-export', (), wall_ms, output_bytes, cancel)
+    finally:
+        _ACTIVE.release()
+
+
+def _export_completion_valid(payload, original, table=False):
     """Reject incomplete or malformed worker envelopes before exposing output."""
     try:
         request = json.loads(original)
@@ -155,7 +168,21 @@ def _export_completion_valid(payload, original):
                    isinstance(d.get('location'), str) and d['location'] and
                    type(d.get('lossy')) is bool for d in diagnostics):
             return False
-        if not {'STYLE_DEFAULTS', 'METADATA_DEFAULTS'} <= {d['code'] for d in diagnostics}:
+        if table:
+            if 'TEXT_ONLY_FORMAT' not in {d['code'] for d in diagnostics}:
+                return False
+            if not isinstance(request.get('selectedTable'), str) or not request['selectedTable']:
+                return False
+            if not all(type(report.get(k)) is int and report[k] >= 0 for k in ('rows','columns','cells','transformedCells')):
+                return False
+            if not (report['rows'] > 0 and report['columns'] > 0 and report['cells'] == report['rows'] * report['columns'] and report['transformedCells'] <= report['cells']):
+                return False
+            safe = 'spreadsheet-safe' in request['profile']
+            if not safe and report['transformedCells'] != 0:
+                return False
+            if report['transformedCells'] != sum(d['code'] == 'SPREADSHEET_SAFE_PREFIX' for d in diagnostics):
+                return False
+        elif not {'STYLE_DEFAULTS', 'METADATA_DEFAULTS'} <= {d['code'] for d in diagnostics}:
             return False
         if any(d['lossy'] for d in diagnostics) and request.get('approveLoss') is not True:
             return False
@@ -181,11 +208,14 @@ def _run(binary, binary_sha256, original, mode, args=(), wall_ms=4000,
     start = time.monotonic()
     original = bytes(original)
     outcome = dict(schemaVersion=1, state='unavailable', code=None, executed=0,
-                   profile={'csv-import':'edit-ac-csv-v1','tsv-import':'edit-ac-tsv-v1'}.get(mode,'edit-ac-rtf-v1'), direction='export' if mode == 'rtf-export' else 'import',
+                   profile={'csv-import':'edit-ac-csv-v1','tsv-import':'edit-ac-tsv-v1'}.get(mode,'edit-ac-rtf-v1'), direction='export' if mode in ('rtf-export','table-export') else 'import',
                    target=platform.platform(), originalSha256=hashlib.sha256(original).hexdigest(),
                    originalBytes=len(original), childExited=True, outputAccepted=False,
                    hardRustHeapBytes=RUST_HEAP, peakObservedRssBytes=0, rssSamples=0,
                    maxSampleIntervalMs=0, peakHostRssBytes=0, peakObservedHostAndWorkerRssBytes=0, resourceModel='hard Rust requested heap; RLIMIT_CPU/FSIZE/NOFILE; wall/cancel; sampled process RSS')
+    if mode == 'table-export':
+        try: outcome['profile'] = json.loads(original).get('profile')
+        except (ValueError, AttributeError): pass
     child = None
     try:
         if len(original) > MAX_INPUT:
@@ -194,7 +224,7 @@ def _run(binary, binary_sha256, original, mode, args=(), wall_ms=4000,
             raise ValueError('FORMAT_RESOURCE_PROFILE_UNAVAILABLE')
         if platform.system() != 'Darwin' or platform.machine() != 'arm64' or not pathlib.Path(SANDBOX).is_file():
             raise ValueError('FORMAT_ISOLATION_UNAVAILABLE')
-        if mode not in ('csv-import', 'tsv-import', 'rtf-import', 'rtf-export', 'export-fixture', 'read', 'write', 'network', 'child', 'spin', 'heap', 'output'):
+        if mode not in ('csv-import', 'tsv-import', 'rtf-import', 'rtf-export', 'table-export', 'export-fixture', 'read', 'write', 'network', 'child', 'spin', 'heap', 'output'):
             raise ValueError('FORMAT_PROFILE_UNAVAILABLE')
         binary = pathlib.Path(binary).resolve(strict=True)
         if not binary.is_file() or _file_hash(binary) != binary_sha256:
@@ -293,7 +323,7 @@ def _run(binary, binary_sha256, original, mode, args=(), wall_ms=4000,
                     raise ValueError('FORMAT_COMPLETION_INVALID')
                 if not isinstance(payload, dict):
                     raise ValueError('FORMAT_COMPLETION_INVALID')
-                if mode in ('csv-import', 'tsv-import', 'rtf-import', 'rtf-export'):
+                if mode in ('csv-import', 'tsv-import', 'rtf-import', 'rtf-export', 'table-export'):
                     if payload.get('state') not in ('passed', 'rejected'):
                         raise ValueError('FORMAT_COMPLETION_INVALID')
                     if payload['state'] == 'passed':
@@ -309,7 +339,7 @@ def _run(binary, binary_sha256, original, mode, args=(), wall_ms=4000,
                                 hashlib.sha256(bytes(payload.get('checkpoint', []))).hexdigest() != payload.get('checkpointSha256')):
                                 raise ValueError('FORMAT_COMPLETION_INVALID')
                         else:
-                            if not _export_completion_valid(payload, original):
+                            if not _export_completion_valid(payload, original, mode == 'table-export'):
                                 raise ValueError('FORMAT_COMPLETION_INVALID')
                     outcome.update(state=payload['state'], code=payload.get('code'), outputAccepted=payload['state'] == 'passed')
                 else:
