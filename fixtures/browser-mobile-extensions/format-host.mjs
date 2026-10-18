@@ -22,10 +22,19 @@ export function installFormatPlatform(mode = 'absent') {
 }
 export async function mountFormats(options = {}) {
   const f=window.inputFixture;
-  window.formatState={signals:[],paused:!!options.paused,profileLoads:0};
+  window.formatState={signals:[],paused:!!options.paused,profileLoads:0,clientLoads:0,clientCalls:[],clientDisposals:0};
   await f.mount({text:'alpha 😀',palette:options.markdown!==false,viewport:true,...options});
   const controls=window.formats=window.editor.enableFormatControls(formatControls(
     {maxBytes:options.maxBytes,schedule:async signal=>{window.formatState.signals.push(signal);if(window.formatState.paused)await new Promise(resolve=>{window.formatState.release=resolve;});},
+     ...(options.client?{loadClient:async signal=>{
+       const state=window.formatState;state.clientLoads++;
+       if(options.client==='paused')await new Promise(resolve=>{state.releaseClient=resolve;});
+       const {createFormatClient}=await import('/fixture/installed-formats/dist/index.js');
+       const client=createFormatClient();
+       return {prepareImport(engine,request){state.clientCalls.push({direction:'import',format:request.format});return client.prepareImport(engine,request);},
+         export(engine,request){state.clientCalls.push({direction:'export',format:request.format});return client.export(engine,request);},
+         cancel(){client.cancel();},dispose(){state.clientDisposals++;client.dispose();}};
+     }}:{}),
      ...(options.catalog?{loadProfiles:async signal=>{
        const state=window.formatState;state.profileLoads++;state.profileSignal=signal;
        if(options.catalog==='paused')await new Promise(resolve=>{state.releaseProfiles=resolve;});

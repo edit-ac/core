@@ -39,9 +39,9 @@ const {probe,facts}=browserHarness('mobile-extensions','fixtures/browser-mobile-
     ...['modules/formats','modules/format-profiles','modules/touch-controls','clipboard/fragment','clipboard/html','dom/selection','editor','platform/viewport'].flatMap(n=>[`packages/web/src/${n}.ts`,`packages/web/dist/${n}.js`])],
 });
 facts.binding={gate:'MEX-1.6',ids:['MWX-C21','MWX-C22','MWX-C23','MWX-C24'],
-  semantics:'actual installed production BrowserEditor/Session/WASM/IndexedDB/Markdown and format controls',
+  semantics:'actual installed BrowserEditor/Session/WASM/IndexedDB/Markdown, authenticated document-format worker, touch selectors and explicit Session confirmation',
   platform:'prepared OS transports; browser download request only; no actual OS/device delivery claim',
-  pending:'qualified binary converter browser entry/worker/consumer receipt; parent remains unchecked'};
+  pending:'stable original/media adoption and full captured export/share lifecycle remain MFA-1.2/1.3; complete original-case reconciliation remains MFA-1.4; broader MEX-1.6 stays unchecked'};
 const ui=page=>page.getByRole('group',{name:'File and sharing controls',exact:true});
 const button=(page,name)=>ui(page).getByRole('button',{name,exact:true});
 const status=page=>ui(page).getByRole('status');
@@ -283,4 +283,83 @@ for(const action of ['save','share'])test(`MWX-C24 canceled delayed ${action} ca
  const baseline=await mount(page,{},'delayed');await open(page);await prepare(page);const a=await artifact(page);await button(page,action==='save'?'Save file':'Share file').click();await page.waitForFunction(()=>!!(window as any).formatPlatform.release);
  await button(page,'Cancel preparation').click();await page.evaluate(()=>(window as any).formatPlatform.release());await frames(page);assert.match(await status(page).innerText(),/^Canceled/);assert.deepEqual(await artifact(page),a);
  if(action==='save')assert.equal((await transport(page)).calls.some(c=>c.action==='createWritable'),false);await finish(page,baseline,fact);
+}));
+
+async function installed(page,options={},mode='absent') {
+ const baseline=await mount(page,{text:'qualified body',catalog:'installed',client:true,...options},mode);await open(page);
+ await button(page,'Show installed format profiles').tap();await page.waitForFunction(()=>!(window as any).formats.busy);
+ return baseline;
+}
+async function prepareDocument(page,format,filename=`exact.${format}`){
+ await ui(page).getByLabel('Export format',{exact:true}).selectOption(format);await ui(page).getByLabel('Output filename',{exact:true}).fill(filename);
+ await button(page,'Prepare export').tap();await page.waitForFunction(()=>!(window as any).formats.busy);
+}
+test('MFA-1.1-C3 operational selectors preserve exact authenticated directions without starting a converter',()=>probe('MFA-1.1-operational-menu',async(page,fact)=>{
+ const baseline=await installed(page),before=await state(page),rows=facts.installedProfiles.directions;
+ for(const direction of ['import','export']){
+  const values=await ui(page).getByLabel(`${direction==='import'?'Import':'Export'} format`,{exact:true}).locator('option').evaluateAll(options=>options.map(o=>({value:(o as HTMLOptionElement).value,label:o.textContent})));
+  assert.deepEqual(values.slice(2),rows.filter(r=>r.direction===direction&&r.target==='browser-worker-wasm32').map(r=>({value:r.format,label:`${direction==='import'?'Import':'Export'}: ${r.format.toUpperCase()} — ${r.profile}; fidelity: ${r.fidelity}`})));
+ }
+ assert.equal(await page.evaluate(()=>(window as any).formatState.clientLoads),0);assert.equal(fact.requests.some(url=>/worker\.js|formats_wasm/.test(url)),false);
+ assert.match(await catalog(page).innerText(),/Qualified document actions are available/);
+ assert.equal(await ui(page).getByLabel('Import file (file-input fallback)',{exact:true}).getAttribute('accept').then(v=>v!.includes('.pdf')),false);
+ assert.deepEqual(await transport(page),{calls:[],permissions:0,aborts:0,urls:[],created:0,revoked:0});assert.deepEqual(await state(page),before);await finish(page,baseline,fact);
+}));
+for(const format of ['rtf','docx','odt','epub','pdf'])test(`MFA-1.1-C4 actual installed ${format} export is available from touch controls`,()=>probe(`MFA-1.1-worker-export-${format}`,async(page,fact)=>{
+ const baseline=await installed(page,{},'denied'),before=await state(page);
+ await prepareDocument(page,format,`résumé exact.${format}`);const a=await artifact(page);assert.ok(a,await status(page).innerText());
+ assert.equal(a.format,format);assert.equal(a.filename,`résumé exact.${format}`);assert.ok(a.bytes.length>20);
+ assert.match(await status(page).innerText(),/Prepared revision .*not saved or shared/);
+ assert.equal((await transport(page)).calls.length,0);const prepared=await state(page);assert.deepEqual({...prepared,selection:before.selection},before);
+ const buffer=Buffer.from(a.bytes);fact.output={sha256:createHash('sha256').update(buffer).digest('hex'),bytes:buffer.length,mediaType:a.mediaType,revision:a.revision};
+ if(format==='rtf')assert.ok(buffer.toString().startsWith('{\\rtf'));else if(format==='pdf')assert.equal(buffer.subarray(0,5).toString(),'%PDF-');else assert.equal(buffer.subarray(0,2).toString(),'PK');
+ await button(page,'Share file').tap();await page.waitForFunction(()=>!(window as any).formats.busy);assert.match(await status(page).innerText(),/Output retained/);assert.deepEqual(await artifact(page),a);
+ if(format!=='rtf'){
+  assert.doesNotMatch(await status(page).innerText(),/Select output for manual copy/);
+  await button(page,'Copy output').tap();assert.match(await status(page).innerText(),/Text copy is unavailable/);
+  await button(page,'Select output for manual copy').tap();assert.match(await status(page).innerText(),/Binary output retained/);
+  assert.equal((await transport(page)).calls.filter(c=>c.action==='copy').length,0);
+ }
+ const downloadPromise=page.waitForEvent('download');await button(page,'Download file').tap();const download=await downloadPromise;
+ assert.equal(download.suggestedFilename(),a.filename);const stream=await download.createReadStream();const chunks=[];for await(const chunk of stream!)chunks.push(chunk);
+ assert.deepEqual(Buffer.concat(chunks),buffer);assert.deepEqual(await artifact(page),a);assert.equal((await transport(page)).calls.some(c=>['save','write'].includes(c.action)),false);
+ assert.ok(fact.requests.some(url=>url.includes('installed-formats/dist/worker.js')));assert.ok(fact.requests.some(url=>url.includes('editac_formats_wasm_bg.wasm')));
+ await finish(page,baseline,fact);
+}));
+for(const format of ['rtf','docx','odt','epub'])test(`MFA-1.1-C4 installed ${format} file-input preview uses existing Session confirmation`,()=>probe(`MFA-1.1-worker-import-${format}`,async(page,fact)=>{
+ const baseline=await installed(page);await prepareDocument(page,format);const exported=await artifact(page);assert.ok(exported,await status(page).innerText());
+ await ui(page).getByLabel('Import format',{exact:true}).selectOption(format);
+ const before=await state(page);
+ const source = format==='rtf' ? Buffer.from('{\\rtf1\\ansi imported \\b bold\\b0 text}') : Buffer.from(exported.bytes);
+ if(format!=='rtf')await ui(page).getByLabel('Approve reported format loss',{exact:true}).check();
+ await ui(page).getByLabel('Import file (file-input fallback)',{exact:true}).setInputFiles({name:exported.filename,mimeType:exported.mediaType,buffer:source});
+ await page.waitForFunction(()=>!(window as any).formats.busy);
+ assert.match(await status(page).innerText(),/Preview ready; document unchanged/);const preview=await state(page);assert.deepEqual({...preview,selection:before.selection},before);
+ const confirm=ui(page).getByRole('button',{name:/^Confirm import/});await confirm.tap();await frames(page);
+ assert.match(await status(page).innerText(),/Import applied as one editor command/);const after=await state(page);
+ assert.notDeepEqual(after.nodes,before.nodes);assert.equal(after.journal.length,before.journal.length+1);assert.equal(after.history.undoGroups,before.history.undoGroups+1);
+ await page.evaluate(()=>{const f=(window as any).inputFixture;f.root.focus();const command=f.surface.captureCommand('undo');try{command.execute();}finally{command.dispose();}});await frames(page);
+ const undone=await state(page);assert.deepEqual(undone.nodes.map(n=>n.runs),before.nodes.map(n=>n.runs));assert.deepEqual(await artifact(page),exported);await finish(page,baseline,fact);
+}));
+for(const format of ['csv','tsv'])test(`MFA-1.1-C4 explicit ${format} dialect and table selection use installed conversion`,()=>probe(`MFA-1.1-worker-table-${format}`,async(page,fact)=>{
+ const baseline=await installed(page);await ui(page).getByLabel('Import format',{exact:true}).selectOption(format);
+ await ui(page).getByLabel('Table file line endings',{exact:true}).selectOption('crlf');
+ const source=format==='csv'?'"name","value"\r\n"a","b"\r\n':'"name"\t"value"\r\n"a"\t"b"\r\n';
+ await input(page,source,`table.${format}`,format==='csv'?'text/csv':'text/tab-separated-values');assert.match(await status(page).innerText(),/Preview ready/);
+ await ui(page).getByRole('button',{name:/^Confirm import/}).tap();await frames(page);
+ await button(page,'Close file and sharing').tap();await open(page);
+ await prepareDocument(page,format);assert.match(await status(page).innerText(),/Choose one table explicitly/);assert.equal(await artifact(page),null);
+ const choices=await ui(page).getByLabel('Table to export',{exact:true}).locator('option').evaluateAll(options=>options.map(o=>(o as HTMLOptionElement).value));assert.equal(choices.length,2);
+ await ui(page).getByLabel('Table to export',{exact:true}).selectOption(choices[1]);
+ await ui(page).getByLabel('Approve reported format loss',{exact:true}).check();
+ await prepareDocument(page,format);const a=await artifact(page);assert.ok(a,await status(page).innerText());assert.equal(a.text,source);assert.equal(Buffer.from(a.bytes).toString(),source);
+ fact.output={sha256:createHash('sha256').update(Buffer.from(a.bytes)).digest('hex'),bytes:a.bytes.length,mediaType:a.mediaType};await finish(page,baseline,fact);
+}));
+for(const action of ['cancel','dispose'])test(`MFA-1.1-C4 ${action} releases late optional client without worker or output`,()=>probe(`MFA-1.1-client-${action}`,async(page,fact)=>{
+ const baseline=await installed(page,{client:'paused'}),before=await state(page);
+ await ui(page).getByLabel('Export format',{exact:true}).selectOption('docx');await button(page,'Prepare export').tap();
+ await page.waitForFunction(()=>!!(window as any).formatState.releaseClient);
+ if(action==='dispose')await page.evaluate(()=>(window as any).formats.dispose());else await button(page,'Cancel preparation').tap();
+ await page.evaluate(()=>(window as any).formatState.releaseClient());await page.waitForFunction(()=>(window as any).formatState.clientDisposals===1);
+ assert.equal(await artifact(page),null);assert.equal(fact.requests.some(url=>/worker\.js|formats_wasm/.test(url)),false);const after=await state(page);assert.deepEqual({...after,selection:before.selection},before);await finish(page,baseline,fact);
 }));

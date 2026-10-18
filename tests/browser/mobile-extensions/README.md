@@ -28,7 +28,7 @@ stacks and explicit emitted byte contributions are recorded separately. Prepared
 share rejection/absence capability tests exercise the existing baseline fallback
 port. The formats group separately runs the production optional format presenter,
 real Session/Markdown/IndexedDB, prepared OS transports and exact-byte browser
-downloads. Binary converter cells remain pending; these checks do not close
+downloads. Qualified document-format cells use the pinned optional worker; these checks do not close
 MEX-1.6. Platform, actual OS input/AT, performance and release
 qualification remain in the original owning gates.
 
@@ -56,8 +56,18 @@ transport, and honors the supplied abort signal. It returns `{provenance,
 manifest}`; the presenter validates all browser rows before displaying any.
 Native rows are excluded, duplicate/invalid directions fail closed, and PDF
 import is always rejected. A catalog row grants no conversion or asset authority.
-The separate baseline selectors expose only connected text/Markdown actions;
-broad-format action integration remains unfinished. Cancellation, dismissal and
+Without `loadClient`, the selectors expose only connected text/Markdown actions.
+A host may supply `loadClient(signal)` from the same authenticated package's
+`createFormatClient()`. After the explicit profile action, selectors advertise
+those exact browser directions/profile/fidelity labels, including PDF export
+only. Client loading and conversion begin only on explicit preparation. The
+controls own cancellation/disposal, including late client loads. CSV/TSV use an
+explicit line-ending/header dialect and chosen table. Reported losses require
+explicit approval. Import previews confirm through the existing Session commit
+path; embedded originals require the existing asset adoption owner and are not
+admitted as ordinary fragments. Binary artifacts retain bytes for download/save;
+text clipboard/manual copy is offered only for text representations. These menu
+checks do not qualify the later stable-original adoption or full sharing gates. Cancellation, dismissal and
 disposal fence late catalog results, and metadata failure preserves baseline
 recovery. The formats harness authenticates the qualified canonical2 package
 hash and owner ancestry before installing its actual entry and manifest. It

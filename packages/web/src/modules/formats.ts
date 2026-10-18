@@ -1,14 +1,32 @@
-import type { FragmentBlock, MarkdownOptions } from '@edit-ac/core';
+import type { EngineHandle, StableRange, FragmentBlock, MarkdownOptions } from '@edit-ac/core';
 import type { RetainedSelection } from '../dom/selection.js';
 import type { DocumentSearchContext } from './search.js';
 import type { EditorViewport } from '../platform/viewport.js';
 import { selectionFragment } from '../clipboard/fragment.js';
 import { inputTextDiagnostic, literalLineEndings } from '../input/characters.js';
 import { touchPanel, touchTarget } from './touch-controls.js';
-import { browserFormatProfiles, type FormatProfileSource } from './format-profiles.js';
+import { browserFormatProfiles, type FormatProfileSource, type FormatProfileDirection } from './format-profiles.js';
 export type { FormatProfileSource, FormatProfileDirection } from './format-profiles.js';
 
 export type BaselineFormat = 'text' | 'markdown';
+export type DocumentFormat = 'rtf' | 'csv' | 'tsv' | 'docx' | 'odt' | 'epub' | 'pdf';
+/** Structural port for the optional public createFormatClient. The host pins the
+ * client and metadata to the same qualified package. No base dependency/loader. */
+export interface DocumentFormatClient {
+  prepareImport(engine: EngineHandle, options: DocumentFormatRequest & { source: Uint8Array; range: StableRange }): Promise<{
+    profile: string; revision: number; blocks: readonly FragmentBlock[]; sessionCommitted: boolean;
+    diagnostics: readonly Record<string, unknown>[];
+  }>;
+  export(engine: EngineHandle, options: DocumentFormatRequest): Promise<{
+    profile: string; revision: number; bytes: Uint8Array; diagnostics: readonly Record<string, unknown>[];
+  }>;
+  cancel(): void;
+  dispose(): void;
+}
+export interface DocumentFormatRequest {
+  format: DocumentFormat; signal: AbortSignal; filename: string; mediaType: string;
+  newline: 'lf' | 'crlf'; header: boolean; approveLoss: boolean; selected?: string;
+}
 export interface FormatControlsOptions {
   viewport?: EditorViewport;
   contentCodecs?: MarkdownOptions;
@@ -19,6 +37,9 @@ export interface FormatControlsOptions {
   /** Host-authenticated installed metadata; called only by the named control.
    * Loaders must honor the signal and enforce a bounded local transport. */
   loadProfiles?(signal: AbortSignal): Promise<FormatProfileSource>;
+  /** Explicitly loaded on preparation, after authenticated metadata is shown.
+   * Ownership transfers to these controls, including late canceled loads. */
+  loadClient?(signal: AbortSignal): Promise<DocumentFormatClient>;
 }
 export interface FormatControlsContext extends DocumentSearchContext {
   viewport?: EditorViewport;
@@ -36,7 +57,7 @@ export function formatControls(options: FormatControlsOptions = {}): FormatContr
   };
 }
 export interface FormatArtifact {
-  readonly format: BaselineFormat;
+  readonly format: BaselineFormat | DocumentFormat;
   readonly filename: string;
   readonly mediaType: string;
   readonly revision: number;
@@ -44,6 +65,11 @@ export interface FormatArtifact {
   readonly bytes: Uint8Array;
   readonly diagnostics: readonly string[];
 }
+const documentMediaTypes: Record<DocumentFormat, string> = {
+  rtf: 'application/rtf', csv: 'text/csv', tsv: 'text/tab-separated-values',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  odt: 'application/vnd.oasis.opendocument.text', epub: 'application/epub+zip', pdf: 'application/pdf',
+};
 const profiles = {
   text: { label: 'UTF-8 text (literal text; formatting is not retained)', mediaType: 'text/plain', extension: '.txt' },
   markdown: { label: 'Markdown (edit-ac-gfm-v1 semantic subset; diagnostics apply)', mediaType: 'text/markdown', extension: '.md' },
@@ -51,7 +77,7 @@ const profiles = {
 
 /** Optional host-mounted baseline format UI. No converter registry, serializer,
  * document, history, permission probe or browser API work is created on import.
- * Binary adapters are deliberately unavailable until their own browser proof. */
+ * Hosts may connect a qualified optional public format client explicitly. */
 export class FormatControls {
   readonly element: HTMLElement;
   readonly panel: HTMLElement;
@@ -64,10 +90,16 @@ export class FormatControls {
   readonly output: HTMLTextAreaElement;
   readonly profileCatalog: HTMLElement;
   readonly fallbacks: HTMLElement;
+  readonly newline: HTMLSelectElement;
+  readonly header: HTMLInputElement;
+  readonly approveLoss: HTMLInputElement;
+  readonly table: HTMLSelectElement;
   readonly #buttons = new Map<string, HTMLButtonElement>();
   readonly #listeners: [EventTarget, string, EventListener][] = [];
   readonly #releaseViewport: (() => void) | undefined;
   readonly #limit: number;
+  #profiles: readonly FormatProfileDirection[] = [];
+  #client: DocumentFormatClient | undefined;
   #target: RetainedSelection | undefined;
   #revision: number | undefined;
   #blocks: readonly FragmentBlock[] | undefined;
@@ -93,15 +125,25 @@ export class FormatControls {
       for (const select of [this.importFormat, this.exportFormat]) { const option = doc.createElement('option'); option.value = format; option.textContent = `${select === this.importFormat ? 'Import' : 'Export'}: ${profiles[format].label}`; select.append(option); }
     }
     label('Import format ', this.importFormat); label('Export format ', this.exportFormat);
-    const unavailable = doc.createElement('p'); unavailable.textContent = 'DOCX, ODT, RTF, EPUB, CSV/TSV and PDF export are unavailable in this browser integration. PDF is export-only; import is always rejected.'; this.panel.append(unavailable);
+    const unavailable = doc.createElement('p'); unavailable.textContent = options.loadClient && options.loadProfiles
+      ? 'Show installed format profiles to enable qualified document actions. PDF is export-only. Original media adoption requires an asset-enabled host; unsupported content is reported before any change.'
+      : 'DOCX, ODT, RTF, EPUB, CSV/TSV and PDF export are unavailable in this browser integration. PDF is export-only; import is always rejected.'; this.panel.append(unavailable);
     this.profileCatalog = doc.createElement('section'); this.profileCatalog.setAttribute('aria-label', 'Installed document format profiles');
     this.profileCatalog.textContent = options.loadProfiles ? 'Installed converter metadata has not been loaded. Baseline text and optional Markdown actions are available below.' : 'No installed document-format profile source is connected. Baseline text and optional Markdown actions are available below.'; this.panel.append(this.profileCatalog);
     if (options.loadProfiles) this.#button('profiles', 'Show installed format profiles', () => { void this.showProfiles(); });
     this.fallbacks = doc.createElement('p'); this.fallbacks.setAttribute('aria-label', 'File and sharing alternatives'); this.panel.append(this.fallbacks);
+    this.newline = doc.createElement('select'); this.newline.setAttribute('aria-label', 'Table file line endings');
+    for (const [value, name] of [['lf', 'LF'], ['crlf', 'CRLF']]) { const option = doc.createElement('option'); option.value = value!; option.textContent = name!; this.newline.append(option); }
+    label('CSV/TSV explicit dialect ', this.newline);
+    this.header = doc.createElement('input'); this.header.type = 'checkbox'; label('CSV/TSV first row is a header ', this.header);
+    this.approveLoss = doc.createElement('input'); this.approveLoss.type = 'checkbox'; label('Approve reported format loss ', this.approveLoss);
+    this.table = doc.createElement('select'); this.table.setAttribute('aria-label', 'Table to export'); label('CSV/TSV chosen table ', this.table);
+    this.#refreshTables();
     this.input = doc.createElement('input'); this.input.type = 'file'; this.input.accept = '.txt,.md,text/plain,text/markdown';
     this.input.setAttribute('aria-label', 'Import file (file-input fallback)'); label('Choose a local file ', this.input);
     this.#listen(this.input, 'change', () => { const file = this.input.files?.[0]; if (file) void this.prepareImport(file); else this.cancel(); this.input.value = ''; });
-    this.#listen(this.importFormat, 'change', () => { this.#blocks = undefined; this.#buttons.get('confirm')!.disabled = true; });
+    const invalidate = () => { this.#job?.abort(); this.#client?.cancel(); this.#job = undefined; this.#blocks = undefined; this.#buttons.get('confirm')!.disabled = true; };
+    for (const field of [this.importFormat, this.newline, this.header, this.approveLoss]) this.#listen(field, 'change', invalidate);
     this.#button('picker', 'Use system file picker', () => { void this.pick(); });
     this.#button('confirm', 'Confirm import', () => this.confirm()); this.#buttons.get('confirm')!.disabled = true;
     this.preview = doc.createElement('textarea'); this.preview.readOnly = true; this.preview.setAttribute('aria-label', 'Import source preview'); label('Import source (retained for recovery) ', this.preview);
@@ -150,7 +192,7 @@ export class FormatControls {
   show(): void {
     if (this.#blocked()) return;
     if (!this.#target) this.#capture();
-    this.panel.hidden = false; this.#buttons.get('open')!.setAttribute('aria-expanded', 'true'); this.#describeFallbacks(); this.#message('Choose a file to preview, or explicitly prepare an export. No file or permission request has started.');
+    this.#refreshTables(); this.panel.hidden = false; this.#buttons.get('open')!.setAttribute('aria-expanded', 'true'); this.#describeFallbacks(); this.#message('Choose a file to preview, or explicitly prepare an export. No file or permission request has started.');
   }
   #describeFallbacks(): void {
     const w = this.context.root.ownerDocument.defaultView!, n = w.navigator;
@@ -159,7 +201,7 @@ export class FormatControls {
     this.fallbacks.textContent = `System file picker: ${available(pickers.showOpenFilePicker)}. Use Choose a local file (file-input fallback). ` +
       `System file save: ${available(pickers.showSaveFilePicker)}. Use Download file; delivery remains unverified. ` +
       `File sharing: ${available(typeof n.canShare === 'function' ? n.share : undefined)}. Clipboard: ${available(n.clipboard?.writeText)}. ` +
-      'If refused, download the retained output or Select output for manual copy using the native Copy menu. ' +
+      'If refused, download the retained output. For text output, Select output for manual copy using the native Copy menu. ' +
       (!w.isSecureContext || !n.userActivation?.isActive ? 'Advanced actions require a secure context and a fresh explicit tap. ' : '') +
       'No permission has been requested; API presence does not establish permission or delivery.';
   }
@@ -171,11 +213,23 @@ export class FormatControls {
       const source = await this.options.loadProfiles(job.signal);
       if (!this.#active(job)) return;
       const rows = browserFormatProfiles(source), doc = this.context.root.ownerDocument;
-      const heading = doc.createElement('p'); heading.textContent = `Installed package: ${source.provenance}. These document-format actions are unavailable here; use the text or Markdown controls below. PDF is export-only.`;
+      const enabled = !!this.options.loadClient;
+      const heading = doc.createElement('p'); heading.textContent = `Installed package: ${source.provenance}. ${enabled ? 'Qualified document actions are available in the selectors. Preparation starts only on an explicit request.' : 'These document-format actions are unavailable here; use the text or Markdown controls below.'} PDF is export-only.`;
       const list = doc.createElement('ul');
       for (const row of rows) { const item = doc.createElement('li'); item.textContent = `${row.format.toUpperCase()} ${row.direction}: ${row.profile}; fidelity: ${row.fidelity}`; list.append(item); }
       this.profileCatalog.replaceChildren(heading, list);
-      this.#message('Installed profiles listed. Use the available baseline actions below; no conversion or permission request has started.');
+      if (enabled) {
+        this.#profiles = rows;
+        for (const select of [this.importFormat, this.exportFormat]) {
+          for (const option of [...select.options]) if (option.dataset.documentProfile) option.remove();
+          for (const row of rows.filter(row => row.direction === (select === this.importFormat ? 'import' : 'export'))) {
+            const option = doc.createElement('option'); option.value = row.format; option.dataset.documentProfile = row.profile;
+            option.textContent = `${row.direction === 'import' ? 'Import' : 'Export'}: ${row.format.toUpperCase()} — ${row.profile}; fidelity: ${row.fidelity}`; select.append(option);
+          }
+        }
+        this.input.accept = '.txt,.md,text/plain,text/markdown,' + rows.filter(row => row.direction === 'import').map(row => `.${row.format}`).join(',');
+      }
+      this.#message('Installed profiles listed. Choose an available action below; no conversion or permission request has started.');
     } catch (error) {
       if (this.#active(job)) {
         this.profileCatalog.textContent = 'Installed profiles unavailable. Baseline file-input, download and selectable-text recovery remain available.';
@@ -183,10 +237,36 @@ export class FormatControls {
       }
     } finally { this.#end(job); }
   }
+  #refreshTables(): void {
+    const previous = this.table.value; this.table.replaceChildren();
+    const doc = this.context.root.ownerDocument, placeholder = doc.createElement('option');
+    placeholder.value = ''; placeholder.textContent = 'Choose one table explicitly'; this.table.append(placeholder);
+    for (const node of this.context.engine.read().visible) {
+      if (!Array.isArray(node.blockAttributes) || node.blockAttributes[0] !== 'module:editac.table') continue;
+      const option = doc.createElement('option'); option.value = node.id; option.textContent = `Table ${node.id}`; this.table.append(option);
+    }
+    if ([...this.table.options].some(option => option.value === previous)) this.table.value = previous;
+  }
+  #profile(format: string, direction: 'import' | 'export'): FormatProfileDirection {
+    const row = this.#profiles.find(row => row.format === format && row.direction === direction);
+    if (!row || !this.options.loadClient) throw Error('format-unavailable; show installed profiles first');
+    return row;
+  }
+  #request(format: string, job: AbortController, filename: string, mediaType: string): DocumentFormatRequest {
+    return { format: format as DocumentFormat, signal: job.signal, filename, mediaType,
+      newline: this.newline.value as 'lf' | 'crlf', header: this.header.checked, approveLoss: this.approveLoss.checked,
+      ...(this.table.value ? { selected: this.table.value } : {}) };
+  }
+  async #formatClient(job: AbortController): Promise<DocumentFormatClient | undefined> {
+    if (this.#client) return this.#client;
+    const client = await this.options.loadClient!(job.signal);
+    if (!this.#active(job)) { client.dispose(); return; }
+    this.#client = client; return client;
+  }
   close(): void { this.cancel(); this.panel.hidden = true; this.#buttons.get('open')!.setAttribute('aria-expanded', 'false'); this.#buttons.get('open')!.focus({ preventScroll: true }); }
   setReadOnly(value: boolean): void { this.#readOnly = value; if (value) this.cancel(); }
   cancel(): void {
-    this.#job?.abort(); this.#job = undefined; this.#releaseTarget();
+    this.#job?.abort(); this.#client?.cancel(); this.#job = undefined; this.#releaseTarget();
     this.#message('Canceled. The document is unchanged by this action; prepared output and preview remain available for recovery.');
   }
   async pick(): Promise<void> {
@@ -210,11 +290,29 @@ export class FormatControls {
       if (!this.#validTarget()) throw Error('import-target-unavailable; close and reopen at the intended selection');
       if (file.size > this.#limit) throw Error('format-byte-limit');
       if (/\.pdf$/i.test(file.name) || file.type === 'application/pdf') throw Error('FORMAT_EXPORT_ONLY');
-      const format = this.importFormat.value as BaselineFormat;
+      const format = this.importFormat.value;
       const bytes = new Uint8Array(await file.arrayBuffer());
       if (!this.#active(job)) return;
       if (bytes.length > this.#limit) throw Error('format-byte-limit');
       if (String.fromCharCode(...bytes.subarray(0, 5)) === '%PDF-') throw Error('FORMAT_EXPORT_ONLY');
+      if (format !== 'text' && format !== 'markdown') {
+        const row = this.#profile(format, 'import'), request = this.#request(format, job, file.name, file.type);
+        this.preview.value = `Original file retained by the caller: ${file.name} (${bytes.length} bytes). ${row.profile}; fidelity: ${row.fidelity}.`;
+        const client = await this.#formatClient(job); if (!client || !this.#active(job)) return;
+        const prepared = await client.prepareImport(this.context.engine, { ...request, source: bytes, range: this.#target!.range });
+        if (!this.#active(job)) return;
+        if (!this.#validTarget() || this.importFormat.value !== format || prepared.revision !== this.#revision) throw Error('import-target-or-format-changed');
+        if (prepared.profile !== row.profile) throw Error('format-profile-mismatch');
+        // The public client does not receive grants here. Media must go through
+        // the existing atomic asset owner, never a plain fragment insertion.
+        if (prepared.blocks.some(block => block.attributes?.type === 'content' && Array.isArray(block.attributes.tuple) && block.attributes.tuple[0] === 'module:editac.asset')) throw Error('AssetOwnerRequired');
+        if (!prepared.sessionCommitted || (!request.approveLoss && prepared.diagnostics.some(d => d.lossy))) throw Error(`LossApprovalRequired: ${prepared.diagnostics.map(d => d.code).join(', ')}. Review diagnostics, explicitly approve reported loss, then choose the file again`);
+        const plan = this.context.engine.prepare({kind:'fragment', origin:'format-import-preview', range:this.#target!.range, blocks:prepared.blocks});
+        this.context.engine.releasePlan(plan); this.#blocks = prepared.blocks;
+        this.#buttons.get('confirm')!.disabled = false;
+        this.#buttons.get('confirm')!.textContent = prepared.diagnostics.length ? 'Confirm import with reported diagnostics' : 'Confirm import';
+        this.#message(`Preview ready; document unchanged. ${row.profile}; fidelity: ${row.fidelity}. ${prepared.diagnostics.map(d => d.code).join(', ')}`); return;
+      }
       const source = new TextDecoder('utf-8', { fatal: true }).decode(bytes); this.#checkBytes(source); this.preview.value = source;
       await this.options.schedule?.(job.signal);
       if (!this.#active(job)) return;
@@ -255,8 +353,20 @@ export class FormatControls {
     const job = this.#begin(); if (!job) return;
     this.#message('Preparing captured export. Cancel preparation is available; no file or share request has started.');
     try {
-      const format = this.exportFormat.value as BaselineFormat, filename = this.filename.value;
+      const format = this.exportFormat.value, filename = this.filename.value;
       if (!filename || filename.length > 255 || /[\x00-\x1f\x7f/\\]/.test(filename)) throw Error('invalid-output-filename');
+      if (format !== 'text' && format !== 'markdown') {
+        const row = this.#profile(format, 'export'), request = this.#request(format, job, filename, documentMediaTypes[format as DocumentFormat]);
+        if ((format === 'csv' || format === 'tsv') && !request.selected) throw Error('Choose one table explicitly');
+        const client = await this.#formatClient(job); if (!client || !this.#active(job)) return;
+        const result = await client.export(this.context.engine, request); if (!this.#active(job)) return;
+        if (result.profile !== row.profile) throw Error('format-profile-mismatch');
+        if (result.bytes.length > 8 * 1048576) throw Error('format-byte-limit');
+        const text = ['rtf','csv','tsv'].includes(format) ? new TextDecoder('utf-8', {fatal:true}).decode(result.bytes) : '';
+        this.#revoke(); this.#artifact = {format:format as DocumentFormat, filename, mediaType:request.mediaType, revision:result.revision, text, bytes:result.bytes.slice(), diagnostics:result.diagnostics.map(d => String(d.code))};
+        this.output.value = text; this.#refreshTables();
+        this.#message(`Prepared revision ${result.revision}; not saved or shared. ${row.profile}; fidelity: ${row.fidelity}. ${this.#artifact.diagnostics.join(', ')}${text ? '' : ' Binary output retained. Use Download file or Save file; binary bytes cannot be copied as text.'}`); return;
+      }
       const snapshot = this.context.engine.read(), nodes = snapshot.visible.filter(n => n.kind === 'block');
       if (!nodes.length || nodes.length > 4096) throw Error('format-node-limit');
       if (nodes.reduce((n, node) => n + node.runs.reduce((sum, r) => sum + r.text.length, 0), 0) > this.#limit) throw Error('format-byte-limit');
@@ -289,6 +399,9 @@ export class FormatControls {
   get busy(): boolean { return !!this.#job; }
   async deliver(action: 'save' | 'download' | 'share' | 'copy' | 'manual'): Promise<void> {
     const artifact = this.#artifact; if (!artifact || this.#blocked() || this.#job) return;
+    if ((action === 'copy' || action === 'manual') && !artifact.text && artifact.format !== 'text' && artifact.format !== 'markdown') {
+      this.#message('Binary output retained. Use Download file or Save file. Text copy is unavailable for this artifact.'); return;
+    }
     if (action === 'manual') { this.output.focus(); this.output.select(); this.#message('Output selected. Use the native Copy menu, then paste into a file or another app. Delivery is unverified.'); return; }
     const job = this.#begin(); if (!job) return;
     const w = this.context.root.ownerDocument.defaultView!, n = w.navigator;
@@ -306,7 +419,7 @@ export class FormatControls {
         this.#revoke(); this.#url = w.URL.createObjectURL(file);
         const link = w.document.createElement('a'); link.href = this.#url; link.download = artifact.filename; link.hidden = true; this.element.append(link);
         try { link.click(); } finally { link.remove(); }
-        this.#message('Download requested; actual file delivery is unverified. If no file appears, select the retained output for manual copy.');
+        this.#message(`Download requested; actual file delivery is unverified. ${artifact.text || artifact.format === 'text' || artifact.format === 'markdown' ? 'If no file appears, select the retained output for manual copy.' : 'Binary output remains retained; retry Download file or Save file if no file appears.'}`);
       } else {
         type Writer = { write(data: File): Promise<void>; close(): Promise<void>; abort(): Promise<void> };
         const picker = (w as unknown as { showSaveFilePicker?: (options: unknown) => Promise<{ createWritable(): Promise<Writer> }> }).showSaveFilePicker;
@@ -321,14 +434,20 @@ export class FormatControls {
         finally { job.signal.removeEventListener('abort', abort); }
         if (this.#active(job)) this.#message(`File API write and close completed for revision ${artifact.revision}; destination durability is unverified.`);
       }
-    } catch (error) { if (this.#active(job)) this.#message(`${this.#reason(error)}. Output retained: retry Download file or Select output for manual copy. No delivery is claimed.`); }
+    } catch (error) { if (this.#active(job)) this.#message(`${this.#reason(error)}. Output retained: retry Download file${artifact.text || artifact.format === 'text' || artifact.format === 'markdown' ? ' or Select output for manual copy' : ' or Save file; binary text copy is unavailable'}. No delivery is claimed.`); }
     finally { this.#end(job); }
   }
-  #reason(error: unknown): string { return error instanceof Error ? error.name === 'AbortError' ? 'Canceled by the user' : error.message : 'Unavailable or denied'; }
+  #reason(error: unknown): string {
+    if (error && typeof error === 'object' && 'code' in error && typeof error.code === 'string') {
+      const failure = error as {code: string; report?: {reason?: string; action?: string; diagnostics?: readonly {code?: unknown}[]}};
+      return [failure.code, failure.report?.reason, failure.report?.diagnostics?.map(d => String(d.code)).join(', '), failure.report?.action].filter(Boolean).join('. ');
+    }
+    return error instanceof Error ? error.name === 'AbortError' ? 'Canceled by the user' : error.message : 'Unavailable or denied';
+  }
   #revoke(): void { if (this.#url) { this.context.root.ownerDocument.defaultView!.URL.revokeObjectURL(this.#url); this.#url = undefined; } }
   dispose(): void {
     if (this.#disposed) return; this.cancel(); this.#disposed = true; this.#revoke(); this.#releaseViewport?.();
     for (const [target, type, listener] of this.#listeners.splice(0)) target.removeEventListener(type, listener);
-    this.#artifact = undefined; this.preview.value = ''; this.output.value = ''; this.element.remove();
+    this.#client?.dispose(); this.#client = undefined; this.#artifact = undefined; this.preview.value = ''; this.output.value = ''; this.element.remove();
   }
 }
