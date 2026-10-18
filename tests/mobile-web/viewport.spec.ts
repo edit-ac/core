@@ -62,12 +62,14 @@ for(const failure of ['throwing','invalid','tiny','native'])test(`MBV-09 ${failu
  if(['throwing','invalid'].includes(failure))assert.equal((await viewport(page)).observed.fallback,true);
  await page.evaluate(()=>{const f=(window as any).inputFixture;f.deliver('beforeinput',{inputType:'insertText',data:'x',cancelable:true});});await page.evaluate(()=>(window as any).inputFixture.settle());const s=await observe(page,fact);assert.equal(s.journal.length,1);assert.equal(s.history.undoGroups,1);assert.equal(s.nodes[0].runs.map(r=>r.text).join(''),'rx alpha😀');assert.equal(await page.locator('#projection').getAttribute('contenteditable'),'true');await clean(page,baseline,fact);
 }));
-for(const failure of ['valid','scale','throwing'])test(`MBV-03/08 gesture ${failure} refresh preserves or cancels the existing capture/scroll owner`,()=>probe('MBV-gesture-'+failure,async(page,fact)=>{
+for(const failure of ['valid','scale','throwing','standalone','orientation'])test(`MBV-03/08 gesture ${failure} refresh preserves or cancels the existing capture/scroll owner`,()=>probe('MBV-gesture-'+failure,async(page,fact)=>{
  const baseline=await mount(page);await page.evaluate(()=>{const f=(window as any).inputFixture;f.root.style.height='240px';f.root.style.overflow='auto';f.surface.reorder.controls.style.cssText='position:fixed;bottom:4px;left:4px;background:Canvas';});await frames(page);const before=await observe(page,fact);
  const grip=page.getByRole('button',{name:'Drag selected block',exact:true});const box=await grip.boundingBox();assert.ok(box);await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();const root=await page.locator('#projection').boundingBox();assert.ok(root);await page.mouse.move(root.x+30,root.y+root.height-4);await frames(page);const active=await page.evaluate(()=>(window as any).inputFixture.pointer);assert.equal(active.captured,true);assert.ok(active.scrollWrites>0);
  if(failure==='throwing')await page.evaluate(()=>(window as any).mobileGeometryError=true);
+ if(failure==='standalone')await page.evaluate(()=>(window as any).inputFixture.surface.reorder.setViewportManaged(false));
+ if(failure==='orientation')await page.evaluate(()=>window.dispatchEvent(new Event('orientationchange')));
  await geometry(page,{...normal,scale:failure==='scale'?2:1,visual:{...normal.visual,height:700}});
- const after=await page.evaluate(()=>(window as any).inputFixture.pointer);assert.equal(after.captured,failure==='valid');
+ const after=await page.evaluate(()=>(window as any).inputFixture.pointer);fact.gesture={before:active,after};assert.equal(after.captured,failure==='valid');
  if(failure==='valid'){assert.ok(after.scrollWrites>active.scrollWrites);await grip.dispatchEvent('pointercancel',{pointerId:1});await page.keyboard.press('Escape');}else{assert.equal(after.pendingFrame,false);assert.equal(after.retainedSelection,false);}
  await page.mouse.up();unchanged(before,await observe(page,fact));await clean(page,baseline,fact);
 }));

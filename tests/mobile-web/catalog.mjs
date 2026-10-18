@@ -24,12 +24,12 @@ export function assertIndex(index, rows = catalogRows()) {
   assert.deepEqual(index.cases, rows, 'missing, unexpected, stale or misowned mobile case');
   return index;
 }
-export const implementedGroups = Object.freeze({ harness: ['tests/mobile-web/catalog.test.mjs', 'tests/mobile-web/harness.spec.ts'], touch: ['tests/mobile-web/touch.spec.ts'], input: ['tests/mobile-web/input.spec.ts'], viewport: ['tests/mobile-web/viewport.spec.ts'], focus: ['tests/mobile-web/focus.spec.ts'], lifecycle: ['tests/mobile-web/lifecycle.spec.ts'], capabilities: ['tests/mobile-web/capabilities.spec.ts'], modules: ['tests/mobile-web/modules.spec.ts'], checkpoint: ['tests/mobile-web/checkpoint.spec.ts'] });
-export const portableGroups = Object.freeze(['harness', 'touch', 'input', 'viewport', 'focus', 'lifecycle', 'capabilities', 'modules', 'checkpoint']);
+export const implementedGroups = Object.freeze({ harness: ['tests/mobile-web/catalog.test.mjs', 'tests/mobile-web/harness.spec.ts'], touch: ['tests/mobile-web/touch.spec.ts'], input: ['tests/mobile-web/input.spec.ts'], viewport: ['tests/mobile-web/viewport.spec.ts'], focus: ['tests/mobile-web/focus.spec.ts'], lifecycle: ['tests/mobile-web/lifecycle.spec.ts'], capabilities: ['tests/mobile-web/capabilities.spec.ts'], modules: ['tests/mobile-web/modules.spec.ts'], checkpoint: ['tests/mobile-web/checkpoint.spec.ts'], toolbar: ['tests/mobile-web/toolbar.spec.ts'] });
+export const portableGroups = Object.freeze(['harness', 'touch', 'input', 'viewport', 'focus', 'lifecycle', 'capabilities', 'modules', 'checkpoint', 'toolbar']);
 export function selectGroup(args, groups = implementedGroups) {
   if (args.length === 2 && args[0] === '--group' && args[1] === 'portable' && groups === implementedGroups) return portableGroups.flatMap(group => selectGroup(['--group', group]));
   assert.ok(args.length === 2 && args[0] === '--group' && Object.hasOwn(groups, args[1]),
-    'Unknown or unimplemented mobile group; expected --group harness, touch, input, viewport, focus, lifecycle, capabilities, modules, checkpoint or portable');
+    'Unknown or unimplemented mobile group; expected --group harness, touch, input, viewport, focus, lifecycle, capabilities, modules, checkpoint, toolbar or portable');
   const files = groups[args[1]];
   assert.ok(Array.isArray(files) && files.length > 0, 'Empty mobile group');
   return files;

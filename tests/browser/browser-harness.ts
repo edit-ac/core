@@ -16,6 +16,15 @@ export function browserHarness(suite, fixtureDirectory = 'fixtures/browser-input
   const browserType = { chromium, firefox, webkit }[engine];
   if (!browserType) throw Error(`Unknown browser ${engine}`);
   const facts = { suite, engine, cases: [], processes: [], packs: [], cleanup: {} };
+  const contextOptions = { ...options.contextOptions };
+  // Firefox's mobile emulation suppresses the native mouse pointer stream.
+  // Narrow-layout cases still use actual capture plus prepared touch/pen types;
+  // report the desktop context rather than silently losing the required input.
+  if (engine === 'firefox' && contextOptions.isMobile) {
+    contextOptions.isMobile = false;
+    facts.context = { requested: options.contextOptions, applied: contextOptions,
+      provenance: 'desktop Firefox narrow viewport with prepared touch inputs; mobile emulation disabled to preserve native pointer events' };
+  }
   let output, consumer, server, browser, controller;
   async function run(command, args, log) {
     const result = spawnSync(command, args, { encoding: 'utf8', timeout: 120000 });
@@ -77,7 +86,7 @@ export function browserHarness(suite, fixtureDirectory = 'fixtures/browser-input
   async function probe(name, action, text = 'alpha') {
     const persistent = options.usePersistentContext?.(name) ?? false;
     const profile = persistent ? await mkdtemp(join(consumer, 'http-cache-')) : undefined;
-    const context = persistent ? await browserType.launchPersistentContext(profile, { headless: true }) : await browser.newContext(options.contextOptions ?? {});
+    const context = persistent ? await browserType.launchPersistentContext(profile, { headless: true }) : await browser.newContext(contextOptions);
     const owned = profile ? spawnSync('ps', ['-axo', 'pid=,ppid=,command='], { encoding: 'utf8' }).stdout.split('\n').filter(line => line.includes(profile)).map(line => ({ pid: Number(line.trim().split(/\s+/)[0]), command: line.trim().replace(/^\d+\s+\d+\s+/, '') })) : [];
     facts.processes.push(...owned.map(value => ({ ...value, workspace: process.cwd(), purpose: suite + ' persistent HTTP cache', profile, log: output })));
 

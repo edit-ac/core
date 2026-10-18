@@ -112,3 +112,56 @@ test('collapsed captured caret rebases past peer insertion at the same point wit
 test('empty final replaces only the captured selection with one history group',()=>probe('empty-final',async(page,fact)=>{await start(page);await emit(page,'');committed(await state(page,fact),'aa',1);}));
 
 test('start while active releases the new target without replacing the accepted session',()=>probe('active-start',async(page,fact)=>{await start(page);const before=await state(page,fact);const disposed=await page.evaluate(()=>{let disposed=0;window.editor.assistive.session.start({valid(){throw Error('not admitted')},accept(){throw Error('not admitted')},dispose(){disposed++;}});return disposed;});assert.equal(disposed,1);unchanged(before,await state(page,fact));assert.equal((await state(page,fact)).transport.length,1);await emit(page);committed(await state(page,fact),'aXa',2);}));
+
+for(const route of ['foreign-focus','close','escape','window-blur','hidden'])test(`control-started assistance revokes pending results on ${route}`,()=>probe('control-exit-'+route,async(page,fact)=>{
+ await page.evaluate(()=>{const f=window.inputFixture;f.select(f.ids[0],1,4);f.surface.assistive.show();});
+ await page.getByRole('button',{name:'Start assistance',exact:true}).focus();await page.keyboard.press('Enter');
+ assert.equal(await page.getByRole('button',{name:'Stop assistance',exact:true}).evaluate(e=>e===document.activeElement),true);
+ await emit(page,'private pending',0,'provisional');const before=await state(page,fact);assert.equal(before.lifecycle.state,'active');
+ if(route==='close')await page.getByRole('button',{name:'Close assistance',exact:true}).click();
+ else if(route==='escape')await page.keyboard.press('Escape');
+ else await page.evaluate(route=>{
+  if(route==='foreign-focus'){const input=document.createElement('input');input.setAttribute('aria-label','Other work');document.body.append(input);input.focus();}
+  if(route==='window-blur')window.dispatchEvent(new Event('blur'));
+  if(route==='hidden'){Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));}
+ },route);
+ const cancelled=await state(page,fact);unchanged(before,cancelled,false);assert.equal(cancelled.lifecycle.state,'cancelled');assert.equal(cancelled.assistance.open,false);cleaned(cancelled);
+ if(route==='close'||route==='escape')assert.equal(cancelled.focus,true);
+ assert.equal(await page.locator('[data-assistive-preview]').textContent(),'');
+ await emit(page,'hostile late final',1);unchanged(cancelled,await state(page,fact));
+ if(route==='foreign-focus')assert.equal(await page.getByRole('textbox',{name:'Other work'}).evaluate(e=>e===document.activeElement),true);
+}));
+
+test('moving from active editor into its assistance controls keeps the captured session and stop waits for final',()=>probe('internal-focus-stop-final',async(page,fact)=>{
+ await start(page);const before=await state(page,fact);await page.evaluate(()=>window.editor.assistive.show());
+ await page.getByRole('button',{name:'Stop assistance',exact:true}).focus();await page.keyboard.press('Enter');
+ let s=await state(page,fact);unchanged(before,s,false);assert.equal(s.lifecycle.state,'active');assert.equal(s.transport[0].stopped,1);assert.equal(s.transport[0].aborted,false);
+ await emit(page,'pending final',0,'provisional');s=await state(page,fact);unchanged(before,s,false);assert.equal(s.lifecycle.provisional,'pending final');
+ await emit(page,'X',1);committed(await state(page,fact),'aXa',2);
+ await page.keyboard.press('ControlOrMeta+z');assert.equal((await state(page,fact)).text[0],'alpha');
+ await page.keyboard.press('ControlOrMeta+Shift+z');assert.equal((await state(page,fact)).text[0],'aXa');
+ assert.equal((await page.evaluate(()=>window.inputFixture.reopen()))[0].runs.map(r=>r.text).join(''),'aXa');
+}));
+
+for(const mode of ['noHost','permissionDenied','noStop'])test(`host ${mode} explains the ordinary-input fallback without host work`,()=>probe('fallback-'+mode,async(page,fact)=>{
+ await page.evaluate(()=>{const f=window.inputFixture;f.select(f.ids[0],5);f.surface.assistive.show();});
+ if(mode==='noHost'){assert.equal(await page.getByRole('button',{name:'Start assistance',exact:true}).count(),0);assert.match(await page.locator('[data-assistive-input]').textContent(),/Host assistance is unavailable.*Ordinary text input/);}
+ else {const control=page.getByRole('button',{name:mode==='noStop'?'Stop assistance':'Start assistance',exact:true});assert.equal(await control.isDisabled(),true);const id=await control.getAttribute('aria-describedby');assert.match(await page.locator('#'+id).textContent(),mode==='noStop'?/cannot stop.*Cancel assistance/:/permission is unavailable.*ordinary text input/);}
+ assert.equal((await state(page,fact)).transport.length,0);
+ // Host assistance permission never disables baseline editing.
+ await page.getByRole('button',{name:'Close assistance',exact:true}).click();
+ await page.evaluate(()=>{const f=window.inputFixture;f.select(f.ids[0],5);});await page.keyboard.type('X');
+ const s=await state(page,fact);assert.equal(s.text[0],'alphaX');assert.equal(s.history.undoGroups,1);assert.equal(s.transport.length,0);
+},{text:'alpha',[mode]:true}));
+
+
+test('keyboard start without stop support keeps Cancel reachable',()=>probe('keyboard-no-stop',async(page,fact)=>{
+ await page.evaluate(()=>{const f=window.inputFixture;f.select(f.ids[0],1,4);f.surface.assistive.show();});
+ await page.getByRole('button',{name:'Start assistance',exact:true}).focus();await page.keyboard.press('Enter');
+ assert.equal(await page.getByRole('button',{name:'Cancel assistance',exact:true}).evaluate(e=>e===document.activeElement),true);
+ const before=await state(page,fact);assert.equal(before.lifecycle.state,'active');await page.keyboard.press('Enter');
+ const cancelled=await state(page,fact);unchanged(before,cancelled);assert.equal(cancelled.lifecycle.state,'cancelled');cleaned(cancelled);
+ assert.equal(await page.getByRole('button',{name:'Recover assistance',exact:true}).evaluate(e=>e===document.activeElement),true);
+ await page.keyboard.press('Enter');assert.equal(await page.getByRole('button',{name:'Start assistance',exact:true}).evaluate(e=>e===document.activeElement),true);
+ await emit(page,'late');unchanged(cancelled,await state(page,fact));
+},{text:'alpha',noStop:true}));

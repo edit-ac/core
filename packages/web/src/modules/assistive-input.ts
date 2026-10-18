@@ -35,6 +35,7 @@ export class AssistiveInputPresenter {
   readonly session: AssistiveInputSession | undefined;
   readonly startControl: HTMLButtonElement | undefined;
   readonly stopControl: HTMLButtonElement | undefined;
+  readonly #hostAvailability: HTMLElement;
   readonly #commands = new Map<string, HTMLButtonElement>();
   readonly #targets = new Map<string, CapturedCommand>();
   readonly #reasons = new Map<string, HTMLElement>();
@@ -78,6 +79,8 @@ export class AssistiveInputPresenter {
     const availability = doc.createElement('p');
     availability.textContent = !registration.supports('commands') ? 'Editing commands are unavailable in this extension.' : 'Choose commands for the captured editor selection.';
     const transport = descriptor.transport;
+    this.#hostAvailability = doc.createElement('p');
+    this.#hostAvailability.id = `${this.panel.id}-host-availability`;
     const privacy = doc.createElement('p'); privacy.textContent = transport
       ? `Host assistance: ${transport.input}; processing: ${transport.locality}; retention: ${transport.retention}; permission: host.`
       : 'Host transport is unsupported. Ordinary text input remains available.';
@@ -85,12 +88,14 @@ export class AssistiveInputPresenter {
       this.session = new AssistiveInputSession(registration, options.host.transport, value => this.update(value));
       this.startControl = button('Start assistance', () => this.start());
       this.stopControl = button('Stop assistance', () => this.session?.stop());
+      this.startControl.setAttribute('aria-describedby', this.#hostAvailability.id);
+      this.stopControl.setAttribute('aria-describedby', this.#hostAvailability.id);
       this.panel.append(this.startControl,this.stopControl);
     }
     this.cancel = button('Cancel assistance', () => this.#host('cancel'));
     this.recover = button('Recover assistance', () => this.#host('recover'));
     const reasons = doc.createElement('p'); reasons.textContent = [!options.cancel && !this.session && 'Cancellation is unsupported by this host.',!options.recover && !this.session && 'Recovery is unsupported by this host.'].filter(Boolean).join(' ');
-    this.panel.append(availability,privacy,this.status,this.preview,this.cancel,this.recover,reasons,button('Close assistance', () => this.close()));
+    this.panel.append(availability,privacy,this.#hostAvailability,this.status,this.preview,this.cancel,this.recover,reasons,button('Close assistance', () => this.close()));
     this.element.append(this.button,this.panel); context.root.after(this.element);
     this.#listen(this.query,'input',() => this.#filter());
     this.#listen(this.panel,'keydown',event => {
@@ -111,11 +116,18 @@ export class AssistiveInputPresenter {
     // OS input retains its existing route, including missing/noncancelable beforeinput.
     for (const type of ['beforeinput','input','compositionstart']) this.#listen(context.root,type,() => this.session?.invalidate(type==='compositionstart'?'composing':'stale'),true);
     this.#listen(context.root,'compositionstart',() => { this.close(false); });
-    this.#listen(context.root,'blur',() => this.session?.cancel());
+    this.#listen(context.root,'blur',event => {
+      const next = (event as FocusEvent).relatedTarget as Node | null;
+      if (!next || !this.element.contains(next)) this.session?.cancel();
+    });
     this.#listen(doc,'focusin',event => {
       const node = event.target as Node;
       if (!this.element.contains(node) && node !== context.root) this.close(false);
     });
+    // Leaving the tab or hiding the document also ends acceptance, even when
+    // the focused element is an assistance control rather than the editor.
+    if (doc.defaultView) this.#listen(doc.defaultView,'blur',() => this.close(false));
+    this.#listen(doc,'visibilitychange',() => { if (doc.hidden) this.close(false); });
     this.#listen(registration.signal,'abort',() => this.dispose());
     const subscription = context.engine.subscribe({type:'all'},() => this.#refresh()); this.#listeners.push(() => subscription.dispose());
     this.#refresh();
@@ -143,6 +155,13 @@ export class AssistiveInputPresenter {
       reason.textContent = !b.disabled ? '' : this.#readOnly ? 'Read-only editor.' : this.context.blocked()
         ? 'Finish composing text before using commands.' : 'Command unavailable. Select a supported target and reopen assistance.';
     }
+    this.#hostAvailability.textContent = this.#readOnly ? 'Assistance is unavailable in a read-only editor.'
+      : !this.session ? 'Host assistance is unavailable. Ordinary text input and editing commands remain available.'
+      : this.context.blocked() ? 'Finish composing text before starting assistance.'
+      : !this.options.host?.allowed() ? 'Host permission is unavailable. Use ordinary text input or editing commands.'
+      : !this.registration.descriptor?.transport?.canStop ? 'This host cannot stop assistance. Use Cancel assistance or ordinary text input.'
+      : this.session.active ? 'Assistance is pending. Stop requests a final result; Cancel discards pending results.'
+      : 'Start assistance for the captured selection. Stop requests a final result; Cancel discards pending results.';
     if (this.startControl) this.startControl.disabled = !!this.session?.active || this.#readOnly || this.context.blocked() || !this.options.host?.allowed();
     if (this.stopControl) this.stopControl.disabled = !this.session?.active || !this.registration.descriptor?.transport?.canStop;
     this.cancel.disabled = (!this.options.cancel && !this.session) || !['starting','active','preparing'].includes(this.#state);
@@ -162,6 +181,7 @@ export class AssistiveInputPresenter {
   close(restore = true): void {
     if (this.#disposed) return;
     const doc = this.context.root.ownerDocument, ownsFocus = this.element.contains(doc.activeElement);
+    this.session?.cancel();
     this.#open = false; this.panel.hidden = true; this.button.setAttribute('aria-expanded','false'); this.query.value = ''; this.#filter();
     if (restore && ownsFocus) {
       try { if (this.#selection?.active && !this.context.blocked() && !this.#readOnly) { this.context.root.focus(); this.context.selection.restoreRetained(this.#selection); } else this.button.focus(); }
@@ -189,8 +209,9 @@ export class AssistiveInputPresenter {
   start(): void {
     if (this.#disposed || !this.session || !this.options.host || this.session.active) return;
     this.#capture();
-    if (this.#readOnly || this.context.blocked() || !this.options.host.allowed() || !this.#selection?.active) { this.#announce('Assistance unavailable. Select text and try again.');return; }
+    if (this.#readOnly || this.context.blocked() || !this.options.host.allowed() || !this.#selection?.active) { this.#announce('Assistance unavailable. Select text and try again.');this.#refresh();return; }
     const host=this.options.host;
+    const startedFromControl = this.context.root.ownerDocument.activeElement === this.startControl;
     try {
       const target=captureAssistiveTarget(this.context.engine,this.#selection.range,request=>host.commit(request),
         () => !this.#disposed && !this.#readOnly && !this.context.blocked() && host.allowed(),
@@ -198,13 +219,24 @@ export class AssistiveInputPresenter {
       this.session.start(target);
     } catch { this.#announce('Assistance unavailable. Select text and try again.'); }
     this.#refresh();
+    // Disabling a focused Start button may drop keyboard focus onto the body.
+    // Keep Stop/Cancel reachable, but never steal focus after a terminal callback.
+    if (startedFromControl && this.session.active) {
+      (this.stopControl && !this.stopControl.disabled ? this.stopControl : this.cancel).focus();
+    }
   }
   #host(action: 'cancel' | 'recover'): void {
     if (this.#disposed || (action === 'cancel' ? this.cancel : this.recover).disabled) return;
     if (this.session) {
+      const hadFocus = this.context.root.ownerDocument.activeElement === (action === 'cancel' ? this.cancel : this.recover);
       if (action==='cancel') this.session.cancel();
       else {const text=this.session.recoveryText();this.session.reset();this.preview.textContent=text ? `Uncommitted recovery text: ${text}` : '';this.preview.hidden=!text;}
-      this.#refresh();return;
+      this.#refresh();
+      if (hadFocus) {
+        const next = !this.recover.disabled ? this.recover : this.startControl && !this.startControl.disabled ? this.startControl : this.query;
+        next.focus();
+      }
+      return;
     }
     try { this.options[action]?.(); this.#state = action === 'cancel' ? 'cancelled' : 'idle'; this.#announce(action === 'cancel' ? 'Assistance cancelled.' : 'Assistance ready. Select text and try again.'); }
     catch { this.#state = 'failed'; this.#announce('Assistance unavailable. Try recovery.'); }
