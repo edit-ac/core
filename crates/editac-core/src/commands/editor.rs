@@ -2232,6 +2232,7 @@ impl Document {
                     if !matches!(
                         old,
                         Content::Asset { .. }
+                            | Content::Callout { .. }
                             | Content::Image { .. }
                             | Content::Reference { .. }
                             | Content::InertExtension { .. }
@@ -2251,6 +2252,7 @@ impl Document {
                         if !matches!(
                             (&old, content),
                             (Content::Asset { .. }, Content::Asset { .. })
+                                | (Content::Callout { .. }, Content::Callout { .. })
                                 | (Content::Image { .. }, Content::Image { .. })
                                 | (Content::Reference { .. }, Content::Reference { .. })
                                 | (
@@ -2291,15 +2293,16 @@ impl Document {
                             }
                         })?;
                         let fallback = match content {
-                            Content::Asset { descriptor } => descriptor.fallback.as_str(),
-                            Content::Reference { label, .. } => label.as_str(),
-                            Content::Image { source, .. } => source.as_str(),
-                            Content::InertExtension { .. } => {
-                                content.inert_source().ok_or(EditorError::InvalidCommand)?
-                            }
+                            Content::Asset { descriptor } => descriptor.fallback.clone(),
+                            Content::Reference { label, .. } => label.clone(),
+                            Content::Image { source, .. } => source.clone(),
+                            Content::Callout { kind, body, .. } => format!("{kind}\n{body}"),
+                            Content::InertExtension { .. } => content
+                                .inert_source()
+                                .ok_or(EditorError::InvalidCommand)?
+                                .to_owned(),
                             _ => return Err(EditorError::UnsupportedTarget),
-                        }
-                        .to_owned();
+                        };
                         (tuple, fallback)
                     } else {
                         (
