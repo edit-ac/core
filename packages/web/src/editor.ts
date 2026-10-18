@@ -184,6 +184,7 @@ export class BrowserEditor {
       this.#surface = bindEditorSurface(this.root, session.writer.engine, {
         ...options, readOnly: true, commit: request => this.commit(request),
         onSuspend: () => {
+          this.#controls?.cancelPendingPaste();
           this.#plainTarget?.dispose(); this.#plainTarget = undefined;
           for (const dispose of this.#pasteTargets) dispose();
         } }, this.extensionConfiguration);

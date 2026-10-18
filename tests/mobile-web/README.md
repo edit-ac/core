@@ -159,3 +159,16 @@ remote human/agent history and durable reopen to focused desktop and portable
 mobile journeys. Its on-demand packed preview includes exact user actions and
 teardown; the broader PARALLEL facade/loading/recipe and original qualification
 gates remain separate.
+
+`--group toolbar` covers WFE-2.2 unresolved clipboard reads through the packed
+command controls: visible keyboard/tap cancellation, read-only/page suspension,
+late success/rejection isolation, fresh intent, undo/redo and IndexedDB reopen.
+Cancellation revokes the captured target and frees the controls immediately; it
+does not claim to abort the host clipboard API. The group is part of `portable`.
+
+Firefox runs the narrow desktop context with `hasTouch` and prepared pointer
+types. Its `isMobile` emulation suppresses the native mouse pointer stream in
+the pinned browser; receipts record both requested and applied context options.
+The native capture oracle remains real and is never replaced with a mock.
+Surface-owned reorder controls use the shared viewport coordinator for valid
+resize refreshes; standalone presenters retain conservative cancellation.

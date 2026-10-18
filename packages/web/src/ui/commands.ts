@@ -12,10 +12,15 @@ export class CommandControls {
   #formattedTarget: ReturnType<BrowserEditor['capturePaste']>;
   #disposed = false;
   #pending = false;
+  #generation = 0;
+  #cancelRead: (() => void) | undefined;
+  #pendingCommand: string | undefined;
+  readonly #cancel: HTMLButtonElement;
   readonly #buttons = new Map<string, HTMLButtonElement>();
   readonly #unsubscribe: () => void;
   readonly #releaseViewport: (() => void) | undefined;
   readonly #capture = (event: Event) => {
+    if (this.#pending) return;
     if (event.type === 'keydown' && (event as KeyboardEvent).key !== 'Tab') return;
     if (this.editor.root.ownerDocument.activeElement !== this.editor.root) return;
     this.#release();
@@ -63,14 +68,34 @@ export class CommandControls {
       button.disabled = editor.state.readOnly; button.textContent = label!; if (id === 'search') button.setAttribute('aria-expanded', 'false'); button.style.cssText = 'min-width:44px;min-height:44px'; this.#buttons.set(id!, button); this.element.append(button);
     }
     this.status = doc.createElement('span'); this.status.setAttribute('role', 'status');
-    this.element.append(this.search, this.status); editor.root.after(this.element);
+    this.#cancel = doc.createElement('button'); this.#cancel.type = 'button';
+    this.#cancel.textContent = 'Cancel paste'; this.#cancel.hidden = true;
+    this.#cancel.style.cssText = 'min-width:44px;min-height:44px';
+    this.#cancel.addEventListener('click', this.#cancelClick);
+    this.element.append(this.search, this.status, this.#cancel); editor.root.after(this.element);
     this.#releaseViewport = editor.viewport?.addControls(this.element);
     this.element.addEventListener('pointerdown', this.#capture); editor.root.addEventListener('keydown', this.#capture, true);
     this.element.addEventListener('click', this.#click);
     this.#unsubscribe = editor.subscribe(state => {
-      if (!state.ready || state.readOnly) this.#release();
+      if (!state.ready || state.readOnly) { this.cancelPendingPaste(); this.#release(); }
       for (const button of this.#buttons.values()) button.disabled = !state.ready || state.readOnly;
     });
+  }
+  readonly #cancelClick = () => {
+    const button = this.#buttons.get(this.#pendingCommand ?? '');
+    const focused = this.element.ownerDocument.activeElement === this.#cancel;
+    this.cancelPendingPaste();
+    if (focused && button && !button.disabled) button.focus();
+  };
+  /** Revoke the control's intent without waiting for an unabortable host read.
+   * Its eventual result still passes through the existing clipboard guard. */
+  cancelPendingPaste(): void {
+    if (!this.#pending) return;
+    this.#generation++; this.#release(); this.#pending = false;
+    this.#cancelRead?.(); this.#cancelRead = undefined;
+    this.#pendingCommand = undefined;
+    this.#cancel.hidden = true; this.element.removeAttribute('aria-busy');
+    if (!this.#disposed) this.status.textContent = 'Paste canceled. Select text and try again, or use native Paste.';
   }
   #release(): void { this.#formattedTarget?.dispose(); this.#formattedTarget = undefined; this.#pasteTarget?.dispose(); this.#pasteTarget = undefined; for (const target of this.#targets.values()) target.dispose(); this.#targets.clear(); }
   /** Explicit activation can be supplied a host clipboard reader; completion
@@ -80,25 +105,35 @@ export class CommandControls {
     const isPaste = id === 'paste' || id === 'paste-formatted';
     const target = id === 'paste' ? this.#pasteTarget : id === 'paste-formatted' ? this.#formattedTarget : this.#targets.get(id);
     if (!target?.active) { this.status.textContent = 'Select text in the editor, then choose a command.'; this.#release(); return; }
+    const generation = ++this.#generation;
     try {
       this.#pending = isPaste;
       if (isPaste) {
+        this.#pendingCommand = id;
+        this.#cancel.hidden = false; this.element.setAttribute('aria-busy', 'true');
+        this.status.textContent = 'Reading clipboard. Cancel paste to continue without waiting.';
+        const cancellation = new Promise<undefined>(resolve => { this.#cancelRead = () => resolve(undefined); });
         const data = read ? async () => {
           const value = await read();
           return typeof value === 'string' ? { getData: (mime: string) => mime === 'text/plain' ? value : '' } : value;
         } : undefined;
-        const result = id === 'paste' ? await this.#pasteTarget!.paste(data ? async () => (await data()).getData('text/plain') : undefined) : await this.#formattedTarget!.paste(data);
-        if (this.#disposed) return;
+        const operation = id === 'paste' ? this.#pasteTarget!.paste(data ? async () => (await data()).getData('text/plain') : undefined) : this.#formattedTarget!.paste(data);
+        const result = await Promise.race([operation, cancellation]);
+        if (this.#disposed || generation !== this.#generation || !result) return;
         this.status.textContent = result.disposition === 'rejected' ? 'Paste canceled or clipboard unavailable. Select text and try again, or use native Paste.' : id === 'paste' ? 'Pasted without formatting. Tap the editor to continue typing.' : 'Pasted with formatting. Tap the editor to continue typing.';
       } else {
         const result = this.#targets.get(id)!.execute();
         this.status.textContent = result.reason === 'editor-focus-declined' ? 'Tap the editor to continue typing.' : result.disposition === 'rejected' ? 'Command unavailable for this selection.' : '';
       }
-    } catch { if (!this.#disposed) this.status.textContent = 'Clipboard unavailable. Use native Paste or allow clipboard access.'; }
-    finally { this.#pending = false; this.#release(); }
+    } catch { if (!this.#disposed && generation === this.#generation) this.status.textContent = 'Clipboard unavailable. Use native Paste or allow clipboard access.'; }
+    finally { if (generation === this.#generation) {
+      this.#pending = false; this.#cancelRead = undefined; this.#pendingCommand = undefined; this.#cancel.hidden = true;
+      this.element.removeAttribute('aria-busy'); this.#release();
+    } }
   }
   dispose(): void {
-    if (this.#disposed) return; this.#disposed = true; this.#release(); this.#unsubscribe(); this.#releaseViewport?.();
+    if (this.#disposed) return; this.#disposed = true; this.cancelPendingPaste(); this.#release(); this.#unsubscribe(); this.#releaseViewport?.();
+    this.#cancel.removeEventListener('click', this.#cancelClick);
     this.element.removeEventListener('pointerdown', this.#capture); this.editor.root.removeEventListener('keydown', this.#capture, true);
     this.element.removeEventListener('click', this.#click); this.search.removeEventListener('input', this.#query); this.search.removeEventListener('keydown', this.#dismiss);
     this.element.remove();

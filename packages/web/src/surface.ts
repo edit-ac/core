@@ -170,7 +170,8 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
       } else if (id === 'editac.reorder') {
         const { reorderControls } = await importPresenterModule<typeof import('./extensions/runtime/reorder.js')>(prepared?.configuration.assets, 'reorder');
         if (signal.aborted) return { dispose() {} };
-        input!.attachReorder(reorderControls()); attached = input!.reorder; releases.push(viewport!.addControls(input!.reorder!.controls));
+        input!.attachReorder(reorderControls()); attached = input!.reorder;
+        input!.reorder!.setViewportManaged(true); releases.push(viewport!.addControls(input!.reorder!.controls));
       } else if (id === 'editac.slash') {
         const { slashCommands } = await importPresenterModule<typeof import('./extensions/runtime/slash.js')>(prepared?.configuration.assets, 'slash');
         if (signal.aborted) return { dispose() {} };
@@ -273,7 +274,7 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
       if (!recoverable) boundSelection.pointer.cancel();
       boundInput.reorder?.refreshGeometry(recoverable);
     });
-    if(input.reorder) viewport.addControls(input.reorder.controls);
+    if(input.reorder) { input.reorder.setViewportManaged(true); viewport.addControls(input.reorder.controls); }
     if(input.slash) { viewport.addControls(input.slash.control); viewport.addControls(input.slash.menu); }
     if(input.references) { viewport.addControls(input.references.control); viewport.addControls(input.references.menu); }
     if(input.codeCommands) viewport.addControls(input.codeCommands.element);
