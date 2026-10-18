@@ -2444,6 +2444,174 @@
         "fixtures/formats/fonts/provenance.json",
         "fixtures/formats/fonts/rich-provenance.json"
       ]
+    },
+    "consumers-native": {
+      "gate": "CNV-1.18-C2-N-RTF",
+      "boundary": "Standalone immutable native macOS arm64 RTF import consumer, real shared Session and enforced native sandbox/Rust heap; full native matrix and original parent remain open",
+      "commands": [
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats-native/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--",
+            "--test-threads=1"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/native/native.test.mjs"
+          ],
+          "kind": "node-test"
+        }
+      ],
+      "inputs": [
+        "crates/editac-formats-native/Cargo.toml",
+        "crates/editac-formats-native/Cargo.lock",
+        "crates/editac-formats-native/src/main.rs",
+        "crates/editac-formats-native/src/heap.rs",
+        "crates/editac-formats-native/runner.py",
+        "crates/editac-formats-native/README.md",
+        "tests/formats/consumers/native/prepare.py",
+        "tests/formats/consumers/native/case.py",
+        "tests/formats/consumers/native/native.test.mjs",
+        "fixtures/formats/native/rtf-loss.rtf",
+        "crates/editac-formats-native/bootstrap.py"
+      ]
+    },
+    "consumers-native-runtime-repair": {
+      "gate": "CNV-1.18-C2-N-RTF",
+      "boundary": "Standalone immutable native macOS arm64 RTF import consumer, real shared Session and enforced native sandbox/Rust heap; full native matrix and original parent remain open; threading-safe bootstrap repair only; reuse canonical4 unchanged allocator2/2",
+      "commands": [
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/native/native.test.mjs"
+          ],
+          "kind": "node-test"
+        }
+      ],
+      "inputs": [
+        "crates/editac-formats-native/Cargo.toml",
+        "crates/editac-formats-native/Cargo.lock",
+        "crates/editac-formats-native/src/main.rs",
+        "crates/editac-formats-native/src/heap.rs",
+        "crates/editac-formats-native/runner.py",
+        "crates/editac-formats-native/README.md",
+        "tests/formats/consumers/native/prepare.py",
+        "tests/formats/consumers/native/case.py",
+        "tests/formats/consumers/native/native.test.mjs",
+        "fixtures/formats/native/rtf-loss.rtf",
+        "crates/editac-formats-native/bootstrap.py"
+      ]
+    },
+    "consumers-native-rtf-export": {
+      "gate": "CNV-1.18-C2-N-RTF-X",
+      "boundary": "Immutable standalone macOS arm64 captured Session checkpoint RTF export; real sandbox/Rust heap/resources, independent generated-reader/negative cases; full native matrix and original parent remain open",
+      "commands": [
+        {
+          "program": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "crates/editac-formats-native/Cargo.toml",
+            "--locked",
+            "--offline",
+            "--",
+            "--test-threads=1"
+          ],
+          "kind": "rust-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/native/native.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/native/export.test.mjs"
+          ],
+          "kind": "node-test"
+        }
+      ],
+      "inputs": [
+        "crates/editac-formats-native/Cargo.toml",
+        "crates/editac-formats-native/Cargo.lock",
+        "crates/editac-formats-native/src/main.rs",
+        "crates/editac-formats-native/src/heap.rs",
+        "crates/editac-formats-native/runner.py",
+        "crates/editac-formats-native/README.md",
+        "tests/formats/consumers/native/prepare.py",
+        "tests/formats/consumers/native/case.py",
+        "tests/formats/consumers/native/native.test.mjs",
+        "fixtures/formats/native/rtf-loss.rtf",
+        "crates/editac-formats-native/bootstrap.py",
+        "crates/editac-formats-native/src/export.rs",
+        "crates/editac-formats-native/src/fixture.rs",
+        "tests/formats/consumers/native/export.test.mjs",
+        "tests/formats/consumers/native/export-case.py",
+        "tests/formats/rtf-reader.py",
+        "fixtures/formats/rtf/export/reader-probe.rtf"
+      ]
+    },
+    "consumers-native-rtf-export-completion-repair": {
+      "gate": "CNV-1.18-C2-N-RTF-X",
+      "boundary": "Immutable standalone macOS arm64 captured Session checkpoint RTF export; real sandbox/Rust heap/resources, independent generated-reader/negative cases; full native matrix and original parent remain open; strict completion envelope repair; reuse unchanged canonical1 allocator2",
+      "commands": [
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/native/native.test.mjs"
+          ],
+          "kind": "node-test"
+        },
+        {
+          "program": "node",
+          "args": [
+            "--test",
+            "--test-reporter=tap",
+            "tests/formats/consumers/native/export.test.mjs"
+          ],
+          "kind": "node-test"
+        }
+      ],
+      "inputs": [
+        "crates/editac-formats-native/Cargo.toml",
+        "crates/editac-formats-native/Cargo.lock",
+        "crates/editac-formats-native/src/main.rs",
+        "crates/editac-formats-native/src/heap.rs",
+        "crates/editac-formats-native/runner.py",
+        "crates/editac-formats-native/README.md",
+        "tests/formats/consumers/native/prepare.py",
+        "tests/formats/consumers/native/case.py",
+        "tests/formats/consumers/native/native.test.mjs",
+        "fixtures/formats/native/rtf-loss.rtf",
+        "crates/editac-formats-native/bootstrap.py",
+        "crates/editac-formats-native/src/export.rs",
+        "crates/editac-formats-native/src/fixture.rs",
+        "tests/formats/consumers/native/export.test.mjs",
+        "tests/formats/consumers/native/export-case.py",
+        "tests/formats/rtf-reader.py",
+        "fixtures/formats/rtf/export/reader-probe.rtf"
+      ]
     }
   }
 }
