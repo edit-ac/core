@@ -249,6 +249,19 @@ def run_docx_import(binary, binary_sha256, original, *, approve_loss=False,
     return _run(binary,binary_sha256,original,'docx-import',
                 ('approve-loss' if approve_loss else 'strict',),wall_ms,output_bytes,cancel)
 
+def run_epub_import(binary, binary_sha256, original, *, approve_loss=False,
+                   wall_ms=4000, output_bytes=MAX_OUTPUT, cancel=None):
+    """New local Session only. Media is unavailable pending shared atomic adoption.
+
+    Keep Result.original under host retention policy on every outcome.
+    """
+    if type(approve_loss) is not bool:
+        data=bytes(original)
+        return Result(dict(state='unavailable',code='FORMAT_REQUEST_INVALID',executed=0,
+                           outputAccepted=False,childExited=True,originalSha256=hashlib.sha256(data).hexdigest()),data)
+    return _run(binary,binary_sha256,original,'epub-import',
+                ('approve-loss' if approve_loss else 'strict',),wall_ms,output_bytes,cancel)
+
 def _container_import_completion_valid(payload, original, args):
     try:
         report=payload['report']
@@ -268,6 +281,19 @@ def _container_import_completion_valid(payload, original, args):
                 hashlib.sha256(bytes(payload['checkpoint'])).hexdigest() == payload['checkpointSha256'])
     except (KeyError,TypeError,ValueError,OverflowError):
         return False
+
+def _epub_import_completion_valid(payload):
+    try:
+        report=payload['report'];chapters=report['chapters'];nav=report['navigation'];cursor=0
+        if not isinstance(chapters,list) or not chapters or not isinstance(nav,list) or not isinstance(report['metadata'],dict):return False
+        parts=set()
+        for c in chapters:
+            if not isinstance(c,dict) or not isinstance(c.get('part'),str) or not c['part'] or c['part'] in parts:return False
+            if type(c.get('firstBlock')) is not int or c['firstBlock'] != cursor or type(c.get('blockCount')) is not int or c['blockCount'] < 0:return False
+            if not isinstance(c.get('sourceSha256'),str) or len(c['sourceSha256']) != 64 or any(x not in '0123456789abcdef' for x in c['sourceSha256']):return False
+            parts.add(c['part']);cursor+=c['blockCount']
+        return cursor == report['blocks'] and all(isinstance(n,dict) and isinstance(n.get('label'),str) and n.get('part') in parts and (n.get('fragment') is None or isinstance(n['fragment'],str)) for n in nav)
+    except (KeyError,TypeError,ValueError):return False
 
 def _export_completion_valid(payload, original, table=False, odt=False, docx=False, epub=False, pdf=False):
     """Reject incomplete or malformed worker envelopes before exposing output."""
@@ -356,7 +382,7 @@ def _run(binary, binary_sha256, original, mode, args=(), wall_ms=4000,
                    maxSampleIntervalMs=0, peakHostRssBytes=0, peakObservedHostAndWorkerRssBytes=0, resourceModel='hard Rust requested heap; RLIMIT_CPU/FSIZE/NOFILE; wall/cancel; sampled process RSS')
     if mode in ('odt-export','odt-import'): outcome['profile'] = 'edit-ac-odt-v1'
     if mode in ('docx-export','docx-import'): outcome['profile'] = 'edit-ac-docx-v1'
-    if mode == 'epub-export': outcome['profile'] = 'edit-ac-epub-v1'
+    if mode in ('epub-export','epub-import'): outcome['profile'] = 'edit-ac-epub-v1'
     if mode == 'pdf-export': outcome['profile'] = 'edit-ac-pdf-publication-v1'
     if mode == 'table-export':
         try: outcome['profile'] = json.loads(original).get('profile')
@@ -369,7 +395,7 @@ def _run(binary, binary_sha256, original, mode, args=(), wall_ms=4000,
             raise ValueError('FORMAT_RESOURCE_PROFILE_UNAVAILABLE')
         if platform.system() != 'Darwin' or platform.machine() != 'arm64' or not pathlib.Path(SANDBOX).is_file():
             raise ValueError('FORMAT_ISOLATION_UNAVAILABLE')
-        if mode not in ('csv-import', 'tsv-import', 'rtf-import', 'rtf-export', 'table-export', 'odt-export', 'docx-export', 'epub-export', 'pdf-export', 'odt-import', 'docx-import', 'export-fixture', 'read', 'write', 'network', 'child', 'spin', 'heap', 'output'):
+        if mode not in ('csv-import', 'tsv-import', 'rtf-import', 'rtf-export', 'table-export', 'odt-export', 'docx-export', 'epub-export', 'pdf-export', 'odt-import', 'docx-import', 'epub-import', 'export-fixture', 'read', 'write', 'network', 'child', 'spin', 'heap', 'output'):
             raise ValueError('FORMAT_PROFILE_UNAVAILABLE')
         binary = pathlib.Path(binary).resolve(strict=True)
         if not binary.is_file() or _file_hash(binary) != binary_sha256:
@@ -468,7 +494,7 @@ def _run(binary, binary_sha256, original, mode, args=(), wall_ms=4000,
                     raise ValueError('FORMAT_COMPLETION_INVALID')
                 if not isinstance(payload, dict):
                     raise ValueError('FORMAT_COMPLETION_INVALID')
-                if mode in ('csv-import', 'tsv-import', 'rtf-import', 'rtf-export', 'table-export', 'odt-export', 'docx-export', 'epub-export', 'pdf-export', 'odt-import', 'docx-import'):
+                if mode in ('csv-import', 'tsv-import', 'rtf-import', 'rtf-export', 'table-export', 'odt-export', 'docx-export', 'epub-export', 'pdf-export', 'odt-import', 'docx-import', 'epub-import'):
                     if payload.get('state') not in ('passed', 'rejected'):
                         raise ValueError('FORMAT_COMPLETION_INVALID')
                     if payload['state'] == 'passed':
@@ -479,8 +505,8 @@ def _run(binary, binary_sha256, original, mode, args=(), wall_ms=4000,
                         if mode in ('csv-import','tsv-import'):
                             if not _table_completion_valid(payload, original, args):
                                 raise ValueError('FORMAT_COMPLETION_INVALID')
-                        elif mode in ('odt-import','docx-import'):
-                            if not _container_import_completion_valid(payload,original,args):
+                        elif mode in ('odt-import','docx-import','epub-import'):
+                            if not _container_import_completion_valid(payload,original,args) or (mode == 'epub-import' and not _epub_import_completion_valid(payload)):
                                 raise ValueError('FORMAT_COMPLETION_INVALID')
                         elif mode == 'rtf-import':
                             if (not all(payload.get(k) for k in ('undo', 'redo', 'reopen')) or

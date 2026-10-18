@@ -20,7 +20,7 @@ def run(args, name, cwd=ROOT):
 def digest(data): return hashlib.sha256(data).hexdigest()
 manifest = 'crates/editac-formats-native/Cargo.toml'
 pdf = os.environ.get('EDITAC_NATIVE_PDF') == '1'
-metadata = json.loads(run(['cargo','metadata','--manifest-path',manifest,'--locked','--offline','--filter-platform','aarch64-apple-darwin','--format-version=1','--features','odt-export,odt-import,docx-export,docx-import,epub-export'+(',pdf-export' if pdf else '')],'metadata'))
+metadata = json.loads(run(['cargo','metadata','--manifest-path',manifest,'--locked','--offline','--filter-platform','aarch64-apple-darwin','--format-version=1','--features','odt-export,odt-import,docx-export,docx-import,epub-export,epub-import'+(',pdf-export' if pdf else '')],'metadata'))
 nodes={n['id']:n for n in metadata['resolve']['nodes']}
 root=metadata['resolve']['root']; reached=set(); pending=[root]
 while pending:
@@ -67,6 +67,8 @@ fixtures += [str(p.relative_to(ROOT)) for p in (ROOT/'fixtures/formats/pdf/expor
 fixtures += [str(p.relative_to(ROOT)) for p in (ROOT/'tests/formats').glob('*pdf*.py') if p.is_file()]
 fixtures += ['tests/formats/consumers/docx-import-fixtures.py','fixtures/formats/docx/structure/numbering.xml','fixtures/formats/docx/structure/supported.xml']
 fixtures += ['fixtures/formats/docx/text/supported.xml','fixtures/formats/docx/text/styles.xml']
+fixtures += ['tests/formats/consumers/epub-import-fixtures.py']
+fixtures += [str(p.relative_to(ROOT)) for p in (ROOT/'fixtures/formats/epub').rglob('*') if p.is_file()]
 paths.update(fixtures)
 paths.update(str(p.relative_to(ROOT)) for p in (ROOT/'tests/formats/consumers/native').glob('*') if p.is_file())
 source_pins = {}
@@ -108,6 +110,7 @@ if pdf:
     (OUT/'THIRD-PARTY-NOTICES.txt').write_text(''.join(notices))
 # Default and qualification executables are independently pinned and preserved.
 builds = [('native',[]),('native-probe',['--features','qualification']),('odt-native',['--features','odt-export,odt-import']),('odt-probe',['--features','odt-export,odt-import,qualification']),('docx-native',['--features','docx-export']),('docx-probe',['--features','docx-export,qualification']),('docx-import-native',['--features','docx-import']),('docx-import-probe',['--features','docx-import,qualification']),('epub-native',['--features','epub-export']),('epub-probe',['--features','epub-export,qualification'])]
+builds += [('epub-import-native',['--features','epub-import']),('epub-import-probe',['--features','epub-import,qualification'])]
 if pdf: builds += [('pdf-native',['--features','pdf-export']),('pdf-probe',['--features','pdf-export,qualification'])]
 for label,features in builds:
     optimized = label.startswith('pdf-')
