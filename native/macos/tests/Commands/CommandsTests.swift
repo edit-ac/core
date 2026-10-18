@@ -63,9 +63,15 @@ final class CommandsTests: XCTestCase {
                 let process = Process(); process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
                 process.arguments = ["-n", "-W", helper, "--args", "--yield-activation",
                     String(ProcessInfo.processInfo.processIdentifier), receipt.path]
-                try process.run(); process.waitUntilExit()
+                // Keep the main actor available while LaunchServices and the
+                // helper negotiate foreground ownership with this AppKit app.
+                let termination: Int32 = try await withCheckedThrowingContinuation { continuation in
+                    process.terminationHandler = { continuation.resume(returning: $0.terminationStatus) }
+                    do { try process.run() }
+                    catch { continuation.resume(throwing: error) }
+                }
                 let value = try JSONSerialization.jsonObject(with: Data(contentsOf: receipt)) as! [String: Any]
-                XCTAssertEqual(process.terminationStatus, 0)
+                XCTAssertEqual(termination, 0)
                 XCTAssertEqual(value["activeBeforeYield"] as? Bool, true)
                 XCTAssertEqual(value["targetPID"] as? Int32, ProcessInfo.processInfo.processIdentifier)
             }
