@@ -1,0 +1,12 @@
+{
+  "name": "@edit-ac/formats",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Optional local RTF and explicit CSV/TSV conversion worker",
+  "license": "Apache-2.0",
+  "type": "module",
+  "files": ["dist", "README.md", "LICENSE", "THIRD-PARTY-NOTICES.txt", "capabilities.json"],
+  "exports": {".": {"types":"./dist/index.d.ts", "import":"./dist/index.js"}, "./worker":"./dist/worker.js", "./capabilities":"./capabilities.json"},
+  "scripts": {"build":"node ../../scripts/build-formats.mjs"},
+  "peerDependencies": {"@edit-ac/core":"0.0.0"}
+}
