@@ -1,3 +1,4 @@
+import { nextPresenterSequence } from '../presenter-sequence.js';
 import type { ContentContext, ContentView, ImageMetadata } from '../content.js';
 import { imageLimits, inspectImage, validateImagePayload, type ImageLimits } from './policy.js';
 import { renderContentRuns } from '../transfer.js';
@@ -31,7 +32,6 @@ function authorizedUrl(value: string, legacy: boolean): string {
   return url.href;
 }
 const failures = new Set(['missing','offline','locked','queued','revoked','failed','unavailable','unauthorized','media-unsupported','animated-unsupported','png-profile-unsupported','decoder-unavailable','encoded-byte-limit','decoded-size-limit','decoded-size-mismatch','malformed','canceled']);
-let operation=0;
 /** One bounded pool per configured content factory. No pending queue or polling. */
 export function imagePresenters(options: ImageOptions): (context: ContentContext) => ContentView | undefined {
   const limits=imageLimits(options.imageLimits); let active=0;
@@ -67,7 +67,7 @@ export function imagePresenters(options: ImageOptions): (context: ContentContext
           let url:string;
           if (legacy) {const resolved=options.imageUrl!(Object.freeze({...d})); if(!resolved)throw Error('missing');url=authorizedUrl(resolved,true);}
           else {
-            request=Object.freeze({version:1,operationId:`image-${++operation}`,identity:Object.freeze({...d.identity}),action:'resolve-url',byteLimit:limits.encodedBytes});
+            request=Object.freeze({version:1,operationId:`image-${nextPresenterSequence()}`,identity:Object.freeze({...d.identity}),action:'resolve-url',byteLimit:limits.encodedBytes});
             const result=await options.imageAssets!.resolve(request,controller.signal);if(!live)return;
             if(!['available','local'].includes(result.state))throw Error(failures.has(result.state)?result.state:'failed');
             if(!identityEqual(result.grant?.identity,d.identity)||!Array.isArray(result.grant?.actions)||result.grant.actions.length>10||new Set(result.grant.actions).size!==result.grant.actions.length||!result.grant.actions.includes('resolve-url')||!result.grant.actions.includes('read')||!identityEqual(result.resolution?.identity,d.identity)||result.resolution?.operationId!==request.operationId)throw Error('unauthorized');

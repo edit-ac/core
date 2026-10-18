@@ -1,10 +1,12 @@
+import { installExtensionCounters } from '../browser/mobile-extensions/resources.mjs';
+import { installResourceCounters } from '../mobile-web/resources.mjs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { resolve } from 'node:path';
 import { browserHarness } from '../browser/browser-harness.ts';
 import { prepareLoadingConsumer, assertLightweight, assertOneEngine } from './loading-consumer.mjs';
 
-const sourcePaths=['packages/web/src/editor.ts','packages/web/src/surface.ts','packages/web/src/index.ts','packages/web/src/extensions/configuration.ts','packages/web/src/extensions/resource.ts','packages/web/src/extensions/markdown-resource.ts','packages/web/src/extensions/math.ts','packages/web/src/extensions/assets.ts','packages/web/src/extensions/highlighting.ts','packages/web/src/modules/math.ts','packages/web/src/modules/math-definition.ts','packages/web/src/modules/code/presenter.ts','packages/web/src/dom/render.ts','packages/web/src/sync/configured.ts','packages/web/src/sync/attachment.ts','packages/web/src/sync/presence.ts','packages/web/package.json','scripts/test-extension-dx.mjs','tests/extension-dx/loading-consumer.mjs','tests/extension-dx/configuration-consumer/session.mjs'];
+const sourcePaths=['tests/extension-dx/configuration-consumer/minimal.mjs','tests/consumers/mobile-extensions/graph.mjs','tests/browser/mobile-extensions/resources.mjs','tests/mobile-web/resources.mjs','scripts/build-extension-runtime.mjs','packages/web/src/modules/presenter-sequence.ts','packages/web/src/extensions/authoring-metadata.ts','packages/web/src/extensions/spelling-metadata.ts','packages/web/src/modules/slash-metadata.ts','packages/web/src/dom/pattern-text.ts','packages/web/package.json','packages/web/src/editor.ts','packages/web/src/surface.ts','packages/web/src/index.ts','packages/web/src/extensions/configuration.ts','packages/web/src/extensions/resource.ts','packages/web/src/extensions/markdown-resource.ts','packages/web/src/extensions/math.ts','packages/web/src/extensions/assets.ts','packages/web/src/extensions/highlighting.ts','packages/web/src/modules/math.ts','packages/web/src/modules/math-definition.ts','packages/web/src/modules/code/presenter.ts','packages/web/src/dom/render.ts','packages/web/src/sync/configured.ts','packages/web/src/sync/attachment.ts','packages/web/src/sync/presence.ts','packages/web/package.json','scripts/test-extension-dx.mjs','tests/extension-dx/loading-consumer.mjs','tests/extension-dx/configuration-consumer/session.mjs'];
 const {probe,facts}=browserHarness('loading',resolve('tests/extension-dx/configuration-consumer'),{
   markdown:true,autoMount:false,prepareConsumer:prepareLoadingConsumer,testFile:'tests/extension-dx/loading.test.mjs',sourcePaths,assertSourcesUnchanged:true,
   serverOptions:{recordRequests:true,cacheAssets:true},
@@ -20,7 +22,7 @@ const {probe,facts}=browserHarness('loading',resolve('tests/extension-dx/configu
       for(const name of ['setTimeout','setInterval']){const original=window[name];window[name]=function(...args){const stack=new Error().stack??'';if(syncFiles.some(file=>stack.includes(file)))observations.syncTimers.push({name,stack});return original.apply(this,args);};}
     },syncFiles);
   },
-  cleanup:page=>page.evaluate(()=>window.configurationFixture?.close()),
+  cleanup:page=>page.evaluate(async()=>{await window.configurationFixture?.close();await window.minimalFixture?.close();}),
 });
 const requests=fact=>facts.serverRequests.slice(fact.serverRequestStart);
 function featureRequests(fact,pattern) {
@@ -210,4 +212,32 @@ browserCase('disposing a pending highlighting presenter creates no worker or lat
     for(let i=0;i<100&&!reached;i++)await new Promise(r=>setTimeout(r,10));assert.equal(reached,true);await page.evaluate(()=>window.b.dispose());release();await page.waitForTimeout(50);
     const result=await page.evaluate(()=>({state:window.highlight.status.state,workers:window.loadingObservations.workers,styles:document.querySelectorAll('style').length}));assert.deepEqual(result,{state:'cancelled',workers:0,styles:0});fact.snapshots.push(result);
   }finally{release();}
+});
+
+browserCase('bundled-public-default-has-zero-optional-work-requests-and-retains-real-storage-history', async (page, fact) => {
+  await page.evaluate(() => window.configurationFixture.close());
+  await page.addInitScript(installExtensionCounters); await page.addInitScript(installResourceCounters);
+  const start = fact.requests.length;
+  await page.goto(new URL(facts.minimalGraph.url, fact.origin).href);
+  await page.waitForFunction(() => !!window.minimalFixture);
+  const baseline = await page.evaluate(() => window.mobileResources());
+  await page.evaluate(async () => { await window.minimalFixture.mount(); window.minimalFixture.select(); });
+  // One browser insertText event is one history operation; word-by-word typing
+  // deliberately has the existing whitespace history boundaries.
+  await page.keyboard.insertText('Saved ');
+  const edited = await page.evaluate(async () => {
+    const f = window.minimalFixture; await f.editor.settle(); const typed = f.text();
+    const undo = f.editor.captureHistory(); undo.execute('undo'); undo.dispose(); const undone = f.text();
+    const redo = f.editor.captureHistory(); redo.execute('redo'); redo.dispose();
+    await f.editor.flush({ target: 'local' }); const redone = f.text(); await f.close(); await f.mount();
+    return { typed, undone, redone, reopened: f.text(), status: f.editor.extensionStatus, optional: window.mobileExtensionResources() };
+  });
+  assert.deepEqual(edited, { typed: 'Saved Alpha beta', undone: 'Alpha beta', redone: 'Saved Alpha beta', reopened: 'Saved Alpha beta', status: {}, optional: { listeners: 0, allocations: [] } });
+  await page.evaluate(async () => { await window.minimalFixture.close(); await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); });
+  const after = await page.evaluate(() => ({ resources: window.mobileResources(), optional: window.mobileExtensionResources() }));
+  assert.deepEqual(after, { resources: baseline, optional: { listeners: 0, allocations: [] } });
+  const requests = fact.requests.slice(start);
+  assert.equal(requests.filter(url => facts.minimalGraph.optionalOutputs.some(path => url.split('?')[0].endsWith('/' + path))).length, 0, 'disabled optional chunk requested');
+  assert.equal(requests.filter(url => /\/extensions\/runtime\/|dictionary|highlight|katex/.test(url)).length, 0);
+  fact.minimalDefault = { edited, baseline, after, requests, graph: facts.minimalGraph };
 });

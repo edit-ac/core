@@ -8,7 +8,7 @@ process.env.EDITAC_TASK_LINKS_OUTPUT = join(output, 'browser');
 const { probe } = browserHarness('task-links', resolve('tests/extension-dx/task-links-consumer'), {
   autoMount: false, markdown: false, prepareConsumer: prepareTaskLinksConsumer,
   testFile: 'tests/extension-dx/task-links.test.mjs', assertSourcesUnchanged: true,
-  sourcePaths: ['examples/extensions/task-links/task-links.ts', 'examples/extensions/task-links/README.md',
+  sourcePaths: ['scripts/build-extension-runtime.mjs','packages/web/src/modules/presenter-sequence.ts','packages/web/src/extensions/authoring-metadata.ts','packages/web/src/extensions/spelling-metadata.ts','packages/web/src/modules/slash-metadata.ts','packages/web/src/dom/pattern-text.ts','packages/web/package.json','examples/extensions/task-links/task-links.ts', 'examples/extensions/task-links/README.md',
     'tests/extension-dx/task-links-consumer.mjs', 'tests/extension-dx/matching-consumer.mjs',
     'tests/extension-dx/task-links-consumer/session.mjs', 'tests/extension-dx/task-links-consumer/index.html',
     'packages/web/src/extensions/matching.ts', 'packages/web/src/extensions/authoring.ts',

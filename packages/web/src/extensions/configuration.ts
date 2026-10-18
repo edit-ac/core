@@ -1,11 +1,10 @@
-import { admitSpelling } from './spelling.js';
-import { isAuthored, admitAuthoring, authoringAdapters } from './authoring.js';
+import { prepareSlashCommands } from '../modules/slash-metadata.js';
+import { admitSpelling } from './spelling-metadata.js';
+import { isAuthored, admitAuthoring, authoringAdapters } from './authoring-metadata.js';
 import { FIRST_PARTY_FEATURES } from '@edit-ac/core/extensions';
 import type { ProfileEnvironment } from '@edit-ac/core/extensions';
-import { documentSearch } from '../modules/search.js';
-import { reorderControls } from '../modules/reorder.js';
-import { slashCommands, type SlashCommand, type SlashFactory } from '../modules/slash.js';
-import { referenceSuggestions, type ReferenceHostV1, type ReferenceResolver, type ReferenceFactory } from '../modules/references.js';
+import type { SlashCommand } from '../modules/slash.js';
+import type { ReferenceHostV1, ReferenceResolver } from '../modules/references.js';
 import { mathModuleDefinition } from '../modules/math-definition.js';
 import { managedMathRenderer } from './math.js';
 import { defineExtensionContract, prepareEditorExtensionConfiguration, ExtensionConfigurationError } from './contract.js';
@@ -38,7 +37,7 @@ const slashContract = defineExtensionContract<{ literal: boolean; commands: stri
   feature: FIRST_PARTY_FEATURES.find(f => f.id === 'editac.slash')!, semantics: { kind: 'behavior' },
   defaults: { literal: false, commands: [] }, validateOptions: options => typeof options.literal === 'boolean' && Array.isArray(options.commands) && options.commands.length <= 500 && options.commands.every(t => typeof t === 'string'),
   loading: 'required-input', interests: [] });
-interface HostAdapters { references?: ReferenceFactory; slash?: SlashFactory }
+interface HostAdapters { references?: { host: ReferenceHostV1 | ReferenceResolver; triggers: string[] }; slash?: { commands: readonly SlashCommand[]; literal: boolean } }
 const configuredHosts = new WeakMap<ConfiguredExtensionV1, HostAdapters>();
 const preparedHosts = new WeakMap<PreparedEditorConfigurationV1, HostAdapters>();
 export interface ReferenceConfigurationV1 { host: ReferenceHostV1 | ReferenceResolver; triggers?: readonly string[] }
@@ -50,18 +49,18 @@ export const References = Object.freeze({ name: referenceContract.name, version:
     const captured = typeof host === 'function' ? host : Object.freeze({ version: host.version,
       permission: host.permission.bind(host), catalog: host.catalog.bind(host), resolve: host.resolve.bind(host), subscribe: host.subscribe.bind(host) });
     const value = referenceContract.configure({ triggers: [...(options.triggers ?? [])] });
-    configuredHosts.set(value, Object.freeze({ references: referenceSuggestions(captured, { triggers: [...value.options.triggers] }) }));
+    configuredHosts.set(value, Object.freeze({ references: { host: captured, triggers: [...value.options.triggers] } }));
     return value;
   } });
 export interface SlashConfigurationV1 { commands: readonly SlashCommand[]; literal?: boolean }
 export const SlashCommands = Object.freeze({ name: slashContract.name, version: slashContract.version,
   configure(options: SlashConfigurationV1) {
-    let factory: SlashFactory;
-    try { factory = slashCommands(options.commands, { literal: options.literal ?? false }); } catch {
+    let commands: readonly SlashCommand[];
+    try { commands = prepareSlashCommands(options.commands); } catch {
       throw new ExtensionConfigurationError('invalid-option', slashContract.name, 'commands', 'Provide unique bounded command metadata and prepare callbacks');
     }
     const value = slashContract.configure({ literal: options.literal ?? false, commands: options.commands.map(c => c.id) });
-    configuredHosts.set(value, Object.freeze({ slash: factory })); return value;
+    configuredHosts.set(value, Object.freeze({ slash: { commands, literal: value.options.literal } })); return value;
   } });
 const markdownFeature = { ...FIRST_PARTY_FEATURES.find(f => f.id === 'editac.search')!, id: 'editac.markdown',
   capabilities: ['source-fallback'], bindings: [], owner: 'formats/markdown' };
@@ -132,11 +131,8 @@ export function prepareSurfaceConfiguration(options: EditorSurfaceOptions, schem
 export function configuredSurfaceOptions(options: EditorSurfaceOptions, prepared?: PreparedEditorConfigurationV1): EditorSurfaceOptions {
   if (!prepared) return options;
   const result: EditorSurfaceOptions = { ...options, modules: prepared.profile.registry };
-  Object.assign(result, preparedHosts.get(prepared));
   result.contentCodecs = { images: prepared.extensions.some(e => e.feature.id === 'editac.images'), tables: prepared.extensions.some(e => e.feature.id === 'editac.tables') };
   for (const extension of prepared.extensions) {
-    if (extension.feature.id === 'editac.search') result.search = documentSearch();
-    if (extension.feature.id === 'editac.reorder') result.reorder = reorderControls();
     if (extension.feature.id === 'editac.math') result.moduleRuntime = { renderers: { 'editac.math': managedMathRenderer(prepared.configuration.assets) }, presentations: { 'editac.math': { tag: 'span' } } };
   }
   const authored = authoringAdapters(prepared);
@@ -153,3 +149,6 @@ export function configuredSurfaceOptions(options: EditorSurfaceOptions, prepared
   }
   return result;
 }
+
+/** Captured callbacks, never document data or active presenters. */
+export function configuredHostAdapters(prepared: PreparedEditorConfigurationV1) { return preparedHosts.get(prepared); }

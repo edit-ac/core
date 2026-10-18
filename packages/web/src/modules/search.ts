@@ -1,3 +1,4 @@
+import { nextPresenterSequence } from './presenter-sequence.js';
 import { DocumentSearchSession } from '@edit-ac/core/extensions';
 import type { DocumentSearchMatch } from '@edit-ac/core/extensions';
 import type { CommitResult, EngineHandle, PrepareRequest } from '@edit-ac/core';
@@ -19,7 +20,6 @@ export function documentSearch(options: DocumentSearchOptions = {}): DocumentSea
   return context => new DocumentSearchPresenter(context, captured);
 }
 interface HighlightRegistry { delete(key: string): void; set(key: string, value: unknown): void }
-let nextHighlight = 0;
 /** Explicit opt-in UI; deliberately leaves native Ctrl/Cmd+F ownership untouched. */
 export class DocumentSearchPresenter {
   readonly element: HTMLElement; readonly button: HTMLButtonElement; readonly panel: HTMLElement;
@@ -28,7 +28,7 @@ export class DocumentSearchPresenter {
   readonly #listeners: [EventTarget, string, EventListener][] = [];
   readonly #replace: HTMLButtonElement; readonly #replaceAll: HTMLButtonElement;
   #captured: RetainedSelection | undefined; #latest: RetainedSelection | undefined; #disposed = false; #open = false; #readOnly = false; #deliberate = false; #generation = 0;
-  #highlight = `editac-find-${++nextHighlight}`;
+  #highlight = `editac-find-${nextPresenterSequence()}`;
   constructor(readonly context: DocumentSearchContext, readonly options: DocumentSearchOptions = {}) {
     const doc = context.root.ownerDocument;
     this.element = doc.createElement('div'); this.element.contentEditable = 'false';

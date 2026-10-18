@@ -1,8 +1,10 @@
+import { assertDisabledPresenters } from './graph.mjs';
 import assert from 'node:assert/strict';
 import { before, after, test } from 'node:test';
 import { spawnSync } from 'node:child_process';
 import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { parse } from '@babel/parser';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { build } from 'esbuild';
@@ -10,11 +12,7 @@ import { assertLightweight, eagerInputs } from '../../extension-dx/loading-consu
 import { requireTestNode } from '../../../scripts/test-toolchain.mjs';
 
 // Limits are declared before measurement; no timing or device qualification.
-const forbidden = /\/(?:modules\/(?:slash|references|reorder|search|content|math|images|embeds|assets|formats)(?:\/|\.js)|extensions\/(?:spelling|authoring|matching|parsing)\.js)/;
-export function assertDisabledGraph(inputs) {
-  assertLightweight(inputs);
-  assert.deepEqual(inputs.filter(path => forbidden.test('/' + path)), [], 'disabled optional presenter implementation in minimal consumer');
-}
+export function assertDisabledGraph(inputs) { assertLightweight(inputs); assertDisabledPresenters(inputs); }
 const sha = value => createHash('sha256').update(value).digest('hex');
 let consumer, output, manifest;
 async function run(command, args, log) {
@@ -51,18 +49,60 @@ test('MWX-C01 installed minimal editor imports without browser globals or networ
   `], 'ssr.log');
   manifest.ssr = 'passed';
 });
-test('MWX-C01 minimal packed graph omits disabled presenter code and assets', async () => {
-  const bundle = await build({ stdin: { contents: "import { BrowserEditor } from '@edit-ac/web/editor'; globalThis.MexEditor=BrowserEditor;", resolveDir: consumer }, bundle: true, splitting: true, format: 'esm', platform: 'browser', metafile: true, outdir: join(output, 'bundle'), write: true, minify: true });
-  await writeFile(join(output, 'metafile.json'), JSON.stringify(bundle.metafile, null, 2));
+for (const [name, source] of [
+  ['minimal', "import { BrowserEditor } from '@edit-ac/web/editor'; globalThis.MexEditor=BrowserEditor;"],
+  ['public-default', "import { createEditor } from '@edit-ac/web'; globalThis.MexEditor=(root,options)=>createEditor(root,{...options,preset:'default'});"],
+]) test(`MWX-C01 ${name} packed graph omits disabled presenter code and assets`, async () => {
+  const bundle = await build({ stdin: { contents: source, resolveDir: consumer }, bundle: true, splitting: true, format: 'esm', platform: 'browser', metafile: true, outdir: join(output, name), write: true, minify: true });
+  await writeFile(join(output, `${name}-metafile.json`), JSON.stringify(bundle.metafile, null, 2));
   const entry = Object.entries(bundle.metafile.outputs).find(([, value]) => value.entryPoint === '<stdin>')[0];
   const inputs = eagerInputs(bundle.metafile, entry);
-  manifest.eagerInputs = inputs.map(path => path.replace(consumer, '<installed-consumer>'));
-  manifest.contributions = Object.entries(bundle.metafile.outputs).flatMap(([file, value]) => Object.entries(value.inputs).map(([source, info]) => ({ file: file.replace(resolve(output), '<output>'), source: source.replace(consumer, '<installed-consumer>'), bytes: info.bytesInOutput })));
-  manifest.assets = Object.keys(bundle.metafile.outputs).filter(path => !/\.js$/.test(path));
+  manifest.graphs ??= {};
+  manifest.graphs[name] = { eagerInputs: inputs.map(path => path.replace(consumer, '<installed-consumer>')),
+    contributions: Object.entries(bundle.metafile.outputs).flatMap(([file, value]) => Object.entries(value.inputs).map(([source, info]) => ({ file: file.replace(resolve(output), '<output>'), source: source.replace(consumer, '<installed-consumer>'), bytes: info.bytesInOutput }))),
+    assets: Object.keys(bundle.metafile.outputs).filter(path => !/\.js$/.test(path)) };
   assertDisabledGraph(inputs);
-  assert.deepEqual(manifest.assets, [], 'disabled CSS/assets emitted');
+  assert.deepEqual(manifest.graphs[name].assets, [], 'disabled CSS/assets emitted');
+});
+for (const [path, symbol] of [ ['modules/search','documentSearch'], ['modules/reorder','reorderControls'],
+  ['modules/slash','slashCommands'], ['modules/references','referenceSuggestions'],
+  ['extensions/runtime/search','documentSearch'], ['extensions/runtime/reorder','reorderControls'], ['extensions/runtime/slash','slashCommands'], ['extensions/runtime/references','referenceSuggestions'], ['extensions/runtime/content','contentModules'],
+  ['extensions/authoring','Extension'], ['extensions/matching','attachPatternMatching'], ['extensions/spelling','Spelling']
+]) test(`MWX-C01 emitted eager-import control rejects ${path}`, async () => {
+  const target = join(consumer, 'node_modules/@edit-ac/web/dist', `${path}.js`);
+  const bundle = await build({ stdin: { contents: `import { ${symbol} } from ${JSON.stringify(target)}; globalThis.EagerControl=${symbol};`, resolveDir: consumer }, bundle: true, splitting: true, format: 'esm', platform: 'browser', metafile: true, outdir: join(output, 'controls', path), write: true, minify: true });
+  const entry = Object.entries(bundle.metafile.outputs).find(([, value]) => value.entryPoint === '<stdin>')[0];
+  const inputs = eagerInputs(bundle.metafile, entry);
+  assert.ok(inputs.some(input => input.endsWith(`/dist/${path}.js`)), 'real control implementation missing');
+  assert.throws(() => assertDisabledGraph(inputs), /disabled optional presenter implementation/);
+  manifest.controls ??= []; manifest.controls.push({ path, detected: true, inputs: inputs.map(input => input.replace(consumer, '<installed-consumer>')) });
+  await writeFile(join(output, 'controls', path, 'metafile.json'), JSON.stringify(bundle.metafile, null, 2));
 });
 test('MWX-C01 absence guard rejects injected disabled feature code', () => {
   assert.throws(() => assertDisabledGraph(['node_modules/@edit-ac/web/dist/modules/slash.js']));
   assert.throws(() => assertDisabledGraph(['node_modules/@edit-ac/web/dist/modules/code/presenter.js']));
+});
+
+test('MWX-C01 installed native minimal graph omits disabled code and rejects a real eager import', async () => {
+  async function graph(entry) {
+    const seen = new Set();
+    async function visit(path) {
+      if (seen.has(path)) return; seen.add(path);
+      const ast = parse(await readFile(path, 'utf8'), { sourceType: 'module' });
+      for (const statement of ast.program.body) {
+        if (!['ImportDeclaration','ExportNamedDeclaration','ExportAllDeclaration'].includes(statement.type) || !statement.source) continue;
+        const name = statement.source.value;
+        const target = name.startsWith('.') ? resolve(dirname(path), name) : name === '@edit-ac/core' ? join(consumer, 'node_modules/@edit-ac/core/dist/index.js') : name === '@edit-ac/core/extensions' ? join(consumer, 'node_modules/@edit-ac/core/dist/extensions/index.js') : undefined;
+        assert.ok(target, `unresolved installed native import: ${name}`); await visit(target);
+      }
+    }
+    await visit(entry); return [...seen].sort();
+  }
+  const inputs = await graph(join(consumer, 'node_modules/@edit-ac/web/dist/editor.js'));
+  assertDisabledGraph(inputs); assert.ok(inputs.length > 0);
+  const control = join(consumer, 'eager-native.mjs');
+  await writeFile(control, `import { slashCommands } from "./node_modules/@edit-ac/web/dist/modules/slash.js"; globalThis.EagerNative=slashCommands;`);
+  const eager = await graph(control);
+  assert.throws(() => assertDisabledGraph(eager), /disabled optional presenter implementation/);
+  manifest.native = { inputs: inputs.map(path => path.replace(consumer, '<installed-consumer>')), realEagerControlRejected: true };
 });

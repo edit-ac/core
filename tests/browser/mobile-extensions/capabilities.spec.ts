@@ -21,7 +21,7 @@ const { probe, facts } = browserHarness('mobile-extensions', 'fixtures/browser-m
     });
     await page.route('**/*',route=>{const url=route.request().url();if(new URL(url).origin!==new URL(fact.origin).origin){fact.unexpectedRequests.push(url);return route.abort();}return route.continue();});
     await page.addInitScript(installResourceCounters); await page.addInitScript(installExtensionCounters); },
-  sourcePaths: [...browserInputSources, 'fixtures/browser-mobile-extensions/session.mjs', 'fixtures/browser-mobile-extensions/index.html',
+  sourcePaths: ['scripts/build-extension-runtime.mjs','packages/web/src/modules/presenter-sequence.ts','packages/web/src/extensions/authoring-metadata.ts','packages/web/src/extensions/spelling-metadata.ts','packages/web/src/modules/slash-metadata.ts','packages/web/src/dom/pattern-text.ts', ...['search','reorder','slash','references','content'].flatMap(n=>[`packages/web/src/extensions/runtime/${n}.ts`,`packages/web/dist/extensions/runtime/${n}.js`]),'packages/web/dist/extensions/runtime/manifest.json',...browserInputSources, 'fixtures/browser-mobile-extensions/session.mjs', 'fixtures/browser-mobile-extensions/index.html',
     'tests/browser/mobile-extensions/content-host-matrix.ts', 'tests/browser/mobile-extensions/command-matrix.ts', 'tests/browser/mobile-extensions/command-inventory.mjs',
     'fixtures/rich-content/asset-descriptors.json', 'packages/core/src/extensions/profiles.ts', 'packages/web/src/commands/catalog.ts',
     ...['modules/images/presenter','modules/attachments/presenter','modules/embeds/presenter','modules/content','modules/reorder','modules/search','modules/references','modules/slash','extensions/code'].flatMap(n=>[`packages/web/src/${n}.ts`,`packages/web/dist/${n}.js`]),
@@ -68,6 +68,11 @@ test(`MWX-C02 current configured ${feature} mounts only the selected profile`, (
     return { selected: f.surface.extensionConfiguration.extensions.map(e => e.feature.id), status: f.surface.extensionStatus,
       owned: (window as any).mobileExtensionResources() }; });
   assert.deepEqual(profile.selected, [`editac.${feature}`]);
+  if (['search','reorder','references','slash'].includes(feature)) {
+    assert.ok(profile.owned.listeners > 0, 'actual managed presenter allocations must be observed');
+    assert.throws(() => assert.deepEqual(profile.owned, { listeners: 0, allocations: [] }), 'disabled-work guard must reject a real enabled presenter');
+    fact.workControl = { actualEnabledPresenterRejectedAsDisabled: true, listeners: profile.owned.listeners };
+  }
   assert.equal(before.history.undoGroups, 0); assert.equal(before.journal.length, 0); assert.equal(before.patches.length, 0);
   await frame(page); assert.deepEqual(await snapshot(page), before);
   fact.capability = { feature, available: true, enabled: true, authorized: 'local fixture only; no remote authority', qualified: false, profile };

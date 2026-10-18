@@ -1,6 +1,6 @@
 let matchingSequence = 0;
-import { attachAuthoring } from './extensions/authoring.js';
-import { configuredSurfaceOptions, prepareSurfaceConfiguration, type EditorFacadeOptionsV1 } from './extensions/configuration.js';
+import { attachConfiguredAuthoring } from './extensions/authoring-metadata.js';
+import { configuredHostAdapters, configuredSurfaceOptions, prepareSurfaceConfiguration, type EditorFacadeOptionsV1 } from './extensions/configuration.js';
 import type { PreparedEditorConfigurationV1, PlatformObservationV1 } from './extensions/contract.js';
 import { ExtensionConfigurationError } from './extensions/contract.js';
 import { markdownResource } from './extensions/markdown-resource.js';
@@ -125,7 +125,7 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
   });
   const contentFactories = new Map<string, import('./modules/content.js').ContentFactory>();
   const contentResources = ['editac.images', 'editac.tables'].map(id => configuredResource(prepared, id, async signal => {
-    const { contentModules } = await import('./modules/content.js');
+    const { contentModules } = await import('./extensions/runtime/content.js');
     if (signal.aborted) return { dispose() {} };
     const factory = contentModules();
     contentFactories.set(id, context => {
@@ -142,8 +142,51 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
     });
     return { dispose() { contentFactories.delete(id); } };
   }));
-  const resources = [resource, ...contentResources];
-  let authoring: ReturnType<typeof attachAuthoring> | undefined;
+  // Existing profile activations own required readiness, abort and late completion.
+  // Admission/callback capture remains synchronous, before the first mutation.
+  const presenterResources = ['editac.search', 'editac.reorder', 'editac.slash', 'editac.references'].map(id => configuredResource(prepared, id, async signal => {
+    const hosts = prepared && configuredHostAdapters(prepared);
+    const releases: (() => void)[] = [];
+    let attached: { dispose(): void } | undefined;
+    const dispose = () => {
+      for (const release of releases.splice(0).reverse()) release();
+      attached?.dispose();
+      if (input) {
+        if (id === 'editac.search' && input.search === attached) input.search = undefined;
+        if (id === 'editac.reorder' && input.reorder === attached) input.reorder = undefined;
+        if (id === 'editac.slash' && input.slash === attached) input.slash = undefined;
+        if (id === 'editac.references' && input.references === attached) input.references = undefined;
+      }
+      attached = undefined;
+    };
+    try {
+      if (id === 'editac.search') {
+        const { documentSearch } = await import('./extensions/runtime/search.js');
+        if (signal.aborted) return { dispose() {} };
+        input!.attachSearch(documentSearch()); attached = input!.search;
+      } else if (id === 'editac.reorder') {
+        const { reorderControls } = await import('./extensions/runtime/reorder.js');
+        if (signal.aborted) return { dispose() {} };
+        input!.attachReorder(reorderControls()); attached = input!.reorder; releases.push(viewport!.addControls(input!.reorder!.controls));
+      } else if (id === 'editac.slash') {
+        const { slashCommands } = await import('./extensions/runtime/slash.js');
+        if (signal.aborted) return { dispose() {} };
+        if (!hosts?.slash) throw Error('Missing admitted slash host');
+        input!.attachSlash(slashCommands(hosts.slash.commands, { literal: hosts.slash.literal }));
+        attached = input!.slash; releases.push(viewport!.addControls(input!.slash!.control), viewport!.addControls(input!.slash!.menu));
+      } else {
+        const { referenceSuggestions } = await import('./extensions/runtime/references.js');
+        if (signal.aborted) return { dispose() {} };
+        if (!hosts?.references) throw Error('Missing admitted reference host');
+        input!.attachReferences(referenceSuggestions(hosts.references.host, { triggers: hosts.references.triggers }));
+        attached = input!.references; releases.push(viewport!.addControls(input!.references!.control), viewport!.addControls(input!.references!.menu));
+      }
+      return { dispose };
+    } catch (error) { dispose(); throw error; }
+  }));
+  const resources = [resource, ...contentResources, ...presenterResources];
+
+  let authoring: ReturnType<typeof attachConfiguredAuthoring> | undefined;
   const disposeAdapters = (): void => {
     authoring?.dispose();
     for (const owned of resources) owned.dispose();
@@ -183,7 +226,7 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
       root.setAttribute('aria-readonly', String(value || !requiredReady));
     };
     setReadOnly(requestedReadOnly);
-    authoring = attachAuthoring(prepared, renderer.moduleRuntime, {
+    authoring = attachConfiguredAuthoring(prepared, renderer.moduleRuntime, {
       blocked: () => input!.extensionBlocked,
       can: request => engine.can(request),
       commit: request => {

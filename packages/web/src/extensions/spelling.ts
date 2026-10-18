@@ -25,12 +25,7 @@ export type SpellingOptionsV1 = Readonly<{
   autocorrection?: 'inherit' | 'on' | 'off'; locale?: string;
 }> & (Readonly<{ mode?: 'platform' | 'off'; checker?: never; overlap?: never; timeoutMs?: never }> |
   Readonly<{ mode: 'custom'; checker: SpellingHostV1; overlap: 'allow'; timeoutMs?: number }>);
-const custom = new WeakSet<ConfiguredExtensionV1>();
-export function admitSpelling(policy: PlatformPreferencesV1 | undefined, extensions: readonly ConfiguredExtensionV1[]) {
-  const configured = extensions.filter(extension => custom.has(extension));
-  if (policy?.spellcheck === 'custom' ? configured.length !== 1 : configured.length !== 0)
-    throw new ExtensionConfigurationError('missing-checker', 'editor', 'platform.spellcheck', 'Use Spelling.configure with an explicit checker and overlap choice; keep its platform and extensions together');
-}
+import { custom } from './spelling-metadata.js';
 /** One public configuration path. Merge the returned extensions with other selections. */
 export const Spelling = Object.freeze({ configure(options: SpellingOptionsV1 = {}) {
   const mode = options.mode ?? 'platform';

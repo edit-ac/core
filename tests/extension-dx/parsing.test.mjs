@@ -8,7 +8,7 @@ process.env.EDITAC_PARSING_OUTPUT = join(output, 'browser');
 const { probe } = browserHarness('parsing', resolve('tests/extension-dx/parsing-consumer'), {
   autoMount: false, markdown: false, prepareConsumer: prepareParsingConsumer,
   testFile: 'tests/extension-dx/parsing.test.mjs', assertSourcesUnchanged: true,
-  sourcePaths: ['examples/extensions/parsing/parsing.ts', 'examples/extensions/parsing/README.md',
+  sourcePaths: ['scripts/build-extension-runtime.mjs','packages/web/src/modules/presenter-sequence.ts','packages/web/src/extensions/authoring-metadata.ts','packages/web/src/extensions/spelling-metadata.ts','packages/web/src/modules/slash-metadata.ts','packages/web/src/dom/pattern-text.ts','packages/web/package.json','examples/extensions/parsing/parsing.ts', 'examples/extensions/parsing/README.md',
     'examples/extensions/url-insert/url-insert.ts', 'examples/extensions/url-insert/README.md',
     'tests/extension-dx/parsing-consumer.mjs', 'tests/extension-dx/matching-consumer.mjs',
     'tests/extension-dx/parsing-consumer/session.mjs', 'tests/extension-dx/parsing-consumer/index.html',

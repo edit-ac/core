@@ -1,3 +1,5 @@
+import { nextPresenterSequence } from './presenter-sequence.js';
+import { prepareSlashCommands } from './slash-metadata.js';
 import type { CommitResult, EditorCommand, EngineHandle, FragmentBlock, PrepareRequest, ProjectedNode, StableRange } from '@edit-ac/core';
 import type { DOMSelection, RetainedSelection } from '../dom/selection.js';
 
@@ -22,19 +24,11 @@ export interface SlashContext {
 export type SlashFactory = (context: SlashContext) => SlashPresenter;
 interface RegisteredSlashCommand extends SlashCommand { readonly searchTerms: readonly string[] }
 interface Session { node: string; range: StableRange; query: string; generation: number; explicit: boolean }
-let sequence = 0;
 
 /** Host registrations are frozen before mount; callbacks never enter documents.
  * Import this factory only in configurations that enable the slash presenter. */
 export function slashCommands(commands: readonly SlashCommand[], options: { literal?: boolean } = {}): SlashFactory {
-  if (commands.length > 500) throw Error('Too many slash commands');
-  const ids = new Set<string>();
-  const registered = commands.map(command => {
-    if (!/^[a-zA-Z][\w.-]{0,63}$/.test(command.id) || ids.has(command.id) || !command.label || command.label.length > 128 || typeof command.prepare !== 'function' ||
-        (command.disabled !== undefined && (!command.disabled || command.disabled.length > 256)) || (command.keywords?.length ?? 0) > 16 || command.keywords?.some(k => k.length > 64)) throw Error('Invalid slash command');
-    ids.add(command.id);
-    return Object.freeze({ ...command, keywords: Object.freeze([...(command.keywords ?? [])]) });
-  });
+  const registered = prepareSlashCommands(commands);
   return context => new SlashPresenter(context, registered, options.literal ?? false);
 }
 
@@ -61,7 +55,7 @@ export class SlashPresenter {
     this.commands = commands.map(command => Object.freeze({ ...command, keywords: Object.freeze([...(command.keywords ?? [])]),
       searchTerms: Object.freeze([command.label, ...(command.keywords ?? [])].map(word => word.toLocaleLowerCase())) }));
     const { root, engine } = context, doc = root.ownerDocument;
-    this.menu = doc.createElement('div'); this.menu.id = `editac-slash-${++sequence}`;
+    this.menu = doc.createElement('div'); this.menu.id = `editac-slash-${nextPresenterSequence()}`;
     this.menu.setAttribute('role', 'menu'); this.menu.setAttribute('aria-label', 'Slash commands'); this.menu.hidden = true;
     this.status = doc.createElement('div'); this.status.setAttribute('role', 'status'); this.status.setAttribute('aria-live', 'polite');
     this.control = doc.createElement('button'); this.control.type = 'button'; this.control.tabIndex = 0; this.control.textContent = 'Slash commands';

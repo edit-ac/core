@@ -70,7 +70,7 @@
     }
   },
   "scripts": {
-    "build": "tsc --project tsconfig.json && node ../../scripts/build-math-assets.mjs",
+    "build": "tsc --project tsconfig.json && node ../../scripts/build-extension-runtime.mjs && node ../../scripts/build-math-assets.mjs",
     "typecheck": "tsc --project tsconfig.json --noEmit"
   },
   "devDependencies": {
@@ -78,5 +78,10 @@
   },
   "dependencies": {
     "@edit-ac/core": "0.0.0"
-  }
+  },
+  "sideEffects": [
+    "./dist/modules/code/worker-entry.js",
+    "./dist/modules/vendor/**",
+    "**/*.css"
+  ]
 }
