@@ -72,7 +72,10 @@ final class CommandsTests: XCTestCase {
                 }
                 let value = try JSONSerialization.jsonObject(with: Data(contentsOf: receipt)) as! [String: Any]
                 XCTAssertEqual(termination, 0)
-                XCTAssertEqual(value["activeBeforeYield"] as? Bool, true)
+                // The target may win foreground activation before the helper.
+                // Record the helper outcome, then require the editor's actual
+                // active/key/first-responder state below in either case.
+                XCTAssertNotNil(value["activeBeforeYield"] as? Bool)
                 XCTAssertEqual(value["targetPID"] as? Int32, ProcessInfo.processInfo.processIdentifier)
             }
             // Activation is asynchronous. Pump AppKit until the OS grants this
