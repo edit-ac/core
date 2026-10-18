@@ -7,7 +7,7 @@ editing without a provider. Shipped factories include `DocumentSearch`,
 `BlockReorder`, `Images`, `Tables`, `MathNotation`, `References`, `SlashCommands`, and `Markdown`. Their codecs, presenters,
 commands, cleanup and history remain the existing implementations. Factories
 return separate frozen values. Unknown or modified adapters fail before
-attachment. Custom authoring belongs to EXT-1.15; optional hosting and loading
+attachment. Custom authoring uses the [public version 1 API](api-v1.md); optional hosting and loading
 are described in [the loading guide](loading-v1.md). The catalog entries for Code and Pairs are still
 contract fixtures and are not advertised as qualified facade factories.
 
