@@ -145,7 +145,10 @@ def main():
         values['AppleLanguages'] = ['en-US', 'zh-Hans']
         preferences.parent.mkdir(parents=True, exist_ok=True); preferences.write_bytes(plistlib.dumps(values))
         shutil.copy2(preferences, output/'simulator-keyboard-preferences.plist')
-        run('simulator-boot' ,['xcrun','simctl','boot',simulator]); run('simulator-ready',['xcrun','simctl','bootstatus',simulator,'-b'],timeout=300)
+        # First boot migrates a fresh private device. On an 8 GiB host this can
+        # exceed five minutes while other builds run. This is setup admission,
+        # not an input/layout budget; retain the bounded wait and its log.
+        run('simulator-boot' ,['xcrun','simctl','boot',simulator]); run('simulator-ready',['xcrun','simctl','bootstatus',simulator,'-b'],timeout=600)
         # Boot completion does not guarantee the install coordinator's XPC
         # service is running. Start this private simulator's declared service,
         # then retain its actual launchd state before making one install request.

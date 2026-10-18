@@ -4,14 +4,15 @@ final class NativeFitnessUITests: XCTestCase {
     func dismissKeyboardTutorial(_ app: XCUIApplication) throws -> Bool {
         let tutorial = app.buttons["Continue"]
         guard tutorial.waitForExistence(timeout: 5) else { return false }
-        XCTAssertTrue(tutorial.isHittable)
         let r = tutorial.frame, window = app.windows.firstMatch.frame
         XCTAssertTrue(window.contains(r)); XCTAssertGreaterThan(r.width, 0); XCTAssertGreaterThan(r.height, 0)
-        // Ask XCTest to resolve the actual OS button's hit target; its frame
-        // can extend beyond the keyboard's accessibility rectangle.
+        // The first-use sheet replaces the keyboard. XCTest can report its
+        // visible Continue button as non-hittable because it lies outside the
+        // keyboard AX rectangle. Touch the observed in-window button center;
+        // actual disappearance below is required, never a queued-tap receipt.
         let before = ProcessInfo.processInfo.systemUptime
-        tutorial.tap()
-        let record: [String: Any] = ["action": "single XCTest-resolved keyboard tutorial button tap",
+        tutorial.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        let record: [String: Any] = ["action": "single OS touch at observed keyboard tutorial button center",
             "frame": ["x": r.minX, "y": r.minY, "width": r.width, "height": r.height],
             "point": ["x": r.midX, "y": r.midY], "before": before, "after": ProcessInfo.processInfo.systemUptime]
         let data = try JSONSerialization.data(withJSONObject: record, options: [.sortedKeys])
@@ -30,21 +31,30 @@ final class NativeFitnessUITests: XCTestCase {
             // Retry only pre-input focus. A mode change may dismiss the software
             // keyboard after UIKit has reported the selected language ready.
             app.activate(); button.tap()
+            // A first-use sheet can replace the keyboard entirely. Dismiss it
+            // before waiting for a keyboard, then request fresh native focus.
+            if try dismissKeyboardTutorial(app) { button.tap() }
             guard app.keyboards.firstMatch.waitForExistence(timeout: 10) else { continue }
-            _ = try dismissKeyboardTutorial(app)
             guard settled.evaluate(with: status) || XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: settled, object: status)], timeout: 5) == .completed else { continue }
             while !ready.evaluate(with: status) && switchesRemaining > 0 {
                 let previous = status.value as? String ?? "unavailable"
                 let next = app.buttons["Next keyboard"]
-                guard next.waitForExistence(timeout: 5) && next.isHittable else { break }
+                guard next.waitForExistence(timeout: 5) else { break }
+                let frame = next.frame, window = app.windows.firstMatch.frame
+                guard frame.width > 0, frame.height > 0,
+                      window.contains(CGPoint(x: frame.midX, y: frame.midY)) else { break }
                 let before = ProcessInfo.processInfo.systemUptime
-                next.tap(); switchesRemaining -= 1
+                next.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap(); switchesRemaining -= 1
+                if try dismissKeyboardTutorial(app) {
+                    button.tap()
+                    guard app.keyboards.firstMatch.waitForExistence(timeout: 10) else { break }
+                }
                 let changed = NSPredicate(format: "value != %@", previous)
                 guard XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: changed, object: status)], timeout: 10) == .completed else { break }
                 transitions.append(["before": before, "after": ProcessInfo.processInfo.systemUptime,
-                    "focusAttempt": attempt, "previous": previous, "observed": status.value as? String ?? "unavailable"])
-                // A newly selected language can present its own first-use sheet.
-                _ = try dismissKeyboardTutorial(app)
+                    "focusAttempt": attempt, "previous": previous, "observed": status.value as? String ?? "unavailable",
+                    "transport": "single OS touch at observed next-keyboard button center",
+                    "frame": ["x": frame.minX, "y": frame.minY, "width": frame.width, "height": frame.height]])
             }
             guard ready.evaluate(with: status) && app.keyboards.firstMatch.waitForExistence(timeout: 10) else { continue }
             if value == "pinyin-ready" {

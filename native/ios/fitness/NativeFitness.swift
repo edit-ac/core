@@ -126,7 +126,9 @@ final class FitnessController: UIViewController, UITextViewDelegate {
             self?.completeAppendFocus()
         }
         inputModeToken = NotificationCenter.default.addObserver(forName: UITextInputMode.currentInputModeDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
-            self?.completeAppendFocus()
+            // UIKit can publish the notification before the responder exposes
+            // its new input mode. Observe it after the native turn completes.
+            DispatchQueue.main.async { self?.completeAppendFocus() }
         }
         display = CADisplayLink(target: self, selector: #selector(frame(_:)))
         display?.add(to: .main, forMode: .common)
@@ -536,7 +538,7 @@ final class WorkloadController: UIViewController, UITextViewDelegate {
                 self?.keyboardShownAt = nil
             },
             NotificationCenter.default.addObserver(forName: UITextInputMode.currentInputModeDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
-                self?.completeFocus()
+                DispatchQueue.main.async { self?.completeFocus() }
             }
         ]
         editor.inputObserved = { [weak self] kind, entering in
