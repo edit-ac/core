@@ -36,7 +36,10 @@ fails. Provisional/status messages create no document updates or undo entries.
 
 OS beforeinput/input/composition retains its existing owner. Any such input revokes
 the optional transport before reconciliation, including missing/noncancelable
-beforeinput sequences. Blur cancels; read-only invalidates; editor/registration
+beforeinput sequences. Leaving the editor/assistance focus boundary, closing the
+panel, window blur or hiding the document cancels; internal control focus retains
+the session. Keyboard start moves focus to enabled Stop/Cancel while pending.
+Read-only invalidates; editor/registration
 teardown disposes. Start/stop/cancel/recovery are ordinary named controls. Recovery
 returns bounded unaccepted text only on explicit user request; reset clears it,
 and no recovery automatically inserts into a new target. Unknown processing locality
