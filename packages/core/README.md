@@ -163,3 +163,33 @@ Import supported link records and helpers from `@edit-ac/core/links`. This optio
 The host's public transport must use standards-based URL admission and validate the **actual connected address** against protected IPv4/IPv6 ranges and configured allowlists before transmitting. Pin each validated address while preserving TLS hostname validation. Revalidate DNS/connection on every redirect and secondary icon/image request; redirects are disabled by default. Never forward cookies, ambient credentials or client authorization. Apply finite connect/total deadlines, compressed/decoded byte, content-type/media and redirect limits; abort oversized/slow work. A prepared port is not proof that a deployed network adapter enforces these obligations. Private catalog ports use current target grants and configured authorities and never fall back to privileged public fetching. Credentials remain inside host adapters. The existing Rust `editac_session::links` modules own backend URL/egress/parser/scheduler/private cache behavior; these TypeScript ports do not replace them.
 
 Roadmaps 31 (iOS), 32 (Android), 33 (macOS), 34 (Windows), 35 (Linux) and 36 (TUI) wire these records to native text/status/asset presenters, explicit refresh, focus restoration, accessibility labels/actions and typed host navigation/clipboard dispatch. The profile manifest in `fixtures/link-presenters/platforms.json` names those integration points. `tests/link-public-exports.test.mjs` proves clean packed imports and headless state/authority/cancellation/readonly semantics for all six profiles; it does not claim their current implementation or OS qualification. Roadmap 26 owns portable contracts and browser integration; deployed adapter and platform qualification remain separately required.
+
+### Selected Markdown table source
+
+After explicitly registering `initMarkdown(...)` from `@edit-ac/markdown`, retain
+source and ordered block owner IDs from the imported source representation:
+
+```ts
+const opening = engine.checkpoint(); // retain with source for later storage recovery
+const baseline = engine.captureSourceBaseline(source, owners, {tables: true});
+const {plan, source: formatted, changed} = baseline.prepareTableFormat(tableOwner, 'local:table-source');
+try { session.storage.commitPrepared(plan); } finally { engine.releasePlan(plan); }
+await session.storage.flush({target: 'local'});
+// Uses current descriptor source after normal undo/redo, without serializing the document.
+const currentSource = baseline.sourceWithCurrentTable(tableOwner);
+const exactOriginal = baseline.originalSource;
+baseline.dispose();
+```
+
+The host supplies existing write/table/protected-content policy and its normal
+Session storage adapter. Preparation is pure; plans are single-use and reject
+any intervening document revision, including a no-op format. Only the selected
+retained top-level v1 GFM table is eligible; unsupported or ambiguous source
+rejects. Adjacent source bytes and backing text/anchor identities remain exact.
+Padding counts Unicode scalars, preserves LF/CRLF and EOF newline policy, and
+retains the existing 1 MiB source/output limits. No automatic formatting occurs.
+After reopening local storage, use
+`engine.captureSourceBaseline(source, owners, {tables: true}, opening)` to recover
+current source against the same retained opening representation. Markdown remains
+optional; no parser is linked into the default engine. The source handle owns a
+read-only checkpoint snapshot, not an editable document or a storage journal.

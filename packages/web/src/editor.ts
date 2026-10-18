@@ -2,7 +2,7 @@ import { configuredEngineAsset, prepareSurfaceConfiguration, type EditorFacadeOp
 import type { PreparedEditorConfigurationV1, PlatformObservationV1, ExtensionStatusV1 } from './extensions/contract.js';
 import { CommandControls } from './ui/commands.js';
 import { InputHintController, type InputHints } from './input/hints.js';
-import type { AnchorToken, Bias, CommitResult, DocumentIdentity, EditorCommand, Patch, PatchScope, PrepareRequest, Snapshot } from '@edit-ac/core';
+import type { AnchorToken, Bias, Checkpoint, CommitResult, DocumentIdentity, EditorCommand, MarkdownOptions, Patch, PatchScope, PlanToken, PrepareRequest, Snapshot, SourceBaseline } from '@edit-ac/core';
 import type { AttachSyncOptions, SyncAttachment } from './sync/attachment.js';
 export type { AttachSyncOptions, SyncAttachment } from './sync/attachment.js';
 import { recoverLocalDocument } from './entry.js';
@@ -371,6 +371,17 @@ export class BrowserEditor {
       this.#collaborationStatus = Object.freeze({ state: 'failed', generation, code: 'attachment-failed', retryable: true });
       throw error;
     }
+  }
+  /** Read-only source capture. Commit returned plans through commitPrepared so
+   * current readonly, composition and storage policy is checked again. */
+  captureSourceBaseline(source: string, owners: readonly string[], options?: Pick<MarkdownOptions, 'images' | 'tables' | 'callouts'>, opening?: Checkpoint): SourceBaseline {
+    return this.#requireReady().writer.engine.captureSourceBaseline(source, owners, options, opening);
+  }
+  releasePlan(plan: PlanToken): void { this.#requireReady().writer.engine.releasePlan(plan); }
+  commitPrepared(plan: PlanToken): CommitResult {
+    const session = this.#requireReady(); if (this.#readOnly) throw Error('Editor is read-only');
+    if (this.#input?.suspended) throw Error('Editor is suspended');
+    return session.storage.commitPrepared(plan);
   }
   commit(request: PrepareRequest): CommitResult {
     const session = this.#requireReady(); if (this.#readOnly) throw Error('Editor is read-only');

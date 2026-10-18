@@ -76,4 +76,4 @@ async function destroy(){
  const active=session;session=undefined;
  if(active)await active.storage.destroy({policy:'flush'});
 }
-window.inputFixture={commit(request){return session.storage.commit(request)},disableMarkdown(){markdownRegistration?.dispose();protocol.shortcuts.enabled=false;},mount,reopen,select,event,mutate,settle,state,remote,remoteReplace,apply,destroy,get commandResults(){return commandResults},get ids(){return ids},get root(){return root},get protocol(){return protocol},get engine(){return session.writer.engine},get renderer(){return renderer},get selection(){return selection}};
+window.inputFixture={commit(request){return session.storage.commit(request)},disableMarkdown(){markdownRegistration?.dispose();protocol.shortcuts.enabled=false;},mount,reopen,select,event,mutate,settle,state,remote,remoteReplace,apply,destroy,get commandResults(){return commandResults},get ids(){return ids},get root(){return root},get protocol(){return protocol},get storage(){return session.storage},get engine(){return session.writer.engine},get renderer(){return renderer},get selection(){return selection}};

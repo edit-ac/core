@@ -165,6 +165,18 @@ impl Engine {
                 .and_then(|b| b.resolve(token)),
         )
     }
+    pub fn prepare_table_source(
+        &mut self,
+        input: &str,
+        checkpoint: &[u8],
+    ) -> Result<String, JsValue> {
+        output(
+            self.inner
+                .as_mut()
+                .ok_or_else(|| disposed("prepareTableSource"))
+                .and_then(|b| b.prepare_table_source(input, checkpoint)),
+        )
+    }
     pub fn prepare(&mut self, input: &str) -> Result<String, JsValue> {
         #[cfg(feature = "fitness-trace")]
         let _span = crate::fitness::Span::new("engine.prepare");

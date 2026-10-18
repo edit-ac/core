@@ -127,9 +127,23 @@ export interface MarkdownOptions { images?: boolean; tables?: boolean; callouts?
 export interface MarkdownDiagnostic { code: string; range: readonly [number, number] }
 export interface PreparedMarkdown { source: string; blocks: readonly FragmentBlock[]; ranges: readonly (readonly [number, number])[]; diagnostics: readonly MarkdownDiagnostic[] }
 export interface MarkdownExport { markdown: string; diagnostics: readonly MarkdownDiagnostic[]; recovery: readonly FragmentBlock[] }
+/** Codec-only read snapshots; no live mutation authority. */
+export interface TableSourceRequest {
+  baseline: Checkpoint; current: Checkpoint; source: string; owners: readonly string[];
+  action: "capture" | "prepare" | "recover"; owner: string; origin: string;
+  options: Pick<MarkdownOptions, "images" | "tables" | "callouts">;
+}
+export interface TableSourceResult { source: string; changed?: boolean; replacement?: string; expected?: Json }
+export interface SourceBaseline {
+  readonly originalSource: string;
+  prepareTableFormat(owner: string, origin: string): { plan: PlanToken; source: string; changed: boolean };
+  sourceWithCurrentTable(owner: string): string;
+  dispose(): void;
+}
 export interface MarkdownCodec {
   importMarkdown(source: string, options?: MarkdownOptions): PreparedMarkdown;
   exportMarkdown(blocks: readonly FragmentBlock[], options?: MarkdownOptions): MarkdownExport;
+  tableSource?(request: TableSourceRequest): TableSourceResult;
 }
 /** Inert HTML tokenizer data; shared Rust owns semantic admission. */
 export type HTMLNode = { kind: "text"; text: string } | { kind: "inert" } | {
@@ -141,6 +155,7 @@ export interface EngineHandle {
   registerMarkdown(codec: MarkdownCodec): PatchSubscription;
   importMarkdown(source: string, codecs?: MarkdownOptions): PreparedMarkdown;
   exportMarkdown(blocks: readonly FragmentBlock[], options?: MarkdownOptions): MarkdownExport;
+  captureSourceBaseline(source: string, owners: readonly string[], options?: Pick<MarkdownOptions, "images" | "tables" | "callouts">, opening?: Checkpoint): SourceBaseline;
   read(): Snapshot;
   /** Pure bounded clipboard shape check; semantic/target admission is separate. */
   validateFragment(raw: string): void;
@@ -179,6 +194,7 @@ export interface RawEngine {
   import_html(input: string): string;
   read(): string; anchor(input: string): string; resolve(token: string): string;
   export_anchor(token: string): string; import_anchor(input: string): string;
+  prepare_table_source(input: string, checkpoint: Uint8Array): string;
   prepare(input: string): string; can(input: string): string; commit(token: string): string; history(input: string): string;
   release_anchor(token: string): void; release_plan(token: string): void;
   checkpoint_metadata(): string; checkpoint_bytes(): Uint8Array; state_vector(): Uint8Array;
@@ -367,6 +383,34 @@ function ownHandle(allocation: RawEngine): EngineHandle {
       return JSON.parse(e.import_html(input)) as { blocks: readonly FragmentBlock[]; diagnostics: readonly string[] };
     }),
     importMarkdown, exportMarkdown,
+    captureSourceBaseline: (source: string, owners: readonly string[], options: Pick<MarkdownOptions, "images" | "tables" | "callouts"> = {}, opening?: Checkpoint): SourceBaseline => use("captureSourceBaseline", e => {
+      const adapter = codec("captureSourceBaseline");
+      if (!adapter.tableSource) throw new EngineError("CapabilityUnavailable", "captureSourceBaseline", "source-formatter-unavailable");
+      // Copy metadata through the ordinary bounded plain-data validator. Checkpoint
+      // bytes stay private and travel separately, never through a JS serializer.
+      const retained = JSON.parse(encode({source, owners, options}, "captureSourceBaseline")) as {source:string;owners:string[];options:typeof options};
+      const checkpoint = (): Checkpoint => ({...JSON.parse(e.checkpoint_metadata()),bytes:e.checkpoint_bytes()});
+      let baseline: Checkpoint | undefined = opening ? {
+        ...JSON.parse(encode({identity:opening.identity,initialized:opening.initialized,writerId:opening.writerId},"captureSourceBaseline")),
+        bytes:bytes(opening.bytes,"captureSourceBaseline"),
+      } : checkpoint();
+      const call = (action: TableSourceRequest["action"], owner = "", origin = "") => use("tableSource", () => {
+        if (!baseline) throw new EngineError("Disposed", "tableSource", "source baseline disposed");
+        if (markdown !== adapter) throw new EngineError("CapabilityUnavailable", "tableSource", "markdown registration changed");
+        return adapter.tableSource!({...retained,baseline,current:checkpoint(),action,owner,origin});
+      });
+      call("capture");
+      return Object.freeze({originalSource:retained.source,
+        prepareTableFormat: (owner: string, origin: string) => use("prepareTableFormat", live => {
+          const current = checkpoint(), result = call("prepare",owner,origin);
+          const input = encode({owner,origin,expected:result.expected,source:result.replacement},"prepareTableFormat");
+          const plan = JSON.parse(live.prepare_table_source(input,current.bytes)).token as PlanToken;
+          return {plan,source:result.source,changed:result.changed === true};
+        }),
+        sourceWithCurrentTable: (owner: string) => call("recover",owner).source,
+        dispose: () => { baseline = undefined; },
+      });
+    }),
     get markdownAvailable() { return !!raw && !!markdown; },
     registerMarkdown: (candidate: MarkdownCodec): PatchSubscription => use("registerMarkdown", () => {
       if (!candidate || typeof candidate.importMarkdown !== "function" || typeof candidate.exportMarkdown !== "function") throw new EngineError("InvalidInput", "registerMarkdown", "invalid Markdown codec");

@@ -8,6 +8,7 @@ interface Bindings {
   import_markdown(input: string): string;
   export_markdown(input: string): string;
   markdown_equivalent(input: string): string;
+  table_source(input: string, baseline: Uint8Array, current: Uint8Array): string;
 }
 function use<T>(operation: string, action: () => T): T {
   try { return action(); }
@@ -92,7 +93,13 @@ function createCodec(bindings: Bindings): MarkdownCodec {
     }
     return fallback;
   });
-  return Object.freeze({ importMarkdown, exportMarkdown });
+  const tableSource: NonNullable<MarkdownCodec["tableSource"]> = request => use("tableSource", () => {
+    const {baseline,current,options,...metadata} = request;
+    const snapshot = (checkpoint: typeof baseline) => ({identity:checkpoint.identity,initialized:checkpoint.initialized,writerId:checkpoint.writerId});
+    const input = encode({...metadata,baseline:snapshot(baseline),current:snapshot(current),images:options.images ?? false,tables:options.tables ?? false,callouts:options.callouts ?? false},"tableSource");
+    return JSON.parse(bindings.table_source(input,baseline.bytes,current.bytes));
+  });
+  return Object.freeze({ importMarkdown, exportMarkdown, tableSource });
 }
 let loading: {assetUrl:string; promise:Promise<MarkdownCodec>} | undefined;
 /** Explicit async opt-in. Importing the package never fetches or instantiates WASM. */

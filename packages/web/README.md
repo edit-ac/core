@@ -364,3 +364,29 @@ values. Dispose the registration to remove its controls; editor teardown also
 releases the presenter. These prepared browser controls have structural
 accessibility coverage, not OS dictation or screen-reader qualification. Transport
 session commits remain a separate lifecycle implementation.
+
+### Explicit selected Markdown table source formatting
+
+An editor mounted with the optional Markdown adapter exposes the same Rust source
+baseline as the engine. Retain the exact imported source, its ordered block owner
+IDs and `editor.recoveryExport().checkpoint` alongside the host's source view.
+
+```ts
+const baseline = editor.captureSourceBaseline(source, owners, {tables: true});
+const prepared = baseline.prepareTableFormat(tableOwner, 'local:table-source');
+try { editor.commitPrepared(prepared.plan); }
+finally { editor.releasePlan(prepared.plan); }
+await editor.flush({target: 'local'});
+const formatted = baseline.sourceWithCurrentTable(tableOwner);
+const original = baseline.originalSource;
+baseline.dispose();
+```
+
+Preparation does not mutate. Commit rechecks the current editor readiness,
+readonly/composition policy and existing storage admission; an intervening
+revision rejects atomically, including a no-op. Existing history commands restore
+original table source and redo formatting. After reopening storage, supply the
+retained opening checkpoint as the fourth `captureSourceBaseline` argument to
+recover current source without a JavaScript serializer. Unsupported/ambiguous
+mappings reject; mobile formatting controls and platform qualification remain
+consumer work. This API does not automatically format tables during cell editing.

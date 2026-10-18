@@ -279,7 +279,7 @@ impl SourceBaseline {
                         &[EditorCommand::TableSource {
                             target: owner.into(),
                             expected: expected.clone(),
-                            source: formatted,
+                            source: formatted.clone(),
                         }],
                         origin,
                     )
@@ -294,6 +294,7 @@ impl SourceBaseline {
                 identity: document.identity().clone(),
             },
             document.checkpoint(),
+            formatted,
         ))
     }
 
