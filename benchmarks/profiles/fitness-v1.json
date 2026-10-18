@@ -1,7 +1,7 @@
 {
   "version": 1,
   "id": "fitness-v1",
-  "reviewedAt": "2026-10-14T19:35:50Z",
+  "reviewedAt": "2026-10-18T21:07:00.915045+00:00",
   "scope": "FIT-1.8; evidence admission, not a release/support claim",
   "limitsSource": "architecture/specs/verification.md",
   "preserveBenchmarkConfig": true,
@@ -104,7 +104,7 @@
   ],
   "commandScope": "Task/Long baseline versus shipped Task feature-cost diagnostics with one initial checkpoint per fixture. No optional providers; full PRF/platform producers and sufficient tail samples remain required.",
   "benchmarkConfigHash": "e018e1decf3f2aa2b4334bede9c359cd3418b86b19a84d11833f3f2029bfbe34",
-  "verificationSpecHash": "d27215ea8bf1041f63f98b0039085a2cc41bb6bf8ec347bfbd9592bc758f0667",
+  "verificationSpecHash": "38b6a1a499ba51f5461280487917d617cc06e2350411789be53774294b11fc5e",
   "reviewedMetricLimits": {},
   "fixtureNames": [
     "Task",
