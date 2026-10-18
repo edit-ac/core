@@ -1,12 +1,12 @@
 import type { ExtensionHooksV1 } from './authoring.js';
 import type { attachAuthoring } from './authoring.js';
-import type { Json, PrepareRequest, PatchSubscription } from '@edit-ac/core';
-import type { ModuleRenderer, ModuleRuntime, ModuleScope } from '../modules/runtime.js';
+import type { Json } from '@edit-ac/core';
+import type { ModuleRenderer } from '../modules/runtime.js';
 import { literalShortcuts } from '../input/shortcuts.js';
 import type { MarkdownCodec } from '@edit-ac/core';
 import { validateClipboardCodecs, type ClipboardCodec } from '../clipboard/fragment.js';
-import { defineExtensionContract, ExtensionConfigurationError } from './contract.js';
-import type { ConfiguredExtensionV1, ExtensionCallbackContextV1, ExtensionDefinitionV1, ExtensionReadonlyV1, ExtensionAuthoringV1, PreparedEditorConfigurationV1 } from './contract.js';
+import { ExtensionConfigurationError } from './contract.js';
+import type { ConfiguredExtensionV1, PreparedEditorConfigurationV1 } from './contract.js';
 
 export const authored = new WeakMap<ConfiguredExtensionV1, ExtensionHooksV1<Record<string, Json>>>();
 export const admitted = new WeakMap<PreparedEditorConfigurationV1, readonly { value: ConfiguredExtensionV1; hooks: ExtensionHooksV1<Record<string, Json>> }[]>();

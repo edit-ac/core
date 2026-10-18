@@ -28,14 +28,14 @@ export interface EditorSurfaceOptions extends Partial<EditorFacadeOptionsV1> {
   commandAllowed?: (command: import('./commands/catalog.js').PortableCommand) => boolean;
   selectionViewport?: import('./selection/pointer.js').PointerSelectionViewport;
   codeCommands?: import('./extensions/code.js').CodeCommandsFactory;
-  search?: import('./extensions/runtime/search.js').DocumentSearchFactory;
+  search?: import('./modules/search.js').DocumentSearchFactory;
   markdown?: import('./input/shortcuts.js').MarkdownAdapter;
   codeHighlight?: import("./modules/code/presenter.js").CodeHighlightFactory | import('./extensions/highlighting.js').ManagedCodeHighlightFactory;
-  content?: import('./extensions/runtime/content.js').ContentFactory;
-  reorder?: import('./extensions/runtime/reorder.js').ReorderFactory;
+  content?: import('./modules/content.js').ContentFactory;
+  reorder?: import('./modules/reorder.js').ReorderFactory;
   links?: LinkEnrichmentFactory;
-  references?: import('./extensions/runtime/references.js').ReferenceFactory;
-  slash?: import('./extensions/runtime/slash.js').SlashFactory;
+  references?: import('./modules/references.js').ReferenceFactory;
+  slash?: import('./modules/slash.js').SlashFactory;
   moduleRuntime?: ModuleRuntimeOptions;
   modules?: import('./modules/registry.js').ModuleRegistry;
   readOnly?: boolean;
@@ -64,10 +64,10 @@ export interface EditorSurface {
   readonly viewport: EditorViewport;
   readonly pointerSelection: import('./selection/pointer.js').PointerSelection;
   readonly codeCommands: import('./extensions/code.js').CodeCommandsPresenter | undefined;
-  readonly search: import('./extensions/runtime/search.js').DocumentSearchPresenter | undefined;
-  readonly reorder: import('./extensions/runtime/reorder.js').ReorderPresenter | undefined;
-  readonly references: import('./extensions/runtime/references.js').ReferencePresenter | undefined;
-  readonly slash: import('./extensions/runtime/slash.js').SlashPresenter | undefined;
+  readonly search: import('./modules/search.js').DocumentSearchPresenter | undefined;
+  readonly reorder: import('./modules/reorder.js').ReorderPresenter | undefined;
+  readonly references: import('./modules/references.js').ReferencePresenter | undefined;
+  readonly slash: import('./modules/slash.js').SlashPresenter | undefined;
   readonly moduleRuntime: ModuleRuntime | undefined;
   readonly recovery: readonly { text: string; reason: string }[];
   captureTextTransfer(): import('./input/drag.js').TextTransferTarget | undefined;
@@ -121,9 +121,9 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
       if (input && enableInput) { input.shortcuts = literalShortcuts(); input.clipboard.plainTextPolicy = 'literal'; }
     };
   });
-  const contentFactories = new Map<string, import('./extensions/runtime/content.js').ContentFactory>();
+  const contentFactories = new Map<string, import('./modules/content.js').ContentFactory>();
   const contentResources = ['editac.images', 'editac.tables'].map(id => configuredResource(prepared, id, async signal => {
-    const { contentModules } = await import('./extensions/runtime/content.js');
+    const { contentModules } = await import('./modules/content.js');
     if (signal.aborted) return { dispose() {} };
     const factory = contentModules();
     contentFactories.set(id, context => {
@@ -144,29 +144,43 @@ export function bindEditorSurface(root: HTMLElement, engine: EngineHandle, optio
   // Admission/callback capture remains synchronous, before the first mutation.
   const presenterResources = ['editac.search', 'editac.reorder', 'editac.slash', 'editac.references'].map(id => configuredResource(prepared, id, async signal => {
     const hosts = prepared && configuredHostAdapters(prepared);
+    const releases: (() => void)[] = [];
+    let attached: { dispose(): void } | undefined;
+    const dispose = () => {
+      for (const release of releases.splice(0).reverse()) release();
+      attached?.dispose();
+      if (input) {
+        if (id === 'editac.search' && input.search === attached) input.search = undefined;
+        if (id === 'editac.reorder' && input.reorder === attached) input.reorder = undefined;
+        if (id === 'editac.slash' && input.slash === attached) input.slash = undefined;
+        if (id === 'editac.references' && input.references === attached) input.references = undefined;
+      }
+      attached = undefined;
+    };
+    try {
     if (id === 'editac.search') {
-      const { documentSearch } = await import('./extensions/runtime/search.js');
+      const { documentSearch } = await import('./modules/search.js');
       if (signal.aborted) return { dispose() {} };
-      input!.attachSearch(documentSearch());
+      input!.attachSearch(documentSearch()); attached = input!.search;
     } else if (id === 'editac.reorder') {
-      const { reorderControls } = await import('./extensions/runtime/reorder.js');
+      const { reorderControls } = await import('./modules/reorder.js');
       if (signal.aborted) return { dispose() {} };
-      input!.attachReorder(reorderControls()); viewport!.addControls(input!.reorder!.controls);
+      input!.attachReorder(reorderControls()); attached = input!.reorder; releases.push(viewport!.addControls(input!.reorder!.controls));
     } else if (id === 'editac.slash') {
-      const { slashCommands } = await import('./extensions/runtime/slash.js');
+      const { slashCommands } = await import('./modules/slash.js');
       if (signal.aborted) return { dispose() {} };
       if (!hosts?.slash) throw Error('Missing admitted slash host');
       input!.attachSlash(slashCommands(hosts.slash.commands, { literal: hosts.slash.literal }));
-      viewport!.addControls(input!.slash!.control); viewport!.addControls(input!.slash!.menu);
+      attached = input!.slash; releases.push(viewport!.addControls(input!.slash!.control), viewport!.addControls(input!.slash!.menu));
     } else {
-      const { referenceSuggestions } = await import('./extensions/runtime/references.js');
+      const { referenceSuggestions } = await import('./modules/references.js');
       if (signal.aborted) return { dispose() {} };
       if (!hosts?.references) throw Error('Missing admitted reference host');
       input!.attachReferences(referenceSuggestions(hosts.references.host, { triggers: hosts.references.triggers }));
-      viewport!.addControls(input!.references!.control); viewport!.addControls(input!.references!.menu);
+      attached = input!.references; releases.push(viewport!.addControls(input!.references!.control), viewport!.addControls(input!.references!.menu));
     }
-    // TextInput already owns the presenter's lifetime; do not introduce a second owner.
-    return { dispose() {} };
+    return { dispose };
+    } catch (error) { dispose(); throw error; }
   }));
   const resources = [resource, ...contentResources, ...presenterResources];
 
