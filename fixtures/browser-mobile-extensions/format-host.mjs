@@ -22,10 +22,21 @@ export function installFormatPlatform(mode = 'absent') {
 }
 export async function mountFormats(options = {}) {
   const f=window.inputFixture;
-  window.formatState={signals:[],paused:!!options.paused,profileLoads:0,clientLoads:0,clientCalls:[],clientDisposals:0};
+  window.formatState={signals:[],paused:!!options.paused,profileLoads:0,clientLoads:0,clientCalls:[],clientDisposals:0,authorityCalls:[],assetCalls:[],assetMode:options.assets};
   await f.mount({text:'alpha 😀',palette:options.markdown!==false,viewport:true,...options});
   const controls=window.formats=window.editor.enableFormatControls(formatControls(
-    {maxBytes:options.maxBytes,schedule:async signal=>{window.formatState.signals.push(signal);if(window.formatState.paused)await new Promise(resolve=>{window.formatState.release=resolve;});},
+    {maxBytes:options.maxBytes,
+     ...(options.assets?{authorizeImport:async(file,signal)=>{
+       const state=window.formatState;state.authorityCalls.push(file.name);state.signals.push(signal);
+       if(state.assetMode==='delayed-authority')await new Promise(resolve=>{state.releaseAuthority=resolve;});
+       const response=await fetch('/fixture/import-authority.json',{signal}),data=await response.json();
+       const grant={identity:{host:'mobile-format-fixture',key:'original-png'},actions:['ingest','read','cancel','release-reference']};
+       const sourceGrant={identity:{host:'local-recovery',key:'selected-package'},actions:grant.actions};
+       state.grant=grant;state.sourceGrant=sourceGrant;
+       return {sourceGrant,importGrants:[{...grant,sha256:state.assetMode==='bad-hash'?Array(32).fill(0):data.sha256}],
+         host:{async authorize(request,signal){state.assetCalls.push({action:'authorize',request});state.signals.push(signal);return {identity:request.identity,actions:state.assetMode==='denied'?[]:grant.actions};},
+           async execute(reference,request,bytes,signal){state.assetCalls.push({action:'execute',reference,request,bytes:bytes?Array.from(bytes):null});state.signals.push(signal);if(state.assetMode==='delayed-ingest')await new Promise(resolve=>{state.releaseIngest=resolve;});return null;}}};
+     }}:{}),schedule:async signal=>{window.formatState.signals.push(signal);if(window.formatState.paused)await new Promise(resolve=>{window.formatState.release=resolve;});},
      ...(options.client?{loadClient:async signal=>{
        const state=window.formatState;state.clientLoads++;
        if(options.client==='paused')await new Promise(resolve=>{state.releaseClient=resolve;});

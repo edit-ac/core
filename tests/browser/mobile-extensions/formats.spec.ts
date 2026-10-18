@@ -3,12 +3,14 @@ import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
-import { cp, mkdir } from 'node:fs/promises';
+import { cp, mkdir, writeFile } from 'node:fs/promises';
 import { browserHarness } from '../browser-harness.ts';
 import { browserInputSources } from '../../editing/browser-driver.ts';
 import { installResourceCounters } from '../../mobile-web/resources.mjs';
 import { installExtensionCounters } from './resources.mjs';
 
+const mediaSourcePath='../architecture/evidence/document-conversion/consumers-odt-import-20261018/canonical4/odt-import-fixtures/media.odt';
+const mediaSource=readFileSync(mediaSourcePath),pixel=readFileSync('fixtures/formats/docx/probe/pixel.png');
 const {probe,facts}=browserHarness('mobile-extensions','fixtures/browser-mobile-extensions',{
   markdown:true,autoMount:false,testFile:'tests/browser/mobile-extensions/formats.spec.ts',assertSourcesUnchanged:true,
   contextOptions:{viewport:{width:390,height:740},hasTouch:true,isMobile:process.env.EDITAC_MOBILE_EXTENSIONS_BROWSER!=='firefox'},
@@ -18,6 +20,8 @@ const {probe,facts}=browserHarness('mobile-extensions','fixtures/browser-mobile-
     await page.addInitScript(installResourceCounters);await page.addInitScript(installExtensionCounters);
   },prepareConsumer:async(consumer,{facts,run})=>{
     const fixture=join(consumer,'fixture');await cp('fixtures/browser-mobile-extensions',fixture,{recursive:true});
+    await writeFile(join(fixture,'import-authority.json'),JSON.stringify({sha256:Array.from(createHash('sha256').update(pixel).digest())}));
+    facts.importFixtures={media:{path:mediaSourcePath,sha256:createHash('sha256').update(mediaSource).digest('hex')},pixel:{path:'fixtures/formats/docx/probe/pixel.png',sha256:createHash('sha256').update(pixel).digest('hex')}};
     const owner='../architecture/evidence/document-conversion/consumers-epub-import-20261018';
     const archive=join(owner,'canonical2/edit-ac-formats-0.0.0.tgz'),bytes=readFileSync(archive);
     const sha256=createHash('sha256').update(bytes).digest('hex');
@@ -33,7 +37,7 @@ const {probe,facts}=browserHarness('mobile-extensions','fixtures/browser-mobile-
     return fixture;
   },sourcePaths:[...browserInputSources,
     '../architecture/specs/document-conversion.md','../architecture/specs/formats.md','../architecture/tests/mobile-extension-cases.md',
-    'fixtures/browser-mobile-extensions/session.mjs','fixtures/browser-mobile-extensions/index.html','fixtures/browser-mobile-extensions/format-host.mjs',
+    mediaSourcePath,'fixtures/formats/docx/probe/pixel.png','fixtures/browser-mobile-extensions/session.mjs','fixtures/browser-mobile-extensions/index.html','fixtures/browser-mobile-extensions/format-host.mjs',
     'tests/browser/mobile-extensions/formats.spec.ts','tests/browser/mobile-extensions/index.mjs','tests/browser/mobile-extensions/case-index.json',
     'tests/mobile-web/resources.mjs','tests/browser/mobile-extensions/resources.mjs','scripts/test-mobile-extensions.mjs','packages/web/package.json',
     ...['modules/formats','modules/format-profiles','modules/touch-controls','clipboard/fragment','clipboard/html','dom/selection','editor','platform/viewport'].flatMap(n=>[`packages/web/src/${n}.ts`,`packages/web/dist/${n}.js`])],
@@ -362,4 +366,79 @@ for(const action of ['cancel','dispose'])test(`MFA-1.1-C4 ${action} releases lat
  if(action==='dispose')await page.evaluate(()=>(window as any).formats.dispose());else await button(page,'Cancel preparation').tap();
  await page.evaluate(()=>(window as any).formatState.releaseClient());await page.waitForFunction(()=>(window as any).formatState.clientDisposals===1);
  assert.equal(await artifact(page),null);assert.equal(fact.requests.some(url=>/worker\.js|formats_wasm/.test(url)),false);const after=await state(page);assert.deepEqual({...after,selection:before.selection},before);await finish(page,baseline,fact);
+}));
+
+async function mediaImport(page){
+ await ui(page).getByLabel('Import format',{exact:true}).selectOption('odt');
+ await ui(page).getByLabel('Approve reported format loss',{exact:true}).check();
+ await input(page,mediaSource,'original-media.odt','application/vnd.oasis.opendocument.text');
+}
+async function inspectOriginals(page){return page.evaluate(async()=>{
+ const f=(window as any).inputFixture,s=(window as any).formatState,c=(window as any).formats;
+ await c.settle();await f.settle();const assets=await f.storage.enableAssets(indexedDB,'mobile-harness'),work=await assets.inspect();
+ const originals=[];for(const p of work.prepared){const grant=p.reference.endsWith('_source')?s.sourceGrant:s.grant;originals.push({reference:p.reference,active:p.active,adoptedReference:p.adoptedReference,bytes:Array.from(await assets.preparedSource(p.job,p.reference,grant))});}
+ return {work,originals,receipt:c.receipt??null,calls:s.assetCalls,recovery:c.recovery?{name:c.recovery.name,type:c.recovery.type,bytes:Array.from(new Uint8Array(await c.recovery.arrayBuffer()))}:null};
+});}
+
+test('MFA-1.2 granted media imports exact originals atomically and survives one undo redo and reopen',()=>probe('MFA-1.2-media-adoption',async(page,fact)=>{
+ const baseline=await installed(page,{assets:'granted'}),before=await state(page);await mediaImport(page);
+ assert.match(await status(page).innerText(),/Preview ready/);assert.deepEqual((await state(page)).nodes,before.nodes);
+ assert.equal((await inspectOriginals(page)).work.prepared.length,0,'preview must not stage originals');
+ await ui(page).getByRole('button',{name:/^Confirm import/}).tap();await page.waitForFunction(()=>!(window as any).formats.busy);
+ const after=await state(page),proof=await inspectOriginals(page);fact.import=proof;
+ assert.match(await status(page).innerText(),/atomic local original\/media adoption/);assert.ok(proof.receipt);
+ assert.equal(after.journal.length-before.journal.length,1);assert.equal(after.history.undoGroups-before.history.undoGroups,1);
+ assert.ok(after.nodes.some(n=>n.blockAttributes?.[0]==='module:editac.asset'));
+ assert.deepEqual(proof.originals.find(p=>p.reference.endsWith('_source')).bytes,Array.from(mediaSource));
+ assert.deepEqual(proof.originals.find(p=>p.reference.endsWith('_original_0')).bytes,Array.from(pixel));
+ assert.equal(proof.calls.filter(c=>c.action==='execute').length,1);assert.deepEqual(proof.calls.find(c=>c.action==='execute').bytes,Array.from(pixel));
+ assert.deepEqual(proof.recovery.bytes,Array.from(mediaSource));
+ await page.evaluate(()=>{const f=(window as any).inputFixture;const command=f.surface.captureCommand('undo');try{command.execute();}finally{command.dispose();}});await frames(page);
+ assert.deepEqual((await state(page)).nodes.map(n=>n.runs),before.nodes.map(n=>n.runs));
+ await page.evaluate(()=>{const f=(window as any).inputFixture;const command=f.surface.captureCommand('redo');try{command.execute();}finally{command.dispose();}});await frames(page);
+ assert.deepEqual((await state(page)).nodes,after.nodes);
+ await page.evaluate(async()=>{await(window as any).inputFixture.destroy();await(window as any).inputFixture.recover();});await frames(page);
+ assert.deepEqual((await state(page)).nodes,after.nodes);const reopened=await inspectOriginals(page);
+ assert.deepEqual(reopened.originals,proof.originals);fact.reopenedOriginals=reopened.originals;await finish(page,baseline,fact);
+}));
+
+for(const mode of ['denied','bad-hash'])test(`MFA-1.2 ${mode} retains source without content or history adoption`,()=>probe(`MFA-1.2-media-${mode}`,async(page,fact)=>{
+ const baseline=await installed(page,{assets:mode}),before=await state(page);await mediaImport(page);
+ if(mode==='denied')await ui(page).getByRole('button',{name:/^Confirm import/}).tap();
+ await page.waitForFunction(()=>!(window as any).formats.busy);assert.match(await status(page).innerText(),/not (applied|prepared)/);
+ const after=await state(page),proof=await inspectOriginals(page);assert.deepEqual(after.nodes,before.nodes);assert.deepEqual(after.history,before.history);assert.deepEqual(after.journal,before.journal);
+ assert.equal(proof.receipt,null);assert.deepEqual(proof.recovery.bytes,Array.from(mediaSource));assert.ok(proof.work.prepared.every(p=>!p.active));
+ const waiting=page.waitForEvent('download');await button(page,'Download original file').tap();const download=await waiting;
+ assert.equal(download.suggestedFilename(),'original-media.odt');const stream=await download.createReadStream(),parts=[];for await(const part of stream!)parts.push(part);assert.deepEqual(Buffer.concat(parts),mediaSource);
+ fact.import=proof;await finish(page,baseline,fact);
+}));
+
+for(const action of ['cancel','background','pagehide','readonly','stale','second-editor'])test(`MFA-1.2 captured media review ${action} never redirects adoption`,()=>probe(`MFA-1.2-review-${action}`,async(page,fact)=>{
+ const baseline=await installed(page,{assets:'granted'}),before=await state(page);await mediaImport(page);assert.match(await status(page).innerText(),/Preview ready/);
+ await page.evaluate(async action=>{const f=(window as any).inputFixture;
+  if(action==='cancel')(window as any).formats.cancel();
+  if(action==='background'){Object.defineProperty(document,'visibilityState',{configurable:true,value:'hidden'});document.dispatchEvent(new Event('visibilitychange'));}
+  if(action==='pagehide')window.dispatchEvent(new Event('pagehide'));
+  if(action==='readonly')f.surface.setReadOnly(true);
+  if(action==='stale')await f.remote(0,0,'later ');
+  if(action==='second-editor'){(window as any).formatSibling=await f.sibling();(window as any).formatSiblingBefore=(window as any).formatSibling.editor.read().visible;(window as any).formatSibling.root.focus();}
+ },action);
+ const changed=await state(page);await page.evaluate(()=>(window as any).formats.confirm());await frames(page);
+ const after=await state(page),proof=await inspectOriginals(page);
+ if(action==='second-editor'){
+  // A focus change alone must keep the original captured editor target.
+  assert.ok(after.nodes.some(n=>n.blockAttributes?.[0]==='module:editac.asset'));assert.ok(proof.receipt);
+  const sibling=await page.evaluate(()=>({before:(window as any).formatSiblingBefore,after:(window as any).formatSibling.editor.read().visible}));assert.deepEqual(sibling.after,sibling.before);
+  await page.evaluate(()=>(window as any).formatSibling.dispose());
+ }else{assert.deepEqual(after.nodes,changed.nodes);assert.deepEqual(after.history,changed.history);assert.deepEqual(after.journal,changed.journal);assert.equal(proof.receipt,null);assert.equal(proof.calls.length,0);}
+ assert.deepEqual(proof.recovery.bytes,Array.from(mediaSource));fact.import=proof;await finish(page,baseline,fact);
+}));
+
+for(const action of ['cancel','background','dispose'])test(`MFA-1.2 ${action} fences delayed ingest and preserves original source`,()=>probe(`MFA-1.2-ingest-${action}`,async(page,fact)=>{
+ const baseline=await installed(page,{assets:'delayed-ingest'}),before=await state(page);await mediaImport(page);
+ await ui(page).getByRole('button',{name:/^Confirm import/}).tap();await page.waitForFunction(()=>!!(window as any).formatState.releaseIngest);
+ await page.evaluate(action=>{const c=(window as any).formats;if(action==='cancel')c.cancel();if(action==='dispose')c.dispose();if(action==='background'){Object.defineProperty(document,'visibilityState',{configurable:true,value:'hidden'});document.dispatchEvent(new Event('visibilitychange'));}},action);
+ await page.evaluate(async()=>{(window as any).formatState.releaseIngest();await(window as any).formats.settle();});await frames(page);
+ const after=await state(page),proof=await inspectOriginals(page);assert.deepEqual(after.nodes,before.nodes);assert.deepEqual(after.history,before.history);assert.deepEqual(after.journal,before.journal);assert.equal(proof.receipt,null);assert.ok(proof.work.prepared.every(p=>!p.active));
+ assert.ok(await page.evaluate(()=>(window as any).formatState.signals.every(s=>s.aborted)));fact.import=proof;await finish(page,baseline,fact);
 }));

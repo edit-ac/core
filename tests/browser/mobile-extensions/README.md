@@ -144,3 +144,23 @@ The mixed-file clipboard rows qualify existing HTML/plain precedence and recover
 not insertion of binary bytes or durable upload. Do not add a second journal or
 serializer to replace the missing Session boundary. Preserve its admission receipt
 and retry only when a qualified pinned owner return changes that prerequisite.
+
+
+`formatControls({authorizeImport})` also supports explicit host-approved embedded
+originals. The callback returns hash-bound import grants, a separate source-package
+grant and the existing AssetHostTransport. BrowserEditor supplies its same recovered
+Session storage port. Preview does not stage assets; Confirm import delegates to
+PreparedImport.commitAssets, which stages the exact selected package and approved
+embedded originals and uses the existing atomic content/adoption transaction.
+Text-only imports remain ordinary prepared fragments and never adopt an asset.
+The caller's selected File remains reachable through Download original file after
+conversion/authorization failure or cancellation; its name/type/bytes are preserved.
+Recovery downloads request browser delivery and do not prove OS storage success.
+
+MFA-1.2 cases use the pinned canonical2 optional package with independently authored
+ODT/PNG fixtures and deterministic granted, denied, wrong-hash and delayed-ingest
+transports. They assert preview nonmutation, one history/update, undo/redo/reopen,
+exact package/media retention, stable captured editor targets, background/pagehide/
+read-only/stale rejection, and cancellation fencing. Host callbacks must honor the
+AbortSignal and remain bounded/local. This portable proof does not qualify physical
+devices, OS delivery, performance, the full sharing lifecycle or release gates.

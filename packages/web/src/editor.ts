@@ -257,7 +257,12 @@ export class BrowserEditor {
   enableFormatControls(factory: import('./modules/formats.js').FormatControlsFactory): import('./modules/formats.js').FormatControls {
     const session = this.#requireReady();
     if (this.#formats && !this.#formats.disposed) return this.#formats;
+    const storage = session.storage;
     const controls = factory({ root: this.root, engine: session.writer.engine, selection: this.#selection!,
+      storageOwner: { engine: session.writer.engine, commit: storage.commit.bind(storage),
+        commitPreparedAssets: storage.commitPreparedAssets.bind(storage),
+        enableAssets: () => storage.enableAssets(this.#recoveryOptions.indexedDB, this.#recoveryOptions.databaseName),
+        flush: storage.flush.bind(storage), recoveryExport: storage.recoveryExport.bind(storage), destroy: storage.destroy.bind(storage) },
       commit: request => this.commit(request), blocked: () => this.#closing || this.#destroyed || !this.state.ready,
       ...(this.#options.contentCodecs ? { contentCodecs: this.#options.contentCodecs } : {}), viewport: this.#surface!.viewport });
     controls.setReadOnly(this.#readOnly); this.#formats = controls; return controls;
@@ -476,7 +481,7 @@ export class BrowserEditor {
         if (this.#plainButton) { this.#plainButton.disabled = true; this.#plainButton.removeEventListener('pointerdown', this.#capturePlainTarget); this.#plainButton.removeEventListener('click', this.#plainClick); }
         this.root.removeEventListener('keydown', this.#capturePlainTarget);
         this.#controls?.dispose(); this.#hints?.dispose();
-        this.#formats?.dispose();
+        this.#formats?.dispose(); await this.#formats?.settle();
         await this.#capabilities?.then(c => c.dispose(), () => {});
         for (const dispose of this.#pasteTargets) dispose();
         this.#surface?.dispose(); this.#unsubscribe?.();

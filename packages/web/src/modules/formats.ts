@@ -1,4 +1,6 @@
-import type { EngineHandle, StableRange, FragmentBlock, MarkdownOptions } from '@edit-ac/core';
+import type { EngineHandle, StableRange, FragmentBlock, MarkdownOptions, AssetGrant } from '@edit-ac/core';
+import type { EditorStorageOwner } from '../storage/owner.js';
+import type { AssetHostTransport, PreparedAssetCommitReceipt } from '../sync/assets.js';
 import type { RetainedSelection } from '../dom/selection.js';
 import type { DocumentSearchContext } from './search.js';
 import type { EditorViewport } from '../platform/viewport.js';
@@ -12,11 +14,18 @@ export type BaselineFormat = 'text' | 'markdown';
 export type DocumentFormat = 'rtf' | 'csv' | 'tsv' | 'docx' | 'odt' | 'epub' | 'pdf';
 /** Structural port for the optional public createFormatClient. The host pins the
  * client and metadata to the same qualified package. No base dependency/loader. */
+export interface PreparedDocumentImport {
+  profile: string; revision: number; blocks: readonly FragmentBlock[]; sessionCommitted: boolean;
+  diagnostics: readonly Record<string, unknown>[];
+  commitAssets?(owner: EditorStorageOwner, job: string, host: AssetHostTransport, sourceGrant: AssetGrant): Promise<PreparedAssetCommitReceipt>;
+}
+export interface FormatImportAuthority {
+  importGrants: readonly (AssetGrant & { sha256: readonly number[] })[];
+  sourceGrant: AssetGrant;
+  host: AssetHostTransport;
+}
 export interface DocumentFormatClient {
-  prepareImport(engine: EngineHandle, options: DocumentFormatRequest & { source: Uint8Array; range: StableRange }): Promise<{
-    profile: string; revision: number; blocks: readonly FragmentBlock[]; sessionCommitted: boolean;
-    diagnostics: readonly Record<string, unknown>[];
-  }>;
+  prepareImport(engine: EngineHandle, options: DocumentFormatRequest & { source: Uint8Array; range: StableRange }): Promise<PreparedDocumentImport>;
   export(engine: EngineHandle, options: DocumentFormatRequest): Promise<{
     profile: string; revision: number; bytes: Uint8Array; diagnostics: readonly Record<string, unknown>[];
   }>;
@@ -26,6 +35,7 @@ export interface DocumentFormatClient {
 export interface DocumentFormatRequest {
   format: DocumentFormat; signal: AbortSignal; filename: string; mediaType: string;
   newline: 'lf' | 'crlf'; header: boolean; approveLoss: boolean; selected?: string;
+  importGrants?: FormatImportAuthority['importGrants'];
 }
 export interface FormatControlsOptions {
   viewport?: EditorViewport;
@@ -40,10 +50,14 @@ export interface FormatControlsOptions {
   /** Explicitly loaded on preparation, after authenticated metadata is shown.
    * Ownership transfers to these controls, including late canceled loads. */
   loadClient?(signal: AbortSignal): Promise<DocumentFormatClient>;
+  /** Explicit local host approval; no inferred authority from document locators.
+   * Called on file selection, before conversion; opening the menu grants nothing. */
+  authorizeImport?(file: File, signal: AbortSignal): Promise<FormatImportAuthority>;
 }
 export interface FormatControlsContext extends DocumentSearchContext {
   viewport?: EditorViewport;
   contentCodecs?: MarkdownOptions;
+  storageOwner?: EditorStorageOwner;
 }
 export type FormatControlsFactory = (context: FormatControlsContext) => FormatControls;
 /** Explicit optional import. The default editor never references this module at
@@ -98,6 +112,12 @@ export class FormatControls {
   readonly #listeners: [EventTarget, string, EventListener][] = [];
   readonly #releaseViewport: (() => void) | undefined;
   readonly #limit: number;
+  /** Exact caller File retained independently of decoded preview, including rejection. */
+  recovery: File | undefined;
+  receipt: PreparedAssetCommitReceipt | undefined;
+  #prepared: { value: PreparedDocumentImport; authority: FormatImportAuthority } | undefined;
+  #previewAbort: AbortController | undefined;
+  #confirmation: Promise<void> | undefined;
   #profiles: readonly FormatProfileDirection[] = [];
   #client: DocumentFormatClient | undefined;
   #target: RetainedSelection | undefined;
@@ -108,7 +128,7 @@ export class FormatControls {
   #url: string | undefined;
   #disposed = false;
   #readOnly = false;
-  constructor(readonly context: DocumentSearchContext, readonly options: FormatControlsOptions = {}) {
+  constructor(readonly context: FormatControlsContext, readonly options: FormatControlsOptions = {}) {
     this.#limit = options.maxBytes ?? 1048576;
     if (!Number.isSafeInteger(this.#limit) || this.#limit < 1 || this.#limit > 1048576) throw Error('format-limit');
     const doc = context.root.ownerDocument;
@@ -142,10 +162,11 @@ export class FormatControls {
     this.input = doc.createElement('input'); this.input.type = 'file'; this.input.accept = '.txt,.md,text/plain,text/markdown';
     this.input.setAttribute('aria-label', 'Import file (file-input fallback)'); label('Choose a local file ', this.input);
     this.#listen(this.input, 'change', () => { const file = this.input.files?.[0]; if (file) void this.prepareImport(file); else this.cancel(); this.input.value = ''; });
-    const invalidate = () => { this.#job?.abort(); this.#client?.cancel(); this.#job = undefined; this.#blocks = undefined; this.#buttons.get('confirm')!.disabled = true; };
+    const invalidate = () => { this.#job?.abort(); this.#client?.cancel(); this.#job = undefined; this.#blocks = undefined; this.#prepared = undefined; this.#previewAbort?.abort(); this.#buttons.get('confirm')!.disabled = true; };
     for (const field of [this.importFormat, this.newline, this.header, this.approveLoss]) this.#listen(field, 'change', invalidate);
     this.#button('picker', 'Use system file picker', () => { void this.pick(); });
-    this.#button('confirm', 'Confirm import', () => this.confirm()); this.#buttons.get('confirm')!.disabled = true;
+    this.#button('confirm', 'Confirm import', () => { void this.confirm(); });
+    this.#button('original', 'Download original file', () => this.downloadOriginal()); this.#buttons.get('confirm')!.disabled = true;
     this.preview = doc.createElement('textarea'); this.preview.readOnly = true; this.preview.setAttribute('aria-label', 'Import source preview'); label('Import source (retained for recovery) ', this.preview);
     this.filename = doc.createElement('input'); this.filename.value = 'document.txt'; this.filename.maxLength = 255; this.filename.setAttribute('aria-label', 'Output filename'); label('Output filename ', this.filename);
     this.#button('prepare', 'Prepare export', () => { void this.prepareExport(); });
@@ -160,6 +181,9 @@ export class FormatControls {
     this.#listen(open, 'pointercancel', () => this.#releaseTarget());
     this.#listen(this.element, 'keydown', event => { const key = event as KeyboardEvent; if (key.isComposing) return; if (key.key === 'Escape') { key.preventDefault(); this.close(); } else if (key.key === 'Enter' && event.target instanceof doc.defaultView!.HTMLInputElement && event.target !== this.input) key.preventDefault(); });
     this.#listen(context.root, 'compositionstart', () => this.cancel());
+    this.#listen(doc, 'visibilitychange', () => { if (doc.visibilityState === 'hidden') this.cancel(); });
+    this.#listen(doc.defaultView!, 'pagehide', () => this.cancel());
+    this.#listen(this.input, 'cancel', () => this.cancel());
     this.#releaseViewport = options.viewport?.addControls(this.element);
   }
   #listen(target: EventTarget, type: string, listener: EventListener): void { target.addEventListener(type, listener); this.#listeners.push([target, type, listener]); }
@@ -176,14 +200,14 @@ export class FormatControls {
       this.context.root.getAttribute('aria-busy') === 'true' || (write && (this.#readOnly || this.context.root.getAttribute('aria-readonly') === 'true'));
   }
   #message(text: string): void { if (!this.#disposed) this.status.textContent = text; }
-  #releaseTarget(): void { this.#target?.dispose(); this.#target = undefined; this.#revision = undefined; this.#blocks = undefined; this.#buttons.get('confirm')!.disabled = true; }
+  #releaseTarget(): void { this.#previewAbort?.abort(); this.#previewAbort = undefined; this.#prepared = undefined; this.#target?.dispose(); this.#target = undefined; this.#revision = undefined; this.#blocks = undefined; this.#buttons.get('confirm')!.disabled = true; }
   #capture(): void {
-    this.#releaseTarget(); if (this.#blocked(true)) return;
+    this.cancel(); if (this.#blocked(true)) return;
     this.#target = this.context.selection.retain(); this.#revision = this.context.engine.read().revision;
   }
   #validTarget(): boolean { return !this.#blocked(true) && !!this.#target?.active && this.#revision === this.context.engine.read().revision; }
   #begin(): AbortController | undefined {
-    if (this.#blocked() || this.#job) return;
+    if (this.#blocked() || this.#job || this.#confirmation) return;
     const job = new AbortController(); this.#job = job; return job;
   }
   #active(job: AbortController): boolean { return !job.signal.aborted && !this.#blocked() && this.#job === job; }
@@ -284,31 +308,39 @@ export class FormatControls {
   }
   async prepareImport(file: File): Promise<void> {
     const job = this.#begin(); if (!job) return;
+    this.recovery = file; this.receipt = undefined;
+    this.#previewAbort?.abort(); this.#previewAbort = job; this.#prepared = undefined;
+    const target = this.#target, format = this.importFormat.value;
     this.#blocks = undefined; this.#buttons.get('confirm')!.disabled = true;
     this.#message('Preparing import preview. Cancel preparation is available; no document change is confirmed.');
     try {
       if (!this.#validTarget()) throw Error('import-target-unavailable; close and reopen at the intended selection');
       if (file.size > this.#limit) throw Error('format-byte-limit');
       if (/\.pdf$/i.test(file.name) || file.type === 'application/pdf') throw Error('FORMAT_EXPORT_ONLY');
-      const format = this.importFormat.value;
       const bytes = new Uint8Array(await file.arrayBuffer());
       if (!this.#active(job)) return;
+      if (this.#target !== target || !this.#validTarget()) throw Error('import-target-changed');
       if (bytes.length > this.#limit) throw Error('format-byte-limit');
       if (String.fromCharCode(...bytes.subarray(0, 5)) === '%PDF-') throw Error('FORMAT_EXPORT_ONLY');
       if (format !== 'text' && format !== 'markdown') {
         const row = this.#profile(format, 'import'), request = this.#request(format, job, file.name, file.type);
-        this.preview.value = `Original file retained by the caller: ${file.name} (${bytes.length} bytes). ${row.profile}; fidelity: ${row.fidelity}.`;
+        this.preview.value = `Original file retained for Download original file: ${file.name} (${bytes.length} bytes). ${row.profile}; fidelity: ${row.fidelity}.`;
         const client = await this.#formatClient(job); if (!client || !this.#active(job)) return;
-        const prepared = await client.prepareImport(this.context.engine, { ...request, source: bytes, range: this.#target!.range });
+        const supplied = await this.options.authorizeImport?.(file, job.signal);
         if (!this.#active(job)) return;
-        if (!this.#validTarget() || this.importFormat.value !== format || prepared.revision !== this.#revision) throw Error('import-target-or-format-changed');
+        if (this.#target !== target || !this.#validTarget()) throw Error('import-target-changed');
+        const authority = supplied ? { ...supplied, importGrants: structuredClone(supplied.importGrants), sourceGrant: structuredClone(supplied.sourceGrant) } : undefined;
+        const prepared = await client.prepareImport(this.context.engine, { ...request, ...(authority ? { importGrants: authority.importGrants } : {}), source: bytes, range: target!.range });
+        if (!this.#active(job)) return;
+        if (this.#target !== target || !this.#validTarget() || this.importFormat.value !== format || prepared.revision !== this.#revision) throw Error('import-target-or-format-changed');
         if (prepared.profile !== row.profile) throw Error('format-profile-mismatch');
-        // The public client does not receive grants here. Media must go through
-        // the existing atomic asset owner, never a plain fragment insertion.
-        if (prepared.blocks.some(block => block.attributes?.type === 'content' && Array.isArray(block.attributes.tuple) && block.attributes.tuple[0] === 'module:editac.asset')) throw Error('AssetOwnerRequired');
-        if (!prepared.sessionCommitted || (!request.approveLoss && prepared.diagnostics.some(d => d.lossy))) throw Error(`LossApprovalRequired: ${prepared.diagnostics.map(d => d.code).join(', ')}. Review diagnostics, explicitly approve reported loss, then choose the file again`);
+        const media = prepared.blocks.some(block => block.attributes?.type === 'content' && Array.isArray(block.attributes.tuple) && block.attributes.tuple[0] === 'module:editac.asset');
+        if (media && (!authority || !prepared.commitAssets || !this.context.storageOwner)) throw Error('AssetOwnerRequired');
+        // Media is a candidate until commitAssets stages/adopts it; the worker must not commit it.
+        if ((!media && !prepared.sessionCommitted) || (!request.approveLoss && prepared.diagnostics.some(d => d.lossy))) throw Error(`LossApprovalRequired: ${prepared.diagnostics.map(d => d.code).join(', ')}. Review diagnostics, explicitly approve reported loss, then choose the file again`);
         const plan = this.context.engine.prepare({kind:'fragment', origin:'format-import-preview', range:this.#target!.range, blocks:prepared.blocks});
         this.context.engine.releasePlan(plan); this.#blocks = prepared.blocks;
+        if (media) this.#prepared = { value: prepared, authority: authority! };
         this.#buttons.get('confirm')!.disabled = false;
         this.#buttons.get('confirm')!.textContent = prepared.diagnostics.length ? 'Confirm import with reported diagnostics' : 'Confirm import';
         this.#message(`Preview ready; document unchanged. ${row.profile}; fidelity: ${row.fidelity}. ${prepared.diagnostics.map(d => d.code).join(', ')}`); return;
@@ -316,7 +348,7 @@ export class FormatControls {
       const source = new TextDecoder('utf-8', { fatal: true }).decode(bytes); this.#checkBytes(source); this.preview.value = source;
       await this.options.schedule?.(job.signal);
       if (!this.#active(job)) return;
-      if (!this.#validTarget() || this.importFormat.value !== format) throw Error('import-target-or-format-changed');
+      if (this.#target !== target || !this.#validTarget() || this.importFormat.value !== format) throw Error('import-target-or-format-changed');
       const diagnostic = inputTextDiagnostic(source); if (diagnostic) throw Error(diagnostic);
       let diagnostics: readonly { code: string }[] = [];
       if (format === 'markdown') {
@@ -336,10 +368,37 @@ export class FormatControls {
     } catch (error) { this.#blocks = undefined; if (this.#active(job)) this.#message(`Import not prepared: ${this.#reason(error)}. Original file remains with you; preview is retained when decoded.`); }
     finally { this.#end(job); }
   }
-  confirm(): void {
-    if (this.#job) return;
+  confirm(): Promise<void> {
+    if (this.#confirmation) return this.#confirmation;
+    const promise = this.#confirm(); this.#confirmation = promise;
+    void promise.finally(() => { if (this.#confirmation === promise) this.#confirmation = undefined; });
+    return promise;
+  }
+  async settle(): Promise<void> { await this.#confirmation; }
+  async #confirm(): Promise<void> {
+    const job = this.#begin(); if (!job) return;
+    const target = this.#target;
     try {
       if (!this.#blocks || !this.#validTarget()) throw Error('import-target-changed; close and reopen to preview again');
+      if (this.#prepared) {
+        const { value, authority } = this.#prepared;
+        this.#buttons.get('confirm')!.disabled = true;
+        this.#message('Adopting approved originals; cancel remains available.');
+        this.receipt = await value.commitAssets!(this.context.storageOwner!, `format_${crypto.randomUUID().replaceAll('-', '')}`, authority.host, authority.sourceGrant);
+        const result = this.receipt.content;
+        try {
+          if (this.#target === target && this.#active(job)) {
+            if (result.selection) this.context.selection.restoreRange(result.selection);
+            else if (result.caret) this.context.selection.move(result.caret);
+          }
+        } finally {
+          for (const anchor of new Set([result.caret, result.selection?.anchor, result.selection?.focus])) if (anchor) this.context.engine.releaseAnchor(anchor);
+          this.receipt = { ...this.receipt, content: { revision: result.revision } };
+        }
+        // Durable transaction won any concurrent cancel; report its actual receipt.
+        this.#message('Import applied as one editor command with atomic local original/media adoption; host delivery is separate.');
+        return;
+      }
       this.context.engine.history({ type: 'explicit' });
       try {
         const result = this.context.commit({ kind: 'fragment', origin: 'format-import', range: this.#target!.range, blocks: this.#blocks });
@@ -347,7 +406,15 @@ export class FormatControls {
       } finally { this.context.engine.history({ type: 'boundary' }); }
       this.#message('Import applied as one editor command. Local durability follows the existing Session save state.');
     } catch (error) { this.#message(`Import not applied: ${this.#reason(error)}. Preview retained.`); }
-    finally { this.#releaseTarget(); }
+    finally { if (this.#target === target) this.#releaseTarget(); this.#end(job); }
+  }
+  downloadOriginal(): void {
+    if (this.#disposed || !this.recovery) return;
+    const w = this.context.root.ownerDocument.defaultView!; this.#revoke();
+    this.#url = w.URL.createObjectURL(this.recovery);
+    const link = w.document.createElement('a'); link.href = this.#url; link.download = this.recovery.name; link.hidden = true; this.element.append(link);
+    try { link.click(); } finally { link.remove(); }
+    this.#message('Original-file download requested; actual device delivery is unverified. The selected File remains retained.');
   }
   async prepareExport(): Promise<void> {
     const job = this.#begin(); if (!job) return;
@@ -448,6 +515,6 @@ export class FormatControls {
   dispose(): void {
     if (this.#disposed) return; this.cancel(); this.#disposed = true; this.#revoke(); this.#releaseViewport?.();
     for (const [target, type, listener] of this.#listeners.splice(0)) target.removeEventListener(type, listener);
-    this.#client?.dispose(); this.#client = undefined; this.#artifact = undefined; this.preview.value = ''; this.output.value = ''; this.element.remove();
+    this.#client?.dispose(); this.#client = undefined; this.#artifact = undefined; this.recovery = undefined; this.preview.value = ''; this.output.value = ''; this.element.remove();
   }
 }
