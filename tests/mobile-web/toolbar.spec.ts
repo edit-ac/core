@@ -84,9 +84,14 @@ for (const late of ['resolve', 'reject']) test(`WFE-2.2 ${id} ${transition}: fre
   const baseline = await mount(page);
   const before = await state(page, fact);
   await beginRead(page, id, 'abandoned');
+  let controlSelection;
   if (transition === 'cancel') {
     const cancel = page.getByRole('button', { name: 'Cancel paste', exact: true });
-    await cancel.focus(); await page.keyboard.press('Enter');
+    await cancel.focus();
+    // Native control focus may clear DOM selection (WebKit). Cancellation must
+    // preserve that native state and must not force focus back into the editor.
+    const focused = await state(page, fact); unchanged(before, focused, false); controlSelection = focused.selection;
+    await page.keyboard.press('Enter');
     assert.equal(await page.evaluate(id => (window as any).inputFixture.surface.commandControls.element.querySelector(`[data-command="${id}"]`) === document.activeElement, id), true);
   } else await page.evaluate(transition => {
     const f = (window as any).inputFixture;
@@ -99,7 +104,8 @@ for (const late of ['resolve', 'reject']) test(`WFE-2.2 ${id} ${transition}: fre
   }, transition);
   // Cancellation settles the control even though its prepared reader is unresolved.
   await page.evaluate(() => (window as any).abandoned.done);
-  unchanged(before, await state(page, fact));
+  const canceled = await state(page, fact); unchanged(before, canceled, transition !== 'cancel');
+  if (transition === 'cancel') assert.deepEqual(canceled.selection, controlSelection, 'cancel preserves native control-focus selection');
   assert.equal(await page.getByRole('button', { name: 'Cancel paste', exact: true }).isVisible(), false);
   await page.evaluate(transition => {
     const f = (window as any).inputFixture;

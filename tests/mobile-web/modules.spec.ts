@@ -108,14 +108,15 @@ test('MBX-03 code tap command retains selected range and exactly one semantic un
 
 test('MBX-03 table horizontal scrolling coexists with page scrolling and native cell commands',()=>probe('MBX-03-table-scroll',async(page,fact)=>{
   const baseline=await mount(page,{text:'',table:true,baselineModules:false});const before=await state(page,fact);
-  const scrolling=await page.evaluate(()=>{const f=(window as any).inputFixture,t=f.root.querySelector('[data-content-module="table"]'),host=document.querySelector('#scroll-root');t.scrollLeft=150;host.scrollTop=100;return {left:t.scrollLeft,top:host.scrollTop,overflow:getComputedStyle(t).overflowX,touch:getComputedStyle(t).touchAction};});fact.scrolling=scrolling;assert.ok(scrolling.left>0);assert.ok(scrolling.top>0);assert.equal(scrolling.overflow,'auto');assert.equal(scrolling.touch,'auto');unchanged(before,await state(page,fact));
+  const scrolling=await page.evaluate(()=>{const f=(window as any).inputFixture,t=f.root.querySelector('[data-content-module="table"] [data-table-scroll]'),host=document.querySelector('#scroll-root');t.scrollLeft=150;host.scrollTop=100;return {left:t.scrollLeft,top:host.scrollTop,overflow:getComputedStyle(t).overflowX,touch:getComputedStyle(t).touchAction};});fact.scrolling=scrolling;assert.ok(scrolling.left>0);assert.ok(scrolling.top>0);assert.equal(scrolling.overflow,'auto');assert.equal(scrolling.touch,'auto');unchanged(before,await state(page,fact));
   await page.getByRole('textbox',{name:'Table row 2 column 1',exact:true}).fill('edited😀');const after=await state(page,fact),t=after.nodes.find(n=>n.blockAttributes?.[0]==='module:editac.table');assert.equal(t.blockAttributes[2].rows[1][0][0][0],'edited😀');assert.equal(mutations(after),1);assert.equal(after.history.undoGroups,1);assert.equal(after.journal.length,1);await finish(page,baseline,fact);
 }));
 
 test('MBX-04 baseline block actions work with enhanced module presenters absent',()=>probe('MBX-04-disabled',async(page,fact)=>{
   const baseline=await mount(page,{baselineModules:false});await page.evaluate(()=>{const f=(window as any).inputFixture;f.select(f.ids[0],2);});
   await page.evaluate(()=>{const b=(window as any).inputFixture.surface.commandControls.element.querySelector('[data-command="enter"]');b.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,cancelable:true,pointerType:'touch'}));b.click();});const s=await state(page,fact);assert.deepEqual(text(s),['al','pha']);assert.equal(mutations(s),1);assert.equal(s.history.undoGroups,1);
-  const imports=await page.evaluate(()=>performance.getEntriesByType('resource').map(e=>new URL(e.name).pathname).filter(p=>/\/(modules\/(slash|references|content|reorder|code\/|images\/|embeds\/|attachments\/)|platform\/(capabilities|keyboard)|web\/extensions\/code|markdown\/)/.test(p)));fact.optionalImports=imports;assert.deepEqual(imports,[]);assert.equal(await page.locator('[role="menu"]').count(),0);await finish(page,baseline,fact);
+  const imports=await page.evaluate(()=>performance.getEntriesByType('resource').map(e=>new URL(e.name).pathname).filter(p=>/\/(modules\/((?:slash|references|content|reorder)\.js|code\/|images\/|embeds\/|attachments\/)|platform\/(capabilities|keyboard)|web\/extensions\/code|markdown\/)/.test(p)));fact.optionalImports=imports;assert.deepEqual(imports,[]); // Pure command metadata is allowed; optional presenters must remain unloaded.
+  assert.equal(await page.locator('[role="menu"]').count(),0);await finish(page,baseline,fact);
 }));
 
 test('MBX-04 native editing stays usable with all command presenters disabled',()=>probe('MBX-04-native-input',async(page,fact)=>{
@@ -132,7 +133,8 @@ test('MBX-04 two editor focus cancels first menu without cross-owner viewport te
 test('MBX-04 disabled table presenter preserves inert source and ordinary native input',()=>probe('MBX-04-table-disabled',async(page,fact)=>{
   const baseline=await mount(page,{text:'alpha',table:true,presentersDisabled:true,baselineModules:false,commandControls:false});const before=await state(page,fact),table=before.nodes.find(n=>n.blockAttributes?.[0]==='module:editac.table');assert.ok(table);
   await page.evaluate(()=>{const f=(window as any).inputFixture,n=f.engine.read().visible.find(n=>n.kind==='block'&&n.blockAttributes?.[0]==='paragraph'&&n.runs.some(r=>r.text==='alpha'));f.select(n.id,2);});await page.keyboard.insertText('X');const after=await state(page,fact);assert.deepEqual(after.nodes.find(n=>n.id===table.id),table);assert.ok(text(after).includes('alXpha'));assert.equal(mutations(after),1);assert.equal(after.history.undoGroups,1);
-  const imports=await page.evaluate(()=>performance.getEntriesByType('resource').map(e=>new URL(e.name).pathname).filter(p=>/\/modules\/(content|images\/|embeds\/|attachments\/)/.test(p)));fact.optionalImports=imports;assert.deepEqual(imports,[]);assert.equal(await page.locator('[data-content-module]').count(),0);await finish(page,baseline,fact);
+  const imports=await page.evaluate(()=>performance.getEntriesByType('resource').map(e=>new URL(e.name).pathname).filter(p=>/\/modules\/(content|images\/|embeds\/|attachments\/)/.test(p)));fact.optionalImports=imports;assert.deepEqual(imports,[]); // Pure command metadata is allowed; optional presenters must remain unloaded.
+  assert.equal(await page.locator('[data-content-module]').count(),0);await finish(page,baseline,fact);
 }));
 
 test('MBX-01 composition already active cannot open the explicit module menu',()=>probe('MBX-01-composing',async(page,fact)=>{
