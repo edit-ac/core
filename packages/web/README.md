@@ -497,3 +497,30 @@ calling `commit`, or call `abort` without changing content. It temporarily rejec
 other semantic mutations; do not hold it across host work. Job tombstones remain
 bounded to256, originals to64MiB, and each WASM JSON request to2MiB. This local
 integration does not claim optional-format or packed cross-browser qualification.
+
+### Explicit file and optional camera controls
+
+Import `assetInputControls` from `@edit-ac/web/assets`, recover an
+`openEditorStorage` owner, and mount its `mountEditorSurface` with `storageOwner`.
+Call `surface.enableAssetInputControls(assetInputControls(options))` and mount the
+returned `element` in the host's touch toolbar. The optional factory stays outside
+the default editor graph. Await `surface.dispose()` before closing the owner;
+detachment removes listeners immediately and waits for pending job fencing.
+
+The host supplies `describe(file, signal)` with one existing asset fragment and
+an identity-scoped ingest request, plus the existing `AssetHostTransport`. The
+host validates actual media and allocates unique non-secret operation IDs. Only
+explicit file/paste actions call those ports. `capture: 'environment'` or `'user'`
+adds an optional image capture input; Add file remains available when capture is
+absent, denied or canceled. There is no permission probe or live camera API.
+
+Input admits one file per action, at most 2 MiB (the host may lower the bound).
+Internal structured clipboard transfer keeps its existing precedence; an external
+binary/HTML paste admits one binary file and suppresses its HTML echo. Composition,
+read-only, changed targets, backgrounding, cancellation and view disposal fence
+unfinished work through the existing AssetSession. A document change during a
+picker conservatively rejects the result. `recovery` retains the caller's original
+File after failure/cancellation. A successful `receipt` contains the local durable
+commit and content revision; caret tokens are applied and released by the control.
+Host asset effects and document durability remain separate receipts. The control
+never retries host work automatically, publishes an asset or deletes global bytes.

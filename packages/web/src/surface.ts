@@ -73,6 +73,7 @@ export interface EditorSurface {
   readonly slash: import('./modules/slash.js').SlashPresenter | undefined;
   readonly moduleRuntime: ModuleRuntime | undefined;
   readonly recovery: readonly { text: string; reason: string }[];
+  enableAssetInputControls(factory: import('./modules/asset-input.js').AssetInputFactory): import('./modules/asset-input.js').AssetInputControls;
   captureTextTransfer(): import('./input/drag.js').TextTransferTarget | undefined;
   captureToolbar(): import('./commands/formatting.js').ToolbarTarget | undefined;
   readonly commands: typeof import('./commands/catalog.js').commandCatalog;
@@ -82,8 +83,9 @@ export interface EditorSurface {
   captureHistory(): import('./input/keyboard.js').HistoryTarget | undefined;
   settle(): Promise<void>;
   setReadOnly(value: boolean): void;
-  /** Detach the view and input handlers. The host still owns the engine. */
-  dispose(): void;
+  /** Detach input immediately. Await optional asset fencing before closing storage.
+   * The host still owns the engine. */
+  dispose(): void | Promise<void>;
 }
 const mounted = new WeakSet<HTMLElement>();
 
@@ -326,6 +328,7 @@ export function mountEditorSurface(root: HTMLElement, engine: EngineHandle, opti
   }
   if (policy && !ports) throw new ExtensionConfigurationError('requires-storage-owner', 'editor', 'collaboration', 'Supply openEditorStorage for managed borrowed sync');
   const release = reserveEditorSurface(root);
+  let assetInputs: import('./modules/asset-input.js').AssetInputControls | undefined;
   let disposed = false, generation = 0;
   let controller: AbortController | undefined, attachment: SyncAttachment | undefined;
   let collaborationStatus: import('./extensions/contract.js').ExtensionStatusV1 = Object.freeze({ state: 'idle', generation: 0 });
@@ -407,14 +410,20 @@ export function mountEditorSurface(root: HTMLElement, engine: EngineHandle, opti
       get recovery() { return binding.input.recovery.map(({ text, reason }) => ({ text, reason })); },
       takeExtensionErrors() { return binding.takeExtensionErrors(); },
       runExtensionCommand(id, name, argument) { requireReady(); return binding.runExtensionCommand(id, name, argument); },
+      enableAssetInputControls(factory) {
+        requireReady(); if (!options.storageOwner) throw Error('Asset controls require openEditorStorage');
+        if (assetInputs && !assetInputs.disposed) return assetInputs;
+        assetInputs = factory({root,engine,selection:binding.selection,commit: options.storageOwner.commit,blocked:()=>disposed||!isReady},options.storageOwner);
+        assetInputs.setReadOnly(requestedReadOnly);return assetInputs;
+      },
       captureTextTransfer() { requireReady(); return binding.input.textDrag.capture(); },
       captureToolbar() { requireReady(); return binding.input.keyboard.captureToolbar(); },
       get commands() { return binding.input.keyboard.commands; },
       captureCommand(name, supplied) { requireReady(); return binding.input.keyboard.captureCommand(name, supplied); },
       captureHistory() { requireReady(); return binding.input.keyboard.captureHistory(); },
       settle() { requireReady(); return binding.input.settle(); },
-      setReadOnly(value) { requireLive(); requestedReadOnly = value; binding.setReadOnly(value || !isReady); },
-      dispose() { if (disposed) return; disposed = true; disconnect(); try { binding.dispose(); } finally { release(); } },
+      setReadOnly(value) { requireLive(); requestedReadOnly = value; assetInputs?.setReadOnly(value); binding.setReadOnly(value || !isReady); },
+      dispose() { if (disposed) return assetInputs?.dispose(); disposed = true; disconnect(); const retirement = assetInputs?.dispose(); try { binding.dispose(); } finally { release(); } return retirement; },
     };
   } catch (error) { disposed = true; disconnect(); release(); throw error; }
 }
