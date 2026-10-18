@@ -77,6 +77,8 @@
     "target": "last ASCII letter of final block; replace one UTF-16 unit at constant corpus bytes, matching browser overwrite policy",
     "reviewedAt": "2026-10-15T05:32:00Z",
     "attribution": "monotonic Swift anchor/focus/request/execute/decode/TextStorage/layout timestamps; opt-in Rust prepare/commit/patch-build/patch-JSON/result-JSON durations; FFI residual includes executor, transfer and diagnostic overhead, not zero-copy or compositor",
-    "attributionReviewedAt": "2026-10-15T05:58:00Z"
+    "attributionReviewedAt": "2026-10-15T05:58:00Z",
+    "layout": "TextKit1 noncontiguous layout enabled; initial full container layout outside input window; measured one-unit changed-character layout with retained full corpus and caret geometry",
+    "layoutReviewedAt": "2026-10-18T12:56:57.892895+00:00"
   }
 }
