@@ -115,11 +115,21 @@ export function createFormatClient() {
         const recoveryGrant=structuredClone(sourceGrant);
         if(!recoveryGrant?.identity||!Array.isArray(recoveryGrant.actions))throw failure('InvalidSourceGrant');
         const sourceBytes=originalBytes.slice();
-        const assets=await owner.enableAssets();let plan;const controller=new AbortController();commits.add(controller);let deadlineExpired=false;
+        let assets,plan;const controller=new AbortController();commits.add(controller);let deadlineExpired=false;
         const deadline=setTimeout(()=>{deadlineExpired=true;controller.abort();},timeoutMs);
         const abort=()=>controller.abort();signal?.addEventListener('abort',abort,{once:true});if(signal?.aborted)abort();
         const canceled=()=>{if(disposed||generation!==ticket||signal?.aborted||controller.signal.aborted)throw failure(deadlineExpired?'Timeout':'Cancelled');};
+        // Initialization belongs to the same bounded operation as staging/adoption.
+        // Observe a late resolution/rejection without allowing it to resume work.
+        const initialize=()=>new Promise((resolve,reject)=>{
+          const abort=()=>reject(failure(deadlineExpired?'Timeout':'Cancelled'));
+          controller.signal.addEventListener('abort',abort,{once:true});
+          if(controller.signal.aborted){controller.signal.removeEventListener('abort',abort);abort();return;}
+          Promise.resolve().then(()=>owner.enableAssets())
+            .then(resolve,reject).finally(()=>controller.signal.removeEventListener('abort',abort));
+        });
         try {
+          assets=await initialize();
           canceled();
           if(engine.read().revision!==result.revision)throw failure('StaleTarget');
           if(!candidates.length)throw failure('NoMedia');
@@ -153,7 +163,7 @@ export function createFormatClient() {
           plan=engine.prepare({kind:'fragment',origin:'format-import',range,blocks});
           return await owner.commitPreparedAssets(plan,job,refs,{signal:controller.signal});
         } catch(error) {
-          try {await assets.fenceJob(job);} catch(cleanup) {throw failure('CleanupPending',{...result,cause:String(error),cleanup:String(cleanup)});}
+          try {if(assets)await assets.fenceJob(job);} catch(cleanup) {throw failure('CleanupPending',{...result,cause:String(error),cleanup:String(cleanup)});}
           if(error instanceof FormatError)throw error;
           throw failure('CommitRejected',{...result,cause:String(error)});
         } finally {clearTimeout(deadline);signal?.removeEventListener('abort',abort);commits.delete(controller);if(plan)engine.releasePlan(plan);}

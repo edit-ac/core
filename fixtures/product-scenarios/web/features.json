@@ -218,7 +218,7 @@
           ]
         }
       ],
-      "nextAction": "Consume existing WEX-1.3 and WEX-1.4 delivery requests under integration.lock at a safe checkpoint; repair focused union cases only if affected.",
+      "nextAction": "WEX-1.3/WEX-1.4 are integrated and the combined canonical rich suite passes in WFE-3.1-C3. Authenticate the independent table selection/command/invalidation cases before closing this feature.",
       "gap": "Authenticate the independent table selection/command/invalidation return (WEX-1.1 delivery.json), in addition to final WEX-1.4 rich transfer union."
     },
     {
@@ -453,8 +453,8 @@
       ],
       "oracles": "Independent DOCX/ODT/EPUB/PDF readers, original media bytes, one durable commit, bounded cancellation/recovery without staged leaks.",
       "proofs": [],
-      "nextAction": "Process requests/web-feature-browser-formats-wex-2.1-20261019.json at safe integration checkpoint; preserve original27 native-media and qualification gates.",
-      "gap": "Exact owner return exists at ../../edit-ac-parallel-clients/architecture/evidence/web-feature-first-20261018/wex-2.1/delivery.json; consume its pending distinct integration request and authenticate its TAP/package/fixture pins."
+      "nextAction": "Authenticate ../architecture/evidence/web-feature-first-20261018/wfe-3.1/c3-union/formats/ proof, retaining the original missing-reader-environment failure and its one-case repair; do not rerun these unchanged passing cases.",
+      "gap": "WEX-2.1 is integrated; WFE-3.1-C3 has 74 current packed browser/reader/media cases with exact source/package pins. Index the existing format receipt/TAP shape and original direction mapping in the fail-closed ledger checker; native-media and qualification predicates remain separate."
     },
     {
       "id": "WEB-TOUCH",
@@ -1052,41 +1052,38 @@
     },
     {
       "id": "wex-1.4",
-      "owner": "PARALLEL",
-      "command": "npm run test:browser -- extension-formatting-mixed; npm run test:browser -- extension-formatting",
+      "owner": "PRIMARY combined WEX-1.3/WEX-1.4 return",
+      "command": "npm run test:browser -- extension-formatting",
       "receipts": [
         {
-          "path": "../../edit-ac-parallel-clients/architecture/evidence/web-feature-first-20261018/wex-1.4/run-2-integrated/chromium/mixed/receipt.json",
-          "sha256": "ac248114412d2aba44bafb6156626dcd0188e3ed4eda77b7547d48f1f6b7a9fd"
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c3-union/rich-run/chromium/mixed/receipt.json",
+          "sha256": "38cc9d4002eda7e871a97bea2f974dfc0f1c5792eecfcd6af4cf8703751611f8"
         },
         {
-          "path": "../../edit-ac-parallel-clients/architecture/evidence/web-feature-first-20261018/wex-1.4/run-2-integrated/chromium/receipt.json",
-          "sha256": "099d952e24d86964c8468393dc32fc42b2673f348979df1d820abe26486876e2"
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c3-union/rich-run/chromium/receipt.json",
+          "sha256": "13fedcd57c5bd9ea4167ae3727cded88569dca34559bb797bed0409f22354192"
         },
         {
-          "path": "../../edit-ac-parallel-clients/architecture/evidence/web-feature-first-20261018/wex-1.4/run-2-integrated/firefox/mixed/receipt.json",
-          "sha256": "12bd1971547bc7c29dc4addd43f590b0b73e7b3605a378859d331cb79ac28834"
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c3-union/rich-run/firefox/mixed/receipt.json",
+          "sha256": "47ff0e2e8efeb08b75a1746bb540dffc0aa3454c4b30a1e91a156b8f36a9a03e"
         },
         {
-          "path": "../../edit-ac-parallel-clients/architecture/evidence/web-feature-first-20261018/wex-1.4/run-2-integrated/firefox/receipt.json",
-          "sha256": "5dd2802c99ea52677978bd4e6584b3deaa17446015a3f7ec5e482ff940f9a559"
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c3-union/rich-run/firefox/receipt.json",
+          "sha256": "3b5f15f388951501cc13167239b75f0c888ce6a2a3c390dcbbd6313a2a72321d"
         },
         {
-          "path": "../../edit-ac-parallel-clients/architecture/evidence/web-feature-first-20261018/wex-1.4/run-2-integrated/webkit/mixed/receipt.json",
-          "sha256": "0e759f4d8a66dd0e140773fc8972492622641c94ac560ef87d773cd99710aac3"
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c3-union/rich-run/webkit/mixed/receipt.json",
+          "sha256": "f0ddea919e32e66b94b055f2e09d9e1af6fccefe84a16744c9580a3f8ee42252"
         },
         {
-          "path": "../../edit-ac-parallel-clients/architecture/evidence/web-feature-first-20261018/wex-1.4/run-2-integrated/webkit/receipt.json",
-          "sha256": "975ea592c99c28d556e23586c2161ef91b6b7dc9ff1d912cd9adf1859072e396"
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c3-union/rich-run/webkit/receipt.json",
+          "sha256": "0bfa82c5d29d56e8c674c6085d6e9f085ee88d07a09e9a1b60fb1def2f01819e"
         }
       ],
       "sourceManifests": [
         {
-          "path": "../../edit-ac-parallel-clients/architecture/evidence/web-feature-first-20261018/wex-1.4/delivery.json",
-          "sha256": "ed7c159d4d3ced1f81af87f94ecfaa224770ec1fb0b7ec590f7a9501c458d5c3",
-          "field": [
-            "sources"
-          ]
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c3-union/source-pins.json",
+          "sha256": "d2c8ff4253d36cec86b315d327e7d6128a58abb19bd11690e5a67df16d53c98f"
         }
       ]
     },
