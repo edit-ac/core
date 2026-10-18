@@ -2,7 +2,7 @@
   "contractVersion": 1,
   "id": "native.macos.pending.v1",
   "implementation": {
-    "revision": "3e4fa947584c583d721eb4b70a166fd80f9b1254",
+    "revision": "4de25f215cd0a92157f87173468ce29afd8e5f6f",
     "package": "EditacMacOS",
     "version": "0.0.0"
   },
@@ -377,7 +377,7 @@
     },
     {
       "path": "native/macos/Sources/EditacMacOS/NativeEditorView.swift",
-      "sha256": "6cfb31c5a576a2e725bb99e9687dc1dcb9998213a37a0bce58d31da9eea2e619"
+      "sha256": "aa9337924b4e85be56d8f972535e04b876de62674ff4905fb027f822932eabfb"
     },
     {
       "path": "native/macos/Sources/EditacMacOS/clipboard/NativeClipboardTransport.swift",
@@ -438,6 +438,26 @@
     {
       "path": "native/macos/Sources/EditacMacOS/change-review/README.md",
       "sha256": "75ecba0fd4bfcf6bbaee9123b3f1aaa33b0be9af428f826d066d9e34bc60358e"
+    },
+    {
+      "path": "native/macos/Sources/EditacMacOS/input/NativeComposition.swift",
+      "sha256": "3303b7fc93317b0ca89b3508048bfc35eb70105c2f85074fd54e14d5200a3fb4"
+    },
+    {
+      "path": "native/macos/Sources/EditacMacOS/commands/NativeCommandUndoManager.swift",
+      "sha256": "95b65d20e2d58d93cddf4cbf32b19f53abfa1a6e85b1d82894f0ffea980f920b"
+    },
+    {
+      "path": "native/macos/Sources/EditacMacOS/commands/README.md",
+      "sha256": "f486ce4d6adf44e45cc2304ab319e951fd5774c70b09eaf12ceadcea84391b5d"
+    },
+    {
+      "path": "native/macos/tests/Commands/CommandsTests.swift",
+      "sha256": "83ea02eb0c294815844dfa330bd540d1abb37b856bbb5f392df39e7420bcadda"
+    },
+    {
+      "path": "native/macos/scripts/check.py",
+      "sha256": "0547e53df30b69f5c0fcb3f44fb35aa598709a39d7594d94b073737c7b382401"
     }
   ],
   "evidence": []

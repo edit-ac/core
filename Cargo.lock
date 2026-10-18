@@ -799,6 +799,7 @@ dependencies = [
  "editac-diff",
  "editac-html",
  "editac-markdown",
+ "editac-markdown-wasm",
  "editac-session",
  "serde",
  "serde_json",

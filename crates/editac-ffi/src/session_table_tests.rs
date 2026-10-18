@@ -165,7 +165,7 @@ fn default_off_activation_cancel_cell_history_and_durable_reopen() {
     let s = f.open();
     let before = visible(&s);
     let rev = revision(&s);
-    let c = command(&s, "Header 🦀אב!");
+    let c = command(&s, "Header 🦀אב!\nsecond line");
     assert_table_catalog(&s, false, true, 0);
     assert!(matches!(
         s.check_commands(rev.clone(), c.to_string(), "check".into(), 0),
@@ -194,7 +194,7 @@ fn default_off_activation_cancel_cell_history_and_durable_reopen() {
     assert_eq!(after[1]["id"], before[1]["id"]);
     assert_eq!(
         after[1]["blockAttributes"][2]["rows"][0][0][0][0],
-        "Header 🦀אב!"
+        "Header 🦀אב!\nsecond line"
     );
     assert_eq!(
         after[1]["blockAttributes"][2]["rows"][1],
@@ -304,7 +304,7 @@ fn invalid_table_targets_tuples_indices_unicode_and_limits_are_zero_mutation() {
         ("row", json!(128)),
         ("column", json!(32)),
         ("row", json!(-1)),
-        ("text", json!("line\nbreak")),
+        ("text", json!("line\rbreak")),
         ("expected", json!(["module:editac.table", 99, {}])),
     ] {
         let mut c = valid.clone();
@@ -324,14 +324,16 @@ fn invalid_table_targets_tuples_indices_unicode_and_limits_are_zero_mutation() {
     c[0]["column"] = json!(2);
     c[0]["expected"] = before[2]["blockAttributes"].clone();
     cases.push(c.to_string());
-    for c in cases {
+    for (index, c) in cases.into_iter().enumerate() {
         assert!(
             s.check_commands(rev.clone(), c.clone(), "invalid".into(), 0)
-                .is_err()
+                .is_err(),
+            "invalid table case {index} was accepted during check"
         );
         assert!(
             s.prepare_commands(rev.clone(), c, "invalid".into(), 0)
-                .is_err()
+                .is_err(),
+            "invalid table case {index} was accepted during prepare"
         );
         assert_eq!(visible(&s), before);
         assert_eq!(revision(&s), rev);

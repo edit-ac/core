@@ -63,10 +63,19 @@ final class CommandsTests: XCTestCase {
                 let process = Process(); process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
                 process.arguments = ["-n", "-W", helper, "--args", "--yield-activation",
                     String(ProcessInfo.processInfo.processIdentifier), receipt.path]
-                try process.run(); process.waitUntilExit()
+                // Keep the main actor available while LaunchServices and the
+                // helper negotiate foreground ownership with this AppKit app.
+                let termination: Int32 = try await withCheckedThrowingContinuation { continuation in
+                    process.terminationHandler = { continuation.resume(returning: $0.terminationStatus) }
+                    do { try process.run() }
+                    catch { continuation.resume(throwing: error) }
+                }
                 let value = try JSONSerialization.jsonObject(with: Data(contentsOf: receipt)) as! [String: Any]
-                XCTAssertEqual(process.terminationStatus, 0)
-                XCTAssertEqual(value["activeBeforeYield"] as? Bool, true)
+                XCTAssertEqual(termination, 0)
+                // The target may win foreground activation before the helper.
+                // Record the helper outcome, then require the editor's actual
+                // active/key/first-responder state below in either case.
+                XCTAssertNotNil(value["activeBeforeYield"] as? Bool)
                 XCTAssertEqual(value["targetPID"] as? Int32, ProcessInfo.processInfo.processIdentifier)
             }
             // Activation is asynchronous. Pump AppKit until the OS grants this
@@ -142,6 +151,41 @@ final class CommandsTests: XCTestCase {
             good(await command(v) { XCTAssertTrue(NSApp.sendAction(NSSelectorFromString("redo:"), to: nil, from: nil)) })
             XCTAssertEqual(v.textView.string, "changed")
             XCTAssertFalse(v.textView.allowsUndo)
+        }
+    }
+    func testNativeUndoManagerForwardsSharedHistoryWithoutRegisteringProjection() async throws {
+        try await fixture(["start"]) { v, _ in
+            let manager = try XCTUnwrap(v.textView.undoManager)
+            XCTAssertTrue(manager === v.commandUndoManager)
+            XCTAssertFalse(manager.isUndoRegistrationEnabled)
+            XCTAssertFalse(manager.canUndo); XCTAssertFalse(manager.canRedo)
+            try await edit(v, "changed")
+            XCTAssertTrue(manager.canUndo); XCTAssertFalse(manager.canRedo)
+            good(await command(v) { manager.undo() })
+            XCTAssertEqual(v.textView.string, "start")
+            XCTAssertFalse(manager.canUndo); XCTAssertTrue(manager.canRedo)
+            good(await command(v) { manager.redo() })
+            XCTAssertEqual(v.textView.string, "changed")
+            XCTAssertTrue(manager.canUndo); XCTAssertFalse(manager.canRedo)
+            XCTAssertEqual(manager.groupingLevel, 0)
+            XCTAssertFalse(v.textView.allowsUndo)
+            v.window?.makeFirstResponder(nil)
+            XCTAssertFalse(manager.canUndo); XCTAssertFalse(manager.canRedo)
+            v.window?.makeFirstResponder(v.textView)
+            XCTAssertTrue(manager.canUndo)
+            let host = NSTextView(frame: NSRect(x: 0, y: 0, width: 100, height: 40))
+            host.allowsUndo = true; v.addSubview(host)
+            v.window?.makeFirstResponder(host)
+            host.insertText("host edit", replacementRange: NSRange(location: 0, length: 0))
+            XCTAssertFalse(manager.canUndo)
+            XCTAssertFalse(host.undoManager === manager)
+            XCTAssertTrue(host.undoManager?.canUndo == true)
+            host.undoManager?.undo()
+            XCTAssertEqual(host.string, "")
+            XCTAssertEqual(v.textView.string, "changed")
+            host.removeFromSuperview()
+            v.window?.makeFirstResponder(v.textView)
+            XCTAssertTrue(manager.canUndo)
         }
     }
     func testKeyboardUndoRedoUsesSameHistory() async throws {
