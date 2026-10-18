@@ -124,6 +124,16 @@ test('semantic oracle reads list metadata from containers and preserves marks', 
   assert.equal(projectedSemantics({ visible: [container, block] })[0].runs[0].attributes.bold, true);
 });
 
+test('native preparation keeps both full fixtures and cannot stand in for a baseline', () => {
+  const valid = ['--fitness', '--quick', '--prepare-only', '--fixtures', 'Task,Long'];
+  assert.equal(options(valid).prepareOnly, true);
+  for (const args of [[], ['--fixtures', 'Task'], ['--fixtures', 'small,medium'], ['--fixtures', 'Task,Long', '--baseline', 'prior'],
+    ['--fixtures', 'Task,Long', '--save-baseline', 'approved'], ['--fixtures', 'Task,Long', '--enforce']]) {
+    assert.throws(() => options(['--fitness', '--prepare-only', ...args]));
+  }
+  assert.throws(() => options(['--prepare-only', '--fixtures', 'Task,Long']));
+});
+
 test('retained native seeds require exact producer inputs and independently checked semantics', async () => {
   const { admitSeed, seedHash } = await import('../benchmarks/seeds.mjs');
   const document = fixture('Task'), executable = Buffer.from('prepared-native-test-executable');
@@ -152,6 +162,7 @@ test('retained native seeds require exact producer inputs and independently chec
   const admit = (a = artifacts, p = receipt, i = inputs, e = executable) => admitSeed('Task', p, i, e, a);
   assert.equal(admit().frozen.checkpoint.bytes.length, 3);
   assert.throws(() => admit(artifacts, receipt, { ...inputs, 'Cargo.lock': 'c'.repeat(64) }), /source identity/);
+  assert.throws(() => admit(artifacts, receipt, { ...inputs, 'fixtures/schema-v5/bounded_decoder.rs': 'd'.repeat(64) }), /source identity/);
   assert.throws(() => admit(artifacts, receipt, inputs, Buffer.from('other executable')), /executable identity/);
   for (const key of ['fixture', 'checkpoint', 'snapshot', 'log']) {
     const changed = { ...artifacts, [key]: Buffer.concat([artifacts[key], Buffer.from(' ')]) };
