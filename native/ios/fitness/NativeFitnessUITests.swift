@@ -2,7 +2,10 @@ import XCTest
 
 final class NativeFitnessUITests: XCTestCase {
     func dismissKeyboardTutorial(_ app: XCUIApplication) throws -> Bool {
-        let tutorial = app.buttons["Continue"]
+        // iOS can expose the same keyboard onboarding button both through the
+        // legacy keyboard tree and UIContinuousPathIntroductionView. A unique
+        // element lookup fails before a real touch can dismiss that sheet.
+        let tutorial = app.buttons.matching(identifier: "Continue").firstMatch
         guard tutorial.waitForExistence(timeout: 5) else { return false }
         let r = tutorial.frame, window = app.windows.firstMatch.frame
         XCTAssertTrue(window.contains(r)); XCTAssertGreaterThan(r.width, 0); XCTAssertGreaterThan(r.height, 0)
