@@ -2,6 +2,8 @@
 //! from editac-formats and the shared Session; no independent writable model.
 #[cfg(feature = "docx-export")]
 mod docx;
+#[cfg(feature = "docx-import")]
+mod docx_import;
 #[cfg(feature = "epub-export")]
 mod epub;
 mod export;
@@ -237,6 +239,7 @@ fn main() {
         && mode != "table-export"
         && mode != "odt-export"
         && mode != "odt-import"
+        && mode != "docx-import"
         && mode != "docx-export"
         && mode != "epub-export"
         && mode != "pdf-export"
@@ -252,7 +255,16 @@ fn main() {
     let mut result = if input.len() > LIMITS.input_bytes {
         json!({"state":"rejected","code":"FORMAT_INPUT_LIMIT","liveUnchanged":true})
     } else {
-        if mode == "odt-import" {
+        if mode == "docx-import" {
+            #[cfg(feature = "docx-import")]
+            {
+                docx_import::convert(&input, &std::env::args().skip(2).collect::<Vec<_>>())
+            }
+            #[cfg(not(feature = "docx-import"))]
+            {
+                json!({"state":"rejected","code":"FORMAT_PROFILE_UNAVAILABLE","liveUnchanged":true})
+            }
+        } else if mode == "odt-import" {
             #[cfg(feature = "odt-import")]
             {
                 odt_import::convert(&input, &std::env::args().skip(2).collect::<Vec<_>>())

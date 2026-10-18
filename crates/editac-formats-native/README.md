@@ -208,3 +208,5 @@ Qualification covers independent generated-artifact text/Arabic glyph/copy/searc
 semantic tags and visual/layout negatives, complete first/repeat caller costs,
 notices and disabled graphs. PDF remains export-only. No PDF/UA, archival,
 reading-system/viewer UI, host wiring, platform or release qualification is added.
+
+Native DOCX import prerequisite (`docx-import` feature, `run_docx_import`) uses the guarded structure mapper in a new private Session. Text/marks/lists/v1 tables commit once with undo/redo/reopen. Inert external relationships retain actionable diagnostics without requiring loss approval. Unsupported content requires explicit loss approval. Media candidates always return FORMAT_NATIVE_ASSET_ADOPTION_UNAVAILABLE before insertion until the shared native atomic original-adoption transaction is qualified. The complete original input remains in Result.original on every outcome. This does not qualify full DOCX import or platform wiring.
