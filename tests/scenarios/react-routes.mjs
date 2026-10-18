@@ -2,7 +2,10 @@ import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { chromium } from 'playwright';
+import { chromium, firefox, webkit } from 'playwright';
+const engine = process.env.EDITAC_PRODUCT_BROWSER ?? 'chromium';
+const browserType = { chromium, firefox, webkit }[engine];
+assert.ok(browserType, 'Unknown browser profile: ' + engine);
 import {auditSharedGraph,auditSharedAssets} from '../../scripts/shared-resource-contract.mjs';
 import { requireTestNode } from '../../scripts/test-toolchain.mjs';
 import { startFixtureServer } from '../browser/fixture-server.mjs';
@@ -10,12 +13,12 @@ import { loadScenario, validateScenario, root } from './run.mjs';
 import { prepareProductHarness, sha } from './harness.mjs';
 await requireTestNode();
 const { manifest, scenario } = await loadScenario('web-react-routes');
-const output = resolve(root, '../architecture/evidence/browser-product-workflows-20261018/pwe-1.3', new Date().toISOString().replace(/[:.]/g, '-'));
+const output = process.env.EDITAC_PRODUCT_CASE_OUTPUT ?? resolve(root, '../architecture/evidence/browser-product-workflows-20261018/pwe-1.3', new Date().toISOString().replace(/[:.]/g, '-'));
 await mkdir(output, { recursive: true });
-const facts = { parent: scenario.parent, scenario: 'web-react-routes', command: ['node', 'tests/scenarios/run.mjs', 'web-react-routes'], output, profile: manifest.profile, commands: [], cases: [], processes: [], teardown: [], scope: manifest.scope };
-let server, controller, browser, activePage;
+const facts = { parent: scenario.parent, scenario: 'web-react-routes', command: ['node', 'tests/scenarios/run.mjs', 'web-react-routes'], output, profile: { ...manifest.profile, engine }, commands: [], cases: [], processes: [], teardown: [], scope: manifest.scope };
+let server, controller, browser, activePage, warmContext;
 async function teardown() {
-  for (const [name, resource] of [['browser connection', browser], ['Chromium controller', controller], ['fixture listener', server]]) {
+  for (const [name, resource] of [['persistent warm profile', warmContext], ['browser connection', browser], ['Chromium controller', controller], ['fixture listener', server]]) {
     if (!resource) continue;
     try { await resource.close(); facts.teardown.push(name + ' closed'); }
     catch (error) { facts.teardown.push(name + ': ' + error.message); process.exitCode = 1; }
@@ -50,11 +53,11 @@ try {
   const {site}=await prepareProductHarness(output,facts,scenario);
   server=await startFixtureServer({fixtureDirectory:join(site,'fixture'),coreDirectory:join(site,'core'),webDirectory:join(site,'web'),recordRequests:true,cacheAssets:true});
   facts.processes.push({pid:process.pid,launcher:process.execPath,workspace:root,port:server.port,purpose:'PWE-1.3 installed React fixture',log:join(output,'receipt.json')});
-  controller=await chromium.launchServer({headless:true});
-  facts.processes.push({pid:controller.process().pid,launcher:controller.process().spawnfile,workspace:root,purpose:'PWE-1.3 Chromium',log:join(output,'receipt.json')});
-  browser=await chromium.connect(controller.wsEndpoint());facts.browserVersion=browser.version();
+  controller=await browserType.launchServer({headless:true});
+  facts.processes.push({pid:controller.process().pid,launcher:controller.process().spawnfile,workspace:root,purpose:'PWE-1.3 '+engine,log:join(output,'receipt.json')});
+  browser=await browserType.connect(controller.wsEndpoint());facts.browserVersion=browser.version();
   const errors=[];
-  const open=async(query='')=>{const context=await browser.newContext();const page=activePage=await context.newPage();page.setDefaultTimeout(10000);page.on('pageerror',error=>errors.push(error.message));await page.goto(server.url+'/fixture/react.html'+query);await page.evaluate(async()=>{await(await import('/fixture/react-built.mjs')).ready;});return {page,context};};
+  const open=async(query='',existingContext)=>{const context=existingContext??await browser.newContext();const page=activePage=await context.newPage();page.setDefaultTimeout(10000);page.on('pageerror',error=>errors.push(error.message));await page.goto(server.url+'/fixture/react.html'+query);await page.evaluate(async()=>{await(await import('/fixture/react-built.mjs')).ready;});return {page,context};};
   for(const profiles of ['mixed','equal'])for(const order of ['task-first','comment-first'])await check(profiles+'-'+order,async()=>{
     const {page,context}=await open('?profiles='+profiles+'&order='+order);
     assert.equal(await page.locator('[contenteditable="true"]').count(),2);
@@ -139,10 +142,14 @@ try {
     assert.equal(Object.keys(graph.inputs).filter(p=>/node_modules\/@edit-ac\/web\/dist\/index.js$/.test(p)).length,1);
     assert.equal(Object.keys(graph.inputs).filter(p=>/node_modules\/@edit-ac\/react\/dist\/index.js$/.test(p)).length,1);
     assert.equal(server.requests.filter(r=>r.url.includes('markdown')).length,0);
-    const cache=await open();const requestStart=server.requests.length;
+    // WebKit's ephemeral contexts do not retain the ordinary HTTP disk cache.
+    // Use a real isolated persistent profile for the controlled warm-cache case.
+    warmContext=await browserType.launchPersistentContext(join(output,'warm-profile'),{headless:true});
+    facts.processes.push({ownerPid:process.pid,launcher:browserType.executablePath(),workspace:root,purpose:'PWE-1.3 '+engine+' persistent warm HTTP cache',profile:join(output,'warm-profile'),log:join(output,'receipt.json')});
+    const cache=await open('',warmContext);const requestStart=server.requests.length;
     await moduleCall(cache.page,m=>m.close());await cache.page.reload();await cache.page.evaluate(async()=>{await(await import('/fixture/react-built.mjs')).ready;});
     const warm=server.requests.slice(requestStart).filter(r=>r.url.endsWith('.wasm'));assert.equal(warm.length,1);assert.equal(warm[0].status,304);assert.equal(warm[0].bodyBytes,0);
-    await moduleCall(cache.page,m=>m.close());await cache.context.close();activePage=page;facts.warmNavigation=warm;
+    await moduleCall(cache.page,m=>m.close());await cache.context.close();warmContext=undefined;activePage=page;facts.warmNavigation=warm;
     facts.resourceReuse={resources,coreInputs,graphSha256:facts.reactGraphSha256,scope:'Exact product graph/client routes; no universal size or platform claim'};
   });
   await moduleCall(page,m=>m.close());await context.close();activePage=undefined;

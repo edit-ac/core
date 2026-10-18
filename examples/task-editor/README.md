@@ -1,7 +1,89 @@
 # Local task editor
 
-Build with `npm run build:wasm` and `npm run build`, then run
-`npm run example:task`. Open the printed localhost URL. Stop with Ctrl+C.
+With the repository toolchains selected (Node 24.19.0, npm 11.17.0,
+Rust 1.97.1, wasm-bindgen 0.2.129), run from `core/`:
+
+```sh
+node examples/task-editor/product.mjs
+```
+
+This single command builds a committed SDK snapshot, packs and installs the actual
+local core/web/React tarballs, bundles the existing React example with pinned
+React 19.3.0, then prints localhost links for the task/comment workspace, React
+workspace, document-body route and readonly view. It does not publish packages.
+No mutable output from another checkout is linked. Product sources are copied and
+hashed separately from the SDK snapshot. Use the dynamic port printed by the command;
+there is no fixed port to reserve. Stop with Ctrl+C; the listener closes and
+`.artifacts/browser-product-preview/<timestamp>/preview.json` records PID, port,
+input hashes and shutdown. Build output stays there for inspection.
+
+For an authenticated existing build, optionally set `EDITAC_PRODUCT_PACK_RECEIPT`
+to an existing PWE receipt with core/web packs. The launcher checks committed SDK
+inputs, toolchain and every pack hash, then installs and bundles a fresh site.
+`EDITAC_PRODUCT_SITE_RECEIPT` can instead select a prepared checkpoint's
+`prepared.json`; all recorded source, package and served-file hashes are checked.
+A prepared site is build evidence, never a passing browser result.
+
+## Product walkthrough
+
+1. Open the printed Task/comment URL. Edit task text; use Editing commands for
+   bold/link, Slash commands for paragraphs, lists, checklist, table and local
+   image, and References for the prepared local catalog. Edit the plain comment;
+   rich actions remain absent. Undo in each editor and observe independent content.
+2. Save both documents locally, then Reopen each. Reload to see the same identities.
+   The status says **Saved locally** and explicitly does not confirm remote durability.
+3. While online, click **Prepare offline reload**, wait for confirmation, then
+   disconnect and reload. Both saved documents reopen. Offline shell preparation
+   is deliberate; opening an uncached app offline is not supported. The prepared
+   shell serves cached app code first. Click Prepare again online to refresh it;
+   document bytes remain only in their independent IndexedDB stores.
+4. Export recovery deliberately for the named document. On a real storage error,
+   keep the unsaved live editor and export before leaving the page. Close/reopen
+   first attempts a flush; failure does not replace live work with an older copy.
+   Retained recovery after closing an editor is page memory. Downloads contain
+   explicit byte arrays, exclude sibling content, and are not an import UI.
+5. Reconnect, open React tasks, save task/comment changes, then follow Document body.
+   Save its distinct content and use Task and comment or browser Back. The actual
+   EditorHost runs in StrictMode; route disposal preserves the matching local document.
+6. Open the readonly link, or revoke an editor's permission with **Make task/comment
+   readonly**. Typing and rich commands are denied while valid local content remains.
+   A fresh page uses the initial host `?readonly` policy.
+7. Stop the launcher with Ctrl+C. Automated fault inputs for denied/corrupt/missing
+   checkpoints and failed saves belong to the browser fixture, not a production
+   fault switch exposed to users.
+
+## Reproducible browser checkpoint
+
+```sh
+node tests/scenarios/run.mjs web-product-checkpoint
+```
+
+The canonical dispatcher installs once and runs the existing workspace, React/routes
+and local-recovery workflows in Chromium, Firefox and WebKit. All three installed
+Playwright runtimes are required. Unknown IDs, missing fixtures/commands, zero cases,
+missing runtimes, failed cases or unexecuted required cases fail the checkpoint.
+It records exact source/fixture/pack/site hashes, runtime versions, per-workflow
+counts, screenshots, failure evidence and teardown under
+`../architecture/evidence/browser-product-workflows-20261018/pwe-1.5/<timestamp>/`.
+`receipt.json` is the outcome; `prepared.json` only authenticates build inputs.
+Each browser executes real SDK/WASM/Session/IndexedDB. Earlier Chromium proofs
+remain historical evidence; they do not replace these current profile runs.
+
+This proves only the named browser product workflows when the receipt passes.
+Original20's full mandatory-platform capability matrix, native desktop/mobile,
+IME/composition, screen readers, physical-device qualification, collaboration/offline
+reconnect with peers, AI/MCP, protected documents/encryption, performance/resource
+budgets and editor-wide/release predicates remain open with their original owners.
+Cloud-document storage is deferred. Optional Markdown and other optional unions
+retain their separate gates. No remote durability, all-platform parity or release
+readiness is established. Safe main landing and hash applicability require a
+separate integration receipt; a queued request is not a merge qualification.
+
+## Other existing entrypoints
+
+The workspace-build preview remains `npm run build:wasm`, `npm run build`, then
+`npm run example:task`. It serves local workspace outputs rather than the packed
+checkpoint above.
 The example edits an isolated task description and plain comment, offers rich
 task controls and literal comment input, saves locally and reopens the same
 identities offline. Opening never seeds

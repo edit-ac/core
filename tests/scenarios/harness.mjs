@@ -6,6 +6,24 @@ import { spawnSync } from 'node:child_process';
 import { root } from './run.mjs';
 export const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 export async function prepareProductHarness(output, facts, scenario) {
+  if (process.env.EDITAC_PRODUCT_SITE_RECEIPT) {
+    const path = resolve(process.env.EDITAC_PRODUCT_SITE_RECEIPT);
+    const bytes = await readFile(path), shared = JSON.parse(bytes);
+    assert.equal(shared.prepared, true, 'Shared site was not fully prepared');
+    assert.equal(shared.toolchains.node, process.versions.node);
+    for (const source of shared.sources) assert.equal(sha(await readFile(join(root, source.path))), source.sha256, 'Shared source changed: ' + source.path);
+    for (const path of [...scenario.fixtures, ...(scenario.supportingSources ?? []), scenario.command[1]]) assert.ok(shared.sources.some(source => source.path === path), 'Unpinned scenario source: ' + path);
+    for (const artifact of shared.artifacts) assert.equal(sha(await readFile(join(shared.output, artifact.path))), artifact.sha256, 'Shared installed artifact changed: ' + artifact.path);
+    for (const pack of shared.packs) assert.equal(sha(await readFile(join(shared.output, pack.file))), pack.sha256, 'Shared package changed');
+    Object.assign(facts, Object.fromEntries(['sourceRevision','sourceTree','packageSourceRevision','toolchains','packs','sources','artifacts','packageLockSha256','reactGraphSha256'].map(key => [key, shared[key]])));
+    if (scenario.packages?.includes('react')) {
+      const graph = await readFile(join(shared.output, 'react-graph.json'));
+      assert.equal(sha(graph), shared.reactGraphSha256, 'Shared React graph changed');
+      await writeFile(join(output, 'react-graph.json'), graph);
+    }
+    facts.sharedSite = { path, sha256: sha(bytes), scope: 'Authenticated installed site only; each case executes afresh' };
+    return { site: join(shared.output, 'site'), build: join(shared.output, 'build'), consumer: join(shared.output, 'consumer') };
+  }
   const build = join(output, 'build'), consumer = join(output, 'consumer');
   await mkdir(build, { recursive: true }); await mkdir(consumer);
   async function run(command, args, cwd, label, env = {}) {

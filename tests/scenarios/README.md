@@ -43,3 +43,10 @@ per-document commits/reopen, pending/error status, permission revocation, failed
 append retention, deliberate isolated recovery downloads, initial/open denial and
 missing/corrupt checkpoint handling. Receipts and screenshots are under PWE-1.4.
 No remote service, credentials or paid provider is involved.
+
+Integrated product checkpoint: `node tests/scenarios/run.mjs web-product-checkpoint`.
+It authenticates one installed core/web/React site, then executes the existing
+workspace, React/routes and recovery cases in all three installed Playwright
+engines (93 required cases). Every child receipt and screenshot is kept under
+PWE-1.5. Missing runtimes or cases remain failures. Launch the same site manually
+with `node examples/task-editor/product.mjs`; see its README for steps and limits.
