@@ -51,16 +51,33 @@ test('MWX-C01 installed minimal editor imports without browser globals or networ
   `], 'ssr.log');
   manifest.ssr = 'passed';
 });
-test('MWX-C01 minimal packed graph omits disabled presenter code and assets', async () => {
-  const bundle = await build({ stdin: { contents: "import { BrowserEditor } from '@edit-ac/web/editor'; globalThis.MexEditor=BrowserEditor;", resolveDir: consumer }, bundle: true, splitting: true, format: 'esm', platform: 'browser', metafile: true, outdir: join(output, 'bundle'), write: true, minify: true });
-  await writeFile(join(output, 'metafile.json'), JSON.stringify(bundle.metafile, null, 2));
+for (const [name, source] of [
+  ['minimal', "import { BrowserEditor } from '@edit-ac/web/editor'; globalThis.MexEditor=BrowserEditor;"],
+  ['public-default', "import { createEditor } from '@edit-ac/web'; globalThis.MexEditor=(root,options)=>createEditor(root,{...options,preset:'default'});"],
+]) test(`MWX-C01 ${name} packed graph omits disabled presenter code and assets`, async () => {
+  const bundle = await build({ stdin: { contents: source, resolveDir: consumer }, bundle: true, splitting: true, format: 'esm', platform: 'browser', metafile: true, outdir: join(output, name), write: true, minify: true });
+  await writeFile(join(output, `${name}-metafile.json`), JSON.stringify(bundle.metafile, null, 2));
   const entry = Object.entries(bundle.metafile.outputs).find(([, value]) => value.entryPoint === '<stdin>')[0];
   const inputs = eagerInputs(bundle.metafile, entry);
-  manifest.eagerInputs = inputs.map(path => path.replace(consumer, '<installed-consumer>'));
-  manifest.contributions = Object.entries(bundle.metafile.outputs).flatMap(([file, value]) => Object.entries(value.inputs).map(([source, info]) => ({ file: file.replace(resolve(output), '<output>'), source: source.replace(consumer, '<installed-consumer>'), bytes: info.bytesInOutput })));
-  manifest.assets = Object.keys(bundle.metafile.outputs).filter(path => !/\.js$/.test(path));
+  manifest.graphs ??= {};
+  manifest.graphs[name] = { eagerInputs: inputs.map(path => path.replace(consumer, '<installed-consumer>')),
+    contributions: Object.entries(bundle.metafile.outputs).flatMap(([file, value]) => Object.entries(value.inputs).map(([source, info]) => ({ file: file.replace(resolve(output), '<output>'), source: source.replace(consumer, '<installed-consumer>'), bytes: info.bytesInOutput }))),
+    assets: Object.keys(bundle.metafile.outputs).filter(path => !/\.js$/.test(path)) };
   assertDisabledGraph(inputs);
-  assert.deepEqual(manifest.assets, [], 'disabled CSS/assets emitted');
+  assert.deepEqual(manifest.graphs[name].assets, [], 'disabled CSS/assets emitted');
+});
+for (const [path, symbol] of [ ['modules/search','documentSearch'], ['modules/reorder','reorderControls'],
+  ['modules/slash','slashCommands'], ['modules/references','referenceSuggestions'],
+  ['extensions/authoring','Extension'], ['extensions/matching','attachPatternMatching'], ['extensions/spelling','Spelling']
+]) test(`MWX-C01 emitted eager-import control rejects ${path}`, async () => {
+  const target = join(consumer, 'node_modules/@edit-ac/web/dist', `${path}.js`);
+  const bundle = await build({ stdin: { contents: `import { ${symbol} } from ${JSON.stringify(target)}; globalThis.EagerControl=${symbol};`, resolveDir: consumer }, bundle: true, splitting: true, format: 'esm', platform: 'browser', metafile: true, outdir: join(output, 'controls', path), write: true, minify: true });
+  const entry = Object.entries(bundle.metafile.outputs).find(([, value]) => value.entryPoint === '<stdin>')[0];
+  const inputs = eagerInputs(bundle.metafile, entry);
+  assert.ok(inputs.some(input => input.endsWith(`/dist/${path}.js`)), 'real control implementation missing');
+  assert.throws(() => assertDisabledGraph(inputs), /disabled optional presenter implementation/);
+  manifest.controls ??= []; manifest.controls.push({ path, detected: true, inputs: inputs.map(input => input.replace(consumer, '<installed-consumer>')) });
+  await writeFile(join(output, 'controls', path, 'metafile.json'), JSON.stringify(bundle.metafile, null, 2));
 });
 test('MWX-C01 absence guard rejects injected disabled feature code', () => {
   assert.throws(() => assertDisabledGraph(['node_modules/@edit-ac/web/dist/modules/slash.js']));

@@ -1,4 +1,4 @@
-import { patternText } from '../extensions/matching.js';
+import { patternText } from './pattern-text.js';
 import { invisibleCharacterSummary } from '../input/characters.js';
 import type { EngineHandle, Json, Patch, PatchSubscription, ProjectedNode } from "@edit-ac/core";
 
