@@ -1,7 +1,7 @@
 import Foundation
 
-/// Detached presentation only. Construction is internal until the shared native
-/// validator/revision bridge is qualified. This is never an edit capability.
+/// Detached presentation scope. The actual consumer obtains these bindings from
+/// the shared Session revision owner. This is never an edit capability.
 struct NativeChangeReviewScope: Equatable {
     let document: String
     let epoch: String

@@ -2,7 +2,7 @@
   "contractVersion": 1,
   "id": "native.macos.pending.v1",
   "implementation": {
-    "revision": "d710fb8b9bd62a259812a42a181574942b4a73a8",
+    "revision": "a4969f3bc6a3f1b5b5c77e9772738cb2f4be2d31",
     "package": "EditacMacOS",
     "version": "0.0.0"
   },
@@ -317,7 +317,7 @@
     },
     {
       "path": "native/macos/Package.swift",
-      "sha256": "d54e92c944c4f5412e36d4f6d0515e324040345dc8de6d0bad97197b1ac96b37"
+      "sha256": "a39ec49fec57c731b0456638109617042276d1e9dcc290d2919a671e33a40c7a"
     },
     {
       "path": "native/macos/toolchain.json",
@@ -425,11 +425,11 @@
     },
     {
       "path": "native/macos/Sources/EditacMacOS/change-review/NativeChangeReviewView.swift",
-      "sha256": "7367ab27724ed9fc48014d563b541ed8a2eee97de735b8d0f0d049727c11cb67"
+      "sha256": "c6423e9b656368273fea72a3417e85fb5dd9022634ea284b0536e48a8fe6204e"
     },
     {
       "path": "native/macos/Sources/EditacMacOS/change-review/NativeChangeReviewPresentation.swift",
-      "sha256": "2750af240199978065fa75642ae1bffa5d21a1687ed54c8f29907bf487289c81"
+      "sha256": "c7bd1066df731d2a0c52cf412556e12283f3566fc08df8e33537915fbba209d8"
     },
     {
       "path": "native/macos/tests/ChangeReviewPresentation/ChangeReviewPresentationTests.swift",
@@ -437,7 +437,7 @@
     },
     {
       "path": "native/macos/Sources/EditacMacOS/change-review/README.md",
-      "sha256": "75ecba0fd4bfcf6bbaee9123b3f1aaa33b0be9af428f826d066d9e34bc60358e"
+      "sha256": "35cb1633fc13f0eee0ec08d2cf5e085d05b06836df6263e9970c3fb89568a7e1"
     },
     {
       "path": "native/macos/Sources/EditacMacOS/input/NativeComposition.swift",
@@ -457,7 +457,15 @@
     },
     {
       "path": "native/macos/scripts/check.py",
-      "sha256": "ec065d5136591dbcb2169b998ff84c7d143fa48f1d3cddff1750b807d4ba4d89"
+      "sha256": "24e3df5be6f544c8c0597b59d00f9e81e8d8202c106a7697e30820e9f2601ab3"
+    },
+    {
+      "path": "native/macos/Sources/EditacMacOS/change-review/NativeChangeReviewController.swift",
+      "sha256": "893ef3db2609c93c3227a5b704b31a3035ecb7a2f6b26516aa98a8e3bd3d1a14"
+    },
+    {
+      "path": "native/macos/tests/ChangeReview/ChangeReviewTests.swift",
+      "sha256": "e505b0bc62599ffde18cf0ef22bea4d8d5fc8310231b8ce106606487e2c79345"
     }
   ],
   "evidence": []

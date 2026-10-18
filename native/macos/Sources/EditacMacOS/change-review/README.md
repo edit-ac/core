@@ -26,3 +26,27 @@ P2 requires the qualified shared Session/FFI revision and portable-validation br
 P3 must compose it with this presenter and pass the original canonical suite. The
 request is `architecture/evidence/macos/change-review-20261016/shared-request.json`.
 DSK-1.18/I1/V1 remain unchecked. No native diff algorithm or second semantic store.
+
+## Actual Session consumer
+
+`NativeChangeReviewController` composes the qualified generated Swift revision
+bridge with the detached presenter through `NativeSessionExecutor`. Capture uses
+the observed Session revision; read and compare reuse its process-local immutable
+revision owner and Rust ChangeModel validator. Names remain untrusted labels.
+Separate host evidence never enters the portable model. Comparison results retain
+the full semantic payload; navigation continues to select detached UTF-16 ranges.
+
+The controller preserves typed before/after missing, pruned, incompatible-schema
+and key-unavailable results, as well as native failures. Failed or unavailable
+requests keep any previously displayed historical content. Current-revision refresh
+uses the same Session, and disposal invalidates queued view callbacks without
+closing the editor Session. The host calls `refreshCurrent` after live changes.
+
+`bash native/macos/scripts/check.sh change-review` composes all 24 predecessor
+presentation cases with eight actual generated-Swift/Session/SQLite consumer cases:
+capture/edit/compare/navigation/history, trusted evidence separation, live staleness,
+two views and sessions, typed unavailable states, stale capture and limits,
+SQLite reopen with honest process-local revision loss, and read-only/disposal.
+The original presentation-only command retains its prepared-ingress provenance.
+ARM64 OS-host execution and both CPU builds do not qualify physical devices,
+VoiceOver, durable revision archives, performance, release or x86_64 runtime.

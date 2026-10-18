@@ -16,6 +16,7 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 CORE = ROOT.parents[1]
 SUITES = {
+    "change-review": ("EditacMacOSChangeReview(PresentationTests.ChangeReviewPresentationTests|Tests.ChangeReviewTests)", 32),
     "change-review-presentation": ("EditacMacOSChangeReviewPresentationTests.ChangeReviewPresentationTests", 24),
     "accessibility-structure": ("EditacMacOSAccessibilityStructureTests.AccessibilityStructureTests", 19),
     "clipboard-transport": ("EditacMacOSClipboardTransportTests.ClipboardTransportTests", 24),
@@ -116,8 +117,9 @@ def main():
                "startedUtc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                "commands": [], "counts": None, "failure": None,
                "qualification": "unqualified", "sourceHashes": {}}
-    if suite == "change-review-presentation":
-        receipt["reviewScope"] = "native-detached-presenter-with-shared-Rust-exported-prepared-ingress-only"
+    if suite in ("change-review-presentation", "change-review"):
+        receipt["reviewScope"] = ("actual-session-sqlite-revision-presenter" if suite == "change-review" else
+                                  "native-detached-presenter-with-shared-Rust-exported-prepared-ingress-only")
         receipt["originalGateClosed"] = False
     if suite == "clipboard-transport":
         receipt["clipboardScope"] = "native-pasteboard-provider-and-actual-session-delayed-admission-prerequisite-only"
@@ -218,7 +220,7 @@ def main():
         receipt["ffiLibraries"] = ffi_libraries
         receipt["generatedBindings"] = {str(p.relative_to(CORE)): hashlib.sha256(p.read_bytes()).hexdigest()
             for p in (CORE / "crates/editac-ffi/generated").glob("EditacNative*") if p.is_file()}
-        if suite == "change-review-presentation":
+        if suite in ("change-review-presentation", "change-review"):
             fixture = output / "portable-models.json"
             env["EDITAC_DIFF_PORTABLE_OUTPUT"] = str(fixture)
             concurrent = output / "concurrent-model.json"
