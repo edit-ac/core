@@ -4,21 +4,21 @@ import { resolve } from 'node:path';
 import { requireTestNode } from './test-toolchain.mjs';
 await requireTestNode();
 const args = process.argv.slice(2);
-const groups = { spellcheck: { files: ['tests/extension-dx/spellcheck.test.mjs'], minimumTests: 53 }, 'task-links': { files: ['tests/extension-dx/task-links.test.mjs'], minimumTests: 38 }, matching: { files: ['tests/extension-dx/matching.test.mjs'], minimumTests: 38 }, authoring: { files: ['tests/extension-dx/authoring.test.mjs'], minimumTests: 33 }, contract: { files: ['tests/extension-dx/contract.test.mjs'], minimumTests: 30 }, configuration: { files: ['tests/extension-dx/configuration.test.mjs'], minimumTests: 45 }, loading: { files: ['tests/extension-dx/loading.test.mjs'], minimumTests: 24 } };
+const groups = { parsing: { files: ['tests/extension-dx/parsing.test.mjs'], minimumTests: 45 }, spellcheck: { files: ['tests/extension-dx/spellcheck.test.mjs'], minimumTests: 53 }, 'task-links': { files: ['tests/extension-dx/task-links.test.mjs'], minimumTests: 38 }, matching: { files: ['tests/extension-dx/matching.test.mjs'], minimumTests: 38 }, authoring: { files: ['tests/extension-dx/authoring.test.mjs'], minimumTests: 33 }, contract: { files: ['tests/extension-dx/contract.test.mjs'], minimumTests: 30 }, configuration: { files: ['tests/extension-dx/configuration.test.mjs'], minimumTests: 45 }, loading: { files: ['tests/extension-dx/loading.test.mjs'], minimumTests: 24 } };
 if (args.length !== 2 || args[0] !== '--group' || !Object.hasOwn(groups, args[1])) {
-  console.error('Specify exactly --group contract, --group configuration, --group authoring or --group loading or --group matching or --group task-links or --group spellcheck; unavailable/unimplemented groups fail closed.'); process.exit(2);
+  console.error('Specify exactly --group contract, --group configuration, --group authoring or --group loading or --group matching or --group task-links or --group spellcheck or --group parsing; unavailable/unimplemented groups fail closed.'); process.exit(2);
 }
 const output = resolve(process.env.EDITAC_EXTENSION_DX_OUTPUT ?? `.artifacts/extension-dx/${args[1]}`);
 mkdirSync(output, { recursive: true });
 const { files, minimumTests } = groups[args[1]];
 for (const file of files) if (!readFileSync(file).length) throw Error(`Missing/empty test file ${file}`);
-if (['task-links','spellcheck'].includes(args[1])) {
+if (['task-links','spellcheck','parsing'].includes(args[1])) {
   const runs = [];
   for (const browser of ['chromium', 'firefox', 'webkit']) {
     const directory = resolve(output, browser); mkdirSync(directory, { recursive: true });
     const result = spawnSync(process.execPath, ['--test', '--test-reporter=tap', ...files], {
       encoding: 'utf8', env: { ...process.env, EDITAC_EXTENSION_DX_OUTPUT: directory,
-        [args[1] === 'spellcheck' ? 'EDITAC_SPELLCHECK_BROWSER' : 'EDITAC_TASK_LINKS_BROWSER']: browser }, maxBuffer: 16 * 1024 * 1024,
+        [args[1] === 'spellcheck' ? 'EDITAC_SPELLCHECK_BROWSER' : args[1] === 'parsing' ? 'EDITAC_PARSING_BROWSER' : 'EDITAC_TASK_LINKS_BROWSER']: browser }, maxBuffer: 16 * 1024 * 1024,
     });
     const log = `${result.stdout ?? ''}\n${result.stderr ?? ''}`;
     writeFileSync(resolve(directory, 'tests.tap'), log);

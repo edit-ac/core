@@ -147,9 +147,9 @@ export class ClipboardInput {
     try { this.#selection.move(result.caret);
     } finally { this.#engine.releaseAnchor(result.caret); }
   }
-  #apply(target: RetainedSelection, blocks: readonly FragmentBlock[], moveSelection = true, project?: () => void): ClipboardOutcome {
+  #apply(target: RetainedSelection, blocks: readonly FragmentBlock[], moveSelection = true, project?: () => void, literal = false): ClipboardOutcome {
     if (this.#disposed || this.#blocked() || !target.active) return rejected('clipboard-unavailable');
-    const request: PrepareRequest = { kind: 'fragment', origin: `clipboard:${++this.#sequence}`, range: target.range, blocks };
+    const request: PrepareRequest = { kind: 'fragment', origin: `clipboard:${literal ? 'literal:' : ''}${++this.#sequence}`, range: target.range, blocks };
     try {
       // Preparation/capability failure has no history or journal effects.
       if (!this.#engine.can(request)) return rejected('clipboard-target');
@@ -169,7 +169,7 @@ export class ClipboardInput {
     if (!target) return this.last=rejected('clipboard-selection');
     try {
       const source=this.#captureData(data);
-      return this.last=this.#apply(target,this.#prepareData(target,{getData:mime=>source[mime]??''},options));
+      return this.last=this.#apply(target,this.#prepareData(target,{getData:mime=>source[mime]??''},options),true,undefined,options.literal === true);
     }
     catch(error) { return this.last=rejected(errorMessage(error)); }
     finally {target.dispose();}
@@ -282,7 +282,7 @@ export class ClipboardInput {
       const start=performance.now(), blocks=this.#prepareData(target,{getData:m=>source[m]??''},options,snapshot);job.timings.preparationMs=performance.now()-start;
       if(!job.active||generation!==this.#generation||this.#disposed||this.#blocked()||!target.active||!job.beginApply()) return rejected('clipboard-canceled');
       const current=this.#selection.retain(), applying=performance.now();
-      try {return this.last=this.#apply(target,blocks);}
+      try {return this.last=this.#apply(target,blocks,true,undefined,options.literal === true);}
       finally {job.timings.applyMs=performance.now()-applying;if(current){this.#restore(current);current.dispose();}}
     },()=>target?.dispose());
     this.pendingPaste=job;
@@ -346,7 +346,7 @@ export class ClipboardInput {
       if (!text) return this.last = rejected('clipboard-empty');
       // Preserve a user's later selection for an asynchronous result.
       const current = this.#renderer.root.ownerDocument.activeElement === this.#renderer.root ? this.#selection.retain() : undefined;
-      try { return this.last = this.#apply(target, [{ runs: [{ text, marks: [] }], attributes: null }],!!current); }
+      try { return this.last = this.#apply(target, [{ runs: [{ text, marks: [] }], attributes: null }],!!current,undefined,true); }
       finally { if (current) { this.#restore(current); current.dispose(); } }
     } catch (error) {
       const reason = errorMessage(error);

@@ -165,6 +165,8 @@ export function attachPatternMatching(options: PatternOptionsV1, context: Extens
     service.revalidate();
     if (!['Text','Editor'].includes(patch.operation) || patch.projectionError || patch.nodes.length > 64 || patch.touchedRanges.length > 8 || !scope().authorized) return;
     const origin = patch.origin.startsWith('editac:local:') ? patch.origin.slice('editac:local:'.length) : '';
+    // Explicit literal paste must never start optional asynchronous enrichment.
+    if (origin.startsWith('clipboard:literal:')) return;
     const paste = origin.startsWith('clipboard:');
     if (!(paste ? options.paste === 'match' : origin.startsWith('text-input:')) || options.literal?.(patch)) return;
     for (const change of patch.touchedRanges) {
