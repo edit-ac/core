@@ -2,7 +2,8 @@ import {mountWorkspaceEditor} from './workspace.mjs';
 import {retainRecovery,downloadRecovery} from './recovery.mjs';
 
 export let editor, task, comment;
-const slot = (name, id) => ({root:document.querySelector(id),status:document.querySelector(name==='task'?'#message':'#comment-message')});
+const recovery={task:[],comment:[]};
+const slot = (name, id) => ({recovery:recovery[name],root:document.querySelector(id),status:document.querySelector(name==='task'?'#message':'#comment-message')});
 const report = error => {document.querySelector('#message').textContent=`Unable to open or save task: ${error.message}`;};
 const readOnly = new URLSearchParams(location.search).has('readonly');
 export const ready = (async()=>{
@@ -19,8 +20,8 @@ export async function reopenOffline(){await task.close();task=await mountWorkspa
 export function attachTaskSync(authorizedHostOptions){return editor.attachSync(authorizedHostOptions);}
 export async function close(){const results=await Promise.all([task?.close(),comment?.close()]);for(const result of results)if(result)retainRecovery(result);return results[0];}
 // Recovery is deliberately per document: exporting task never includes comment content.
-document.querySelector('#export-recovery').onclick=()=>downloadRecovery(editor?.state.ready?[editor.recoveryExport()]:[]);
-document.querySelector('#comment-export-recovery').onclick=()=>downloadRecovery(comment?.editor.state.ready?[comment.editor.recoveryExport()]:[]);
+document.querySelector('#export-recovery').onclick=()=>downloadRecovery([...recovery.task,...(editor?.state.ready?[editor.recoveryExport()]:[])]);
+document.querySelector('#comment-export-recovery').onclick=()=>downloadRecovery([...recovery.comment,...(comment?.editor.state.ready?[comment.editor.recoveryExport()]:[])]);
 document.querySelector('#save').onclick=()=>void saveLocally().catch(report);
 document.querySelector('#reopen').onclick=()=>void reopenOffline().catch(report);
 document.querySelector('#comment-save').onclick=()=>void comment.save().catch(error=>{document.querySelector('#comment-message').textContent=error.message;});
