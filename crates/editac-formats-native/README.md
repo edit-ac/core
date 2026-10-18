@@ -128,3 +128,26 @@ resource enforcement and cold/repeat costs qualify this native adapter only.
 Other directions, OS viewer/UI/save integration and release remain independent.
 The default native build excludes the ODT ZIP/XML codecs; all codecs/fonts remain
 absent from the minimum editor and disabled formats graph.
+
+### ODT import prerequisite
+
+Build with optional `odt-import`. `run_odt_import(binary, binary_sha256,
+original, *, approve_loss=False, wall_ms=4000, output_bytes=4194304, cancel=None)`
+imports the qualified ODF1.3 text, marks, nested lists and v1 table subset into a
+new in-memory shared Session. The same native sandbox/resource launcher authenticates
+the executable and correlates the complete checkpoint/result. Lossy constructs
+require explicit approval and retain complete diagnostics. Keep `Result.original`
+under host retention policy for every outcome; a CRDT checkpoint is not the original
+ODT package. No live host document, save state or journal durability is implied.
+
+**Media-bearing ODT is unavailable on this native route.** After guarded mapping,
+it returns `FORMAT_NATIVE_ASSET_ADOPTION_UNAVAILABLE`, no content commit, complete
+diagnostics and exact original-media candidates. These candidates are recovery
+output, not adopted/live asset references. The complete source remains in
+`Result.original`. Shared native `PreparedJob::finish_import` currently commits
+content without atomically adopting prepared originals; browser storage proof does
+not establish this native contract. The shared owner must supply that boundary
+before full native ODT import can be qualified. No lossy approval bypasses it.
+
+`consumers-native-odt-import-text` qualifies only this prerequisite. It cannot close
+N-OI, the complete native/profile/target matrix or downstream platform/release gates.

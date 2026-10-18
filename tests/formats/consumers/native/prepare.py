@@ -19,7 +19,7 @@ def run(args, name, cwd=ROOT):
 
 def digest(data): return hashlib.sha256(data).hexdigest()
 manifest = 'crates/editac-formats-native/Cargo.toml'
-metadata = json.loads(run(['cargo','metadata','--manifest-path',manifest,'--locked','--offline','--filter-platform','aarch64-apple-darwin','--format-version=1','--features','odt-export'],'metadata'))
+metadata = json.loads(run(['cargo','metadata','--manifest-path',manifest,'--locked','--offline','--filter-platform','aarch64-apple-darwin','--format-version=1','--features','odt-export,odt-import'],'metadata'))
 nodes={n['id']:n for n in metadata['resolve']['nodes']}
 root=metadata['resolve']['root']; reached=set(); pending=[root]
 while pending:
@@ -58,6 +58,7 @@ for p in fixtures:
 fixtures += [str(p.relative_to(ROOT)) for p in (ROOT/'fixtures/formats/table-text').rglob('*') if p.is_file()]
 fixtures += ['tests/formats/consumers/odt-fixture.json','tests/formats/consumers/inspect-odt.py']
 fixtures += [str(p.relative_to(ROOT)) for p in (ROOT/'fixtures/formats/odt/export/schema').rglob('*') if p.is_file()]
+fixtures += ['fixtures/formats/odt/supported.xml','fixtures/formats/docx/probe/pixel.png','tests/formats/consumers/odt-import-fixtures.py']
 paths.update(fixtures)
 paths.update(str(p.relative_to(ROOT)) for p in (ROOT/'tests/formats/consumers/native').glob('*') if p.is_file())
 source_pins = {}
@@ -93,7 +94,7 @@ for package in sorted(metadata['packages'],key=lambda p:p['name']):
         data=p.read_bytes();notices.append(p.name+'\n'+data.decode()+'\n');notice_pins[str(p)]=digest(data)
 (OUT/'THIRD-PARTY-NOTICES.txt').write_text(''.join(notices))
 # Default and qualification executables are independently pinned and preserved.
-for label,features in [('native',[]),('native-probe',['--features','qualification']),('odt-native',['--features','odt-export']),('odt-probe',['--features','odt-export,qualification'])]:
+for label,features in [('native',[]),('native-probe',['--features','qualification']),('odt-native',['--features','odt-export,odt-import']),('odt-probe',['--features','odt-export,odt-import,qualification'])]:
     run(['cargo','build','--manifest-path',manifest,'--locked','--offline',*features], 'build-'+label,consumer)
     built=OUT.parent/'build-target/debug/editac-formats-native'
     shutil.copy2(built,OUT/label)

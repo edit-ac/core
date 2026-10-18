@@ -170,6 +170,37 @@ def run_odt_export(binary, binary_sha256, checkpoint_request, *, wall_ms=4000,
         _ACTIVE.release()
 
 
+def run_odt_import(binary, binary_sha256, original, *, approve_loss=False,
+                   wall_ms=4000, output_bytes=MAX_OUTPUT, cancel=None):
+    """New local Session only. Media is unavailable pending shared atomic adoption.
+
+    Keep Result.original under host retention policy on every outcome.
+    """
+    if type(approve_loss) is not bool:
+        data=bytes(original)
+        return Result(dict(state='unavailable',code='FORMAT_REQUEST_INVALID',executed=0,
+                           outputAccepted=False,childExited=True,originalSha256=hashlib.sha256(data).hexdigest()),data)
+    return _run(binary,binary_sha256,original,'odt-import',
+                ('approve-loss' if approve_loss else 'strict',),wall_ms,output_bytes,cancel)
+
+def _odt_import_completion_valid(payload, original, args):
+    try:
+        report=payload['report']
+        return (payload.get('commits') == 1 and type(payload['commits']) is int and
+                all(type(payload.get(k)) is int and payload[k] == 1 for k in ('historyGroups','updates')) and
+                all(type(payload.get(k)) is int and payload[k] == 0 for k in ('activeJobs','assets','networkCalls')) and
+                all(payload.get(k) is True for k in ('undo','redo','reopen')) and
+                payload.get('lossApproved') is (args[0] == 'approve-loss') and
+                isinstance(payload.get('preparedBlocks'),list) and len(payload['preparedBlocks']) > 0 and
+                type(report['blocks']) is int and report['blocks'] == len(payload['preparedBlocks']) and
+                type(report['stagedBytes']) is int and report['stagedBytes'] == 0 and isinstance(report['diagnostics'],list) and
+                (not report['diagnostics'] or payload['lossApproved']) and
+                isinstance(payload.get('snapshotBlocks'),list) and
+                isinstance(payload['checkpoint'],list) and all(type(b) is int and 0 <= b <= 255 for b in payload['checkpoint']) and
+                hashlib.sha256(bytes(payload['checkpoint'])).hexdigest() == payload['checkpointSha256'])
+    except (KeyError,TypeError,ValueError,OverflowError):
+        return False
+
 def _export_completion_valid(payload, original, table=False, odt=False):
     """Reject incomplete or malformed worker envelopes before exposing output."""
     try:
@@ -243,7 +274,7 @@ def _run(binary, binary_sha256, original, mode, args=(), wall_ms=4000,
                    originalBytes=len(original), childExited=True, outputAccepted=False,
                    hardRustHeapBytes=RUST_HEAP, peakObservedRssBytes=0, rssSamples=0,
                    maxSampleIntervalMs=0, peakHostRssBytes=0, peakObservedHostAndWorkerRssBytes=0, resourceModel='hard Rust requested heap; RLIMIT_CPU/FSIZE/NOFILE; wall/cancel; sampled process RSS')
-    if mode == 'odt-export': outcome['profile'] = 'edit-ac-odt-v1'
+    if mode in ('odt-export','odt-import'): outcome['profile'] = 'edit-ac-odt-v1'
     if mode == 'table-export':
         try: outcome['profile'] = json.loads(original).get('profile')
         except (ValueError, AttributeError): pass
@@ -255,7 +286,7 @@ def _run(binary, binary_sha256, original, mode, args=(), wall_ms=4000,
             raise ValueError('FORMAT_RESOURCE_PROFILE_UNAVAILABLE')
         if platform.system() != 'Darwin' or platform.machine() != 'arm64' or not pathlib.Path(SANDBOX).is_file():
             raise ValueError('FORMAT_ISOLATION_UNAVAILABLE')
-        if mode not in ('csv-import', 'tsv-import', 'rtf-import', 'rtf-export', 'table-export', 'odt-export', 'export-fixture', 'read', 'write', 'network', 'child', 'spin', 'heap', 'output'):
+        if mode not in ('csv-import', 'tsv-import', 'rtf-import', 'rtf-export', 'table-export', 'odt-export', 'odt-import', 'export-fixture', 'read', 'write', 'network', 'child', 'spin', 'heap', 'output'):
             raise ValueError('FORMAT_PROFILE_UNAVAILABLE')
         binary = pathlib.Path(binary).resolve(strict=True)
         if not binary.is_file() or _file_hash(binary) != binary_sha256:
@@ -354,7 +385,7 @@ def _run(binary, binary_sha256, original, mode, args=(), wall_ms=4000,
                     raise ValueError('FORMAT_COMPLETION_INVALID')
                 if not isinstance(payload, dict):
                     raise ValueError('FORMAT_COMPLETION_INVALID')
-                if mode in ('csv-import', 'tsv-import', 'rtf-import', 'rtf-export', 'table-export', 'odt-export'):
+                if mode in ('csv-import', 'tsv-import', 'rtf-import', 'rtf-export', 'table-export', 'odt-export', 'odt-import'):
                     if payload.get('state') not in ('passed', 'rejected'):
                         raise ValueError('FORMAT_COMPLETION_INVALID')
                     if payload['state'] == 'passed':
@@ -364,6 +395,9 @@ def _run(binary, binary_sha256, original, mode, args=(), wall_ms=4000,
                             raise ValueError('FORMAT_COMPLETION_INVALID')
                         if mode in ('csv-import','tsv-import'):
                             if not _table_completion_valid(payload, original, args):
+                                raise ValueError('FORMAT_COMPLETION_INVALID')
+                        elif mode == 'odt-import':
+                            if not _odt_import_completion_valid(payload,original,args):
                                 raise ValueError('FORMAT_COMPLETION_INVALID')
                         elif mode == 'rtf-import':
                             if (not all(payload.get(k) for k in ('undo', 'redo', 'reopen')) or

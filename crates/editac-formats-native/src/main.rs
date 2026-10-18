@@ -6,6 +6,8 @@ mod fixture;
 mod heap;
 #[cfg(feature = "odt-export")]
 mod odt;
+#[cfg(feature = "odt-import")]
+mod odt_import;
 mod table;
 #[cfg(feature = "qualification")]
 use std::io::Write;
@@ -219,6 +221,7 @@ fn main() {
         && mode != "tsv-import"
         && mode != "table-export"
         && mode != "odt-export"
+        && mode != "odt-import"
     {
         eprintln!("FORMAT_PROFILE_UNAVAILABLE");
         std::process::exit(78);
@@ -231,7 +234,16 @@ fn main() {
     let mut result = if input.len() > LIMITS.input_bytes {
         json!({"state":"rejected","code":"FORMAT_INPUT_LIMIT","liveUnchanged":true})
     } else {
-        if mode == "odt-export" {
+        if mode == "odt-import" {
+            #[cfg(feature = "odt-import")]
+            {
+                odt_import::convert(&input, &std::env::args().skip(2).collect::<Vec<_>>())
+            }
+            #[cfg(not(feature = "odt-import"))]
+            {
+                json!({"state":"rejected","code":"FORMAT_PROFILE_UNAVAILABLE","liveUnchanged":true})
+            }
+        } else if mode == "odt-export" {
             #[cfg(feature = "odt-export")]
             {
                 export::convert_odt(&input)
