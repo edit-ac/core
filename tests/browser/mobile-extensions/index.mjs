@@ -25,6 +25,6 @@ export function assertIndex(index) {
 export function selectGroup(args) {
   assert.equal(args.length, 2, 'Expected --group and a supported group');
   assert.equal(args[0], '--group');
-  assert.ok(['capabilities', 'menus', 'content-controls', 'gestures', 'assets', 'formats'].includes(args[1]), 'Unknown or unimplemented mobile-extension group');
+  assert.ok(['capabilities', 'menus', 'content-controls', 'gestures', 'assets', 'formats', 'assistance'].includes(args[1]), 'Unknown or unimplemented mobile-extension group');
   return ['tests/browser/mobile-extensions/catalog.test.mjs', `tests/browser/mobile-extensions/${args[1]}.spec.ts`];
 }
