@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "scope": "Prepared local browser consumer shell only; no actual Session connection, durable apply, live AI or aggregate qualification",
+  "groups": {
+    "shell": {
+      "parent": "D24X-1.1",
+      "engines": ["chromium", "firefox", "webkit"],
+      "modelCases": ["retention", "text-bound", "detached-snapshot", "invalid-input", "clear"],
+      "browserCases": ["regions-and-identity", "inert-prose", "unavailable-public-facade", "bounded-transcript", "keyboard-and-clear", "independent-no-mutation"]
+    }
+  }
+}
