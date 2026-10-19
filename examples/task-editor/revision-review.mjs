@@ -109,14 +109,16 @@ async function mountInstance(name, root, prefix) {
   }
   async function save() {
     if (closed || closing) throw Error('This review is closed or closing; reopen it before saving');
-    return persist();
+    // Only an explicit Save action retries retained failed writes. Capture and
+    // close retain their ordinary flush semantics and never initiate retries.
+    return persist({ retryFailed: Boolean(saveFailure) });
   }
-  async function persist() {
+  async function persist({ retryFailed = false } = {}) {
     if (saving) return saving;
     saving = (async () => {
       try {
         await workspace.surface.settle();
-        await workspace.owner.flush({ target: 'local' });
+        await workspace.owner.flush({ target: 'local', ...(retryFailed ? { retryFailed: true } : {}) });
         saveFailure = undefined; retainedRecovery = undefined;
         status(saveStatus, 'Live document saved locally in this browser. Temporary captures are not saved. No remote save is claimed.');
       } catch (error) { failedSave(error); throw error; }
