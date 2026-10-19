@@ -149,7 +149,8 @@
       "workflows": [
         "web-task-workspace",
         "web-react-routes",
-        "web-local-recovery"
+        "web-local-recovery",
+        "web-optional-assistance"
       ],
       "fixtures": [
         "examples/task-editor/index.html",
@@ -174,7 +175,8 @@
         "tests/scenarios/react-routes.mjs",
         "tests/scenarios/local-recovery.mjs",
         "examples/task-editor/product.mjs",
-        "examples/task-editor/README.md"
+        "examples/task-editor/README.md",
+        "tests/scenarios/optional-assistance.mjs"
       ],
       "cases": [
         "chromium:web-task-workspace:dispatcher-rejects-invalid-inputs",
@@ -208,6 +210,12 @@
         "chromium:web-local-recovery:existing-open-denial-preserves-content",
         "chromium:web-local-recovery:missing-checkpoint-never-reseeds",
         "chromium:web-local-recovery:corrupt-checkpoint-never-reseeds",
+        "chromium:web-optional-assistance:disabled-default",
+        "chromium:web-optional-assistance:task-command-history-and-isolation",
+        "chromium:web-optional-assistance:durable-reopen",
+        "chromium:web-optional-assistance:readonly-denial",
+        "chromium:web-optional-assistance:dispose-and-remount",
+        "chromium:web-optional-assistance:narrow-command-controls",
         "firefox:web-task-workspace:dispatcher-rejects-invalid-inputs",
         "firefox:web-task-workspace:distinct-documents-stores-callbacks",
         "firefox:web-task-workspace:focus-edit-undo-isolation",
@@ -239,6 +247,12 @@
         "firefox:web-local-recovery:existing-open-denial-preserves-content",
         "firefox:web-local-recovery:missing-checkpoint-never-reseeds",
         "firefox:web-local-recovery:corrupt-checkpoint-never-reseeds",
+        "firefox:web-optional-assistance:disabled-default",
+        "firefox:web-optional-assistance:task-command-history-and-isolation",
+        "firefox:web-optional-assistance:durable-reopen",
+        "firefox:web-optional-assistance:readonly-denial",
+        "firefox:web-optional-assistance:dispose-and-remount",
+        "firefox:web-optional-assistance:narrow-command-controls",
         "webkit:web-task-workspace:dispatcher-rejects-invalid-inputs",
         "webkit:web-task-workspace:distinct-documents-stores-callbacks",
         "webkit:web-task-workspace:focus-edit-undo-isolation",
@@ -269,7 +283,38 @@
         "webkit:web-local-recovery:creation-denial-never-reseeds",
         "webkit:web-local-recovery:existing-open-denial-preserves-content",
         "webkit:web-local-recovery:missing-checkpoint-never-reseeds",
-        "webkit:web-local-recovery:corrupt-checkpoint-never-reseeds"
+        "webkit:web-local-recovery:corrupt-checkpoint-never-reseeds",
+        "webkit:web-optional-assistance:disabled-default",
+        "webkit:web-optional-assistance:task-command-history-and-isolation",
+        "webkit:web-optional-assistance:durable-reopen",
+        "webkit:web-optional-assistance:readonly-denial",
+        "webkit:web-optional-assistance:dispose-and-remount",
+        "webkit:web-optional-assistance:narrow-command-controls"
+      ]
+    },
+    "web-optional-assistance": {
+      "parent": "WEX-3.1-C1",
+      "command": [
+        "node",
+        "tests/scenarios/optional-assistance.mjs"
+      ],
+      "fixtures": [
+        "examples/task-editor/index.html",
+        "examples/task-editor/editor.mjs",
+        "examples/task-editor/document.mjs",
+        "examples/task-editor/markdown.mjs",
+        "examples/task-editor/recovery.mjs",
+        "examples/task-editor/workspace.mjs",
+        "examples/task-editor/offline.mjs",
+        "examples/task-editor/offline-worker.mjs"
+      ],
+      "cases": [
+        "disabled-default",
+        "task-command-history-and-isolation",
+        "durable-reopen",
+        "readonly-denial",
+        "dispose-and-remount",
+        "narrow-command-controls"
       ]
     }
   }

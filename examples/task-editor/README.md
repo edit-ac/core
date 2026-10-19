@@ -1,5 +1,12 @@
 # Local task editor
 
+Open the task workspace with `?assistance` to enable local command assistance.
+Select task text, open **Editing assistance**, then choose Bold, Italic, Undo or
+Redo. The panel uses the same command catalog, history and local save/reopen path
+as the editor toolbar. Plain comments keep their existing restricted controls.
+This option registers command discovery only; it does not configure a transcript
+transport or request microphone access. Readonly mode disables its edit commands.
+
 With the repository toolchains selected (Node 24.19.0, npm 11.17.0,
 Rust 1.97.1, wasm-bindgen 0.2.129), run from `core/`:
 

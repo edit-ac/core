@@ -47,6 +47,12 @@ No remote service, credentials or paid provider is involved.
 Integrated product checkpoint: `node tests/scenarios/run.mjs web-product-checkpoint`.
 It authenticates one installed core/web/React site, then executes the existing
 workspace, React/routes and recovery cases in all three installed Playwright
-engines (93 required cases). Every child receipt and screenshot is kept under
+engines (111 required cases). Every child receipt and screenshot is kept under
 PWE-1.5. Missing runtimes or cases remain failures. Launch the same site manually
 with `node examples/task-editor/product.mjs`; see its README for steps and limits.
+
+Optional task command assistance: `node tests/scenarios/run.mjs web-optional-assistance`.
+The six installed SDK/WASM/IndexedDB cases cover disabled default, formatting and
+undo/redo, plain-comment isolation, durable reopen, revoked permission, disposal
+and narrow control geometry. The product checkpoint requires this group in all
+three engines. No transcript transport, provider or capture permission is used.

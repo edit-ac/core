@@ -1,4 +1,5 @@
-import { createEditor, contentModules, slashCommands, referenceSuggestions } from '@edit-ac/web';
+import { createEditor, contentModules, slashCommands, referenceSuggestions, assistiveInput } from '@edit-ac/web';
+import { AssistiveRegistration } from '@edit-ac/core/extensions';
 import { markdownOptions } from './markdown.mjs';
 import { localOptions } from './document.mjs';
 
@@ -24,11 +25,17 @@ const actions = [
   {id:'image',label:'Local image',prepare:()=>({type:'fragment',blocks:[content(['module:editac.asset',1,{identity:{host:'product-local',key:'pixel'},kind:'image',metadata:{alt:'Local sample pixel',caption:'',filename:'pixel.png',mediaType:'image/png',byteLength:imageBytes.length,sha256:expectedImageHash,width:2,height:2,durationMs:null},fallback:'Local sample pixel',source:'Local verified pixel'}],'Local sample pixel')]})},
 ];
 
-export async function workspaceOptions(name, {profile=name, creation, readOnly=false}={}) {
+export async function workspaceOptions(name, {profile=name, creation, readOnly=false, assistance=new URL(location.href).searchParams.has('assistance')}={}) {
   const permission = permissions[profile];
   if (!permission) throw Error('Unknown workspace profile');
   const options = await localOptions(name, undefined, creation);
+  const conversion = permission.rich ? await markdownOptions() : {};
   let imageURL, closed=false;
+  // Local command discovery uses the existing command owner. A transport requires
+  // a separate host integration; enabling this panel never requests capture.
+  const registration = permission.rich && assistance ? new AssistiveRegistration() : undefined;
+  registration?.register({version:1,enabled:true,capabilities:['commands','status'],
+    limits:{textBytes:1024,statusBytes:512,commands:16,results:16,sessions:1,timeoutMs:10000},transport:null});
   const imageAssets = {async resolve(request,signal) {
     if (closed || !permission.images || signal.aborted || request.identity.host!=='product-local' || request.identity.key!=='pixel' || request.action!=='resolve-url' || request.byteLimit<imageBytes.length) return {state:'revoked'};
     await verifiedImage;
@@ -37,15 +44,17 @@ export async function workspaceOptions(name, {profile=name, creation, readOnly=f
     return {state:'available',grant:{identity:request.identity,actions:['resolve-url','read']},resolution:{identity:request.identity,operationId:request.operationId,url:imageURL}};
   }};
   return {options: {...options,
-    ...(permission.rich ? {...await markdownOptions(),content:contentModules({imageAssets}),slash:slashCommands(actions),references:referenceSuggestions(resolveReference)} : {preset:'minimal',typingShortcuts:false,plainPasteControl:false,commandAllowed:command=>['enter','break','backward','forward','undo','redo','replace'].includes(command)}),
+    ...(permission.rich ? {...conversion,content:contentModules({imageAssets}),slash:slashCommands(actions),references:referenceSuggestions(resolveReference)} : {preset:'minimal',typingShortcuts:false,plainPasteControl:false,commandAllowed:command=>['enter','break','backward','forward','undo','redo','replace'].includes(command)}),
+    assistive:registration ? assistiveInput(registration) : undefined,
     readOnly:readOnly || !permission.edit, commandControls:permission.rich, label:profile==='task'?'Task description':'Plain comment',
-  }, permission, dispose(){closed=true;if(imageURL)URL.revokeObjectURL(imageURL);}};
+  }, permission, dispose(){closed=true;registration?.dispose();if(imageURL)URL.revokeObjectURL(imageURL);}};
 }
 
 export async function mountWorkspaceEditor(name, {root, status, creation, readOnly=false, recovery=[], onSave=()=>{}, onError=()=>{}, onHistory=()=>{}}) {
   const resources=await workspaceOptions(name,{creation,readOnly});
   const {options,permission}=resources;
-  const editor=createEditor(root,options);
+  let editor;
+  try { editor=createEditor(root,options); } catch(error) { resources.dispose(); throw error; }
   let closed=false, generation=0, pending=false, lastError;
   const events = {save:[],error:[],history:[]};
   const report = error => {
