@@ -8,7 +8,7 @@ node examples/host-agent-product/launch.mjs
 
 Open the printed loopback URL. Stop with Ctrl+C. This opt-in shell uses an authenticated offline-installed public SDK site. The default receipt is the existing qualified RVP installed site; `EDITAC_HOST_PRODUCT_SDK_RECEIPT` can select an equivalent retained installed-site receipt. Preparation verifies packages, served artifact hashes and the affected host sources against local main before listening.
 
-The shell displays a fake authorized fixture identity, document scope, bounded transcript, and a separate human-view placeholder. Check read availability calls the public host facade with no installed services and reports unavailable. Shared Session/SQLite, live human editing, tool inventory, and source read are later roadmap gates. No successful document read, receipt or mutation is simulated. The uncertainty text is explicitly a prepared example. Clear discards presentation entries only.
+The default shell displays a fake authorized fixture identity, document scope, bounded transcript, and a separate human-view placeholder. Check read availability calls the public host facade with no installed services and reports unavailable. Shared Session/SQLite, live human editing, tool inventory, and source read are later roadmap gates. No successful document read, receipt or mutation is simulated. The uncertainty text is explicitly a prepared example. Clear discards presentation entries only.
 
 Document prose and tool text are inert text, capped at 4,096 UTF-16 units per entry and 64 retained entries. Content cannot dispatch tools, change scope or fetch links. This is a local prepared demonstration with no model, credentials, production authentication or remote endpoint.
 
@@ -40,3 +40,13 @@ For the human editor beside read tools, use `node examples/host-agent-product/la
 Selecting Other document disposes and clears the view and reports the missing authorized owner. A denied/failed collaboration channel closes the view with an unknown outcome while retaining local recovery. Publication is an explicit prepared fixture channel, not production authentication. Agent mutation services remain unavailable. No provider, arbitrary URL or command transport exists.
 
 `node tests/scenarios/host-agent-product.mjs human` exercises actual Session/SQLite and installed WASM, native keyboard publication, remote updates, own-history undo, IndexedDB journal/outbox/reopen, scope isolation, denial and disposal in Chromium, Firefox and WebKit. Prepared remote scheduling invokes the unchanged real owner; accepted content and durable assertions inspect real engines and stores.
+
+For the complete offline-installed workspace, use Node 24.19.0 and run:
+
+```sh
+node examples/host-agent-product/launch.mjs --workspace
+```
+
+Open the printed `127.0.0.1` URL. Refresh current tools, read current document source, then type in the human editor and choose Publish human changes. Read again to inspect the same actual owner's updated source and revision. Receive shared updates uses the separate collaboration channel; Undo own edit uses live engine history. Close editor retains local IndexedDB recovery; Open / reopen restores it. Human actions are disabled without a mounted editor, and undo requires an own history group. Tool mutation services remain unavailable. Authorization controls are prepared fixture controls and execution always checks the host authority. No model or external service is involved.
+
+Stop with Ctrl+C: the loopback listener and native owner close together. Missing or mismatched installed packages, WASM, host source or native receipt fail before listening; this launcher never installs or rebuilds them. Qualify the composed flow with `node tests/scenarios/host-agent-product.mjs workspace`. It exercises current inventory → real keyboard update → actual Session/SQLite → read/export on the same page, plus shared updates, identity, local history/storage, revocation and unavailable controls in all three engines. Receipts preserve exact pins and teardown; this is local prepared behavior, not provider, production authentication or aggregate/release qualification.
