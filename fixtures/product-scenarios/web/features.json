@@ -530,20 +530,12 @@
           ],
           "cases": [
             "1:packed archives, installed members and source/runtime pins are immutable and exact",
+            "2:default Rust graph and packed base editor omit optional converters and fonts",
             "3:installed public declarations typecheck against the packed SDK",
             "4:independent readers inspect actual browser-produced RTF and exact/safe CSV/TSV artifacts",
             "5:independent DOCX package/semantic oracle rejects text/mark/table/link/media perturbations",
             "6:partial DOCX import independently matches original XML semantics and rejects corrupted projections",
             "7:independent EPUB reader verifies chapters/navigation/metadata/semantics/assets and rejects mutations"
-          ]
-        },
-        {
-          "id": "wfe-3.1-c2b-cargo-path-repair",
-          "engines": [
-            null
-          ],
-          "cases": [
-            "1:default Rust graph and packed base editor omit optional converters and fonts"
           ]
         },
         {
@@ -1951,21 +1943,21 @@
       "command": "node --test --test-reporter=tap --test-concurrency=1 --test-timeout=45000 tests/formats/consumers/browser.test.mjs tests/formats/consumers/media.test.mjs tests/formats/consumers/odt-media.test.mjs tests/formats/consumers/epub-media.test.mjs",
       "receipts": [
         {
-          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/browser.log",
-          "sha256": "1473d81c471267eef0b846a43f9d292c74cd2a8f054b701f979ccbaa67fca216",
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/pinned-browser.log",
+          "sha256": "f9a476c7b9204d32341522222e9b555223ce7358492a3117e2f595dbe656a7a7",
           "kind": "node-tap",
           "sources": {
             "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/source-pins.json",
             "sha256": "87b34d8399041671d6a2c805e1ccba067138c5bed27149aef2f9a8196aac1744"
           },
           "packages": {
-            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/runtime/packed-artifacts.json",
-            "sha256": "46e61f7f29447e5e931bb784508fe995fa977d0c4bc2da6c6787170354849da6"
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/pinned-runtime/packed-artifacts.json",
+            "sha256": "fa3bde4ce15d98157339078daf09fcfec9404637fc13f32ff20cd17fb5dadaf8"
           },
-          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/runtime",
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/pinned-runtime",
           "execution": {
-            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/browser.log.command.json",
-            "sha256": "b305a30233e17cbd9dd78023e8b22dd2739ef831772c158f05f08d9e3e2999f8"
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/pinned-browser.log.command.json",
+            "sha256": "1371117ee441d39f43639582fe421fec559bca2b5b55411e8092aacbab8eb885"
           },
           "engine": "chromium"
         }
@@ -1983,61 +1975,21 @@
       "command": "node --test --test-reporter=tap --test-name-pattern=packed archives|default Rust graph|installed public|independent readers|independent DOCX|partial DOCX|independent EPUB tests/formats/consumers/contracts.test.mjs",
       "receipts": [
         {
-          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/contracts.log",
-          "sha256": "9adc36a095671fab25a13eacd7e512735bfe94c9429c81381c5a60c683a9cf26",
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/pinned-contracts.log",
+          "sha256": "d4125508d16f7082ccd1cb71172186fb44111df36c490abbff695d5bb29ec72b",
           "kind": "node-tap",
           "sources": {
             "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/source-pins.json",
             "sha256": "87b34d8399041671d6a2c805e1ccba067138c5bed27149aef2f9a8196aac1744"
           },
           "packages": {
-            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/runtime/packed-artifacts.json",
-            "sha256": "46e61f7f29447e5e931bb784508fe995fa977d0c4bc2da6c6787170354849da6"
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/pinned-runtime/packed-artifacts.json",
+            "sha256": "fa3bde4ce15d98157339078daf09fcfec9404637fc13f32ff20cd17fb5dadaf8"
           },
-          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/runtime",
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/pinned-runtime",
           "execution": {
-            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/contracts.log.command.json",
-            "sha256": "74f7f4c7e9410ad9074d2d184c18c8cde1126346e6d2d05110b516a642d9c6ae"
-          },
-          "engine": null,
-          "selectedCases": [
-            "1:packed archives, installed members and source/runtime pins are immutable and exact",
-            "3:installed public declarations typecheck against the packed SDK",
-            "4:independent readers inspect actual browser-produced RTF and exact/safe CSV/TSV artifacts",
-            "5:independent DOCX package/semantic oracle rejects text/mark/table/link/media perturbations",
-            "6:partial DOCX import independently matches original XML semantics and rejects corrupted projections",
-            "7:independent EPUB reader verifies chapters/navigation/metadata/semantics/assets and rejects mutations"
-          ]
-        }
-      ],
-      "sourceManifests": [
-        {
-          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/source-pins.json",
-          "sha256": "87b34d8399041671d6a2c805e1ccba067138c5bed27149aef2f9a8196aac1744"
-        }
-      ]
-    },
-    {
-      "id": "wfe-3.1-c2b-cargo-path-repair",
-      "owner": "PRIMARY integrated optional conversion",
-      "command": "node --test --test-reporter=tap --test-name-pattern=default Rust graph tests/formats/consumers/contracts.test.mjs",
-      "receipts": [
-        {
-          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/cargo-path-repair.log",
-          "sha256": "98f0fb18d1db9c116c70b87739c2121d804da27c6a5165069306db548fc8353a",
-          "kind": "node-tap",
-          "sources": {
-            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/source-pins.json",
-            "sha256": "87b34d8399041671d6a2c805e1ccba067138c5bed27149aef2f9a8196aac1744"
-          },
-          "packages": {
-            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/runtime/packed-artifacts.json",
-            "sha256": "46e61f7f29447e5e931bb784508fe995fa977d0c4bc2da6c6787170354849da6"
-          },
-          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/runtime",
-          "execution": {
-            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/cargo-path-repair.log.command.json",
-            "sha256": "7a63b2e1857dfb6b3470e929a22a57dceb9388de16ef8f0453668fd737a868e9"
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/pinned-contracts.log.command.json",
+            "sha256": "59724dff2c053ea22e09d8aaae0539e6deacfe8cf4775addad4367410ed49b69"
           },
           "engine": null
         }
@@ -2055,21 +2007,21 @@
       "command": "node --test --test-reporter=tap --test-concurrency=1 tests/formats/consumers/media-contracts.test.mjs tests/formats/consumers/odt-media-contracts.test.mjs tests/formats/consumers/epub-media-contracts.test.mjs",
       "receipts": [
         {
-          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/media-oracles.log",
-          "sha256": "10bf82343cd813674b7503bab174df556296c3c4cbda371613fbdcd5ade98269",
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/pinned-media-oracles.log",
+          "sha256": "4474a6497b0a69c0f409173eeea1fb90c6fd0a0043f8d3608be86e516d240a82",
           "kind": "node-tap",
           "sources": {
             "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/source-pins.json",
             "sha256": "87b34d8399041671d6a2c805e1ccba067138c5bed27149aef2f9a8196aac1744"
           },
           "packages": {
-            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/runtime/packed-artifacts.json",
-            "sha256": "46e61f7f29447e5e931bb784508fe995fa977d0c4bc2da6c6787170354849da6"
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/pinned-runtime/packed-artifacts.json",
+            "sha256": "fa3bde4ce15d98157339078daf09fcfec9404637fc13f32ff20cd17fb5dadaf8"
           },
-          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/runtime",
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/pinned-runtime",
           "execution": {
-            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/media-oracles.log.command.json",
-            "sha256": "a61fd951c77a1e16eb4fdaaf98149e392213e9ff7c50b8ff3bc3e08d2dff47fb"
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/pinned-media-oracles.log.command.json",
+            "sha256": "3004c3084882475a2c53d106756d44d3ecd69ee1da65e30065b03f077a543f7d"
           },
           "engine": null
         }
@@ -2098,10 +2050,10 @@
             "sha256": "d867171ca261de18b9b89c12b699047f1fd610f7cf0d0f685c3d5dac19434085"
           },
           "packages": {
-            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/runtime/packed-artifacts.json",
-            "sha256": "46e61f7f29447e5e931bb784508fe995fa977d0c4bc2da6c6787170354849da6"
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/pinned-runtime/packed-artifacts.json",
+            "sha256": "fa3bde4ce15d98157339078daf09fcfec9404637fc13f32ff20cd17fb5dadaf8"
           },
-          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/runtime",
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/pinned-runtime",
           "execution": {
             "path": "../architecture/evidence/document-conversion/consumers-epub-20261018/canonical5/receipt.json",
             "sha256": "908414b6d4d71ada6ce14422df369128e470b1172ea1df6c858cde11896872e8",
@@ -2111,8 +2063,8 @@
             ]
           },
           "artifactReuse": {
-            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/odt-reader-reuse.json",
-            "sha256": "e387bf032aa65a994ed4b16b98923478330aab2dc9a88e440f0fbaca6cc55186"
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/pinned-odt-reader-reuse.json",
+            "sha256": "390f06ee1ea10e1d47d5c67318c6e96f2e257de5167f0b67eb9894ce4fb4ff63"
           }
         }
       ],
@@ -2144,10 +2096,10 @@
             "sha256": "9564881f08ddd77624d007f35a79670092fd1b43b6d3de96c222506743771e29"
           },
           "packages": {
-            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/runtime/packed-artifacts.json",
-            "sha256": "46e61f7f29447e5e931bb784508fe995fa977d0c4bc2da6c6787170354849da6"
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/pinned-runtime/packed-artifacts.json",
+            "sha256": "fa3bde4ce15d98157339078daf09fcfec9404637fc13f32ff20cd17fb5dadaf8"
           },
-          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/runtime",
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/pinned-runtime",
           "execution": {
             "path": "../architecture/evidence/document-conversion/consumers-pdf-20261018/canonical2/receipt.json",
             "sha256": "cf90fe96236faf2dbf8f1189597875e4a11b21d211d9b553c0e10fbe3c23ab13",
@@ -2157,8 +2109,8 @@
             ]
           },
           "artifactReuse": {
-            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/pdf-reader-reuse.json",
-            "sha256": "b0c0d3a472abb73474e4eb05a55021114736043ba2e5adc22c723e36d0da164c"
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/pinned-pdf-reader-reuse.json",
+            "sha256": "8f2f069ce5e9ebb74a07b658b40297dcfd714a4670a28d932f0133d65b6b9c9c"
           }
         }
       ],
