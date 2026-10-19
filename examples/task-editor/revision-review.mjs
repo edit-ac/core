@@ -1,4 +1,4 @@
-import { openEditorStorage, mountEditorSurface, WebHistoryStore, HistoryReview, prepareReview, ChangeReview } from '@edit-ac/web';
+import { openEditorStorage, mountEditorSurface, WebHistoryStore, HistoryReview, HistoryRestorer, prepareReview, ChangeReview } from '@edit-ac/web';
 import { localOptions } from './document.mjs';
 
 export const limits = Object.freeze({ maxRevisions: 3, maxBytes: 96 * 1024, maxRevisionBytes: 48 * 1024 });
@@ -25,7 +25,7 @@ async function mountInstance(name, root, prefix) {
   const saveStatus = element('revision-save-status');
   const captureStatus = element('revision-capture-status');
   const controls = ['revision-save', 'revision-name', 'revision-capture'].map(element);
-  let closed = false, pending = false, comparison;
+  let closed = false, pending = false, comparison, reviewGeneration = 0;
   const beforeSelect = element('revision-before'), afterSelect = element('revision-after');
   const compareStatus = element('revision-compare-status');
   function clearComparison(message, state = 'ready') {
@@ -101,6 +101,7 @@ async function mountInstance(name, root, prefix) {
     for (const remove of listeners.splice(0)) remove();
     root.querySelectorAll('input,button,select').forEach(control => { control.disabled = true; });
     status(saveStatus, 'Review closed. Reopen to recover saved live content; captures are memory only.');
+    reviewGeneration++;
     clearComparison('Review closed. Reopen and capture two states to compare.'); workspace.review.destroy(); await workspace.surface.dispose();
     await workspace.owner.destroy({ policy: 'flush' });
     root.dataset.lifecycle = 'closed';
@@ -115,13 +116,32 @@ async function mountInstance(name, root, prefix) {
       await surface.ready;
       const access = () => ({ scope: { identity: options.identity, moduleProfile: `revision-review-${name}-v1` } });
       const store = new WebHistoryStore(limits);
-      review = new HistoryReview(element('revision-history'), store, access, { pageSize: 3, maxValueChars: 4096 });
+      let readonly = false;
+      function createReview() {
+        const generation = ++reviewGeneration;
+        const restorer = new HistoryRestorer(store, {
+          engine: owner.engine,
+          commit: owner.commitPrepared,
+          writable: () => !closed && !readonly && generation === reviewGeneration,
+        }, access);
+        return new HistoryReview(element('revision-history'), store, access, { pageSize: 3, maxValueChars: 4096, restorer });
+      }
+      review = createReview();
+      listen(element('revision-cancel-restore'), 'click', () => {
+        // Dispose the view holding the single-use preview; keep this owner and captures.
+        workspace.review.destroy();
+        workspace.review = review = createReview();
+        status(element('revision-restore-status'), 'Restore preview canceled. Current content is unchanged; inspect a capture to preview again.');
+      });
+      const updates = owner.engine.subscribe({ type: 'updates' }, () => {
+        status(saveStatus, 'Live changes are being journaled locally. Use Save locally to confirm.');
+      });
+      listeners.push(() => updates.dispose());
       workspace = { owner, surface, review, store, access, options, save, capture, compare, close, get closed() { return closed; }, get readonly() { return readonly; } };
       beforeSelect.replaceChildren(); afterSelect.replaceChildren();
       clearComparison('Capture two states to compare them.'); refreshComparisonChoices();
       listen(element('revision-compare-form'), 'submit', event => { event.preventDefault(); compare(); });
       for (const select of [beforeSelect, afterSelect]) listen(select, 'change', () => clearComparison('Selection changed. Choose Compare captures to inspect these states.'));
-      let readonly = false;
       const readOnlyControl = element('revision-readonly');
       listen(readOnlyControl, 'change', () => { readonly = readOnlyControl.checked; surface.setReadOnly(readonly); });
       listen(element('revision-save'), 'click', () => { void save().catch(error => status(saveStatus, `Save failed: ${error.message}. Keep this page open and retry.`, 'error')); });

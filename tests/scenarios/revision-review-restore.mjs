@@ -42,7 +42,7 @@ export async function restoreCases({ page, server, facts, check, output }) {
       window.restoreProof = { owner: w.owner, engine: w.owner.engine, surface: w.surface, commits: [] };
       // Observe the real owner's updates; no product commit, engine or storage method is replaced.
       window.restoreProof.subscription = w.owner.engine.subscribe({ type: 'updates' }, patch => {
-        if (patch.update) window.restoreProof.commits.push({ origin: patch.update.origin, sequence: patch.update.sequence });
+        if (patch.update) window.restoreProof.commits.push({ origin: patch.origin, sequence: patch.sequence });
       });
     }, moduleURL);
     sibling = await page.evaluate(async moduleURL => (await import('/fixture/oracles.mjs')).liveOracle((await import(moduleURL)).instances.comment), moduleURL);
@@ -72,9 +72,11 @@ export async function restoreCases({ page, server, facts, check, output }) {
     assert.equal(restored.text, original); assert.deepEqual(identities(restored.snapshot), identities(before.snapshot));
     assert.equal(restored.snapshot.revision, before.snapshot.revision + 1);
     assert.equal(restored.journalUpdates, before.journalUpdates + 1);
+    const restoreRecord = JSON.parse(restored.journal).updates.at(-1);
+    assert.equal(restoreRecord.origin, 'editac:local:history-restore');
     assert.notEqual(restored.checkpoint, before.checkpoint);
     assert.equal(await sameOwner(), true);
-    assert.deepEqual(await page.evaluate(() => window.restoreProof.commits.map(update => update.origin)), ['history-restore']);
+    assert.deepEqual(await page.evaluate(() => window.restoreProof.commits.map(update => update.origin)), ['editac:local:history-restore']);
     assert.equal(await button('Apply restore as new edit').count(), 0);
     assert.equal(await page.locator('#revision-editor').innerText(), original);
     const actualSibling = await page.evaluate(async moduleURL => (await import('/fixture/oracles.mjs')).liveOracle((await import(moduleURL)).instances.comment), moduleURL);
@@ -97,10 +99,11 @@ export async function restoreCases({ page, server, facts, check, output }) {
     facts.oracles.redone = redone;
   });
   await check('normal-edit-follows-restore', async () => {
-    // A subsequent ordinary edit must form its own group, retaining the accepted restore below it.
+    // A single ordinary keystroke must undo independently, retaining the accepted restore below it.
+    // Multiple keyboard.type characters can legitimately form separate normal undo groups.
     await page.locator('#revision-editor [data-node-id]').first().click(); await page.keyboard.press('Meta+ArrowRight');
-    await page.keyboard.type(' Additional edit.'); await call('save');
-    assert.equal((await observe()).text, original + ' Additional edit.');
+    await page.keyboard.type('!'); await call('save');
+    assert.equal((await observe()).text, original + '!');
     await page.keyboard.press('Meta+z'); await call('save');
     assert.equal((await observe()).text, original);
     facts.oracles.beforeReopen = await observe();
