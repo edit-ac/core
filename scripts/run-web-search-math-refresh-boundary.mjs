@@ -3,6 +3,7 @@ import { mkdirSync, openSync, closeSync, readFileSync, writeFileSync } from 'nod
 import { resolve, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { hash } from './editing-coverage.mjs';
+import { admitImmutableSdk } from './immutable-sdk-admission.mjs';
 import { requireTestNode } from './test-toolchain.mjs';
 
 // Compose both original boundaries over one authenticated current SDK build.
@@ -13,24 +14,25 @@ const output = resolve(process.env.EDITAC_WEB_SEARCH_MATH_REFRESH_OUTPUT);
 mkdirSync(output);
 const json = path => JSON.parse(readFileSync(path, 'utf8'));
 const save = (name, value) => writeFileSync(join(output, name), JSON.stringify(value, null, 2) + '\n');
-const current = resolve(process.env.EDITAC_WEB_SEARCH_MATH_REFRESH_BUILD ??
-  '../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4p-ai');
-const sources = json(join(current, 'runtime-source-pins.json'));
-const members = json(join(current, 'package-runtime-pins.json'));
+const admissionPath = resolve(process.env.EDITAC_PRODUCT_SDK_ADMISSION ??
+  '../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-filename-current/admission.json');
+const admitted = admitImmutableSdk(admissionPath);
+const sources = admitted.sources, members = admitted.runtime;
+// Preserve the original child dispatchers and their existing build interface.
+// Admission verifies archive contents before they pack the same runtime bytes.
+const childAdmission = join(output, 'admitted-build');
+mkdirSync(join(childAdmission, 'run-1'), { recursive: true });
+writeFileSync(join(childAdmission, 'run-1/source-pins.json'), JSON.stringify(sources, null, 2) + '\n');
+writeFileSync(join(childAdmission, 'package-runtime-pins.json'), JSON.stringify(members, null, 2) + '\n');
 const verify = pins => {
   assert.ok(Object.keys(pins).length);
   for (const [path, expected] of Object.entries(pins))
     assert.equal(hash(readFileSync(path)), expected, 'Changed admitted input: ' + path);
 };
-verify(sources); verify(members);
-const admission = join(output, 'admission');
-mkdirSync(join(admission, 'run-1'), { recursive: true });
-writeFileSync(join(admission, 'run-1/source-pins.json'), JSON.stringify(sources, null, 2) + '\n');
-writeFileSync(join(admission, 'package-runtime-pins.json'), JSON.stringify(members, null, 2) + '\n');
-save('build-admission.json', { current, sources, members,
+save('build-admission.json', { sdkAdmission: admitted.receipt, sources, members,
   runner: { path: 'scripts/run-web-search-math-refresh-boundary.mjs',
     sha256: hash(readFileSync('scripts/run-web-search-math-refresh-boundary.mjs')) } });
-const execution = { task: 'WFE-3.1-C7-2', originalParents: ['WFE-3.1-I1', 'WFE-3.1-V1'],
+const execution = { task: 'WFE-3.1-C9-2', originalParents: ['WFE-3.1-I1', 'WFE-3.1-V1'],
   started: new Date().toISOString(), commands: [], receipts: [], failures: [] };
 try {
   for (const [name, key] of [['search-code', 'SEARCH_CODE'], ['math-reorder', 'MATH_REORDER']]) {
@@ -38,7 +40,7 @@ try {
     const fd = openSync(join(output, name + '.log'), 'wx'); let result;
     try {
       result = spawnSync(process.execPath, [script], { stdio: ['ignore', fd, fd], env: {
-        ...process.env, [`EDITAC_WEB_${key}_BUILD`]: admission, [`EDITAC_WEB_${key}_OUTPUT`]: directory,
+        ...process.env, [`EDITAC_WEB_${key}_BUILD`]: childAdmission, [`EDITAC_WEB_${key}_OUTPUT`]: directory,
       } });
     } finally { closeSync(fd); }
     const command = { program: process.execPath, args: [script], output: directory,
