@@ -1,0 +1,132 @@
+import { openEditorStorage, mountEditorSurface, WebHistoryStore, HistoryReview } from '@edit-ac/web';
+import { localOptions } from './document.mjs';
+
+export const limits = Object.freeze({ maxRevisions: 3, maxBytes: 24 * 1024, maxRevisionBytes: 12 * 1024 });
+export let workspace;
+export const instances = {};
+const taskRoot = document.querySelector('.workspace');
+const commentRoot = taskRoot.cloneNode(true);
+for (const node of commentRoot.querySelectorAll('[id]')) node.id = `comment-${node.id}`;
+for (const node of commentRoot.querySelectorAll('[for], [aria-labelledby]')) {
+  for (const attr of ['for', 'aria-labelledby']) if (node.hasAttribute(attr)) node.setAttribute(attr, `comment-${node.getAttribute(attr)}`);
+}
+commentRoot.querySelector('h2').textContent = 'Live comment';
+taskRoot.before(Object.assign(document.createElement('h2'), { textContent: 'Task' }));
+taskRoot.after(Object.assign(document.createElement('h2'), { textContent: 'Comment' }), commentRoot);
+const stylesReady = (async () => {
+  // The unchanged fixture server uses a JS MIME fallback for CSS.
+  const response = await fetch(new URL('./revision-review.css', import.meta.url));
+  if (!response.ok) throw Error('Unable to load revision review styles');
+  const style = document.createElement('style'); style.textContent = await response.text(); document.head.append(style);
+})();
+async function mountInstance(name, root, prefix) {
+  let workspace;
+  const element = id => root.querySelector(`#${prefix}${id}`);
+  const saveStatus = element('revision-save-status');
+  const captureStatus = element('revision-capture-status');
+  const controls = ['revision-save', 'revision-name', 'revision-capture'].map(element);
+  let closed = false, pending = false;
+  const listeners = [];
+  function listen(target, type, handler) { target.addEventListener(type, handler); listeners.push(() => target.removeEventListener(type, handler)); }
+  function status(target, message, state = 'ready') { target.textContent = message; target.dataset.state = state; }
+  function usage() {
+    const { revisions, bytes } = workspace.store.usage;
+    element('revision-usage').textContent = `${revisions} / ${limits.maxRevisions} captures · ${bytes} / ${limits.maxBytes} encoded bytes`;
+  }
+  async function save() {
+    if (closed) throw Error('This review is closed; reopen it before saving');
+    await workspace.surface.settle();
+    await workspace.owner.flush({ target: 'local' });
+    status(saveStatus, 'Live document saved locally. Temporary captures are not saved.');
+  }
+  async function capture(label) {
+    if (closed || pending) throw Error('Capture workspace is unavailable or busy');
+    const name = label.trim();
+    if (!name || name.length > 80) throw Error('Enter a capture name of 1–80 characters');
+    pending = true; element('revision-capture').disabled = true;
+    try {
+      await workspace.surface.settle();
+      const handle = await workspace.store.capture(workspace.owner.engine, workspace.access(), name);
+      if (closed) return;
+      workspace.review.refresh(); workspace.review.inspect(handle); usage();
+      status(captureStatus, `Captured “${name}” in memory. Older captures may have been pruned.`);
+      return handle;
+    } finally { pending = false; if (!closed) element('revision-capture').disabled = false; }
+  }
+  async function close() {
+    if (closed) return;
+    // A failed flush leaves the owner and view available for retry rather than dropping edits.
+    await save();
+    closed = true; root.dataset.lifecycle = 'closing';
+    for (const remove of listeners.splice(0)) remove();
+    root.querySelectorAll('input,button').forEach(control => { control.disabled = true; });
+    status(saveStatus, 'Review closed. Reopen to recover saved live content; captures are memory only.');
+    workspace.review.destroy(); await workspace.surface.dispose();
+    await workspace.owner.destroy({ policy: 'flush' });
+    root.dataset.lifecycle = 'closed';
+  }
+  return await (async () => {
+    let owner, surface, review;
+    try {
+      await stylesReady;
+      const options = await localOptions(name === 'task' ? 'revision-review' : 'revision-review-comment', undefined, { text: name === 'task' ? 'Write the next version here.' : 'Write a comment here.' });
+      owner = await openEditorStorage(options);
+      surface = mountEditorSurface(element('revision-editor'), owner.engine, { ...options, storageOwner: owner, label: `Live ${name} revision document` });
+      await surface.ready;
+      const access = () => ({ scope: { identity: options.identity, moduleProfile: `revision-review-${name}-v1` } });
+      const store = new WebHistoryStore(limits);
+      review = new HistoryReview(element('revision-history'), store, access, { pageSize: 3, maxValueChars: 4096 });
+      workspace = { owner, surface, review, store, access, options, save, capture, close, get closed() { return closed; }, get readonly() { return readonly; } };
+      let readonly = false;
+      const readOnlyControl = element('revision-readonly');
+      listen(readOnlyControl, 'change', () => { readonly = readOnlyControl.checked; surface.setReadOnly(readonly); });
+      listen(element('revision-save'), 'click', () => { void save().catch(error => status(saveStatus, `Save failed: ${error.message}. Keep this page open and retry.`, 'error')); });
+      listen(element('revision-capture-form'), 'submit', event => {
+        event.preventDefault();
+        void capture(element('revision-name').value).catch(error => status(captureStatus, `Capture failed: ${error.message}. Live content is unchanged; shorten the document or name and try again.`, 'error'));
+      });
+      listen(element('revision-editor'), 'input', () => status(saveStatus, 'Live changes are being journaled locally. Use Save locally to confirm.'));
+      controls.forEach(control => { control.disabled = false; });
+      element('revision-name').value = '';
+      status(captureStatus, 'No captures retained in this review. Capture the current state explicitly; closed captures are unavailable.');
+      usage(); status(saveStatus, 'Local document ready. Use Save locally to confirm saved edits.');
+      listen(element('revision-close'), 'click', () => { void close().then(() => { element('revision-reopen').disabled = false; }).catch(error => status(saveStatus, `Close failed: ${error.message}. Retry saving.`, 'error')); });
+      return workspace;
+    } catch (error) {
+      review?.destroy(); await surface?.dispose(); await owner?.destroy({ policy: 'report' });
+      status(saveStatus, `Unable to open revision review: ${error.message}. Reload to retry; existing local data is retained.`, 'error');
+      throw error;
+    }
+  })();
+}
+export async function remount(name) {
+  if (!['task', 'comment'].includes(name)) throw Error('Unknown review instance');
+  const old = instances[name];
+  if (old && !old.closed) throw Error('Close this instance before reopening');
+  const root = name === 'task' ? taskRoot : commentRoot;
+  const prefix = name === 'task' ? '' : 'comment-';
+  if (root.dataset.lifecycle === 'opening') throw Error('This review is already opening');
+  root.dataset.lifecycle = 'opening';
+  root.querySelector(`#${prefix}revision-editor`).replaceChildren();
+  root.querySelector(`#${prefix}revision-readonly`).checked = false;
+  root.querySelector(`#${prefix}revision-readonly`).disabled = true;
+  root.querySelector(`#${prefix}revision-close`).disabled = true;
+  root.querySelector(`#${prefix}revision-reopen`).disabled = true;
+  try { instances[name] = await mountInstance(name, root, prefix); }
+  catch (error) { root.dataset.lifecycle = 'failed'; root.querySelector(`#${prefix}revision-reopen`).disabled = false; throw error; }
+  root.querySelector(`#${prefix}revision-readonly`).disabled = false;
+  root.querySelector(`#${prefix}revision-close`).disabled = false;
+  instances[name].owner.engine.read(); // Advertise readiness only while the public owner is live.
+  root.dataset.lifecycle = 'ready';
+  if (name === 'task') workspace = instances[name];
+  return instances[name];
+}
+for (const [name, root, prefix] of [['task', taskRoot, ''], ['comment', commentRoot, 'comment-']]) {
+  root.querySelector(`#${prefix}revision-reopen`).addEventListener('click', () => { void remount(name).catch(error => { root.querySelector(`#${prefix}revision-save-status`).textContent = `Reopen failed: ${error.message}. Retry.`; }); });
+}
+export const save = () => instances.task.save();
+export const capture = label => instances.task.capture(label);
+export const close = async () => { for (const instance of Object.values(instances)) await instance.close(); };
+export const ready = Promise.all([remount('task'), remount('comment')]).then(() => workspace);
+// Report initialization through the visible status without an unhandled rejection.
+void ready.catch(() => {});

@@ -1,0 +1,73 @@
+{
+  "scope": "Local installed-SDK revision-review product; prepared content, real browser editing and IndexedDB. No provider, deployment, device or archive qualification.",
+  "scenarios": {
+    "capture": {
+      "parent": "RVP-1.1",
+      "command": [
+        "node",
+        "tests/scenarios/revision-review-product.mjs"
+      ],
+      "engines": [
+        "chromium",
+        "firefox",
+        "webkit"
+      ],
+      "fixtures": [
+        "examples/task-editor/revision-review.html",
+        "examples/task-editor/revision-review.mjs",
+        "examples/task-editor/revision-review.css",
+        "examples/task-editor/document.mjs",
+        "fixtures/product-scenarios/revision-review/oracles.mjs",
+        "fixtures/product-scenarios/revision-review/manifest.json"
+      ],
+      "supportingSources": [
+        "examples/task-editor/revision-review-product.mjs",
+        "tests/scenarios/revision-review-capture.mjs"
+      ],
+      "cases": [
+        "installed-editable-explicit-capture",
+        "two-named-immutable-semantic-captures",
+        "inspection-preserves-live-engine-and-journal",
+        "fifo-count-pruning",
+        "encoded-byte-pruning",
+        "oversized-capture-error-preserves-history-and-live",
+        "saved-live-reopens-captures-do-not",
+        "default-routes-remain-disabled"
+      ]
+    },
+    "scope": {
+      "parent": "RVP-1.3",
+      "command": [
+        "node",
+        "tests/scenarios/revision-review-product.mjs"
+      ],
+      "engines": [
+        "chromium",
+        "firefox",
+        "webkit"
+      ],
+      "fixtures": [
+        "examples/task-editor/revision-review.html",
+        "examples/task-editor/revision-review.mjs",
+        "examples/task-editor/revision-review.css",
+        "examples/task-editor/document.mjs",
+        "fixtures/product-scenarios/revision-review/oracles.mjs",
+        "fixtures/product-scenarios/revision-review/manifest.json"
+      ],
+      "supportingSources": [
+        "examples/task-editor/revision-review-product.mjs",
+        "tests/scenarios/revision-review-scope.mjs"
+      ],
+      "cases": [
+        "simultaneous-independent-identities-and-journals",
+        "independent-capture-selection",
+        "foreign-handle-and-scope-denied",
+        "readonly-instance-keeps-sibling-editable",
+        "dispose-detaches-only-target-instance",
+        "sibling-save-and-reopen",
+        "remount-reopens-only-own-durable-document",
+        "scope-swap-preserves-live-bytes"
+      ]
+    }
+  }
+}
