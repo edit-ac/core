@@ -6,13 +6,32 @@ import { createHash } from 'node:crypto';
 const sha = value => createHash('sha256').update(value).digest('hex');
 export async function prepareMatchingConsumer(consumer, { output, facts, run }) {
   const fixture=resolve('tests/extension-dx/matching-consumer');
-  const pins=JSON.parse(await readFile('../architecture/evidence/extension-dx/contract-20261017/generated-artifacts.json','utf8'));
   facts.authenticatedRuntime=[];
-  for(const pin of pins.filter(pin=>!pin.member.includes('editac_markdown'))) {
-    const extracted=spawnSync('tar',['-xOf',pin.pack,pin.member],{maxBuffer:16*1024*1024});
-    assert.equal(extracted.status,0);assert.equal(sha(extracted.stdout),pin.authenticatedSha256);
-    await writeFile(join(consumer,'core/package',pin.member.replace('package/','')),extracted.stdout);
-    facts.authenticatedRuntime.push({member:pin.member,sha256:pin.authenticatedSha256,unchanged:true,assembledBeforeInstallation:true});
+  if (process.env.EDITAC_EDITING_PACKS) {
+    // The canonical feature harness supplies authenticated CURRENT packages.
+    // Preserve their WASM; an archived contract runtime would hide source drift.
+    const catalog=JSON.parse(await readFile(process.env.EDITAC_EDITING_PACKS,'utf8'));
+    const current=catalog.core;
+    assert.equal(sha(await readFile(current.path)),current.sha256);
+    assert.equal(facts.packs.find(pack=>pack.name==='core').sha256,current.sha256);
+    for (const member of ['package/dist/wasm/editac_wasm.js','package/dist/wasm/editac_wasm_bg.wasm']) {
+      const extracted=spawnSync('tar',['-xOf',current.path,member],{maxBuffer:16*1024*1024});
+      assert.equal(extracted.status,0);
+      const digest=sha(extracted.stdout);
+      assert.equal(sha(await readFile(join(consumer,'core/package',member.replace('package/','')))),digest);
+      facts.authenticatedRuntime.push({member,sha256:digest,unchanged:true,assembledBeforeInstallation:true});
+    }
+    facts.runtimeProvenance={mode:'canonical-current-packed-sdk',packageSha256:current.sha256,postAssemblyMutation:false};
+  } else {
+    // Retain historical standalone contract reproduction, explicitly labelled.
+    const pins=JSON.parse(await readFile('../architecture/evidence/extension-dx/contract-20261017/generated-artifacts.json','utf8'));
+    for(const pin of pins.filter(pin=>!pin.member.includes('editac_markdown'))) {
+      const extracted=spawnSync('tar',['-xOf',pin.pack,pin.member],{maxBuffer:16*1024*1024});
+      assert.equal(extracted.status,0);assert.equal(sha(extracted.stdout),pin.authenticatedSha256);
+      await writeFile(join(consumer,'core/package',pin.member.replace('package/','')),extracted.stdout);
+      facts.authenticatedRuntime.push({member:pin.member,sha256:pin.authenticatedSha256,unchanged:true,assembledBeforeInstallation:true});
+    }
+    facts.runtimeProvenance={mode:'historical-contract-runtime',postAssemblyMutation:true};
   }
   facts.testedPackages=[];
   for(const name of ['core','web']) {

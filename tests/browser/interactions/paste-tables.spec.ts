@@ -13,7 +13,8 @@ async function enter(page){const input=page.getByRole('textbox',{name:'Table row
 async function paste(page,flavors){await page.evaluate(flavors=>{const f=window.inputFixture,data=new DataTransfer();for(const [m,v]of Object.entries(flavors))data.setData(m,v);f.root.querySelector('[data-content-module="table"]').dispatchEvent(window.preparedClipboardEvent('paste',data));},flavors);}
 function table(s){return s.nodes.find(n=>n.blockAttributes?.[0]==='module:editac.table').blockAttributes;}
 function unchanged(a,b){for(const k of ['nodes','history','journal'])assert.deepEqual(b[k],a[k],k);}
-for(const text of ['**literal**','  one\ttwo  ','שלום é😀'])test(`PST-02 explicit literal cell ignores rich flavors and preserves ${JSON.stringify(text)}`,()=>probe(`PST-02-cell-literal-${text.length}`,async(page,fact)=>{
+for(const text of ['**literal**','  one\ttwo  ','שלום é😀'])test(`PST-02 explicit literal cell ignores rich flavors and preserves ${JSON.stringify(text)}`,()=>probe(`PST-02-cell-literal-${Buffer.from(text).toString('hex')}`,async(page,fact)=>{
+  fact.originalCaseName=`PST-02-cell-literal-${text.length}`;fact.literalInput=text;
   fact.caseIds=['PST-02'];await enter(page);await page.getByRole('checkbox',{name:'Paste cells as literal text'}).check();
   const before=await state(page,fact);await paste(page,{'text/html':'<p><b>wrong</b></p>','text/plain':text,'text/tab-separated-values':'a\tb\nc\td'});
   const after=await state(page,fact);const original=table(before),changed=table(after);
