@@ -16,7 +16,7 @@ export async function prepareProductSite(output, facts) {
   return paths;
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+async function previewProduct() {
   await requireTestNode();
   const output = resolve(root, '.artifacts/browser-product-preview', new Date().toISOString().replace(/[:.]/g, '-'));
   const facts = { output, commands: [], purpose: 'Local installed-SDK product preview' };
@@ -38,4 +38,10 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     console.log(`Local file controls: ${facts.formatControls}\nLocal command assistance: ${facts.commandAssistance}`);
     console.log(`Task/comment: ${server.url}/fixture/index.html\nReact tasks: ${server.url}/fixture/react.html?route=tasks\nDocument body: ${server.url}/fixture/react.html?route=document\nMarkdown (launch with --markdown): ${server.url}/fixture/index.html?markdown\nReadonly: ${server.url}/fixture/index.html?readonly\nStop: Ctrl+C (PID ${process.pid}, port ${server.port})\nArtifacts: ${output}`);
   } catch (error) { facts.failure = error.stack; await close(); throw error; }
+}
+
+// Finish evaluating this module before the optional launcher imports it back.
+// Awaiting that import at module scope leaves the Markdown startup cycle pending.
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  void previewProduct().catch(error => { console.error(error); process.exitCode = 1; });
 }
