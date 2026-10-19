@@ -11,7 +11,7 @@ export const EPOCH = '23456789-2345-4345-8345-23456789abcd';
 export const LIMITS = Object.freeze({ message: 8192, response: 1048576, pending: 8, timeout: 5000 });
 
 // Fixed executable + argument vector. No caller-supplied command, operation or path.
-export async function connectOwner({ executable, database, sdk, facts }) {
+export async function connectOwner({ executable, database, sdk, facts, capabilities = false }) {
   const sdkURL = pathToFileURL(join(sdk, 'host/index.js')).href;
   const { createHostAgent, createHostObserve } = await import(sdkURL);
   // Preserve the existing registration module verbatim, resolving its one bare import
@@ -47,12 +47,27 @@ export async function connectOwner({ executable, database, sdk, facts }) {
     queue.push(p); child.stdin.write(line, error => { if (error) fail(error); });
   });
   const context = Object.freeze({ prepared: true });
+  let mode = 'authorized';
   const access = { actorId:'agent-a', documentId:DOCUMENT, epoch:EPOCH, permissions:['read','observe'], readOnly:true };
-  const host = createHostAgent({ authorize: (c,id) => c === context && id === DOCUMENT && !dead ? access : null,
-    services: { observe: createHostObserve({ available: a => !dead && a.documentId === DOCUMENT && a.actorId === access.actorId && a.epoch === EPOCH,
+  const currentAccess = (c,id) => c === context && id === DOCUMENT && !dead && mode !== 'revoked'
+    ? { ...access, permissions: mode === 'readonly' ? ['read','observe','prepare','apply','receipt'] : mode === 'no-read' ? ['observe'] : access.permissions } : null;
+  const host = createHostAgent({ authorize: currentAccess,
+    services: { observe: createHostObserve({ available: a => !dead && mode !== 'unavailable' && a.documentId === DOCUMENT && a.actorId === access.actorId && a.epoch === EPOCH,
       revision: async a => (await send({ op:'observe', access:a })).revision }) } });
   let tools; registerHostAgent({ registerToolProvider(p) { tools = p; } }, host);
-  return { send, host, context, tools, async close() {
+  return { send, host, context, tools, database,
+    ...(capabilities ? {
+      configure(value) {
+        if (!['authorized','readonly','revoked','no-read','unavailable'].includes(value)) throw Error('Unknown prepared policy');
+        mode = value;
+      },
+      async inventory() {
+        const a = currentAccess(context,DOCUMENT);
+        return { prepared:true, mode, scope:a ? { actorId:a.actorId,documentId:a.documentId,epoch:a.epoch,readOnly:a.readOnly,permissions:a.permissions } : null,
+          tools:await tools.list(context,DOCUMENT) };
+      },
+      probe(operation,input) { return tools.call(`editac_v1_${operation}`,input,context); },
+    } : {}), async close() {
     if (!facts.owner.closed) {
       child.stdin.end(); const timer = setTimeout(() => child.kill('SIGTERM'), 1000);
       await exit; clearTimeout(timer);
@@ -70,7 +85,7 @@ export async function startBridgeServer(options, owner, facts) {
     requests.push({ path, method:req.method }); if (requests.length > 128) requests.shift();
     if (req.headers.host !== new URL(origin).host || (req.headers.origin && req.headers.origin !== origin) || req.headers['sec-fetch-site'] === 'cross-site') return reply(403,{ error:'Local origin required' });
     if (path === '/bridge.json' && req.method === 'GET') return reply(200,{ token, documentId:DOCUMENT, epoch:EPOCH });
-    if (path === '/bridge/observe') {
+    if (path === '/bridge/observe' || (owner.inventory && ['/bridge/inventory','/bridge/fixture','/bridge/probe'].includes(path))) {
       if (req.method !== 'POST') return reply(405,{ error:'POST required' });
       if (req.headers.origin !== origin || req.headers['x-host-fixture'] !== token || req.headers['content-type'] !== 'application/json') return reply(403,{ error:'Fixture context required' });
       if (active >= LIMITS.pending) return reply(429,{ error:'Pending limit' });
@@ -79,6 +94,21 @@ export async function startBridgeServer(options, owner, facts) {
       try {
         let body = ''; for await (const bytes of req) { body += bytes.toString(); if (Buffer.byteLength(body) > LIMITS.message) { reply(413,{ error:'Message limit' }); return; } }
         const input = JSON.parse(body);
+        if (owner.inventory && path !== '/bridge/observe') {
+          if (!input || Array.isArray(input)) return reply(400,{error:'Invalid fixture request'});
+          if (path === '/bridge/inventory') {
+            if (Object.keys(input).length) return reply(400,{error:'Inventory takes no arguments'});
+            return reply(200,await owner.inventory());
+          }
+          if (path === '/bridge/fixture') {
+            if (Object.keys(input).length !== 1 || typeof input.mode !== 'string') return reply(400,{error:'Expected prepared policy'});
+            owner.configure(input.mode); return reply(200,await owner.inventory());
+          }
+          if (Object.keys(input).length !== 2 || !Object.hasOwn(input,'arguments') || !['read','prepare','apply','receipt','observe','unknown'].includes(input.operation)) return reply(400,{error:'Invalid probe'});
+          const result = await owner.probe(input.operation,input.arguments);
+          if (!cancelled) reply(200,result.structuredContent);
+          return;
+        }
         if (!input || Array.isArray(input) || Object.keys(input).some(k => !['version','documentId','cursor'].includes(k)) || input.version !== 1 || input.documentId !== DOCUMENT || (input.cursor !== undefined && (typeof input.cursor !== 'string' || input.cursor.length > 512))) return reply(400,{ error:'Invalid observation request' });
         const result = await owner.call(input); if (!cancelled) reply(200,result.structuredContent);
       } catch { reply(400,{ error:'Request failed; outcome unknown' }); }

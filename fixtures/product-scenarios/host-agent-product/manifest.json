@@ -47,6 +47,32 @@
         "scope-and-inert-content",
         "actual-wasm-peer-unchanged"
       ]
+    },
+    "capabilities": {
+      "parent": "D24X-1.3",
+      "engines": [
+        "chromium",
+        "firefox",
+        "webkit"
+      ],
+      "modelCases": [
+        "live-registered-inventory",
+        "missing-services-and-unknown",
+        "stale-list-revoked-at-execution",
+        "permission-and-service-rechecked",
+        "scope-and-untrusted-arguments",
+        "fixture-transport-admission",
+        "independent-session-journal-identity"
+      ],
+      "browserCases": [
+        "visible-live-scope-and-tools",
+        "readonly-and-missing-outcomes",
+        "stale-inventory-revocation",
+        "permission-unavailability-and-recovery",
+        "inert-prose-and-keyboard",
+        "unknown-transport-clears-stale-inventory",
+        "actual-owner-wasm-history-unchanged"
+      ]
     }
   }
 }
