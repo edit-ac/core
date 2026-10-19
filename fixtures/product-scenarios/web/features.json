@@ -534,10 +534,127 @@
           "symbol": "embedPresenters"
         }
       ],
-      "oracles": "Marked fallback/caption and full descriptor/source survive rich copy and history; late/disposed surface cannot commit.",
+      "oracles": "Stable descriptor/source and marked fallback survive copy/history and durable reopen; host-only image/blob lifecycle, reauthorization, cancellation, retirement and late/disposed ownership retain data and never auto-activate files/embeds.",
       "proofs": [
         {
-          "id": "wex-1.4",
+          "id": "wfe-3.1-c4c-inline-media",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "asset-ready",
+            "vector.svg",
+            "animated.gif",
+            "animated.png",
+            "huge.png",
+            "malformed.png",
+            "crc.png",
+            "inflate.png",
+            "state-offline",
+            "state-locked",
+            "state-missing",
+            "state-queued",
+            "state-revoked",
+            "state-failed",
+            "wrongIdentity",
+            "wrongOperation",
+            "noRead",
+            "encoded-cap",
+            "pixel-cap",
+            "disabled",
+            "legacy",
+            "cancel-resolve",
+            "timeout",
+            "repeat-disposal",
+            "concurrency",
+            "jpeg",
+            "retry",
+            "retire-pending",
+            "cancel-fetch",
+            "url-javascript%3Aalert(1)",
+            "url-https%3A%2F%2Fuser%3Asecret%40assets.invalid%2Fpixel.png",
+            "url-http%3A%2F%2Fassets.invalid%2Fpixel.png",
+            "host-error",
+            "stable-copy",
+            "pdf-inert",
+            "observe-local",
+            "observe-queued",
+            "observe-available",
+            "observe-failed",
+            "observe-missing",
+            "observe-revoked",
+            "observe-locked",
+            "observe-offline",
+            "observe-forbidden",
+            "action-Open file",
+            "action-Download file",
+            "authority-offline",
+            "authority-locked",
+            "authority-forbidden",
+            "authority-revoked",
+            "authority-queued",
+            "authority-missing",
+            "authority-failed",
+            "grant-wrongIdentity",
+            "grant-noAction",
+            "grant-downloadOnly",
+            "authority-change",
+            "result-wrongOperation",
+            "result-wrongAction",
+            "result-wrongResultIdentity",
+            "result-throwAuth",
+            "result-throwEffect",
+            "result-result",
+            "missing-host",
+            "wrong-observation",
+            "copy",
+            "keyboard",
+            "dispose-Auth",
+            "dispose-Effect",
+            "retire",
+            "replace",
+            "opaque-executable",
+            "repeated",
+            "clipboard-roundtrip",
+            "passive",
+            "card",
+            "activate",
+            "unavailable",
+            "forbidden",
+            "missing",
+            "locked",
+            "unsupported",
+            "canceled",
+            "stale",
+            "expired",
+            "wrongPolicy",
+            "wrongProvider",
+            "wrongTarget",
+            "hugeTitle",
+            "media",
+            "throw",
+            "noHost",
+            "noTemplate",
+            "denied",
+            "readonly",
+            "permission-change",
+            "session-change",
+            "disposed-pending",
+            "remote-replace",
+            "deleted",
+            "noLookup",
+            "hostReadonly",
+            "unsafe-javascript%3Aalert(1)",
+            "unsafe-http%3A%2F%2Fcontent.invalid%2F",
+            "unsafe-https%3A%2F%2Fuser%3Apassword%40content.invalid%2F",
+            "unsafe-https%3A%2F%2Fcontent.invalid%2F%250a",
+            "registration"
+          ]
+        },
+        {
+          "id": "wfe-3.1-c2d-rich-transfer",
           "engines": [
             "chromium",
             "firefox",
@@ -560,8 +677,7 @@
           ]
         }
       ],
-      "nextAction": "Repair or authenticate the exact changed owner inputs reported by the ledger, then reuse the existing named dispatcher. No unchanged failed-check retry.",
-      "gap": "Authenticate existing image-lifecycle, attachment-actions and controlled-embeds presenter/lifecycle receipts; caption transfer is only their transfer prerequisite."
+      "nextAction": "Repair or authenticate the exact changed owner inputs reported by the ledger, then reuse the existing named dispatcher. No unchanged failed-check retry."
     },
     {
       "id": "WEB-SLASH",
@@ -2923,6 +3039,55 @@
         {
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4b-math-reorder/run-4/source-pins.json",
           "sha256": "4c1d74eab1aea5ca69e568781cf6522f38fdc7b1ed28226d56bdce8ce7fdbbf5"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c4c-inline-media",
+      "owner": "PRIMARY current-source binding; original presenters remain PARALLEL-owned",
+      "command": "node scripts/run-web-inline-media-boundary.mjs; cargo test -p editac-session --test asset_lifecycle --features native-store --locked",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4c-inline-media/run-1/source-pins.json",
+          "sha256": "9b19eaa65edf6adad65bda5fd81dd4a65b46109ece395af41006593597aaff22"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4c-inline-media/run-1/attachment-actions/chromium/receipt.json",
+          "sha256": "0e7be291ecb44f407d9e87668387c848b047171223c6773c39a38a4789d3f975"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4c-inline-media/run-1/attachment-actions/firefox/receipt.json",
+          "sha256": "311363373a1461a0629db1c1bf3e1bf2a5a86ec2190a232f52007200ad6d3870"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4c-inline-media/run-1/attachment-actions/webkit/receipt.json",
+          "sha256": "2107b85ac827ef25ff02f9fc29c77e45ce67ba2c823e396af2d80161bf3c2a94"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4c-inline-media/run-1/controlled-embeds/chromium/receipt.json",
+          "sha256": "f2b61023518ba904100639ddf089eaed932561d8324b32f2ceef86008f424891"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4c-inline-media/run-1/controlled-embeds/firefox/receipt.json",
+          "sha256": "9607487cbd48e4e80c5375168971535b2708a4caf528228db4083641810af2bd"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4c-inline-media/run-1/controlled-embeds/webkit/receipt.json",
+          "sha256": "5a97aa127f13676837d77e8a9dce861a02a4ff67997b797915b312ca43257514"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4c-inline-media/run-1/image-lifecycle/chromium/receipt.json",
+          "sha256": "4dec59b8420a1b807497c9cf028bce7db6f31e6c76557e0f77c965ffd10f495f"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4c-inline-media/run-1/image-lifecycle/firefox/receipt.json",
+          "sha256": "c3c15ead2c982c5c8ccb1b208538bc7815f0eeba2f23512baba4e5e95aff777e"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4c-inline-media/run-1/image-lifecycle/webkit/receipt.json",
+          "sha256": "9910bfe803736eb13227df2c4f1a1acecdba5e83190b45578042ed5556ddec81"
         }
       ]
     }
