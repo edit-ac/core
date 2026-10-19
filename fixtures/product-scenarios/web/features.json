@@ -3590,7 +3590,7 @@
       "id": "WEB-LOCAL",
       "parent": "WFE-3.1",
       "family": "local-persistence",
-      "requirement": "PWE-1.4/1.5 local save/reopen/offline shell and corruption/denial recovery",
+      "requirement": "PWE-1.4/1.5 full original local save/reopen/offline shell and corruption/denial/unsaved recovery workflow",
       "owner": "PRIMARY",
       "enabled": "default or host-selected",
       "apis": [
@@ -3608,22 +3608,68 @@
       "oracles": "Actual IndexedDB reopen of distinct identities, denied/missing/corrupt checkpoints never reseed, failed append retains live unsaved content and deliberate isolated recovery bytes.",
       "proofs": [
         {
-          "id": "pwe-1.5",
+          "id": "wfe-3.1-readonly-web-task-workspace",
           "engines": [
             "chromium",
             "firefox",
             "webkit"
           ],
           "cases": [
+            "dispatcher-rejects-invalid-inputs",
+            "distinct-documents-stores-callbacks",
+            "focus-edit-undo-isolation",
+            "task-rich-presenters",
+            "comment-capability-denial",
+            "readonly-admission-and-revocation",
+            "sibling-survives-disposal",
+            "isolated-error-callback"
+          ]
+        },
+        {
+          "id": "wfe-3.1-readonly-web-react-routes",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "dispatcher-rejects-invalid-inputs",
+            "mixed-task-first",
+            "mixed-comment-first",
+            "equal-task-first",
+            "equal-comment-first",
+            "strictmode-route-restore",
+            "readonly-authority",
+            "sibling-survives-disposal",
+            "dispose-during-loading",
+            "scoped-recovery-error",
+            "installed-common-resources"
+          ]
+        },
+        {
+          "id": "wfe-3.1-readonly-web-local-recovery",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "dispatcher-rejects-invalid-inputs",
             "independent-local-commits",
             "offline-shell-reload-reopen",
+            "pending-and-local-status",
+            "readonly-revocation-preserves-content",
             "append-failure-keeps-live-replica",
+            "deliberate-isolated-recovery-export",
+            "close-retains-unsaved-recovery",
+            "creation-denial-never-reseeds",
+            "existing-open-denial-preserves-content",
             "missing-checkpoint-never-reseeds",
             "corrupt-checkpoint-never-reseeds"
           ]
         }
       ],
-      "nextAction": "Repair or authenticate the exact changed owner inputs reported by the ledger, then reuse the existing named dispatcher. No unchanged failed-check retry."
+      "nextAction": "Full original local workflow bound to accepted exact-input C4l installed SDK/WASM/IndexedDB proof; recheck changed inputs only. Full feature ledger and alpha remain separate."
     },
     {
       "id": "WEB-READONLY",
