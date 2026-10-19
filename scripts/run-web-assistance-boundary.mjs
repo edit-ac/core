@@ -30,10 +30,12 @@ const execution = { task: 'WFE-3.1-C4k', originalParents: ['WFE-3.1-I1', 'WFE-3.
   feature: 'WEB-ASSISTANCE', node: process.version, npm: '11.17.0', started: new Date().toISOString(),
   commands: [], receipts: [], failures: [] };
 try {
-  const runtime = json(join(base, 'c2c-tables/runtime-source-pins.json'));
-  const members = json(join(base, 'c4j-touch/package-runtime-pins.json'));
+  const current = resolve(process.env.EDITAC_WEB_ASSISTANCE_BUILD ?? join(base, 'c4o-10'));
+  const runtime = json(join(current, 'runtime-source-pins.json'));
+  const members = json(join(current, 'package-runtime-pins.json'));
   verify(runtime); verify(members);
-  const packages = json(join(base, 'c4j-touch/run-1/packages.json'));
+  const catalog = json(join(current, 'run-1/packages.json'));
+  const packages = Object.fromEntries(['core', 'web', 'markdown'].map(name => [name, catalog[name]]));
   for (const [name, pack] of Object.entries(packages)) {
     assert.equal(hash(readFileSync(pack.path)), pack.sha256);
     assert.equal(pack.manifest.name, '@edit-ac/' + name);

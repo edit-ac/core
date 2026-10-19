@@ -2851,7 +2851,7 @@
       "oracles": "Prepared host packets through actual Session/WASM/IndexedDB, exact UTF-16 text, capture invalidation, permission/cancel/recovery and independent presenter ownership.",
       "proofs": [
         {
-          "id": "wfe-3.1-assistive-dictation",
+          "id": "wfe-3.1-c4o-11-assistive-dictation",
           "engines": [
             "chromium",
             "firefox",
@@ -2916,7 +2916,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-assistive-presenter",
+          "id": "wfe-3.1-c4o-11-assistive-presenter",
           "engines": [
             "chromium",
             "firefox",
@@ -6902,6 +6902,56 @@
         {
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-10/run-1/firefox/toolbar/receipt.json",
           "sha256": "5e91000f3ae8813b5740a9791f608cccd9f09c98ac3d9028d77f7a9d6abd858c"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c4o-11-assistive-dictation",
+      "owner": "PRIMARY baseline browser assistance public SDK",
+      "command": "EDITAC_WEB_ASSISTANCE_OUTPUT=.../c4o-11/run-1 node scripts/run-web-assistance-boundary.mjs; original node scripts/test-browser.mjs assistive-dictation",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-11/run-1/source-pins.json",
+          "sha256": "cf7eda90c8e471a5d99380855e3689c7bbd4d98d3cab4381a8081cf4faed14c5"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-11/run-1/assistive-dictation/chromium/receipt.json",
+          "sha256": "b6f1c31c668371e91095ef931ae51f7a4b6b76b5a513cdbbf0f15c874718c205"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-11/run-1/assistive-dictation/firefox/receipt.json",
+          "sha256": "b308a70750a1fbd06f8fb8e8d76df5d14767af333e921fd6225a882429c9ef2d"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-11/run-1/assistive-dictation/webkit/receipt.json",
+          "sha256": "4d58eacbeee8816674c2d9a5aada2dc532fbf670c6d5dfb804ebbfdd14860892"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c4o-11-assistive-presenter",
+      "owner": "PRIMARY baseline browser assistance public SDK",
+      "command": "EDITAC_WEB_ASSISTANCE_OUTPUT=.../c4o-11/run-1 node scripts/run-web-assistance-boundary.mjs; original node scripts/test-browser.mjs assistive-presenter",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-11/run-1/source-pins.json",
+          "sha256": "cf7eda90c8e471a5d99380855e3689c7bbd4d98d3cab4381a8081cf4faed14c5"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-11/run-1/assistive-presenter/chromium/receipt.json",
+          "sha256": "5a13b572fe41b932a238c41b34050a861ebcab32ecfe2846216bf11c16fa9452"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-11/run-1/assistive-presenter/firefox/receipt.json",
+          "sha256": "2ed2fca340ee1d871742106ba34a1180c7fd0d9c7d63f6c18d913457a8f783bc"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-11/run-1/assistive-presenter/webkit/receipt.json",
+          "sha256": "0045e8fcabc20adf791d6602753ffe72d88fcc3a7746ac5eabaee5a8de00832c"
         }
       ]
     }
