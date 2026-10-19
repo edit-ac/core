@@ -1,3 +1,4 @@
+import { baselineOwner } from './baseline-owner.mjs';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import { randomBytes } from 'node:crypto';
@@ -11,9 +12,9 @@ export const EPOCH = '23456789-2345-4345-8345-23456789abcd';
 export const LIMITS = Object.freeze({ message: 8192, response: 1048576, pending: 8, timeout: 5000 });
 
 // Fixed executable + argument vector. No caller-supplied command, operation or path.
-export async function connectOwner({ executable, database, sdk, facts, capabilities = false, read = false, human = false }) {
+export async function connectOwner({ executable, database, sdk, facts, capabilities = false, read = false, human = false, baseline = false }) {
   const sdkURL = pathToFileURL(join(sdk, 'host/index.js')).href;
-  const { createHostAgent, createHostObserve, createHostMarkdown } = await import(sdkURL);
+  const { createHostAgent, createHostObserve, createHostMarkdown, createHostPrepare } = await import(sdkURL);
   // Preserve the existing registration module verbatim, resolving its one bare import
   // to the authenticated installed public SDK instead of the lane's node_modules.
   const registerSource = await readFile(join(root,'examples/host-mcp/register.mjs'), 'utf8');
@@ -48,9 +49,9 @@ export async function connectOwner({ executable, database, sdk, facts, capabilit
   });
   const context = Object.freeze({ prepared: true });
   let mode = 'authorized';
-  const access = { actorId:'agent-a', documentId:DOCUMENT, epoch:EPOCH, permissions:['read','observe'], readOnly:true };
+  const access = { actorId:'agent-a', documentId:DOCUMENT, epoch:EPOCH, permissions:baseline ? ['read','observe','prepare'] : ['read','observe'], readOnly:!baseline };
   const currentAccess = (c,id) => c === context && id === DOCUMENT && !dead && mode !== 'revoked'
-    ? { ...access, permissions: mode === 'readonly' ? ['read','observe','prepare','apply','receipt'] : mode === 'no-read' ? ['observe'] : access.permissions } : null;
+    ? { ...access, readOnly:mode === 'readonly' || access.readOnly, permissions: mode === 'readonly' ? ['read','observe','prepare','apply','receipt'] : mode === 'no-read' ? ['observe'] : access.permissions } : null;
   const available = a => !dead && mode !== 'unavailable' && mode !== 'revoked' && mode !== 'no-read'
     && a.documentId === DOCUMENT && a.actorId === access.actorId && a.epoch === EPOCH && a.permissions.includes('read');
   const markdown = read ? createHostMarkdown({
@@ -64,11 +65,28 @@ export async function connectOwner({ executable, database, sdk, facts, capabilit
     prepare() { throw Error('Preparation unavailable'); },
     release(target) { void send({ op:'release',target }).catch(() => {}); },
   }, { limits:{ maxSourceBytes:16384,maxBaselines:8 } }) : null;
+  const lifecycle = baseline ? baselineOwner({createHostPrepare,send,available,onCapture:target=>{ facts.baselineTargets ??= []; facts.baselineTargets.push(target); if(facts.baselineTargets.length>32)facts.baselineTargets.shift(); },access:()=>currentAccess(context,DOCUMENT)}) : null;
   const host = createHostAgent({ authorize: currentAccess,
-    services: { ...(markdown ? {read:markdown.services.read} : {}), observe: createHostObserve({ available: a => !dead && mode !== 'unavailable' && a.documentId === DOCUMENT && a.actorId === access.actorId && a.epoch === EPOCH,
+    services: { ...(lifecycle ? lifecycle.services : markdown ? {read:markdown.services.read} : {}), observe: createHostObserve({ available: a => !dead && mode !== 'unavailable' && a.documentId === DOCUMENT && a.actorId === access.actorId && a.epoch === EPOCH,
       revision: async a => (await send({ op:'observe', access:a })).revision }) } });
   let tools; registerHostAgent({ registerToolProvider(p) { tools = p; } }, host);
-  return { send, host, context, tools, database,
+  return { send, host, context, tools, database, lifecycle,
+    ...(lifecycle ? { async baseline(input) {
+      if (!input || Array.isArray(input)) throw Error('Invalid baseline action');
+      if (input.action === 'capture' && Object.keys(input).length === 2) {
+        const generation = lifecycle.generation;
+        if (input.generation !== generation) return {status:'rejected',code:'expired'};
+        const result = (await tools.call('editac_v1_read',{version:1,documentId:DOCUMENT,representation:'source'},context)).structuredContent;
+        const a = currentAccess(context,DOCUMENT);
+        return result.status === 'ok' && typeof result.data?.source === 'string' && a && generation === lifecycle.generation
+          ? {status:'captured',baseline:{...result.data,actorId:a.actorId,documentId:a.documentId,epoch:a.epoch,generation}}
+          : {status:'rejected',code:result.data?.code ?? result.code ?? 'expired'};
+      }
+      if (input.action === 'check' && Object.keys(input).length === 2) return lifecycle.check(input.baseline);
+      if (input.action === 'release' && Object.keys(input).length === 1) { await lifecycle.reset(); return {status:'released',generation:lifecycle.generation}; }
+      if (input.action === 'expire' && Object.keys(input).length === 1) { lifecycle.expire(); return {status:'expired'}; }
+      throw Error('Invalid baseline action');
+    } } : {}),
     ...(human ? { async human(input) {
       if (!input || Array.isArray(input) || input.documentId !== DOCUMENT || input.epoch !== EPOCH || !available(access)) throw Error('Human scope unavailable');
       const keys = Object.keys(input).sort().join(',');
@@ -80,9 +98,10 @@ export async function connectOwner({ executable, database, sdk, facts, capabilit
       throw Error('Invalid human channel request');
     } } : {}),
     ...(capabilities ? {
-      configure(value) {
+      async configure(value) {
         if (!['authorized','readonly','revoked','no-read','unavailable',...(read ? ['private-error'] : [])].includes(value)) throw Error('Unknown prepared policy');
         mode = value;
+        if (lifecycle) await lifecycle.reset();
       },
       async inventory() {
         const a = currentAccess(context,DOCUMENT);
@@ -92,6 +111,7 @@ export async function connectOwner({ executable, database, sdk, facts, capabilit
       probe(operation,input) { return tools.call(`editac_v1_${operation}`,input,context); },
     } : {}), async close() {
     if (!facts.owner.closed) {
+      if (lifecycle) await lifecycle.reset(true);
       if (markdown) await markdown.dispose();
       child.stdin.end(); const timer = setTimeout(() => child.kill('SIGTERM'), 1000);
       await exit; clearTimeout(timer);
@@ -109,7 +129,7 @@ export async function startBridgeServer(options, owner, facts) {
     requests.push({ path, method:req.method }); if (requests.length > 128) requests.shift();
     if (req.headers.host !== new URL(origin).host || (req.headers.origin && req.headers.origin !== origin) || req.headers['sec-fetch-site'] === 'cross-site') return reply(403,{ error:'Local origin required' });
     if (path === '/bridge.json' && req.method === 'GET') return reply(200,{ token, documentId:DOCUMENT, epoch:EPOCH });
-    if ((owner.human && path === '/human/channel') || path === '/bridge/observe' || (owner.inventory && ['/bridge/inventory','/bridge/fixture','/bridge/probe'].includes(path))) {
+    if ((owner.baseline && path === '/bridge/baseline') || (owner.human && path === '/human/channel') || path === '/bridge/observe' || (owner.inventory && ['/bridge/inventory','/bridge/fixture','/bridge/probe'].includes(path))) {
       if (req.method !== 'POST') return reply(405,{ error:'POST required' });
       if (req.headers.origin !== origin || req.headers['x-host-fixture'] !== token || req.headers['content-type'] !== 'application/json') return reply(403,{ error:'Fixture context required' });
       if (active >= LIMITS.pending) return reply(429,{ error:'Pending limit' });
@@ -118,6 +138,7 @@ export async function startBridgeServer(options, owner, facts) {
       try {
         let body = ''; for await (const bytes of req) { body += bytes.toString(); if (Buffer.byteLength(body) > LIMITS.message) { reply(413,{ error:'Message limit' }); return; } }
         const input = JSON.parse(body);
+        if (path === '/bridge/baseline' && owner.baseline) return reply(200,await owner.baseline(input));
         if (path === '/human/channel' && owner.human) return reply(200,await owner.human(input));
         if (owner.inventory && path !== '/bridge/observe') {
           if (!input || Array.isArray(input)) return reply(400,{error:'Invalid fixture request'});
@@ -127,7 +148,7 @@ export async function startBridgeServer(options, owner, facts) {
           }
           if (path === '/bridge/fixture') {
             if (Object.keys(input).length !== 1 || typeof input.mode !== 'string') return reply(400,{error:'Expected prepared policy'});
-            owner.configure(input.mode); return reply(200,await owner.inventory());
+            await owner.configure(input.mode); return reply(200,await owner.inventory());
           }
           if (Object.keys(input).length !== 2 || !Object.hasOwn(input,'arguments') || !['read','prepare','apply','receipt','observe','unknown'].includes(input.operation)) return reply(400,{error:'Invalid probe'});
           const result = await owner.probe(input.operation,input.arguments);

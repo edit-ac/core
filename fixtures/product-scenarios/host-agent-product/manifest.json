@@ -148,6 +148,30 @@
         "workspace-discover-edit-read",
         "workspace-unavailable-controls"
       ]
+    },
+    "baseline": {
+      "parent": "D24X-2.1",
+      "engines": [
+        "chromium",
+        "firefox",
+        "webkit"
+      ],
+      "modelCases": [
+        "real-owner-retention-and-public-prepare",
+        "foreign-and-forged-metadata-nonmutating",
+        "expiry-releases-real-target",
+        "release-and-policy-scope-fencing",
+        "actual-session-sqlite-identity-unchanged"
+      ],
+      "browserCases": [
+        "visible-exact-baseline-and-owner-binding",
+        "foreign-metadata-real-boundary-and-inert-source",
+        "prepared-expiry-and-real-owner-release",
+        "keyboard-release-scope-and-close",
+        "independent-history-storage-before-human-edit",
+        "human-edit-invalidates-real-revision-without-overwrite",
+        "late-capture-scope-fence-and-policy-release"
+      ]
     }
   }
 }
