@@ -1588,7 +1588,11 @@ impl Document {
         let mut result_owner = None;
         let mut pending: VecDeque<_> = commands.to_vec().into();
         let mut expanded = 0usize;
+        let mut validated_view = None;
         while let Some(c) = pending.pop_front() {
+            // Some command branches expand or finish with `continue`. Never
+            // retain an earlier command's view across a possible stage mutation.
+            validated_view = None;
             expanded += 1;
             if expanded > 16384 {
                 return Err(EditorError::ResourceLimit);
@@ -1710,7 +1714,15 @@ impl Document {
                     to,
                     text,
                 } => {
-                    let d = self.virtual_document(&stage)?;
+                    // Like anchored Text, the first offset edit sees the exact live
+                    // state. Later edits must resolve against preceding staged edits.
+                    let staged;
+                    let d = if expanded == 1 {
+                        self
+                    } else {
+                        staged = self.virtual_document(&stage)?;
+                        &staged
+                    };
                     let selection = d
                         .selection(
                             (owner, *from, crate::anchors::Bias::Right),
@@ -2478,9 +2490,17 @@ impl Document {
                     );
                 }
             }
-            crate::editor::view(&stage, stable).map_err(error)?;
+            // Keep the last admission result while the disposable stage is unchanged.
+            // Every command still validates its intermediate state before the next one.
+            let view = crate::editor::view(&stage, stable).map_err(error)?;
+            if pending.is_empty() {
+                validated_view = Some(view);
+            }
         }
-        let view = crate::editor::view(&stage, stable).map_err(error)?;
+        let view = match validated_view {
+            Some(view) => view,
+            None => crate::editor::view(&stage, stable).map_err(error)?,
+        };
         if let Some(last) = last_separator {
             if !view.owners.iter().any(|o| {
                 !o.deleted
@@ -2527,9 +2547,11 @@ impl Document {
                 let op = format!("o:{}:{counter}", self.writer_id());
                 counter = counter.checked_add(1).ok_or(EditorError::ResourceLimit)?;
                 crate::editor::place(&stage, stable, &op, &id, parent, before).map_err(error)?;
+                // Synthesizing the required editable fallback changed the stage;
+                // it must pass admission just like an explicit command.
+                crate::editor::view(&stage, stable).map_err(error)?;
             }
         }
-        crate::editor::view(&stage, stable).map_err(error)?;
         let hierarchy = crate::projection::ProjectionIndex::with_identity(&stage, self.identity())
             .read()
             .map_err(|_| EditorError::InvalidCommand)?;
@@ -2685,92 +2707,104 @@ mod transaction_tests {
     use std::sync::{Arc, Mutex};
     use yrs::Origin;
     #[test]
-    fn initial_text_reuses_read_only_plan_but_later_text_observes_staged_state() {
+    fn initial_text_and_offsets_reuse_read_only_plan_but_later_edits_observe_stage() {
         use crate::{
             Utf16Offset,
             anchors::{Bias, Selection},
             commands::text::TextCommand,
         };
         for stable in [false, true] {
-            let document_id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa68";
-            let epoch = if stable {
-                "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb69"
-            } else {
-                "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb68"
-            };
-            let identity = if stable {
-                DocumentIdentity::v5(document_id, epoch)
-            } else {
-                DocumentIdentity::v4(document_id, epoch)
-            }
-            .unwrap();
-            let mut d = Document::create(
-                CreationPermit::authorize_new(identity).unwrap(),
-                &[InitialNode {
-                    kind: "block".into(),
-                    text: "A😀e\u{301}Z".into(),
-                }],
-            )
-            .unwrap();
-            let id = d.snapshot().unwrap().visible[0].id.clone();
-            let at = d.anchor(&id, Utf16Offset(0), Bias::Right).unwrap();
-            let a = d.anchor(&id, Utf16Offset(1), Bias::Right).unwrap();
-            let b = d.anchor(&id, Utf16Offset(3), Bias::Left).unwrap();
-            let replace = EditorCommand::Text(TextCommand::Replace {
-                selection: Selection {
-                    anchor: a,
-                    focus: b,
-                },
-                text: "é".into(),
-            });
-            let noop = EditorCommand::Text(TextCommand::Insert {
-                at,
-                text: "".into(),
-            });
-            let origin = TextOrigin::new("initial-text-equivalence").unwrap();
-            d.enable_history(crate::history::HistoryConfig::default())
+            for offsets in [false, true] {
+                let document_id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa68";
+                let epoch = match (stable, offsets) {
+                    (false, false) => "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb68",
+                    (true, false) => "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb69",
+                    (false, true) => "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb70",
+                    (true, true) => "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb71",
+                };
+                let identity = if stable {
+                    DocumentIdentity::v5(document_id, epoch)
+                } else {
+                    DocumentIdentity::v4(document_id, epoch)
+                }
                 .unwrap();
-            let before = d.checkpoint().bytes;
-            let fast = d.prepare_editor(&[replace.clone()], &origin).unwrap();
-            // A preceding no-op exercises the full staged restore path with the
-            // same bytes. The encoded semantic update must be byte-identical.
-            let staged = d.prepare_editor(&[noop, replace.clone()], &origin).unwrap();
-            assert_eq!(fast.update, staged.update);
-            assert_eq!(d.checkpoint().bytes, before, "preparation is silent");
-            let invalid = [
-                replace,
-                EditorCommand::Block {
-                    target: "missing".into(),
-                    tuple: m::arr(vec![Any::from("paragraph")]),
-                },
-            ];
-            assert!(d.prepare_editor(&invalid, &origin).is_err());
-            assert_eq!(d.checkpoint().bytes, before, "later rejection is atomic");
-            d.commit_editor(fast).unwrap();
-            assert!(matches!(
-                d.commit_editor(staged),
-                Err(EditorError::Text(TextError::StalePlan))
-            ));
-            let text: String = d.snapshot().unwrap().visible[0]
-                .runs
-                .iter()
-                .map(|r| r.text.as_str())
-                .collect();
-            assert_eq!(text, "Aée\u{301}Z");
-            d.undo().unwrap();
-            let text: String = d.snapshot().unwrap().visible[0]
-                .runs
-                .iter()
-                .map(|r| r.text.as_str())
-                .collect();
-            assert_eq!(text, "A😀e\u{301}Z");
-            d.redo().unwrap();
-            let text: String = d.snapshot().unwrap().visible[0]
-                .runs
-                .iter()
-                .map(|r| r.text.as_str())
-                .collect();
-            assert_eq!(text, "Aée\u{301}Z");
+                let mut d = Document::create(
+                    CreationPermit::authorize_new(identity).unwrap(),
+                    &[InitialNode {
+                        kind: "block".into(),
+                        text: "A😀e\u{301}Z".into(),
+                    }],
+                )
+                .unwrap();
+                let id = d.snapshot().unwrap().visible[0].id.clone();
+                let at = d.anchor(&id, Utf16Offset(0), Bias::Right).unwrap();
+                let a = d.anchor(&id, Utf16Offset(1), Bias::Right).unwrap();
+                let b = d.anchor(&id, Utf16Offset(3), Bias::Left).unwrap();
+                let replace = if offsets {
+                    EditorCommand::ReplaceAt {
+                        owner: id.clone(),
+                        from: Utf16Offset(1),
+                        to: Utf16Offset(3),
+                        text: "é".into(),
+                    }
+                } else {
+                    EditorCommand::Text(TextCommand::Replace {
+                        selection: Selection {
+                            anchor: a,
+                            focus: b,
+                        },
+                        text: "é".into(),
+                    })
+                };
+                let noop = EditorCommand::Text(TextCommand::Insert {
+                    at,
+                    text: "".into(),
+                });
+                let origin = TextOrigin::new("initial-text-equivalence").unwrap();
+                d.enable_history(crate::history::HistoryConfig::default())
+                    .unwrap();
+                let before = d.checkpoint().bytes;
+                let fast = d.prepare_editor(&[replace.clone()], &origin).unwrap();
+                // A preceding no-op exercises the full staged restore path with the
+                // same bytes. The encoded semantic update must be byte-identical.
+                let staged = d.prepare_editor(&[noop, replace.clone()], &origin).unwrap();
+                assert_eq!(fast.update, staged.update);
+                assert_eq!(d.checkpoint().bytes, before, "preparation is silent");
+                let invalid = [
+                    replace,
+                    EditorCommand::Block {
+                        target: "missing".into(),
+                        tuple: m::arr(vec![Any::from("paragraph")]),
+                    },
+                ];
+                assert!(d.prepare_editor(&invalid, &origin).is_err());
+                assert_eq!(d.checkpoint().bytes, before, "later rejection is atomic");
+                d.commit_editor(fast).unwrap();
+                assert!(matches!(
+                    d.commit_editor(staged),
+                    Err(EditorError::Text(TextError::StalePlan))
+                ));
+                let text: String = d.snapshot().unwrap().visible[0]
+                    .runs
+                    .iter()
+                    .map(|r| r.text.as_str())
+                    .collect();
+                assert_eq!(text, "Aée\u{301}Z");
+                d.undo().unwrap();
+                let text: String = d.snapshot().unwrap().visible[0]
+                    .runs
+                    .iter()
+                    .map(|r| r.text.as_str())
+                    .collect();
+                assert_eq!(text, "A😀e\u{301}Z");
+                d.redo().unwrap();
+                let text: String = d.snapshot().unwrap().visible[0]
+                    .runs
+                    .iter()
+                    .map(|r| r.text.as_str())
+                    .collect();
+                assert_eq!(text, "Aée\u{301}Z");
+            }
         }
     }
     #[test]
