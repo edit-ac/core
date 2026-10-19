@@ -34,8 +34,8 @@ for (const [name, mutate] of [
   const receipt = copy(keyboard); mutate(receipt);
   assert.throws(() => checkCoverage(receipt, manifest.scenarios.keyboard, 'keyboard'));
 });
-await test('Accept authentic complete integrated journey coverage as old-input evidence only', async () => {
-  const receipt = JSON.parse(await readFile(new URL('../rvp-3.2/integrated-4/receipt.json', evidence)));
+await test('Accept authentic complete integrated journey coverage', async () => {
+  const receipt = JSON.parse(await readFile(new URL('../rvp-3.2/final-integrated-1/receipt.json', evidence)));
   checkCoverage(receipt, manifest.scenarios.integrated, 'integrated');
   // Coverage alone deliberately says nothing about final-main applicability.
 });

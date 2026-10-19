@@ -333,7 +333,8 @@
         "fixtures/product-scenarios/revision-review/oracles.mjs",
         "fixtures/product-scenarios/revision-review/manifest.json",
         "examples/task-editor/revision-review-restorer.mjs",
-        "examples/task-editor/revision-review-controls.mjs"
+        "examples/task-editor/revision-review-controls.mjs",
+        "fixtures/product-scenarios/revision-review/revision-review-faults.mjs"
       ],
       "supportingSources": [
         "examples/task-editor/revision-review-product.mjs",
