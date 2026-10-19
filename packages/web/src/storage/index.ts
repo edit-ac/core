@@ -186,12 +186,14 @@ export class LocalStorageLifecycle {
     if (options.target !== "local") return Promise.reject(new Error("Unsupported flush target"));
     const captured = [...this.#updates];
     if (options.retryFailed) {
+      let retried = false;
       for (const record of captured) {
         if (!record.failed || record.retrying) continue;
         record.retrying = true;
+        retried = true;
         this.#track(record, Promise.resolve().then(() => this.#journal.append(record.update)));
       }
-      this.#notify();
+      if (retried) this.#notify();
     }
     return Promise.all(captured.map(record => record.completion)).then(() => {});
   }
