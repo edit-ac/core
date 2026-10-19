@@ -31,6 +31,7 @@ function render() {
   node('tools').replaceChildren(...['read','prepare','apply','receipt','observe'].map(op=>{
     const li = document.createElement('li'); li.textContent = `${op}: ${names.includes(`editac_v1_${op}`) ? 'available' : 'unavailable'}`; return li;
   }));
+  window.dispatchEvent(new CustomEvent('host-workspace-inventory',{detail:{humanAvailable:!!inventory?.tools.some(t=>t.name==='editac_v1_read')}}));
   node('read').disabled = !!pending || !names.includes('editac_v1_read');
   node('copy').disabled = !!pending || !exported || !names.includes('editac_v1_read');
   node('transcript').replaceChildren(...transcript.snapshot().entries.map(entry=>{
