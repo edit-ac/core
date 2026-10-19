@@ -126,11 +126,22 @@ async function mountInstance(name, root, prefix) {
     closing = true;
     restorer.retire();
     workspace.surface.setReadOnly(true);
+    let viewDisposed = false;
     try {
       await save();
-      // Flush failure leaves both the live owner and mounted view available for recovery.
+      // Release view-owned anchors while its borrowed engine is still live.
+      await workspace.surface.dispose(); viewDisposed = true;
       await workspace.owner.destroy({ policy: 'flush' });
     } catch (error) {
+      // A rejected destroy keeps the same owner alive; restore its borrowed view.
+      if (viewDisposed) {
+        element('revision-editor').replaceChildren();
+        workspace.surface = mountEditorSurface(element('revision-editor'), workspace.owner.engine, {
+          ...workspace.options, storageOwner: workspace.owner, readOnly: workspace.readonly,
+          label: `Live ${name} revision document`,
+        });
+        await workspace.surface.ready;
+      }
       closing = false; workspace.surface.setReadOnly(workspace.readonly); resetReview();
       throw error;
     }
@@ -139,7 +150,7 @@ async function mountInstance(name, root, prefix) {
     root.querySelectorAll('input,button,select').forEach(control => { control.disabled = true; });
     status(saveStatus, 'Review closed. Reopen to recover saved live content; captures are memory only.');
     clearComparison('Review closed. Reopen and capture two states to compare.');
-    workspace.review.destroy(); await workspace.surface.dispose();
+    workspace.review.destroy();
     root.dataset.lifecycle = 'closed';
   }
   return await (async () => {
@@ -200,7 +211,7 @@ async function mountInstance(name, root, prefix) {
       const readOnlyControl = element('revision-readonly');
       listen(readOnlyControl, 'change', () => {
         readonly = readOnlyControl.checked;
-        surface.setReadOnly(readonly);
+        workspace.surface.setReadOnly(readonly);
         restorer.retire('readonly'); resetReview();
         if (!recovery) status(element('revision-restore-status'), readonly ? 'Readonly: restore is unavailable. Return to writable mode and preview again.' : 'Writable again. Inspect a capture and create a new preview.');
       });
