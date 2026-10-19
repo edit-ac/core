@@ -55,7 +55,7 @@ export async function reopenCases({ page, server, facts, check, output }) {
     await history.getByRole('button', { name: 'Inspect Reload restore', exact: true }).click();
     await history.getByRole('button', { name: 'Preview restore as new edit', exact: true }).click();
     await history.getByRole('button', { name: 'Apply restore as new edit', exact: true }).click();
-    await page.waitForFunction(() => document.querySelector('#revision-history').textContent.includes('Restored as a new edit'));
+    await page.waitForFunction(() => document.querySelector('#revision-restore-status').textContent.includes('Restore applied as a new edit'));
     await moduleCall('save'); const before = await observe(); assert.equal(before.text, expectedRestore);
     const existingUpdates = new Set(JSON.parse(preRestore.journal).updates.map(update => update.updateId));
     const acceptedUpdates = JSON.parse(before.journal).updates.filter(update => !existingUpdates.has(update.updateId));

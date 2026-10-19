@@ -1,10 +1,14 @@
 import { openEditorStorage, mountEditorSurface, WebHistoryStore, HistoryReview, prepareReview, ChangeReview } from '@edit-ac/web';
 import { localOptions } from './document.mjs';
 import { RevisionRestorer } from './revision-review-restorer.mjs';
+import { reviewControls } from './revision-review-controls.mjs';
 
 export const limits = Object.freeze({ maxRevisions: 3, maxBytes: 96 * 1024, maxRevisionBytes: 48 * 1024 });
 export let workspace;
 export const instances = {};
+let pageDisposed = false, disposing = false, disposal;
+const opening = new Set();
+const pageListeners = [];
 const taskRoot = document.querySelector('.workspace');
 const commentRoot = taskRoot.cloneNode(true);
 for (const node of commentRoot.querySelectorAll('[id]')) node.id = `comment-${node.id}`;
@@ -27,14 +31,14 @@ async function mountInstance(name, root, prefix) {
   const captureStatus = element('revision-capture-status');
   const controls = ['revision-save', 'revision-name', 'revision-capture'].map(element);
   let closed = false, closing = false, pending = false, comparison, restorer, recovery, saveFailure, retainedRecovery;
-  let saving;
+  let saving, capturing, closeWork, focus;
   function failedSave(error) {
     saveFailure = error;
     retainedRecovery = workspace.owner.recoveryExport();
     status(saveStatus, `Local save failed: ${error.message}. Keep this page open. Retry Save locally or export recovery before leaving. Nothing has been saved remotely.`, 'error');
   }
   function exportRecovery() {
-    if (closed) throw Error('Reopen this review before exporting recovery');
+    if (closed || closing) throw Error('Reopen this review before exporting recovery');
     // Preserve binary fields explicitly; JSON's default typed-array representation loses the byte contract.
     const recovery = workspace.owner.recoveryExport();
     const json = JSON.stringify(recovery, (_key, value) => value instanceof Uint8Array ? { encoding: 'bytes', data: [...value] } : value);
@@ -50,10 +54,11 @@ async function mountInstance(name, root, prefix) {
   const compareStatus = element('revision-compare-status');
   function clearComparison(message, state = 'ready') {
     comparison?.destroy(); comparison = undefined;
+    element('revision-close-compare').hidden = true;
     status(compareStatus, message, state);
   }
   function compare(before = beforeSelect.value, after = afterSelect.value) {
-    if (closed) throw Error('This review is closed; reopen and capture two states');
+    if (closed || closing) throw Error('This review is closed; reopen and capture two states');
     clearComparison('Preparing semantic comparison…');
     try {
       if (!before || !after) throw Error('Select a before and after capture');
@@ -66,11 +71,15 @@ async function mountInstance(name, root, prefix) {
       prepareReview(input);
       comparison = new ChangeReview(element('revision-comparison'), input, { mode: 'history', layout: 'unified', limits: { pageSize: 100, maxValueChars: 1024 } });
       status(compareStatus, 'Showing semantic differences. Provenance unknown / unverified. Live document unchanged.');
+      focus?.openComparison();
       return model;
     } catch (error) {
       clearComparison(`Comparison unavailable: ${error.message}. Live document unchanged.`, 'error');
       return null;
     }
+  }
+  function comparisonAvailability() {
+    element('revision-compare').disabled = closed || closing || ![beforeSelect.value, afterSelect.value].every(handle => handle && workspace.store.read(handle, workspace.access()).kind === 'available');
   }
   function refreshComparisonChoices() {
     const list = workspace.store.list(workspace.access());
@@ -79,9 +88,9 @@ async function mountInstance(name, root, prefix) {
       select.replaceChildren(new Option('Select a capture', ''));
       for (const item of list) select.add(new Option(item.label, item.handle));
       if (selected && !list.some(item => item.handle === selected)) select.add(new Option('Unavailable capture (pruned or missing)', selected));
-      select.value = selected; select.disabled = false;
+      select.value = selected; select.disabled = list.length === 0;
     }
-    element('revision-compare').disabled = false;
+    comparisonAvailability();
     if (comparison && [beforeSelect.value, afterSelect.value].some(handle => workspace.store.read(handle, workspace.access()).kind !== 'available')) {
       clearComparison('A selected capture is unavailable (pruned). Select an available capture or capture again. Live document unchanged.', 'error');
     }
@@ -89,13 +98,20 @@ async function mountInstance(name, root, prefix) {
   let resetReview;
   const listeners = [];
   function listen(target, type, handler) { target.addEventListener(type, handler); listeners.push(() => target.removeEventListener(type, handler)); }
-  function status(target, message, state = 'ready') { target.textContent = message; target.dataset.state = state; }
+  function status(target, message, state = 'ready') {
+    if (closed) return;
+    // Do not turn arbitrary errors/capture names into unbounded live announcements.
+    target.textContent = message.length > 640 ? message.slice(0, 640) + '…' : message; target.dataset.state = state;
+  }
   function usage() {
     const { revisions, bytes } = workspace.store.usage;
     element('revision-usage').textContent = `${revisions} / ${limits.maxRevisions} captures · ${bytes} / ${limits.maxBytes} encoded bytes`;
   }
   async function save() {
-    if (closed) throw Error('This review is closed; reopen it before saving');
+    if (closed || closing) throw Error('This review is closed or closing; reopen it before saving');
+    return persist();
+  }
+  async function persist() {
     if (saving) return saving;
     saving = (async () => {
       try {
@@ -108,50 +124,66 @@ async function mountInstance(name, root, prefix) {
     try { await saving; } finally { saving = undefined; }
   }
   async function capture(label) {
-    if (closed || pending) throw Error('Capture workspace is unavailable or busy');
+    if (closed || closing || pending) throw Error('Capture workspace is unavailable or busy');
     const name = label.trim();
     if (!name || name.length > 80) throw Error('Enter a capture name of 1–80 characters');
     pending = true; element('revision-capture').disabled = true;
-    try {
-      await workspace.surface.settle();
-      const handle = await workspace.store.capture(workspace.owner.engine, workspace.access(), name);
-      if (closed) return;
-      workspace.review.refresh(); workspace.review.inspect(handle); usage(); refreshComparisonChoices();
-      status(captureStatus, `Captured “${name}” in memory. Older captures may have been pruned.`);
-      return handle;
-    } finally { pending = false; if (!closed) element('revision-capture').disabled = false; }
+    capturing = (async () => {
+      try {
+        await workspace.surface.settle();
+        if (closed || closing) return;
+        const handle = await workspace.store.capture(workspace.owner.engine, workspace.access(), name);
+        if (closed || closing) return;
+        workspace.review.refresh(); workspace.review.inspect(handle); usage(); refreshComparisonChoices();
+        status(captureStatus, `Captured “${name}” in memory. Older captures may have been pruned.`);
+        focus?.captured(handle);
+        return handle;
+      } finally { pending = false; if (!closed && !closing) element('revision-capture').disabled = false; }
+    })();
+    try { return await capturing; } finally { capturing = undefined; }
   }
   async function close() {
-    if (closed || closing) return;
+    if (closed) return;
+    if (closeWork) return closeWork;
     closing = true;
-    restorer.retire();
-    workspace.surface.setReadOnly(true);
-    let viewDisposed = false;
-    try {
-      await save();
-      // Release view-owned anchors while its borrowed engine is still live.
-      await workspace.surface.dispose(); viewDisposed = true;
-      await workspace.owner.destroy({ policy: 'flush' });
-    } catch (error) {
-      // A rejected destroy keeps the same owner alive; restore its borrowed view.
-      if (viewDisposed) {
-        element('revision-editor').replaceChildren();
-        workspace.surface = mountEditorSurface(element('revision-editor'), workspace.owner.engine, {
-          ...workspace.options, storageOwner: workspace.owner, readOnly: workspace.readonly,
-          label: `Live ${name} revision document`,
-        });
-        await workspace.surface.ready;
+    closeWork = (async () => {
+      const enabled = [...root.querySelectorAll('input,button,select')].filter(control => !control.disabled);
+      enabled.forEach(control => { control.disabled = true; });
+      restorer.retire();
+      workspace.surface.setReadOnly(true);
+      let viewDisposed = false;
+      try {
+        await capturing?.catch(() => {});
+        await persist();
+        // Release view-owned anchors while its borrowed engine is still live.
+        await workspace.surface.dispose(); viewDisposed = true;
+        await workspace.owner.destroy({ policy: 'flush' });
+      } catch (error) {
+        // A rejected destroy keeps the same owner alive; restore its borrowed view.
+        if (viewDisposed) {
+          element('revision-editor').replaceChildren();
+          workspace.surface = mountEditorSurface(element('revision-editor'), workspace.owner.engine, {
+            ...workspace.options, storageOwner: workspace.owner, readOnly: workspace.readonly,
+            label: `Live ${name} revision document`,
+          });
+          await workspace.surface.ready;
+        }
+        closing = false; enabled.forEach(control => { control.disabled = false; });
+        workspace.surface.setReadOnly(workspace.readonly); resetReview(); focus?.restoreClosed();
+        throw error;
       }
-      closing = false; workspace.surface.setReadOnly(workspace.readonly); resetReview();
-      throw error;
-    }
-    closed = true; root.dataset.lifecycle = 'closing';
-    for (const remove of listeners.splice(0)) remove();
-    root.querySelectorAll('input,button,select').forEach(control => { control.disabled = true; });
-    status(saveStatus, 'Review closed. Reopen to recover saved live content; captures are memory only.');
-    clearComparison('Review closed. Reopen and capture two states to compare.');
-    workspace.review.destroy();
-    root.dataset.lifecycle = 'closed';
+      root.dataset.lifecycle = 'closing';
+      focus?.dispose();
+      for (const remove of listeners.splice(0)) remove();
+      root.querySelectorAll('input,button,select').forEach(control => { control.disabled = true; });
+      status(saveStatus, 'Review closed. Reopen to recover saved live content; captures are memory only.');
+      clearComparison('Review closed. Reopen and capture two states to compare.');
+      workspace.review.destroy();
+      closed = true; root.dataset.lifecycle = 'closed';
+      element('revision-reopen').disabled = pageDisposed || disposing;
+      if (!pageDisposed && !disposing) element('revision-reopen').focus();
+    })();
+    try { await closeWork; } finally { closeWork = undefined; }
   }
   return await (async () => {
     let owner, surface, review;
@@ -165,6 +197,7 @@ async function mountInstance(name, root, prefix) {
       const store = new WebHistoryStore(limits);
       let readonly = false;
       function reportRestore(result) {
+        if (closed || closing) return;
         const target = element('revision-restore-status');
         if (!('kind' in result)) {
           recovery = undefined; element('revision-restore-recovery').replaceChildren();
@@ -196,23 +229,24 @@ async function mountInstance(name, root, prefix) {
       };
       review = createReview();
       listen(element('revision-cancel-restore'), 'click', () => {
-        restorer.retire(); resetReview();
+        restorer.retire(); resetReview(); focus.restoreClosed();
         status(element('revision-restore-status'), 'Restore preview canceled. Current content is unchanged; inspect a capture to preview again.');
       });
       const updates = owner.engine.subscribe({ type: 'updates' }, () => {
         if (!saveFailure) status(saveStatus, 'Live changes are being journaled locally. Use Save locally to confirm.');
       });
       listeners.push(() => updates.dispose());
-      workspace = { owner, surface, review, store, access, options, save, capture, compare, close, exportRecovery, get retainedRecovery() { return retainedRecovery; }, get restorer() { return restorer; }, get restoreRecovery() { return recovery; }, get closed() { return closed; }, get readonly() { return readonly; } };
+      workspace = { owner, surface, review, store, access, options, save, capture, compare, close, exportRecovery, resetReview: () => { if (!closed && !closing) resetReview(); }, get retainedRecovery() { return retainedRecovery; }, get restorer() { return restorer; }, get restoreRecovery() { return recovery; }, get closed() { return closed; }, get readonly() { return readonly; } };
+      focus = reviewControls(root, prefix, () => workspace, listen, () => clearComparison('Comparison closed. Live document unchanged.'));
       beforeSelect.replaceChildren(); afterSelect.replaceChildren();
       clearComparison('Capture two states to compare them.'); refreshComparisonChoices();
       listen(element('revision-compare-form'), 'submit', event => { event.preventDefault(); compare(); });
-      for (const select of [beforeSelect, afterSelect]) listen(select, 'change', () => clearComparison('Selection changed. Choose Compare captures to inspect these states.'));
+      for (const select of [beforeSelect, afterSelect]) listen(select, 'change', () => { clearComparison('Selection changed. Choose Compare captures to inspect these states.'); comparisonAvailability(); });
       const readOnlyControl = element('revision-readonly');
       listen(readOnlyControl, 'change', () => {
         readonly = readOnlyControl.checked;
         workspace.surface.setReadOnly(readonly);
-        restorer.retire('readonly'); resetReview();
+        restorer.retire('readonly'); resetReview(); focus.restoreClosed(false);
         if (!recovery) status(element('revision-restore-status'), readonly ? 'Readonly: restore is unavailable. Return to writable mode and preview again.' : 'Writable again. Inspect a capture and create a new preview.');
       });
       listen(element('revision-save'), 'click', () => { void save().catch(() => {}); });
@@ -230,7 +264,7 @@ async function mountInstance(name, root, prefix) {
       element('revision-name').value = '';
       status(captureStatus, 'No captures retained in this review. Reload and close lose memory-only captures. Saved live content reopens without reseeding. Capture the current state explicitly.');
       usage(); status(saveStatus, 'Local document ready. Use Save locally to confirm saved edits.');
-      listen(element('revision-close'), 'click', () => { void close().then(() => { element('revision-reopen').disabled = false; }).catch(error => status(saveStatus, `Close failed: ${error.message}. This review is still open. Keep it open and export recovery; Retry Save locally when possible.`, 'error')); });
+      listen(element('revision-close'), 'click', () => { void close().catch(error => status(saveStatus, `Close failed: ${error.message}. This review is still open. Keep it open and export recovery; Retry Save locally when possible.`, 'error')); });
       return workspace;
     } catch (error) {
       review?.destroy(); await surface?.dispose(); await owner?.destroy({ policy: 'report' });
@@ -240,6 +274,7 @@ async function mountInstance(name, root, prefix) {
   })();
 }
 export async function remount(name) {
+  if (pageDisposed || disposing) throw Error('This page is disposed');
   if (!['task', 'comment'].includes(name)) throw Error('Unknown review instance');
   const old = instances[name];
   if (old && !old.closed) throw Error('Close this instance before reopening');
@@ -252,17 +287,47 @@ export async function remount(name) {
   root.querySelector(`#${prefix}revision-readonly`).disabled = true;
   root.querySelector(`#${prefix}revision-close`).disabled = true;
   root.querySelector(`#${prefix}revision-reopen`).disabled = true;
-  try { instances[name] = await mountInstance(name, root, prefix); }
-  catch (error) { root.dataset.lifecycle = 'failed'; root.querySelector(`#${prefix}revision-reopen`).disabled = false; throw error; }
+  const mount = mountInstance(name, root, prefix); opening.add(mount);
+  try { instances[name] = await mount; }
+  catch (error) { root.dataset.lifecycle = 'failed'; root.querySelector(`#${prefix}revision-reopen`).disabled = disposing || pageDisposed; throw error; }
+  finally { opening.delete(mount); }
   root.querySelector(`#${prefix}revision-readonly`).disabled = false;
   root.querySelector(`#${prefix}revision-close`).disabled = false;
+  root.querySelector(`#${prefix}revision-name`).focus();
   instances[name].owner.engine.read(); // Advertise readiness only while the public owner is live.
   root.dataset.lifecycle = 'ready';
   if (name === 'task') workspace = instances[name];
   return instances[name];
 }
 for (const [name, root, prefix] of [['task', taskRoot, ''], ['comment', commentRoot, 'comment-']]) {
-  root.querySelector(`#${prefix}revision-reopen`).addEventListener('click', () => { void remount(name).catch(error => { root.querySelector(`#${prefix}revision-save-status`).textContent = `Reopen failed: ${error.message}. Retry.`; }); });
+  const reopen = root.querySelector(`#${prefix}revision-reopen`);
+  const handler = () => { void remount(name).catch(error => {
+    if (!pageDisposed) root.querySelector(`#${prefix}revision-save-status`).textContent = `Reopen failed: ${error.message.slice(0, 500)}. Retry.`;
+  }); };
+  reopen.addEventListener('click', handler);
+  pageListeners.push(() => reopen.removeEventListener('click', handler));
+}
+export async function dispose() {
+  if (pageDisposed) return;
+  if (disposal) return disposal;
+  disposing = true;
+  disposal = (async () => {
+    try {
+      await ready.catch(() => {});
+      await Promise.allSettled([...opening]);
+      // A failed flush keeps recovery and listeners usable; never discard it.
+      await close();
+      pageDisposed = true;
+      for (const remove of pageListeners.splice(0)) remove();
+      for (const root of [taskRoot, commentRoot]) root.querySelectorAll('input,button,select').forEach(control => { control.disabled = true; });
+    } finally {
+      disposing = false;
+      if (!pageDisposed) for (const [name, root, prefix] of [['task', taskRoot, ''], ['comment', commentRoot, 'comment-']]) {
+        if (instances[name]?.closed) root.querySelector(`#${prefix}revision-reopen`).disabled = false;
+      }
+    }
+  })();
+  try { await disposal; } finally { disposal = undefined; }
 }
 export const save = () => instances.task.save();
 export const capture = label => instances.task.capture(label);

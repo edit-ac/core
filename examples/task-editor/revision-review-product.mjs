@@ -32,14 +32,18 @@ async function preview() {
   await requireTestNode();
   const output = resolve(root, '.artifacts/revision-review-preview', new Date().toISOString().replace(/[:.]/g, '-'));
   const facts = { output, commands: [], purpose: 'Opt-in local installed-SDK revision review' };
-  let server;
+  let server, preparation, stopping = false;
   const close = async () => {
+    stopping = true;
+    await preparation?.catch(() => {});
     if (server) { await server.close(); facts.listenerStopped = !server.listening; server = undefined; }
     await writeFile(join(output, 'preview.json'), JSON.stringify({ ...facts, stopped: true }, null, 2));
   };
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => { void close().finally(() => process.exit(0)); });
   try {
-    const { site } = await prepareRevisionProduct(output, facts);
+    preparation = prepareRevisionProduct(output, facts);
+    const { site } = await preparation;
+    if (stopping) return;
     server = await startFixtureServer({ fixtureDirectory: join(site, 'fixture'), coreDirectory: join(site, 'core'), webDirectory: join(site, 'web') });
     facts.process = { pid: process.pid, launcher: process.execPath, workspace: root, port: server.port, purpose: facts.purpose, log: join(output, 'preview.json') };
     await writeFile(join(output, 'preview.json'), JSON.stringify(facts, null, 2));

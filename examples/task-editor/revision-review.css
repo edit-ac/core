@@ -24,3 +24,6 @@ input[type="checkbox"] { width: auto; }
 
 .comparison { grid-column: 1 / -1; }
 select { font: inherit; width: 100%; padding: .5rem; margin-bottom: .75rem; }
+
+[hidden] { display: none !important; }
+[tabindex="-1"]:focus { outline: 3px solid #287a68; outline-offset: 3px; }
