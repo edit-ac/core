@@ -833,19 +833,175 @@
       "oracles": "Permission-checked catalog and private-label fallback; descriptor identity retained across copied/marked label.",
       "proofs": [
         {
-          "id": "wex-1.4",
+          "id": "wfe-3.1-c2d-rich-transfer",
           "engines": [
             "chromium",
             "firefox",
             "webkit"
           ],
           "cases": [
-            "reference-label"
+            "reference-label",
+            "marked-atomic-reference-label",
+            "marked-atomic-reference-label-cut-true",
+            "marked-atomic-reference-label-cut-false",
+            "marked-atomic-reference-label-partial"
+          ]
+        },
+        {
+          "id": "wfe-3.1-references",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "no-implicit",
+            "stale-query",
+            "clear-results",
+            "cancel-escape",
+            "cancel-readonly",
+            "cancel-dispose",
+            "cancel-remote",
+            "cancel-target-edit",
+            "cancel-composition",
+            "keyboard-history",
+            "recovery-fallback",
+            "invalid-results",
+            "anchored-selection",
+            "session-generation",
+            "invalid-descriptor",
+            "query-notifications",
+            "clipboard-fallback",
+            "authority-approved",
+            "authority-revoke-pending",
+            "authority-revoke-ready",
+            "authority-forbidden",
+            "authority-secret",
+            "authority-catalog",
+            "authority-readonly",
+            "authority-disposal",
+            "authority-deleted-anchor",
+            "authority-reentrant",
+            "passive",
+            "activation-false",
+            "activation-true",
+            "state-forbidden",
+            "state-missing",
+            "state-locked",
+            "state-unavailable",
+            "readonly-activation",
+            "drift-principal",
+            "drift-tenant",
+            "drift-authority",
+            "drift-session",
+            "drift-permission",
+            "drift-policy",
+            "drift-revoke",
+            "replaceOnCatalog",
+            "revokeOnCatalog",
+            "denied-principal",
+            "replacement",
+            "trigger-%40",
+            "trigger-%5B%5B",
+            "trigger-%3A%3A",
+            "no-trigger",
+            "registration",
+            "dispose-pending",
+            "trigger-escape",
+            "remote-trigger",
+            "public-refresh",
+            "local-paste",
+            "plain-url",
+            "policy-disabled",
+            "policy-explicit-refresh",
+            "refresh",
+            "late-edit",
+            "late-delete",
+            "late-remote",
+            "late-history",
+            "late-readonly",
+            "late-session",
+            "late-principal",
+            "late-permission",
+            "late-policy",
+            "late-revoked",
+            "late-dispose",
+            "display-edit",
+            "display-delete",
+            "display-readonly",
+            "display-session",
+            "display-principal",
+            "display-permission",
+            "display-policy",
+            "display-revoked",
+            "shared-commit",
+            "no-call-origins",
+            "outcome-unavailable",
+            "outcome-forbidden",
+            "outcome-canceled",
+            "outcome-stale",
+            "outcome-malformed",
+            "outcome-reject",
+            "typing-disposal",
+            "burst-bound",
+            "disabled-refresh",
+            "silent-session",
+            "silent-readonly",
+            "deadline",
+            "context-loss",
+            "favicon-blob",
+            "favicon-svg",
+            "favicon-huge",
+            "qualification-input-timing",
+            "concurrent-isolation",
+            "two-authorized",
+            "display-tenant",
+            "display-authority",
+            "display-revoke",
+            "display-logout",
+            "display-lock",
+            "display-title",
+            "display-icon",
+            "display-preview",
+            "display-context-error",
+            "fallback-unavailable",
+            "fallback-forbidden",
+            "fallback-missing",
+            "fallback-locked",
+            "fallback-unsupported",
+            "fallback-canceled",
+            "fallback-stale",
+            "refresh-readonly",
+            "denied-refresh",
+            "late-tenant",
+            "late-authority",
+            "late-revoke",
+            "late-lock",
+            "late-context-error",
+            "silent-switch",
+            "wrong-cache-envelope",
+            "offline-lease",
+            "asset-svg",
+            "asset-huge",
+            "asset-none",
+            "reentrant-revoke",
+            "inert-metadata",
+            "shared-edit",
+            "long-label",
+            "cancel",
+            "dispose",
+            "no-call-replay-remote",
+            "refresh-reject",
+            "refresh-locked",
+            "refresh-forbidden",
+            "refresh-missing",
+            "refresh-unsupported",
+            "refresh-timeout",
+            "qualification-log-secrecy"
           ]
         }
       ],
-      "nextAction": "Authenticate the independent reference catalog/permission presenter receipt as well as marked-label transfer before closing feature proof.",
-      "gap": "Authenticate reference-presenters and modules-references catalog/permission/browser receipts; marked-label transfer is only a prerequisite. Include link-enrichment/private-link-display source compatibility; no remote fetch is enabled by this inventory."
+      "nextAction": "Full original reference suggestion/presenter, link enrichment and private display cases proven through installed public SDK; exact marked-label transfer proof retained. Recheck only changed owning inputs. Device/native/performance/release/cloud qualification remains deferred."
     },
     {
       "id": "WEB-SEARCH-CODE",
@@ -3232,6 +3388,67 @@
         {
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4e-slash/run-1/slash-context/webkit/receipt.json",
           "sha256": "3acdd03a5b4ba1e7ac832eb31d490497c5421ed8ad53a40873152d6b8d2dec6c"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-references",
+      "owner": "PRIMARY source proof of existing PARALLEL reference/link return",
+      "command": "EDITAC_WEB_REFERENCE_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4f-references/run-2 EDITAC_WEB_REFERENCE_RESUME=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4f-references/run-1 node scripts/run-web-reference-boundary.mjs",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4f-references/run-2/source-pins.json",
+          "sha256": "4dcfb0924adb5e909da9f63d8b06a62340e8cd8108a0baa94b1900987a3d7d0e"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4f-references/run-1/references/chromium/receipt.json",
+          "sha256": "4f12173ac15e5e36c80a65c3b41a259d6945a9b943f1a94225202fad3bdffc17"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4f-references/run-1/references/firefox/receipt.json",
+          "sha256": "ff60ac9676e91d36a306d1af6b7324d49333b36b49bc0e241ae7081b3728527f"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4f-references/run-1/references/webkit/receipt.json",
+          "sha256": "c6933f3e01511c7768433ac8d2147f4a3b6a3abe4ada9ed6bacbf254078e417a"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4f-references/run-1/link-enrichment/chromium/receipt.json",
+          "sha256": "b78e6672950a58ca4b2e5338b1caad778a2d0d7033cea987358e651a8fe7ba28"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4f-references/run-1/link-enrichment/firefox/receipt.json",
+          "sha256": "280c043e3cd8cd03fa1f23b9c878b5189f367110492ef684544555404fe78f8d"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4f-references/run-1/link-enrichment/webkit/receipt.json",
+          "sha256": "cd46309b6cea786eeec0243f323629a94ff9440b498df2540876474ec217c357"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4f-references/run-1/private-link-display/chromium/receipt.json",
+          "sha256": "88ba48ea0e58f9c03134381c9c4997629cd8f3ffc4762d09666236ca0887df5d"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4f-references/run-1/private-link-display/firefox/receipt.json",
+          "sha256": "e5f3d5261d920f78bfcb66b9f848983e2b3ce12d9a8879e7f41038480fd5cad2"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4f-references/run-1/private-link-display/webkit/receipt.json",
+          "sha256": "781d1d1cc261a5d8eca919328a941ade1d413f964f91f2f0949edf23ec2d6440"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4f-references/run-2/reference-presenters/chromium/receipt.json",
+          "sha256": "7b1ee070f8e18b85ff568358674655cc27b54ea3884603a56bf915196299c734"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4f-references/run-2/reference-presenters/firefox/receipt.json",
+          "sha256": "9931644348a17769bb9c4b7fafacd842c101582026a03c498792b9442fd0f4d1"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4f-references/run-2/reference-presenters/webkit/receipt.json",
+          "sha256": "8246ec6fb2f16428ceffc39a6e3e3089b4b66acc87876147dac401754d181bdb"
         }
       ]
     }

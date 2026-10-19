@@ -106,7 +106,7 @@ function sync(from = 'alice', to = 'bob') {
 }
 function state() {
   return { assets, revoked, viewers: Object.fromEntries(Object.entries(viewers).map(([name, v]) => [name, {
-    nodes: v.closed?.nodes ?? v.engine.read().visible, history: v.closed?.history ?? v.engine.history({ type: 'state' }), checkpoint: v.closed?.checkpoint ?? Array.from(v.engine.checkpoint().bytes),
+    nodes: v.closed?.nodes ?? v.engine.read().visible, history: v.closed?.history ?? v.engine.history({ type: 'state' }), checkpoint: v.closed?.checkpoint ?? Array.from(v.engine.checkpoint().bytes), stateVector: v.closed?.stateVector ?? Array.from(v.engine.stateVector()),
     commands: v.commands, pending: v.pending.map(p => p.request), aborted: v.pending.map(p => p.signal.aborted), live: v.pending.filter(p=>!p.settled&&!p.signal.aborted).length,
     portCalls:v.portCalls, activations:v.activations, catalogCalls:v.catalogCalls, suggestions:v.suggestions.map(p=>({query:p.request.query,aborted:p.request.signal.aborted})), listeners: v.listeners.size, released: v.released, cacheReads: v.cacheReads,
     text: v.root.textContent, titles: [...v.root.querySelectorAll('[data-private-title]')].map(e => e.textContent),
@@ -120,7 +120,7 @@ function state() {
 function select(name, text='Independent editable text') {
  const v=viewers[name]; v.root.focus(); const node=v.engine.read().visible.find(n=>n.runs.map(r=>r.text).join('')===text); const block=v.root.querySelector(`[data-node-id="${node.id}"]`);const walker=document.createTreeWalker(block,NodeFilter.SHOW_TEXT);const t=walker.nextNode();document.getSelection().setBaseAndExtent(t,t.length,t,t.length);
 }
-function destroy() { for (const v of Object.values(viewers)) { v.surface.dispose(); v.closed={nodes:v.engine.read().visible,history:v.engine.history({type:'state'}),checkpoint:Array.from(v.engine.checkpoint().bytes),errors:v.engine.takeObserverErrors()}; v.engine.dispose(); } window.fixtureDisposed = true; }
+function destroy() { for (const v of Object.values(viewers)) { v.surface.dispose(); v.closed={nodes:v.engine.read().visible,history:v.engine.history({type:'state'}),checkpoint:Array.from(v.engine.checkpoint().bytes),stateVector:Array.from(v.engine.stateVector()),errors:v.engine.takeObserverErrors()}; v.engine.dispose(); } window.fixtureDisposed = true; }
 window.inputFixture = { mount, select, state, change, refresh, respond, replace, sync, destroy, viewers, notify, outcome,
   dispose: name => viewers[name].surface.dispose(),
   cancel: name => viewers[name].views.at(-1).cancel(),
