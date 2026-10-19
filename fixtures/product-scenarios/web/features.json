@@ -3629,7 +3629,7 @@
       "id": "WEB-READONLY",
       "parent": "WFE-3.1",
       "family": "readonly",
-      "requirement": "PWE-1.2/1.3/1.4 readonly admission and permission revocation",
+      "requirement": "PWE-1.5 full original workspace/React/recovery identity, readonly admission and permission revocation boundary",
       "owner": "PRIMARY",
       "enabled": "default or host-selected",
       "apis": [
@@ -3647,20 +3647,68 @@
       "oracles": "Exact original content after denied input/commands, named identity stays readonly on reopen; sibling remains independent.",
       "proofs": [
         {
-          "id": "pwe-1.5",
+          "id": "wfe-3.1-readonly-web-task-workspace",
           "engines": [
             "chromium",
             "firefox",
             "webkit"
           ],
           "cases": [
+            "dispatcher-rejects-invalid-inputs",
+            "distinct-documents-stores-callbacks",
+            "focus-edit-undo-isolation",
+            "task-rich-presenters",
+            "comment-capability-denial",
             "readonly-admission-and-revocation",
+            "sibling-survives-disposal",
+            "isolated-error-callback"
+          ]
+        },
+        {
+          "id": "wfe-3.1-readonly-web-react-routes",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "dispatcher-rejects-invalid-inputs",
+            "mixed-task-first",
+            "mixed-comment-first",
+            "equal-task-first",
+            "equal-comment-first",
+            "strictmode-route-restore",
             "readonly-authority",
-            "readonly-revocation-preserves-content"
+            "sibling-survives-disposal",
+            "dispose-during-loading",
+            "scoped-recovery-error",
+            "installed-common-resources"
+          ]
+        },
+        {
+          "id": "wfe-3.1-readonly-web-local-recovery",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "dispatcher-rejects-invalid-inputs",
+            "independent-local-commits",
+            "offline-shell-reload-reopen",
+            "pending-and-local-status",
+            "readonly-revocation-preserves-content",
+            "append-failure-keeps-live-replica",
+            "deliberate-isolated-recovery-export",
+            "close-retains-unsaved-recovery",
+            "creation-denial-never-reseeds",
+            "existing-open-denial-preserves-content",
+            "missing-checkpoint-never-reseeds",
+            "corrupt-checkpoint-never-reseeds"
           ]
         }
       ],
-      "nextAction": "Repair or authenticate the exact changed owner inputs reported by the ledger, then reuse the existing named dispatcher. No unchanged failed-check retry."
+      "nextAction": "All original identity/permission cases bound to current installed SDK/WASM/IndexedDB product. Recheck changed inputs only; full feature ledger and alpha remain separate."
     },
     {
       "id": "WEB-COLLABORATION",
@@ -5444,6 +5492,93 @@
         {
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4k-assistance/run-1/assistive-presenter/webkit/receipt.json",
           "sha256": "62280bd4201034587ad56023eac98b6455b3330a96e88c57c3150ba14fd50bee"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-readonly-web-task-workspace",
+      "owner": "PRIMARY current original identity/readonly boundary",
+      "command": "EDITAC_WEB_READONLY_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4l-readonly/run-1 EDITAC_PRODUCT_SITE_RECEIPT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4i-markdown/run-4/prepared/prepared.json node scripts/run-web-readonly-boundary.mjs",
+      "sdkRevision": "62adfd08272154a958cb5378bb7d12fd93edd12c",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4l-readonly/run-1/source-pins.json",
+          "sha256": "c1755f294685ee553cb16afb0ea3db0bca03d94e8b2f98082335db32201b6580"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4l-readonly/run-1/web-task-workspace-chromium/receipt.json",
+          "sha256": "c2d16698179b1e5ce53fdb189b95bc8656deb4f8186a40e70ea03725712150c3",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4i-markdown/run-4/prepared"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4l-readonly/run-1/web-task-workspace-firefox/receipt.json",
+          "sha256": "5e6e994b5478d4e0bdc2ae5c0c10d913b69cc40803a22e5b1eb73adb0c80fe78",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4i-markdown/run-4/prepared"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4l-readonly/run-1/web-task-workspace-webkit/receipt.json",
+          "sha256": "c72c30dffd3cc5c219ec7031b6eb07916f82651a6b19c533510e7e662b2c97dd",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4i-markdown/run-4/prepared"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-readonly-web-react-routes",
+      "owner": "PRIMARY current original identity/readonly boundary",
+      "command": "EDITAC_WEB_READONLY_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4l-readonly/run-1 EDITAC_PRODUCT_SITE_RECEIPT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4i-markdown/run-4/prepared/prepared.json node scripts/run-web-readonly-boundary.mjs",
+      "sdkRevision": "62adfd08272154a958cb5378bb7d12fd93edd12c",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4l-readonly/run-1/source-pins.json",
+          "sha256": "c1755f294685ee553cb16afb0ea3db0bca03d94e8b2f98082335db32201b6580"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4i-markdown/run-5/routes-chromium/receipt.json",
+          "sha256": "bca852f1d698a119a86495e2d194eaefc4e831895bf5dde04705b1c1dc37d872",
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4i-markdown/run-4/prepared"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4i-markdown/run-5/routes-firefox/receipt.json",
+          "sha256": "8c6adc80d1dc0c7d4f350bcb212c9f71aeff74b54b66311b9bd96f9c46518105",
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4i-markdown/run-4/prepared"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4i-markdown/run-5/routes-webkit/receipt.json",
+          "sha256": "64edf7f39ae2e75beb85bf5f0b69ae9ea4b00813baeb99044aac25d34776e25e",
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4i-markdown/run-4/prepared"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-readonly-web-local-recovery",
+      "owner": "PRIMARY current original identity/readonly boundary",
+      "command": "EDITAC_WEB_READONLY_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4l-readonly/run-1 EDITAC_PRODUCT_SITE_RECEIPT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4i-markdown/run-4/prepared/prepared.json node scripts/run-web-readonly-boundary.mjs",
+      "sdkRevision": "62adfd08272154a958cb5378bb7d12fd93edd12c",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4l-readonly/run-1/source-pins.json",
+          "sha256": "c1755f294685ee553cb16afb0ea3db0bca03d94e8b2f98082335db32201b6580"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4l-readonly/run-1/web-local-recovery-chromium/receipt.json",
+          "sha256": "1196fe285f4007dccfb7a5a016ea39567213d1fd4a23b1c6e1e3cad36356403b",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4i-markdown/run-4/prepared"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4l-readonly/run-1/web-local-recovery-firefox/receipt.json",
+          "sha256": "c87ca3e828368fae06ae7883e4f2c744b27706397f7fb1f022af6e526bbe4681",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4i-markdown/run-4/prepared"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4l-readonly/run-1/web-local-recovery-webkit/receipt.json",
+          "sha256": "b8f9bc4e1313979f5cdccb29317101688f0a6ad198e0ccc7e02a8a63f738be43",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4i-markdown/run-4/prepared"
         }
       ]
     }
