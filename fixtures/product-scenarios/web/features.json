@@ -2841,13 +2841,15 @@
       "oracles": "Prepared host packets through actual Session/WASM/IndexedDB, exact UTF-16 text, capture invalidation, permission/cancel/recovery and independent presenter ownership.",
       "proofs": [
         {
-          "id": "wfe-2.1",
+          "id": "wfe-3.1-assistive-dictation",
           "engines": [
             "chromium",
             "firefox",
             "webkit"
           ],
           "cases": [
+            "ordered-final",
+            "remote-history",
             "utf16-surrogate",
             "utf16-combining",
             "utf16-zwj",
@@ -2857,11 +2859,80 @@
             "revoke-blur",
             "revoke-read-only",
             "revoke-permission",
-            "revoke-registration"
+            "revoke-registration",
+            "deleted-range",
+            "deleted-owner",
+            "generation",
+            "error-permission-denied",
+            "error-unavailable",
+            "error-disconnected",
+            "invalid-oversized",
+            "invalid-malformed",
+            "stop-final",
+            "sync-final",
+            "after-commit-error",
+            "os-missing-beforeinput",
+            "os-noncancelable-beforeinput",
+            "os-composition",
+            "document-epoch-destroy",
+            "denied-start",
+            "no-host",
+            "timeout",
+            "session-cap",
+            "reentrant-final",
+            "pre-commit-error",
+            "unsupported-stop",
+            "initial-readOnly",
+            "initial-composition",
+            "persisted-final",
+            "keyboard-lifecycle",
+            "cleanup-reentry",
+            "explicit-recovery",
+            "cross-block-false",
+            "cross-block-true",
+            "collapsed-peer",
+            "empty-final",
+            "active-start",
+            "control-exit-foreign-focus",
+            "control-exit-close",
+            "control-exit-escape",
+            "control-exit-window-blur",
+            "control-exit-hidden",
+            "internal-focus-stop-final",
+            "fallback-noHost",
+            "fallback-permissionDenied",
+            "fallback-noStop",
+            "keyboard-no-stop"
+          ]
+        },
+        {
+          "id": "wfe-3.1-assistive-presenter",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "absent",
+            "disabled",
+            "keyboard-command",
+            "escape",
+            "close",
+            "cancel",
+            "status",
+            "guard-read-only",
+            "guard-composition",
+            "guard-permission",
+            "guard-remote",
+            "foreign-focus",
+            "teardown-registration",
+            "teardown-editor",
+            "unsupported",
+            "semantic-applicability"
           ]
         }
       ],
-      "nextAction": "Repair or authenticate the exact changed owner inputs reported by the ledger, then reuse the existing named dispatcher. No unchanged failed-check retry."
+      "nextAction": "Full original WFE-2.1 baseline assistance lifecycle and presenter proof bound to current installed SDK/WASM/IndexedDB. Separate MWX-1.7/PARALLEL WEX-2.3 mobile-extension return and original native/device/OS/AT/performance/release predicates remain deferred."
     },
     {
       "id": "WEB-MOBILE-EXTENSIONS",
@@ -5323,6 +5394,56 @@
         {
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/firefox-toolbar-repaired/receipt.json",
           "sha256": "b36369227145b59d92121967b2872759887faec18abeaa8b03edc35aa5afd8d1"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-assistive-dictation",
+      "owner": "PRIMARY baseline browser assistance public SDK",
+      "command": "EDITAC_WEB_ASSISTANCE_OUTPUT=.../c4k-assistance/run-1 node scripts/run-web-assistance-boundary.mjs; original node scripts/test-browser.mjs assistive-dictation",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4k-assistance/run-1/source-pins.json",
+          "sha256": "3e3c765ef36ec3fae15dee1f9aa71469864a0b742534c9c753d39830e611c402"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4k-assistance/run-1/assistive-dictation/chromium/receipt.json",
+          "sha256": "e0c61399339948cc7d174e561c8277022a49cb7f55d319c86988bda7dc5f3330"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4k-assistance/run-1/assistive-dictation/firefox/receipt.json",
+          "sha256": "579cf8639ce2cc89c787c3f793faa815049ce151e4889b853c249f0f67c0fbe4"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4k-assistance/run-1/assistive-dictation/webkit/receipt.json",
+          "sha256": "9c92a1bfa0fb9b3dfa591b6cc42505c0cb88b32dfae7d9876329e87643c4e8c0"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-assistive-presenter",
+      "owner": "PRIMARY baseline browser assistance public SDK",
+      "command": "EDITAC_WEB_ASSISTANCE_OUTPUT=.../c4k-assistance/run-1 node scripts/run-web-assistance-boundary.mjs; original node scripts/test-browser.mjs assistive-presenter",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4k-assistance/run-1/source-pins.json",
+          "sha256": "3e3c765ef36ec3fae15dee1f9aa71469864a0b742534c9c753d39830e611c402"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4k-assistance/run-1/assistive-presenter/chromium/receipt.json",
+          "sha256": "dc26704da635c9e10dac421a643b621d36f3af98f6fa8a94c9e597750f299dc4"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4k-assistance/run-1/assistive-presenter/firefox/receipt.json",
+          "sha256": "2ece233f61bf4a3c6a30c86d54c0dc953bed5d1100674eca61a7a973ce7e5948"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4k-assistance/run-1/assistive-presenter/webkit/receipt.json",
+          "sha256": "62280bd4201034587ad56023eac98b6455b3330a96e88c57c3150ba14fd50bee"
         }
       ]
     }
