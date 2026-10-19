@@ -1603,7 +1603,7 @@
       "oracles": "Bounded filtered catalog, keyboard/pointer/touch activation, local history/reopen, preserved errors and cancellation.",
       "proofs": [
         {
-          "id": "wfe-3.1-slash",
+          "id": "wfe-3.1-c4o-6-slash",
           "engines": [
             "chromium",
             "firefox",
@@ -1688,7 +1688,7 @@
           ]
         }
       ],
-      "nextAction": "Retain exact-source full INT-1.9 SLH-01\u201307 and WEX-1.2 catalog/activation/cancellation proof; actual AT/device/performance predicates remain deferred."
+      "nextAction": "All75 original INT-1.9/WEX-1.2 portable cases per engine freshly proven on current installed SDK; authenticate exact changed inputs only. Native/OS/AT and later qualification predicates remain deferred."
     },
     {
       "id": "WEB-REFERENCES",
@@ -6231,6 +6231,43 @@
         {
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-5/run-1/source-pins.json",
           "sha256": "fce915fac6358e1bf3bdec3446f79605cca08d7465916d23e3da9b4b737768bb"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c4o-6-slash",
+      "owner": "PRIMARY current-source slash boundary",
+      "command": "EDITAC_WEB_SLASH_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-6/run-1 node scripts/run-web-slash-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-6/run-1/slash-context/chromium/baseline/receipt.json",
+          "sha256": "5466b6e92fe43e3b642c7e21b8e7a896624283e343fb3199b575ef6ef159006c"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-6/run-1/slash-context/chromium/receipt.json",
+          "sha256": "8891ac5ffe687666e5b458e500a9946900e842b84e690fc07b26afd19b9c20dc"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-6/run-1/slash-context/firefox/baseline/receipt.json",
+          "sha256": "d2748e016e2145b46896b1e6b4286e4a529781ccf2962e21de890124f95fe191"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-6/run-1/slash-context/firefox/receipt.json",
+          "sha256": "f5d59cc74b6c429a837791030ba581f365e4ec01338ee043f2d7fd818853528d"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-6/run-1/slash-context/webkit/baseline/receipt.json",
+          "sha256": "b053f9b97aa0d23c3bf71158390215e449132099c356228753fc637848f148ba"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-6/run-1/slash-context/webkit/receipt.json",
+          "sha256": "6912243c30fb75154a7e7bb18e5f0d8fafbaf43949f24b35a22bde3b9c271432"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-6/run-1/source-pins.json",
+          "sha256": "09c0df5b3f628aac11c58e3bf3204d4fea991ab2a2f2f5ff6385bf9a4a2af612"
         }
       ]
     }
