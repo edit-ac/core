@@ -17,7 +17,7 @@ const verifyPins = pins => {
   assert.ok(Object.keys(pins).length > 0);
   for (const [path, expected] of Object.entries(pins)) assert.equal(hash(readFileSync(path)), expected, `Changed input: ${path}`);
 };
-const prior = resolve('../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2c-tables');
+const prior = resolve(process.env.EDITAC_WEB_REFERENCE_BUILD ?? '../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-6');
 const evidence = resolve('../architecture/evidence');
 const originals = {
   'references': engine => join(evidence, 'link-resolution/lnk-1.9-20261015/references', engine, 'receipt.json'),
@@ -48,10 +48,18 @@ const paths = [...Object.keys(runtime), ...assertions, 'scripts/run-web-referenc
   'tests/browser/editing-packed-cache.mjs', 'scripts/test-browser.mjs', 'scripts/editing-coverage.mjs'];
 const sourcePins = () => Object.fromEntries([...new Set(paths)].sort().map(path => [path, hash(readFileSync(path))]));
 const sources = sourcePins(); save('source-pins.json', sources);
-const packages = json(join(prior, 'run-1/packages.json'));
-for (const pack of Object.values(packages)) assert.equal(hash(readFileSync(pack.path)), pack.sha256);
+const packages = {};
+for (const name of ['core', 'web', 'markdown']) {
+  const packed = spawnSync('npm', ['pack', '--workspace', `@edit-ac/${name}`, '--json', '--pack-destination', output], { encoding: 'utf8' });
+  writeFileSync(join(output, `pack-${name}.log`), (packed.stdout ?? '') + (packed.stderr ?? ''));
+  assert.equal(packed.status, 0, `Pack ${name}`); assert.equal(packed.error, undefined);
+  const [manifest] = JSON.parse(packed.stdout), path = join(output, manifest.filename);
+  packages[name] = { path, manifest, sha256: hash(readFileSync(path)) };
+}
+verifyPins(members);
 save('packages.json', packages);
-const execution = { task: 'WFE-3.1-C4f-REFERENCES', originalParents: ['WFE-3.1-I1', 'WFE-3.1-V1'],
+const execution = { task: 'WFE-3.1-C4f-REFRESH', originalParents: ['WFE-3.1-I1', 'WFE-3.1-V1'],
+  buildAdmission: { path: prior, sourcePins: Object.keys(runtime).length, runtimeMembers: Object.keys(members).length },
   node: process.version, npm: '11.17.0', started: new Date().toISOString(), commands: [] };
 const failures = [];
 for (const suite of suites) {
