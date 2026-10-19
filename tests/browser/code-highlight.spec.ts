@@ -1,44 +1,20 @@
 import assert from 'node:assert/strict';
-import { test, before, after } from 'node:test';
-import { mkdir, writeFile, readFile } from 'node:fs/promises';
+import { test } from 'node:test';
 import { resolve } from 'node:path';
-import { createHash } from 'node:crypto';
-import { createConnection } from 'node:net';
-import { chromium, firefox, webkit } from 'playwright';
-import { startFixtureServer } from './fixture-server.mjs';
+import { browserHarness } from './browser-harness.ts';
 import { requireTestNode } from '../../scripts/test-toolchain.mjs';
 await requireTestNode();
-const engineName = process.env.EDITAC_CODE_HIGHLIGHT_BROWSER ?? 'chromium';
-const output = resolve(process.env.EDITAC_CODE_HIGHLIGHT_OUTPUT ?? '../architecture/evidence/code-highlight/browser', engineName);
-const facts = { cases: [], browser: {}, ownership: {}, cleanup: {}, sources: {} };
-const sources = ['packages/web/src/modules/code/presenter.ts', 'packages/web/src/dom/render.ts', 'packages/web/src/modules/code/scheduler.ts', 'packages/web/dist/modules/code/backend/editac_highlighting_bg.wasm', 'packages/core/dist/wasm/editac_wasm_bg.wasm', 'fixtures/browser-input/session.mjs', 'tests/browser/code-highlight.spec.ts'];
-let server, controller, browser;
-before(async () => {
-  await mkdir(output, { recursive: true });
-  for (const path of sources) facts.sources[path] = createHash('sha256').update(await readFile(path)).digest('hex');
-  server = await startFixtureServer({ fixtureDirectory: 'fixtures/browser-input' });
-  controller = await ({ chromium, firefox, webkit }[engineName]).launchServer({ headless: true });
-  browser = await ({ chromium, firefox, webkit }[engineName]).connect(controller.wsEndpoint());
-  facts.browser = { name: engineName, version: browser.version(), node: process.version, platform: process.platform, arch: process.arch };
-  facts.ownership = { pid: process.pid, browserPid: controller.process().pid, port: server.port, workspace: process.cwd(), launcher: 'npm run test:browser -- code-highlight', purpose: 'RCH-1.5 real input/renderer/worker/cache', log: output };
-});
-after(async () => {
-  try { await browser?.close(); } finally {
-    try { await controller?.close(); facts.cleanup.browserExited = !controller || controller.process().exitCode !== null || controller.process().signalCode !== null; } finally {
-      await server?.close();
-      if (server) facts.cleanup.listenerRemoved = await new Promise(resolve => { const s = createConnection(server.port, '127.0.0.1'); s.once('connect', () => { s.destroy(); resolve(false); }); s.once('error', e => resolve(e.code === 'ECONNREFUSED')); });
-      facts.counts = { executed: facts.cases.length, passed: facts.cases.filter(c => c.passed).length, failed: facts.cases.filter(c => !c.passed).length, skipped: 0 };
-      await writeFile(resolve(output, 'facts.json'), JSON.stringify(facts, null, 2));
-      assert.equal(facts.cleanup.browserExited, true); assert.equal(facts.cleanup.listenerRemoved, true);
-    }
-  }
+const output = resolve(process.env.EDITAC_CODE_HIGHLIGHT_OUTPUT ?? '../architecture/evidence/code-highlight/browser');
+const { probe: packedProbe } = browserHarness('code-highlight', 'fixtures/browser-input', {
+  autoMount: false, assertSourcesUnchanged: true,
+  sourcePaths: ['packages/web/src/modules/code/presenter.ts', 'packages/web/src/dom/render.ts',
+    'packages/web/src/modules/code/scheduler.ts', 'packages/web/src/modules/code/worker.ts',
+    'packages/web/src/modules/code/worker-entry.ts', 'fixtures/browser-input/session.mjs',
+    'fixtures/browser-input/index.html'],
 });
 async function probe(name, action, options = {}) {
-  const context = await browser.newContext(); const page = await context.newPage();
-  const fact = { name, passed: false, errors: [] }; facts.cases.push(fact);
-  page.on('pageerror', error => fact.errors.push(String(error)));
-  try {
-    await page.goto(server.url); await page.waitForFunction(() => !!window.inputFixture);
+  return packedProbe(name, async (page, fact) => {
+    await page.waitForFunction(() => !!window.inputFixture);
     await page.evaluate(async options => {
       const { codeHighlighting } = await import('/web/modules/index.js');
       const { createHighlightWorker } = await import('/web/modules/code/worker.js');
@@ -70,9 +46,9 @@ async function probe(name, action, options = {}) {
       };
     }, options);
     await action(page, fact);
-    assert.deepEqual(fact.errors, []); fact.passed = true;
-  } finally { try { await page.evaluate(() => window.inputFixture.destroy()); } finally { await context.close(); } }
+  });
 }
+
 const painted = page => page.waitForFunction(() => document.querySelector('pre')?.dataset.highlightState === 'highlighted');
 const snap = page => page.evaluate(() => window.highlightSnapshot());
 

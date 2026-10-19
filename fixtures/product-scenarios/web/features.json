@@ -674,9 +674,91 @@
         }
       ],
       "oracles": "Expected literal search matches/replacement, source-preserving code edits and UTF-16 highlight spans; history/readonly/cancel.",
-      "proofs": [],
-      "nextAction": "Repair or authenticate the exact changed owner inputs reported by the ledger, then reuse the existing named dispatcher. No unchanged failed-check retry.",
-      "gap": "Authenticate exact current receipts architecture/evidence/desktop-interactions/document-search/receipt.json, code-commands/receipt.json and code-highlight; transfer proof does not substitute for presenter behavior."
+      "proofs": [
+        {
+          "id": "wfe-3.1-c4-search-code",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "logical-unmounted",
+            "seed",
+            "captured-selection",
+            "remote-scope",
+            "replace-false",
+            "replace-true",
+            "nonrecursive",
+            "query-limits",
+            "match-limit",
+            "readonly",
+            "protected",
+            "unicode",
+            "escape-restore",
+            "escape-navigation",
+            "disable-pending",
+            "native-find",
+            "highlight-cleanup",
+            "disabled",
+            "IDE-01-up-backward-endpoint",
+            "IDE-01-down",
+            "IDE-01-duplicate",
+            "IDE-02-eof-tabs",
+            "IDE-02-blank",
+            "IDE-02-terminal-lf",
+            "IDE-02-upper-boundary",
+            "IDE-02-lower-boundary",
+            "IDE-03-surround-backward",
+            "IDE-03-empty",
+            "IDE-04-indent",
+            "IDE-04-outdent",
+            "IDE-04-noop",
+            "IDE-05-comment",
+            "IDE-05-uncomment",
+            "IDE-05-python",
+            "keyboard-Tab",
+            "keyboard-binding",
+            "focus-escape",
+            "reject-prose",
+            "reject-unknown",
+            "reject-readonly",
+            "reject-disabled",
+            "reject-cross-block",
+            "pair-overtype",
+            "pair-backspace",
+            "literal",
+            "suppress-literal",
+            "suppress-paste",
+            "suppress-correction",
+            "suppress-composition",
+            "pair-remote",
+            "composition-owner",
+            "disable-lifecycle",
+            "pair-replacement",
+            "pair-untrusted",
+            "pair-context",
+            "reserved-bindings",
+            "delimiter-40",
+            "delimiter-91",
+            "delimiter-123",
+            "delimiter-34",
+            "delimiter-39",
+            "pair-modifiers",
+            "selection-effects",
+            "immediate-input",
+            "remote-churn",
+            "composition-remote",
+            "unknown-language",
+            "timeout-dispose",
+            "disable-enable",
+            "resume-and-convert",
+            "unsupported-browser",
+            "pending-disposal"
+          ]
+        }
+      ],
+      "nextAction": "Original literal document search/replacement, source-preserving code commands/autopair and real-worker highlight behavior proven through current installed SDK in three browsers. Recheck only changed source/package/oracle inputs; native/device/performance remain deferred."
     },
     {
       "id": "WEB-MATH-REORDER",
@@ -2672,6 +2754,55 @@
         {
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2d-rich-transfer/run-1/source-pins.json",
           "sha256": "72e33c428b4f36cbecebf8505e75104f78397ca39fe32d831542a9b09ca923e7"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c4-search-code",
+      "owner": "PRIMARY current-source search/code boundary",
+      "command": "node scripts/run-web-search-code-boundary.mjs (original search/code contracts and three installed-package browser families)",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4-search-code/run-1/code-commands/chromium/receipt.json",
+          "sha256": "98240f6b2b8ff03ce063f56211374daf6d086ad88fdc4ff853eed0d23a62ea0d"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4-search-code/run-1/code-commands/firefox/receipt.json",
+          "sha256": "0cb49fa2d12a48173730de3c6815b700f849dd0cdde5960376aa3479cce39c85"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4-search-code/run-1/code-commands/webkit/receipt.json",
+          "sha256": "c8feaa4810a53d7eed83df77918f8bc661fdf5aad6851723272f6457d385914a"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4-search-code/run-1/code-highlight/chromium/receipt.json",
+          "sha256": "ee783beb6d4c90e9d7ce6bf43721ba8919df7c91d37058849a7782f8187839a4"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4-search-code/run-1/code-highlight/firefox/receipt.json",
+          "sha256": "975ed1c2ea04ae2350ac7d8a47e9bf2bb0549ffa82db1e2f39109f2736a0a0ab"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4-search-code/run-1/code-highlight/webkit/receipt.json",
+          "sha256": "0336ec55e58b6d695f408fc4e59e6380f932a9b82baffc9d553da605631ec83f"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4-search-code/run-1/document-search/chromium/receipt.json",
+          "sha256": "cba7ca4bf50aa56d2fa004ed83f2cea68531eff1d2996fb55306bca17fc6865c"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4-search-code/run-1/document-search/firefox/receipt.json",
+          "sha256": "85a815118e3a5b03f52dcf5dd536cc0dc1d82a218d488857ba5010019ceb6b95"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4-search-code/run-1/document-search/webkit/receipt.json",
+          "sha256": "b3355aa8997c83161731f1b15d44a389d86fbdabee4707800447676d480a3cea"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4-search-code/run-1/source-pins.json",
+          "sha256": "b0ff13fda4fd2cb636c29e9a16d2de5d06f37d5ec96808c65c93d8f2547fa87f"
         }
       ]
     }
