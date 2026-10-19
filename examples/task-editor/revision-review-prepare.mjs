@@ -11,7 +11,7 @@ export async function prepareInstalledRevisionSite(output, scenario, priorPath) 
   const priorBytes = await readFile(resolve(priorPath)), prior = JSON.parse(priorBytes);
   assert.equal(prior.prepared, true); assert.equal(prior.toolchains.node, process.versions.node);
   const sdkPaths = ['Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml', 'package.json', 'package-lock.json', 'tsconfig.base.json', '.node-version', 'crates', 'packages', 'scripts', 'fixtures', 'licenses', 'LICENSE', 'README.md'];
-  const proofOnly = new Set(['scripts/run-web-assistance-ai-refresh-boundary.mjs', 'scripts/run-web-assistance-current-inputs-boundary.mjs', 'scripts/run-web-conversion-current-inputs-boundary.mjs', 'scripts/run-web-editing-media-table-refresh-boundary.mjs', 'scripts/run-web-markdown-touch-conversion-refresh-boundary.mjs']);
+  const proofOnly = new Set(['scripts/run-web-mobile-extension-boundary.mjs', 'scripts/run-web-assistance-ai-refresh-boundary.mjs', 'scripts/run-web-assistance-current-inputs-boundary.mjs', 'scripts/run-web-conversion-current-inputs-boundary.mjs', 'scripts/run-web-editing-media-table-refresh-boundary.mjs', 'scripts/run-web-markdown-touch-conversion-refresh-boundary.mjs']);
   const git = (...args) => {
     const result = spawnSync('git', args, { cwd: root, encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr); return result.stdout.trim();
