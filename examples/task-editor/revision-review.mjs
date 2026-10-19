@@ -1,5 +1,6 @@
-import { openEditorStorage, mountEditorSurface, WebHistoryStore, HistoryReview, HistoryRestorer, prepareReview, ChangeReview } from '@edit-ac/web';
+import { openEditorStorage, mountEditorSurface, WebHistoryStore, HistoryReview, prepareReview, ChangeReview } from '@edit-ac/web';
 import { localOptions } from './document.mjs';
+import { RevisionRestorer } from './revision-review-restorer.mjs';
 
 export const limits = Object.freeze({ maxRevisions: 3, maxBytes: 96 * 1024, maxRevisionBytes: 48 * 1024 });
 export let workspace;
@@ -25,7 +26,7 @@ async function mountInstance(name, root, prefix) {
   const saveStatus = element('revision-save-status');
   const captureStatus = element('revision-capture-status');
   const controls = ['revision-save', 'revision-name', 'revision-capture'].map(element);
-  let closed = false, pending = false, comparison, reviewGeneration = 0;
+  let closed = false, closing = false, pending = false, comparison, restorer, recovery;
   const beforeSelect = element('revision-before'), afterSelect = element('revision-after');
   const compareStatus = element('revision-compare-status');
   function clearComparison(message, state = 'ready') {
@@ -66,6 +67,7 @@ async function mountInstance(name, root, prefix) {
       clearComparison('A selected capture is unavailable (pruned). Select an available capture or capture again. Live document unchanged.', 'error');
     }
   }
+  let resetReview;
   const listeners = [];
   function listen(target, type, handler) { target.addEventListener(type, handler); listeners.push(() => target.removeEventListener(type, handler)); }
   function status(target, message, state = 'ready') { target.textContent = message; target.dataset.state = state; }
@@ -94,14 +96,15 @@ async function mountInstance(name, root, prefix) {
     } finally { pending = false; if (!closed) element('revision-capture').disabled = false; }
   }
   async function close() {
-    if (closed) return;
-    // A failed flush leaves the owner and view available for retry rather than dropping edits.
-    await save();
+    if (closed || closing) return;
+    closing = true;
+    restorer.retire();
+    try { await save(); }
+    catch (error) { closing = false; resetReview(); throw error; }
     closed = true; root.dataset.lifecycle = 'closing';
     for (const remove of listeners.splice(0)) remove();
     root.querySelectorAll('input,button,select').forEach(control => { control.disabled = true; });
     status(saveStatus, 'Review closed. Reopen to recover saved live content; captures are memory only.');
-    reviewGeneration++;
     clearComparison('Review closed. Reopen and capture two states to compare.'); workspace.review.destroy(); await workspace.surface.dispose();
     await workspace.owner.destroy({ policy: 'flush' });
     root.dataset.lifecycle = 'closed';
@@ -117,33 +120,57 @@ async function mountInstance(name, root, prefix) {
       const access = () => ({ scope: { identity: options.identity, moduleProfile: `revision-review-${name}-v1` } });
       const store = new WebHistoryStore(limits);
       let readonly = false;
+      function reportRestore(result) {
+        const target = element('revision-restore-status');
+        if (!('kind' in result)) {
+          recovery = undefined; element('revision-restore-recovery').replaceChildren();
+          status(target, 'Preview ready. Current content is unchanged. Confirm explicitly or cancel.');
+        } else if (result.kind === 'conflict') {
+          recovery = result;
+          const message = result.reason === 'rejected'
+            ? 'The host rejected the restore. Its current post-call state is shown below; a change may already have occurred. Check the live document and save status before retrying.'
+            : `Restore conflict: ${result.reason}. Current content is retained. Inspect an available capture and preview again.`;
+          status(target, message, 'error');
+          // textContent preserves supplied context without interpreting source as HTML.
+          element('revision-restore-recovery').textContent = JSON.stringify({ base: result.base, current: result.current, proposed: result.proposed }, null, 2);
+        } else {
+          recovery = undefined; element('revision-restore-recovery').replaceChildren();
+          status(target, result.kind === 'applied' ? 'Restore applied as a new edit. Use Save locally to confirm local durability.' : 'No changes to restore.');
+        }
+      }
       function createReview() {
-        const generation = ++reviewGeneration;
-        const restorer = new HistoryRestorer(store, {
+        restorer = new RevisionRestorer(store, {
           engine: owner.engine,
           commit: owner.commitPrepared,
-          writable: () => !closed && !readonly && generation === reviewGeneration,
-        }, access);
+          writable: () => !closed && !closing && !readonly,
+        }, access, reportRestore);
         return new HistoryReview(element('revision-history'), store, access, { pageSize: 3, maxValueChars: 4096, restorer });
       }
-      review = createReview();
-      listen(element('revision-cancel-restore'), 'click', () => {
-        // Dispose the view holding the single-use preview; keep this owner and captures.
+      resetReview = () => {
         workspace.review.destroy();
         workspace.review = review = createReview();
+      };
+      review = createReview();
+      listen(element('revision-cancel-restore'), 'click', () => {
+        restorer.retire(); resetReview();
         status(element('revision-restore-status'), 'Restore preview canceled. Current content is unchanged; inspect a capture to preview again.');
       });
       const updates = owner.engine.subscribe({ type: 'updates' }, () => {
         status(saveStatus, 'Live changes are being journaled locally. Use Save locally to confirm.');
       });
       listeners.push(() => updates.dispose());
-      workspace = { owner, surface, review, store, access, options, save, capture, compare, close, get closed() { return closed; }, get readonly() { return readonly; } };
+      workspace = { owner, surface, review, store, access, options, save, capture, compare, close, get restorer() { return restorer; }, get restoreRecovery() { return recovery; }, get closed() { return closed; }, get readonly() { return readonly; } };
       beforeSelect.replaceChildren(); afterSelect.replaceChildren();
       clearComparison('Capture two states to compare them.'); refreshComparisonChoices();
       listen(element('revision-compare-form'), 'submit', event => { event.preventDefault(); compare(); });
       for (const select of [beforeSelect, afterSelect]) listen(select, 'change', () => clearComparison('Selection changed. Choose Compare captures to inspect these states.'));
       const readOnlyControl = element('revision-readonly');
-      listen(readOnlyControl, 'change', () => { readonly = readOnlyControl.checked; surface.setReadOnly(readonly); });
+      listen(readOnlyControl, 'change', () => {
+        readonly = readOnlyControl.checked;
+        surface.setReadOnly(readonly);
+        restorer.retire('readonly'); resetReview();
+        if (!recovery) status(element('revision-restore-status'), readonly ? 'Readonly: restore is unavailable. Return to writable mode and preview again.' : 'Writable again. Inspect a capture and create a new preview.');
+      });
       listen(element('revision-save'), 'click', () => { void save().catch(error => status(saveStatus, `Save failed: ${error.message}. Keep this page open and retry.`, 'error')); });
       listen(element('revision-capture-form'), 'submit', event => {
         event.preventDefault();
