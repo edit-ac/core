@@ -23,6 +23,7 @@ interface PendingUpdate {
   update: JournalUpdate;
   completion: Promise<LocalCommit>;
   failed: boolean;
+  retrying: boolean;
 }
 
 /** Internal host adapter. Takes ownership of writer/journal; hosts edit through commit().
@@ -71,32 +72,38 @@ export class LocalStorageLifecycle {
       const update: JournalUpdate = { identity: { ...patch.identity }, writerId: patch.writerId,
         sequence: patch.sequence, origin: patch.origin, bytes: new Uint8Array(patch.update.bytes) };
       const durable=this.#assetSession?.committedReceipt(update);
-      const record: PendingUpdate = { update, completion: durable ? Promise.resolve(durable) : Promise.resolve().then(() => this.#journal.append(update)), failed: false };
+      const record: PendingUpdate = { update, completion: durable ? Promise.resolve(durable) : Promise.resolve().then(() => this.#journal.append(update)), failed: false, retrying: false };
       this.#updates.add(record);
-      record.completion = record.completion.then(commit => {
-        this.#updates.delete(record);
-        this.#latest = { ...commit };
-        if (commit.durability === "unknown") {
-          this.#observedUnknownDurability = true;
-          if (this.#capability !== "unavailable") this.#capability = "unknown";
-        } else if (commit.durability !== "strict") this.#capability = "unavailable";
-        else if (this.#capability === "unknown" && !this.#observedUnknownDurability) this.#capability = "supported";
-        this.#notify();
-        for (const listener of [...this.#committedListeners]) {
-          try { listener({ ...update, identity: { ...update.identity }, bytes: new Uint8Array(update.bytes) }, { ...commit }); }
-          catch (error) { this.observerErrors.push(error); if (this.observerErrors.length > 32) this.observerErrors.shift(); }
-        }
-        return commit;
-      }, error => {
-        record.failed = true;
-        this.#failure = error;
-        this.#notify();
-        throw error;
-      });
-      // Edits are synchronous; storage errors are exposed by state/flush, not unhandled rejections.
-      void record.completion.catch(() => {});
+      this.#track(record, record.completion);
       this.#notify();
     });
+  }
+
+  #track(record: PendingUpdate, completion: Promise<LocalCommit>): void {
+    record.completion = completion.then(commit => {
+      this.#updates.delete(record);
+      this.#latest = { ...commit };
+      if (this.#updates.size === 0) this.#failure = null;
+      if (commit.durability === "unknown") {
+        this.#observedUnknownDurability = true;
+        if (this.#capability !== "unavailable") this.#capability = "unknown";
+      } else if (commit.durability !== "strict") this.#capability = "unavailable";
+      else if (this.#capability === "unknown" && !this.#observedUnknownDurability) this.#capability = "supported";
+      this.#notify();
+      for (const listener of [...this.#committedListeners]) {
+        try { listener({ ...record.update, identity: { ...record.update.identity }, bytes: new Uint8Array(record.update.bytes) }, { ...commit }); }
+        catch (error) { this.observerErrors.push(error); if (this.observerErrors.length > 32) this.observerErrors.shift(); }
+      }
+      return commit;
+    }, error => {
+      record.retrying = false;
+      record.failed = true;
+      this.#failure = error;
+      this.#notify();
+      throw error;
+    });
+    // Edits are synchronous; storage errors are exposed by state/flush, not unhandled rejections.
+    void record.completion.catch(() => {});
   }
 
   /** Committed-only hook: local notifications cannot precede transaction completion. */
@@ -123,9 +130,9 @@ export class LocalStorageLifecycle {
   }
 
   get state(): StorageState {
-    const failed = [...this.#updates].some(record => record.failed);
+    const failed = [...this.#updates].some(record => record.failed && !record.retrying);
     return { phase: failed ? "error" : this.#updates.size ? "pending" : "localCommitted",
-      pending: [...this.#updates].filter(record => !record.failed).length,
+      pending: [...this.#updates].filter(record => !record.failed || record.retrying).length,
       localCommitted: this.#latest ? { ...this.#latest } : null, error: this.#failure,
       saved: this.#latest !== null && this.#updates.size === 0,
       strictDurability: this.#capability };
@@ -171,11 +178,22 @@ export class LocalStorageLifecycle {
     }
   }
 
-  /** Captures synchronously. Later updates cannot extend this barrier. Failed updates remain included. */
-  flush(options: { target: "local" }): Promise<void> {
+  /** Captures synchronously. Later updates cannot extend this barrier.
+   * Explicit recovery retries failed captured updates once, with their original
+   * bytes/identity. Concurrent callers share each in-flight attempt. No timers. */
+  flush(options: { target: "local"; retryFailed?: boolean }): Promise<void> {
     this.#requireLive();
     if (options.target !== "local") return Promise.reject(new Error("Unsupported flush target"));
-    return Promise.all([...this.#updates].map(record => record.completion)).then(() => {});
+    const captured = [...this.#updates];
+    if (options.retryFailed) {
+      for (const record of captured) {
+        if (!record.failed || record.retrying) continue;
+        record.retrying = true;
+        this.#track(record, Promise.resolve().then(() => this.#journal.append(record.update)));
+      }
+      this.#notify();
+    }
+    return Promise.all(captured.map(record => record.completion)).then(() => {});
   }
 
   recoveryExport(): RecoveryExport {

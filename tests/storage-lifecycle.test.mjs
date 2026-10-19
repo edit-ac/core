@@ -121,6 +121,62 @@ for (const name of ['AbortError', 'QuotaExceededError', 'NotAllowedError']) {
   });
 }
 
+for (const policy of ['continue', 'reject']) {
+  check(`deterministic explicit retry under ${policy} policy retains identity, shares attempts and captures only original work`, async () => {
+    const f = await setup({ afterStorageFailure: policy });
+    try {
+      const committed = []; f.lifecycle.subscribeCommitted((update, receipt) => committed.push({ update, receipt }));
+      edit(f, 'A'); const original = await staged(f);
+      const error = new DOMException('denied until repaired', 'NotAllowedError');
+      const rejected = assert.rejects(f.lifecycle.flush({ target: 'local' }), e => e === error);
+      original.error = error; original.abort(); await rejected;
+      const recovery = f.lifecycle.recoveryExport(), engine = f.writer.engine;
+      const semantic = () => { const { changedNodes, touchedRanges, ...state } = engine.read(); return state; };
+      const state = semantic(), history = engine.history({ type: 'state' });
+      const checkpoint = engine.checkpoint();
+      assert.equal(committed.length, 0);
+      if (policy === 'reject') assert.throws(() => edit(f, 'B'), /Host policy rejects/);
+      await assert.rejects(f.lifecycle.flush({ target: 'local' }), e => e === error);
+      const count = f.db.transactions.length; await tick(); assert.equal(f.db.transactions.length, count);
+      const retry = f.lifecycle.flush({ target: 'local', retryFailed: true });
+      const shared = f.lifecycle.flush({ target: 'local', retryFailed: true });
+      const retried = await staged(f);
+      assert.equal(f.db.transactions.length, count + 1);
+      assert.deepEqual(retried.entry, original.entry);
+      assert.equal(f.writer.engine, engine); assert.deepEqual(semantic(), state);
+      assert.deepEqual(engine.history({ type: 'state' }), history); assert.deepEqual(engine.checkpoint(), checkpoint);
+      assert.deepEqual(f.lifecycle.recoveryExport(), recovery);
+      assert.equal(f.lifecycle.state.saved, false); assert.equal(f.lifecycle.state.pending, 1);
+      if (policy === 'reject') assert.throws(() => edit(f, 'B'), /Host policy rejects/);
+      let later;
+      if (policy === 'continue') { edit(f, 'B'); later = await staged(f); }
+      retried.complete(); await Promise.all([retry, shared]);
+      assert.equal(committed.length, 1);
+      assert.deepEqual(committed[0].update, recovery.unsavedUpdates[0]);
+      assert.equal(committed[0].receipt.updateId, original.entry.updateId);
+      if (later) { assert.equal(f.lifecycle.state.pending, 1); assert.equal(f.lifecycle.state.saved, false); later.complete(); await f.lifecycle.flush({ target: 'local' }); }
+      assert.equal(f.lifecycle.state.saved, true); assert.equal(f.lifecycle.state.error, null);
+      assert.equal(f.lifecycle.recoveryExport().unsavedUpdates.length, 0);
+      edit(f, 'C'); (await staged(f)).complete(); await f.lifecycle.flush({ target: 'local' });
+    } finally { await dispose(f); }
+  });
+}
+
+check('deterministic denied retry rejects again without losing recovery or scheduling more attempts', async () => {
+  const f = await setup();
+  try {
+    edit(f, 'A'); const tx = await staged(f);
+    const first = assert.rejects(f.lifecycle.flush({ target: 'local' }), { name: 'AbortError' }); tx.abort(); await first;
+    const recovery = f.lifecycle.recoveryExport();
+    const retry = assert.rejects(f.lifecycle.flush({ target: 'local', retryFailed: true }), { name: 'QuotaExceededError' });
+    const next = await staged(f); next.requestFailure(new DOMException('still denied', 'QuotaExceededError')); await retry;
+    assert.deepEqual(f.lifecycle.recoveryExport(), recovery); assert.equal(f.lifecycle.state.saved, false);
+    assert.equal(f.lifecycle.state.phase, 'error'); assert.equal(f.lifecycle.state.error.name, 'QuotaExceededError');
+    const count = f.db.transactions.length; await tick(); await tick(); assert.equal(f.db.transactions.length, count);
+    await assert.rejects(f.lifecycle.flush({ target: 'local' }), { name: 'QuotaExceededError' });
+  } finally { await dispose(f); }
+});
+
 check('deterministic later transaction failure cannot reject an earlier captured set, and no-op work adds no storage', async () => {
   const f = await setup();
   try {
