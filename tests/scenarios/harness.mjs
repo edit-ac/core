@@ -119,7 +119,7 @@ export async function prepareProductHarness(output, facts, scenario) {
     const destination=join(site,'fixture','installed-formats');
     await cp(join(consumer,'node_modules/@edit-ac/formats'),destination,{recursive:true});
     const metadataSha256=sha(await readFile(join(destination,'capabilities.json')));
-    const pin={metadataSha256,provenance:'Installed @edit-ac/formats '+facts.packs.find(p=>p.name==='formats').sha256+' source '+facts.sourceRevision};
+    const pin={metadataSha256,provenance:'Installed @edit-ac/formats '+facts.packs.find(p=>p.name==='formats').sha256+' source '+(facts.packageSourceRevision??facts.sourceRevision)};
     await writeFile(join(destination,'pin.mjs'),'export const metadataSha256='+JSON.stringify(pin.metadataSha256)+';\nexport const provenance='+JSON.stringify(pin.provenance)+';\n');
     facts.installedFormats=pin;
   }
