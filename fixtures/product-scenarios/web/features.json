@@ -64,7 +64,7 @@
       "id": "WEB-COMMANDS",
       "parent": "WFE-3.1",
       "family": "everyday-editing",
-      "requirement": "38 CMD-01\u201305 / INT-1.16 command, replacement, nested ownership",
+      "requirement": "38 INT-1.18 / CMD-01\u201306 portable command catalog, routing, replacement, permission, save/history and shortcut profiles",
       "owner": "PRIMARY",
       "enabled": "default or host-selected",
       "apis": [
@@ -79,10 +79,10 @@
           "symbol": "CommandControls"
         }
       ],
-      "oracles": "Captured range differs from caret; command aliases share one commit; readonly/stale/cancel/dispose reject without mutation.",
+      "oracles": "Trusted keyboard/pointer routes share projected content, one Session commit/journal update/history group; supplied captured replacement differs from caret and survives durable reopen; nested/other editor controls retain ownership; stale/readonly/permission/cancel/disposed targets reject; save preserves undo/redo and empty redo is inert.",
       "proofs": [
         {
-          "id": "wfe-1.1",
+          "id": "wfe-3.1-c4d-commands",
           "engines": [
             "chromium",
             "firefox",
@@ -106,16 +106,14 @@
             "CMD-01-cli-semantic-true",
             "CMD-01-agent-semantic-true",
             "CMD-01-unsupported",
-            "CMD-01-alias-toggleItalic",
-            "CMD-01-alias-toggleUnderline",
-            "CMD-01-alias-toggleStrike",
-            "CMD-01-alias-toggleCode",
-            "CMD-01-alias-insertParagraph",
-            "CMD-01-alias-insertLineBreak",
-            "CMD-01-alias-deleteContentBackward",
-            "CMD-01-alias-deleteContentForward",
-            "CMD-01-link-history-alias",
-            "CMD-01-empty-replace",
+            "CMD-02-host",
+            "CMD-02-find",
+            "CMD-02-nested",
+            "CMD-02-second",
+            "CMD-03-supplied-false",
+            "CMD-03-supplied-true",
+            "CMD-03-remote",
+            "CMD-03-invalid",
             "CMD-04-read-only",
             "CMD-04-permission",
             "CMD-04-cancel",
@@ -131,19 +129,34 @@
             "CMD-04-nested-contenteditable-replace",
             "CMD-04-nested-textbox-bold",
             "CMD-04-nested-textbox-replace",
+            "CMD-05-save",
+            "CMD-06-reserved",
+            "CMD-06-remap",
+            "CMD-01-alias-toggleItalic",
+            "CMD-01-alias-toggleUnderline",
+            "CMD-01-alias-toggleStrike",
+            "CMD-01-alias-toggleCode",
+            "CMD-01-alias-insertParagraph",
+            "CMD-01-alias-insertLineBreak",
+            "CMD-01-alias-deleteContentBackward",
+            "CMD-01-alias-deleteContentForward",
+            "CMD-01-link-history-alias",
+            "CMD-01-empty-replace",
             "CMD-04-permission-keyboard",
             "CMD-04-permission-toolbar",
             "CMD-04-permission-captured",
+            "CMD-03-reopen",
             "CMD-04-dialog-apply",
             "CMD-04-dialog-read-only",
             "CMD-04-dialog-permission",
             "CMD-04-dialog-cancel-reopen",
             "CMD-04-disposed",
+            "CMD-03-atomic-rejection",
             "CMD-04-composition-mapping"
           ]
         }
       ],
-      "nextAction": "Repair or authenticate the exact changed owner inputs reported by the ledger, then reuse the existing named dispatcher. No unchanged failed-check retry."
+      "nextAction": "All 64 original portable command cases per browser proven on current installed SDK; authenticate changed inputs only. CLI/agent routes are semantic public API calls, supplied replacement and profiles are prepared; native menus/OS correction/non-US/AT observations remain deferred to43."
     },
     {
       "id": "WEB-RICH-TRANSFER",
@@ -3088,6 +3101,31 @@
         {
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4c-inline-media/run-1/image-lifecycle/webkit/receipt.json",
           "sha256": "9910bfe803736eb13227df2c4f1a1acecdba5e83190b45578042ed5556ddec81"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c4d-commands",
+      "owner": "PRIMARY",
+      "command": "EDITAC_WEB_COMMAND_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4d-commands/run-1 node scripts/run-web-command-boundary.mjs",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4d-commands/run-1/source-pins.json",
+          "sha256": "95e499da75967cbe9a25bd8cb05523ed1339af7737b69ffadcb8a6fb2c04bcb7"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4d-commands/run-1/interaction-command-surfaces/chromium/receipt.json",
+          "sha256": "d9042ef4ee484559059b262b14ee463772955deecffc7e3e4f4a5d0601ba1caa"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4d-commands/run-1/interaction-command-surfaces/firefox/receipt.json",
+          "sha256": "de8ab87d53600e0e702300bbcb8140536d69c34fcfdf56342c5a5f6a7d55a1ce"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4d-commands/run-1/interaction-command-surfaces/webkit/receipt.json",
+          "sha256": "02974f9e556a52aa355693f919915e0ba25258415a76ac92b80cb2816ce84273"
         }
       ]
     }
