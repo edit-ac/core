@@ -2475,7 +2475,23 @@
       "oracles": "Expected text/selection after actual browser pointer/input, bounded gesture teardown, viewport/focus state, lifecycle recovery; supplied platform events are prepared.",
       "proofs": [
         {
-          "id": "wfe-2.2",
+          "id": "wfe-3.1-touch-harness",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "MWF-harness-forward",
+            "MWF-harness-backward",
+            "MWF-harness-utf16",
+            "MWF-missing-engine",
+            "MWF-geometry-cancel",
+            "MWF-capability-contract"
+          ]
+        },
+        {
+          "id": "wfe-3.1-touch-touch",
           "engines": [
             "chromium",
             "firefox",
@@ -2488,16 +2504,320 @@
             "MBT-04-Escape",
             "MBT-04-read-only",
             "MBT-04-dispose",
+            "MBT-05-touch",
+            "MBT-05-mouse",
+            "MBT-05-pen",
+            "MBT-05-multitouch",
+            "MBT-02-remote",
+            "MBT-01-native",
+            "MBT-07-tap",
+            "MBT-07-keyboard",
+            "MBT-01-boundaries",
+            "SEL-06-false",
+            "SEL-06-true",
+            "SEL-07-pointercancel",
+            "SEL-07-blur",
+            "SEL-07-dispose",
+            "MBT-06-mixed",
             "MBT-04-bounded",
+            "XFR-07-autoscroll-drop",
+            "MBT-07-text-target"
+          ]
+        },
+        {
+          "id": "wfe-3.1-touch-input",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
             "MBI-01-null",
             "MBI-01-Unidentified",
             "MBI-01-noncancelable",
             "MBI-01-missing-beforeinput",
-            "MBI-01-observer-first"
+            "MBI-01-observer-first",
+            "MBI-02-04-prediction",
+            "MBI-02-04-punctuation",
+            "MBI-02-04-dictation",
+            "MBI-02-04-swipe",
+            "MBI-02-04-emoji",
+            "MBI-02-04-indic",
+            "MBI-02-04-rtl",
+            "MBI-02-04-combining",
+            "MBI-02-native-target",
+            "MBI-05-deleteContentBackward",
+            "MBI-05-deleteContentForward",
+            "MBI-05-deleteWordBackward",
+            "MBI-05-deleteSoftLineBackward",
+            "MBI-05-repeat",
+            "MBI-05-block-boundaries",
+            "MBI-03-keydown-first",
+            "MBI-03-end-first",
+            "MBI-03-missing-keyup",
+            "MBI-06-blur",
+            "MBI-06-pagehide",
+            "MBI-06-readonly",
+            "MBI-06-cancel",
+            "MBI-06-remote-false",
+            "MBI-06-remote-true",
+            "MBI-06-toolbar-dispose",
+            "MBI-07-mixed",
+            "MBI-08-markdown-typing",
+            "MBI-08-markdown-replacement",
+            "MBI-08-slash-typing",
+            "MBI-08-slash-replacement",
+            "MBI-03-indic",
+            "MBI-06-deleted-owner"
+          ]
+        },
+        {
+          "id": "wfe-3.1-touch-viewport",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "MBV-01-resizes-content",
+            "MBV-01-resizes-visual",
+            "MBV-01-overlays-content",
+            "MBV-02-two-editors",
+            "MBV-03-05-coordinates",
+            "MBV-04-floating",
+            "MBV-06-safe-area",
+            "MBV-07-owners",
+            "MBV-08-burst-remote",
+            "MBV-09-throwing",
+            "MBV-09-invalid",
+            "MBV-09-tiny",
+            "MBV-09-native",
+            "MBV-gesture-valid",
+            "MBV-gesture-scale",
+            "MBV-gesture-throwing",
+            "MBV-gesture-standalone",
+            "MBV-gesture-orientation",
+            "MBV-local-edit",
+            "MBV-05-hit",
+            "MBV-07-cross-origin",
+            "MBV-02-conflict",
+            "MBV-08-09-resource-bound"
+          ]
+        },
+        {
+          "id": "wfe-3.1-touch-focus",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "MBF-01-bold",
+            "MBF-01-italic",
+            "MBF-01-underline",
+            "MBF-01-link",
+            "MBF-02-search",
+            "MBF-02-late-button",
+            "MBF-02-late-editor",
+            "MBF-03-declined",
+            "MBF-04-break-history",
+            "MBF-04-indent",
+            "MBF-04-literal",
+            "MBF-04-paste-denied",
+            "MBF-04-paste-readOnly",
+            "MBF-04-paste-remote",
+            "MBF-04-paste-dispose",
+            "MBF-04-tab",
+            "MBF-05-hints",
+            "MBF-06-done",
+            "MBF-06-go",
+            "MBF-06-send",
+            "MBF-two-editors",
+            "MBF-search-form",
+            "MBF-no-eager-access",
+            "MBF-compose-toolbar",
+            "MBF-resource-bound",
+            "MBF-controls-disabled"
+          ]
+        },
+        {
+          "id": "wfe-3.1-touch-lifecycle",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "MBC-01-throw",
+            "MBC-01-discard",
+            "MBC-01-success",
+            "MBC-02-absent",
+            "MBC-02-denied",
+            "MBC-02-expired",
+            "MBC-08-echo",
+            "MBC-08-beforeinput",
+            "MBC-08-noncancelable",
+            "MBC-09-event",
+            "MBC-09-beforeinput",
+            "MBC-09-noncancelable",
+            "MBC-03-stable-plain",
+            "MBC-03-stable-deferred",
+            "MBC-11-plain-readonly",
+            "MBC-11-plain-pagehide",
+            "MBC-11-plain-hidden",
+            "MBC-11-plain-target-delete",
+            "MBC-11-plain-cancel",
+            "MBC-11-deferred-readonly",
+            "MBC-11-deferred-pagehide",
+            "MBC-11-deferred-hidden",
+            "MBC-11-deferred-target-delete",
+            "MBC-11-deferred-cancel",
+            "MBC-07-plain",
+            "MBC-07-deferred",
+            "MBC-06-picker-return",
+            "MBC-04-composition",
+            "MBC-04-hidden",
+            "MBC-04-viewport-leases",
+            "MBC-04-pointer",
+            "MBC-05-recovery",
+            "MBC-10-internal",
+            "MBC-10-markdown",
+            "MBC-10-html",
+            "MBC-10-literal",
+            "MBC-12-palette",
+            "MBC-12-inert",
+            "MBC-10-shortcut-Control",
+            "MBC-10-shortcut-Meta",
+            "MBC-11-captured-control",
+            "MBC-02-bounds",
+            "MBC-12-caption"
+          ]
+        },
+        {
+          "id": "wfe-3.1-touch-capabilities",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "MBA-default-lazy",
+            "MBA-matrix-absent",
+            "MBA-matrix-throw",
+            "MBA-matrix-reject",
+            "MBA-matrix-insecure",
+            "MBA-matrix-inactive",
+            "MBA-matrix-available",
+            "MBA-layout-generation",
+            "MBA-overlay-geometry",
+            "MBA-overlay-owners",
+            "MBA-throwing-geometry",
+            "MBA-lock-escape",
+            "MBA-lock-blur",
+            "MBA-lock-pagehide",
+            "MBA-lock-fullscreen",
+            "MBA-lock-dispose",
+            "MBA-lock-admission",
+            "MBA-lock-late-two-editors",
+            "MBA-resource-bounds",
+            "MBA-editcontext-excluded",
+            "MBA-host-fallback-absent",
+            "MBA-host-fallback-denied",
+            "MBA-host-fallback-unsupported",
+            "MBA-late-enable",
+            "MBA-production-viewport",
+            "MBA-editcontext-probe",
+            "MBA-kiosk-escape-admission",
+            "MBA-layout-input-parity",
+            "MBA-host-available",
+            "MBA-fullscreen-owner-false",
+            "MBA-fullscreen-owner-true"
+          ]
+        },
+        {
+          "id": "wfe-3.1-touch-modules",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "MBX-01-visible",
+            "MBX-01-literal",
+            "MBX-01-keyboard",
+            "MBX-01-resizes-visual",
+            "MBX-01-overlays-content",
+            "MBX-02-native-menu-fallback",
+            "MBX-cancel-host-focus",
+            "MBX-cancel-readonly",
+            "MBX-cancel-composition",
+            "MBX-cancel-remote",
+            "MBX-cancel-pagehide",
+            "MBX-cancel-dispose",
+            "MBX-05-accessibility-mechanics",
+            "MBX-03-code-scroll",
+            "MBX-03-code-command",
+            "MBX-03-table-scroll",
+            "MBX-04-disabled",
+            "MBX-04-native-input",
+            "MBX-04-two-editors",
+            "MBX-04-table-disabled",
+            "MBX-01-composing",
+            "MBX-reference-cancel",
+            "MBX-reference-command",
+            "MBX-reference-composing"
+          ]
+        },
+        {
+          "id": "wfe-3.1-touch-checkpoint",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "MWF-composition-toolbar",
+            "MWF-keyboard-rotation-resizes-visual",
+            "MWF-keyboard-rotation-overlays-content",
+            "MWF-remote-selection",
+            "MWF-pointer-pagehide",
+            "MWF-paste-pagehide",
+            "MWF-paste-read-only",
+            "MWF-paste-dispose",
+            "MWF-paste-other-editor",
+            "MWF-two-editors"
+          ]
+        },
+        {
+          "id": "wfe-3.1-touch-toolbar",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "paste-cancel-resolve",
+            "paste-cancel-reject",
+            "paste-readonly-resolve",
+            "paste-readonly-reject",
+            "paste-pagehide-resolve",
+            "paste-pagehide-reject",
+            "paste-hidden-resolve",
+            "paste-hidden-reject",
+            "paste-formatted-cancel-resolve",
+            "paste-formatted-cancel-reject",
+            "paste-formatted-readonly-resolve",
+            "paste-formatted-readonly-reject",
+            "paste-formatted-pagehide-resolve",
+            "paste-formatted-pagehide-reject",
+            "paste-formatted-hidden-resolve",
+            "paste-formatted-hidden-reject",
+            "paste-dispose",
+            "paste-formatted-dispose"
           ]
         }
       ],
-      "nextAction": "Repair or authenticate the exact changed owner inputs reported by the ledger, then reuse the existing named dispatcher. No unchanged failed-check retry."
+      "nextAction": "Full original WFE-2.2 portable mappings authenticated against current packed SDK; retain all original device/OS/IME/AT/performance/release predicates in later phases."
     },
     {
       "id": "WEB-ASSISTANCE",
@@ -4753,6 +5073,256 @@
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4i-markdown/run-5/routes-webkit/receipt.json",
           "sha256": "64edf7f39ae2e75beb85bf5f0b69ae9ea4b00813baeb99044aac25d34776e25e",
           "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4i-markdown/run-4/prepared"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-touch-harness",
+      "owner": "PRIMARY baseline browser/touch public SDK",
+      "command": "EDITAC_WEB_TOUCH_OUTPUT=.../c4j-touch/run-1 node scripts/run-web-touch-boundary.mjs; original scripts/test-mobile-web.mjs --group harness",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4j-touch/run-1/source-pins.json",
+          "sha256": "2c5effb15770a58fb0475dc7ec83e4ffa3dbb0d83488040cea4d8a393756107f"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/chromium/harness/receipt.json",
+          "sha256": "86b97f4f74e128e3a5df1c3e7c9a59852c6785191e2a450b102d18871773674c"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/webkit/harness/receipt.json",
+          "sha256": "d4218d15b32a25ca09c0fc115d35ee879faaac2b217bec3292b352c474ed7803"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/firefox/harness/receipt.json",
+          "sha256": "7d298c79562f091d4eb2bbce90e0cb50978af7c2a8db8cdc1d3e0df875e55c3c"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-touch-touch",
+      "owner": "PRIMARY baseline browser/touch public SDK",
+      "command": "EDITAC_WEB_TOUCH_OUTPUT=.../c4j-touch/run-1 node scripts/run-web-touch-boundary.mjs; original scripts/test-mobile-web.mjs --group touch",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4j-touch/run-1/source-pins.json",
+          "sha256": "2c5effb15770a58fb0475dc7ec83e4ffa3dbb0d83488040cea4d8a393756107f"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/chromium-repaired/touch/receipt.json",
+          "sha256": "98fb624093d0e610a640de04da211e4b755a56bec4c9bee8bed2d00cb927032c"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/webkit-final/touch/receipt.json",
+          "sha256": "5562f87bf28f2a94cefdd7e86155e5ede13286b865e631a895c93715623e6b03"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/firefox-final/touch/receipt.json",
+          "sha256": "513f9daae1d1f09b975f227b89cbaf5aff9193613a9c0911b8e409c9ee527d07"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-touch-input",
+      "owner": "PRIMARY baseline browser/touch public SDK",
+      "command": "EDITAC_WEB_TOUCH_OUTPUT=.../c4j-touch/run-1 node scripts/run-web-touch-boundary.mjs; original scripts/test-mobile-web.mjs --group input",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4j-touch/run-1/source-pins.json",
+          "sha256": "2c5effb15770a58fb0475dc7ec83e4ffa3dbb0d83488040cea4d8a393756107f"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4j-touch/run-1/chromium/input/receipt.json",
+          "sha256": "c106e9d389b7472f97a48e3f4cffb9b5a6bb10d1c81013dff412f54a3935205a"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4j-touch/run-1/webkit/input/receipt.json",
+          "sha256": "01923260b59e39c745e758e5fa68b5ccbdcf79202f6874ac40bc616a068f143f"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4j-touch/run-1/firefox/input/receipt.json",
+          "sha256": "a9ec657776b2e30ba493da78cc023d3916542adaa52e825b717bbab18a6b78c7"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-touch-viewport",
+      "owner": "PRIMARY baseline browser/touch public SDK",
+      "command": "EDITAC_WEB_TOUCH_OUTPUT=.../c4j-touch/run-1 node scripts/run-web-touch-boundary.mjs; original scripts/test-mobile-web.mjs --group viewport",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4j-touch/run-1/source-pins.json",
+          "sha256": "2c5effb15770a58fb0475dc7ec83e4ffa3dbb0d83488040cea4d8a393756107f"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/final-chromium/viewport/receipt.json",
+          "sha256": "6582b4ac16687c480da45d1c0cd05ed5a7a3c05b36292b809f798f98d34c4472"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/webkit/viewport/receipt.json",
+          "sha256": "2f2bb46a5542f9e4b7845bb3bb6b456f73dc135dfb64806a5d5bd3e29cc989ee"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/firefox/viewport/receipt.json",
+          "sha256": "86b05c713ff8287a38782c72f620983d1b2cbd9f22fa78dbc5827071babcc0b0"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-touch-focus",
+      "owner": "PRIMARY baseline browser/touch public SDK",
+      "command": "EDITAC_WEB_TOUCH_OUTPUT=.../c4j-touch/run-1 node scripts/run-web-touch-boundary.mjs; original scripts/test-mobile-web.mjs --group focus",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4j-touch/run-1/source-pins.json",
+          "sha256": "2c5effb15770a58fb0475dc7ec83e4ffa3dbb0d83488040cea4d8a393756107f"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/chromium-repaired/focus/receipt.json",
+          "sha256": "e4aac31bd22f3465e50fc9f593e13792ca719ae310120bf1d4dc8df7c492f2b0"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/webkit/focus/receipt.json",
+          "sha256": "da5f766c76c50b1bdda9663a43d0667798ff478a32d60baf15dafac57c3e9514"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/firefox/focus/receipt.json",
+          "sha256": "b2f7692cedb630cc5dd1f111a5dd4555a4d80aed4912020fdc97e62e78b57328"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-touch-lifecycle",
+      "owner": "PRIMARY baseline browser/touch public SDK",
+      "command": "EDITAC_WEB_TOUCH_OUTPUT=.../c4j-touch/run-1 node scripts/run-web-touch-boundary.mjs; original scripts/test-mobile-web.mjs --group lifecycle",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4j-touch/run-1/source-pins.json",
+          "sha256": "2c5effb15770a58fb0475dc7ec83e4ffa3dbb0d83488040cea4d8a393756107f"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4j-touch/run-1/chromium/lifecycle/receipt.json",
+          "sha256": "3c0ad174d6ecd169c25e7a47fc34afffc0b4f1d20335653d734c36f5bda3d710"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4j-touch/run-1/webkit/lifecycle/receipt.json",
+          "sha256": "c712eb2d6e180dc5025cd5735d7956a65b55e39497eb9c307759271487859567"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4j-touch/run-1/firefox/lifecycle/receipt.json",
+          "sha256": "f4c23e5527fa3918881e2c65e077652e42f00e74b0e4605c0dc1b6f37802634a"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-touch-capabilities",
+      "owner": "PRIMARY baseline browser/touch public SDK",
+      "command": "EDITAC_WEB_TOUCH_OUTPUT=.../c4j-touch/run-1 node scripts/run-web-touch-boundary.mjs; original scripts/test-mobile-web.mjs --group capabilities",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4j-touch/run-1/source-pins.json",
+          "sha256": "2c5effb15770a58fb0475dc7ec83e4ffa3dbb0d83488040cea4d8a393756107f"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/chromium-repaired/capabilities/receipt.json",
+          "sha256": "5ffccc67d8685bca5a585ddb6b429ca9a6b874a337e303d4b8fdb06fdf2120de"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/webkit/capabilities/receipt.json",
+          "sha256": "21dc4c161afe181cd57584a95ea3243ffe585097565dc287944029745ceeb3fd"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/firefox/capabilities/receipt.json",
+          "sha256": "8354e94b40e6d0fa7f1a2a143ba69ce29833e80a38e44ed6a0ec65d20717cc4a"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-touch-modules",
+      "owner": "PRIMARY baseline browser/touch public SDK",
+      "command": "EDITAC_WEB_TOUCH_OUTPUT=.../c4j-touch/run-1 node scripts/run-web-touch-boundary.mjs; original scripts/test-mobile-web.mjs --group modules",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4j-touch/run-1/source-pins.json",
+          "sha256": "2c5effb15770a58fb0475dc7ec83e4ffa3dbb0d83488040cea4d8a393756107f"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4j-touch/run-1/chromium/modules/receipt.json",
+          "sha256": "3a4f09da8ab621a7aec34bf428bdb8785e318d26b1477baa3d6b52a0cdc4ef42"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4j-touch/run-1/webkit/modules/receipt.json",
+          "sha256": "3cc08359f49509f75f0d4e4f40f87349615b154415275926bf29becffd4a748b"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4j-touch/run-1/firefox/modules/receipt.json",
+          "sha256": "6370dc901c586330e9a31ec69c1950719f66e121c0f32f056c7ac27a77deb6c1"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-touch-checkpoint",
+      "owner": "PRIMARY baseline browser/touch public SDK",
+      "command": "EDITAC_WEB_TOUCH_OUTPUT=.../c4j-touch/run-1 node scripts/run-web-touch-boundary.mjs; original scripts/test-mobile-web.mjs --group checkpoint",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4j-touch/run-1/source-pins.json",
+          "sha256": "2c5effb15770a58fb0475dc7ec83e4ffa3dbb0d83488040cea4d8a393756107f"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/chromium-final/checkpoint/receipt.json",
+          "sha256": "77806cb07565189861e2c97fba3db261a2580ed25017cc004b5d6ae7c452fb84"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/webkit-final/checkpoint/receipt.json",
+          "sha256": "9bb58bd5d6c8cfd99d708a80026f961b0348edf0ab69a42e8ea584e87f02c5b1"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/firefox/checkpoint/receipt.json",
+          "sha256": "1979d541f586d56c96e120bc666c70f6846edec39e4bccab71996b6c72972d25"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-touch-toolbar",
+      "owner": "PRIMARY baseline browser/touch public SDK",
+      "command": "EDITAC_WEB_TOUCH_OUTPUT=.../c4j-touch/run-1 node scripts/run-web-touch-boundary.mjs; original scripts/test-mobile-web.mjs --group toolbar",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4j-touch/run-1/source-pins.json",
+          "sha256": "2c5effb15770a58fb0475dc7ec83e4ffa3dbb0d83488040cea4d8a393756107f"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/chromium-toolbar-repaired/receipt.json",
+          "sha256": "bb0bda4040d6bca860d910f018dcb6dd82537aa2f42b6ac6b67f0b06e57b3914"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/webkit-toolbar-repaired/receipt.json",
+          "sha256": "31d3ecbbaa770a81969cf2879bd20f1d58a40356b6a71a395304e87ce1b0c373"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-2.2/recovery-20261019/firefox-toolbar-repaired/receipt.json",
+          "sha256": "b36369227145b59d92121967b2872759887faec18abeaa8b03edc35aa5afd8d1"
         }
       ]
     }
