@@ -51,3 +51,55 @@ export async function prepareInstalledRevisionSite(output, scenario, priorPath) 
       applicability: 'Same compiled packages/crates/toolchains/build inputs. Product fixtures and listed standalone PRIMARY proof scripts do not enter SDK compilation. Reused package/installed bytes retain original hashes and source revision; current owned fixture bytes are new. No old runtime outcome reused. Unrelated working-tree changes are not qualified.' } };
   const path = join(output, 'installed-site.json'); await writeFile(path, JSON.stringify(receipt, null, 2)); return path;
 }
+
+/** Install immutable owner archives; never consume mutable dist or a source alias. */
+export async function prepareOwnerRevisionSite(output, scenario, inputPath) {
+  const path = resolve(inputPath), bytes = await readFile(path), pins = JSON.parse(bytes), evidence = resolve(path, '..');
+  const sources = [];
+  for (const [name, expected] of Object.entries(pins.sources)) {
+    const source = name.startsWith('core/') ? join(root, name.slice(5)) : join(process.env.EDITAC_REVISION_ARCHITECTURE ?? resolve(root, '../architecture'), name.replace(/^architecture\//, ''));
+    assert.equal(sha(await readFile(source)), expected, 'Owner compilation source changed: ' + name);
+    sources.push({ path: name, sha256: expected });
+  }
+  const packs = [];
+  for (const name of ['core', 'web']) {
+    const pin = pins.archives[name], archive = join(evidence, pin.path);
+    assert.equal(sha(await readFile(archive)), pin.sha256, 'Owner archive changed');
+    const file = archive.split('/').at(-1); await cp(archive, join(output, file)); packs.push({ name, file, sha256: pin.sha256 });
+  }
+  const consumer = join(output, 'consumer'); await mkdir(consumer);
+  await writeFile(join(consumer, 'package.json'), JSON.stringify({ private: true, type: 'module', dependencies: Object.fromEntries(packs.map(pack => ['@edit-ac/' + pack.name, 'file:' + join(output, pack.file)])) }));
+  const result = spawnSync('npm', ['install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: consumer, encoding: 'utf8' });
+  await writeFile(join(output, 'owner-install.log'), (result.stdout ?? '') + (result.stderr ?? ''));
+  assert.equal(result.status, 0, 'Offline owner installation failed; see owner-install.log');
+  for (const [name, pin] of Object.entries(pins.members)) {
+    const [pkg, ...parts] = name.split('/');
+    assert.equal(sha(await readFile(join(consumer, 'node_modules/@edit-ac', pkg, ...parts))), pin.sha256, 'Installed owner member changed: ' + name);
+  }
+  const site = join(output, 'site'); await mkdir(site);
+  for (const name of ['core', 'web']) {
+    const installed = join(consumer, 'node_modules/@edit-ac', name);
+    assert.equal(await realpath(installed), installed);
+    await cp(join(installed, 'dist'), join(site, name), { recursive: true });
+  }
+  assert.equal(sha(await readFile(join(site, 'core/wasm/editac_wasm_bg.wasm'))), pins.wasmSha256);
+  const fixtureSources = [];
+  for (const path of new Set([...scenario.fixtures, ...(scenario.supportingSources ?? []), 'fixtures/product-scenarios/web/manifest.json', 'tests/scenarios/run.mjs', 'tests/scenarios/harness.mjs', scenario.command[1], 'tests/browser/fixture-server.mjs'])) {
+    const bytes = await readFile(join(root, path)); fixtureSources.push({ path, sha256: sha(bytes) });
+    if (scenario.fixtures.includes(path)) { await mkdir(join(site, 'fixture'), { recursive: true }); await writeFile(join(site, 'fixture', path.split('/').at(-1)), bytes); }
+  }
+  const artifacts = [];
+  async function inventory(directory) {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) await inventory(path);
+      else artifacts.push({ path: path.slice(output.length + 1), sha256: sha(await readFile(path)) });
+    }
+  }
+  await inventory(site);
+  const git = (...args) => { const r = spawnSync('git', args, { cwd: root, encoding: 'utf8' }); assert.equal(r.status, 0); return r.stdout.trim(); };
+  const receipt = { output, prepared: true, sourceRevision: git('rev-parse', 'HEAD'), sourceTree: git('rev-parse', 'HEAD^{tree}'),
+    toolchains: { node: process.versions.node, npm: spawnSync('npm', ['--version'], { encoding: 'utf8' }).stdout.trim() }, packs, sources: fixtureSources, artifacts,
+    packageLockSha256: sha(await readFile(join(consumer, 'package-lock.json'))), ownerInputs: { path, sha256: sha(bytes), sources, members: Object.keys(pins.members).length, wasmSha256: pins.wasmSha256, offlineInstallExit: result.status, scope: 'All owner source pins authenticated against this immutable union, every installed archive member authenticated. Fresh product browser outcomes only.' } };
+  const receiptPath = join(output, 'installed-site.json'); await writeFile(receiptPath, JSON.stringify(receipt, null, 2)); return receiptPath;
+}

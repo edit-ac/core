@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { prepareInstalledRevisionSite } from './revision-review-prepare.mjs';
+import { prepareInstalledRevisionSite, prepareOwnerRevisionSite } from './revision-review-prepare.mjs';
 import { prepareProductHarness } from '../../tests/scenarios/harness.mjs';
 import { loadScenario, root } from '../../tests/scenarios/run.mjs';
 import { requireTestNode } from '../../scripts/test-toolchain.mjs';
@@ -14,6 +14,9 @@ export async function prepareRevisionProduct(output, facts, group = 'capture') {
   const previous = process.env.EDITAC_PRODUCT_SITE_RECEIPT;
   if (process.env.EDITAC_REVISION_SDK_RECEIPT && !previous) {
     process.env.EDITAC_PRODUCT_SITE_RECEIPT = await prepareInstalledRevisionSite(output, scenario, process.env.EDITAC_REVISION_SDK_RECEIPT);
+  }
+  if (process.env.EDITAC_REVISION_OWNER_INPUTS && !previous) {
+    process.env.EDITAC_PRODUCT_SITE_RECEIPT = await prepareOwnerRevisionSite(output, scenario, process.env.EDITAC_REVISION_OWNER_INPUTS);
   }
   let paths;
   try { paths = await prepareProductHarness(output, facts, scenario); }
