@@ -26,7 +26,26 @@ async function mountInstance(name, root, prefix) {
   const saveStatus = element('revision-save-status');
   const captureStatus = element('revision-capture-status');
   const controls = ['revision-save', 'revision-name', 'revision-capture'].map(element);
-  let closed = false, closing = false, pending = false, comparison, restorer, recovery;
+  let closed = false, closing = false, pending = false, comparison, restorer, recovery, saveFailure, retainedRecovery;
+  let saving;
+  function failedSave(error) {
+    saveFailure = error;
+    retainedRecovery = workspace.owner.recoveryExport();
+    status(saveStatus, `Local save failed: ${error.message}. Keep this page open. Retry Save locally or export recovery before leaving. Nothing has been saved remotely.`, 'error');
+  }
+  function exportRecovery() {
+    if (closed) throw Error('Reopen this review before exporting recovery');
+    // Preserve binary fields explicitly; JSON's default typed-array representation loses the byte contract.
+    const recovery = workspace.owner.recoveryExport();
+    const json = JSON.stringify(recovery, (_key, value) => value instanceof Uint8Array ? { encoding: 'bytes', data: [...value] } : value);
+    const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+    const link = document.createElement('a');
+    link.href = url; link.download = `revision-review-${name}-recovery.json`;
+    document.body.append(link);
+    try { link.click(); retainedRecovery = recovery; } finally { link.remove(); setTimeout(() => URL.revokeObjectURL(url), 0); }
+    status(element('revision-recovery-status'), 'Recovery exported for this document only. Store it safely; it includes document content. Export does not confirm a local save or remote durability.');
+    return recovery;
+  }
   const beforeSelect = element('revision-before'), afterSelect = element('revision-after');
   const compareStatus = element('revision-compare-status');
   function clearComparison(message, state = 'ready') {
@@ -77,9 +96,16 @@ async function mountInstance(name, root, prefix) {
   }
   async function save() {
     if (closed) throw Error('This review is closed; reopen it before saving');
-    await workspace.surface.settle();
-    await workspace.owner.flush({ target: 'local' });
-    status(saveStatus, 'Live document saved locally. Temporary captures are not saved.');
+    if (saving) return saving;
+    saving = (async () => {
+      try {
+        await workspace.surface.settle();
+        await workspace.owner.flush({ target: 'local' });
+        saveFailure = undefined; retainedRecovery = undefined;
+        status(saveStatus, 'Live document saved locally in this browser. Temporary captures are not saved. No remote save is claimed.');
+      } catch (error) { failedSave(error); throw error; }
+    })();
+    try { await saving; } finally { saving = undefined; }
   }
   async function capture(label) {
     if (closed || pending) throw Error('Capture workspace is unavailable or busy');
@@ -99,14 +125,32 @@ async function mountInstance(name, root, prefix) {
     if (closed || closing) return;
     closing = true;
     restorer.retire();
-    try { await save(); }
-    catch (error) { closing = false; resetReview(); throw error; }
+    workspace.surface.setReadOnly(true);
+    let viewDisposed = false;
+    try {
+      await save();
+      // Release view-owned anchors while its borrowed engine is still live.
+      await workspace.surface.dispose(); viewDisposed = true;
+      await workspace.owner.destroy({ policy: 'flush' });
+    } catch (error) {
+      // A rejected destroy keeps the same owner alive; restore its borrowed view.
+      if (viewDisposed) {
+        element('revision-editor').replaceChildren();
+        workspace.surface = mountEditorSurface(element('revision-editor'), workspace.owner.engine, {
+          ...workspace.options, storageOwner: workspace.owner, readOnly: workspace.readonly,
+          label: `Live ${name} revision document`,
+        });
+        await workspace.surface.ready;
+      }
+      closing = false; workspace.surface.setReadOnly(workspace.readonly); resetReview();
+      throw error;
+    }
     closed = true; root.dataset.lifecycle = 'closing';
     for (const remove of listeners.splice(0)) remove();
     root.querySelectorAll('input,button,select').forEach(control => { control.disabled = true; });
     status(saveStatus, 'Review closed. Reopen to recover saved live content; captures are memory only.');
-    clearComparison('Review closed. Reopen and capture two states to compare.'); workspace.review.destroy(); await workspace.surface.dispose();
-    await workspace.owner.destroy({ policy: 'flush' });
+    clearComparison('Review closed. Reopen and capture two states to compare.');
+    workspace.review.destroy();
     root.dataset.lifecycle = 'closed';
   }
   return await (async () => {
@@ -156,10 +200,10 @@ async function mountInstance(name, root, prefix) {
         status(element('revision-restore-status'), 'Restore preview canceled. Current content is unchanged; inspect a capture to preview again.');
       });
       const updates = owner.engine.subscribe({ type: 'updates' }, () => {
-        status(saveStatus, 'Live changes are being journaled locally. Use Save locally to confirm.');
+        if (!saveFailure) status(saveStatus, 'Live changes are being journaled locally. Use Save locally to confirm.');
       });
       listeners.push(() => updates.dispose());
-      workspace = { owner, surface, review, store, access, options, save, capture, compare, close, get restorer() { return restorer; }, get restoreRecovery() { return recovery; }, get closed() { return closed; }, get readonly() { return readonly; } };
+      workspace = { owner, surface, review, store, access, options, save, capture, compare, close, exportRecovery, get retainedRecovery() { return retainedRecovery; }, get restorer() { return restorer; }, get restoreRecovery() { return recovery; }, get closed() { return closed; }, get readonly() { return readonly; } };
       beforeSelect.replaceChildren(); afterSelect.replaceChildren();
       clearComparison('Capture two states to compare them.'); refreshComparisonChoices();
       listen(element('revision-compare-form'), 'submit', event => { event.preventDefault(); compare(); });
@@ -167,11 +211,16 @@ async function mountInstance(name, root, prefix) {
       const readOnlyControl = element('revision-readonly');
       listen(readOnlyControl, 'change', () => {
         readonly = readOnlyControl.checked;
-        surface.setReadOnly(readonly);
+        workspace.surface.setReadOnly(readonly);
         restorer.retire('readonly'); resetReview();
         if (!recovery) status(element('revision-restore-status'), readonly ? 'Readonly: restore is unavailable. Return to writable mode and preview again.' : 'Writable again. Inspect a capture and create a new preview.');
       });
-      listen(element('revision-save'), 'click', () => { void save().catch(error => status(saveStatus, `Save failed: ${error.message}. Keep this page open and retry.`, 'error')); });
+      listen(element('revision-save'), 'click', () => { void save().catch(() => {}); });
+      element('revision-export-recovery').disabled = false;
+      status(element('revision-recovery-status'), 'Export recovery if local saving fails. Captures are temporary and are not included.');
+      listen(element('revision-export-recovery'), 'click', () => {
+        try { exportRecovery(); } catch (error) { status(element('revision-recovery-status'), `Recovery export failed: ${error.message}. Keep this page open and retry; source data is retained.`, 'error'); }
+      });
       listen(element('revision-capture-form'), 'submit', event => {
         event.preventDefault();
         void capture(element('revision-name').value).catch(error => status(captureStatus, `Capture failed: ${error.message}. Live content is unchanged; shorten the document or name and try again.`, 'error'));
@@ -179,9 +228,9 @@ async function mountInstance(name, root, prefix) {
       listen(element('revision-editor'), 'input', () => status(saveStatus, 'Live changes are being journaled locally. Use Save locally to confirm.'));
       controls.forEach(control => { control.disabled = false; });
       element('revision-name').value = '';
-      status(captureStatus, 'No captures retained in this review. Capture the current state explicitly; closed captures are unavailable.');
+      status(captureStatus, 'No captures retained in this review. Reload and close lose memory-only captures. Saved live content reopens without reseeding. Capture the current state explicitly.');
       usage(); status(saveStatus, 'Local document ready. Use Save locally to confirm saved edits.');
-      listen(element('revision-close'), 'click', () => { void close().then(() => { element('revision-reopen').disabled = false; }).catch(error => status(saveStatus, `Close failed: ${error.message}. Retry saving.`, 'error')); });
+      listen(element('revision-close'), 'click', () => { void close().then(() => { element('revision-reopen').disabled = false; }).catch(error => status(saveStatus, `Close failed: ${error.message}. This review is still open. Keep it open and export recovery; Retry Save locally when possible.`, 'error')); });
       return workspace;
     } catch (error) {
       review?.destroy(); await surface?.dispose(); await owner?.destroy({ policy: 'report' });
