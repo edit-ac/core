@@ -48,23 +48,23 @@ export async function conflictCases({ page, server, facts, check, output }) {
     assert.deepEqual(stable(await observe()), stable(expected));
     assert.deepEqual(stable(await observe('comment')), stable(sibling));
   };
-  const context = async (reason, expectedBase, expectedCurrent, expectedProposed) => {
+  const context = async (reason, expectedBase, expectedCurrent, expectedProposed, messagePattern) => {
     const recovery = await run(async ({ url }) => (await import(url)).workspace.restoreRecovery);
     assert.equal(recovery.kind, 'conflict'); assert.equal(recovery.reason, reason);
     for (const [key, expected] of Object.entries({ base: expectedBase, current: expectedCurrent, proposed: expectedProposed })) assert.deepEqual(recovery[key] && semantic(recovery[key]), expected && semantic(expected));
     assert.deepEqual(JSON.parse(await page.locator('#revision-restore-recovery').textContent()), { base: recovery.base, current: recovery.current, proposed: recovery.proposed });
-    assert.match(await page.locator('#revision-restore-status').textContent(), reason === 'rejected' ? /post-call state/ : new RegExp(reason));
+    assert.match(await page.locator('#revision-restore-status').textContent(), messagePattern ?? (reason === 'rejected' ? /post-call state/ : new RegExp(reason)));
     facts.oracles[Object.keys(facts.oracles).length] = { reason, recovery, current: await observe() };
   };
   await check('readonly-roundtrip-retires-preview-and-detached-confirm', async () => {
     await setup(); await preview();
-    await run(async ({ url }) => { const w = (await import(url)).workspace; window.oldRestorer = w.restorer; window.detachedApply = [...document.querySelectorAll('#revision-history button')].find(b => b.textContent === 'Apply restore as new edit'); });
+    await run(async ({ url, handle }) => { const w = (await import(url)).workspace; window.oldRestorer = w.restorer; window.oldPreview = w.restorer.preview(handle); window.detachedApply = [...document.querySelectorAll('#revision-history button')].find(b => b.textContent === 'Apply restore as new edit'); }, { handle });
     await page.locator('#revision-readonly').check();
     await context('readonly', before.snapshot, before.snapshot, baseline.snapshot); await unchanged(before);
     assert.equal(await button('Apply restore as new edit').count(), 0);
     await button('Inspect Baseline').click(); assert.equal(await button('Preview restore as new edit').count(), 0);
     await page.locator('#revision-readonly').uncheck();
-    await page.evaluate(() => window.detachedApply.click()); await unchanged(before);
+    await page.evaluate(() => { window.detachedApply.click(); window.oldRestorer.apply(window.oldPreview); }); await unchanged(before);
     assert.equal(await button('Apply restore as new edit').count(), 0, 'Writable again still requires a fresh preview');
     await preview(); await unchanged(before);
   });
@@ -120,7 +120,7 @@ export async function conflictCases({ page, server, facts, check, output }) {
     await run(async ({ url, handle }) => { const w = (await import(url)).workspace; window.retired = w.restorer; window.retiredPreview = w.restorer.preview(handle); }, { handle });
     await page.locator('#revision-cancel-restore').click();
     await run(async () => { await Promise.resolve(); window.retired.apply(window.retiredPreview); });
-    await context('stale', before.snapshot, before.snapshot, baseline.snapshot); await unchanged(before);
+    await context('stale', before.snapshot, before.snapshot, baseline.snapshot, /canceled/); await unchanged(before);
     assert.equal(await button('Apply restore as new edit').count(), 0);
     await preview(); await unchanged(before);
   });
@@ -162,13 +162,13 @@ export async function conflictCases({ page, server, facts, check, output }) {
   });
   await check('marked-changes-remain-visible-unsupported', async () => {
     await setup();
-    await run(async ({ url }) => {
+    await run(async ({ url, current }) => {
       const w = (await import(url)).workspace, id = w.owner.engine.read().visible[0].id;
-      const anchor = w.owner.engine.anchor(id, 0, 'right'), focus = w.owner.engine.anchor(id, 45, 'left');
+      const anchor = w.owner.engine.anchor(id, 0, 'right'), focus = w.owner.engine.anchor(id, current.length, 'left');
       try { w.owner.commit({ kind: 'fragment', origin: 'revision-unsupported-fixture', range: { anchor, focus }, blocks: [{ attributes: { type: 'paragraph' }, runs: [{ text: 'Marked current', marks: [{ mark: 'bold' }] }] }] }); }
       finally { w.owner.engine.releaseAnchor(anchor); w.owner.engine.releaseAnchor(focus); }
       await w.save();
-    });
+    }, { current });
     const rich = await observe(); assert.ok(rich.snapshot.visible.some(n => n.runs.some(r => r.marks.length)));
     await preview(); await context('unsupported', rich.snapshot, rich.snapshot, baseline.snapshot); await unchanged(rich);
     assert.equal(await button('Apply restore as new edit').count(), 0);
