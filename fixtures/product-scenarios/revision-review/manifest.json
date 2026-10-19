@@ -28,7 +28,8 @@
         "tests/scenarios/revision-review-scope.mjs",
         "tests/scenarios/revision-review-restore.mjs",
         "tests/scenarios/revision-review-compare.mjs",
-        "tests/scenarios/revision-review-conflicts.mjs"
+        "tests/scenarios/revision-review-conflicts.mjs",
+        "tests/scenarios/revision-review-reopen.mjs"
       ],
       "cases": [
         "installed-editable-explicit-capture",
@@ -68,7 +69,8 @@
         "tests/scenarios/revision-review-scope.mjs",
         "tests/scenarios/revision-review-restore.mjs",
         "tests/scenarios/revision-review-compare.mjs",
-        "tests/scenarios/revision-review-conflicts.mjs"
+        "tests/scenarios/revision-review-conflicts.mjs",
+        "tests/scenarios/revision-review-reopen.mjs"
       ],
       "cases": [
         "simultaneous-independent-identities-and-journals",
@@ -108,7 +110,8 @@
         "tests/scenarios/revision-review-scope.mjs",
         "tests/scenarios/revision-review-restore.mjs",
         "tests/scenarios/revision-review-compare.mjs",
-        "tests/scenarios/revision-review-conflicts.mjs"
+        "tests/scenarios/revision-review-conflicts.mjs",
+        "tests/scenarios/revision-review-reopen.mjs"
       ],
       "cases": [
         "capture-edit-independent-baseline",
@@ -148,7 +151,8 @@
         "tests/scenarios/revision-review-scope.mjs",
         "tests/scenarios/revision-review-restore.mjs",
         "tests/scenarios/revision-review-compare.mjs",
-        "tests/scenarios/revision-review-conflicts.mjs"
+        "tests/scenarios/revision-review-conflicts.mjs",
+        "tests/scenarios/revision-review-reopen.mjs"
       ],
       "cases": [
         "two-real-captures-text-mark-attributes-opaque",
@@ -188,7 +192,8 @@
         "tests/scenarios/revision-review-scope.mjs",
         "tests/scenarios/revision-review-restore.mjs",
         "tests/scenarios/revision-review-compare.mjs",
-        "tests/scenarios/revision-review-conflicts.mjs"
+        "tests/scenarios/revision-review-conflicts.mjs",
+        "tests/scenarios/revision-review-reopen.mjs"
       ],
       "cases": [
         "readonly-roundtrip-retires-preview-and-detached-confirm",
