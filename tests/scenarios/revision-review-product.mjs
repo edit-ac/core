@@ -9,6 +9,7 @@ import { root, loadScenario } from './run.mjs';
 import { sha } from './harness.mjs';
 import { manifestPath, prepareRevisionProduct } from '../../examples/task-editor/revision-review-product.mjs';
 import { scopeCases } from './revision-review-scope.mjs';
+import { conflictCases } from './revision-review-conflicts.mjs';
 import { restoreCases } from './revision-review-restore.mjs';
 import { compareCases } from './revision-review-compare.mjs';
 import { captureCases } from './revision-review-capture.mjs';
@@ -55,7 +56,7 @@ try {
       browser = await ({ chromium, firefox, webkit }[engine]).connect(controller.wsEndpoint());
       browserFacts.version = browser.version(); page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
       page.setDefaultTimeout(10000); page.on('pageerror', error => errors.push(error.message));
-      await ({ capture: captureCases, scope: scopeCases, compare: compareCases, restore: restoreCases }[group])({ page, server, facts: browserFacts, check, output: directory });
+      await ({ capture: captureCases, scope: scopeCases, compare: compareCases, restore: restoreCases, conflicts: conflictCases }[group])({ page, server, facts: browserFacts, check, output: directory });
       assert.deepEqual(errors, [], 'Unhandled browser errors');
     } catch (error) {
       browserFacts.failure = error.stack;

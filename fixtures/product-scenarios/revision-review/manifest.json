@@ -18,7 +18,8 @@
         "examples/task-editor/revision-review.css",
         "examples/task-editor/document.mjs",
         "fixtures/product-scenarios/revision-review/oracles.mjs",
-        "fixtures/product-scenarios/revision-review/manifest.json"
+        "fixtures/product-scenarios/revision-review/manifest.json",
+        "examples/task-editor/revision-review-restorer.mjs"
       ],
       "supportingSources": [
         "examples/task-editor/revision-review-product.mjs",
@@ -27,7 +28,7 @@
         "tests/scenarios/revision-review-scope.mjs",
         "tests/scenarios/revision-review-restore.mjs",
         "tests/scenarios/revision-review-compare.mjs",
-        "tests/scenarios/revision-review-compare.mjs"
+        "tests/scenarios/revision-review-conflicts.mjs"
       ],
       "cases": [
         "installed-editable-explicit-capture",
@@ -57,7 +58,8 @@
         "examples/task-editor/revision-review.css",
         "examples/task-editor/document.mjs",
         "fixtures/product-scenarios/revision-review/oracles.mjs",
-        "fixtures/product-scenarios/revision-review/manifest.json"
+        "fixtures/product-scenarios/revision-review/manifest.json",
+        "examples/task-editor/revision-review-restorer.mjs"
       ],
       "supportingSources": [
         "examples/task-editor/revision-review-product.mjs",
@@ -65,7 +67,8 @@
         "tests/scenarios/revision-review-capture.mjs",
         "tests/scenarios/revision-review-scope.mjs",
         "tests/scenarios/revision-review-restore.mjs",
-        "tests/scenarios/revision-review-compare.mjs"
+        "tests/scenarios/revision-review-compare.mjs",
+        "tests/scenarios/revision-review-conflicts.mjs"
       ],
       "cases": [
         "simultaneous-independent-identities-and-journals",
@@ -95,7 +98,8 @@
         "examples/task-editor/revision-review.css",
         "examples/task-editor/document.mjs",
         "fixtures/product-scenarios/revision-review/oracles.mjs",
-        "fixtures/product-scenarios/revision-review/manifest.json"
+        "fixtures/product-scenarios/revision-review/manifest.json",
+        "examples/task-editor/revision-review-restorer.mjs"
       ],
       "supportingSources": [
         "examples/task-editor/revision-review-product.mjs",
@@ -103,7 +107,8 @@
         "tests/scenarios/revision-review-capture.mjs",
         "tests/scenarios/revision-review-scope.mjs",
         "tests/scenarios/revision-review-restore.mjs",
-        "tests/scenarios/revision-review-compare.mjs"
+        "tests/scenarios/revision-review-compare.mjs",
+        "tests/scenarios/revision-review-conflicts.mjs"
       ],
       "cases": [
         "capture-edit-independent-baseline",
@@ -133,7 +138,8 @@
         "examples/task-editor/revision-review.css",
         "examples/task-editor/document.mjs",
         "fixtures/product-scenarios/revision-review/oracles.mjs",
-        "fixtures/product-scenarios/revision-review/manifest.json"
+        "fixtures/product-scenarios/revision-review/manifest.json",
+        "examples/task-editor/revision-review-restorer.mjs"
       ],
       "supportingSources": [
         "examples/task-editor/revision-review-product.mjs",
@@ -142,7 +148,7 @@
         "tests/scenarios/revision-review-scope.mjs",
         "tests/scenarios/revision-review-restore.mjs",
         "tests/scenarios/revision-review-compare.mjs",
-        "tests/scenarios/revision-review-compare.mjs"
+        "tests/scenarios/revision-review-conflicts.mjs"
       ],
       "cases": [
         "two-real-captures-text-mark-attributes-opaque",
@@ -153,6 +159,50 @@
         "missing-and-foreign-handles-recover-without-live-mutation",
         "presenter-clips-long-values-with-visible-notice",
         "comparison-disposal-and-remount-clears-only-own-view"
+      ]
+    },
+    "conflicts": {
+      "parent": "RVP-2.2",
+      "command": [
+        "node",
+        "tests/scenarios/revision-review-product.mjs"
+      ],
+      "engines": [
+        "chromium",
+        "firefox",
+        "webkit"
+      ],
+      "fixtures": [
+        "examples/task-editor/revision-review.html",
+        "examples/task-editor/revision-review.mjs",
+        "examples/task-editor/revision-review.css",
+        "examples/task-editor/document.mjs",
+        "fixtures/product-scenarios/revision-review/oracles.mjs",
+        "fixtures/product-scenarios/revision-review/manifest.json",
+        "examples/task-editor/revision-review-restorer.mjs"
+      ],
+      "supportingSources": [
+        "examples/task-editor/revision-review-product.mjs",
+        "examples/task-editor/revision-review-prepare.mjs",
+        "tests/scenarios/revision-review-capture.mjs",
+        "tests/scenarios/revision-review-scope.mjs",
+        "tests/scenarios/revision-review-restore.mjs",
+        "tests/scenarios/revision-review-compare.mjs",
+        "tests/scenarios/revision-review-conflicts.mjs"
+      ],
+      "cases": [
+        "readonly-roundtrip-retires-preview-and-detached-confirm",
+        "edit-after-preview-keeps-base-current-proposed",
+        "consumed-preview-replay-is-stale-without-second-commit",
+        "foreign-identity-and-missing-capture-remain-unavailable",
+        "pruned-after-preview-keeps-current-and-recovery",
+        "cancel-fences-retained-preview-and-late-apply",
+        "close-fences-callback-before-flush-and-after-disposal",
+        "host-pre-admission-rejection-keeps-engine-and-journal",
+        "post-call-host-failure-reports-actual-mutation-without-rollback-claim",
+        "marked-and-structural-changes-remain-visible-unsupported",
+        "opaque-unsupported-data-is-retained-exactly",
+        "denied-instance-keeps-sibling-editable-and-saveable"
       ]
     }
   }
