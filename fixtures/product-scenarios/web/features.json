@@ -2130,7 +2130,7 @@
       "oracles": "Declared opt-in parser and literal disabled fallback, exact source preservation, isolated registration disposal.",
       "proofs": [
         {
-          "id": "wfe-3.1-c7-5-markdown-optional-markdown",
+          "id": "wfe-3.1-c9-5-markdown-optional-markdown",
           "engines": [
             "chromium",
             "firefox",
@@ -2146,7 +2146,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-5-markdown-markdown-paste",
+          "id": "wfe-3.1-c9-5-markdown-markdown-paste",
           "engines": [
             "chromium",
             "firefox",
@@ -2163,7 +2163,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-5-markdown-markdown-extensions",
+          "id": "wfe-3.1-c9-5-markdown-markdown-extensions",
           "engines": [
             "chromium",
             "firefox",
@@ -2179,7 +2179,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-5-markdown-web-markdown",
+          "id": "wfe-3.1-c9-5-markdown-web-markdown",
           "engines": [
             "chromium",
             "firefox",
@@ -2218,7 +2218,7 @@
       "oracles": "Independent DOCX/ODT/EPUB/PDF readers, original media bytes, one durable commit, bounded cancellation/recovery without staged leaks.",
       "proofs": [
         {
-          "id": "wfe-3.1-c7-5-conversion-browser",
+          "id": "wfe-3.1-c9-5-conversion-browser",
           "engines": [
             "chromium"
           ],
@@ -2288,7 +2288,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-5-conversion-contracts",
+          "id": "wfe-3.1-c9-5-conversion-contracts",
           "engines": [
             null
           ],
@@ -2303,7 +2303,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-5-conversion-media-oracles",
+          "id": "wfe-3.1-c9-5-conversion-media-oracles",
           "engines": [
             null
           ],
@@ -2316,7 +2316,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-5-conversion-odt-reader",
+          "id": "wfe-3.1-c9-5-conversion-odt-reader",
           "engines": [
             null
           ],
@@ -2325,7 +2325,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-5-conversion-pdf-reader",
+          "id": "wfe-3.1-c9-5-conversion-pdf-reader",
           "engines": [
             null
           ],
@@ -2334,7 +2334,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-5-conversion-controls",
+          "id": "wfe-3.1-c9-5-conversion-controls",
           "engines": [
             "chromium"
           ],
@@ -2485,7 +2485,7 @@
       "oracles": "Expected text/selection after actual browser pointer/input, bounded gesture teardown, viewport/focus state, lifecycle recovery; supplied platform events are prepared.",
       "proofs": [
         {
-          "id": "wfe-3.1-c7-5-touch-harness",
+          "id": "wfe-3.1-c9-5-touch-harness",
           "engines": [
             "chromium",
             "firefox",
@@ -2501,7 +2501,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-5-touch-touch",
+          "id": "wfe-3.1-c9-5-touch-touch",
           "engines": [
             "chromium",
             "firefox",
@@ -2535,7 +2535,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-5-touch-input",
+          "id": "wfe-3.1-c9-5-touch-input",
           "engines": [
             "chromium",
             "firefox",
@@ -2582,7 +2582,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-5-touch-viewport",
+          "id": "wfe-3.1-c9-5-touch-viewport",
           "engines": [
             "chromium",
             "firefox",
@@ -2615,7 +2615,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-5-touch-focus",
+          "id": "wfe-3.1-c9-5-touch-focus",
           "engines": [
             "chromium",
             "firefox",
@@ -2651,7 +2651,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-5-touch-lifecycle",
+          "id": "wfe-3.1-c9-5-touch-lifecycle",
           "engines": [
             "chromium",
             "firefox",
@@ -2704,7 +2704,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-5-touch-capabilities",
+          "id": "wfe-3.1-c9-5-touch-capabilities",
           "engines": [
             "chromium",
             "firefox",
@@ -2745,7 +2745,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-5-touch-modules",
+          "id": "wfe-3.1-c9-5-touch-modules",
           "engines": [
             "chromium",
             "firefox",
@@ -2779,7 +2779,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-5-touch-checkpoint",
+          "id": "wfe-3.1-c9-5-touch-checkpoint",
           "engines": [
             "chromium",
             "firefox",
@@ -2799,7 +2799,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-5-touch-toolbar",
+          "id": "wfe-3.1-c9-5-touch-toolbar",
           "engines": [
             "chromium",
             "firefox",
@@ -11168,6 +11168,560 @@
         {
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-4/runtime-source-pins.json",
           "sha256": "ac1faac690bb0b47a6f22010bd5d055ff82441c926640bcdca4c4a2514625c49"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-5-markdown-optional-markdown",
+      "owner": "PRIMARY current installed optional Markdown composition; codec ownership unchanged",
+      "command": "EDITAC_WEB_MARKDOWN_BUILD=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/admission EDITAC_WEB_MARKDOWN_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/markdown node scripts/run-web-markdown-boundary.mjs",
+      "sdkRevision": "64f283f437e447ebb65fff6c04f0fa24df947a94",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/markdown/source-pins.json",
+          "sha256": "a544c783db7e2790c8c51790e71daa201e03aa33df514356da6618ebde103151"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/markdown/optional-markdown/chromium/receipt.json",
+          "sha256": "c7597b6cb3f2891a25b2e480c219a894ac6e1d2c94d19d4bde2cdb35d3c944f8"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/markdown/optional-markdown/firefox/receipt.json",
+          "sha256": "78b3937a63cf12e74bc8e10da38fa2d3d0ff2989e119bfbdc4ded0c8f0ef51b2"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/markdown/optional-markdown/webkit/receipt.json",
+          "sha256": "4f1fc3ed04daaa86785954e761178889b313fa673e212ad645e4da96fae6405c"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-5-markdown-markdown-paste",
+      "owner": "PRIMARY current installed optional Markdown composition; codec ownership unchanged",
+      "command": "EDITAC_WEB_MARKDOWN_BUILD=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/admission EDITAC_WEB_MARKDOWN_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/markdown node scripts/run-web-markdown-boundary.mjs",
+      "sdkRevision": "64f283f437e447ebb65fff6c04f0fa24df947a94",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/markdown/source-pins.json",
+          "sha256": "a544c783db7e2790c8c51790e71daa201e03aa33df514356da6618ebde103151"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/markdown/markdown-paste/chromium/receipt.json",
+          "sha256": "928ba363d8917c69d377be77aa93bd32321b0bbf43eef4c1de255e8dcd393ab4"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/markdown/markdown-paste/firefox/receipt.json",
+          "sha256": "3dfd7724ee7fd2463699c207f2467c2c59dc16fc6d25f2cae9ecfab2ddb653a1"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/markdown/markdown-paste/webkit/receipt.json",
+          "sha256": "756a62775d854f176f480f8df90abcffb03ce974d0eeff0431487e9012fa919e"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-5-markdown-markdown-extensions",
+      "owner": "PRIMARY current installed optional Markdown composition; codec ownership unchanged",
+      "command": "EDITAC_WEB_MARKDOWN_BUILD=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/admission EDITAC_WEB_MARKDOWN_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/markdown node scripts/run-web-markdown-boundary.mjs",
+      "sdkRevision": "64f283f437e447ebb65fff6c04f0fa24df947a94",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/markdown/source-pins.json",
+          "sha256": "a544c783db7e2790c8c51790e71daa201e03aa33df514356da6618ebde103151"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/markdown/markdown-extensions/chromium/receipt.json",
+          "sha256": "d0a902ff34cdcff40698074f0549a653fa90eb1f62f151a6c73b41cbb75cb9ba"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/markdown/markdown-extensions/firefox/receipt.json",
+          "sha256": "925f73ec623d338376659f19cb25aeece7135c753d3981b0cac07d23bc76eb40"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/markdown/markdown-extensions/webkit/receipt.json",
+          "sha256": "3f616d3b43b65d492fae4c6a13340b2dcbd89e66d80cb7158b106417826fe5c0"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-5-markdown-web-markdown",
+      "owner": "PRIMARY current installed optional Markdown composition; codec ownership unchanged",
+      "command": "EDITAC_WEB_MARKDOWN_BUILD=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/admission EDITAC_WEB_MARKDOWN_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/markdown node scripts/run-web-markdown-boundary.mjs",
+      "sdkRevision": "64f283f437e447ebb65fff6c04f0fa24df947a94",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/markdown/source-pins.json",
+          "sha256": "a544c783db7e2790c8c51790e71daa201e03aa33df514356da6618ebde103151"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/markdown/product-chromium/receipt.json",
+          "sha256": "ecbc05d13b8a5acaaf7ccad3a49601064110ec482db514529aadcaefd10a7829",
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/markdown/prepared"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/markdown/product-firefox/receipt.json",
+          "sha256": "03ae0f479ba2713f3c7ac2a21fb348454bb50bc7831d49bd1e3588731db288ce",
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/markdown/prepared"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/markdown/product-webkit/receipt.json",
+          "sha256": "4ab999353333ec54f5eae24a55025bddc31f6ebfb4cecc419e7eb0d45597c834",
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/markdown/prepared"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-5-touch-harness",
+      "owner": "PRIMARY baseline browser/touch public SDK",
+      "command": "EDITAC_WEB_TOUCH_BUILD=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/admission EDITAC_WEB_TOUCH_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch node scripts/run-web-touch-boundary.mjs; original scripts/test-mobile-web.mjs --group harness",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/source-pins.json",
+          "sha256": "004e3e8009ce3322df39e2059d6b271de1c1c9c03d79abb517d42c4d8ec69723"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/chromium/harness/receipt.json",
+          "sha256": "aaa2bace307eb6c82bb3fb057859a05da059ef10ae8716c481c5838ca236d748"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/webkit/harness/receipt.json",
+          "sha256": "f7f489aeec8c1a3bb986ea095649a46bc24cc97bbe6adcd05dc6dc1b6284fa50"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/firefox/harness/receipt.json",
+          "sha256": "dfc5fd582e035071eac1e11314ec4f3677806b9aef2e1cc234a75caf1b73a317"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-5-touch-touch",
+      "owner": "PRIMARY baseline browser/touch public SDK",
+      "command": "EDITAC_WEB_TOUCH_BUILD=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/admission EDITAC_WEB_TOUCH_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch node scripts/run-web-touch-boundary.mjs; original scripts/test-mobile-web.mjs --group touch",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/source-pins.json",
+          "sha256": "004e3e8009ce3322df39e2059d6b271de1c1c9c03d79abb517d42c4d8ec69723"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/chromium/touch/receipt.json",
+          "sha256": "4f5114b7a17f36132c277b267c4d77a3fd5032b9592f36f43e0bcd9e08f54f6c"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/webkit/touch/receipt.json",
+          "sha256": "1ed9b7b758e2cb7c98b88b2588d12257eba8c9bf399c039c9d360584dcbd948d"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/firefox/touch/receipt.json",
+          "sha256": "6519e1fc1fc38228ae321b1ce7352a1cbebc2491693f190a7aedc19db1e8884f"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-5-touch-input",
+      "owner": "PRIMARY baseline browser/touch public SDK",
+      "command": "EDITAC_WEB_TOUCH_BUILD=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/admission EDITAC_WEB_TOUCH_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch node scripts/run-web-touch-boundary.mjs; original scripts/test-mobile-web.mjs --group input",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/source-pins.json",
+          "sha256": "004e3e8009ce3322df39e2059d6b271de1c1c9c03d79abb517d42c4d8ec69723"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/chromium/input/receipt.json",
+          "sha256": "bea6227e31f4ea61d3a767841f59ff0e56003ec34f60017f0e6db6b480151883"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/webkit/input/receipt.json",
+          "sha256": "c648880f9c81ad1604f8b779c6fc506d3ea43a4cd3c68e805f35ee2940b69298"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/firefox/input/receipt.json",
+          "sha256": "7eebb6f33243c87f17180b3fe4f080d21ed06ea36ea6df54c9c517cc1fa34d61"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-5-touch-viewport",
+      "owner": "PRIMARY baseline browser/touch public SDK",
+      "command": "EDITAC_WEB_TOUCH_BUILD=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/admission EDITAC_WEB_TOUCH_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch node scripts/run-web-touch-boundary.mjs; original scripts/test-mobile-web.mjs --group viewport",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/source-pins.json",
+          "sha256": "004e3e8009ce3322df39e2059d6b271de1c1c9c03d79abb517d42c4d8ec69723"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/chromium/viewport/receipt.json",
+          "sha256": "040ccb53c31bb2c382276f9d12ca5f57c4dc34a3a9c8be1c65e271428d34748e"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/webkit/viewport/receipt.json",
+          "sha256": "5443e503c9ff3d2f647179ad9f4a5f9db88775a1d225ab36ab3537faf2084808"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/firefox/viewport/receipt.json",
+          "sha256": "b9106b27dabeec5ac2f4cf35ea0abe81b920e9c4412be95bf4581b5de662f991"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-5-touch-focus",
+      "owner": "PRIMARY baseline browser/touch public SDK",
+      "command": "EDITAC_WEB_TOUCH_BUILD=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/admission EDITAC_WEB_TOUCH_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch node scripts/run-web-touch-boundary.mjs; original scripts/test-mobile-web.mjs --group focus",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/source-pins.json",
+          "sha256": "004e3e8009ce3322df39e2059d6b271de1c1c9c03d79abb517d42c4d8ec69723"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/chromium/focus/receipt.json",
+          "sha256": "bfaba94f9716a13020f3e359facb1dfc7ffc54aaa8445673282c574f95258050"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/webkit/focus/receipt.json",
+          "sha256": "9b0d3a061652753b81d4e023af0068c83d4e7bb23125afb661e47bc7c43a1563"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/firefox/focus/receipt.json",
+          "sha256": "c61b0166680894fd8f3967e5835fb52c8f584ac95b4cdc2160169f4d9010b132"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-5-touch-lifecycle",
+      "owner": "PRIMARY baseline browser/touch public SDK",
+      "command": "EDITAC_WEB_TOUCH_BUILD=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/admission EDITAC_WEB_TOUCH_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch node scripts/run-web-touch-boundary.mjs; original scripts/test-mobile-web.mjs --group lifecycle",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/source-pins.json",
+          "sha256": "004e3e8009ce3322df39e2059d6b271de1c1c9c03d79abb517d42c4d8ec69723"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/chromium/lifecycle/receipt.json",
+          "sha256": "c2a05a12071d4032d8415dd84103fddd03e772fee7a01980d263991a6c608cbc"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/webkit/lifecycle/receipt.json",
+          "sha256": "17eba50056cba568d70a8d502dcee22f10ca14d5505be77b535f900a7b73153c"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/firefox/lifecycle/receipt.json",
+          "sha256": "0166c90957ff788e8fd6ba593feed3050276048508cf5ff6eaf58a55835d82b2"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-5-touch-capabilities",
+      "owner": "PRIMARY baseline browser/touch public SDK",
+      "command": "EDITAC_WEB_TOUCH_BUILD=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/admission EDITAC_WEB_TOUCH_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch node scripts/run-web-touch-boundary.mjs; original scripts/test-mobile-web.mjs --group capabilities",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/source-pins.json",
+          "sha256": "004e3e8009ce3322df39e2059d6b271de1c1c9c03d79abb517d42c4d8ec69723"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/chromium/capabilities/receipt.json",
+          "sha256": "4bb57286dc07e52dfe8bb3bdc265ab4b0264039c4fec696b7c1de70fb40efc7e"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/webkit/capabilities/receipt.json",
+          "sha256": "31742858e189711f30929d64daf2ae9b6a2e5d098d15d0a2ed37d959ff5c37a7"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/firefox/capabilities/receipt.json",
+          "sha256": "2924bbbf16aa94d80fb294d8a2db98f943dcdeef5e5482da14c61afc8da6fb3c"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-5-touch-modules",
+      "owner": "PRIMARY baseline browser/touch public SDK",
+      "command": "EDITAC_WEB_TOUCH_BUILD=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/admission EDITAC_WEB_TOUCH_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch node scripts/run-web-touch-boundary.mjs; original scripts/test-mobile-web.mjs --group modules",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/source-pins.json",
+          "sha256": "004e3e8009ce3322df39e2059d6b271de1c1c9c03d79abb517d42c4d8ec69723"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/chromium/modules/receipt.json",
+          "sha256": "1e63d8b760ba21ca91ee04ddf44ba20ec7f1d731922bbbb32f33cf6fa0c20930"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/webkit/modules/receipt.json",
+          "sha256": "c7f75c3eccd8c995859315b692fc2b6f43c0fa351351f188225d2cbef8341197"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/firefox/modules/receipt.json",
+          "sha256": "90ee0843e35e2174c17008990781fd69776728e5b4d7994f08ed4006f621218c"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-5-touch-checkpoint",
+      "owner": "PRIMARY baseline browser/touch public SDK",
+      "command": "EDITAC_WEB_TOUCH_BUILD=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/admission EDITAC_WEB_TOUCH_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch node scripts/run-web-touch-boundary.mjs; original scripts/test-mobile-web.mjs --group checkpoint",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/source-pins.json",
+          "sha256": "004e3e8009ce3322df39e2059d6b271de1c1c9c03d79abb517d42c4d8ec69723"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/chromium/checkpoint/receipt.json",
+          "sha256": "f6030377514d01fa09249397722808575cd4a1b1358e7a5fb1c9399a350e619b"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/webkit/checkpoint/receipt.json",
+          "sha256": "f2c5aaef1674008f0fa4eb09823ffcbc517ecaf1bc581f4193684aaf3243c54d"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/firefox/checkpoint/receipt.json",
+          "sha256": "5de794d8bd38f8908f67669f0fd602276756f12237f77e6aedf7ba05233349a9"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-5-touch-toolbar",
+      "owner": "PRIMARY baseline browser/touch public SDK",
+      "command": "EDITAC_WEB_TOUCH_BUILD=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/admission EDITAC_WEB_TOUCH_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch node scripts/run-web-touch-boundary.mjs; original scripts/test-mobile-web.mjs --group toolbar",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/source-pins.json",
+          "sha256": "004e3e8009ce3322df39e2059d6b271de1c1c9c03d79abb517d42c4d8ec69723"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/chromium/toolbar/receipt.json",
+          "sha256": "5e0434a5d6590e8b3bffdf09b46566dce7313b7e044aeccb5f1e3948752463f8"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/webkit/toolbar/receipt.json",
+          "sha256": "3b85103887048bf240c70e460331a49cc07383837ed894c8b3bc9d7b57e56fd1"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/touch/firefox/toolbar/receipt.json",
+          "sha256": "9b23338454e043a3ed6dd10ec8159e5ece0f34b039ec172689cc485db805c412"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-5-conversion-browser",
+      "owner": "PRIMARY current-source conversion proof; PARALLEL converter unchanged",
+      "command": "node --test --test-reporter=tap --test-concurrency=1 --test-timeout=45000 tests/formats/consumers/browser.test.mjs tests/formats/consumers/media.test.mjs tests/formats/consumers/odt-media.test.mjs tests/formats/consumers/epub-media.test.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/conversion/browser.log",
+          "sha256": "bf6a535f8af29cd13c931912df2e9a6e21acd072ba0a04498e28da7647672e51",
+          "kind": "node-tap",
+          "sources": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/conversion/source-pins.json",
+            "sha256": "402ea85c9a0e2b861294675a39bef2ac5fd794e9d1bc6e4ce79fe3a6399c057a"
+          },
+          "packages": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/conversion/runtime/packed-artifacts.json",
+            "sha256": "6d231cda8627f6487ce333c76239fa8f98a2cb6393e93a2b5292b7220c2b0e59"
+          },
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/conversion/runtime",
+          "execution": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/bindings/conversion/browser-command.json",
+            "sha256": "72cd0d4107c0dd025b965284dd04ae1a0571432bf10ed3d977f588b3cdbd1fd4"
+          },
+          "engine": "chromium"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/conversion/source-pins.json",
+          "sha256": "402ea85c9a0e2b861294675a39bef2ac5fd794e9d1bc6e4ce79fe3a6399c057a"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-5-conversion-contracts",
+      "owner": "PRIMARY current-source conversion proof; PARALLEL converter unchanged",
+      "command": "node --test --test-reporter=tap --test-name-pattern=packed archives|default Rust graph|installed public|independent readers|independent DOCX|partial DOCX|independent EPUB tests/formats/consumers/contracts.test.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/conversion/contracts.log",
+          "sha256": "7f95d8c649bb6e8b3ff6115c2c6fba63fc759e3a095631ceca4695da2e8bcee4",
+          "kind": "node-tap",
+          "sources": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/conversion/source-pins.json",
+            "sha256": "402ea85c9a0e2b861294675a39bef2ac5fd794e9d1bc6e4ce79fe3a6399c057a"
+          },
+          "packages": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/conversion/runtime/packed-artifacts.json",
+            "sha256": "6d231cda8627f6487ce333c76239fa8f98a2cb6393e93a2b5292b7220c2b0e59"
+          },
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/conversion/runtime",
+          "execution": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/bindings/conversion/contracts-command.json",
+            "sha256": "8c6969e4d6a1510121cff86d2a49d075f2c2f70e71ebc3ca51ea401fae45f5b9"
+          },
+          "engine": null
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/conversion/source-pins.json",
+          "sha256": "402ea85c9a0e2b861294675a39bef2ac5fd794e9d1bc6e4ce79fe3a6399c057a"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-5-conversion-media-oracles",
+      "owner": "PRIMARY current-source conversion proof; PARALLEL converter unchanged",
+      "command": "node --test --test-reporter=tap --test-concurrency=1 tests/formats/consumers/media-contracts.test.mjs tests/formats/consumers/odt-media-contracts.test.mjs tests/formats/consumers/epub-media-contracts.test.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/conversion/media-oracles.log",
+          "sha256": "ee4d82d9993e375d504d2d304525f25de8b951f980716bba1057b5289377a715",
+          "kind": "node-tap",
+          "sources": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/conversion/source-pins.json",
+            "sha256": "402ea85c9a0e2b861294675a39bef2ac5fd794e9d1bc6e4ce79fe3a6399c057a"
+          },
+          "packages": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/conversion/runtime/packed-artifacts.json",
+            "sha256": "6d231cda8627f6487ce333c76239fa8f98a2cb6393e93a2b5292b7220c2b0e59"
+          },
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/conversion/runtime",
+          "execution": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/bindings/conversion/media-oracles-command.json",
+            "sha256": "f50b5da5b785b70e0b917cc7f26821f81a9a315273f4977a04c314753309d212"
+          },
+          "engine": null
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/conversion/source-pins.json",
+          "sha256": "402ea85c9a0e2b861294675a39bef2ac5fd794e9d1bc6e4ce79fe3a6399c057a"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-5-conversion-odt-reader",
+      "owner": "PRIMARY current-source conversion proof; PARALLEL converter unchanged",
+      "command": "node --test --test-reporter=tap tests/formats/consumers/contracts.test.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/document-conversion/consumers-epub-20261018/canonical5/0-node-test.log",
+          "sha256": "6a7b817c3fca4f0745095be3c925dfb4e8179e51373fd1afa3842936bb3681aa",
+          "kind": "node-tap",
+          "selectedCases": [
+            "7:independent ODT schema/reader verifies rich semantics and rejects package/semantic mutations"
+          ],
+          "sources": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/conversion/source-pins.json",
+            "sha256": "402ea85c9a0e2b861294675a39bef2ac5fd794e9d1bc6e4ce79fe3a6399c057a"
+          },
+          "packages": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/conversion/runtime/packed-artifacts.json",
+            "sha256": "6d231cda8627f6487ce333c76239fa8f98a2cb6393e93a2b5292b7220c2b0e59"
+          },
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/conversion/runtime",
+          "execution": {
+            "path": "../architecture/evidence/document-conversion/consumers-epub-20261018/canonical5/receipt.json",
+            "sha256": "908414b6d4d71ada6ce14422df369128e470b1172ea1df6c858cde11896872e8",
+            "field": [
+              "checks",
+              0
+            ]
+          },
+          "artifactReuse": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/conversion/odt-reader-reuse.json",
+            "sha256": "d6667deae01c19c55bdb1043a5c9b88abc75422aafd873f23c9cd8b9d85de096"
+          }
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/conversion/source-pins.json",
+          "sha256": "402ea85c9a0e2b861294675a39bef2ac5fd794e9d1bc6e4ce79fe3a6399c057a"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-5-conversion-pdf-reader",
+      "owner": "PRIMARY current-source conversion proof; PARALLEL converter unchanged",
+      "command": "node --test --test-reporter=tap tests/formats/consumers/contracts.test.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/document-conversion/consumers-pdf-20261018/canonical2/1-node-test.log",
+          "sha256": "711c16225d56ba5e24b360a7664756c1443a88d8c16783319e43e81b312bf732",
+          "kind": "node-tap",
+          "selectedCases": [
+            "9:independent actual packed PDF text/rich/structure, Arabic glyph/layout and mutation oracles"
+          ],
+          "sources": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/conversion/source-pins.json",
+            "sha256": "402ea85c9a0e2b861294675a39bef2ac5fd794e9d1bc6e4ce79fe3a6399c057a"
+          },
+          "packages": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/conversion/runtime/packed-artifacts.json",
+            "sha256": "6d231cda8627f6487ce333c76239fa8f98a2cb6393e93a2b5292b7220c2b0e59"
+          },
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/conversion/runtime",
+          "execution": {
+            "path": "../architecture/evidence/document-conversion/consumers-pdf-20261018/canonical2/receipt.json",
+            "sha256": "cf90fe96236faf2dbf8f1189597875e4a11b21d211d9b553c0e10fbe3c23ab13",
+            "field": [
+              "checks",
+              1
+            ]
+          },
+          "artifactReuse": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/conversion/pdf-reader-reuse.json",
+            "sha256": "c1ef52149099324a3a906f30f49f59604a9431ae0bd97a9e47420a665179399f"
+          }
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/conversion/source-pins.json",
+          "sha256": "402ea85c9a0e2b861294675a39bef2ac5fd794e9d1bc6e4ce79fe3a6399c057a"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-5-conversion-controls",
+      "owner": "PRIMARY current installed FormatControls proof",
+      "command": "node scripts/test-mobile-extensions.mjs --group formats",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/conversion/controls/receipt.json",
+          "sha256": "4eb594d0c1a0057695245b3c50f6ab60733b61bce3fa4948018cbedae4872d71"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/conversion/source-pins.json",
+          "sha256": "402ea85c9a0e2b861294675a39bef2ac5fd794e9d1bc6e4ce79fe3a6399c057a"
         }
       ]
     }
