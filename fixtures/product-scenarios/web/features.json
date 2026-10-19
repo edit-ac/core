@@ -2218,7 +2218,7 @@
       "oracles": "Independent DOCX/ODT/EPUB/PDF readers, original media bytes, one durable commit, bounded cancellation/recovery without staged leaks.",
       "proofs": [
         {
-          "id": "wfe-3.1-c2b-browser",
+          "id": "wfe-3.1-c4o-14-browser",
           "engines": [
             "chromium"
           ],
@@ -2288,7 +2288,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c2b-contracts",
+          "id": "wfe-3.1-c4o-14-contracts",
           "engines": [
             null
           ],
@@ -2303,7 +2303,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c2b-media-oracles",
+          "id": "wfe-3.1-c4o-14-media-oracles",
           "engines": [
             null
           ],
@@ -2316,7 +2316,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c2b-odt-reader",
+          "id": "wfe-3.1-c4o-14-odt-reader",
           "engines": [
             null
           ],
@@ -2325,7 +2325,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c2b-pdf-reader",
+          "id": "wfe-3.1-c4o-14-pdf-reader",
           "engines": [
             null
           ],
@@ -2334,7 +2334,7 @@
           ]
         },
         {
-          "id": "wex-2.2",
+          "id": "wfe-3.1-c4o-14-controls",
           "engines": [
             "chromium"
           ],
@@ -2456,7 +2456,7 @@
           ]
         }
       ],
-      "nextAction": "Authenticate c2b-formats exact-source proof for the current product; rerun only after relevant runtime/fixture/build/reader inputs materially change. Preserve the Cargo-PATH and original C3 EPUB-reader failures."
+      "nextAction": "All13 original browser directions and selected114 original FormatControls assertions current; original worker/Session/history/media/recovery/readers retained. Preserve original Firefox owner failure and all later qualification predicates."
     },
     {
       "id": "WEB-TOUCH",
@@ -7086,6 +7086,203 @@
         {
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-13/run-1/source-pins.json",
           "sha256": "2d4a069a86fe5792610c7ca7df1c4443e265098bacbb1fc5d2a21f611a65b21a"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c4o-14-browser",
+      "owner": "PRIMARY current-source conversion proof; PARALLEL converter unchanged",
+      "command": "node --test --test-reporter=tap --test-concurrency=1 --test-timeout=45000 tests/formats/consumers/browser.test.mjs tests/formats/consumers/media.test.mjs tests/formats/consumers/odt-media.test.mjs tests/formats/consumers/epub-media.test.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-14/run-1/browser.log",
+          "sha256": "b65a6d6c842851d123173bb896f2974b622e6eea0c5e33bf6385528181da01a0",
+          "kind": "node-tap",
+          "sources": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-14/run-1/source-pins.json",
+            "sha256": "502d62ff20b02821e81b9531f273b4b3b55a86f0c7764311e1566da1a9e895fd"
+          },
+          "packages": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-14/run-1/runtime/packed-artifacts.json",
+            "sha256": "e21c5d96fcfd9e90b1671f97b44fda32a3ec234b7257d0ba90d980a169527146"
+          },
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-14/run-1/runtime",
+          "execution": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-14/browser-command.json",
+            "sha256": "eb8ecd61c7078378260b2d31821dedef56b2694497a43fb080c82ff4088a0b0c"
+          },
+          "engine": "chromium"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-14/run-1/source-pins.json",
+          "sha256": "502d62ff20b02821e81b9531f273b4b3b55a86f0c7764311e1566da1a9e895fd"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c4o-14-contracts",
+      "owner": "PRIMARY current-source conversion proof; PARALLEL converter unchanged",
+      "command": "node --test --test-reporter=tap --test-name-pattern=packed archives|default Rust graph|installed public|independent readers|independent DOCX|partial DOCX|independent EPUB tests/formats/consumers/contracts.test.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-14/run-1/contracts.log",
+          "sha256": "6cb419c6b40e7316b95619ebdf1209bb8da16cadee0ca1992f0083b130c2accc",
+          "kind": "node-tap",
+          "sources": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-14/run-1/source-pins.json",
+            "sha256": "502d62ff20b02821e81b9531f273b4b3b55a86f0c7764311e1566da1a9e895fd"
+          },
+          "packages": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-14/run-1/runtime/packed-artifacts.json",
+            "sha256": "e21c5d96fcfd9e90b1671f97b44fda32a3ec234b7257d0ba90d980a169527146"
+          },
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-14/run-1/runtime",
+          "execution": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-14/contracts-command.json",
+            "sha256": "40d9dfa78efa89623a59414ee28e20c97d36285b80f472bcea20863648963e56"
+          },
+          "engine": null
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-14/run-1/source-pins.json",
+          "sha256": "502d62ff20b02821e81b9531f273b4b3b55a86f0c7764311e1566da1a9e895fd"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c4o-14-media-oracles",
+      "owner": "PRIMARY current-source conversion proof; PARALLEL converter unchanged",
+      "command": "node --test --test-reporter=tap --test-concurrency=1 tests/formats/consumers/media-contracts.test.mjs tests/formats/consumers/odt-media-contracts.test.mjs tests/formats/consumers/epub-media-contracts.test.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-14/run-1/media-oracles.log",
+          "sha256": "8e5f76d90d38335492776db64312006a531ae95fb4ccc30e67f3e92b753a1dca",
+          "kind": "node-tap",
+          "sources": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-14/run-1/source-pins.json",
+            "sha256": "502d62ff20b02821e81b9531f273b4b3b55a86f0c7764311e1566da1a9e895fd"
+          },
+          "packages": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-14/run-1/runtime/packed-artifacts.json",
+            "sha256": "e21c5d96fcfd9e90b1671f97b44fda32a3ec234b7257d0ba90d980a169527146"
+          },
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-14/run-1/runtime",
+          "execution": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-14/media-oracles-command.json",
+            "sha256": "a7729b460c6617d712b7a6cf9bbaf980db44375886b3ade48d1e15a9bc9f8d32"
+          },
+          "engine": null
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-14/run-1/source-pins.json",
+          "sha256": "502d62ff20b02821e81b9531f273b4b3b55a86f0c7764311e1566da1a9e895fd"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c4o-14-odt-reader",
+      "owner": "PRIMARY current-source conversion proof; PARALLEL converter unchanged",
+      "command": "node --test --test-reporter=tap tests/formats/consumers/contracts.test.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/document-conversion/consumers-epub-20261018/canonical5/0-node-test.log",
+          "sha256": "6a7b817c3fca4f0745095be3c925dfb4e8179e51373fd1afa3842936bb3681aa",
+          "kind": "node-tap",
+          "selectedCases": [
+            "7:independent ODT schema/reader verifies rich semantics and rejects package/semantic mutations"
+          ],
+          "sources": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-14/run-1/source-pins.json",
+            "sha256": "502d62ff20b02821e81b9531f273b4b3b55a86f0c7764311e1566da1a9e895fd"
+          },
+          "packages": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-14/run-1/runtime/packed-artifacts.json",
+            "sha256": "e21c5d96fcfd9e90b1671f97b44fda32a3ec234b7257d0ba90d980a169527146"
+          },
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-14/run-1/runtime",
+          "execution": {
+            "path": "../architecture/evidence/document-conversion/consumers-epub-20261018/canonical5/receipt.json",
+            "sha256": "908414b6d4d71ada6ce14422df369128e470b1172ea1df6c858cde11896872e8",
+            "field": [
+              "checks",
+              0
+            ]
+          },
+          "artifactReuse": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-14/run-1/odt-reader-reuse.json",
+            "sha256": "1194bce1490e1d9f160aa3f7edc1119f3d5546e0536473568a11bef74f317ba4"
+          }
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-14/run-1/source-pins.json",
+          "sha256": "502d62ff20b02821e81b9531f273b4b3b55a86f0c7764311e1566da1a9e895fd"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c4o-14-pdf-reader",
+      "owner": "PRIMARY current-source conversion proof; PARALLEL converter unchanged",
+      "command": "node --test --test-reporter=tap tests/formats/consumers/contracts.test.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/document-conversion/consumers-pdf-20261018/canonical2/1-node-test.log",
+          "sha256": "711c16225d56ba5e24b360a7664756c1443a88d8c16783319e43e81b312bf732",
+          "kind": "node-tap",
+          "selectedCases": [
+            "9:independent actual packed PDF text/rich/structure, Arabic glyph/layout and mutation oracles"
+          ],
+          "sources": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-14/run-1/source-pins.json",
+            "sha256": "502d62ff20b02821e81b9531f273b4b3b55a86f0c7764311e1566da1a9e895fd"
+          },
+          "packages": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-14/run-1/runtime/packed-artifacts.json",
+            "sha256": "e21c5d96fcfd9e90b1671f97b44fda32a3ec234b7257d0ba90d980a169527146"
+          },
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-14/run-1/runtime",
+          "execution": {
+            "path": "../architecture/evidence/document-conversion/consumers-pdf-20261018/canonical2/receipt.json",
+            "sha256": "cf90fe96236faf2dbf8f1189597875e4a11b21d211d9b553c0e10fbe3c23ab13",
+            "field": [
+              "checks",
+              1
+            ]
+          },
+          "artifactReuse": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-14/run-1/pdf-reader-reuse.json",
+            "sha256": "1d9c391efb56532883a39104bda590ee633c0e303e68e6d5f533c2f656cec3f2"
+          }
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-14/run-1/source-pins.json",
+          "sha256": "502d62ff20b02821e81b9531f273b4b3b55a86f0c7764311e1566da1a9e895fd"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c4o-14-controls",
+      "owner": "PRIMARY current installed FormatControls proof",
+      "command": "node scripts/test-mobile-extensions.mjs --group formats",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-14/run-1/controls/receipt.json",
+          "sha256": "82260a56e35a0d803156f80553edcf6726332d9627ac866b1ef43737d65dca4a"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-14/run-1/source-pins.json",
+          "sha256": "502d62ff20b02821e81b9531f273b4b3b55a86f0c7764311e1566da1a9e895fd"
         }
       ]
     }
