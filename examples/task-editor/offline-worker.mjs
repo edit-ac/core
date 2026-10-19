@@ -10,9 +10,7 @@ self.addEventListener('message',event=>{
       if(!Array.isArray(urls)||urls.some(url=>new URL(url,self.location).origin!==self.location.origin))throw Error('Invalid local shell URLs');
       const cache=await caches.open(cacheName);
       await cache.addAll(urls);
-      // Acknowledge only after every shell entry can actually be read back.
-      for(const url of urls)if(!await cache.match(url))throw Error('Missing prepared shell entry: '+url);
-      event.ports[0]?.postMessage({ready:true,urls,state:self.registration.active?.state});
+      event.ports[0]?.postMessage({ready:true});
     }catch(error){event.ports[0]?.postMessage({error:error.message});}
   })());
 });
