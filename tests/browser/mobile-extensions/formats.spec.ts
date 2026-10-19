@@ -327,8 +327,25 @@ for(const format of ['rtf','docx','odt','epub','pdf'])test(`MFA-1.1-C4 actual in
   assert.equal((await transport(page)).calls.filter(c=>c.action==='copy').length,0);
  }
  const downloadPromise=page.waitForEvent('download');await button(page,'Download file').tap();const download=await downloadPromise;
- assert.equal(download.suggestedFilename(),a.filename);const stream=await download.createReadStream();const chunks=[];for await(const chunk of stream!)chunks.push(chunk);
- assert.deepEqual(Buffer.concat(chunks),buffer);assert.deepEqual(await artifact(page),a);assert.equal((await transport(page)).calls.some(c=>['save','write'].includes(c.action)),false);
+ // The artifact was checked against the exact composed literal above. Check
+ // the actual anchor independently before allowing canonical spelling only at
+ // the browser/OS suggested-name boundary (document-conversion.md).
+ const requested=await page.evaluate(()=>(window as any).formatPlatform.downloads.at(-1).filename);
+ fact.download={logical:a.filename,requested,suggested:download.suggestedFilename(),qualification:'exact logical/anchor names; canonical Unicode browser spelling only; OS destination unverified'};
+ assert.equal(requested,`résumé exact.${format}`);
+ assert.equal(fact.download.suggested.normalize('NFC'),`résumé exact.${format}`);
+ const stream=await download.createReadStream();const chunks=[];for await(const chunk of stream!)chunks.push(chunk);
+ assert.deepEqual(Buffer.concat(chunks),buffer);assert.deepEqual(await artifact(page),a);
+ // Keep ASCII exact through the same installed converter and actual download.
+ const ascii=`export exact.${format}`;await prepareDocument(page,format,ascii);const asciiArtifact=await artifact(page);
+ assert.equal(asciiArtifact.filename,ascii);
+ const asciiReceived=page.waitForEvent('download');await button(page,'Download file').tap();const asciiDownload=await asciiReceived;
+ const asciiRequested=await page.evaluate(()=>(window as any).formatPlatform.downloads.at(-1).filename);
+ assert.equal(asciiRequested,ascii);assert.equal(asciiDownload.suggestedFilename(),ascii);
+ const asciiStream=await asciiDownload.createReadStream();const asciiChunks=[];for await(const chunk of asciiStream!)asciiChunks.push(chunk);
+ assert.deepEqual(Buffer.concat(asciiChunks),Buffer.from(asciiArtifact.bytes));assert.deepEqual(await artifact(page),asciiArtifact);
+ fact.asciiDownload={logical:asciiArtifact.filename,requested:asciiRequested,suggested:asciiDownload.suggestedFilename(),sha256:createHash('sha256').update(Buffer.concat(asciiChunks)).digest('hex'),bytes:asciiArtifact.bytes.length};
+ assert.equal((await transport(page)).calls.some(c=>['save','write'].includes(c.action)),false);
  assert.ok(fact.requests.some(url=>url.includes('installed-formats/dist/worker.js')));assert.ok(fact.requests.some(url=>url.includes('editac_formats_wasm_bg.wasm')));
  await finish(page,baseline,fact);
 }));
