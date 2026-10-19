@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Local revision review</title>
+<script type="importmap">{"imports":{"@edit-ac/core":"/core/index.js","@edit-ac/core/extensions":"/core/extensions/index.js","@edit-ac/core/links":"/core/links/index.js","@edit-ac/web":"/web/index.js"}}</script>
+<main>
+  <header><p class="eyebrow">Local workspace · Revision review</p><h1>Capture a moment. Keep editing.</h1>
+  <p>Save your live document in this browser, then name temporary captures to inspect earlier states.</p></header>
+  <div class="workspace">
+    <section aria-labelledby="live-heading"><h2 id="live-heading">Live document</h2>
+      <div id="revision-editor" aria-label="Live revision document"></div>
+      <button id="revision-save" disabled>Save locally</button>
+      <label><input type="checkbox" id="revision-readonly"> Readonly live editor</label>
+      <button id="revision-close">Close this review</button>
+      <button id="revision-reopen" disabled>Reopen this review</button>
+      <p id="revision-save-status" role="status">Opening local document…</p>
+    </section>
+    <section aria-labelledby="capture-heading"><h2 id="capture-heading">Temporary captures</h2>
+      <p>Semantic projections, with unknown / unverified provenance. Original source spelling is not retained.</p>
+      <form id="revision-capture-form">
+        <label for="revision-name">Capture name</label>
+        <input id="revision-name" maxlength="80" required autocomplete="off" placeholder="Before the rewrite" disabled>
+        <button id="revision-capture" disabled>Capture current state</button>
+      </form>
+      <p id="revision-capture-status" role="status">Captures are explicit; typing does not capture history.</p>
+      <p id="revision-usage"></p>
+      <p class="note">Memory only: at most 3 captures, 24 KiB total, 12 KiB each, including metadata. Oldest captures are pruned first. Reloading loses captures; saved live content remains. This is not an archive, an access boundary, or a global revision order.</p>
+      <div id="revision-history"></div>
+    </section>
+  </div>
+</main>
+<script type="module" src="./revision-review.mjs"></script>
+</html>
