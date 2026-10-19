@@ -132,6 +132,8 @@ Default admitted input is 2 MiB, pages contain at most 100 difference rows, and 
 ```ts
 import { WebHistoryStore, HistoryRestorer, HistoryReview } from '@edit-ac/web';
 
+// owner is the result of openEditorStorage(options); retain it across view mounts.
+const engine = owner.engine;
 const store = new WebHistoryStore({ maxRevisions: 32 });
 const access = () => ({ scope: { identity: engine.read().identity, moduleProfile } });
 const revision = await store.capture(engine, access(), 'Before revision', { origin: 'unknown' });
@@ -139,12 +141,19 @@ const restorer = new HistoryRestorer(store, {
   engine,
   writable: () => hostWritable,
   // Route the opaque Rust plan through ordinary storage/policy admission.
-  commit: plan => storage.commitPrepared(plan),
+  commit: owner.commitPrepared,
 }, access);
 const history = new HistoryReview(container, store, access, { restorer });
 history.inspect(revision); // Reads an immutable projection; never checks out a replica.
 // Call refresh() after new captures; destroy() removes the owned controller/DOM.
 ```
+
+`owner.commitPrepared(plan)` is synchronous and uses the same storage lifecycle as
+`owner.commit(request)`. The caller releases prepared tokens in `finally` on every
+path; `HistoryRestorer.apply` already does this. The host supplies current writable
+and recovery permission through `writable`; the owner retains its existing live,
+closing and storage-failure checks. Flush with `await owner.flush({ target: 'local' })`
+before claiming durability.
 
 Historical inspection has no mutation controls. A separate writable section previews and applies restoration as a new semantic edit. The preview is single-use and bound to the current engine state; a peer edit, deletion, unavailable revision or changed policy yields visible conflict/recovery. The initial adapter restores same-identity, same-structure unmarked text through existing Rust commands. It retains unchanged marks/opaque nodes and rejects unsupported structural or mark changes without normalization or document reimport. Accepted restores retain node/source identities, use an isolated undo group and generate ordinary local journal updates. Flush through the storage lifecycle before claiming local durability. The view labels semantic projections and unknown attribution explicitly, paginates revision lists and clips values with a notice. It does not retain or claim original source spelling, global revision order, per-character authorship or durable archival history.
 

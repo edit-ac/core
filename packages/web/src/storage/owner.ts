@@ -7,6 +7,9 @@ type LocalSession = Awaited<ReturnType<typeof recoverLocalDocument>>;
 export interface EditorStorageOwner {
   readonly engine: EngineHandle;
   readonly commit: LocalSession['storage']['commit'];
+  /** Synchronous admission through this owner's storage policy and journal.
+   * The caller must release the engine plan in finally on every path. */
+  readonly commitPrepared: LocalSession['storage']['commitPrepared'];
   readonly commitPreparedAssets: LocalSession['storage']['commitPreparedAssets'];
   /** Lazy AssetWork companion on this owner's exact content database. */
   enableAssets(): Promise<import('../sync/assets.js').AssetSession>;
@@ -22,6 +25,7 @@ export async function openEditorStorage(options: RecoveryOptions): Promise<Edito
   const session = await recoverLocalDocument(captured);
   const owner = Object.freeze({ engine: session.writer.engine,
     commit: session.storage.commit.bind(session.storage),
+    commitPrepared: session.storage.commitPrepared.bind(session.storage),
     commitPreparedAssets: session.storage.commitPreparedAssets.bind(session.storage),
     enableAssets: () => session.storage.enableAssets(captured.indexedDB,captured.databaseName), flush: session.storage.flush.bind(session.storage),
     recoveryExport: session.storage.recoveryExport.bind(session.storage), destroy: session.storage.destroy.bind(session.storage) });

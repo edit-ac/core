@@ -261,6 +261,7 @@ export class BrowserEditor {
     const storage = session.storage;
     const controls = factory({ root: this.root, engine: session.writer.engine, selection: this.#selection!,
       storageOwner: { engine: session.writer.engine, commit: storage.commit.bind(storage),
+        commitPrepared: storage.commitPrepared.bind(storage),
         commitPreparedAssets: storage.commitPreparedAssets.bind(storage),
         enableAssets: () => storage.enableAssets(this.#recoveryOptions.indexedDB, this.#recoveryOptions.databaseName),
         flush: storage.flush.bind(storage), recoveryExport: storage.recoveryExport.bind(storage), destroy: storage.destroy.bind(storage) },
