@@ -2851,7 +2851,7 @@
       "oracles": "Prepared host packets through actual Session/WASM/IndexedDB, exact UTF-16 text, capture invalidation, permission/cancel/recovery and independent presenter ownership.",
       "proofs": [
         {
-          "id": "wfe-3.1-c6-filename-current-baseline",
+          "id": "wfe-3.1-c11-current-baseline",
           "engines": [
             "chromium",
             "firefox",
@@ -2916,7 +2916,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c6-filename-current-baseline",
+          "id": "wfe-3.1-c11-current-baseline",
           "engines": [
             "chromium",
             "firefox",
@@ -2976,7 +2976,7 @@
       "oracles": "Captured touch-format target, clipboard original formats and stale gesture invalidation through public host adapters. Qualified mobile assistance: captured selection, exactly one semantic/history/journal mutation, undo/redo/reopen, hostile late-result fencing, 44px controls, narrow keyboard recovery, zero permission/capture/external requests and released resources.",
       "proofs": [
         {
-          "id": "wfe-3.1-c6-filename-current-mobile",
+          "id": "wfe-3.1-c11-current-mobile",
           "engines": [
             "chromium"
           ],
@@ -3360,7 +3360,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c6-filename-current-mobile",
+          "id": "wfe-3.1-c11-current-mobile",
           "engines": [
             "chromium",
             "firefox",
@@ -3542,7 +3542,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c6-filename-current-mobile",
+          "id": "wfe-3.1-c11-current-mobile",
           "engines": [
             "webkit"
           ],
@@ -3552,7 +3552,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c6-filename-current-mobile",
+          "id": "wfe-3.1-c11-current-mobile",
           "engines": [
             "chromium",
             "firefox",
@@ -3585,7 +3585,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c6-filename-current-mobile",
+          "id": "wfe-3.1-c11-current-mobile",
           "engines": [
             "firefox"
           ],
@@ -12044,6 +12044,112 @@
         {
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-3-current/runtime-source-pins.json",
           "sha256": "cc3d3982fd17ac7856a7a84dcf33d0acb1f2ed8a66d2e7837001c8815a38ea2a"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c11-current-mobile",
+      "owner": "PRIMARY original portable mobile on current qualified main SDK; WFN exact-name contract",
+      "command": "PATH=/Users/bpstr/.nvm/versions/node/v24.19.0/bin:/Users/bpstr/.cargo/bin:$PATH EDITAC_PRODUCT_SDK_ADMISSION=/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-4/admission.json EDITAC_WEB_MOBILE_EXTENSION_OUTPUT=/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c11-current/run-1 node scripts/run-web-mobile-extension-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c11-current/run-1/chromium/capabilities/receipt.json",
+          "sha256": "e7e889c76a398a376b30e2411e06d8a09bbb0fdee24f88f4505740d59c5e2ab0"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c11-current/run-1/chromium/menus/receipt.json",
+          "sha256": "a3bb8bf5db31509b185d2f81550dc52b0ad110bdd4f18c18ee248c252f68b3ce"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c11-current/run-1/chromium/content-controls/receipt.json",
+          "sha256": "e25b306e05b0d034e294a7c2935fe0c1e592e717ca2ef0b8bebfa7bf5f129eae"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c11-current/run-1/chromium/gestures/receipt.json",
+          "sha256": "34b17b20acf91021fdffacd5b21c0e9168ad394dead18105fbcc56ffc12074fa"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c11-current/run-1/chromium/assets/receipt.json",
+          "sha256": "2b59020877b0ba2cfde57540765ca5440cb958e12a6f3fb0e7b4c7b87a7a8c3f"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c11-current/run-1/chromium/formats/receipt.json",
+          "sha256": "f71372007997eb99d02a29a3b239171eabe2ce6e319fb8b94b0b68af880045e9"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c11-current/run-1/firefox/formats/receipt.json",
+          "sha256": "4d246a57992f876fc445923a71a6bc3c23cf1ad3f1204f3cdbea0762109587bb"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c11-current/run-1/webkit/formats/receipt.json",
+          "sha256": "c9cc0383be00deb6c230ae9ad0e228e4910794fe8893d459cd4cf2209e5c8641"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c11-current/run-1/chromium/assistance/receipt.json",
+          "sha256": "7e260407f1d19f253b78816e948daa86e1c99a36c1e8c6c185dfff86a9ab2df8"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c11-current/run-1/chromium/mobile-extension-formatting/receipt.json",
+          "sha256": "19c8356393ab1fe97bf051c2e41d50c040d30c73e1fd336438f83d261982ffdf"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c11-current/run-1/firefox/assistance/receipt.json",
+          "sha256": "08ee1ba74d2a342f46aac0df461d591ab52bddda7eaba0c5cef8465393f6e14d"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c11-current/run-1/firefox/mobile-extension-formatting/receipt.json",
+          "sha256": "de2d9b62d47852c09f7dc436d66f3cf9d94ed59f0c11f906194336551036e6b6"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c11-current/run-1/webkit/assistance/receipt.json",
+          "sha256": "ce0a74ddae4ea3966d08be14e80fb6a55bea297b100c9f6e6948fd8ba241f143"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c11-current/run-1/webkit/mobile-extension-formatting/receipt.json",
+          "sha256": "ebcf4515462cfec600093f016783376b2bb41ded4dc2c356314abe01068be090"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c11-current/runtime-source-pins.json",
+          "sha256": "bf66328071b43d5517c1307343331b470b23a476cf4f63661630a2ede3e86db4"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c11-current-baseline",
+      "owner": "PRIMARY original portable mobile on current qualified main SDK; WFN exact-name contract",
+      "command": "PATH=/Users/bpstr/.nvm/versions/node/v24.19.0/bin:/Users/bpstr/.cargo/bin:$PATH EDITAC_PRODUCT_SDK_ADMISSION=/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-4/admission.json EDITAC_WEB_MOBILE_EXTENSION_OUTPUT=/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c11-current/run-1 node scripts/run-web-mobile-extension-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c11-current/run-1/chromium/assistive-dictation/receipt.json",
+          "sha256": "22f6dff045801e4f2e8dfdca86a88974e086753f156d07a192bd9e3939a50d44"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c11-current/run-1/chromium/assistive-presenter/receipt.json",
+          "sha256": "82b95a00d41d22bfdcfa12ad2edcf06d6ef5225e50a3489cf3d9e3e5e17bece7"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c11-current/run-1/firefox/assistive-dictation/receipt.json",
+          "sha256": "ea20c2d77d217391edcd0a0e1376ede9c62a2a742f7df3e899457a4892f71e12"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c11-current/run-1/firefox/assistive-presenter/receipt.json",
+          "sha256": "5a4b47a499f1a33c1f893071b97daee5efe8b77e95c422276b546532c3152f2a"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c11-current/run-1/webkit/assistive-dictation/receipt.json",
+          "sha256": "99979ee4136aa117dabbf8ff0b33da083c728ca302c0cdf3aa7bcb5a3c1c26d6"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c11-current/run-1/webkit/assistive-presenter/receipt.json",
+          "sha256": "d59d2f2f3dc8df47b156b16dde9e342f2b3a8dfc34d4f8cd5ec459ba81897e50"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c11-current/runtime-source-pins.json",
+          "sha256": "bf66328071b43d5517c1307343331b470b23a476cf4f63661630a2ede3e86db4"
         }
       ]
     }
