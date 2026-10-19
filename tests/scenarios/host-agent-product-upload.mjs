@@ -66,7 +66,7 @@ export async function modelCases(check,{server,facts}) {
 export async function browserCases({page,server,check,facts}) {
   const errors=[],external=[],uploads=[];page.on('pageerror',e=>errors.push(e.message));
   page.on('request',r=>{if(!r.url().startsWith(server.url))external.push(r.url());if(r.url()===server.url+'/bridge/baseline' && r.method()==='POST'){const body=r.postDataJSON();if(body.action?.startsWith('upload-'))uploads.push(body);}});
-  await page.goto(server.url);await page.waitForFunction(()=>window.humanWorkspace?.mounted && !document.querySelector('#baseline-capture').disabled);
+  await page.goto(server.url);await page.waitForFunction(()=>window.humanWorkspace?.mounted && document.querySelector('#baseline-capture')?.disabled===false);
   const snapshot=()=>page.evaluate(()=>window.humanWorkspace.evidence());
   const prepareBefore=server.owner.prepareCount;
   const before=await server.owner.send({op:'state'}),db=sqlite(server.owner.database),peer=await snapshot();

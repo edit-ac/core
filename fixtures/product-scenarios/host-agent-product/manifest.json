@@ -199,6 +199,33 @@
         "baseline-release-discards-pending-upload",
         "independent-browser-owner-journal-history"
       ]
+    },
+    "proposal-cancel": {
+      "parent": "D24X-2.5",
+      "engines": [
+        "chromium",
+        "firefox",
+        "webkit"
+      ],
+      "modelCases": [
+        "cancel-releases-bounded-upload-and-baseline",
+        "late-read-withheld-new-generation-retained",
+        "late-real-prepare-withheld-and-target-released",
+        "close-fences-late-read-and-denies-future-work",
+        "independent-session-sqlite-identity-nonmutation"
+      ],
+      "browserCases": [
+        "keyboard-cancel-clears-partial-and-releases-owner",
+        "scope-switch-and-close-clear-prepared-views",
+        "late-read-cannot-replace-newer-capture",
+        "late-prepare-cannot-replace-newer-scope",
+        "close-during-real-prepare-withholds-result",
+        "cancel-pending-begin-releases-admitted-upload",
+        "expiry-clears-prepared-presentation",
+        "independent-owner-browser-history-journal-unchanged",
+        "cancel-preserves-independent-human-edit",
+        "page-exit-releases-retained-target"
+      ]
     }
   }
 }

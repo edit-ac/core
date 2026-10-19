@@ -1,6 +1,7 @@
 import './human-workspace.mjs';
 const config = await (await fetch('/bridge.json')).json();
 const section = document.createElement('section');
+section.id='baseline-region';
 section.setAttribute('aria-labelledby','baseline-heading');
 section.innerHTML = `<h2 id="baseline-heading">Revision-bound baseline</h2>
 <p>Exact captured Markdown and profile from the local shared owner. This is an opening representation, not current semantic state or a durable apply receipt. Prepared local authorization only.</p>
@@ -15,6 +16,7 @@ const node = id => document.getElementById('baseline-'+id);
 let baseline, generation = 0, pending, ended = false, permitted = true;
 const clear = message => { baseline = undefined; node('source').textContent=''; node('metadata').textContent=''; node('status').textContent=message; };
 function render() {
+  section.setAttribute('aria-busy',String(!!pending));
   const enabled = !ended && permitted && node('scope').value === 'current';
   node('capture').disabled=!!pending || !enabled;
   node('check').disabled=!!pending || !enabled || !baseline;
@@ -25,8 +27,13 @@ async function post(input,signal,keepalive=false) {
   if(!response.ok)throw Error('Baseline transport unavailable');return response.json();
 }
 async function release(message) {
-  generation++; pending?.abort(); pending=undefined; clear(message); render();
-  try { await post({action:'release'}); } catch { node('status').textContent='Release outcome unknown; capture again after reconnecting.'; }
+  const version=++generation; pending?.abort();
+  const controller=new AbortController();pending=controller;clear(message);render();
+  window.dispatchEvent(new CustomEvent('host-proposal-invalidated',{detail:{message}}));
+  const timer=setTimeout(()=>controller.abort(),5000);
+  try { await post({action:'release'},controller.signal); }
+  catch { if(version===generation && !ended)node('status').textContent='Release outcome unknown; capture again after reconnecting.'; }
+  finally {clearTimeout(timer);if(pending===controller)pending=undefined;render();}
 }
 async function run(action) {
   if(pending || ended)return;
@@ -55,6 +62,7 @@ node('check').onclick=()=>run(async(signal,version)=>{
   if(result.status!=='valid'){baseline=undefined;node('source').textContent='';node('metadata').textContent='';}
 });
 node('expire').onclick=()=>run(async(signal,version)=>{await post({action:'expire'},signal);if(version===generation)node('status').textContent='Prepared clock advanced. Check baseline to observe expiry.';});
+window.addEventListener('host-proposal-cancel',()=>void release('Proposal workflow cancelled; retained baseline released.'));
 node('release').onclick=()=>void release('Baseline released; no proposal content retained in this view.');
 node('scope').onchange=()=>void release(node('scope').value==='current'?'Scope changed; capture again.':'Foreign scope unavailable; baseline invalid.');
 document.getElementById('human-scope').addEventListener('change',()=>void release('Human scope changed; baseline invalid.'));

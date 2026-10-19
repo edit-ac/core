@@ -44,12 +44,13 @@ node('start').onclick=()=>run(async(signal,current)=>{
   let candidate;try {candidate=candidateChunks(node('source').value);}catch {node('status').textContent='Invalid candidate: use well-formed Unicode within 4096 UTF-8 bytes.';return;}
   const {revision,sourceHash,profile,expiresAt,actorId,documentId,epoch,generation:ownerGeneration}=JSON.parse(metadata());
   const baseline={revision,sourceHash,profile,expiresAt,actorId,documentId,epoch,generation:ownerGeneration};
-  const result=await post({action:'upload-begin',generation:ownerGeneration,baseline,totalBytes:candidate.total,checksum:await checksum(candidate.source)},signal);
-  if(!current())return;
+  const candidateChecksum=await checksum(candidate.source);if(!current())return;
+  const result=await post({action:'upload-begin',generation:ownerGeneration,baseline,totalBytes:candidate.total,checksum:candidateChecksum},signal);
+  if(!current()){if(result.uploadId)void post({action:'upload-cancel',generation:ownerGeneration,uploadId:result.uploadId}).catch(()=>{});return;}
   if(result.status!=='uploading' || typeof result.uploadId!=='string'){reject(result);return;}
   upload={...candidate,...result,generation:ownerGeneration,index:0,received:0};
   node('progress').max=Math.max(1,candidate.total);node('progress').value=0;
-  node('metadata').textContent=JSON.stringify({totalBytes:candidate.total,checksum:await checksum(candidate.source),expiresAt:result.expiresAt,profile},null,2);
+  node('metadata').textContent=JSON.stringify({totalBytes:candidate.total,checksum:candidateChecksum,expiresAt:result.expiresAt,profile},null,2);
   node('status').textContent=`Partial upload: 0 / ${candidate.total} UTF-8 bytes. Nothing prepared.`;
 });
 node('next').onclick=()=>run(async(signal,current)=>{
@@ -69,6 +70,7 @@ node('finish').onclick=()=>run(async(signal,current)=>{
   // The opaque owner ID is retained only as presentation metadata; never reconstructed or applied.
   node('metadata').textContent=JSON.stringify({status:result.status,code:result.code,proposalId:result.proposalId,candidateHash:result.candidateHash},null,2);
 });
+window.addEventListener('host-proposal-invalidated',event=>{node('source').value='';discard(event.detail.message);});
 node('cancel').onclick=()=>discard('Upload discarded. No document mutation.');
 new MutationObserver(()=>{const next=metadata();if(next!==boundMetadata){boundMetadata=next;if(!next)node('source').value='';discard(next?'Baseline changed; start a new local upload.':'No baseline; upload discarded.');}render();}).observe(document.getElementById('baseline-metadata'),{childList:true,characterData:true,subtree:true});
 window.addEventListener('pagehide',()=>{ended=true;discard('View closed.',true);node('source').value='';},{once:true});

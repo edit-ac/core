@@ -11,8 +11,8 @@ for(const args of [[],['unknown'],['workspace','extra']]){
  facts.cases.push({id:'reject-selection-'+JSON.stringify(args),pass:result.status!==0,exit:result.status});
  assert.notEqual(result.status,0);
 }
-const mode=process.argv[3] ?? '--workspace';assert.ok(['--workspace','--upload'].includes(mode));
-const entry=mode==='--upload'?'upload-workspace.mjs':'installed-workspace.mjs';
+const mode=process.argv[3] ?? '--workspace';assert.ok(['--workspace','--upload','--proposal-cancel'].includes(mode));
+const entry=mode==='--proposal-cancel'?'proposal-cancel-workspace.mjs':mode==='--upload'?'upload-workspace.mjs':'installed-workspace.mjs';
 let child,preview,url;
 try{
  child=spawn(process.execPath,['examples/host-agent-product/launch.mjs',mode],{cwd:root,env:{PATH:process.env.PATH},stdio:['ignore','pipe','pipe']});
