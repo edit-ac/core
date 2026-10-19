@@ -99,6 +99,29 @@
         "independent-owner-peer-history",
         "current-revision-after-real-human-update"
       ]
+    },
+    "human": {
+      "parent": "D24X-1.5",
+      "engines": [
+        "chromium",
+        "firefox",
+        "webkit"
+      ],
+      "modelCases": [
+        "separate-authenticated-channel",
+        "scope-and-fixed-channel-admission",
+        "independent-owner-journal-unchanged"
+      ],
+      "browserCases": [
+        "mounted-real-identity-storage",
+        "keyboard-and-separate-human-publish",
+        "actual-shared-update-and-own-history",
+        "local-storage-reopen",
+        "scope-switch-disposal-no-cross-document",
+        "denied-channel-clears-editor-and-recovers",
+        "read-tools-see-same-owner-without-human-remount",
+        "final-disposal-and-durable-owner-oracles"
+      ]
     }
   }
 }

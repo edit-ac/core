@@ -11,7 +11,7 @@ export const EPOCH = '23456789-2345-4345-8345-23456789abcd';
 export const LIMITS = Object.freeze({ message: 8192, response: 1048576, pending: 8, timeout: 5000 });
 
 // Fixed executable + argument vector. No caller-supplied command, operation or path.
-export async function connectOwner({ executable, database, sdk, facts, capabilities = false, read = false }) {
+export async function connectOwner({ executable, database, sdk, facts, capabilities = false, read = false, human = false }) {
   const sdkURL = pathToFileURL(join(sdk, 'host/index.js')).href;
   const { createHostAgent, createHostObserve, createHostMarkdown } = await import(sdkURL);
   // Preserve the existing registration module verbatim, resolving its one bare import
@@ -69,6 +69,16 @@ export async function connectOwner({ executable, database, sdk, facts, capabilit
       revision: async a => (await send({ op:'observe', access:a })).revision }) } });
   let tools; registerHostAgent({ registerToolProvider(p) { tools = p; } }, host);
   return { send, host, context, tools, database,
+    ...(human ? { async human(input) {
+      if (!input || Array.isArray(input) || input.documentId !== DOCUMENT || input.epoch !== EPOCH || !available(access)) throw Error('Human scope unavailable');
+      const keys = Object.keys(input).sort().join(',');
+      if (input.action === 'seed' && keys === 'action,documentId,epoch') return send({op:'seed'});
+      if (input.action === 'vector' && keys === 'action,documentId,epoch') return send({op:'vector'});
+      const validBytes = b => Array.isArray(b) && b.length <= 4096 && b.every(n => Number.isInteger(n) && n >= 0 && n <= 255);
+      if (input.action === 'sync' && keys === 'action,documentId,epoch,vector' && validBytes(input.vector)) return send({op:'sync',vector:input.vector});
+      if (input.action === 'peer' && keys === 'action,bytes,documentId,epoch,writerId' && validBytes(input.bytes) && Number.isInteger(input.writerId) && input.writerId > 0 && input.writerId <= 4294967295) return send({op:'peer',writerId:input.writerId,bytes:input.bytes});
+      throw Error('Invalid human channel request');
+    } } : {}),
     ...(capabilities ? {
       configure(value) {
         if (!['authorized','readonly','revoked','no-read','unavailable',...(read ? ['private-error'] : [])].includes(value)) throw Error('Unknown prepared policy');
@@ -99,7 +109,7 @@ export async function startBridgeServer(options, owner, facts) {
     requests.push({ path, method:req.method }); if (requests.length > 128) requests.shift();
     if (req.headers.host !== new URL(origin).host || (req.headers.origin && req.headers.origin !== origin) || req.headers['sec-fetch-site'] === 'cross-site') return reply(403,{ error:'Local origin required' });
     if (path === '/bridge.json' && req.method === 'GET') return reply(200,{ token, documentId:DOCUMENT, epoch:EPOCH });
-    if (path === '/bridge/observe' || (owner.inventory && ['/bridge/inventory','/bridge/fixture','/bridge/probe'].includes(path))) {
+    if ((owner.human && path === '/human/channel') || path === '/bridge/observe' || (owner.inventory && ['/bridge/inventory','/bridge/fixture','/bridge/probe'].includes(path))) {
       if (req.method !== 'POST') return reply(405,{ error:'POST required' });
       if (req.headers.origin !== origin || req.headers['x-host-fixture'] !== token || req.headers['content-type'] !== 'application/json') return reply(403,{ error:'Fixture context required' });
       if (active >= LIMITS.pending) return reply(429,{ error:'Pending limit' });
@@ -108,6 +118,7 @@ export async function startBridgeServer(options, owner, facts) {
       try {
         let body = ''; for await (const bytes of req) { body += bytes.toString(); if (Buffer.byteLength(body) > LIMITS.message) { reply(413,{ error:'Message limit' }); return; } }
         const input = JSON.parse(body);
+        if (path === '/human/channel' && owner.human) return reply(200,await owner.human(input));
         if (owner.inventory && path !== '/bridge/observe') {
           if (!input || Array.isArray(input)) return reply(400,{error:'Invalid fixture request'});
           if (path === '/bridge/inventory') {

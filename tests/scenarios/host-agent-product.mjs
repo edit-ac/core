@@ -3,6 +3,8 @@ import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { chromium, firefox, webkit } from 'playwright';
 import { prepareShell, root, defaultReceipt } from '../../examples/host-agent-product/setup.mjs';
+import * as humanCases from './host-agent-product-human.mjs';
+import { prepareHuman } from '../../examples/host-agent-product/human-setup.mjs';
 import * as readCases from './host-agent-product-read.mjs';
 import { prepareRead } from '../../examples/host-agent-product/read-setup.mjs';
 import * as shellCases from './host-agent-product-shell.mjs';
@@ -19,7 +21,7 @@ const only = process.env.EDITAC_HOST_PRODUCT_ONLY;
 assert.ok(only === undefined || only === 'browser', 'Unknown case subset');
 assert.ok(completeSelection.modelCases.length && completeSelection.browserCases.length && completeSelection.engines.length, 'Zero-case selection');
 const selection = { ...completeSelection, modelCases:only === 'browser' ? [] : completeSelection.modelCases };
-const { modelCases, browserCases } = group === 'read' ? readCases : group === 'capabilities' ? capabilitiesCases : group === 'bridge' ? bridgeCases : shellCases;
+const { modelCases, browserCases } = group === 'human' ? humanCases : group === 'read' ? readCases : group === 'capabilities' ? capabilitiesCases : group === 'bridge' ? bridgeCases : shellCases;
 assert.ok(selection.modelCases.length + selection.browserCases.length * selection.engines.length > 0,'Zero-case selection');
 const output = resolve(process.env.EDITAC_HOST_PRODUCT_OUTPUT ?? join(root,'../architecture/evidence/host-agent-product-20261019/host-workspace',selection.parent,`shell-${Date.now()}`));
 await mkdir(output, { recursive: true });
@@ -31,7 +33,7 @@ const checker = (engine, expected) => { let index = 0; return async (id, action)
   catch (error) { facts.cases.push({ engine, id, status: 'failed', error: error.stack }); }
 }; };
 try {
-  server = await (group === 'read' ? prepareRead : group === 'capabilities' ? prepareCapabilities : group === 'bridge' ? prepareBridge : prepareShell)(output, facts, process.env.EDITAC_HOST_PRODUCT_SDK_RECEIPT ?? defaultReceipt);
+  server = await (group === 'human' ? prepareHuman : group === 'read' ? prepareRead : group === 'capabilities' ? prepareCapabilities : group === 'bridge' ? prepareBridge : prepareShell)(output, facts, process.env.EDITAC_HOST_PRODUCT_SDK_RECEIPT ?? defaultReceipt);
   facts.processes.push({ pid: process.pid, launcher: process.execPath, workspace: root, port: server.port, purpose: 'Shell loopback fixture server', log: join(output,'receipt.json') });
   if (selection.modelCases.length) await modelCases(checker('node', selection.modelCases), { server, facts, output });
   const fixture = JSON.parse(await readFile(join(root,'fixtures/product-scenarios/host-agent-product/shell.json')));
