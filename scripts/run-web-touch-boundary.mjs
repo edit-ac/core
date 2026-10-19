@@ -6,8 +6,8 @@ import { hash, tapCounts } from './editing-coverage.mjs';
 import { portableGroups, catalogRows, portableCases, assertCounts } from '../tests/mobile-web/catalog.mjs';
 import { requireTestNode } from './test-toolchain.mjs';
 
-// Original portable assertions, current packed SDK, and exact unaffected-input
-// reuse. No substitute presenter, transport, storage, or semantic implementation.
+// Full original portable assertions against authenticated current packed SDK.
+// Real middleware, Session/WASM and IndexedDB; no historical outcome reuse.
 await requireTestNode();
 assert.equal(spawnSync('npm', ['--version'], { encoding: 'utf8' }).stdout.trim(), '11.17.0');
 assert.ok(process.env.EDITAC_WEB_TOUCH_OUTPUT, 'Name a new evidence directory');
@@ -21,15 +21,15 @@ const originalProof = json('fixtures/product-scenarios/web/features.json').proof
 const mapping = json('tests/mobile-web/portable-cases.json');
 const execution = { task: 'WFE-3.1-C4j', originalParents: ['WFE-3.1-I1', 'WFE-3.1-V1'],
   feature: 'WEB-TOUCH', started: new Date().toISOString(), node: process.version, commands: [], receipts: [], failures: [] };
-const affected = ['input', 'lifecycle', 'modules'];
-const expectedDifferences = ['dist/extensions/runtime/content.js', 'dist/extensions/runtime/manifest.json',
-  'dist/modules/content.js', 'dist/modules/formats.js', 'dist/modules/transfer.d.ts', 'dist/modules/transfer.js'];
 try {
-  const runtime = json(join(base, 'c2c-tables/runtime-source-pins.json'));
-  const members = json(join(base, 'c4i-markdown/package-runtime-pins.json'));
+  const current = resolve(process.env.EDITAC_WEB_TOUCH_BUILD ?? join(base, 'c4o-9'));
+  const runtime = json(join(current, 'runtime-source-pins.json'));
+  const members = json(join(current, 'package-runtime-pins.json'));
   verify(runtime); verify(members);
-  const packages = json(join(base, 'c4i-markdown/run-5/packages.json'));
+  const catalog = json(join(current, 'run-1/packages.json'));
+  const packages = Object.fromEntries(['core', 'web', 'markdown'].map(name => [name, catalog[name]]));
   for (const pack of Object.values(packages)) assert.equal(hash(readFileSync(pack.path)), pack.sha256);
+  execution.runtimeAdmission = { directory: current, sources: Object.keys(runtime).length, members: Object.keys(members).length };
   save('packages.json', packages); save('package-runtime-pins.json', members);
   const original = originalProof.receipts.map(p => {
     assert.equal(hash(readFileSync(p.path)), p.sha256);
@@ -53,59 +53,8 @@ try {
   for (const entry of original) for (const path of Object.keys(entry.receipt.sources)) sources[path] = hash(readFileSync(path));
   for (const path of ['scripts/run-web-touch-boundary.mjs', 'tests/mobile-web/portable-cases.json']) sources[path] = hash(readFileSync(path));
   save('source-pins.json', sources);
-  // The fixture dynamically loads content only for table:true, and Markdown
-  // only for triggers/palette. The seven reused groups enable none of these.
-  // Authenticate every old package member, including transitive runtime chunks;
-  // allow only the six known, unselected optional-content/format members.
-  const reused = original.filter(r => !affected.includes(r.group));
-  const fixture = readFileSync('fixtures/browser-mobile-web/session.mjs', 'utf8');
-  assert.ok(fixture.includes("if(options.table&&!options.presentersDisabled){const {contentModules}=await import('/web/modules/content.js')"));
-  assert.ok(fixture.includes('if(options.triggers||options.palette)'));
-  for (const entry of reused) {
-    verify(entry.receipt.sources);
-    const testFile = `tests/mobile-web/${entry.group}.spec.ts`, text = readFileSync(testFile, 'utf8');
-    assert.ok(!/\b(table|triggers|palette)\s*:/.test(text), 'Optional dependency enabled by reused group');
-    assert.ok(!/configureExtensions|configuration\s*:|formatControls\s*:/.test(text), 'Configured optional runtime enabled');
-    assert.deepEqual(entry.receipt.packs.map(p => p.name).sort(), ['core', 'web']);
-  }
-  const archivePaths = [...new Set(reused.flatMap(r => r.receipt.packs.map(p => join(dirname(r.path), p.file))))];
-  const compare = spawnSync('python3', ['-c', `import sys,json,tarfile,pathlib,hashlib
-paths=json.load(sys.stdin); result=[]
-for path in paths:
- name='core' if 'edit-ac-core-' in path else 'web'; unchanged={}; changed=[]
- with tarfile.open(path) as tar:
-  for member in tar.getmembers():
-   if not member.isfile() or not member.name.startswith('package/dist/'): continue
-   relative=member.name.removeprefix('package/'); current=pathlib.Path('packages')/name/relative
-   old=hashlib.sha256(tar.extractfile(member).read()).hexdigest(); new=hashlib.sha256(current.read_bytes()).hexdigest()
-   if old==new: unchanged[str(current)]=new
-   else: changed.append({'path':relative,'prior':old,'current':new})
- result.append({'path':path,'unchanged':unchanged,'changed':changed})
-print(json.dumps(result))`], { input: JSON.stringify(archivePaths), encoding: 'utf8', maxBuffer: 4 * 1024 * 1024 });
-  assert.equal(compare.status, 0, compare.stderr);
-  const applicability = JSON.parse(compare.stdout);
-  for (const entry of applicability) {
-    assert.ok(Object.keys(entry.unchanged).length >= 55);
-    assert.deepEqual(entry.changed.map(p => p.path).sort(), entry.path.includes('edit-ac-core-') ? [] : expectedDifferences);
-  }
-  save('unaffected-runtime-applicability.json', { scope: 'Seven groups: unchanged original assertions, fixtures, public inputs and all reachable packed runtime members. Changed content/format optional members are not selected; parser is not installed.',
-    groups: portableGroups.filter(g => !affected.includes(g)), archives: applicability });
-  const resume = process.env.EDITAC_WEB_TOUCH_RESUME && json(join(resolve(process.env.EDITAC_WEB_TOUCH_RESUME), 'execution.json'));
   for (const entry of original) {
     const { group, engine } = entry;
-    if (!affected.includes(group)) {
-      execution.receipts.push({ ...pin(entry.path), group, engine, reused: true, counts: entry.receipt.counts,
-        dispatcherCounts: entry.dispatch.counts, original: pin(entry.path), tap: entry.tap });
-      continue;
-    }
-    let accepted = resume?.receipts.find(r => r.group === group && r.engine === engine);
-    if (accepted) {
-      assert.equal(hash(readFileSync(accepted.path)), accepted.sha256);
-      const receipt = json(accepted.path); verify(receipt.sources);
-      for (const pack of receipt.packs) assert.equal(pack.sha256, packages[pack.name].sha256);
-      assertCounts(receipt.counts); assert.deepEqual(receipt.cases.map(c => c.name), entry.receipt.cases.map(c => c.name));
-      execution.receipts.push({ ...accepted, reused: true }); continue;
-    }
     const child = join(output, engine, group), log = `${engine}-${group}.log`, fd = openSync(join(output, log), 'wx'); let result;
     try { result = spawnSync(process.execPath, ['scripts/test-mobile-web.mjs', '--group', group], {
       stdio: ['ignore', fd, fd], timeout: 180000, env: { ...process.env,
@@ -127,7 +76,7 @@ print(json.dumps(result))`], { input: JSON.stringify(archivePaths), encoding: 'u
     } catch (error) { execution.failures.push({ group, engine, error: error.stack }); }
     save('execution.json', execution);
   }
-  assert.equal(execution.failures.length, 0, 'Retained affected-group failures');
+  assert.equal(execution.failures.length, 0, 'Retained original portable-group failures');
   assert.equal(execution.receipts.length, original.length);
   const caseMapping = {};
   for (const engine of ['chromium', 'firefox', 'webkit']) {
