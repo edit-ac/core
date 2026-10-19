@@ -47,7 +47,7 @@ export async function checkDelivery(deliveryPath, mainRoot) {
   const path = resolve(deliveryPath), base = dirname(path);
   const d = JSON.parse(await readFile(path));
   assert.equal(d.version, 'revision-review-product-delivery-v1');
-  assert.equal(d.state, 'complete', 'Delivery remains incomplete; prerequisites cannot be waived');
+  assert.ok(['complete', 'incomplete'].includes(d.state), 'Unknown delivery state');
   const git = (...args) => execFileSync('git', ['-C', resolve(mainRoot), ...args]);
   assert.equal(git('rev-parse', 'HEAD').toString().trim(), d.main.coreCommit, 'Actual main HEAD changed');
   assert.equal(git('rev-parse', '--abbrev-ref', 'HEAD').toString().trim(), 'main', 'Expected the actual main checkout');
@@ -132,6 +132,7 @@ export async function checkDelivery(deliveryPath, mainRoot) {
   assert.equal(integration.primaryUntouched, true); assert.equal(integration.integrationLockHeld, true);
   const handoffBytes = await readFile(resolve(base, d.handoff.path)); assert.equal(sha(handoffBytes), d.handoff.sha256);
   assert.ok(handoffBytes.length > 0);
+  assert.equal(d.state, 'complete', 'Delivery remains incomplete; prerequisites cannot be waived');
   return { state: 'complete', coreMain: d.main.coreCommit, groups: results, counts: results.reduce((a, r) => {
     for (const key of Object.keys(a)) a[key] += r.counts[key]; return a;
   }, { executed: 0, passed: 0, failed: 0, skipped: 0 }), scope: 'Local browser consumer only; no whole-alpha, native, provider, release or deployment claim' };
