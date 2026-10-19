@@ -179,6 +179,7 @@ test('public declarations compile the supported owner/restorer recipe and keep r
       // @ts-expect-error prepared admission must not accept requests
       owner.commitPrepared(request);
       await owner.flush({target:'local'});
+      await owner.flush({target:'local',retryFailed:true});
     `);
     const result = spawnSync(process.execPath, ['node_modules/typescript/bin/tsc', '--noEmit', '--strict', '--target', 'ES2022', '--module', 'NodeNext', '--lib', 'ES2022,DOM', `${directory}/consumer.mts`], { encoding: 'utf8' });
     assert.equal(result.error, undefined); assert.equal(result.status, 0, result.stdout + result.stderr);

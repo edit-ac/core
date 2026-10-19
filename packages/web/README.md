@@ -155,6 +155,15 @@ and recovery permission through `writable`; the owner retains its existing live,
 closing and storage-failure checks. Flush with `await owner.flush({ target: 'local' })`
 before claiming durability.
 
+After repairing a local storage denial, explicitly retry the retained journal on
+the same owner with `await owner.flush({target: 'local', retryFailed: true})`.
+This captures failed updates once and preserves their original bytes and receipt
+identities; concurrent calls share in-flight attempts. Another denial rejects and
+keeps recovery available. There are no background retries. Ordinary flush keeps
+reporting a failed write until explicit recovery; successful retry preserves the
+live engine and undo history. Keep the owner/view alive on failure and report the
+error or export `owner.recoveryExport()` rather than claiming it was saved.
+
 Historical inspection has no mutation controls. A separate writable section previews and applies restoration as a new semantic edit. The preview is single-use and bound to the current engine state; a peer edit, deletion, unavailable revision or changed policy yields visible conflict/recovery. The initial adapter restores same-identity, same-structure unmarked text through existing Rust commands. It retains unchanged marks/opaque nodes and rejects unsupported structural or mark changes without normalization or document reimport. Accepted restores retain node/source identities, use an isolated undo group and generate ordinary local journal updates. Flush through the storage lifecycle before claiming local durability. The view labels semantic projections and unknown attribution explicitly, paginates revision lists and clips values with a notice. It does not retain or claim original source spelling, global revision order, per-character authorship or durable archival history.
 
 ## Public module entry point
