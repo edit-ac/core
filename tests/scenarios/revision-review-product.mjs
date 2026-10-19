@@ -8,6 +8,7 @@ import { startFixtureServer } from '../browser/fixture-server.mjs';
 import { root, loadScenario } from './run.mjs';
 import { sha } from './harness.mjs';
 import { manifestPath, prepareRevisionProduct } from '../../examples/task-editor/revision-review-product.mjs';
+import { scopeCases } from './revision-review-scope.mjs';
 import { captureCases } from './revision-review-capture.mjs';
 
 await requireTestNode();
@@ -24,7 +25,7 @@ const git = (...args) => {
 let server;
 try {
   // Authenticate the named public recipe in committed main and this lane; no private imports.
-  const paths = ['packages/web/src/index.ts', 'packages/web/src/storage/owner.ts', 'packages/web/src/surface.ts', 'packages/web/src/review/history.ts', 'packages/web/src/review/model.ts', 'packages/web/src/review/view.ts', 'examples/task-editor/document.mjs'];
+  const paths = ['packages/core/src/index.ts', 'packages/core/src/engine.ts', 'packages/web/src/index.ts', 'packages/web/src/storage/owner.ts', 'packages/web/src/surface.ts', 'packages/web/src/review/history.ts', 'packages/web/src/review/model.ts', 'packages/web/src/review/view.ts', 'examples/task-editor/document.mjs'];
   facts.entry = { main: git('rev-parse', 'main').trim(), lane: git('rev-parse', 'HEAD').trim(), publicInputs: [] };
   for (const path of paths) {
     const lane = git('show', 'HEAD:' + path), main = git('show', 'main:' + path);
@@ -34,7 +35,7 @@ try {
   }
   const { site } = await prepareRevisionProduct(output, facts, group);
   server = await startFixtureServer({ fixtureDirectory: join(site, 'fixture'), coreDirectory: join(site, 'core'), webDirectory: join(site, 'web'), recordRequests: true });
-  facts.processes.push({ pid: process.pid, launcher: process.execPath, workspace: root, port: server.port, purpose: 'RVP-1.1 installed capture product', log: join(output, 'receipt.json') });
+  facts.processes.push({ pid: process.pid, launcher: process.execPath, workspace: root, port: server.port, purpose: `${scenario.parent} installed ${group} product`, log: join(output, 'receipt.json') });
   for (const engine of scenario.engines) {
     const directory = join(output, engine); await mkdir(directory);
     let controller, browser, page;
@@ -48,11 +49,11 @@ try {
     try {
       controller = await ({ chromium, firefox, webkit }[engine]).launchServer({ headless: true });
       const pid = controller.process().pid;
-      facts.processes.push({ pid, launcher: controller.process().spawnfile, workspace: root, purpose: `RVP-1.1 ${engine}`, log: join(directory, 'browser.json') });
+      facts.processes.push({ pid, launcher: controller.process().spawnfile, workspace: root, purpose: `${scenario.parent} ${engine}`, log: join(directory, 'browser.json') });
       browser = await ({ chromium, firefox, webkit }[engine]).connect(controller.wsEndpoint());
       browserFacts.version = browser.version(); page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
       page.setDefaultTimeout(10000); page.on('pageerror', error => errors.push(error.message));
-      await captureCases({ page, server, facts: browserFacts, check, output: directory });
+      await ({ capture: captureCases, scope: scopeCases }[group])({ page, server, facts: browserFacts, check, output: directory });
       assert.deepEqual(errors, [], 'Unhandled browser errors');
     } catch (error) {
       browserFacts.failure = error.stack;

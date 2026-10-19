@@ -53,7 +53,7 @@ export async function captureCases({ page, server, facts, check, output }) {
     const live = await observe();
     assert.ok(live.journalUpdates > 0); assert.equal(live.retained.revisions, 0);
     assert.match(await page.locator('#revision-save-status').textContent(), /saved locally/);
-    assert.match(await page.locator('.note').textContent(), /Reloading loses captures/);
+    assert.match(await page.locator('.note').first().textContent(), /Reloading loses captures/);
     facts.oracles.edit = live;
   });
   await check('two-named-immutable-semantic-captures', async () => {
@@ -72,7 +72,7 @@ export async function captureCases({ page, server, facts, check, output }) {
     }
     assert.notEqual(first.hash, second.hash);
     await page.getByRole('button', { name: 'Inspect Before rewrite', exact: true }).click();
-    const detail = page.getByRole('region', { name: 'Readonly historical inspection', exact: true });
+    const detail = page.locator('#revision-history').getByRole('region', { name: 'Readonly historical inspection', exact: true });
     assert.match(await detail.textContent(), /First revision: local capture\./);
     assert.match(await detail.textContent(), new RegExp(first.hash));
     assert.match(await detail.textContent(), /Unknown \/ unverified attribution/);
@@ -102,7 +102,7 @@ export async function captureCases({ page, server, facts, check, output }) {
       const { workspace: w } = await import(moduleURL); w.review.inspect(handle); return w.store.read(handle, w.access());
     }, { moduleURL, handle: first.handle });
     assert.deepEqual(read, { kind: 'unavailable', reason: 'pruned' });
-    assert.match(await page.getByRole('region', { name: 'Revision history', exact: true }).textContent(), /History unavailable: pruned/);
+    assert.match(await page.locator('#revision-history').getByRole('region', { name: 'Revision history', exact: true }).textContent(), /History unavailable: pruned/);
     facts.oracles.count = history;
   });
   await check('encoded-byte-pruning', async () => {
