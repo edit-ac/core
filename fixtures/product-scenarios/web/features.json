@@ -2851,7 +2851,7 @@
       "oracles": "Prepared host packets through actual Session/WASM/IndexedDB, exact UTF-16 text, capture invalidation, permission/cancel/recovery and independent presenter ownership.",
       "proofs": [
         {
-          "id": "wfe-3.1-c6-assistive-dictation",
+          "id": "wfe-3.1-c8-assistive-dictation",
           "engines": [
             "chromium",
             "firefox",
@@ -2916,7 +2916,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c6-assistive-presenter",
+          "id": "wfe-3.1-c8-assistive-presenter",
           "engines": [
             "chromium",
             "firefox",
@@ -2942,7 +2942,7 @@
           ]
         }
       ],
-      "nextAction": "All71 original dictation/presenter cases per engine freshly prove current WEX-2.3 union. Original shared protocol contract evidence remains historical; device/native/OS/AT/provider/performance/release qualification is separate."
+      "nextAction": "Full original current-input prepared public behavior proven; device/native/OS/AT/provider/performance/release qualification remains separate."
     },
     {
       "id": "WEB-MOBILE-EXTENSIONS",
@@ -4062,7 +4062,7 @@
       "oracles": "Captured target/proposal review, stale/revoked/disposed denial, one semantic acceptance/history; provider transport must remain mocked.",
       "proofs": [
         {
-          "id": "wfe-3.1-c4p-ai",
+          "id": "wfe-3.1-c8-ai-actions",
           "engines": [
             "chromium"
           ],
@@ -4089,8 +4089,17 @@
             "context-limit",
             "keyboard-accept",
             "missing-selection",
-            "touch-lifecycle",
+            "touch-lifecycle"
+          ]
+        },
+        {
+          "id": "wfe-3.1-c8-ai-completion",
+          "engines": [
+            "chromium"
+          ],
+          "cases": [
             "disabled",
+            "unavailable",
             "debounce",
             "ephemeral",
             "keyboard",
@@ -4102,8 +4111,10 @@
             "invalidation",
             "supersede",
             "quota",
+            "context-limit",
             "atom",
             "remote-undo",
+            "lifecycle",
             "code",
             "output-cap",
             "disable-permission",
@@ -4113,7 +4124,15 @@
             "pending-blur",
             "pending-dispose",
             "pending-caret",
-            "pending-remote",
+            "pending-remote"
+          ]
+        },
+        {
+          "id": "wfe-3.1-c8-ai-transformations",
+          "engines": [
+            "chromium"
+          ],
+          "cases": [
             "spelling-grammar",
             "rephrase",
             "simplify",
@@ -4126,16 +4145,21 @@
             "language-0",
             "language-21",
             "language-65",
+            "caret",
             "multi-block",
+            "unavailable",
             "marks",
             "adjacent-marks",
             "mixed",
+            "code",
+            "atom",
             "unrelated-atom",
             "rich",
             "unsafe",
             "read-only",
             "policy",
             "stale",
+            "remote-undo",
             "controls",
             "late",
             "invalid-controls",
@@ -4144,7 +4168,7 @@
           ]
         }
       ],
-      "nextAction": "Original supported Chromium optional AI public behavior proven with prepared transports/models; no providers or default-sample activation. Other engines, OS AT/native/performance and full RCH-2.6 qualification remain separate and unchecked."
+      "nextAction": "Full original current-input prepared public behavior proven; device/native/OS/AT/provider/performance/release qualification remains separate."
     }
   ],
   "proofs": [
@@ -9842,6 +9866,107 @@
         {
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-5/run-2/conversion/source-pins.json",
           "sha256": "fec5d1ee1684e5e10725fee1f47c552d6d1cd15c00c3f66153a211658a7ef463"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c8-assistive-dictation",
+      "owner": "PRIMARY full original current-input prepared public behavior",
+      "command": "EDITAC_WEB_ASSISTANCE_AI_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c8/run-3 node scripts/run-web-assistance-ai-refresh-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c8/run-2/assistance/assistive-dictation/chromium/receipt.json",
+          "sha256": "169e51e96ce81758172e07171a0322f449e1d4e49f3fa9f7ff369a84d2436b00"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c8/run-2/assistance/assistive-dictation/firefox/receipt.json",
+          "sha256": "3785d684b08172ea8d3f271ffac8565db9e36ce0ac25c7ce81f052254bc5b998"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c8/run-2/assistance/assistive-dictation/webkit/receipt.json",
+          "sha256": "07db1ff8cf3524ab4dca25ff10a9464a4587798319642024904c6c2b9f93f85f"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c8/run-3/assistance/source-pins.json",
+          "sha256": "8b8671a097923e27fc192543b1c5b8415b887ebd940c5881aa5f9139e324dc18"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c8-assistive-presenter",
+      "owner": "PRIMARY full original current-input prepared public behavior",
+      "command": "EDITAC_WEB_ASSISTANCE_AI_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c8/run-3 node scripts/run-web-assistance-ai-refresh-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c8/run-2/assistance/assistive-presenter/chromium/receipt.json",
+          "sha256": "cbdf3a589d94b1a98d26812c44b4d114f328358f9b396c9f9b2c269da947abfc"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c8/run-2/assistance/assistive-presenter/firefox/receipt.json",
+          "sha256": "528f1eeed5ab57203949424f9e17441f0ff10217c80628d095512143e77e2dc8"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c8/run-2/assistance/assistive-presenter/webkit/receipt.json",
+          "sha256": "58c57f727dd9a2ddbe4232154d89ddad6cbe08e1816f590761287b57b5481b45"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c8/run-3/assistance/source-pins.json",
+          "sha256": "8b8671a097923e27fc192543b1c5b8415b887ebd940c5881aa5f9139e324dc18"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c8-ai-actions",
+      "owner": "PRIMARY full original current-input prepared public behavior",
+      "command": "EDITAC_WEB_ASSISTANCE_AI_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c8/run-3 node scripts/run-web-assistance-ai-refresh-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c8/run-2/ai/ai-actions/receipt.json",
+          "sha256": "6add09cb5921f9a813c8400aebd80da78d7c08ed6b0e46dd9bbd6ee058b9fe69"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c8/run-3/ai/source-pins.json",
+          "sha256": "8b8671a097923e27fc192543b1c5b8415b887ebd940c5881aa5f9139e324dc18"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c8-ai-completion",
+      "owner": "PRIMARY full original current-input prepared public behavior",
+      "command": "EDITAC_WEB_ASSISTANCE_AI_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c8/run-3 node scripts/run-web-assistance-ai-refresh-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c8/run-3/ai/ai-completion/receipt.json",
+          "sha256": "5160929e94ef900f52ecca975e6baee9295f34b6a0eac8ca752495a66e79734c"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c8/run-3/ai/source-pins.json",
+          "sha256": "8b8671a097923e27fc192543b1c5b8415b887ebd940c5881aa5f9139e324dc18"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c8-ai-transformations",
+      "owner": "PRIMARY full original current-input prepared public behavior",
+      "command": "EDITAC_WEB_ASSISTANCE_AI_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c8/run-3 node scripts/run-web-assistance-ai-refresh-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c8/run-2/ai/ai-transformations/receipt.json",
+          "sha256": "88cc7f620bb6f57c56873b6f9d4caeb0a1714684190f0dc908f9e82e5b5e7951"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c8/run-3/ai/source-pins.json",
+          "sha256": "8b8671a097923e27fc192543b1c5b8415b887ebd940c5881aa5f9139e324dc18"
         }
       ]
     }
