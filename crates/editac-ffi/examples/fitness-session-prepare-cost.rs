@@ -1,7 +1,10 @@
 //! Prepared host attribution through the actual public NativeSession + SQLite.
 //! Full frozen Task/Long corpora; no platform-input or tail qualification.
 use editac_core::document::{DocumentIdentity, InitializedCheckpoint};
-use editac_ffi::{NativeSession, NativeSessionEdit, NativeSessionOptions, NativeSessionRead};
+use editac_ffi::{
+    AnchorBias, AnchorInput, NativeAnchorResolution, NativeSession, NativeSessionEdit,
+    NativeSessionOptions, NativeSessionRead,
+};
 use editac_session::{
     ports::{CheckpointRecord, LocalStore, StoreLimits},
     store::NativeStore,
@@ -66,7 +69,9 @@ fn changed_regions(
                 .unwrap();
             let prepare_ms = started.elapsed().as_secs_f64() * 1000.0;
             assert_eq!(projection(&session.read(0).unwrap()), projection(&read));
+            let commit_started = Instant::now();
             let receipt = session.commit_edits(plan, 0).unwrap().unwrap();
+            let commit_ms = commit_started.elapsed().as_secs_f64() * 1000.0;
             let patches = session.take_rich_patches(cursor).unwrap();
             cursor = patches.sequence;
             assert_eq!(
@@ -87,9 +92,11 @@ fn changed_regions(
                 expected,
                 "complete corpus retained"
             );
-            samples.push(json!({"prepareMs":prepare_ms,"sequence":receipt.sequence,
+            samples.push(
+                json!({"prepareMs":prepare_ms,"commitMs":commit_ms,"sequence":receipt.sequence,
                 "changedNodes":1,"changedSources":1,"patches":1,
-                "patchBytes":patches.patches_json[0].len(),"touchedRanges":patch["touchedRanges"]}));
+                "patchBytes":patches.patches_json[0].len(),"touchedRanges":patch["touchedRanges"]}),
+            );
             fs::write(
                 directory.join(format!("regions-{width}-samples.json")),
                 serde_json::to_vec(&samples).unwrap(),
@@ -188,7 +195,39 @@ fn main() {
         .map(|n| n.text.clone())
         .collect::<Vec<_>>();
     let target = initial.nodes.iter().position(|n| n.id == node.id).unwrap();
+    let anchors = session
+        .capture_anchors(
+            initial.revision.clone().unwrap(),
+            vec![
+                AnchorInput {
+                    node: initial.nodes[0].id.clone(),
+                    offset_utf16: 0,
+                    bias: AnchorBias::Left,
+                },
+                AnchorInput {
+                    node: node.id.clone(),
+                    offset_utf16: 0,
+                    bias: AnchorBias::Left,
+                },
+            ],
+        )
+        .unwrap();
+    let assert_anchors = || {
+        for (anchor, expected_node) in anchors.iter().zip([&initial.nodes[0].id, &node.id]) {
+            let resolved = session.resolve_anchor(anchor.token.clone()).unwrap();
+            match resolved.resolution {
+                NativeAnchorResolution::Position {
+                    node, offset_utf16, ..
+                } => {
+                    assert_eq!(&node, expected_node);
+                    assert_eq!(offset_utf16, 0);
+                }
+                other => panic!("retained anchor lost: {other:?}"),
+            }
+        }
+    };
     let mut samples = vec![];
+    let mut receipts = vec![];
     for replacement in "abcdefghijkl".chars() {
         let before = session.read(0).unwrap();
         let started = Instant::now();
@@ -213,8 +252,23 @@ fn main() {
             "prepare is silent"
         );
         assert_eq!(prepared.revision, before.revision);
+        let commit_started = Instant::now();
         let receipt = session.commit_edits(token, 0).unwrap().unwrap();
-        assert!(receipt.sequence > 0);
+        let commit_ms = commit_started.elapsed().as_secs_f64() * 1000.0;
+        assert_eq!(receipt.sequence, samples.len() as u64 + 1);
+        let pending = session.pending_updates().unwrap();
+        assert_eq!(
+            pending.len(),
+            samples.len() + 1,
+            "exact pending queue growth"
+        );
+        let update = pending.last().unwrap();
+        assert_eq!(update.writer, receipt.writer);
+        assert_eq!(update.sequence, receipt.sequence);
+        assert_eq!(update.checksum, receipt.checksum);
+        assert_eq!(update.origin, "editac:local:fitness-session-prepare-cost");
+        receipts.push((receipt.writer, receipt.sequence, receipt.checksum));
+        assert_anchors();
         let mut text: Vec<_> = expected[target].encode_utf16().collect();
         text[offset as usize] = replacement as u16;
         expected[target] = String::from_utf16(&text).unwrap();
@@ -227,7 +281,8 @@ fn main() {
                 .collect::<Vec<_>>(),
             expected
         );
-        samples.push(json!({"prepareMs":prepare_ms,"sequence":receipt.sequence}));
+        samples
+            .push(json!({"prepareMs":prepare_ms,"commitMs":commit_ms,"sequence":receipt.sequence}));
     }
     // Keep the raw attribution even if a later semantic/history oracle fails.
     // This file alone never qualifies the complete scenario.
@@ -262,6 +317,10 @@ fn main() {
             .unwrap();
     }
     assert_eq!(projection(&session.read(0).unwrap()), expected_final);
+    assert_anchors();
+    for anchor in &anchors {
+        session.release_anchor(anchor.token.clone()).unwrap();
+    }
     session.dispose().unwrap();
     let reopened = NativeSession::open(options).unwrap();
     assert_eq!(
@@ -269,9 +328,23 @@ fn main() {
         expected_final,
         "actual SQLite reopen preserves whole corpus"
     );
+    let pending = reopened.pending_updates().unwrap();
+    assert_eq!(
+        pending.len(),
+        36,
+        "all edits and explicit undo/redo retained"
+    );
+    for (writer, sequence, checksum) in receipts {
+        assert!(
+            pending
+                .iter()
+                .any(|p| p.writer == writer && p.sequence == sequence && p.checksum == checksum),
+            "exact durable receipt after reopen"
+        );
+    }
     // Preserve the complete owning scenario before optional boundary checks.
     // A later failure must never erase or qualify a different proof scope.
-    let mut result = json!({"scope":"public NativeSession prepare + actual SQLite; prepared host causal attribution, not platform input/tail qualification","checkpoint":args[1],"nodes":initial.nodes.len(),"samples":samples,"counts":{"executed":12,"passed":12,"failed":0,"skipped":0},"oracles":["full-corpus content each commit","silent preparation and exact revision","durable receipt each commit","12 explicit undo/redo groups","SQLite reopen"],"regions":[],"disposed":false});
+    let mut result = json!({"scope":"public NativeSession prepare/commit + actual SQLite; prepared host causal attribution, not platform input/tail qualification","checkpoint":args[1],"nodes":initial.nodes.len(),"samples":samples,"counts":{"executed":12,"passed":12,"failed":0,"skipped":0},"oracles":["full-corpus content each commit","silent preparation and exact revision","exact receipt and pending queue each commit and SQLite reopen","retained cross-document anchors each commit and history","12 explicit undo/redo groups","SQLite reopen"],"regions":[],"disposed":false});
     fs::write(
         directory.join("primary-result.json"),
         serde_json::to_vec(&result).unwrap(),

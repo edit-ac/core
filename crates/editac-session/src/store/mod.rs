@@ -29,6 +29,14 @@ pub type TransactionObserver = Arc<dyn Fn(TransactionBoundary) + Send + Sync>;
 struct Inner {
     connection: Connection,
     fault: Option<InjectedFault>,
+    write_snapshot: Option<VerifiedWriteSnapshot>,
+}
+// One disposable acceleration per store, never a storage authority. Each write
+// still reads the actual SQLite body in its transaction and compares every byte.
+// Reads/recovery deliberately bypass this cache and validate persisted records.
+struct VerifiedWriteSnapshot {
+    body: Vec<u8>,
+    state: State,
 }
 pub struct NativeStore {
     identity: DocumentIdentity,
@@ -384,6 +392,7 @@ impl NativeStore {
             inner: Mutex::new(Inner {
                 connection,
                 fault: None,
+                write_snapshot: None,
             }),
             observer,
         })
@@ -398,7 +407,11 @@ impl NativeStore {
             Err(PortError::Incompatible)
         }
     }
-    fn load(&self, connection: &Connection) -> Result<MemoryStore, PortError> {
+    fn load(
+        &self,
+        connection: &Connection,
+        cached: Option<&VerifiedWriteSnapshot>,
+    ) -> Result<MemoryStore, PortError> {
         let (stored, size): (Vec<u8>, i64) = connection
             .query_row("SELECT scope,length(body) FROM state WHERE id=1", [], |r| {
                 Ok((r.get(0)?, r.get(1)?))
@@ -426,8 +439,14 @@ impl NativeStore {
         let body: Vec<u8> = connection
             .query_row("SELECT body FROM state WHERE id=1", [], |r| r.get(0))
             .map_err(sql_error)?;
-        let snapshot: Snapshot = serde_json::from_slice(&body).map_err(|_| PortError::Integrity)?;
-        let state = snapshot.decode(&self.identity, self.limits)?;
+        let state = match cached.filter(|cached| cached.body == body) {
+            Some(cached) => cached.state.clone(),
+            None => {
+                let snapshot: Snapshot =
+                    serde_json::from_slice(&body).map_err(|_| PortError::Integrity)?;
+                snapshot.decode(&self.identity, self.limits)?
+            }
+        };
         for entry in &state.journal {
             if connection
                 .query_row(
@@ -453,7 +472,7 @@ impl NativeStore {
             .connection
             .transaction_with_behavior(TransactionBehavior::Deferred)
             .map_err(sql_error)?;
-        let result = work(&self.load(&tx)?)?;
+        let result = work(&self.load(&tx, None)?)?;
         tx.commit().map_err(sql_error)?;
         Ok(result)
     }
@@ -467,27 +486,31 @@ impl NativeStore {
         work: impl FnOnce(&Connection, &MemoryStore) -> Result<R, PortError>,
     ) -> Result<R, PortError> {
         let mut inner = self.inner.lock().map_err(|_| PortError::Unavailable)?;
-        let fault = inner.fault.take();
-        let tx = inner
-            .connection
+        let Inner {
+            connection,
+            fault,
+            write_snapshot,
+        } = &mut *inner;
+        let fault = fault.take();
+        let tx = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(sql_error)?;
-        let memory = self.load(&tx)?;
+        let memory = self.load(&tx, write_snapshot.as_ref())?;
         self.observe(TransactionBoundary::BeforeWrite);
         if let Some(f) = fault.filter(|f| f.boundary == FaultBoundary::BeforeWrite) {
             return Err(f.error);
         }
         let result = work(&tx, &memory)?;
-        tx.execute(
-            "UPDATE state SET body=?1 WHERE id=1",
-            [encode(&Snapshot::encode(&memory.snapshot()?))?],
-        )
-        .map_err(sql_error)?;
+        let state = memory.snapshot()?;
+        let body = encode(&Snapshot::encode(&state))?;
+        tx.execute("UPDATE state SET body=?1 WHERE id=1", [body.as_slice()])
+            .map_err(sql_error)?;
         self.observe(TransactionBoundary::BeforeCommit);
         if let Some(f) = fault.filter(|f| f.boundary == FaultBoundary::BeforeCommit) {
             return Err(f.error);
         }
         tx.commit().map_err(|_| PortError::CommitUnknown)?;
+        *write_snapshot = Some(VerifiedWriteSnapshot { body, state });
         self.observe(TransactionBoundary::AfterCommit);
         if fault.is_some_and(|f| f.boundary == FaultBoundary::AfterCommit) {
             return Err(PortError::CommitUnknown);
