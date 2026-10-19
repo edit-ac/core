@@ -22,7 +22,10 @@
       ],
       "supportingSources": [
         "examples/task-editor/revision-review-product.mjs",
-        "tests/scenarios/revision-review-capture.mjs"
+        "examples/task-editor/revision-review-prepare.mjs",
+        "tests/scenarios/revision-review-capture.mjs",
+        "tests/scenarios/revision-review-scope.mjs",
+        "tests/scenarios/revision-review-restore.mjs"
       ],
       "cases": [
         "installed-editable-explicit-capture",
@@ -56,7 +59,10 @@
       ],
       "supportingSources": [
         "examples/task-editor/revision-review-product.mjs",
-        "tests/scenarios/revision-review-scope.mjs"
+        "examples/task-editor/revision-review-prepare.mjs",
+        "tests/scenarios/revision-review-capture.mjs",
+        "tests/scenarios/revision-review-scope.mjs",
+        "tests/scenarios/revision-review-restore.mjs"
       ],
       "cases": [
         "simultaneous-independent-identities-and-journals",
@@ -67,6 +73,43 @@
         "sibling-save-and-reopen",
         "remount-reopens-only-own-durable-document",
         "scope-swap-preserves-live-bytes"
+      ]
+    },
+    "restore": {
+      "parent": "RVP-2.1",
+      "command": [
+        "node",
+        "tests/scenarios/revision-review-product.mjs"
+      ],
+      "engines": [
+        "chromium",
+        "firefox",
+        "webkit"
+      ],
+      "fixtures": [
+        "examples/task-editor/revision-review.html",
+        "examples/task-editor/revision-review.mjs",
+        "examples/task-editor/revision-review.css",
+        "examples/task-editor/document.mjs",
+        "fixtures/product-scenarios/revision-review/oracles.mjs",
+        "fixtures/product-scenarios/revision-review/manifest.json"
+      ],
+      "supportingSources": [
+        "examples/task-editor/revision-review-product.mjs",
+        "examples/task-editor/revision-review-prepare.mjs",
+        "tests/scenarios/revision-review-capture.mjs",
+        "tests/scenarios/revision-review-scope.mjs",
+        "tests/scenarios/revision-review-restore.mjs"
+      ],
+      "cases": [
+        "capture-edit-independent-baseline",
+        "preview-does-not-change-live-state",
+        "cancel-discards-preview-without-mutation",
+        "confirm-through-owner-preserves-identity-and-journals",
+        "restore-is-one-isolated-undo-group",
+        "redo-reapplies-only-the-restore",
+        "normal-edit-follows-restore",
+        "flush-and-reopen-accepted-live-result"
       ]
     }
   }
