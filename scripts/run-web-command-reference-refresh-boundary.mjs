@@ -8,13 +8,17 @@ import { requireTestNode } from './test-toolchain.mjs';
 
 // One current SDK admission; original behavioral dispatchers and assertions stay intact.
 await requireTestNode();
+const cargo = spawnSync('cargo', ['--version'], { encoding: 'utf8' });
+assert.equal(cargo.error, undefined, 'Cargo must be available before command/reference proof');
+assert.equal(cargo.status, 0, 'Cargo preflight must succeed');
+assert.match(cargo.stdout, /^cargo 1\.97\.1\b/, 'Use the admitted Rust fixture toolchain');
+assert.ok(process.env.EDITAC_PRODUCT_SDK_ADMISSION, 'Name the current immutable SDK admission');
 assert.ok(process.env.EDITAC_WEB_COMMAND_REFERENCE_OUTPUT, 'Name a new evidence directory');
 const output = resolve(process.env.EDITAC_WEB_COMMAND_REFERENCE_OUTPUT);
 mkdirSync(output);
 const json = path => JSON.parse(readFileSync(path, 'utf8'));
 const save = (name, value) => writeFileSync(join(output, name), JSON.stringify(value, null, 2) + '\n');
-const admissionPath = resolve(process.env.EDITAC_PRODUCT_SDK_ADMISSION ??
-  '../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-filename-current/admission.json');
+const admissionPath = resolve(process.env.EDITAC_PRODUCT_SDK_ADMISSION);
 const admitted = admitImmutableSdk(admissionPath);
 const sources = admitted.sources, members = admitted.runtime;
 const verify = pins => {
