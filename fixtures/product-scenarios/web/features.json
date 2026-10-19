@@ -452,9 +452,133 @@
         }
       ],
       "oracles": "Independent DOCX/ODT/EPUB/PDF readers, original media bytes, one durable commit, bounded cancellation/recovery without staged leaks.",
-      "proofs": [],
-      "nextAction": "Authenticate ../architecture/evidence/web-feature-first-20261018/wfe-3.1/c3-union/formats/ proof, retaining the original missing-reader-environment failure and its one-case repair; do not rerun these unchanged passing cases.",
-      "gap": "WEX-2.1 is integrated; WFE-3.1-C3 has 74 current packed browser/reader/media cases with exact source/package pins. Index the existing format receipt/TAP shape and original direction mapping in the fail-closed ledger checker; native-media and qualification predicates remain separate."
+      "proofs": [
+        {
+          "id": "wfe-3.1-c2b-browser",
+          "engines": [
+            "chromium"
+          ],
+          "cases": [
+            "1:packed RTF actual worker/Session -> live fragment one undo group -> checkpoint reopen and independent RTF output",
+            "2:CSV and TSV explicit dialects use shared tables; exact/safe selected export and non-table diagnostics",
+            "3:unsupported RTF retains structured diagnostics and bytes; explicit loss approval only; PDF magic rejects",
+            "4:fixed export excludes later edits; late import rejects stale target without mutation",
+            "5:cancel/busy/timeout/dispose and byte/parser exhaustion leave live state recoverable",
+            "6:complete cold/warm import+commit+reopen and export costs; maximum WASM memory is enforced",
+            "7:packed disabled consumer executes the SDK without format workers, runtime assets or package",
+            "8:packed DOCX export uses captured rich semantics and AssetSession-authorized exact originals",
+            "9:DOCX missing/denied/corrupt assets, loss reports and cancelled work retain the captured source",
+            "10:DOCX complete cold/warm snapshot/worker/artifact/reopen costs include original assets",
+            "11:packed ODT export uses captured rich semantics and AssetSession-authorized exact originals",
+            "12:ODT missing/denied/corrupt assets, loss reports and cancelled work retain the captured source",
+            "13:ODT complete cold/warm snapshot/worker/artifact/reopen costs include original assets",
+            "14:packed public DOCX text/list/table import uses real worker and one live Session commit/history/reopen",
+            "15:packed DOCX complete unsupported diagnostics require approval and all commit fences retain recovery",
+            "16:packed DOCX original media dependency, hostile containers, budgets and cancellation fail atomically",
+            "17:packed DOCX cold/warm costs include input capture, complete parse, transfer, live commit and reopen",
+            "18:packed EPUB export uses captured rich semantics and AssetSession-authorized exact originals",
+            "19:EPUB missing/denied/corrupt assets, loss reports and cancelled work retain the captured source",
+            "20:EPUB complete cold/warm snapshot/worker/artifact/reopen costs include original assets",
+            "21:packed PDF export uses captured rich semantics and AssetSession-authorized exact originals",
+            "22:packed PDF text/Arabic/multipage and rich lists/links use the qualified publication renderer",
+            "23:PDF denied/missing/corrupt/oversized originals, unsupported semantics and page budget fail atomically",
+            "24:PDF complete cold/warm snapshot/worker/artifact/reopen costs include original assets",
+            "25:packed publication worker CSP actually denies network and uses an enforceable WASM linear ceiling",
+            "26:EPUB media real packed worker, atomic owner adoption, one history event and exact originals survive reopen",
+            "27:EPUB media hash and grant denials retain exact package and do not stage or mutate",
+            "28:EPUB media stale target fences only its job without live or sibling mutation",
+            "29:EPUB media early and active client cancellation durably fence retained jobs",
+            "30:EPUB media stage and combined storage failures roll back content and retain recoverable input",
+            "31:EPUB media requires async owner adoption, captures immutable grants and rejects duplicate completion",
+            "32:EPUB media complete cold and warm costs include storage stage adoption source read and reopen",
+            "33:EPUB media explicit denied failed and interrupted ingest never reaches live content",
+            "34:EPUB media immutable complete unsupported report cannot bypass loss approval",
+            "35:EPUB text-only path and remote image diagnostics use the same real worker without ambient authority",
+            "36:EPUB encrypted corrupt hostile excessive nodes and worker cancellation preserve complete input and live state",
+            "37:EPUB packed worker denies ambient fetch and rebuilt WASM enforces linear ceiling and input byte cap",
+            "38:EPUB active XHTML and unsupported navigation stay inert with complete reviewed diagnostics",
+            "39:prepared import bounds asset initialization and fences late completion",
+            "40:DOCX media real packed worker, atomic owner adoption, one history event and exact originals survive reopen",
+            "41:DOCX media hash and grant denials retain exact package and do not stage or mutate",
+            "42:DOCX media stale target fences only its job without live or sibling mutation",
+            "43:DOCX media early and active client cancellation durably fence retained jobs",
+            "44:DOCX media stage and combined storage failures roll back content and retain recoverable input",
+            "45:DOCX media requires async owner adoption, captures immutable grants and rejects duplicate completion",
+            "46:DOCX media complete cold and warm costs include storage stage adoption source read and reopen",
+            "47:DOCX media explicit denied failed and interrupted ingest never reaches live content",
+            "48:DOCX media immutable complete unsupported report cannot bypass loss approval",
+            "49:prepared import bounds asset initialization and fences late completion",
+            "50:ODT media real packed worker, atomic owner adoption, one history event and exact originals survive reopen",
+            "51:ODT media hash and grant denials retain exact package and do not stage or mutate",
+            "52:ODT media stale target fences only its job without live or sibling mutation",
+            "53:ODT media early and active client cancellation durably fence retained jobs",
+            "54:ODT media stage and combined storage failures roll back content and retain recoverable input",
+            "55:ODT media requires async owner adoption, captures immutable grants and rejects duplicate completion",
+            "56:ODT media complete cold and warm costs include storage stage adoption source read and reopen",
+            "57:ODT media explicit denied failed and interrupted ingest never reaches live content",
+            "58:ODT media immutable complete unsupported report cannot bypass loss approval",
+            "59:ODT text-only path and remote image diagnostics use the same real worker without ambient authority",
+            "60:ODT encrypted corrupt hostile excessive nodes and worker cancellation preserve complete input and live state",
+            "61:ODT packed worker denies ambient fetch and rebuilt WASM enforces linear ceiling and input byte cap",
+            "62:prepared import bounds asset initialization and fences late completion"
+          ]
+        },
+        {
+          "id": "wfe-3.1-c2b-contracts",
+          "engines": [
+            null
+          ],
+          "cases": [
+            "1:packed archives, installed members and source/runtime pins are immutable and exact",
+            "3:installed public declarations typecheck against the packed SDK",
+            "4:independent readers inspect actual browser-produced RTF and exact/safe CSV/TSV artifacts",
+            "5:independent DOCX package/semantic oracle rejects text/mark/table/link/media perturbations",
+            "6:partial DOCX import independently matches original XML semantics and rejects corrupted projections",
+            "7:independent EPUB reader verifies chapters/navigation/metadata/semantics/assets and rejects mutations"
+          ]
+        },
+        {
+          "id": "wfe-3.1-c2b-cargo-path-repair",
+          "engines": [
+            null
+          ],
+          "cases": [
+            "1:default Rust graph and packed base editor omit optional converters and fonts"
+          ]
+        },
+        {
+          "id": "wfe-3.1-c2b-media-oracles",
+          "engines": [
+            null
+          ],
+          "cases": [
+            "1:original media independently matches ZIP XML PNG and rejects altered runtime facts",
+            "2:packed EPUB import profile and atomic media consumer declarations are public and exact",
+            "3:original media independently matches ZIP XML PNG and rejects altered runtime facts",
+            "4:original media independently matches ZIP XML PNG and rejects altered runtime facts",
+            "5:packed ODT import profile and atomic media consumer declarations are public and exact"
+          ]
+        },
+        {
+          "id": "wfe-3.1-c2b-odt-reader",
+          "engines": [
+            null
+          ],
+          "cases": [
+            "7:independent ODT schema/reader verifies rich semantics and rejects package/semantic mutations"
+          ]
+        },
+        {
+          "id": "wfe-3.1-c2b-pdf-reader",
+          "engines": [
+            null
+          ],
+          "cases": [
+            "9:independent actual packed PDF text/rich/structure, Arabic glyph/layout and mutation oracles"
+          ]
+        }
+      ],
+      "nextAction": "Authenticate c2b-formats exact-source proof for the current product; rerun only after relevant runtime/fixture/build/reader inputs materially change. Preserve the Cargo-PATH and original C3 EPUB-reader failures."
     },
     {
       "id": "WEB-TOUCH",
@@ -1818,6 +1942,234 @@
         {
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c5-union/source-pins.json",
           "sha256": "9ec73fc70fb3f41fa933d2a86e5b468e4132ebdfb217b87f15d00c804d0dab8b"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c2b-browser",
+      "owner": "PRIMARY integrated optional conversion",
+      "command": "node --test --test-reporter=tap --test-concurrency=1 --test-timeout=45000 tests/formats/consumers/browser.test.mjs tests/formats/consumers/media.test.mjs tests/formats/consumers/odt-media.test.mjs tests/formats/consumers/epub-media.test.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/browser.log",
+          "sha256": "1473d81c471267eef0b846a43f9d292c74cd2a8f054b701f979ccbaa67fca216",
+          "kind": "node-tap",
+          "sources": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/source-pins.json",
+            "sha256": "87b34d8399041671d6a2c805e1ccba067138c5bed27149aef2f9a8196aac1744"
+          },
+          "packages": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/runtime/packed-artifacts.json",
+            "sha256": "46e61f7f29447e5e931bb784508fe995fa977d0c4bc2da6c6787170354849da6"
+          },
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/runtime",
+          "execution": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/browser.log.command.json",
+            "sha256": "b305a30233e17cbd9dd78023e8b22dd2739ef831772c158f05f08d9e3e2999f8"
+          },
+          "engine": "chromium"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/source-pins.json",
+          "sha256": "87b34d8399041671d6a2c805e1ccba067138c5bed27149aef2f9a8196aac1744"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c2b-contracts",
+      "owner": "PRIMARY integrated optional conversion",
+      "command": "node --test --test-reporter=tap --test-name-pattern=packed archives|default Rust graph|installed public|independent readers|independent DOCX|partial DOCX|independent EPUB tests/formats/consumers/contracts.test.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/contracts.log",
+          "sha256": "9adc36a095671fab25a13eacd7e512735bfe94c9429c81381c5a60c683a9cf26",
+          "kind": "node-tap",
+          "sources": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/source-pins.json",
+            "sha256": "87b34d8399041671d6a2c805e1ccba067138c5bed27149aef2f9a8196aac1744"
+          },
+          "packages": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/runtime/packed-artifacts.json",
+            "sha256": "46e61f7f29447e5e931bb784508fe995fa977d0c4bc2da6c6787170354849da6"
+          },
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/runtime",
+          "execution": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/contracts.log.command.json",
+            "sha256": "74f7f4c7e9410ad9074d2d184c18c8cde1126346e6d2d05110b516a642d9c6ae"
+          },
+          "engine": null,
+          "selectedCases": [
+            "1:packed archives, installed members and source/runtime pins are immutable and exact",
+            "3:installed public declarations typecheck against the packed SDK",
+            "4:independent readers inspect actual browser-produced RTF and exact/safe CSV/TSV artifacts",
+            "5:independent DOCX package/semantic oracle rejects text/mark/table/link/media perturbations",
+            "6:partial DOCX import independently matches original XML semantics and rejects corrupted projections",
+            "7:independent EPUB reader verifies chapters/navigation/metadata/semantics/assets and rejects mutations"
+          ]
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/source-pins.json",
+          "sha256": "87b34d8399041671d6a2c805e1ccba067138c5bed27149aef2f9a8196aac1744"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c2b-cargo-path-repair",
+      "owner": "PRIMARY integrated optional conversion",
+      "command": "node --test --test-reporter=tap --test-name-pattern=default Rust graph tests/formats/consumers/contracts.test.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/cargo-path-repair.log",
+          "sha256": "98f0fb18d1db9c116c70b87739c2121d804da27c6a5165069306db548fc8353a",
+          "kind": "node-tap",
+          "sources": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/source-pins.json",
+            "sha256": "87b34d8399041671d6a2c805e1ccba067138c5bed27149aef2f9a8196aac1744"
+          },
+          "packages": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/runtime/packed-artifacts.json",
+            "sha256": "46e61f7f29447e5e931bb784508fe995fa977d0c4bc2da6c6787170354849da6"
+          },
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/runtime",
+          "execution": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/cargo-path-repair.log.command.json",
+            "sha256": "7a63b2e1857dfb6b3470e929a22a57dceb9388de16ef8f0453668fd737a868e9"
+          },
+          "engine": null
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/source-pins.json",
+          "sha256": "87b34d8399041671d6a2c805e1ccba067138c5bed27149aef2f9a8196aac1744"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c2b-media-oracles",
+      "owner": "PRIMARY integrated optional conversion",
+      "command": "node --test --test-reporter=tap --test-concurrency=1 tests/formats/consumers/media-contracts.test.mjs tests/formats/consumers/odt-media-contracts.test.mjs tests/formats/consumers/epub-media-contracts.test.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/media-oracles.log",
+          "sha256": "10bf82343cd813674b7503bab174df556296c3c4cbda371613fbdcd5ade98269",
+          "kind": "node-tap",
+          "sources": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/source-pins.json",
+            "sha256": "87b34d8399041671d6a2c805e1ccba067138c5bed27149aef2f9a8196aac1744"
+          },
+          "packages": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/runtime/packed-artifacts.json",
+            "sha256": "46e61f7f29447e5e931bb784508fe995fa977d0c4bc2da6c6787170354849da6"
+          },
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/runtime",
+          "execution": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/media-oracles.log.command.json",
+            "sha256": "a61fd951c77a1e16eb4fdaaf98149e392213e9ff7c50b8ff3bc3e08d2dff47fb"
+          },
+          "engine": null
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/source-pins.json",
+          "sha256": "87b34d8399041671d6a2c805e1ccba067138c5bed27149aef2f9a8196aac1744"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c2b-odt-reader",
+      "owner": "PRIMARY exact-artifact independent reader reuse",
+      "command": "node --test --test-reporter=tap tests/formats/consumers/contracts.test.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/document-conversion/consumers-epub-20261018/canonical5/0-node-test.log",
+          "sha256": "6a7b817c3fca4f0745095be3c925dfb4e8179e51373fd1afa3842936bb3681aa",
+          "kind": "node-tap",
+          "selectedCases": [
+            "7:independent ODT schema/reader verifies rich semantics and rejects package/semantic mutations"
+          ],
+          "sources": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/odt-oracle-sources.json",
+            "sha256": "d867171ca261de18b9b89c12b699047f1fd610f7cf0d0f685c3d5dac19434085"
+          },
+          "packages": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/runtime/packed-artifacts.json",
+            "sha256": "46e61f7f29447e5e931bb784508fe995fa977d0c4bc2da6c6787170354849da6"
+          },
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/runtime",
+          "execution": {
+            "path": "../architecture/evidence/document-conversion/consumers-epub-20261018/canonical5/receipt.json",
+            "sha256": "908414b6d4d71ada6ce14422df369128e470b1172ea1df6c858cde11896872e8",
+            "field": [
+              "checks",
+              0
+            ]
+          },
+          "artifactReuse": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/odt-reader-reuse.json",
+            "sha256": "e387bf032aa65a994ed4b16b98923478330aab2dc9a88e440f0fbaca6cc55186"
+          }
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/source-pins.json",
+          "sha256": "87b34d8399041671d6a2c805e1ccba067138c5bed27149aef2f9a8196aac1744"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/odt-oracle-sources.json",
+          "sha256": "d867171ca261de18b9b89c12b699047f1fd610f7cf0d0f685c3d5dac19434085"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c2b-pdf-reader",
+      "owner": "PRIMARY exact-artifact independent reader reuse",
+      "command": "node --test --test-reporter=tap tests/formats/consumers/contracts.test.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/document-conversion/consumers-pdf-20261018/canonical2/1-node-test.log",
+          "sha256": "711c16225d56ba5e24b360a7664756c1443a88d8c16783319e43e81b312bf732",
+          "kind": "node-tap",
+          "selectedCases": [
+            "9:independent actual packed PDF text/rich/structure, Arabic glyph/layout and mutation oracles"
+          ],
+          "sources": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/pdf-oracle-sources.json",
+            "sha256": "9564881f08ddd77624d007f35a79670092fd1b43b6d3de96c222506743771e29"
+          },
+          "packages": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/runtime/packed-artifacts.json",
+            "sha256": "46e61f7f29447e5e931bb784508fe995fa977d0c4bc2da6c6787170354849da6"
+          },
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/runtime",
+          "execution": {
+            "path": "../architecture/evidence/document-conversion/consumers-pdf-20261018/canonical2/receipt.json",
+            "sha256": "cf90fe96236faf2dbf8f1189597875e4a11b21d211d9b553c0e10fbe3c23ab13",
+            "field": [
+              "checks",
+              1
+            ]
+          },
+          "artifactReuse": {
+            "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/pdf-reader-reuse.json",
+            "sha256": "b0c0d3a472abb73474e4eb05a55021114736043ba2e5adc22c723e36d0da164c"
+          }
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/source-pins.json",
+          "sha256": "87b34d8399041671d6a2c805e1ccba067138c5bed27149aef2f9a8196aac1744"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/pdf-oracle-sources.json",
+          "sha256": "9564881f08ddd77624d007f35a79670092fd1b43b6d3de96c222506743771e29"
         }
       ]
     }

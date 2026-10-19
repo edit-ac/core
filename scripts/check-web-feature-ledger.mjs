@@ -44,6 +44,39 @@ export function runtimeFacts(receipt) {
   return { counts: c, cases, packages: receipt.packs, engine: receipt.browser?.engine ?? receipt.engine ?? receipt.profile?.engine };
 }
 
+// Node's flat TAP reporter is the assertion authority for format consumers.
+// Runtime callbacks may finish before a later independent assertion fails.
+export function tapFacts(text, selectedCases) {
+  assert.ok(!/^\s*Bail out!/m.test(text), 'Bailout TAP');
+  assert.ok(!/^[ \t]+(?:ok|not ok) \d+/m.test(text), 'Nested TAP requires its own adapter');
+  const cases = [...text.matchAll(/^(ok|not ok) (\d+) - (.+)$/gm)].map((m, i) => {
+    assert.equal(Number(m[2]), i + 1, 'Noncontiguous TAP cases');
+    assert.ok(!/ # (?:SKIP|TODO)\b/i.test(m[3]), 'Skipped/todo TAP case');
+    return { id: `${m[2]}:${m[3]}`, passed: m[1] === 'ok' };
+  });
+  assert.ok(cases.length, 'Missing/zero TAP cases');
+  const one = pattern => { const values = [...text.matchAll(pattern)]; assert.equal(values.length, 1, 'Missing/duplicate TAP summary'); return Number(values[0][1]); };
+  assert.equal(one(/^1\.\.(\d+)$/gm), cases.length, 'TAP plan mismatch');
+  assert.equal(one(/^# tests (\d+)$/gm), cases.length, 'TAP test summary mismatch');
+  const counts = { executed: cases.length, passed: one(/^# pass (\d+)$/gm), failed: one(/^# fail (\d+)$/gm), skipped: one(/^# skipped (\d+)$/gm), cancelled: one(/^# cancelled (\d+)$/gm), todo: one(/^# todo (\d+)$/gm) };
+  assert.equal(cases.filter(c => c.passed).length, counts.passed, 'TAP pass summary mismatch');
+  assert.equal(cases.filter(c => !c.passed).length, counts.failed, 'TAP failure summary mismatch');
+  for (const key of ['skipped', 'cancelled', 'todo']) assert.equal(counts[key], 0, `Unfinished TAP ${key}`);
+  if (selectedCases !== undefined) {
+    assert.ok(nonempty(selectedCases), 'Empty TAP selection');
+    assert.equal(new Set(selectedCases).size, selectedCases.length, 'Duplicate TAP selection');
+    const selected = selectedCases.map(id => {
+      const entry = cases.find(c => c.id === id);
+      assert.ok(entry?.passed, `Unproven selected TAP case ${id}`);
+      return entry;
+    });
+    return { counts: { executed: selected.length, passed: selected.length, failed: 0, skipped: 0 }, cases: selected,
+      originalCounts: counts, retainedFailures: cases.filter(c => !c.passed).map(c => c.id) };
+  }
+  assert.equal(counts.passed, counts.executed, 'Failed/unfinished TAP evidence');
+  return { counts, cases, originalCounts: counts, retainedFailures: [] };
+}
+
 function pinsFrom(value) {
   if (Array.isArray(value)) {
     assert.equal(new Set(value.map(pin => pin.path)).size, value.length, 'Duplicate source pin');
@@ -98,7 +131,49 @@ export async function auditLedger(ledger, root = core) {
         result.sourceChecks.push({ manifest: manifest.path, ...await checkSources(value) });
       }
       for (const pin of proof.receipts) {
-        const receipt = await pinnedJSON(pin);
+        let receipt;
+        if (pin.kind === 'node-tap') {
+          assert.equal(digest(await bytes(pin.path)), pin.sha256, `Evidence changed: ${pin.path}`);
+          const source = await pinnedJSON(pin.sources);
+          const packed = await pinnedJSON(pin.packages);
+          assert.ok(nonempty(packed.archives), 'Missing TAP installed packages');
+          receipt = { ...tapFacts((await bytes(pin.path)).toString(), pin.selectedCases), sources: source,
+            packs: packed.archives.map(pack => ({ file: pack.path.split('/').pop(), sha256: pack.sha256 })), engine: pin.engine };
+          let execution = await pinnedJSON(pin.execution);
+          for (const key of pin.execution.field ?? []) execution = execution?.[key];
+          assert.ok(execution.program && Array.isArray(execution.args) && !execution.signal, 'Missing/interrupted TAP command');
+          assert.equal(execution.exit, receipt.originalCounts.failed ? 1 : 0, 'TAP command exit mismatch');
+          assert.equal(execution.log.split('/').pop(), pin.path.split('/').pop(), 'TAP command/log mismatch');
+          if (pin.artifactReuse) {
+            const reuse = await pinnedJSON(pin.artifactReuse);
+            assert.ok(nonempty(pin.selectedCases) && nonempty(reuse.artifacts) && nonempty(reuse.commands), 'Incomplete artifact-reader reuse');
+            for (const artifact of reuse.artifacts) {
+              assert.ok(sha(artifact.sha256), 'Invalid artifact reuse digest');
+              for (const path of [artifact.current, artifact.prior]) assert.equal(digest(await bytes(path)), artifact.sha256, `Reader artifact changed: ${path}`);
+            }
+            for (const command of reuse.commands) {
+              const record = await pinnedJSON(command);
+              assert.equal(record.exit, 0, 'Failed prior reader command');
+              assert.ok(!record.signal && record.program && Array.isArray(record.args), 'Interrupted prior reader command');
+            }
+            const definition = reuse.definition;
+            const old = (await bytes(definition.prior.path)).toString();
+            assert.equal(digest(await bytes(definition.prior.path)), definition.prior.sha256, 'Prior reader definition changed');
+            const current = (await bytes(definition.current)).toString();
+            const prelude = value => value.split("test('")[0];
+            assert.equal(prelude(current), prelude(old), 'Reader helper/import source changed');
+            for (const id of pin.selectedCases) {
+              const name = id.replace(/^\d+:/, '');
+              const block = value => {
+                const marker = `test('${name}',`;
+                assert.equal(value.split(marker).length, 2, 'Missing/duplicate reader definition');
+                return value.slice(value.indexOf(marker)).split("\ntest('")[0].trim();
+              };
+              assert.equal(block(current), block(old), 'Selected reader assertion source changed');
+            }
+            receipt.evidenceMode = 'exact-artifact-reader-reuse';
+          }
+        } else receipt = await pinnedJSON(pin);
         const facts = runtimeFacts(receipt);
         const sourceCheck = await checkSources(receipt.sources);
         const packages = [];
@@ -107,7 +182,7 @@ export async function auditLedger(ledger, root = core) {
           assert.equal(digest(await bytes(path)), pack.sha256, `Package bytes changed/missing: ${path}`);
           packages.push({ path, sha256: pack.sha256 });
         }
-        result.receipts.push({ path: pin.path, sha256: pin.sha256, ...facts, packages, sourceCheck });
+        result.receipts.push({ path: pin.path, sha256: pin.sha256, ...facts, packages, sourceCheck, ...(receipt.originalCounts ? { originalCounts: receipt.originalCounts, retainedFailures: receipt.retainedFailures, evidenceMode: receipt.evidenceMode ?? 'original-node-tap' } : {}) });
       }
       // Product receipts also bind a committed SDK snapshot. Example-only pins
       // cannot authenticate a later engine or package implementation.

@@ -4,7 +4,7 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
-import { auditLedger, runtimeFacts, WEB_FEATURE_FAMILIES } from '../scripts/check-web-feature-ledger.mjs';
+import { auditLedger, runtimeFacts, tapFacts, WEB_FEATURE_FAMILIES } from '../scripts/check-web-feature-ledger.mjs';
 const sha = value => createHash('sha256').update(value).digest('hex');
 const raw = () => ({ counts: { executed: 1, passed: 1, failed: 0, skipped: 0 }, cases: [{ name: 'semantic-oracle', passed: true }], packs: [{ file: 'sdk.tgz', sha256: sha('packed fixture bytes') }], sources: { 'owner.ts': sha('export const owner = 1;') }, engine: 'chromium' });
 
@@ -71,4 +71,82 @@ test('Duplicate source pins cannot conceal a changed dependency', () => fixture(
   const report = await auditLedger(ledger, root);
   assert.equal(report.allIndexedEvidenceApplicable, false);
   assert.match(report.proofs[0].errors[0], /Duplicate source pin/);
+}));
+
+const tap = `TAP version 13
+# Subtest: independent artifact oracle
+ok 1 - independent artifact oracle
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+`;
+test('Read actual assertion outcomes from flat Node TAP rather than runtime callbacks', () => {
+  assert.deepEqual(tapFacts(tap).cases, [{ id: '1:independent artifact oracle', passed: true }]);
+});
+for (const [name, change] of [
+  ['missing summary', t => t.replace('# tests 1', '')],
+  ['duplicate summary', t => t + '# pass 1\n'],
+  ['wrong plan', t => t.replace('1..1', '1..2')],
+  ['wrong pass count', t => t.replace('# pass 1', '# pass 2')],
+  ['failed assertion', t => t.replace('ok 1 -', 'not ok 1 -').replace('# pass 1', '# pass 0').replace('# fail 0', '# fail 1')],
+  ['skipped assertion', t => t.replace('artifact oracle\n1..', 'artifact oracle # SKIP unavailable\n1..')],
+  ['todo assertion', t => t.replace('artifact oracle\n1..', 'artifact oracle # TODO unavailable\n1..')],
+  ['cancelled run', t => t.replace('# cancelled 0', '# cancelled 1')],
+  ['noncontiguous case', t => t.replace('ok 1 -', 'ok 2 -')],
+  ['bailout', t => t + 'Bail out! interrupted\n'],
+  ['nested TAP', t => t + '    ok 1 - nested\n'],
+]) test(`Reject TAP ${name}`, () => assert.throws(() => tapFacts(change(tap))));
+
+test('Select original passing assertions without laundering an adjacent retained failure', () => {
+  const mixed = tap.replace('1..1', 'not ok 2 - failed boundary\n1..2').replace('# tests 1', '# tests 2').replace('# fail 0', '# fail 1');
+  const selected = tapFacts(mixed, ['1:independent artifact oracle']);
+  assert.equal(selected.counts.executed, 1);
+  assert.equal(selected.originalCounts.failed, 1);
+  assert.deepEqual(selected.retainedFailures, ['2:failed boundary']);
+  assert.throws(() => tapFacts(mixed));
+  assert.throws(() => tapFacts(mixed, ['2:failed boundary']));
+  assert.throws(() => tapFacts(mixed, []));
+  assert.throws(() => tapFacts(mixed, ['1:independent artifact oracle', '1:independent artifact oracle']));
+});
+async function tapFixture(run) {
+  return fixture(async (root, ledger) => {
+    const pin = async (path, value) => { await writeFile(join(root, path), value); return { path, sha256: sha(value) }; };
+    const sources = ledger.proofs[0].sourceManifests[0];
+    const packages = await pin('packages.json', JSON.stringify({ archives: [{ path: '/historical/sdk.tgz', sha256: sha('packed fixture bytes') }] }));
+    const execution = await pin('execution.json', JSON.stringify({ program: 'node', args: ['--test', 'contract.mjs'], exit: 0, signal: null, log: 'raw.tap' }));
+    const raw = { ...await pin('raw.tap', tap), kind: 'node-tap', sources, packages, execution, engine: 'chromium' };
+    ledger.proofs[0].receipts = [raw];
+    for (const f of ledger.features) f.proofs[0].cases = ['1:independent artifact oracle'];
+    const definition = `import 'oracle';\ntest('independent artifact oracle', () => check(bytes));\n`;
+    await pin('contract.mjs', definition);
+    const prior = await pin('prior-contract.mjs', definition);
+    await pin('current.bin', 'exact artifact'); await pin('prior.bin', 'exact artifact');
+    const command = await pin('reader-command.json', JSON.stringify({ program: 'python', args: ['oracle.py', 'prior.bin'], exit: 0, signal: null }));
+    raw.selectedCases = ['1:independent artifact oracle'];
+    raw.artifactReuse = await pin('reuse.json', JSON.stringify({ artifacts: [{ current: 'current.bin', prior: 'prior.bin', sha256: sha('exact artifact') }], commands: [command], definition: { current: 'contract.mjs', prior } }));
+    await run(root, ledger);
+  });
+}
+test('Authenticate exact reader input bytes, original TAP, helpers, assertions and command exits', () => tapFixture(async (root, ledger) => {
+  const report = await auditLedger(ledger, root);
+  assert.equal(report.allIndexedEvidenceApplicable, true);
+  assert.equal(report.proofs[0].receipts[0].evidenceMode, 'exact-artifact-reader-reuse');
+  assert.equal(report.proofs[0].receipts[0].originalCounts.executed, 1);
+}));
+for (const [path, bytes] of [
+  ['current.bin', 'changed current artifact'], ['prior.bin', 'changed historical artifact'],
+  ['prior-contract.mjs', 'changed prior definition'],
+  ['contract.mjs', `import 'changed helper';\ntest('independent artifact oracle', () => check(bytes));\n`],
+  ['contract.mjs', `import 'oracle';\ntest('independent artifact oracle', () => skip(bytes));\n`],
+  ['reader-command.json', '{"exit":1}'], ['raw.tap', tap.replace('# pass 1', '# pass 2')],
+  ['sdk.tgz', 'replaced package'], ['owner.ts', 'changed dependency'],
+]) test(`Refuse reader reuse after ${path} changes`, () => tapFixture(async (root, ledger) => {
+  await writeFile(join(root, path), bytes);
+  const report = await auditLedger(ledger, root);
+  assert.equal(report.allIndexedEvidenceApplicable, false);
 }));
