@@ -17,7 +17,7 @@ const verifyPins = pins => {
   assert.ok(Object.keys(pins).length > 0);
   for (const [path, expected] of Object.entries(pins)) assert.equal(hash(readFileSync(path)), expected, `Changed input: ${path}`);
 };
-const prior = resolve('../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2c-tables');
+const prior = resolve(process.env.EDITAC_WEB_EDITING_BUILD ?? '../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-7');
 const runtime = json(join(prior, 'runtime-source-pins.json'));
 const members = json(join(prior, 'package-runtime-pins.json'));
 verifyPins(runtime); verifyPins(members);
@@ -39,8 +39,16 @@ const paths = [...Object.keys(runtime), ...suites.map(s => `tests/browser/intera
   'fixtures/markdown/commonmark-0.31.2.json', 'fixtures/markdown/gfm-required.json'];
 const sourcePins = () => Object.fromEntries([...new Set(paths)].sort().map(path => [path, hash(readFileSync(path))]));
 const sources = sourcePins(); save('source-pins.json', sources);
-const packages = json(join(prior, 'run-1/packages.json'));
-for (const pack of Object.values(packages)) assert.equal(hash(readFileSync(pack.path)), pack.sha256);
+// Pack authenticated current runtime members for every original suite.
+const packages = {};
+for (const name of ['core', 'web', 'markdown']) {
+  const packed = spawnSync('npm', ['pack', '--workspace', `@edit-ac/${name}`, '--json', '--pack-destination', output], { encoding: 'utf8' });
+  writeFileSync(join(output, `pack-${name}.log`), (packed.stdout ?? '') + (packed.stderr ?? ''));
+  assert.equal(packed.status, 0, `Pack ${name}`); assert.equal(packed.error, undefined);
+  const [manifest] = JSON.parse(packed.stdout), path = join(output, manifest.filename);
+  packages[name] = { path, manifest, sha256: hash(readFileSync(path)) };
+}
+verifyPins(members);
 save('packages.json', packages);
 const resumeDirectory = process.env.EDITAC_WEB_EDITING_RESUME && resolve(process.env.EDITAC_WEB_EDITING_RESUME);
 const resumed = resumeDirectory && json(join(resumeDirectory, 'execution.json'));
