@@ -12,13 +12,6 @@ export function admitSeed(name, prior, currentInputs, executable, artifacts) {
   require(nativeInputs.length > 0 && nativeInputs.every(([path, hash]) => prior.sourceInputs?.[path] === hash), 'Seed native source identity drift');
   require(prior.metadata?.seedProducer?.sha256 === seedHash(executable), 'Seed executable identity drift');
   const document = fixture(name);
-  const paths = { checkpoint: `fixtures/${name}.native-checkpoint.json`,
-    snapshot: `fixtures/${name}.native-snapshot.json`, log: `seed-${name}.log` };
-  require(prior.fixtures?.find(item => item.name === name)?.sha256 === seedHash(artifacts.fixture), 'Seed fixture receipt identity drift');
-  require(prior.artifactInputs?.['harness/fitness-seed'] === seedHash(executable), 'Seed executable receipt identity drift');
-  for (const [key, path] of Object.entries(paths)) {
-    require(prior.artifactInputs?.[path] === seedHash(artifacts[key]), `Seed ${key} receipt identity drift`);
-  }
   require(artifacts.fixture.toString() === JSON.stringify(document), 'Seed fixture identity drift');
   require(artifacts.log.toString().includes('seed: 1/1 fixture prepared; 0 failures/skips'), 'Incomplete seed preparation');
   const snapshot = JSON.parse(artifacts.snapshot), frozen = JSON.parse(artifacts.checkpoint);

@@ -80,6 +80,23 @@ try {
     await page.waitForFunction(()=>document.querySelector('#offline-message').dataset.state==='ready');
     await page.waitForFunction(()=>!!navigator.serviceWorker.controller);
     const before=[await text(page),await text(page,'comment')];
+    facts.shellPreparation=await page.evaluate(async()=>{
+      const registration=await navigator.serviceWorker.getRegistration();
+      const cache=await caches.open('task-editor-shell-v2');
+      return {controller:navigator.serviceWorker.controller.scriptURL,activeState:registration.active.state,
+        cachedUrls:(await cache.keys()).map(request=>request.url)};
+    });
+    assert.equal(facts.shellPreparation.activeState,'activated');
+    assert.ok(facts.shellPreparation.cachedUrls.includes(server.url+'/fixture/index.html'));
+    // Browser offline emulation does not cover Firefox's worker update channel.
+    // Close the actual transport before taking the unchanged listener baseline.
+    await server.suspendTransport();
+    assert.equal(server.listening,false);
+    facts.offlineBoundary={startedAt:new Date().toISOString(),requestsBefore:server.requests.length,transport:'TCP listener closed'};
+    facts.offlineAttempts=[];
+    const recordFailed=request=>facts.offlineAttempts.push({url:request.url(),at:new Date().toISOString(),error:request.failure()});
+    page.on('requestfailed',recordFailed);
+    server.setPhase('offline');
     const requestCount=server.requests.length;
     await page.context().setOffline(true);
     await moduleCall('close');await page.reload();await page.evaluate(async()=>{await(await import('/fixture/editor.mjs')).ready;});
@@ -95,6 +112,10 @@ try {
     await page.screenshot({path:join(output,'offline-reopened.png'),fullPage:true});
     assert.equal(server.requests.length,requestCount,'Offline workflow reached HTTP listener');
     facts.offline={navigatorOnline:false,serverRequestsBefore:requestCount,serverRequestsAfter:server.requests.length,restoredDocuments:2};
+    assert.equal(server.listening,false);
+    page.off('requestfailed',recordFailed);
+    await server.resumeTransport();
+    server.setPhase('online-restored');
     await page.context().setOffline(false);
   });
   await check('pending-and-local-status',async()=>{
@@ -203,7 +224,7 @@ try {
   }
 }
 finally {
-  if (server) facts.requests = server.requests;
+  if (server) { facts.requests = server.requests; facts.transport = server.transport; }
   await teardown();
   facts.counts = { executed: facts.cases.length, passed: facts.cases.filter(c => c.status === 'passed').length, failed: facts.cases.filter(c => c.status === 'failed').length, skipped: Math.max(0, scenario.cases.length - facts.cases.length), required: scenario.cases.length };
   if (facts.failure && facts.counts.failed === 0) facts.setupFailure = true;
