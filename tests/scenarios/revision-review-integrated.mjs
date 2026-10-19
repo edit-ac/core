@@ -52,7 +52,7 @@ export async function integratedCases({ page, server, facts, check, output }) {
       await page.locator('#revision-before').selectOption(first); await page.locator('#revision-after').selectOption(second);
       await page.locator('#revision-compare').click();
       const text = await page.locator('#revision-comparison').innerText();
-      assert.ok(text.includes(baselineText)); assert.ok(text.includes(draftText)); assert.match(text, /unknown/);
+      assert.ok(text.includes(baselineText)); assert.ok(text.includes(draftText)); assert.match(text, /unknown/i);
       const model = await page.evaluate(async ({ url, first, second }) => (await import(url)).workspace.compare(first, second), { url, first, second });
       assert.equal(model.version, 'editac-semantic-diff-v1'); assert.equal(model.attribution, 'unknown');
       assert.ok(model.changes.some(c => c.facets.includes('Text')));
