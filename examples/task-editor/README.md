@@ -1,5 +1,8 @@
 # Local task editor
 
+The [internal local alpha walkthrough](ALPHA.md) lists the runnable surfaces,
+recovery steps, host configuration limits and later-phase handoffs for WFE-3.2.
+
 Open the task workspace with `?assistance` to enable local command assistance.
 Select task text, open **Editing assistance**, then choose Bold, Italic, Undo or
 Redo. The panel uses the same command catalog, history and local save/reopen path
