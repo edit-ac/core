@@ -51,13 +51,16 @@ export async function reopenCases({ page, server, facts, check, output }) {
   });
   await check('accepted-restore-full-reload-keeps-identity-and-current', async () => {
     await edit(expectedRestore); await capture('Reload restore'); await edit('Later live draft before restore.');
-    const history = page.locator('#revision-history');
+    const history = page.locator('#revision-history'), preRestore = await observe();
     await history.getByRole('button', { name: 'Inspect Reload restore', exact: true }).click();
     await history.getByRole('button', { name: 'Preview restore as new edit', exact: true }).click();
     await history.getByRole('button', { name: 'Apply restore as new edit', exact: true }).click();
     await page.waitForFunction(() => document.querySelector('#revision-history').textContent.includes('Restored as a new edit'));
     await moduleCall('save'); const before = await observe(); assert.equal(before.text, expectedRestore);
-    assert.equal(JSON.parse(before.journal).updates.at(-1).origin, 'editac:local:history-restore');
+    const existingUpdates = new Set(JSON.parse(preRestore.journal).updates.map(update => update.updateId));
+    const acceptedUpdates = JSON.parse(before.journal).updates.filter(update => !existingUpdates.has(update.updateId));
+    assert.equal(acceptedUpdates.length, 1, 'Restore appends exactly one update across reopened writer IDs');
+    assert.equal(acceptedUpdates[0].origin, 'editac:local:history-restore');
     await reload(); const after = await observe(); compareReopen(before, after, expectedRestore);
     facts.oracles.restoreReload = { before, after };
   });
