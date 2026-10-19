@@ -40,7 +40,7 @@
       "oracles": "Real projected text/marks, UTF-16 directional targets, independent history and Session journal/durable reopen; nested control and stale command denial.",
       "proofs": [
         {
-          "id": "wfe-3.1-c7-4-editing",
+          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-4-editing",
           "engines": [
             "chromium",
             "firefox",
@@ -734,7 +734,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-3-command",
+          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-3-command",
           "engines": [
             "chromium",
             "firefox",
@@ -808,7 +808,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-3-slash",
+          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-3-slash",
           "engines": [
             "chromium",
             "firefox",
@@ -893,7 +893,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-2-search-code",
+          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-2-search-code",
           "engines": [
             "chromium",
             "firefox",
@@ -971,7 +971,7 @@
       "oracles": "Trusted keyboard/pointer routes share projected content, one Session commit/journal update/history group; supplied captured replacement differs from caret and survives durable reopen; nested/other editor controls retain ownership; stale/readonly/permission/cancel/disposed targets reject; save preserves undo/redo and empty redo is inert.",
       "proofs": [
         {
-          "id": "wfe-3.1-c7-3-command",
+          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-3-command",
           "engines": [
             "chromium",
             "firefox",
@@ -1069,7 +1069,7 @@
       "oracles": "Expected marked fragments, opaque tuples and cell metadata; exactly one commit/history; undo/redo/reopen and preserved original typed recovery.",
       "proofs": [
         {
-          "id": "wfe-3.1-c7-4-rich-transfer",
+          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-4-rich-transfer",
           "engines": [
             "chromium",
             "firefox",
@@ -1354,7 +1354,7 @@
       "oracles": "Independent bounded rectangle/cell text/marks/metadata, invalidated foreign focus, lossless structured copy and rejection atomicity.",
       "proofs": [
         {
-          "id": "wfe-3.1-c7-4-tables",
+          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-4-tables",
           "engines": [
             "chromium",
             "firefox",
@@ -1439,7 +1439,7 @@
       "oracles": "Stable descriptor/source and marked fallback survive copy/history and durable reopen; host-only image/blob lifecycle, reauthorization, cancellation, retirement and late/disposed ownership retain data and never auto-activate files/embeds.",
       "proofs": [
         {
-          "id": "wfe-3.1-c7-4-inline-media",
+          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-4-inline-media",
           "engines": [
             "chromium",
             "firefox",
@@ -1556,7 +1556,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-4-inline-media",
+          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-4-inline-media",
           "engines": [
             "chromium",
             "firefox",
@@ -1603,7 +1603,7 @@
       "oracles": "Bounded filtered catalog, keyboard/pointer/touch activation, local history/reopen, preserved errors and cancellation.",
       "proofs": [
         {
-          "id": "wfe-3.1-c7-3-slash",
+          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-3-slash",
           "engines": [
             "chromium",
             "firefox",
@@ -1722,7 +1722,7 @@
       "oracles": "Permission-checked catalog and private-label fallback; descriptor identity retained across copied/marked label.",
       "proofs": [
         {
-          "id": "wfe-3.1-c7-3-reference-label",
+          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-3-reference-label",
           "engines": [
             "chromium",
             "firefox",
@@ -1733,7 +1733,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-3-reference-transfer",
+          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-3-reference-transfer",
           "engines": [
             "chromium",
             "firefox",
@@ -1747,7 +1747,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-3-reference",
+          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-3-reference",
           "engines": [
             "chromium",
             "firefox",
@@ -1929,7 +1929,7 @@
       "oracles": "Expected literal search matches/replacement, source-preserving code edits and UTF-16 highlight spans; history/readonly/cancel.",
       "proofs": [
         {
-          "id": "wfe-3.1-c7-2-search-code",
+          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-2-search-code",
           "engines": [
             "chromium",
             "firefox",
@@ -2035,7 +2035,7 @@
       "oracles": "Source-preserving math fallback and one semantic reorder, no mutation for stale/readonly/cancelled gestures.",
       "proofs": [
         {
-          "id": "wfe-3.1-c7-2-math-reorder",
+          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-2-math-reorder",
           "engines": [
             "chromium",
             "firefox",
@@ -3611,7 +3611,7 @@
       "oracles": "Independent document identities, opposite mount order, route save/restore/Back, scoped errors/disposal and one common resource graph.",
       "proofs": [
         {
-          "id": "wfe-3.1-c7-1-web-task-workspace",
+          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-web-task-workspace",
           "engines": [
             "chromium",
             "firefox",
@@ -3629,7 +3629,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-1-web-react-routes",
+          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-web-react-routes",
           "engines": [
             "chromium",
             "firefox",
@@ -3650,7 +3650,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-1-web-local-recovery",
+          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-web-local-recovery",
           "engines": [
             "chromium",
             "firefox",
@@ -3696,7 +3696,7 @@
       "oracles": "Actual IndexedDB reopen of distinct identities, denied/missing/corrupt checkpoints never reseed, failed append retains live unsaved content and deliberate isolated recovery bytes.",
       "proofs": [
         {
-          "id": "wfe-3.1-c7-1-web-task-workspace",
+          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-web-task-workspace",
           "engines": [
             "chromium",
             "firefox",
@@ -3714,7 +3714,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-1-web-react-routes",
+          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-web-react-routes",
           "engines": [
             "chromium",
             "firefox",
@@ -3735,7 +3735,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-1-web-local-recovery",
+          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-web-local-recovery",
           "engines": [
             "chromium",
             "firefox",
@@ -3781,7 +3781,7 @@
       "oracles": "Exact original content after denied input/commands, named identity stays readonly on reopen; sibling remains independent.",
       "proofs": [
         {
-          "id": "wfe-3.1-c7-1-web-task-workspace",
+          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-web-task-workspace",
           "engines": [
             "chromium",
             "firefox",
@@ -3799,7 +3799,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-1-web-react-routes",
+          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-web-react-routes",
           "engines": [
             "chromium",
             "firefox",
@@ -3820,7 +3820,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-1-web-local-recovery",
+          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-web-local-recovery",
           "engines": [
             "chromium",
             "firefox",
@@ -3866,7 +3866,7 @@
       "oracles": "Real Yrs replica convergence and durable/outbox receipts across prepared transport loss/reorder/duplicate/reconnect; awareness remains transient.",
       "proofs": [
         {
-          "id": "wfe-3.1-c7-1-collaboration-transport",
+          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-collaboration-transport",
           "engines": [
             "transport"
           ],
@@ -3941,7 +3941,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-1-collaboration-offline",
+          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-collaboration-offline",
           "engines": [
             "offline"
           ],
@@ -3953,7 +3953,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-1-collaboration-sdk",
+          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-collaboration-sdk",
           "engines": [
             "chromium",
             "firefox",
@@ -3967,7 +3967,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-1-collaboration-configuration",
+          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-collaboration-configuration",
           "engines": [
             "chromium",
             "firefox",
@@ -4027,7 +4027,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-1-collaboration-web-collaboration",
+          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-collaboration-web-collaboration",
           "engines": [
             "chromium",
             "firefox",
@@ -8422,6 +8422,872 @@
         {
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/runtime-source-pins.json",
           "sha256": "f746da5af75a541591dde6d71de4e9e84d5fe9063376cd6ec3318b1cc2da4e80"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-4-editing",
+      "owner": "PRIMARY exact-input carry-forward plus qualified ADP-1.2 original workflow return",
+      "command": "node scripts/run-web-editing-media-table-refresh-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-breaks/chromium/receipt.json",
+          "sha256": "8b288347e5cbc0400bcbddd679f65dc143dc99a25f84180302603a675e9faca3"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-breaks/firefox/receipt.json",
+          "sha256": "c8f8d236b5e8b6dce2bca5f133bb3f1587d59681d53ba6f820bddb77502b6590"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-breaks/webkit/receipt.json",
+          "sha256": "a4a72f94ae86444f599cf644766e9e1af5f3c6b4877c9200b968c7d839846d66"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-break-tables/chromium/receipt.json",
+          "sha256": "386a2496868be5cff091e746e1755f245a1f3385583c1675f23c9465b4b64be9"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-break-tables/firefox/receipt.json",
+          "sha256": "dc39da6f7c4b92b50d9785cc672cce82fafd8f3e1175e29a20c9b9739b093eec"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-break-tables/webkit/receipt.json",
+          "sha256": "0e17d37ee3e0385fca31061c89ebd905f33223e380753b5301a901d78b076180"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-formatting/chromium/receipt.json",
+          "sha256": "eb44d04e0a8a678a048b1cdb744dd0c28ff525d419150ebd51d8a76dab117c4b"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-formatting/firefox/receipt.json",
+          "sha256": "1c6cd02cbb783cf845c1dcac52a12a2c6232b4029412501f0acaf24c439c99ed"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-formatting/webkit/receipt.json",
+          "sha256": "c4cc30463e0caf806a69696064abfbec2e7224f0ef3951d86b80b5d72eba30de"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-deletion/chromium/receipt.json",
+          "sha256": "1efbed031edb8475a44d70a6b73ba19cb5d4b90cba825cf8d87c1ad5f3b102aa"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-deletion/firefox/receipt.json",
+          "sha256": "8c8bf8ba5ff0dc625faece00e7ca3b40a1ce80ddbeedf9d03037778ddf4f5c5b"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-deletion/webkit/receipt.json",
+          "sha256": "702aedcb0993f3af5cb8ce3a31995c137817e10c082e99ad9624ca5ccf7e245c"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-navigation/chromium/receipt.json",
+          "sha256": "b3a451c1567bc5a4ad00cafe0b2c4d4a396bbe563e3347a87f03cb567bced710"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-navigation/firefox/receipt.json",
+          "sha256": "0281cb09b9591287d1ab52015510f76553d7ab7f8fdc90a491febf76b1a5c6f2"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-navigation/webkit/receipt.json",
+          "sha256": "1d9566ae9eb42fed9ce18f2e616a253e2a8b8dc9377bd56617b05ea8ecac7a30"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-keyboard/chromium/receipt.json",
+          "sha256": "028486753c7a84293043b97ed3b779ce581fbce9edeb9642243349ecc01e839d"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-keyboard/firefox/receipt.json",
+          "sha256": "45c957b7d68027a544669e858b506523805ec76ce302fd0afb6fb468d2534791"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-keyboard/webkit/receipt.json",
+          "sha256": "618e8ad39b260e3ef84d49c66ac2e7551564becba43b29a9d7ae5d33fd693489"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-keyboard-tables/chromium/receipt.json",
+          "sha256": "91d19e905b7657cdb03a4e229fc529a1fb17be9dcd135e49989564e860c464bc"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-keyboard-tables/firefox/receipt.json",
+          "sha256": "bb9d025f4bc01c8e10b46a6a62426ffd5c5d80f94afad15ac867fdfa9e77ded7"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-keyboard-tables/webkit/receipt.json",
+          "sha256": "1ebb98ab22f0aac4a2a3098d9103ad379ff9165f952dcf148eda4d1e348d1fa2"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-replacement/chromium/receipt.json",
+          "sha256": "62f09b3842285575883551b25801b42a7d65beebbe09f4109457825e49272460"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-replacement/firefox/receipt.json",
+          "sha256": "02c533c45e744750c7aad70abfa5042821087a310304a766f39e412a3937452b"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-replacement/webkit/receipt.json",
+          "sha256": "0278ee5bb318349a20405c8430c19857df50127ee05566374c5073247a28ea1f"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-whitespace/chromium/receipt.json",
+          "sha256": "070dcc7d880d9065dd38bc981c1960586fc98f9af16771cbf2346bb430cd0435"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-whitespace/firefox/receipt.json",
+          "sha256": "88c31131ea637d8be9c17219d5f20ba2515f8a8953d14afbebd95a039c00f3f0"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-whitespace/webkit/receipt.json",
+          "sha256": "78f316f0e554a9925bb2972a0a119c001c373982da90771d1acf62efb3cb99f8"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-paste/chromium/receipt.json",
+          "sha256": "772c5fa28d4a70b29600d9740e5cc5ec833588022503b8a505cf28ffa915360c"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-paste/firefox/receipt.json",
+          "sha256": "b42985919397c198855fa5f60430fb4fa0a08751f493d6a6796f33d7e7eaa6d9"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-paste/tables/chromium/receipt.json",
+          "sha256": "145cd17507f79ba112a7605c31b06e83b1adcd88e0769491cbf01705c54ffa5b"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-paste/tables/firefox/receipt.json",
+          "sha256": "3804cc5b75a979070d5b1cdff0c16372f1e6c35a6e7ba8d1469014453f51f953"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-paste/tables/webkit/receipt.json",
+          "sha256": "096c2bf8730eefe653cc891b15f2ff6aa8c62ee3891f987e0f21019965940a61"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-paste/webkit/receipt.json",
+          "sha256": "7cc216b1321f1f07a0cc30e5f6e96e526cc15ed410320f2ec2c67752774ad9cf"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-parsing/chromium/receipt.json",
+          "sha256": "6faa17243364c554d0b424bca68ebc60ce02aca577d168945349e2a406107aa5"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-parsing/firefox/receipt.json",
+          "sha256": "b8bea382fd04cd34544d9df86396ac37bbb3d95ce0f0018646024c9af2bf9fcc"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-parsing/webkit/receipt.json",
+          "sha256": "4625eaacae498631f80d0b321605c18586176b8c3620d8e274b056460077d228"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-history/chromium/receipt.json",
+          "sha256": "c307047334a52749e6de612abee581e93bf644c4a1f06eb40d3d1befd52e152c"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-history/firefox/receipt.json",
+          "sha256": "35663599fcf820fb8ce93312cb014f6e5596c098599470cca86f088f603ca151"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/interaction-history/webkit/receipt.json",
+          "sha256": "8ce5a56fb531c0b0c56a0ee7346438eb2c4a8e6218d43d9f1e08341b46bca120"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/spellcheck/chromium/browser/receipt.json",
+          "sha256": "5550c8014da971af4d87292f7000f577dfa963952e0db5807d815b1608b0a170"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/spellcheck/firefox/browser/receipt.json",
+          "sha256": "08765b94002c6a8217b160646a6fb9e150af8259b04fe0718b87bba2e1110cc7"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing/spellcheck/webkit/browser/receipt.json",
+          "sha256": "e70319adee16d8db047545e4e85611c982f4be1080730817dfabb9c821f2b994"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/runtime-source-pins.json",
+          "sha256": "df204334981006d5027adc8a9440f83f58dcf102992216426bcf81011b124c00"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-3-command",
+      "owner": "PRIMARY exact-input carry-forward plus qualified ADP-1.2 original workflow return",
+      "command": "node scripts/run-web-command-reference-refresh-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/command/interaction-command-surfaces/chromium/receipt.json",
+          "sha256": "456b6676a767bb4d8b39acdc3d800dab6b28a0f8edde4d903a6e0951036027ad"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/command/interaction-command-surfaces/firefox/receipt.json",
+          "sha256": "bfbaccf7ed23bb2264d8557b8bca2b2602c8f8dd0816a61e3e98fa733bafd863"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/command/interaction-command-surfaces/webkit/receipt.json",
+          "sha256": "ac6a6a6c4195722dfb02dea55f82ebf42f760126f26e49570f84158e1fa9b2ff"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/runtime-source-pins.json",
+          "sha256": "df204334981006d5027adc8a9440f83f58dcf102992216426bcf81011b124c00"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-3-slash",
+      "owner": "PRIMARY exact-input carry-forward plus qualified ADP-1.2 original workflow return",
+      "command": "node scripts/run-web-command-reference-refresh-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/slash/slash-context/chromium/baseline/receipt.json",
+          "sha256": "5a4ca9ee58702fad82c6d7bb71eda0b0a1dc662253761825a05f2010fbc22626"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/slash/slash-context/chromium/receipt.json",
+          "sha256": "6f0e6f5a9fa4e8b38c150caab31eddc28d6035f418fbd285c73f7a0d6d3e4cba"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/slash/slash-context/firefox/baseline/receipt.json",
+          "sha256": "6ee945369ad55b289b1e5a1e00964a35b5ed5f0f32ce5a1e545ffdd2ab0aac38"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/slash/slash-context/firefox/receipt.json",
+          "sha256": "ccf9513b19be05ab7d7775994349a428d3c2249caa135d3ec5ff730fec080f75"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/slash/slash-context/webkit/baseline/receipt.json",
+          "sha256": "f5d123159d618e9ccc3b682750fa395373bda872f3cfb61481775c7722a6536b"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/slash/slash-context/webkit/receipt.json",
+          "sha256": "ef0fe29dc30c9b29eab3db5dde64b73435996c9fa0c08bd7d6721e31f87a71ef"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/runtime-source-pins.json",
+          "sha256": "df204334981006d5027adc8a9440f83f58dcf102992216426bcf81011b124c00"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-2-search-code",
+      "owner": "PRIMARY exact-input carry-forward plus qualified ADP-1.2 original workflow return",
+      "command": "node scripts/run-web-search-math-refresh-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/search-code/code-commands/chromium/receipt.json",
+          "sha256": "c5bc6e6a472b1fe5ea4cf8c3560d181d2f74ab3979d61a88313d6a30f4b807e8"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/search-code/code-commands/firefox/receipt.json",
+          "sha256": "6bd58ed3b0e58b335470a22bb87cc8bc697917da23d96a74570926141c0fb6b4"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/search-code/code-commands/webkit/receipt.json",
+          "sha256": "3d3ae35500313a4b7c40ca0afdedd5bc715168f71bb5ea9963e9871f18131506"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/search-code/code-highlight/chromium/receipt.json",
+          "sha256": "50e53da9ce7ad1e13985173d9ad5443c56b14fdb7a178fb122291b2926c35ed3"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/search-code/code-highlight/firefox/receipt.json",
+          "sha256": "65287030038764ff7ea838c22aab29718737a9dcb9bc18004193295eea3a9bd1"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/search-code/code-highlight/webkit/receipt.json",
+          "sha256": "241ef11fe0500c0aa3dc1e8617dab5176a87425693290c6c0d7e99a0f74d5c27"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/search-code/document-search/chromium/receipt.json",
+          "sha256": "3f84c2755b87ed756b22cfb0024da0c7806fed4ac4c0a27257812f50b5292c35"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/search-code/document-search/firefox/receipt.json",
+          "sha256": "3343c72fb89f3862547980e68b48b90136d4456bb5af796166bb1eb5c6eff268"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/search-code/document-search/webkit/receipt.json",
+          "sha256": "fd46a9b85c63904dd4f45fc8573745b1bd448208aa32be8f4e4d9ea6aaa17abd"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/runtime-source-pins.json",
+          "sha256": "df204334981006d5027adc8a9440f83f58dcf102992216426bcf81011b124c00"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-4-rich-transfer",
+      "owner": "PRIMARY exact-input carry-forward plus qualified ADP-1.2 original workflow return",
+      "command": "node scripts/run-web-editing-media-table-refresh-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference-prerequisites/chromium/extension-formatting/receipt.json",
+          "sha256": "cf14485c674d62ce353617ac80ab496c417e322f341c83183205db42c38ba49f"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference-prerequisites/chromium/extension-formatting-mixed/receipt.json",
+          "sha256": "a03dc373fc069acf25ab37cd4ec4aaf873cf910b997c2d7e0b90f024711a23fd"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference-prerequisites/chromium/registered-inline-transfer/receipt.json",
+          "sha256": "a26fc5d39e6e75d865ef4c9b80f09cbb95dc4da818cca0b402b7d9899596c3c0"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference-prerequisites/firefox/extension-formatting/receipt.json",
+          "sha256": "d4be91d7ed2a1f343568c5fc952ad0aad437916947f2ed2c3c6461e227423042"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference-prerequisites/firefox/extension-formatting-mixed/receipt.json",
+          "sha256": "ae2ef168f80cd2bf1a312973f059911d9bf7f5be0517e58c4394c886d34aa1e6"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference-prerequisites/firefox/registered-inline-transfer/receipt.json",
+          "sha256": "b0f9449e2827376962bc87e6ca4dd1d645df36ee1a46dbf08e6db242ef76ff5d"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference-prerequisites/webkit/extension-formatting/receipt.json",
+          "sha256": "cbad02ad88cc3d3c58513ca7bb6575d9ed9d0fdf0fca9cd4d7624a25df9fe312"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference-prerequisites/webkit/extension-formatting-mixed/receipt.json",
+          "sha256": "6b54365a8f200a66a8dd574f4d7940e950530a259ce3332357d773db74052aaa"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference-prerequisites/webkit/registered-inline-transfer/receipt.json",
+          "sha256": "0acbf2070ab4cc3ab2aa54b7e93c21bb7e39a6097f5398ebb77d054590dc1ce8"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/runtime-source-pins.json",
+          "sha256": "df204334981006d5027adc8a9440f83f58dcf102992216426bcf81011b124c00"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-4-tables",
+      "owner": "PRIMARY exact-input carry-forward plus qualified ADP-1.2 original workflow return",
+      "command": "node scripts/run-web-editing-media-table-refresh-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference-prerequisites/chromium/extension-formatting/receipt.json",
+          "sha256": "cf14485c674d62ce353617ac80ab496c417e322f341c83183205db42c38ba49f"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference-prerequisites/chromium/extension-formatting-mixed/receipt.json",
+          "sha256": "a03dc373fc069acf25ab37cd4ec4aaf873cf910b997c2d7e0b90f024711a23fd"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference-prerequisites/firefox/extension-formatting/receipt.json",
+          "sha256": "d4be91d7ed2a1f343568c5fc952ad0aad437916947f2ed2c3c6461e227423042"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference-prerequisites/firefox/extension-formatting-mixed/receipt.json",
+          "sha256": "ae2ef168f80cd2bf1a312973f059911d9bf7f5be0517e58c4394c886d34aa1e6"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference-prerequisites/webkit/extension-formatting/receipt.json",
+          "sha256": "cbad02ad88cc3d3c58513ca7bb6575d9ed9d0fdf0fca9cd4d7624a25df9fe312"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference-prerequisites/webkit/extension-formatting-mixed/receipt.json",
+          "sha256": "6b54365a8f200a66a8dd574f4d7940e950530a259ce3332357d773db74052aaa"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/table-selection/chromium/receipt.json",
+          "sha256": "de57272f665a557044278e69f77dfcfd5784f1d5866200aebd6cf1b6dcad0312"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/table-selection/firefox/receipt.json",
+          "sha256": "883f6c4666375afcb7d5d3016f84cb593ac43f118d6dbe4f4b7327cbac4d9811"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/table-selection/webkit/receipt.json",
+          "sha256": "5a1c7c0ca356731fb217e31ec39920f1d18fce9e59d2dae5e8c7cf77be868f37"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/table-command/chromium/receipt.json",
+          "sha256": "4f377d66d403a8d51a469fbe94e44dcca6173a01459bdae288232bf527e3d4f6"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/table-command/firefox/receipt.json",
+          "sha256": "1beb2d1df55e7846d02f1301cc1210bc759bce7eb5243acb541242b9e4c7be24"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/table-command/webkit/receipt.json",
+          "sha256": "909e0e8c088097711d76c3ee470c6aafb83ac40dffd5f21caf4349ba25fcca24"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/table-invalidation/chromium/receipt.json",
+          "sha256": "c09d15e478bc4589ab17cd02829922bdcdad2a33e13d29eebc7a9700f83e0d17"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/table-invalidation/firefox/receipt.json",
+          "sha256": "b51449d6ecb4fc229d5c112f0ecf0bae5dfbbd7f1af70e0e520316459e96d4ef"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/table-invalidation/webkit/receipt.json",
+          "sha256": "07077e97bff853a77e37b5128861a2329e558400863fdb711a17a52c80f18cf0"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/source-table-format/chromium/receipt.json",
+          "sha256": "25f1a76d8d58503695d0630e2115183f498aa4f49741351357934d2f03fae066"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/source-table-format/firefox/receipt.json",
+          "sha256": "5a42408c61cc331a9a2e51f6e702be9f849e294ecabe48ff0531ad68b66c82c5"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/source-table-format/webkit/receipt.json",
+          "sha256": "ed891392762a20a587e3cac52fd39692c903fad8f7501e042d8e5a457e5c8c19"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/runtime-source-pins.json",
+          "sha256": "df204334981006d5027adc8a9440f83f58dcf102992216426bcf81011b124c00"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-4-inline-media",
+      "owner": "PRIMARY exact-input carry-forward plus qualified ADP-1.2 original workflow return",
+      "command": "node scripts/run-web-editing-media-table-refresh-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference-prerequisites/chromium/extension-formatting/receipt.json",
+          "sha256": "cf14485c674d62ce353617ac80ab496c417e322f341c83183205db42c38ba49f"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference-prerequisites/chromium/extension-formatting-mixed/receipt.json",
+          "sha256": "a03dc373fc069acf25ab37cd4ec4aaf873cf910b997c2d7e0b90f024711a23fd"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference-prerequisites/firefox/extension-formatting/receipt.json",
+          "sha256": "d4be91d7ed2a1f343568c5fc952ad0aad437916947f2ed2c3c6461e227423042"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference-prerequisites/firefox/extension-formatting-mixed/receipt.json",
+          "sha256": "ae2ef168f80cd2bf1a312973f059911d9bf7f5be0517e58c4394c886d34aa1e6"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference-prerequisites/webkit/extension-formatting/receipt.json",
+          "sha256": "cbad02ad88cc3d3c58513ca7bb6575d9ed9d0fdf0fca9cd4d7624a25df9fe312"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference-prerequisites/webkit/extension-formatting-mixed/receipt.json",
+          "sha256": "6b54365a8f200a66a8dd574f4d7940e950530a259ce3332357d773db74052aaa"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/image-lifecycle/chromium/receipt.json",
+          "sha256": "98d2f2b841f03dd5604cbfb0b5a85e97d821c99c362be4e3df321f59fe192014"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/image-lifecycle/firefox/receipt.json",
+          "sha256": "28c2c2e34ce8df6620317b8406327f489f575cf448f080a744b2f8011fc92317"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/image-lifecycle/webkit/receipt.json",
+          "sha256": "82f1bc9eed8f61ad2cdb74d1bcff1f264744a21a82554a09d6b6edc465b4f64d"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/attachment-actions/chromium/receipt.json",
+          "sha256": "6c9fd652e11eaacd6777e5e0913dab6005e1c8989a32e59b0d13f86902e4d0b4"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/attachment-actions/firefox/receipt.json",
+          "sha256": "21783391662e20071d4a43b93153f7309bab37111f3490375ed588b19a242b7a"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/attachment-actions/webkit/receipt.json",
+          "sha256": "4fab8ff5ff136460ba7fded75d035bcd2c9d91d882ecbdfdf471b7f9dd79ac81"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/controlled-embeds/chromium/receipt.json",
+          "sha256": "e3df6eea1c40e0d58b5dae8f182deaf97665f56ac2d7bc3142afaa56afd75191"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/controlled-embeds/firefox/receipt.json",
+          "sha256": "de0ddd4ee00c5beb03cc0618ddc3e6d6b0a22ec09b9ea15743cfac9da13eabc3"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/controlled-embeds/webkit/receipt.json",
+          "sha256": "a6817a7e7b85b1ae60b8827c3430b2e27213d06244c39aca7a60940077c2323a"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/runtime-source-pins.json",
+          "sha256": "df204334981006d5027adc8a9440f83f58dcf102992216426bcf81011b124c00"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-3-reference-label",
+      "owner": "PRIMARY exact-input carry-forward plus qualified ADP-1.2 original workflow return",
+      "command": "node scripts/run-web-command-reference-refresh-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference-prerequisites/chromium/extension-formatting-mixed/receipt.json",
+          "sha256": "a03dc373fc069acf25ab37cd4ec4aaf873cf910b997c2d7e0b90f024711a23fd"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference-prerequisites/firefox/extension-formatting-mixed/receipt.json",
+          "sha256": "ae2ef168f80cd2bf1a312973f059911d9bf7f5be0517e58c4394c886d34aa1e6"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference-prerequisites/webkit/extension-formatting-mixed/receipt.json",
+          "sha256": "6b54365a8f200a66a8dd574f4d7940e950530a259ce3332357d773db74052aaa"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/runtime-source-pins.json",
+          "sha256": "df204334981006d5027adc8a9440f83f58dcf102992216426bcf81011b124c00"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-3-reference-transfer",
+      "owner": "PRIMARY exact-input carry-forward plus qualified ADP-1.2 original workflow return",
+      "command": "node scripts/run-web-command-reference-refresh-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference-prerequisites/chromium/registered-inline-transfer/receipt.json",
+          "sha256": "a26fc5d39e6e75d865ef4c9b80f09cbb95dc4da818cca0b402b7d9899596c3c0"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference-prerequisites/firefox/registered-inline-transfer/receipt.json",
+          "sha256": "b0f9449e2827376962bc87e6ca4dd1d645df36ee1a46dbf08e6db242ef76ff5d"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference-prerequisites/webkit/registered-inline-transfer/receipt.json",
+          "sha256": "0acbf2070ab4cc3ab2aa54b7e93c21bb7e39a6097f5398ebb77d054590dc1ce8"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/runtime-source-pins.json",
+          "sha256": "df204334981006d5027adc8a9440f83f58dcf102992216426bcf81011b124c00"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-3-reference",
+      "owner": "PRIMARY exact-input carry-forward plus qualified ADP-1.2 original workflow return",
+      "command": "node scripts/run-web-command-reference-refresh-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference/link-enrichment/chromium/receipt.json",
+          "sha256": "4cc04abaae3e53f1ef70ccfe4e52a8c63fd5e8d658497007890545ee09a3f89e"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference/link-enrichment/firefox/receipt.json",
+          "sha256": "c56e88285e17323368b227dec560074a5bb212db334ec09cb066e575b369008f"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference/link-enrichment/webkit/receipt.json",
+          "sha256": "72b05799da97136f728e4d789b84b86abad8c55193b6d6458892a95892758f36"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference/private-link-display/chromium/receipt.json",
+          "sha256": "6c48888a02905bad3c7962cfbe75f52bc1f6ed30d7a357e2e4c8a19e570a0261"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference/private-link-display/firefox/receipt.json",
+          "sha256": "685d6a064ba106cdefd133911f9fd4cfd2ab868903ff65e45a264978256e9e18"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference/private-link-display/webkit/receipt.json",
+          "sha256": "03c3fd74c0d81ce0873ee2cf381764395391684f2e3076d07b88d15dcd48fe47"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference/reference-presenters/chromium/receipt.json",
+          "sha256": "df6ec018b0470e828c4104f297fae3600c8291cde8d81d08aeb817ef76704beb"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference/reference-presenters/firefox/receipt.json",
+          "sha256": "85562e7573a103f81b5bd65c54482f5699e783624c11d66c673e85351578c9b3"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference/reference-presenters/webkit/receipt.json",
+          "sha256": "0a515f7aaa8e7ac451fb6cc89b784f71db1fe5b7466a084c9655f8ae5eef06a8"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference/references/chromium/receipt.json",
+          "sha256": "b09a0aa79df5bfaa66c6268e3e73ca891205641827fb7037484d57db0f14f23a"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference/references/firefox/receipt.json",
+          "sha256": "4e11191ed2bf7944a140b18e9491f16ab7c84e359fee0192affb2bcad991b860"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-3/run-1/reference/references/webkit/receipt.json",
+          "sha256": "cc90e6ff00b5695f621bde60c9fa780b28a1cd28c269dc856e9deb5a504fe43a"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/runtime-source-pins.json",
+          "sha256": "df204334981006d5027adc8a9440f83f58dcf102992216426bcf81011b124c00"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-2-math-reorder",
+      "owner": "PRIMARY exact-input carry-forward plus qualified ADP-1.2 original workflow return",
+      "command": "node scripts/run-web-search-math-refresh-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/math-reorder/math/chromium/receipt.json",
+          "sha256": "dd23c8601821fc2009a8c396ab1729b0cda538d9c1a822dfe1350789b569452a"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/math-reorder/math/firefox/receipt.json",
+          "sha256": "6b16daed8b0356d8eefadbff8a4daee15e7547b64310e8359870f87c68e4ca30"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/math-reorder/math/webkit/receipt.json",
+          "sha256": "21418e5a38cc53f734097f4eae2acf230eaedd01054fbf704d84e971d2cad44c"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/math-reorder/reorder/chromium/receipt.json",
+          "sha256": "7db01ea6c4223098a14acf39c125d77a0eed7e4797cc4e262fbeb4fdd89a3305"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/math-reorder/reorder/firefox/receipt.json",
+          "sha256": "bbaf472c816f8ef045bc80db68ede396db741f436e7b6f16f930cd0040ff7ecf"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/math-reorder/reorder/webkit/receipt.json",
+          "sha256": "7958769d487966c6b82c79708fd0492b0165093c5f7101be1a46f906568a46c0"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/math-reorder/reorder-pointer/chromium/receipt.json",
+          "sha256": "5e24a056d8968ace758dcccb365ce4fcf83843b5d7822f8e7f1930e62cb57423"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/math-reorder/reorder-pointer/firefox/receipt.json",
+          "sha256": "c98d439634260e9cd8824e3a74e293de605a1a439d032b3723ac82af43d44ff7"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/math-reorder/reorder-pointer/webkit/receipt.json",
+          "sha256": "43d7e1f92a4acdc290fbdee8f87a6817b567723dca41f3cdc82f549d3590e8d5"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/runtime-source-pins.json",
+          "sha256": "df204334981006d5027adc8a9440f83f58dcf102992216426bcf81011b124c00"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-web-task-workspace",
+      "owner": "PRIMARY exact-input carry-forward plus qualified ADP-1.2 original workflow return",
+      "command": "node tests/scenarios/run.mjs web-task-workspace",
+      "sdkRevision": "e50c5344744757a9a562b3b57bb570e0d0ca8a26",
+      "sourceManifests": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/runtime-source-pins.json",
+          "sha256": "df204334981006d5027adc8a9440f83f58dcf102992216426bcf81011b124c00"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-parallel-clients/architecture/evidence/queued-product-adoption-20261019/adp-1.1/runtime/chromium/web-task-workspace/receipt.json",
+          "sha256": "a360a54f023588e4d65562575c5cf8337afef4ea831be627c01c3724f50314e3",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-parallel-clients/architecture/evidence/queued-product-adoption-20261019/adp-1.1/prepared"
+        },
+        {
+          "path": "/Users/bpstr/Github/edit-ac-parallel-clients/architecture/evidence/queued-product-adoption-20261019/adp-1.1/runtime/firefox/web-task-workspace/receipt.json",
+          "sha256": "1d2834de81361584a420770a411d5562ca26972acfcb7beccfe2c001bafece1d",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-parallel-clients/architecture/evidence/queued-product-adoption-20261019/adp-1.1/prepared"
+        },
+        {
+          "path": "/Users/bpstr/Github/edit-ac-parallel-clients/architecture/evidence/queued-product-adoption-20261019/adp-1.1/runtime/webkit/web-task-workspace/receipt.json",
+          "sha256": "3db83be506fc65494eca56d4cbd47bc5998056d7d5c45ca9636889a696ed25f1",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-parallel-clients/architecture/evidence/queued-product-adoption-20261019/adp-1.1/prepared"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-web-react-routes",
+      "owner": "PRIMARY exact-input carry-forward plus qualified ADP-1.2 original workflow return",
+      "command": "node tests/scenarios/run.mjs web-react-routes",
+      "sdkRevision": "e50c5344744757a9a562b3b57bb570e0d0ca8a26",
+      "sourceManifests": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/runtime-source-pins.json",
+          "sha256": "df204334981006d5027adc8a9440f83f58dcf102992216426bcf81011b124c00"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-parallel-clients/architecture/evidence/queued-product-adoption-20261019/adp-1.1/runtime/chromium/web-react-routes/receipt.json",
+          "sha256": "bb633990caaeb2eb7e5f8921c4d1ba8b68c7f15b9dd4471237ba0c8de74bbcfe",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-parallel-clients/architecture/evidence/queued-product-adoption-20261019/adp-1.1/prepared"
+        },
+        {
+          "path": "/Users/bpstr/Github/edit-ac-parallel-clients/architecture/evidence/queued-product-adoption-20261019/adp-1.1/runtime/firefox/web-react-routes/receipt.json",
+          "sha256": "e00230eef71ef13d5067f30fec7212acf14a800e9c1ce39a8e7432af702d2474",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-parallel-clients/architecture/evidence/queued-product-adoption-20261019/adp-1.1/prepared"
+        },
+        {
+          "path": "/Users/bpstr/Github/edit-ac-parallel-clients/architecture/evidence/queued-product-adoption-20261019/adp-1.1/runtime/webkit/web-react-routes/receipt.json",
+          "sha256": "c0827a2959ff8d350fb5cfb8db1ac004234db0b43f06bb5c04c2158335c0acaa",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-parallel-clients/architecture/evidence/queued-product-adoption-20261019/adp-1.1/prepared"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-web-local-recovery",
+      "owner": "PRIMARY exact-input carry-forward plus qualified ADP-1.2 original workflow return",
+      "command": "node tests/scenarios/run.mjs web-local-recovery",
+      "sdkRevision": "e50c5344744757a9a562b3b57bb570e0d0ca8a26",
+      "sourceManifests": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/runtime-source-pins.json",
+          "sha256": "df204334981006d5027adc8a9440f83f58dcf102992216426bcf81011b124c00"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-parallel-clients/architecture/evidence/queued-product-adoption-20261019/adp-1.1/runtime/chromium/web-local-recovery/receipt.json",
+          "sha256": "cd2960042e61462c22c6cffcef3b358f677f903a384cda7dd5f1c5f6cbdca9c3",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-parallel-clients/architecture/evidence/queued-product-adoption-20261019/adp-1.1/prepared"
+        },
+        {
+          "path": "/Users/bpstr/Github/edit-ac-parallel-clients/architecture/evidence/queued-product-adoption-20261019/adp-1.1/runtime/firefox/web-local-recovery/receipt.json",
+          "sha256": "7db6b894a41982f1288dc17e4eadbe8b0990d3103c164d89036d882012bdaa4e",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-parallel-clients/architecture/evidence/queued-product-adoption-20261019/adp-1.1/prepared"
+        },
+        {
+          "path": "/Users/bpstr/Github/edit-ac-parallel-clients/architecture/evidence/queued-product-adoption-20261019/adp-1.1/runtime/webkit/web-local-recovery/receipt.json",
+          "sha256": "cbdf9f0797d04261d0477ca8674d428ece35f3320aada402fa9ddd54f741f882",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-parallel-clients/architecture/evidence/queued-product-adoption-20261019/adp-1.1/prepared"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-collaboration-transport",
+      "owner": "PRIMARY exact-input carry-forward plus qualified ADP-1.2 original workflow return",
+      "command": "node scripts/run-web-workflow-collaboration-refresh-boundary.mjs",
+      "sourceManifests": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/runtime-source-pins.json",
+          "sha256": "df204334981006d5027adc8a9440f83f58dcf102992216426bcf81011b124c00"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-1/bound/transport-receipt.json",
+          "sha256": "16d57b8ca1e60a7893994ae6b53c18535b0998a00818f3b11ff78b3e4ffaaab7",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-1/run-5/collaboration"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-collaboration-offline",
+      "owner": "PRIMARY exact-input carry-forward plus qualified ADP-1.2 original workflow return",
+      "command": "node scripts/run-web-workflow-collaboration-refresh-boundary.mjs",
+      "sourceManifests": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/runtime-source-pins.json",
+          "sha256": "df204334981006d5027adc8a9440f83f58dcf102992216426bcf81011b124c00"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-1/bound/offline-receipt.json",
+          "sha256": "380d5ad73d07f15f778a9d6383b98e6305fe59c58fb7c90dfdba0c14ad1920d8",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-1/run-5/collaboration"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-collaboration-sdk",
+      "owner": "PRIMARY exact-input carry-forward plus qualified ADP-1.2 original workflow return",
+      "command": "node --test --test-reporter=tap tests/browser/sdk.spec.ts",
+      "sourceManifests": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/runtime-source-pins.json",
+          "sha256": "df204334981006d5027adc8a9440f83f58dcf102992216426bcf81011b124c00"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/sdk-main-refresh/chromium/receipt.json",
+          "sha256": "038d1999315843cfd607172684029243c9a8d65f32b5e73ce3539e4b4ad579ae",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing"
+        },
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/sdk-main-refresh/firefox/receipt.json",
+          "sha256": "9f2f2a9f5522b928656c42f9ac22fd6c2a1a923a433c6c413618e00dde355813",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing"
+        },
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/sdk-main-refresh/webkit/receipt.json",
+          "sha256": "c8de42e7c8c96a21507269ce8e5fee3e8a627c79f2c5244cca7661c42f825162",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/run-1/editing"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-collaboration-configuration",
+      "owner": "PRIMARY exact-input carry-forward plus qualified ADP-1.2 original workflow return",
+      "command": "node scripts/run-web-workflow-collaboration-refresh-boundary.mjs",
+      "sourceManifests": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/runtime-source-pins.json",
+          "sha256": "df204334981006d5027adc8a9440f83f58dcf102992216426bcf81011b124c00"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-1/bound/configuration-chromium-receipt.json",
+          "sha256": "def7a710351d98dfa9b77e1133071a6113f3e8201ea113a0b1b7c8144ede2d61",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-1/run-5/collaboration"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-1/bound/configuration-firefox-receipt.json",
+          "sha256": "c25fdccfd14acf60f73052b19e9e76b2df57f6dabb40bf4f53f25b58a07dfa59",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-1/run-5/collaboration"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-1/bound/configuration-webkit-receipt.json",
+          "sha256": "c22a9c1494c86dbd604e2fd0e61e61eae7863f4e5d0e787301c9d44b609ef422",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-1/run-5/collaboration"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-collaboration-web-collaboration",
+      "owner": "PRIMARY exact-input carry-forward plus qualified ADP-1.2 original workflow return",
+      "command": "node scripts/run-web-workflow-collaboration-refresh-boundary.mjs",
+      "sourceManifests": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-4/runtime-source-pins.json",
+          "sha256": "df204334981006d5027adc8a9440f83f58dcf102992216426bcf81011b124c00"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-1/bound/web-collaboration-chromium-receipt.json",
+          "sha256": "78d4ceee924fd84cbb75b1702c7141b0a8721256497d67f2c05b4599643ca62f",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-1/run-5/collaboration"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-1/bound/web-collaboration-firefox-receipt.json",
+          "sha256": "d331dfede055dd43b1a386c18dbc234025c077a773e0b5eb8b33a020204e545c",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-1/run-5/collaboration"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-1/bound/web-collaboration-webkit-receipt.json",
+          "sha256": "d39fc21c77efa03ed9315f50dc7215eaae670b82e558ac6850ab209bdf9e5d30",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-1/run-5/collaboration"
         }
       ]
     }
