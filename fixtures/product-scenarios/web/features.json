@@ -205,21 +205,63 @@
       "oracles": "Independent bounded rectangle/cell text/marks/metadata, invalidated foreign focus, lossless structured copy and rejection atomicity.",
       "proofs": [
         {
-          "id": "wex-1.4",
+          "id": "wfe-3.1-c2c-tables",
           "engines": [
             "chromium",
             "firefox",
             "webkit"
           ],
           "cases": [
+            "clear-Delete",
+            "clear-Backspace",
+            "Remove-rows",
+            "Remove-columns",
+            "Insert-row-before",
+            "Insert-row-after",
+            "Insert-column-before",
+            "Insert-column-after",
+            "text-versus-cells",
+            "clipboard-text-tab-separated-values",
+            "clipboard-text-plain",
+            "clipboard-text-html",
+            "paste-rejection",
+            "authority-stale-limits",
+            "gesture-ownership",
+            "dispose-cells",
+            "keyboard-rectangle",
+            "native-tab",
+            "quoted-text-tab-separated-values",
+            "quoted-text-plain",
+            "quoted-text-html",
+            "lossless-rejection",
+            "crlf-rectangle",
+            "cut-rectangle",
+            "selection-limit",
+            "quoted-cell-linefeed",
+            "cell-history-cold",
+            "selection-metadata",
+            "header-shape",
+            "composition-stale-readonly",
+            "dispose-late",
+            "rich-readonly",
+            "rowspan-fallback",
+            "header-native-selection",
+            "layout-invalidation",
             "rich-rectangle",
             "shape-preservation",
-            "rejections"
+            "rejections",
+            "selected-0",
+            "selected-1",
+            "stale",
+            "noop",
+            "invalid",
+            "limits",
+            "dispose",
+            "public-editor"
           ]
         }
       ],
-      "nextAction": "WEX-1.3/WEX-1.4 are integrated and the combined canonical rich suite passes in WFE-3.1-C3. Authenticate the independent table selection/command/invalidation cases before closing this feature.",
-      "gap": "Authenticate the independent table selection/command/invalidation return (WEX-1.1 delivery.json), in addition to final WEX-1.4 rich transfer union."
+      "nextAction": "Table feature original selection/commands/invalidation, rich transfer and source formatting proven on current installed SDK. Recheck only changed owning source/package/oracle inputs; later native/device/performance qualification remains deferred."
     },
     {
       "id": "WEB-INLINE-MEDIA",
@@ -2249,6 +2291,91 @@
         {
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2b-formats/pdf-oracle-sources.json",
           "sha256": "9564881f08ddd77624d007f35a79670092fd1b43b6d3de96c222506743771e29"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c2c-tables",
+      "owner": "PRIMARY current-source proof of PARALLEL table/rich return",
+      "command": "node scripts/run-web-table-boundary.mjs (original table-selection/table-command/table-invalidation/extension-formatting/source-table-format dispatchers)",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2c-tables/run-2/extension-formatting/chromium/mixed/receipt.json",
+          "sha256": "0d1f4e15b80dc3464a65b3a31ca458ccd8f93fbf039d4162a8d1f4ca4710d4bf"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2c-tables/run-2/extension-formatting/chromium/receipt.json",
+          "sha256": "812cecabe2f83a34e44ca340649c376e320f19ece5eef5e9f28e4810e5d2acc0"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2c-tables/run-2/extension-formatting/firefox/mixed/receipt.json",
+          "sha256": "9ad3c1500a6fa1675c32c985c3f4377000aac995eab50f7d8054bd887c752b64"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2c-tables/run-2/extension-formatting/firefox/receipt.json",
+          "sha256": "33d6a7958bcf55d089f9f37700b45969e64d0160f459b6962033da96d528ff11"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2c-tables/run-2/extension-formatting/webkit/mixed/receipt.json",
+          "sha256": "0cdc20582e3566f72b9f3c3f0e8fb76bc5f78111210af97e170dd82b0f2ee92b"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2c-tables/run-2/extension-formatting/webkit/receipt.json",
+          "sha256": "716a0771200fc43f4b409d8728244f302c9890399b162b3af088c62f3cf1f2f5"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2c-tables/run-2/source-table-format/chromium/receipt.json",
+          "sha256": "a7104275f7f021abff9b7be0a0c72ba36ef1bcabbf32a5294859997a5c1d690a"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2c-tables/run-2/source-table-format/firefox/receipt.json",
+          "sha256": "a1bd51be0cd44edb04e614e0239d6e6220db41408a760a1187c3650cd6788309"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2c-tables/run-2/source-table-format/webkit/receipt.json",
+          "sha256": "53bbd9b33ac4f472170b83125aadd82095bdd8083c3ba674cc760d3b01aae6f7"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2c-tables/run-2/table-command/chromium/receipt.json",
+          "sha256": "90b2d6e44de3dadeb4a512cfa36801c7eb0be4cd5e5900dbcbf8064b6658ae03"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2c-tables/run-2/table-command/firefox/receipt.json",
+          "sha256": "59617ad384afe545b45854736b5c1029089e27e82f7958398e29e604810e4805"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2c-tables/run-2/table-command/webkit/receipt.json",
+          "sha256": "6ca148d196d60fcc2e801a390fc3a090ae86b49852ffeb2cb44e74ad34025805"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2c-tables/run-2/table-invalidation/chromium/receipt.json",
+          "sha256": "9be7f2a0ac2549b0ca72ba9f5b30c920796f97bd542b3032e22ae002f89f4a24"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2c-tables/run-2/table-invalidation/firefox/receipt.json",
+          "sha256": "e29c5b69fbfe4dc5c824894ceb32a29a7b3c63729c070a659fc439573a1d6f34"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2c-tables/run-2/table-invalidation/webkit/receipt.json",
+          "sha256": "1b09e9b3e656a74872c77b1ffe84ca055d930de6bc3ccaaf980633ddad1b63e7"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2c-tables/run-2/table-selection/chromium/receipt.json",
+          "sha256": "07d302b01a7e6fbd44cfaa9ece51b58c50995e74d4c8c8240e4880d0978cc86c"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2c-tables/run-2/table-selection/firefox/receipt.json",
+          "sha256": "f69baf4f09eeb315e48d09535b784ce6b6f3a0b13f000dcd92861d5d440866bf"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2c-tables/run-2/table-selection/webkit/receipt.json",
+          "sha256": "0ea74045e7bf5770736102cd2af12ab8d125db6a8f9296aea84a8a96362e8b68"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2c-tables/runtime-source-pins.json",
+          "sha256": "c4097492ac0d842630278d635b34b184a87bc5513242aa905847a4b968eb32ac"
         }
       ]
     }
