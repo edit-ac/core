@@ -21,14 +21,20 @@ const countsOK = c => {
   assert.ok(c.executed > 0); assert.equal(c.executed, c.passed);
   for (const key of ['failed', 'skipped', 'cancelled', 'todo']) assert.equal(c[key] ?? 0, 0, key);
 };
-const execution = { task: 'WFE-3.1-C4l', feature: 'WEB-READONLY', originalParents: ['WFE-3.1-I1', 'WFE-3.1-V1'],
+const execution = { task: 'WFE-3.1-C4o-1', features: ['WEB-ROUTES', 'WEB-READONLY', 'WEB-LOCAL'], originalParents: ['WFE-3.1-I1', 'WFE-3.1-V1'],
   node: process.version, npm: '11.17.0', started: new Date().toISOString(), commands: [], receipts: [] };
 try {
   const preparedPath = resolve(process.env.EDITAC_PRODUCT_SITE_RECEIPT), prepared = await json(preparedPath);
   assert.equal(prepared.prepared, true); assert.equal(prepared.toolchains.node, process.versions.node);
   const sources = Object.fromEntries(prepared.sources.map(p => [p.path, p.sha256]));
   const runtime = await json('../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2c-tables/runtime-source-pins.json');
-  for (const [path, digest] of Object.entries(runtime)) sources[path] = digest;
+  // The historical manifest defines runtime coverage, not current digests.
+  // Hash current inputs before execution; never restamp historical receipts.
+  for (const path of Object.keys(runtime)) {
+    const digest = sha(await readFile(path));
+    if (path in sources) assert.equal(sources[path], digest, 'Prepared/current input conflict: ' + path);
+    sources[path] = digest;
+  }
   sources['scripts/run-web-readonly-boundary.mjs'] = sha(await readFile('scripts/run-web-readonly-boundary.mjs'));
   const verifySources = async () => {
     for (const [path, digest] of Object.entries(sources)) assert.equal(sha(await readFile(path)), digest, 'Changed current source: ' + path);
@@ -57,22 +63,11 @@ try {
       originals.push({ suite, engine, original: oldPin, cases: old.cases });
     }
   }
-  const reuse = ledger.proofs.find(p => p.id === 'wfe-3.1-markdown-web-react-routes'); assert.ok(reuse);
-  const ready = [];
-  for (const cell of originals.filter(c => c.suite === 'web-react-routes')) {
-    const rPin = reuse.receipts.find(p => p.path.includes('/routes-' + cell.engine + '/')); assert.ok(rPin);
-    assert.equal(sha(await readFile(rPin.path)), rPin.sha256);
-    const r = await json(rPin.path); countsOK(r.counts); assert.equal(r.exit, 0);
-    assert.deepEqual(r.cases, cell.cases); assert.deepEqual(r.artifacts, prepared.artifacts); assert.deepEqual(r.packs, prepared.packs);
-    assert.equal(r.toolchains.node, process.versions.node); assert.equal(r.profile.engine, cell.engine);
-    assert.ok(r.teardown.includes('fixture listener closed'));
-    for (const p of r.sources) assert.equal(sha(await readFile(p.path)), p.sha256, 'Changed accepted route input: ' + p.path);
-    ready.push({ ...cell, ...await pin(rPin.path), counts: r.counts, mode: 'exact-input-reuse', packageDirectory: rPin.packageDirectory });
-  }
-  execution.receipts.push(...ready); await save('execution.json', execution);
+  // Shared facade/runtime changed: execute all original suites against this site.
+  await save('execution.json', execution);
   const priorOutput = process.env.EDITAC_WEB_READONLY_RESUME && resolve(process.env.EDITAC_WEB_READONLY_RESUME);
   const prior = priorOutput && await json(join(priorOutput, 'execution.json'));
-  for (const cell of originals.filter(c => c.suite !== 'web-react-routes')) {
+  for (const cell of originals) {
     const { suite, engine } = cell;
     const accepted = prior?.receipts.find(r => r.suite === suite && r.engine === engine && r.counts.failed === 0);
     if (accepted) {
