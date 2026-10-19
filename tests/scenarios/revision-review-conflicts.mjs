@@ -12,7 +12,10 @@ export async function conflictCases({ page, server, facts, check, output }) {
     const w = (await import(url)).instances[name];
     return { ...await (await import('/fixture/oracles.mjs')).liveOracle(w), history: w.owner.engine.history({ type: 'state' }) };
   }, { name });
-  const stable = ({ snapshot, checkpoint, journal, history }) => ({ snapshot, checkpoint, journal, history });
+  // changedNodes/touchedRanges describe a last patch, not document semantics.
+  // Preserve every identity/revision/content/retained field; retain raw observations in receipts.
+  const semantic = ({ changedNodes, touchedRanges, ...snapshot }) => snapshot;
+  const stable = ({ snapshot, checkpoint, journal, history }) => ({ snapshot: semantic(snapshot), checkpoint, journal, history });
   const edit = async text => {
     await page.locator('#revision-editor [data-node-id]').first().click();
     await page.keyboard.press('Meta+a'); await page.keyboard.type(text);
@@ -48,8 +51,8 @@ export async function conflictCases({ page, server, facts, check, output }) {
   const context = async (reason, expectedBase, expectedCurrent, expectedProposed) => {
     const recovery = await run(async ({ url }) => (await import(url)).workspace.restoreRecovery);
     assert.equal(recovery.kind, 'conflict'); assert.equal(recovery.reason, reason);
-    assert.deepEqual(recovery.base, expectedBase); assert.deepEqual(recovery.current, expectedCurrent); assert.deepEqual(recovery.proposed, expectedProposed);
-    assert.deepEqual(JSON.parse(await page.locator('#revision-restore-recovery').textContent()), { base: expectedBase, current: expectedCurrent, proposed: expectedProposed });
+    for (const [key, expected] of Object.entries({ base: expectedBase, current: expectedCurrent, proposed: expectedProposed })) assert.deepEqual(recovery[key] && semantic(recovery[key]), expected && semantic(expected));
+    assert.deepEqual(JSON.parse(await page.locator('#revision-restore-recovery').textContent()), { base: recovery.base, current: recovery.current, proposed: recovery.proposed });
     assert.match(await page.locator('#revision-restore-status').textContent(), reason === 'rejected' ? /post-call state/ : new RegExp(reason));
     facts.oracles[Object.keys(facts.oracles).length] = { reason, recovery, current: await observe() };
   };
@@ -104,7 +107,9 @@ export async function conflictCases({ page, server, facts, check, output }) {
   });
   await check('pruned-after-preview-keeps-current-and-recovery', async () => {
     await setup(); await preview();
-    for (let n = 0; n < 3; n++) await capture(`Pruner ${n}`);
+    // Deterministic retention injection: preserve the real outstanding UI preview
+    // while the same bounded public store evicts its handle.
+    await run(async ({ url }) => { const w = (await import(url)).workspace; for (let n = 0; n < 3; n++) await w.store.capture(w.owner.engine, w.access(), `Pruner ${n}`); w.review.refresh(); });
     assert.equal(await run(async ({ url, handle }) => { const w = (await import(url)).workspace; return w.store.read(handle, w.access()).reason; }, { handle }), 'pruned');
     await button('Apply restore as new edit').click();
     await context('unavailable', before.snapshot, before.snapshot, baseline.snapshot); await unchanged(before);
@@ -140,7 +145,7 @@ export async function conflictCases({ page, server, facts, check, output }) {
     await run(async ({ url }) => { const w = (await import(url)).workspace; w.restorer.host.commit = () => { throw Error('Prepared host admission denied'); }; });
     await button('Apply restore as new edit').click();
     await context('rejected', before.snapshot, before.snapshot, baseline.snapshot);
-    const after = await observe(); assert.deepEqual(after.snapshot, before.snapshot); assert.equal(after.checkpoint, before.checkpoint); assert.equal(after.journal, before.journal);
+    const after = await observe(); assert.deepEqual(semantic(after.snapshot), semantic(before.snapshot)); assert.equal(after.checkpoint, before.checkpoint); assert.equal(after.journal, before.journal);
     assert.deepEqual(stable(await observe('comment')), stable(sibling));
   });
   await check('post-call-host-failure-reports-actual-mutation-without-rollback-claim', async () => {
@@ -155,17 +160,29 @@ export async function conflictCases({ page, server, facts, check, output }) {
     assert.match(await page.locator('#revision-restore-status').textContent(), /a change may already have occurred/);
     assert.deepEqual(stable(await observe('comment')), stable(sibling));
   });
-  await check('marked-and-structural-changes-remain-visible-unsupported', async () => {
+  await check('marked-changes-remain-visible-unsupported', async () => {
     await setup();
     await run(async ({ url }) => {
       const w = (await import(url)).workspace, id = w.owner.engine.read().visible[0].id;
       const anchor = w.owner.engine.anchor(id, 0, 'right'), focus = w.owner.engine.anchor(id, 45, 'left');
-      try { w.owner.commit({ kind: 'fragment', origin: 'revision-unsupported-fixture', range: { anchor, focus }, blocks: [{ attributes: { type: 'heading', level: 2 }, runs: [{ text: 'Marked current', marks: [{ mark: 'bold' }] }] }] }); }
+      try { w.owner.commit({ kind: 'fragment', origin: 'revision-unsupported-fixture', range: { anchor, focus }, blocks: [{ attributes: { type: 'paragraph' }, runs: [{ text: 'Marked current', marks: [{ mark: 'bold' }] }] }] }); }
       finally { w.owner.engine.releaseAnchor(anchor); w.owner.engine.releaseAnchor(focus); }
       await w.save();
     });
     const rich = await observe(); assert.ok(rich.snapshot.visible.some(n => n.runs.some(r => r.marks.length)));
     await preview(); await context('unsupported', rich.snapshot, rich.snapshot, baseline.snapshot); await unchanged(rich);
+    assert.equal(await button('Apply restore as new edit').count(), 0);
+  });
+  await check('structural-changes-remain-visible-unsupported', async () => {
+    await setup();
+    await run(async ({ url, current }) => {
+      const w = (await import(url)).workspace, id = w.owner.engine.read().visible[0].id;
+      const anchor = w.owner.engine.anchor(id, 0, 'right'), focus = w.owner.engine.anchor(id, current.length, 'left');
+      try { w.owner.commit({ kind: 'fragment', origin: 'revision-structure-fixture', range: { anchor, focus }, blocks: [{ attributes: { type: 'heading', level: 2 }, runs: [{ text: current, marks: [] }] }] }); }
+      finally { w.owner.engine.releaseAnchor(anchor); w.owner.engine.releaseAnchor(focus); } await w.save();
+    }, { current });
+    const structural = await observe(); assert.equal(structural.text, current); assert.notDeepEqual(structural.snapshot.visible[0].blockAttributes, before.snapshot.visible[0].blockAttributes);
+    await preview(); await context('unsupported', structural.snapshot, structural.snapshot, baseline.snapshot); await unchanged(structural);
     assert.equal(await button('Apply restore as new edit').count(), 0);
   });
   await check('opaque-unsupported-data-is-retained-exactly', async () => {

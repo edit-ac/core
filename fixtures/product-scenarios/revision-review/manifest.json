@@ -200,7 +200,8 @@
         "close-fences-callback-before-flush-and-after-disposal",
         "host-pre-admission-rejection-keeps-engine-and-journal",
         "post-call-host-failure-reports-actual-mutation-without-rollback-claim",
-        "marked-and-structural-changes-remain-visible-unsupported",
+        "marked-changes-remain-visible-unsupported",
+        "structural-changes-remain-visible-unsupported",
         "opaque-unsupported-data-is-retained-exactly",
         "denied-instance-keeps-sibling-editable-and-saveable"
       ]
