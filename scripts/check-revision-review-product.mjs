@@ -36,6 +36,7 @@ export function checkCoverage(receipt, scenario, group) {
   }
   for (const command of receipt.commands) assert.equal(command.exit, 0, 'Failed setup command');
 }
+const normalizePreparation = value => value.replace("'scripts/check-revision-review-product.mjs', ", '').replace("'scripts/run-web-command-reference-refresh-boundary.mjs', ", '');
 const normalizeDispatcher = value => value
   .replace(/^import \{ integratedCases \} from '\.\/revision-review-integrated\.mjs';\n/m, '')
   .replace(', integrated: integratedCases', '');
@@ -114,6 +115,9 @@ export async function checkDelivery(deliveryPath, mainRoot) {
       if (source.path === 'tests/scenarios/revision-review-product.mjs' && source.sha256 !== pinned.get(source.path)) {
         const old = git('show', `${r.sourceRevision}:${source.path}`);
         assert.equal(sha(old), source.sha256); assert.equal(normalizeDispatcher(old.toString()), normalizeDispatcher(committed(source.path).toString()), 'Dispatcher behavior changed');
+      } else if (source.path === 'examples/task-editor/revision-review-prepare.mjs' && source.sha256 !== pinned.get(source.path)) {
+        const old = git('show', `${r.sourceRevision}:${source.path}`);
+        assert.equal(sha(old), source.sha256); assert.equal(normalizePreparation(old.toString()), normalizePreparation(committed(source.path).toString()), 'Preparation changed beyond the two noncompilation proof-script exemptions');
       } else assert.equal(source.sha256, pinned.get(source.path), `Affected source changed: ${source.path}`);
     }
     assert.ok(r.sources.some(s => s.path === `tests/scenarios/revision-review-${ref.group}.mjs`), 'Missing group source');
