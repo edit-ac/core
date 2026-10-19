@@ -9,13 +9,18 @@ import { requireTestNode } from './test-toolchain.mjs';
 // Compose both original boundaries over one authenticated current SDK build.
 // This adds admission/accounting, never substitute behavioral cases.
 await requireTestNode();
+// Fail before any browser work when the required Rust fixture toolchain is absent.
+const cargo = spawnSync('cargo', ['--version'], { encoding: 'utf8' });
+assert.equal(cargo.error, undefined, 'Cargo must be available before either boundary');
+assert.equal(cargo.status, 0, 'Cargo preflight must succeed');
+assert.match(cargo.stdout, /^cargo 1\.97\.1\b/, 'Use the admitted Rust fixture toolchain');
+assert.ok(process.env.EDITAC_PRODUCT_SDK_ADMISSION, 'Name the current immutable SDK admission');
 assert.ok(process.env.EDITAC_WEB_SEARCH_MATH_REFRESH_OUTPUT, 'Name a new evidence directory');
 const output = resolve(process.env.EDITAC_WEB_SEARCH_MATH_REFRESH_OUTPUT);
 mkdirSync(output);
 const json = path => JSON.parse(readFileSync(path, 'utf8'));
 const save = (name, value) => writeFileSync(join(output, name), JSON.stringify(value, null, 2) + '\n');
-const admissionPath = resolve(process.env.EDITAC_PRODUCT_SDK_ADMISSION ??
-  '../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-filename-current/admission.json');
+const admissionPath = resolve(process.env.EDITAC_PRODUCT_SDK_ADMISSION);
 const admitted = admitImmutableSdk(admissionPath);
 const sources = admitted.sources, members = admitted.runtime;
 // Preserve the original child dispatchers and their existing build interface.
@@ -33,6 +38,7 @@ save('build-admission.json', { sdkAdmission: admitted.receipt, sources, members,
   runner: { path: 'scripts/run-web-search-math-refresh-boundary.mjs',
     sha256: hash(readFileSync('scripts/run-web-search-math-refresh-boundary.mjs')) } });
 const execution = { task: 'WFE-3.1-C9-2', originalParents: ['WFE-3.1-I1', 'WFE-3.1-V1'],
+  toolchain: { node: process.version, cargo: cargo.stdout.trim() },
   started: new Date().toISOString(), commands: [], receipts: [], failures: [] };
 try {
   for (const [name, key] of [['search-code', 'SEARCH_CODE'], ['math-reorder', 'MATH_REORDER']]) {
