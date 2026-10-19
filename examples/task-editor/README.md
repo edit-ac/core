@@ -19,11 +19,11 @@ node examples/task-editor/product.mjs
 
 To enable the optional Markdown example, use the same launcher with
 `node examples/task-editor/product.mjs --markdown`, then open its `?markdown`
-link. It builds and installs the separate `@edit-ac/markdown` package and serves
-its WASM from that installed site. The query explicitly enables parsing for the
-rich task editor; the plain comment stays literal. Without the flag the launcher
-does not build or serve the optional codec. Without the query the editor does
-not fetch or activate it, even when the optional assets are available.
+link. It records the separate `@edit-ac/markdown` composition and serves its WASM
+from the installed site. The standard installed format controls also include this
+codec for text/Markdown conversion. The `?markdown` or `?formats` query explicitly
+enables it for the rich task editor; the plain comment stays literal. The default
+task URL does not fetch or activate the codec even when its assets are installed.
 
 This single command builds a committed SDK snapshot, packs and installs the actual
 local core/web/React/Markdown/format tarballs, bundles the existing React example with pinned

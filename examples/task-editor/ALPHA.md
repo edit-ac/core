@@ -10,8 +10,9 @@ node examples/task-editor/product.mjs
 Use the localhost URLs printed by this one launcher. It installs packed SDK
 artifacts and uses a dynamic port. Stop with Ctrl+C; `preview.json` in the printed
 artifact directory records the process, input pins and shutdown. To include the
-opt-in Markdown parser, run the same command with `--markdown` and open its
-`?markdown` link. The [walkthrough](README.md) documents package/site receipt
+explicit Markdown composition, run the same command with `--markdown` and open
+its `?markdown` link. The installed format controls also include the codec;
+activation is query opt-in. The [walkthrough](README.md) documents package/site receipt
 reuse and toolchain setup.
 
 ## Walk through the local product
