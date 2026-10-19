@@ -1,4 +1,4 @@
-import type { EngineHandle, Snapshot, CommitResult, EditorCommand, AnchorToken, PlanToken } from '@edit-ac/core';
+import type { EngineHandle, Snapshot, CommitResult, EditorCommand, AnchorToken, PlanToken, SemanticCapture, SemanticComparison } from '@edit-ac/core';
 
 export interface HistoryScope { identity: Snapshot['identity']; moduleProfile: string }
 export interface RevisionProvenance {
@@ -9,7 +9,7 @@ export interface RevisionProvenance {
 export interface HistoricalRevision {
   handle: string; label: string; hash: string; representation: 'semantic';
   profile: 'editac-web-history-v1'; scope: HistoryScope; snapshot: Snapshot;
-  provenance: RevisionProvenance; keyProfile: string | null;
+  comparison: SemanticCapture; provenance: RevisionProvenance; keyProfile: string | null;
 }
 export type HistoryRead = { kind: 'available'; revision: HistoricalRevision }
   | { kind: 'unavailable'; reason: 'missing' | 'pruned' | 'incompatible' | 'key-unavailable' };
@@ -44,12 +44,13 @@ export class WebHistoryStore {
     for (const limit of Object.values(this.#limits)) if (!Number.isSafeInteger(limit) || limit < 1) throw Error('Invalid history limit');
   }
   async capture(engine: EngineHandle, access: HistoryAccess, label: string, provenance: RevisionProvenance = { origin: 'unknown' }): Promise<string> {
-    const snapshot = clone(engine.read());
+    const captured = engine.captureSemantic(access.scope.moduleProfile);
+    const snapshot = clone(captured.snapshot);
     if (encode(snapshot.identity) !== encode(access.scope.identity) || !access.scope.moduleProfile) throw Error('Incompatible history scope');
     if (typeof label !== 'string' || !['human','agent','import','replay','unknown'].includes(provenance.origin)
       || (provenance.authenticatedAuthor !== undefined && (typeof provenance.authenticatedAuthor !== 'string' || !provenance.authenticatedAuthor))) throw Error('Invalid history metadata');
     const body = clone({ label, representation: 'semantic' as const, profile: 'editac-web-history-v1' as const,
-      scope: access.scope, snapshot, provenance, keyProfile: access.keyProfile ?? null });
+      scope: access.scope, snapshot, comparison: clone(captured.comparison), provenance, keyProfile: access.keyProfile ?? null });
     // Reserve the handle only after hashing; the snapshot was detached before the async boundary.
     if (size(body) + 256 > this.#limits.maxRevisionBytes || size(body) + 256 > this.#limits.maxBytes) throw Error('History revision exceeds byte limit');
     const hash = await sha256(body);
@@ -69,6 +70,13 @@ export class WebHistoryStore {
     if (encode(access.scope) !== encode(entry.revision.scope)) return { kind: 'unavailable', reason: 'incompatible' };
     if (entry.revision.keyProfile !== (access.keyProfile ?? null)) return { kind: 'unavailable', reason: 'key-unavailable' };
     return { kind: 'available', revision: clone(entry.revision) };
+  }
+  /** Resolve both immutable captures under the same scope/key access, then call Rust. */
+  compare(engine: EngineHandle, beforeHandle: string, afterHandle: string, access: HistoryAccess): SemanticComparison {
+    const before = this.read(beforeHandle, access), after = this.read(afterHandle, access);
+    if (before.kind !== 'available') throw Error(`History comparison before unavailable: ${before.reason}`);
+    if (after.kind !== 'available') throw Error(`History comparison after unavailable: ${after.reason}`);
+    return engine.compareSemantic(before.revision.comparison, after.revision.comparison);
   }
   list(access: HistoryAccess): readonly { handle: string; label: string; availability: HistoryRead['kind'] }[] {
     return [...this.#entries].map(([handle, entry]) => ({ handle, label: entry.revision.label, availability: encode(access.scope) === encode(entry.revision.scope) && (access.keyProfile ?? null) === entry.revision.keyProfile ? 'available' : 'unavailable' }));

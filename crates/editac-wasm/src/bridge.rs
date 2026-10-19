@@ -203,6 +203,13 @@ pub(crate) struct Bridge {
     patch_sequence: u64,
 }
 impl Bridge {
+    pub fn capture_semantic(&self, profile: &str) -> Result<Value> {
+        crate::comparison::capture(&self.doc, profile)
+    }
+    pub fn compare_semantic(&self, input: &str) -> Result<Value> {
+        crate::comparison::compare(&self.doc, input)
+    }
+
     pub fn asset_work(&self, input: &str) -> Result<Value> {
         crate::assets::transaction(self.doc.identity(), input)
     }

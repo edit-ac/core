@@ -106,6 +106,23 @@ export interface Snapshot {
   changedNodes: string[];
   touchedRanges: { source: string; start: number; newStart: number; oldEnd: number; newEnd: number }[];
 }
+/** Detached bounded Rust capture. Host data, not an edit or authorization capability. */
+export interface SemanticCapture {
+  version: "editac-browser-semantic-capture-v1";
+  identity: Snapshot["identity"]; moduleProfile: string; observedToken: number[];
+  hash: string; bindingHash: string; payload: string;
+}
+export type SemanticFacet = "Insert" | "Delete" | "Visibility" | "Placement" | "Kind" | "Text" | "Formatting" | "References" | "Table" | "Attributes" | "UnknownModule" | "Sources";
+export interface SemanticNode {
+  id: string; kind: string; parent: string; order: number;
+  spans: ProjectedNode["spans"]; runs: { text: string; marks: Record<string, Json> }[];
+  attributes: Json; editor: Json; opaque: Json;
+}
+export interface SemanticComparison {
+  version: "editac-semantic-diff-v1"; before_hash: string; after_hash: string; attribution: "unknown";
+  changes: { id: string; facets: SemanticFacet[]; before: SemanticNode | null; after: SemanticNode | null }[];
+  retained_structure: [Json, Json] | null;
+}
 export type AnchorResolution =
   | { type: "position"; node: string; offset: number; source: string; sourceOffset: number; bias: Bias }
   | { type: "deleted"; source: string; owner: string }
@@ -185,6 +202,10 @@ export interface EngineHandle {
   exportMarkdown(blocks: readonly FragmentBlock[], options?: MarkdownOptions): MarkdownExport;
   captureSourceBaseline(source: string, owners: readonly string[], options?: Pick<MarkdownOptions, "images" | "tables" | "callouts">, opening?: Checkpoint): SourceBaseline;
   read(): Snapshot;
+  /** Explicit read-only capture, including the actual observed deletion-aware token. */
+  captureSemantic(moduleProfile: string): { snapshot: Snapshot; comparison: SemanticCapture };
+  /** Read-only bounded Rust semantic comparison; independent of restore permission. */
+  compareSemantic(before: SemanticCapture, after: SemanticCapture): SemanticComparison;
   /** Pure bounded clipboard shape check; semantic/target admission is separate. */
   validateFragment(raw: string): void;
   importHTML(tree: readonly HTMLNode[]): { blocks: readonly FragmentBlock[]; diagnostics: readonly string[] };
@@ -218,6 +239,8 @@ export class EngineError extends Error {
 }
 /** Internal compiled boundary; application clients use EngineHandle. */
 export interface RawEngine {
+  capture_semantic(moduleProfile: string): string;
+  compare_semantic(input: string): string;
   asset_work(input: string): string;
   prepare_asset_commit(token: string, input: string): string;
   validate_fragment(input: string): string;
@@ -432,6 +455,15 @@ function ownHandle(allocation: RawEngine): EngineHandle {
       const input = JSON.stringify(tree);
       if (utf8Length(input) > 8 * 1048576) throw new EngineError("ResourceLimit", "importHTML", "html-limit");
       return JSON.parse(e.import_html(input)) as { blocks: readonly FragmentBlock[]; diagnostics: readonly string[] };
+    }),
+    captureSemantic: (moduleProfile: string) => use("captureSemantic", e => {
+      if (typeof moduleProfile !== "string" || !moduleProfile || moduleProfile.length > 256) throw new EngineError("InvalidInput", "captureSemantic", "invalid module profile");
+      return JSON.parse(e.capture_semantic(moduleProfile)) as { snapshot: Snapshot; comparison: SemanticCapture };
+    }),
+    compareSemantic: (before: SemanticCapture, after: SemanticCapture) => use("compareSemantic", e => {
+      const input = encode({before, after}, "compareSemantic");
+      if (utf8Length(input) > 4 * 1024 * 1024) throw new EngineError("ResourceLimit", "compareSemantic", "comparison request exceeds byte limit");
+      return JSON.parse(e.compare_semantic(input)) as SemanticComparison;
     }),
     importMarkdown, exportMarkdown,
     captureSourceBaseline: (source: string, owners: readonly string[], options: Pick<MarkdownOptions, "images" | "tables" | "callouts"> = {}, opening?: Checkpoint): SourceBaseline => use("captureSourceBaseline", e => {

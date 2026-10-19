@@ -77,3 +77,26 @@ test('destroy and repeated mount remove historical controller without retaining 
 test('an intervening host callback cannot bypass Rust revision-bound plan admission',()=>probe('prepared-plan-race',async(page)=>{
   await mount(page);await inspect(page);await preview(page);await page.evaluate(()=>window.historyFixture.interfere());await apply(page);assert.match(await page.getByRole('status').innerText(),/conflict: rejected/);assert.equal(texts(await snapshot(page))[0],'intervening callback edit');
 }));
+
+test('two real captures derive Rust comparison while persisted journal and live history remain unchanged',()=>probe('public-capture-comparison',async(page,fact)=>{
+  await mount(page);await page.evaluate(()=>window.historyFixture.mark());
+  const current=await page.evaluate(()=>window.historyFixture.capture('Current comparison'));
+  const before=await page.evaluate(async()=>{const f=window.historyFixture,e=f.engine;return {snapshot:f.snapshot(),history:f.history(),checkpoint:{...e.checkpoint(),bytes:[...e.checkpoint().bytes]},journal:await f.flush(),patches:f.patches.length,usage:f.store.usage,entries:f.store.list(f.access)};});
+  const result=await page.evaluate(current=>{
+    const f=window.historyFixture;f.readonly(true);
+    const model=f.store.compare(f.engine,f.old,current,f.access);
+    const equal=f.store.compare(f.engine,current,current,f.access);
+    const rejected=[];
+    for(const [left,right,access] of [['missing',current,f.access],[f.old,current,{...f.access,keyProfile:'rotated'}],[f.old,current,{scope:{...f.access.scope,moduleProfile:'wrong'}}]]){
+      try{f.store.compare(f.engine,left,right,access);rejected.push('unexpected-success');}catch(error){rejected.push(error.message);}
+    }
+    return {model,equal,rejected};
+  },current);
+  assert.equal(result.model.version,'editac-semantic-diff-v1');assert.equal(result.model.attribution,'unknown');
+  const change=result.model.changes.find(c=>c.id===before.snapshot.visible[0].id);
+  for(const facet of ['Text','Formatting'])assert.ok(change.facets.includes(facet));
+  assert.match(change.before.runs.map(r=>r.text).join(''),/alpha/);assert.equal(change.after.runs.map(r=>r.text).join(''),'current beta');
+  assert.deepEqual(result.equal.changes,[]);assert.match(result.rejected[0],/missing/);assert.match(result.rejected[1],/key-unavailable/);assert.match(result.rejected[2],/incompatible/);
+  const after=await page.evaluate(async()=>{const f=window.historyFixture,e=f.engine;return {snapshot:f.snapshot(),history:f.history(),checkpoint:{...e.checkpoint(),bytes:[...e.checkpoint().bytes]},journal:await f.flush(),patches:f.patches.length,usage:f.store.usage,entries:f.store.list(f.access)};});
+  assert.deepEqual(after,before);fact.snapshots.push({before,after,model:result.model,rejections:result.rejected});
+}));

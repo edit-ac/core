@@ -27,6 +27,23 @@ pub struct Engine {
 }
 #[wasm_bindgen]
 impl Engine {
+    pub fn capture_semantic(&self, profile: &str) -> Result<String, JsValue> {
+        output(
+            self.inner
+                .as_ref()
+                .ok_or_else(|| disposed("captureSemantic"))
+                .and_then(|b| b.capture_semantic(profile)),
+        )
+    }
+    pub fn compare_semantic(&self, input: &str) -> Result<String, JsValue> {
+        output(
+            self.inner
+                .as_ref()
+                .ok_or_else(|| disposed("compareSemantic"))
+                .and_then(|b| b.compare_semantic(input)),
+        )
+    }
+
     #[wasm_bindgen(constructor)]
     pub fn new(input: &str) -> Result<Engine, JsValue> {
         Bridge::create(input)
