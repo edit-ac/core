@@ -22,7 +22,10 @@
       ],
       "supportingSources": [
         "examples/task-editor/revision-review-product.mjs",
-        "tests/scenarios/revision-review-capture.mjs"
+        "examples/task-editor/revision-review-prepare.mjs",
+        "tests/scenarios/revision-review-capture.mjs",
+        "tests/scenarios/revision-review-scope.mjs",
+        "tests/scenarios/revision-review-compare.mjs"
       ],
       "cases": [
         "installed-editable-explicit-capture",
@@ -56,7 +59,10 @@
       ],
       "supportingSources": [
         "examples/task-editor/revision-review-product.mjs",
-        "tests/scenarios/revision-review-scope.mjs"
+        "examples/task-editor/revision-review-prepare.mjs",
+        "tests/scenarios/revision-review-capture.mjs",
+        "tests/scenarios/revision-review-scope.mjs",
+        "tests/scenarios/revision-review-compare.mjs"
       ],
       "cases": [
         "simultaneous-independent-identities-and-journals",
@@ -67,6 +73,43 @@
         "sibling-save-and-reopen",
         "remount-reopens-only-own-durable-document",
         "scope-swap-preserves-live-bytes"
+      ]
+    },
+    "compare": {
+      "parent": "RVP-1.2",
+      "command": [
+        "node",
+        "tests/scenarios/revision-review-product.mjs"
+      ],
+      "engines": [
+        "chromium",
+        "firefox",
+        "webkit"
+      ],
+      "fixtures": [
+        "examples/task-editor/revision-review.html",
+        "examples/task-editor/revision-review.mjs",
+        "examples/task-editor/revision-review.css",
+        "examples/task-editor/document.mjs",
+        "fixtures/product-scenarios/revision-review/oracles.mjs",
+        "fixtures/product-scenarios/revision-review/manifest.json"
+      ],
+      "supportingSources": [
+        "examples/task-editor/revision-review-product.mjs",
+        "examples/task-editor/revision-review-prepare.mjs",
+        "tests/scenarios/revision-review-capture.mjs",
+        "tests/scenarios/revision-review-scope.mjs",
+        "tests/scenarios/revision-review-compare.mjs"
+      ],
+      "cases": [
+        "two-real-captures-text-mark-attributes-opaque",
+        "public-model-hashes-and-facets-visible",
+        "all-three-public-display-modes",
+        "inspection-and-comparison-preserve-engine-journal-history",
+        "pruned-selection-recovers-without-live-mutation",
+        "missing-and-foreign-handles-recover-without-live-mutation",
+        "presenter-clips-long-values-with-visible-notice",
+        "comparison-disposal-and-remount-clears-only-own-view"
       ]
     }
   }

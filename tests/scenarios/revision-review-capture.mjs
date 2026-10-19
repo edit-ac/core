@@ -67,7 +67,7 @@ export async function captureCases({ page, server, facts, check, output }) {
     assert.deepEqual(first.snapshot, firstExpected); assert.deepEqual(second.snapshot, secondExpected);
     assert.deepEqual(history.revisions[0], first, 'Later editing cannot change the first capture');
     for (const [revision, snapshot, label] of [[first, firstExpected, 'Before rewrite'], [second, secondExpected, 'After rewrite']]) {
-      const body = { label, representation: 'semantic', profile: 'editac-web-history-v1', scope: { identity: snapshot.identity, moduleProfile: 'revision-review-task-v1' }, snapshot, provenance: { origin: 'unknown' }, keyProfile: null };
+      const body = { label, representation: 'semantic', profile: 'editac-web-history-v1', scope: { identity: snapshot.identity, moduleProfile: 'revision-review-task-v1' }, snapshot, comparison: revision.comparison, provenance: { origin: 'unknown' }, keyProfile: null };
       assert.equal(revision.hash, sha(JSON.stringify(body)), 'Independent Node hash of the expected captured input');
     }
     assert.notEqual(first.hash, second.hash);
@@ -96,7 +96,7 @@ export async function captureCases({ page, server, facts, check, output }) {
   await check('fifo-count-pruning', async () => {
     await capture('Third capture'); await capture('Fourth capture');
     const history = await retained();
-    assert.equal(history.usage.revisions, 3); assert.ok(history.usage.bytes <= 24576);
+    assert.equal(history.usage.revisions, 3); assert.ok(history.usage.bytes <= 98304);
     assert.deepEqual(history.revisions.map(r => r.label), ['After rewrite', 'Third capture', 'Fourth capture']);
     const read = await page.evaluate(async ({ moduleURL, handle }) => {
       const { workspace: w } = await import(moduleURL); w.review.inspect(handle); return w.store.read(handle, w.access());
@@ -106,14 +106,14 @@ export async function captureCases({ page, server, facts, check, output }) {
     facts.oracles.count = history;
   });
   await check('encoded-byte-pruning', async () => {
-    await edit('B'.repeat(3000));
+    await edit('B'.repeat(6500));
     for (const name of ['Large one', 'Large two', 'Large three']) await capture(name);
     const history = await retained();
     assert.equal(history.usage.revisions, 2, 'Bytes must prune before the three-capture count limit');
     assert.deepEqual(history.revisions.map(r => r.label), ['Large two', 'Large three']);
     const encodedBytes = history.revisions.reduce((sum, r) => sum + Buffer.byteLength(JSON.stringify(r)), 0);
-    assert.equal(history.usage.bytes, encodedBytes); assert.ok(encodedBytes <= 24576);
-    assert.ok(history.revisions.every(r => Buffer.byteLength(JSON.stringify(r)) <= 12288));
+    assert.equal(history.usage.bytes, encodedBytes); assert.ok(encodedBytes <= 98304);
+    assert.ok(history.revisions.every(r => Buffer.byteLength(JSON.stringify(r)) <= 49152));
     facts.oracles.bytes = { usage: history.usage, independentlyCountedBytes: encodedBytes, labels: history.revisions.map(r => r.label) };
   });
   await check('oversized-capture-error-preserves-history-and-live', async () => {
