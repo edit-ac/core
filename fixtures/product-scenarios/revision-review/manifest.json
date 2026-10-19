@@ -313,6 +313,49 @@
         "disposal-awaits-opening-owner-and-concurrent-close",
         "default-routes-unchanged-and-no-orphan-requests"
       ]
+    },
+    "integrated": {
+      "parent": "RVP-3.2",
+      "command": [
+        "node",
+        "tests/scenarios/revision-review-product.mjs"
+      ],
+      "engines": [
+        "chromium",
+        "firefox",
+        "webkit"
+      ],
+      "fixtures": [
+        "examples/task-editor/revision-review.html",
+        "examples/task-editor/revision-review.mjs",
+        "examples/task-editor/revision-review.css",
+        "examples/task-editor/document.mjs",
+        "fixtures/product-scenarios/revision-review/oracles.mjs",
+        "fixtures/product-scenarios/revision-review/manifest.json",
+        "examples/task-editor/revision-review-restorer.mjs",
+        "examples/task-editor/revision-review-controls.mjs"
+      ],
+      "supportingSources": [
+        "examples/task-editor/revision-review-product.mjs",
+        "examples/task-editor/revision-review-prepare.mjs",
+        "tests/scenarios/revision-review-capture.mjs",
+        "tests/scenarios/revision-review-scope.mjs",
+        "tests/scenarios/revision-review-restore.mjs",
+        "tests/scenarios/revision-review-compare.mjs",
+        "tests/scenarios/revision-review-conflicts.mjs",
+        "tests/scenarios/revision-review-reopen.mjs",
+        "tests/scenarios/revision-review-keyboard.mjs",
+        "tests/scenarios/revision-review-integrated.mjs"
+      ],
+      "cases": [
+        "integrated-capture-edit-two-real-revisions",
+        "integrated-compare-is-readonly-and-semantic",
+        "integrated-supported-restore-is-one-owner-edit",
+        "integrated-undo-redo-retains-restored-identities",
+        "integrated-stale-denial-preserves-newer-journal",
+        "integrated-readonly-denial-requires-fresh-preview",
+        "integrated-save-full-reload-empty-captures"
+      ]
     }
   }
 }
