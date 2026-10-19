@@ -780,9 +780,80 @@
         }
       ],
       "oracles": "Source-preserving math fallback and one semantic reorder, no mutation for stale/readonly/cancelled gestures.",
-      "proofs": [],
-      "nextAction": "Repair or authenticate the exact changed owner inputs reported by the ledger, then reuse the existing named dispatcher. No unchanged failed-check retry.",
-      "gap": "Authenticate existing modules-math and modules-reorder public-browser receipts against the current union; source/render behavior remains required."
+      "proofs": [
+        {
+          "id": "wfe-3.1-c4b-math-reorder",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "inline",
+            "display",
+            "invalid",
+            "url",
+            "image",
+            "html",
+            "macro",
+            "depth",
+            "literal",
+            "disabled",
+            "absentRenderer",
+            "helper",
+            "load-error",
+            "renderer-safety",
+            "stable-view",
+            "dispose-pending",
+            "peer-source",
+            "pending-update",
+            "mutation-ownership",
+            "keyboard-parity",
+            "button-parity",
+            "concurrent-before",
+            "concurrent-after",
+            "invalid-self",
+            "invalid-descendant",
+            "invalid-non-container",
+            "invalid-non-sibling",
+            "stale-target",
+            "boundary",
+            "tab-enter",
+            "readonly-ime",
+            "cancel",
+            "history",
+            "recovery-disposal",
+            "nested-valid",
+            "backward-selection",
+            "embedded-control",
+            "slash-priority",
+            "malformed-destination",
+            "hover-cancel",
+            "drop-before",
+            "drop-after",
+            "alternative-keyboard",
+            "alternative-click",
+            "alternative-tap",
+            "peer-before",
+            "peer-after",
+            "deleted-destination",
+            "deleted-source",
+            "stale-destination",
+            "cancel-pointercancel",
+            "cancel-lostpointercapture",
+            "cancel-readonly",
+            "cancel-composition",
+            "cancel-blur",
+            "cancel-dispose",
+            "nested-owner",
+            "bounded-work-2000",
+            "repeat-dispose",
+            "fast-release",
+            "noop-release"
+          ]
+        }
+      ],
+      "nextAction": "Original safe lazy math source/render/fallback and semantic keyboard/pointer reorder behavior proven through current installed SDK in three browsers. Recheck only changed source/package/oracle inputs; native/device/performance remain deferred."
     },
     {
       "id": "WEB-MARKDOWN",
@@ -2803,6 +2874,55 @@
         {
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4-search-code/run-1/source-pins.json",
           "sha256": "b0ff13fda4fd2cb636c29e9a16d2de5d06f37d5ec96808c65c93d8f2547fa87f"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c4b-math-reorder",
+      "owner": "PRIMARY current-source math/reorder boundary; original presenters remain PARALLEL-owned",
+      "command": "node scripts/run-web-math-reorder-boundary.mjs (authenticated Rust/lazy prerequisites and original math/reorder/reorder-pointer browser dispatchers)",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4b-math-reorder/run-4/math/chromium/receipt.json",
+          "sha256": "5f9a30ae307078c15af4219b4242652cfefbacdd293a6fe78f7d15d080646375"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4b-math-reorder/run-4/math/firefox/receipt.json",
+          "sha256": "ab3a8e385288ff9fac899ecf789c9144af3ac72d3af465516cbc66debbeb1f81"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4b-math-reorder/run-4/math/webkit/receipt.json",
+          "sha256": "a945d0f02603cc4eb0cc9c7cd0c6518e0f36b9239ab8d2a20aaffbe8d031e91f"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4b-math-reorder/run-4/reorder/chromium/receipt.json",
+          "sha256": "2e6a676d66c3004ceb56456fb1c18f14f3c62ae58c5d098ffa85ef3d61347797"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4b-math-reorder/run-4/reorder/firefox/receipt.json",
+          "sha256": "e1a691e3f69833263f3871cacbdb2670750f1234afb0892e381e365e5f36ce33"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4b-math-reorder/run-4/reorder/webkit/receipt.json",
+          "sha256": "f81275711097272e0c2a0bc8b9ca8c2dc9e593977fcaf2d0e1162c1ead973d35"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4b-math-reorder/run-4/reorder-pointer/chromium/receipt.json",
+          "sha256": "581ae18cbba77de72e17d97e046e9ed0fa748f887970f38a87bda605ddbe54cf"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4b-math-reorder/run-4/reorder-pointer/firefox/receipt.json",
+          "sha256": "642f940575095ae5b382f3f4ec7fe9482f6ab23ab5c4c294c067217fd38a3939"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4b-math-reorder/run-4/reorder-pointer/webkit/receipt.json",
+          "sha256": "29ecd785cc7d84d3b483881b89a86bab85899ac9b56b29a7508407c965dacb56"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4b-math-reorder/run-4/source-pins.json",
+          "sha256": "4c1d74eab1aea5ca69e568781cf6522f38fdc7b1ed28226d56bdce8ce7fdbbf5"
         }
       ]
     }
