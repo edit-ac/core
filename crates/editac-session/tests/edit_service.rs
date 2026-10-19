@@ -1067,3 +1067,51 @@ fn marked_atomic_asset_fallback_sqlite_transfer() {
 fn marked_atomic_inert_source_sqlite_transfer() {
     registered_fragment_case(3);
 }
+
+#[test]
+fn command_preview_reuses_exact_new_source_identity_and_one_durable_history_group() {
+    let id = identity();
+    let store = memory(&id);
+    let mut service = service(store.clone(), id.clone());
+    let before = service.read(0).unwrap();
+    let node = owner(service.session().document());
+    let at = service
+        .session()
+        .document()
+        .anchor(&node, Utf16Offset(3), Bias::Right)
+        .unwrap();
+    let bytes = service.session().document().checkpoint().bytes;
+    let plan = service
+        .prepare_commands(
+            &before.revision,
+            &[EditorCommand::Split { owner: node, at }],
+            &origin(),
+            0,
+        )
+        .unwrap();
+    let preview = plan.preview().clone();
+    assert_eq!(
+        preview
+            .visible
+            .iter()
+            .map(|n| n.runs.iter().map(|r| r.text.as_str()).collect::<String>())
+            .collect::<Vec<_>>(),
+        ["abc", "def"]
+    );
+    assert_eq!(bytes, service.session().document().checkpoint().bytes);
+    assert!(store.pending(&id).unwrap().is_empty());
+    let receipt = service.apply(plan, 0).unwrap().unwrap();
+    let after = service.read(0).unwrap();
+    assert_eq!(preview.visible, after.snapshot.visible);
+    assert_eq!(preview.recovery, after.snapshot.recovery);
+    assert_eq!(
+        preview.retained_structure,
+        after.snapshot.retained_structure
+    );
+    assert_eq!(store.pending(&id).unwrap().len(), 1);
+    assert_eq!(
+        service.local_receipt(&receipt.update).unwrap(),
+        Some(receipt)
+    );
+    assert_eq!(service.session().document().history_state().undo_groups, 1);
+}

@@ -1569,6 +1569,19 @@ impl Document {
         origin: &TextOrigin,
         registry: &crate::modules::registry::FrozenRegistry,
     ) -> Result<PreparedEditorEdit, EditorError> {
+        self.prepare_editor_with_registry_and_preview(commands, origin, registry)
+            .map(|(plan, _)| plan)
+    }
+    /// Return the exact admitted disposable-stage projection alongside its plan.
+    /// This reuses the mandatory final hierarchy qualification: it does not prepare
+    /// or commit the commands a second time and never observes/mutates live state.
+    /// Snapshot refresh metadata describes the disposable preview, not live work.
+    pub fn prepare_editor_with_registry_and_preview(
+        &self,
+        commands: &[EditorCommand],
+        origin: &TextOrigin,
+        registry: &crate::modules::registry::FrozenRegistry,
+    ) -> Result<(PreparedEditorEdit, crate::projection::Snapshot), EditorError> {
         if !self.identity().has_editor() {
             return Err(EditorError::UnsupportedProfile);
         }
@@ -2594,18 +2607,21 @@ impl Document {
             return Err(EditorError::ResourceLimit);
         }
         let update = stage.transact().encode_state_as_update_v1(&sv);
-        Ok(PreparedEditorEdit {
-            identity: self.identity().clone(),
-            writer: self.writer_id(),
-            revision: self.revision(),
-            baseline,
-            update,
-            origin: origin.clone(),
-            next_operation: counter,
-            result_caret,
-            result_selection,
-            entry_selection,
-        })
+        Ok((
+            PreparedEditorEdit {
+                identity: self.identity().clone(),
+                writer: self.writer_id(),
+                revision: self.revision(),
+                baseline,
+                update,
+                origin: origin.clone(),
+                next_operation: counter,
+                result_caret,
+                result_selection,
+                entry_selection,
+            },
+            hierarchy,
+        ))
     }
     fn virtual_document(&self, stage: &yrs::Doc) -> Result<Document, EditorError> {
         Document::restore(

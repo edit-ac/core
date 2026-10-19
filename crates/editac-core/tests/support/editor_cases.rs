@@ -1044,3 +1044,61 @@ fn inaccessible_separator_neighbor_identity_overflow_and_nonempty_creation_are_a
         .is_err()
     });
 }
+
+#[test]
+fn admitted_stage_preview_preserves_exact_plan_identity_and_semantics() {
+    for case in 0..4 {
+        let mut d = engine();
+        d.enable_history(Default::default()).unwrap();
+        let commands = match case {
+            0 => vec![EditorCommand::ReplaceAt {
+                owner: A.into(),
+                from: U(1),
+                to: U(3),
+                text: "🦀é".into(),
+            }],
+            1 => vec![EditorCommand::Split {
+                owner: A.into(),
+                at: d.anchor(A, U(1), Bias::Right).unwrap(),
+            }],
+            2 => vec![EditorCommand::Create {
+                id: d.next_editor_id(false).unwrap(),
+                kind: "block".into(),
+                text: "new😀".into(),
+                tuple: tuple("paragraph"),
+            }],
+            _ => vec![],
+        };
+        let before = (
+            d.checkpoint().bytes,
+            d.state_vector_v1(),
+            d.revision(),
+            d.history_state(),
+        );
+        let registry = Default::default();
+        let legacy = d
+            .prepare_editor_with_registry(&commands, &origin(), &registry)
+            .unwrap();
+        let (plan, preview) = d
+            .prepare_editor_with_registry_and_preview(&commands, &origin(), &registry)
+            .unwrap();
+        assert_eq!(
+            d.preview_editor(&plan).unwrap().bytes,
+            d.preview_editor(&legacy).unwrap().bytes
+        );
+        assert_eq!(
+            before,
+            (
+                d.checkpoint().bytes,
+                d.state_vector_v1(),
+                d.revision(),
+                d.history_state()
+            )
+        );
+        d.commit_editor(plan).unwrap();
+        let actual = d.snapshot().unwrap();
+        assert_eq!(preview.visible, actual.visible);
+        assert_eq!(preview.recovery, actual.recovery);
+        assert_eq!(preview.retained_structure, actual.retained_structure);
+    }
+}

@@ -17,12 +17,116 @@ fn projection(read: &NativeSessionRead) -> Value {
             .collect::<Vec<_>>()
     )
 }
+fn changed_regions(
+    session: &NativeSession,
+    target: &str,
+    directory: &std::path::Path,
+) -> Result<Vec<Value>, String> {
+    let mut cells = vec![];
+    for width in [1usize, 4, 16] {
+        let before = session.read(0).unwrap();
+        let index = before.nodes.iter().position(|n| n.id == target).unwrap();
+        let original = &before.nodes[index].text;
+        let byte = original
+            .as_bytes()
+            .windows(width)
+            .position(|w| w.iter().all(u8::is_ascii))
+            .expect("fixed corpus ASCII region");
+        let offset = original[..byte].encode_utf16().count() as u32;
+        let mut expected = projection(&before);
+        let mut cursor = session
+            .rich_snapshot()
+            .map_err(|e| format!("{e:?}"))?
+            .sequence;
+        let entry_groups = session.history_state(0).unwrap().undo_groups;
+        let mut samples = vec![];
+        let first = if &original[byte..byte + width] == "#".repeat(width) {
+            '%'
+        } else {
+            '#'
+        };
+        for sample in 0..12 {
+            let read = session.read(0).unwrap();
+            let replacement = if sample % 2 == 0 { first } else { '^' }
+                .to_string()
+                .repeat(width);
+            let started = Instant::now();
+            let plan = session
+                .prepare_edits(
+                    read.revision.clone().unwrap(),
+                    vec![NativeSessionEdit {
+                        node: target.into(),
+                        from_utf16: offset,
+                        to_utf16: offset + width as u32,
+                        text: replacement.clone(),
+                    }],
+                    "fitness-session-region-cost".into(),
+                    0,
+                )
+                .unwrap();
+            let prepare_ms = started.elapsed().as_secs_f64() * 1000.0;
+            assert_eq!(projection(&session.read(0).unwrap()), projection(&read));
+            let receipt = session.commit_edits(plan, 0).unwrap().unwrap();
+            let patches = session.take_rich_patches(cursor).unwrap();
+            cursor = patches.sequence;
+            assert_eq!(
+                patches.patches_json.len(),
+                1,
+                "one bounded actual native patch"
+            );
+            let patch: Value = serde_json::from_str(&patches.patches_json[0]).unwrap();
+            assert_eq!(patch["changedNodes"], json!([target]));
+            assert_eq!(patch["changedSources"].as_array().unwrap().len(), 1);
+            assert_eq!(patch["nodes"].as_array().unwrap().len(), 1);
+            assert!(!patch["touchedRanges"].as_array().unwrap().is_empty());
+            let mut expected_text = original.clone();
+            expected_text.replace_range(byte..byte + width, &replacement);
+            expected[index][2] = json!(expected_text);
+            assert_eq!(
+                projection(&session.read(0).unwrap()),
+                expected,
+                "complete corpus retained"
+            );
+            samples.push(json!({"prepareMs":prepare_ms,"sequence":receipt.sequence,
+                "changedNodes":1,"changedSources":1,"patches":1,
+                "patchBytes":patches.patches_json[0].len(),"touchedRanges":patch["touchedRanges"]}));
+            fs::write(
+                directory.join(format!("regions-{width}-samples.json")),
+                serde_json::to_vec(&samples).unwrap(),
+            )
+            .unwrap();
+        }
+        assert_eq!(
+            session.history_state(0).unwrap().undo_groups,
+            entry_groups + 12
+        );
+        for _ in 0..12 {
+            session
+                .undo(session.read(0).unwrap().revision.unwrap(), 0)
+                .unwrap()
+                .unwrap();
+        }
+        assert_eq!(projection(&session.read(0).unwrap()), projection(&before));
+        for _ in 0..12 {
+            session
+                .redo(session.read(0).unwrap().revision.unwrap(), 0)
+                .unwrap()
+                .unwrap();
+        }
+        assert_eq!(projection(&session.read(0).unwrap()), expected);
+        cells.push(json!({"widthUtf16":width,"nodes":before.nodes.len(),
+            "documentTextBytes":before.nodes.iter().map(|n| n.text.len()).sum::<usize>(),
+            "samples":samples,"counts":{"executed":12,"passed":12,"failed":0,"skipped":0},
+            "history":"12 complete undo/redo groups; whole-corpus identity/content exact"}));
+    }
+    Ok(cells)
+}
+
 fn main() {
     let args: Vec<_> = env::args().collect();
-    assert_eq!(
-        args.len(),
-        3,
-        "checkpoint JSON and unique evidence directory"
+    assert!(
+        args.len() == 3 || (args.len() == 4 && args[3] == "--regions"),
+        "checkpoint JSON and unique evidence directory, optional --regions"
     );
     let frozen: Value = serde_json::from_slice(&fs::read(&args[1]).unwrap()).unwrap();
     let id = &frozen["identity"];
@@ -165,9 +269,38 @@ fn main() {
         expected_final,
         "actual SQLite reopen preserves whole corpus"
     );
+    // Preserve the complete owning scenario before optional boundary checks.
+    // A later failure must never erase or qualify a different proof scope.
+    let mut result = json!({"scope":"public NativeSession prepare + actual SQLite; prepared host causal attribution, not platform input/tail qualification","checkpoint":args[1],"nodes":initial.nodes.len(),"samples":samples,"counts":{"executed":12,"passed":12,"failed":0,"skipped":0},"oracles":["full-corpus content each commit","silent preparation and exact revision","durable receipt each commit","12 explicit undo/redo groups","SQLite reopen"],"regions":[],"disposed":false});
+    fs::write(
+        directory.join("primary-result.json"),
+        serde_json::to_vec(&result).unwrap(),
+    )
+    .unwrap();
+    let regions = if args.len() == 4 {
+        changed_regions(&reopened, &node.id, &directory)
+    } else {
+        Ok(vec![])
+    };
     reopened.dispose().unwrap();
-    println!(
-        "{}",
-        json!({"scope":"public NativeSession prepare + actual SQLite; prepared host causal attribution, not platform input/tail qualification","checkpoint":args[1],"nodes":initial.nodes.len(),"samples":samples,"counts":{"executed":12,"passed":12,"failed":0,"skipped":0},"oracles":["full-corpus content each commit","silent preparation and exact revision","durable receipt each commit","12 explicit undo/redo groups","SQLite reopen"],"disposed":true})
-    );
+    result["disposed"] = json!(true);
+    match regions {
+        Ok(cells) => result["regions"] = json!(cells),
+        Err(error) => {
+            result["supplementalFailure"] = json!({"boundary":"native rich snapshot before changed-region samples","error":error,"qualified":false});
+            fs::write(
+                directory.join("result.json"),
+                serde_json::to_vec(&result).unwrap(),
+            )
+            .unwrap();
+            println!("{result}");
+            std::process::exit(1);
+        }
+    }
+    fs::write(
+        directory.join("result.json"),
+        serde_json::to_vec(&result).unwrap(),
+    )
+    .unwrap();
+    println!("{result}");
 }
