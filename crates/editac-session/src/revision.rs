@@ -57,7 +57,8 @@ impl ObservedRevision {
         Ok(Self { scope, state })
     }
 
-    pub(crate) fn observe(document: &Document) -> Result<Self, RevisionError> {
+    /// Capture an endpoint-local read-only token, including deletion state.
+    pub fn observe(document: &Document) -> Result<Self, RevisionError> {
         let vector = document.state_vector_v1();
         // Diff against these exact local clocks: no structs are missing, but the engine
         // emits its full delete set even when there have been deletion-only changes.

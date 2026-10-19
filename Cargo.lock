@@ -893,6 +893,7 @@ name = "editac-wasm"
 version = "0.0.0"
 dependencies = [
  "editac-core",
+ "editac-diff",
  "editac-html",
  "editac-markdown-wasm",
  "editac-session",

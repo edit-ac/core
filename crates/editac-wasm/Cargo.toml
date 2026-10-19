@@ -17,6 +17,7 @@ foundation-fixture = []
 fitness-trace = []
 
 [dependencies]
+editac-diff = { path = "../editac-diff" }
 editac-session = { path = "../editac-session", features = ["asset-serde"] }
 editac-html = { path = "../editac-html", default-features = false }
 editac-core = { path = "../editac-core" }
