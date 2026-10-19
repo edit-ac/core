@@ -27,10 +27,12 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   };
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => { void close().finally(() => process.exit(0)); });
   try {
-    const { site } = await prepareProductSite(output, facts);
-    server = await startFixtureServer({ fixtureDirectory: join(site, 'fixture'), coreDirectory: join(site, 'core'), webDirectory: join(site, 'web'), cacheAssets: true });
+    const { site } = process.argv.includes('--markdown')
+      ? await (await import('./product-markdown.mjs')).prepareMarkdownProductSite(output, facts)
+      : await prepareProductSite(output, facts);
+    server = await startFixtureServer({ fixtureDirectory: join(site, 'fixture'), coreDirectory: join(site, 'core'), webDirectory: join(site, 'web'), markdownDirectory: join(site, 'markdown'), cacheAssets: true });
     facts.process = { pid: process.pid, launcher: process.execPath, workspace: root, port: server.port, purpose: facts.purpose, log: join(output, 'preview.json') };
     await writeFile(join(output, 'preview.json'), JSON.stringify(facts, null, 2));
-    console.log(`Task/comment: ${server.url}/fixture/index.html\nReact tasks: ${server.url}/fixture/react.html?route=tasks\nDocument body: ${server.url}/fixture/react.html?route=document\nReadonly: ${server.url}/fixture/index.html?readonly\nStop: Ctrl+C (PID ${process.pid}, port ${server.port})\nArtifacts: ${output}`);
+    console.log(`Task/comment: ${server.url}/fixture/index.html\nReact tasks: ${server.url}/fixture/react.html?route=tasks\nDocument body: ${server.url}/fixture/react.html?route=document\nMarkdown (launch with --markdown): ${server.url}/fixture/index.html?markdown\nReadonly: ${server.url}/fixture/index.html?readonly\nStop: Ctrl+C (PID ${process.pid}, port ${server.port})\nArtifacts: ${output}`);
   } catch (error) { facts.failure = error.stack; await close(); throw error; }
 }
