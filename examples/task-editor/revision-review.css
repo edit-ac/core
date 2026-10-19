@@ -1,0 +1,20 @@
+:root { color-scheme: light; font: 16px/1.6 system-ui, sans-serif; color: #182b32; background: #f4f5ef; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { max-width: 85rem; margin: 0 auto; padding: 3rem 2rem; }
+header { max-width: 48rem; margin-bottom: 2rem; }
+h1 { font-size: clamp(2rem, 4vw, 3.25rem); line-height: 1.12; letter-spacing: -.04em; }
+h2 { margin-top: 0; font-size: 1.25rem; }
+.eyebrow { color: #3f6762; font-weight: 650; }
+.workspace { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+.workspace > section { padding: 1.5rem; border: 1px solid #ccd5cc; border-radius: .75rem; background: #fff; min-width: 0; }
+#revision-editor { min-height: 18rem; max-height: 32rem; overflow: auto; padding: 1rem; border: 1px solid #b3c4bd; border-radius: .4rem; margin-bottom: 1rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+button, input { font: inherit; border: 1px solid #9eafa8; border-radius: .35rem; padding: .5rem .75rem; }
+button { background: #edf4ef; color: #163e32; cursor: pointer; margin: .25rem .5rem .25rem 0; }
+button:disabled { opacity: .5; cursor: default; }
+input { width: 100%; margin: .3rem 0 .65rem; }
+:focus-visible { outline: 3px solid #287a68; outline-offset: 3px; }
+.note { color: #50605b; font-size: .875rem; }
+[data-state="error"] { color: #962c27; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 25rem; overflow: auto; background: #f4f5ef; padding: .75rem; border-radius: .35rem; }
+@media (max-width: 55rem) { main { padding: 1.5rem 1rem; } .workspace { grid-template-columns: 1fr; } }

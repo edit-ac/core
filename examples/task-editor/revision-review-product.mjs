@@ -1,0 +1,36 @@
+import { mkdir, writeFile } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { prepareProductHarness } from '../../tests/scenarios/harness.mjs';
+import { loadScenario, root } from '../../tests/scenarios/run.mjs';
+import { requireTestNode } from '../../scripts/test-toolchain.mjs';
+import { startFixtureServer } from '../../tests/browser/fixture-server.mjs';
+
+export const manifestPath = resolve(root, 'fixtures/product-scenarios/revision-review/manifest.json');
+export async function prepareRevisionProduct(output, facts, group = 'capture') {
+  const { scenario } = await loadScenario(group, manifestPath);
+  await mkdir(output, { recursive: true });
+  const paths = await prepareProductHarness(output, facts, scenario);
+  facts.prepared = true;
+  await writeFile(join(output, 'prepared.json'), JSON.stringify(facts, null, 2));
+  return paths;
+}
+async function preview() {
+  await requireTestNode();
+  const output = resolve(root, '.artifacts/revision-review-preview', new Date().toISOString().replace(/[:.]/g, '-'));
+  const facts = { output, commands: [], purpose: 'Opt-in local installed-SDK revision review' };
+  let server;
+  const close = async () => {
+    if (server) { await server.close(); facts.listenerStopped = !server.listening; server = undefined; }
+    await writeFile(join(output, 'preview.json'), JSON.stringify({ ...facts, stopped: true }, null, 2));
+  };
+  for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => { void close().finally(() => process.exit(0)); });
+  try {
+    const { site } = await prepareRevisionProduct(output, facts);
+    server = await startFixtureServer({ fixtureDirectory: join(site, 'fixture'), coreDirectory: join(site, 'core'), webDirectory: join(site, 'web') });
+    facts.process = { pid: process.pid, launcher: process.execPath, workspace: root, port: server.port, purpose: facts.purpose, log: join(output, 'preview.json') };
+    await writeFile(join(output, 'preview.json'), JSON.stringify(facts, null, 2));
+    console.log(`Revision review: ${server.url}/fixture/revision-review.html\nStop: Ctrl+C (PID ${process.pid}, port ${server.port})\nArtifacts: ${output}`);
+  } catch (error) { facts.failure = error.stack; await close(); throw error; }
+}
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await preview();
