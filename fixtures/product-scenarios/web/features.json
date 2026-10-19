@@ -3553,7 +3553,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c6-assistance",
+          "id": "wfe-3.1-c6a-refresh-assistance",
           "engines": [
             "chromium",
             "firefox",
@@ -9967,6 +9967,31 @@
         {
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c8/run-3/ai/source-pins.json",
           "sha256": "8b8671a097923e27fc192543b1c5b8415b887ebd940c5881aa5f9139e324dc18"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c6a-refresh-assistance",
+      "owner": "PRIMARY current installed SDK; qualified WEX-2.3 presenter",
+      "command": "EDITAC_WEB_MOBILE_ASSISTANCE_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6a-refresh/run-3 node scripts/run-web-mobile-assistance-refresh-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6a-refresh/run-3/chromium/receipt.json",
+          "sha256": "c628e0343c6e9fb9069c2941cb4b14b38c341febab096d0c3e8225e2098dedf7"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6a-refresh/run-3/firefox/receipt.json",
+          "sha256": "d923cd053ce4ce394c68b22d4d3168e5ce1380e0baf8fd8005656c874bf49f54"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6a-refresh/run-3/webkit/receipt.json",
+          "sha256": "e97b79ebfde362cfb8e32d770ff45bba603c8acce94eb83cc2f294ef745ba2f9"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6a-refresh/run-3/source-pins.json",
+          "sha256": "1fde36e77b07b2c977ad1faa0b7a7ac5dad81bc0dab89c9454a1a272d76d7eaa"
         }
       ]
     }
