@@ -3563,7 +3563,25 @@
       "oracles": "Independent document identities, opposite mount order, route save/restore/Back, scoped errors/disposal and one common resource graph.",
       "proofs": [
         {
-          "id": "wfe-3.1-markdown-web-react-routes",
+          "id": "wfe-3.1-c4o-1-web-task-workspace",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "dispatcher-rejects-invalid-inputs",
+            "distinct-documents-stores-callbacks",
+            "focus-edit-undo-isolation",
+            "task-rich-presenters",
+            "comment-capability-denial",
+            "readonly-admission-and-revocation",
+            "sibling-survives-disposal",
+            "isolated-error-callback"
+          ]
+        },
+        {
+          "id": "wfe-3.1-c4o-1-web-react-routes",
           "engines": [
             "chromium",
             "firefox",
@@ -3582,9 +3600,31 @@
             "scoped-recovery-error",
             "installed-common-resources"
           ]
+        },
+        {
+          "id": "wfe-3.1-c4o-1-web-local-recovery",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "dispatcher-rejects-invalid-inputs",
+            "independent-local-commits",
+            "offline-shell-reload-reopen",
+            "pending-and-local-status",
+            "readonly-revocation-preserves-content",
+            "append-failure-keeps-live-replica",
+            "deliberate-isolated-recovery-export",
+            "close-retains-unsaved-recovery",
+            "creation-denial-never-reseeds",
+            "existing-open-denial-preserves-content",
+            "missing-checkpoint-never-reseeds",
+            "corrupt-checkpoint-never-reseeds"
+          ]
         }
       ],
-      "nextAction": "Original PWE-1.5 route assertions refreshed after launcher optional-asset isolation; parser remains dormant on default routes."
+      "nextAction": "Current original shared workspace/routes/local-recovery workflow bound in c4o-1/binding.json; recheck changed inputs only. Full parent and alpha remain open."
     },
     {
       "id": "WEB-LOCAL",
@@ -3608,7 +3648,7 @@
       "oracles": "Actual IndexedDB reopen of distinct identities, denied/missing/corrupt checkpoints never reseed, failed append retains live unsaved content and deliberate isolated recovery bytes.",
       "proofs": [
         {
-          "id": "wfe-3.1-readonly-web-task-workspace",
+          "id": "wfe-3.1-c4o-1-web-task-workspace",
           "engines": [
             "chromium",
             "firefox",
@@ -3626,7 +3666,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-readonly-web-react-routes",
+          "id": "wfe-3.1-c4o-1-web-react-routes",
           "engines": [
             "chromium",
             "firefox",
@@ -3647,7 +3687,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-readonly-web-local-recovery",
+          "id": "wfe-3.1-c4o-1-web-local-recovery",
           "engines": [
             "chromium",
             "firefox",
@@ -3669,7 +3709,7 @@
           ]
         }
       ],
-      "nextAction": "Full original local workflow bound to accepted exact-input C4l installed SDK/WASM/IndexedDB proof; recheck changed inputs only. Full feature ledger and alpha remain separate."
+      "nextAction": "Current original shared workspace/routes/local-recovery workflow bound in c4o-1/binding.json; recheck changed inputs only. Full parent and alpha remain open."
     },
     {
       "id": "WEB-READONLY",
@@ -3693,7 +3733,7 @@
       "oracles": "Exact original content after denied input/commands, named identity stays readonly on reopen; sibling remains independent.",
       "proofs": [
         {
-          "id": "wfe-3.1-readonly-web-task-workspace",
+          "id": "wfe-3.1-c4o-1-web-task-workspace",
           "engines": [
             "chromium",
             "firefox",
@@ -3711,7 +3751,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-readonly-web-react-routes",
+          "id": "wfe-3.1-c4o-1-web-react-routes",
           "engines": [
             "chromium",
             "firefox",
@@ -3732,7 +3772,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-readonly-web-local-recovery",
+          "id": "wfe-3.1-c4o-1-web-local-recovery",
           "engines": [
             "chromium",
             "firefox",
@@ -3754,7 +3794,7 @@
           ]
         }
       ],
-      "nextAction": "All original identity/permission cases bound to current installed SDK/WASM/IndexedDB product. Recheck changed inputs only; full feature ledger and alpha remain separate."
+      "nextAction": "Current original shared workspace/routes/local-recovery workflow bound in c4o-1/binding.json; recheck changed inputs only. Full parent and alpha remain open."
     },
     {
       "id": "WEB-COLLABORATION",
@@ -5908,6 +5948,93 @@
         {
           "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4n-collaboration/run-7/web-collaboration-webkit/receipt.json",
           "sha256": "a77bf0b39d14858c6e31b16fc2d19afdfdcf64cb61e293dec9ef8c8bcc57799f"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c4o-1-web-task-workspace",
+      "owner": "PRIMARY current original shared product workflow refresh",
+      "command": "EDITAC_WEB_READONLY_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-1/run-1 EDITAC_PRODUCT_SITE_RECEIPT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-1/prepared-2/prepared.json node scripts/run-web-readonly-boundary.mjs",
+      "sdkRevision": "67397bcfc54cc66e36e708405533f8545332b348",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-1/run-1/source-pins.json",
+          "sha256": "ff09fbf2689a0f57f6323bc3dbbda4661ccfb6aa7e4350e85bd58e6bb6682234"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-1/run-1/web-task-workspace-chromium/receipt.json",
+          "sha256": "c4622d629841509f02a4cbf12f7efe728e814748879450ad2e49653e834ab794",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-1/prepared-2"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-1/run-1/web-task-workspace-firefox/receipt.json",
+          "sha256": "a101062221e9df8f4c4d30d878e0d0e45595ebae1c025999cfaedf184e5ed529",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-1/prepared-2"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-1/run-1/web-task-workspace-webkit/receipt.json",
+          "sha256": "c8f18ddd9f4c764f53c45e0f86c4c1034077a00687d28bb41e147014d4e57f63",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-1/prepared-2"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c4o-1-web-react-routes",
+      "owner": "PRIMARY current original shared product workflow refresh",
+      "command": "EDITAC_WEB_READONLY_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-1/run-1 EDITAC_PRODUCT_SITE_RECEIPT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-1/prepared-2/prepared.json node scripts/run-web-readonly-boundary.mjs",
+      "sdkRevision": "67397bcfc54cc66e36e708405533f8545332b348",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-1/run-1/source-pins.json",
+          "sha256": "ff09fbf2689a0f57f6323bc3dbbda4661ccfb6aa7e4350e85bd58e6bb6682234"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-1/run-1/web-react-routes-chromium/receipt.json",
+          "sha256": "ecda90c366716474fe4e91879f164042548647934fd749c8a6b224caee436e7f",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-1/prepared-2"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-1/run-1/web-react-routes-firefox/receipt.json",
+          "sha256": "b25e720390eb6b79512d99aa52d0ebc8e0d287d94e10e22f8da922198435175a",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-1/prepared-2"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-1/run-1/web-react-routes-webkit/receipt.json",
+          "sha256": "c0366b026eebdb1d601bc94ad5ec585eb68d5ebe6050bed1b36416c07e7e33c3",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-1/prepared-2"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c4o-1-web-local-recovery",
+      "owner": "PRIMARY current original shared product workflow refresh",
+      "command": "EDITAC_WEB_READONLY_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-1/run-1 EDITAC_PRODUCT_SITE_RECEIPT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-1/prepared-2/prepared.json node scripts/run-web-readonly-boundary.mjs",
+      "sdkRevision": "67397bcfc54cc66e36e708405533f8545332b348",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-1/run-1/source-pins.json",
+          "sha256": "ff09fbf2689a0f57f6323bc3dbbda4661ccfb6aa7e4350e85bd58e6bb6682234"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-1/run-1/web-local-recovery-chromium/receipt.json",
+          "sha256": "540676ac1ac695c23cb2859784438f71d7ccb46c006f4adf2d9c1a019faada7f",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-1/prepared-2"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-1/run-1/web-local-recovery-firefox/receipt.json",
+          "sha256": "31726184438110d03416fa9912abb38a334f4509f1a8a8c89aae45632b4fa6a8",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-1/prepared-2"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-1/run-1/web-local-recovery-webkit/receipt.json",
+          "sha256": "4ae2c8498d1e00a302f7534639f48e9aa7ae9bde3b137f15c2e994860dc45ea3",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-1/prepared-2"
         }
       ]
     }
