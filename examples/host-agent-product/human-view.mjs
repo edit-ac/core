@@ -9,7 +9,7 @@ import { DOMSelection } from '/web/dom/selection.js';
 import { TextInput } from '/web/input/text.js';
 
 // Public storage owns the only local journal/history. This consumer retains no edits.
-export async function mountHuman(root, config, channel) {
+export async function mountHuman(root, config, channel, changed=()=>{}) {
   const name = `host-agent-product-${config.documentId}-${config.epoch}`;
   const seed = await channel('seed');
   if (seed.identity.documentId !== config.documentId || seed.identity.epoch !== config.epoch) throw Error('Seed scope mismatch');
@@ -28,7 +28,7 @@ export async function mountHuman(root, config, channel) {
     input = new TextInput(renderer,selection,engine,request=>session.storage.commit(request));
     outbox = await UpdateOutbox.open(indexedDB,name); sync = new SyncSession(engine,outbox);
     const adapter = new DirectSyncAdapter(engine,identity);
-    const patches=[]; subscription=engine.subscribe({type:'all'},p=>{patches.push({origin:p.origin,operation:p.operation,update:!!p.update});if(patches.length>32)patches.shift();});
+    const patches=[]; subscription=engine.subscribe({type:'all'},p=>{patches.push({origin:p.origin,operation:p.operation,update:!!p.update});if(patches.length>32)patches.shift();queueMicrotask(changed);});
     off=session.storage.subscribeCommitted(u=>sync.localCommitted(u.origin));
     // Explicit prepared loopback transport; no receipt/observe payload carries updates.
     const queuedFrames=[];
