@@ -37,10 +37,62 @@ fn changed_regions(
             .expect("fixed corpus ASCII region");
         let offset = original[..byte].encode_utf16().count() as u32;
         let mut expected = projection(&before);
-        let mut cursor = session
-            .rich_snapshot()
-            .map_err(|e| format!("{e:?}"))?
-            .sequence;
+        let revision = before.revision.clone().unwrap();
+        let started = Instant::now();
+        let mut bytes = vec![];
+        let mut chunks = vec![];
+        let mut cursor;
+        loop {
+            let chunk = session
+                .rich_snapshot_chunk(revision.clone(), bytes.len() as u64)
+                .map_err(|e| format!("{e:?}"))?;
+            assert_eq!(chunk.revision, revision);
+            assert_eq!(chunk.offset_bytes, bytes.len() as u64);
+            assert!(chunk.bytes.len() <= 2 * 1024 * 1024);
+            cursor = chunk.sequence;
+            chunks.push(chunk.bytes.len());
+            bytes.extend_from_slice(&chunk.bytes);
+            if chunk.complete {
+                assert_eq!(chunk.total_bytes, bytes.len() as u64);
+                break;
+            }
+        }
+        let snapshot: Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(
+            snapshot["visible"].as_array().unwrap().len(),
+            before.nodes.len()
+        );
+        for (rich, node) in snapshot["visible"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .zip(&before.nodes)
+        {
+            assert_eq!(rich["id"], node.id);
+            assert_eq!(rich["kind"], node.kind);
+            assert_eq!(
+                rich["runs"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|run| run["text"].as_str().unwrap())
+                    .collect::<String>(),
+                node.text
+            );
+        }
+        fs::write(
+            directory.join(format!("regions-{width}-projection.json")),
+            serde_json::to_vec(&json!({"bytes":bytes.len(),"chunks":chunks,
+                "sequence":cursor,"snapshotMs":started.elapsed().as_secs_f64()*1000.0,
+                "sha256Note":"exact complete JSON retained in sibling snapshot file"}))
+            .unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            directory.join(format!("regions-{width}-snapshot.json")),
+            &bytes,
+        )
+        .unwrap();
         let entry_groups = session.history_state(0).unwrap().undo_groups;
         let mut samples = vec![];
         let first = if &original[byte..byte + width] == "#".repeat(width) {

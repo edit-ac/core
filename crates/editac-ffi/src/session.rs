@@ -329,6 +329,16 @@ pub struct NativeSessionProjection {
     pub sequence: u64,
     pub snapshot_json: String,
 }
+/// Contiguous bytes of the ordinary rich snapshot; decode only after completion.
+#[derive(Clone, Debug, uniffi::Record)]
+pub struct NativeSessionProjectionChunk {
+    pub revision: Vec<u8>,
+    pub sequence: u64,
+    pub offset_bytes: u64,
+    pub total_bytes: u64,
+    pub bytes: Vec<u8>,
+    pub complete: bool,
+}
 /// Ordered original range patches since the last snapshot/drain on this handle.
 #[derive(Clone, Debug, uniffi::Record)]
 pub struct NativeSessionPatches {
@@ -376,6 +386,86 @@ const MAX_ANCHOR_CAPTURE: usize = 128;
 static NEXT_ANCHOR_OWNER: AtomicU64 = AtomicU64::new(1);
 const MAX_PROJECTION_BYTES: usize = 2 * 1024 * 1024;
 const MAX_PROJECTION_PATCHES: usize = 128;
+struct ProjectionRead {
+    revision: Vec<u8>,
+    next_offset: u64,
+    snapshot: serde_json::Value,
+}
+
+/// Retain only the requested transport window, never the full serialized JSON.
+struct ProjectionWindow {
+    offset: usize,
+    total: usize,
+    bytes: Vec<u8>,
+}
+impl std::io::Write for ProjectionWindow {
+    fn write(&mut self, input: &[u8]) -> std::io::Result<usize> {
+        let end = self
+            .total
+            .checked_add(input.len())
+            .ok_or_else(|| std::io::Error::other("projection byte count overflow"))?;
+        let skip = self.offset.saturating_sub(self.total).min(input.len());
+        let take = (input.len() - skip).min(MAX_PROJECTION_BYTES - self.bytes.len());
+        self.bytes.extend_from_slice(&input[skip..skip + take]);
+        self.total = end;
+        Ok(input.len())
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+#[cfg(test)]
+mod projection_window_tests {
+    use super::*;
+
+    #[test]
+    fn generated_chunk_record_lower_lift_preserves_owned_binary_and_offsets() {
+        use uniffi::{Lift, Lower};
+        let input = NativeSessionProjectionChunk {
+            revision: vec![0, 255, 128],
+            sequence: u64::MAX,
+            offset_bytes: 2 * 1024 * 1024,
+            total_bytes: 4 * 1024 * 1024 + 1,
+            bytes: (0..=255).collect(),
+            complete: false,
+        };
+        let buffer =
+            <NativeSessionProjectionChunk as Lower<crate::UniFfiTag>>::lower(input.clone());
+        let output =
+            <NativeSessionProjectionChunk as Lift<crate::UniFfiTag>>::try_lift(buffer).unwrap();
+        assert_eq!(input.revision, output.revision);
+        assert_eq!(input.sequence, output.sequence);
+        assert_eq!(input.offset_bytes, output.offset_bytes);
+        assert_eq!(input.total_bytes, output.total_bytes);
+        assert_eq!(input.bytes, output.bytes);
+        assert_eq!(input.complete, output.complete);
+    }
+
+    #[test]
+    fn windows_reassemble_exact_json_even_across_utf8_and_escape_boundaries() {
+        let value = serde_json::json!(format!("{}\"\\", "🦀".repeat(600_000)));
+        let expected = value.to_string().into_bytes();
+        let mut actual = Vec::new();
+        let mut windows = 0;
+        while actual.len() < expected.len() {
+            let mut writer = ProjectionWindow {
+                offset: actual.len(),
+                total: 0,
+                bytes: Vec::new(),
+            };
+            serde_json::to_writer(&mut writer, &value).unwrap();
+            assert_eq!(writer.total, expected.len());
+            assert!(writer.bytes.len() <= MAX_PROJECTION_BYTES);
+            if windows == 0 {
+                assert!(std::str::from_utf8(&writer.bytes).is_err());
+            }
+            actual.extend(writer.bytes);
+            windows += 1;
+        }
+        assert!(windows > 1);
+        assert_eq!(actual, expected);
+    }
+}
 #[derive(Default)]
 struct ProjectionQueue {
     patches: Vec<String>,
@@ -383,9 +473,11 @@ struct ProjectionQueue {
     sequence: u64,
     delivered: Option<u64>,
     overflow: bool,
+    read: Option<ProjectionRead>,
 }
 impl ProjectionQueue {
     fn push(&mut self, patch: &editac_core::patches::Patch) {
+        self.read = None;
         self.sequence = patch.sequence;
         if self.overflow || self.delivered.is_none() {
             return;
@@ -853,10 +945,92 @@ impl NativeSession {
             queue.bytes = 0;
             queue.overflow = false;
             queue.delivered = Some(queue.sequence);
+            queue.read = None;
             Ok(NativeSessionProjection {
                 revision,
                 sequence: queue.sequence,
                 snapshot_json,
+            })
+        })
+    }
+    /// Read a bounded byte window of the exact authoritative rich JSON.
+    /// Only successful completion acknowledges the snapshot's patch sequence.
+    pub fn rich_snapshot_chunk(
+        &self,
+        expected_revision: Vec<u8>,
+        offset_bytes: u64,
+    ) -> Result<NativeSessionProjectionChunk> {
+        self.call(move |state| {
+            let session = state.service.session();
+            let revision = session.observed_revision()?.to_bytes().to_vec();
+            let expected = ObservedRevision::from_bytes(&expected_revision)?;
+            session.compare_revision(&expected)?;
+            let mut queue = state.projection.borrow_mut();
+            if offset_bytes != 0
+                && !queue.read.as_ref().is_some_and(|read| {
+                    read.revision == revision && read.next_offset == offset_bytes
+                })
+            {
+                return Err(NativeSessionError::InvalidProjectionCursor);
+            }
+            let offset = usize::try_from(offset_bytes)
+                .map_err(|_| NativeSessionError::InvalidProjectionCursor)?;
+            // Freeze consumptive refresh metadata once for the whole stream.
+            let fresh = if offset_bytes == 0 {
+                Some(
+                    editac_core::interchange::projection_snapshot(session.document())
+                        .map_err(|e| NativeSessionError::Engine { message: e.message })?,
+                )
+            } else {
+                None
+            };
+            let snapshot = fresh.as_ref().unwrap_or_else(|| {
+                &queue
+                    .read
+                    .as_ref()
+                    .expect("validated chunk cursor")
+                    .snapshot
+            });
+            let mut window = ProjectionWindow {
+                offset,
+                total: 0,
+                bytes: Vec::with_capacity(MAX_PROJECTION_BYTES),
+            };
+            serde_json::to_writer(&mut window, snapshot).map_err(|e| {
+                NativeSessionError::Engine {
+                    message: e.to_string(),
+                }
+            })?;
+            if offset >= window.total {
+                return Err(NativeSessionError::InvalidProjectionCursor);
+            }
+            let complete = offset + window.bytes.len() == window.total;
+            if complete {
+                queue.patches.clear();
+                queue.bytes = 0;
+                queue.overflow = false;
+                queue.delivered = Some(queue.sequence);
+                queue.read = None;
+            } else if let Some(snapshot) = fresh {
+                queue.read = Some(ProjectionRead {
+                    revision: revision.clone(),
+                    next_offset: offset_bytes + window.bytes.len() as u64,
+                    snapshot,
+                });
+            } else {
+                queue
+                    .read
+                    .as_mut()
+                    .expect("validated chunk cursor")
+                    .next_offset = offset_bytes + window.bytes.len() as u64;
+            }
+            Ok(NativeSessionProjectionChunk {
+                revision,
+                sequence: queue.sequence,
+                offset_bytes,
+                total_bytes: window.total as u64,
+                bytes: window.bytes,
+                complete,
             })
         })
     }
@@ -1398,6 +1572,10 @@ mod tests {
         assert_eq!(r.recovery_error, Some(expected));
         assert!(matches!(
             s.rich_snapshot(),
+            Err(NativeSessionError::RecoveryRequired)
+        ));
+        assert!(matches!(
+            s.rich_snapshot_chunk(projection.revision.clone(), 0),
             Err(NativeSessionError::RecoveryRequired)
         ));
         assert!(matches!(
