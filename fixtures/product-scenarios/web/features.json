@@ -1929,7 +1929,7 @@
       "oracles": "Expected literal search matches/replacement, source-preserving code edits and UTF-16 highlight spans; history/readonly/cancel.",
       "proofs": [
         {
-          "id": "wfe-3.1-c9-2-search-code",
+          "id": "wfe-3.1-c9-2-current-search-code",
           "engines": [
             "chromium",
             "firefox",
@@ -2035,7 +2035,7 @@
       "oracles": "Source-preserving math fallback and one semantic reorder, no mutation for stale/readonly/cancelled gestures.",
       "proofs": [
         {
-          "id": "wfe-3.1-c9-2-math-reorder",
+          "id": "wfe-3.1-c9-2-current-math-reorder",
           "engines": [
             "chromium",
             "firefox",
@@ -11773,6 +11773,104 @@
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1-current/bound/web-collaboration-webkit-receipt.json",
           "sha256": "c7770c8e5af191acddd9da429a28d203bd3476a3c58840ac4a61ebe3953eeb11",
           "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1-current/run-2/collaboration"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-2-current-search-code",
+      "owner": "PRIMARY current installed original boundary",
+      "command": "node scripts/run-web-search-math-refresh-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-2-current/run-1/search-code/code-commands/chromium/receipt.json",
+          "sha256": "dde2ed1f6b65edda167d20cbca113d53254d2c7c22040f6f5d21b5e366a4fbf4"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-2-current/run-1/search-code/code-commands/firefox/receipt.json",
+          "sha256": "84423220fe997bfb881cfc5c01d81111bb7ff458e3fc7a235bc0f66b74c4a7d7"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-2-current/run-1/search-code/code-commands/webkit/receipt.json",
+          "sha256": "d7119dff5f9e4f3beb47686feba16d6572ad6719050a3132dcd19498736b3724"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-2-current/run-1/search-code/code-highlight/chromium/receipt.json",
+          "sha256": "144995f865fe67ba2ecab10a7cce4e72620ca7c50d6aee1d5e5fade6bb9ad89a"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-2-current/run-1/search-code/code-highlight/firefox/receipt.json",
+          "sha256": "07610bda128d69c6eccefb3ceae4e587fa8a48ee3d1bf9b5a4f220d8d33bfa8e"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-2-current/run-1/search-code/code-highlight/webkit/receipt.json",
+          "sha256": "c7fec2c50eb4bc0aeb39960b1616d674530333742f00e787c5732276f521c0c0"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-2-current/run-1/search-code/document-search/chromium/receipt.json",
+          "sha256": "9fccd50c4fa999f5eac883a9522fea4fa2583e4b80a994d54536064dce533a7d"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-2-current/run-1/search-code/document-search/firefox/receipt.json",
+          "sha256": "bdad415f816f3c5bd8efb12559f27171510263cd0434cd177ef754584f4cff92"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-2-current/run-1/search-code/document-search/webkit/receipt.json",
+          "sha256": "f79fbc72954e38973de68b9e495a6891c4381cdd59580a97253aa00854ae9d39"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-2-current/search-code-current-inputs.json",
+          "sha256": "a1fa867247c7b433c9bbab87dd31bce4010099198c1483a34c4be3b985663502"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-2-current-math-reorder",
+      "owner": "PRIMARY current installed original boundary",
+      "command": "node scripts/run-web-search-math-refresh-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-2-current/run-1/math-reorder/math/chromium/receipt.json",
+          "sha256": "b6d60ccbe767559f180b12bb4b6bbe01f9fa6ec2262b4986c19a79e59db83f6b"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-2-current/run-1/math-reorder/math/firefox/receipt.json",
+          "sha256": "20eb94547a4865d77e71915856dffbc19d4ee6c1ed21084c8aef6408874c7227"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-2-current/run-1/math-reorder/math/webkit/receipt.json",
+          "sha256": "449ce7baa491f0b403d117dcea92c54a2477ac14a2d4cf6baba854acb291b686"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-2-current/run-1/math-reorder/reorder/chromium/receipt.json",
+          "sha256": "4b96098c1b59a39fcdda5e856ccb81292f9a9a11fcda471ee485d0bf8e1fd795"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-2-current/run-1/math-reorder/reorder/firefox/receipt.json",
+          "sha256": "d3c42c1408266acf490f0d5a7b3ac729b14e8ebf6710324a50ef95b65ae1cb6c"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-2-current/run-1/math-reorder/reorder/webkit/receipt.json",
+          "sha256": "e9b6930d30fb1f791327416e59eb56b25be098e2155451ac83dccd1bd2b636fb"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-2-current/run-1/math-reorder/reorder-pointer/chromium/receipt.json",
+          "sha256": "a22b40f52d286c604f78712a6ee5b25c18aae979dfb6249db119a4f01536b848"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-2-current/run-1/math-reorder/reorder-pointer/firefox/receipt.json",
+          "sha256": "6ad6377db15eaaa22d4e4d63c82f4d56a70127393f39e47d742400a1c2b9728f"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-2-current/run-1/math-reorder/reorder-pointer/webkit/receipt.json",
+          "sha256": "92fb893c486fd7aa840d426bfdb0af44290bfb33da6e11f119191c3ce019d965"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-2-current/math-reorder-current-inputs.json",
+          "sha256": "2f233fa57ab04d5f3fa6fd957f6ff27763fa20c267e1aaffbe9da0a05a2dc16b"
         }
       ]
     }
