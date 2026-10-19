@@ -1,5 +1,12 @@
 # Local task editor
 
+Open the task workspace with `?assistance` to enable local command assistance.
+Select task text, open **Editing assistance**, then choose Bold, Italic, Undo or
+Redo. The panel uses the same command catalog, history and local save/reopen path
+as the editor toolbar. Plain comments keep their existing restricted controls.
+This option registers command discovery only; it does not configure a transcript
+transport or request microphone access. Readonly mode disables its edit commands.
+
 With the repository toolchains selected (Node 24.19.0, npm 11.17.0,
 Rust 1.97.1, wasm-bindgen 0.2.129), run from `core/`:
 
@@ -16,7 +23,7 @@ does not build or serve the optional codec. Without the query the editor does
 not fetch or activate it, even when the optional assets are available.
 
 This single command builds a committed SDK snapshot, packs and installs the actual
-local core/web/React tarballs, bundles the existing React example with pinned
+local core/web/React/Markdown/format tarballs, bundles the existing React example with pinned
 React 19.3.0, then prints localhost links for the task/comment workspace, React
 workspace, document-body route and readonly view. It does not publish packages.
 No mutable output from another checkout is linked. Product sources are copied and
@@ -26,7 +33,7 @@ there is no fixed port to reserve. Stop with Ctrl+C; the listener closes and
 input hashes and shutdown. Build output stays there for inspection.
 
 For an authenticated existing build, optionally set `EDITAC_PRODUCT_PACK_RECEIPT`
-to an existing PWE receipt with core/web packs. The launcher checks committed SDK
+to an existing PWE receipt with core/web packs. Optional-format reuse also requires the exact Markdown and converter packs; all committed SDK build inputs must match. The launcher checks committed SDK
 inputs, toolchain and every pack hash, then installs and bundles a fresh site.
 `EDITAC_PRODUCT_SITE_RECEIPT` can instead select a prepared checkpoint's
 `prepared.json`; all recorded source, package and served-file hashes are checked.
@@ -166,3 +173,24 @@ for asset hosting, statuses, cleanup and supported-format limitations.
 Markdown is optional. Default Task mounts paste and type Markdown-looking text literally. To opt in, initialize `initMarkdown(parserAssetUrl)` from `@edit-ac/markdown`, then pass `markdown: markdownExtension(codec)` from `@edit-ac/markdown/web` to the same editor options (plain, React or Astro). The engine retains its single document owner. Direct engine consumers call `engine.registerMarkdown(codec)`; the returned registration can be disposed. Unavailable import/export throws `CapabilityUnavailable` / `markdown-codec-unavailable` without changing content; unavailable named Markdown clipboard sources retain diagnostics and exact recovery text.
 
 The executable Task and React examples enable Markdown with `?markdown`; the Astro client uses the same explicit option and a separately hosted `/markdown.wasm`. Serve the optional package and parser only for enabled consumers. Cleanup detaches registration with the surface and preserves existing pending-save recovery.
+
+Open the printed **Local file controls** link (`?formats`) to enable task-only
+text/Markdown import and export plus the installed document converter profiles.
+Select the intended task range, open **File and sharing**, choose a file and
+review its preview before **Confirm import**. Import is one undoable editor
+command; Save locally and Reopen retain it in IndexedDB. The plain comment keeps
+its own controls and content. Opening the panel grants no file permission.
+
+**Show installed format profiles** lists the pinned local package's RTF, CSV/TSV,
+DOCX, ODT and EPUB directions and export-only PDF. Conversion loads on explicit
+preparation. CSV/TSV export requires choosing one table and a dialect. Original
+media import requires a separately authorized asset host, which this local
+example does not configure; unavailable imports retain their original for recovery.
+Cancel or readonly revocation prevents confirmation. Prepared output and original
+file downloads remain explicit user actions; OS delivery is a separate claim.
+
+Run `node tests/scenarios/run.mjs web-optional-formats` for the installed product
+proof, or `web-product-checkpoint` for the combined three-engine checkpoint.
+Set `EDITAC_PRODUCT_PDF_PYTHON` to a Python environment with pypdf 6.1.1 and
+PyMuPDF 1.26.5 for the independent exported-PDF reader. ZIP/XML readers use the
+Python standard library. The cases retain source/package pins and raw receipts.

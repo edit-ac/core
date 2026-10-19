@@ -32,7 +32,10 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       : await prepareProductSite(output, facts);
     server = await startFixtureServer({ fixtureDirectory: join(site, 'fixture'), coreDirectory: join(site, 'core'), webDirectory: join(site, 'web'), markdownDirectory: join(site, 'markdown'), cacheAssets: true });
     facts.process = { pid: process.pid, launcher: process.execPath, workspace: root, port: server.port, purpose: facts.purpose, log: join(output, 'preview.json') };
+    facts.formatControls = `${server.url}/fixture/index.html?formats`;
+    facts.commandAssistance = `${server.url}/fixture/index.html?assistance`;
     await writeFile(join(output, 'preview.json'), JSON.stringify(facts, null, 2));
+    console.log(`Local file controls: ${facts.formatControls}\nLocal command assistance: ${facts.commandAssistance}`);
     console.log(`Task/comment: ${server.url}/fixture/index.html\nReact tasks: ${server.url}/fixture/react.html?route=tasks\nDocument body: ${server.url}/fixture/react.html?route=document\nMarkdown (launch with --markdown): ${server.url}/fixture/index.html?markdown\nReadonly: ${server.url}/fixture/index.html?readonly\nStop: Ctrl+C (PID ${process.pid}, port ${server.port})\nArtifacts: ${output}`);
   } catch (error) { facts.failure = error.stack; await close(); throw error; }
 }
