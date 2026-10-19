@@ -9,13 +9,15 @@ import { root, loadScenario } from './run.mjs';
 import { sha } from './harness.mjs';
 import { manifestPath, prepareRevisionProduct } from '../../examples/task-editor/revision-review-product.mjs';
 import { scopeCases } from './revision-review-scope.mjs';
+import { restoreCases } from './revision-review-restore.mjs';
+import { compareCases } from './revision-review-compare.mjs';
 import { captureCases } from './revision-review-capture.mjs';
 
 await requireTestNode();
 const group = process.argv[2];
 assert.equal(process.argv.length, 3, 'Expected exactly one named group');
 const { scenario, manifest } = await loadScenario(group, manifestPath);
-const output = resolve(process.env.EDITAC_REVISION_OUTPUT ?? join(root, '../architecture/evidence/revision-review-product-20261019/rvp-1.1', new Date().toISOString().replace(/[:.]/g, '-')));
+const output = resolve(process.env.EDITAC_REVISION_OUTPUT ?? join(root, '../architecture/evidence/revision-review-product-20261019', scenario.parent.toLowerCase(), new Date().toISOString().replace(/[:.]/g, '-')));
 await mkdir(output, { recursive: true });
 const facts = { output, parent: scenario.parent, group, command: ['node', 'tests/scenarios/revision-review-product.mjs', group], scope: manifest.scope, commands: [], cases: [], processes: [], browsers: [] };
 const git = (...args) => {
@@ -53,7 +55,7 @@ try {
       browser = await ({ chromium, firefox, webkit }[engine]).connect(controller.wsEndpoint());
       browserFacts.version = browser.version(); page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
       page.setDefaultTimeout(10000); page.on('pageerror', error => errors.push(error.message));
-      await ({ capture: captureCases, scope: scopeCases }[group])({ page, server, facts: browserFacts, check, output: directory });
+      await ({ capture: captureCases, scope: scopeCases, compare: compareCases, restore: restoreCases }[group])({ page, server, facts: browserFacts, check, output: directory });
       assert.deepEqual(errors, [], 'Unhandled browser errors');
     } catch (error) {
       browserFacts.failure = error.stack;

@@ -91,7 +91,7 @@ export async function scopeCases({ page, server, facts, check, output }) {
       assert.match(await page.locator(id(name, 'history')).innerText(), /History unavailable: missing/);
       assert.deepEqual(stable(await observe(name)), stable(before[name]));
     }
-    assert.equal(await page.getByRole('button', { name: /restore/i }).count(), 0, 'No restore capability is attached to either historical view');
+    assert.equal(await page.getByRole('button', { name: /^(Preview|Apply) restore as new edit$/ }).count(), 0, 'Foreign history exposes no preview or confirmation capability');
     facts.oracles.foreign = { before, results };
   });
   await check('readonly-instance-keeps-sibling-editable', async () => {

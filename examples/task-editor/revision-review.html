@@ -25,8 +25,23 @@
       </form>
       <p id="revision-capture-status" role="status">Captures are explicit; typing does not capture history.</p>
       <p id="revision-usage"></p>
-      <p class="note">Memory only: at most 3 captures, 24 KiB total, 12 KiB each, including metadata. Oldest captures are pruned first. Reloading loses captures; saved live content remains. This is not an archive, an access boundary, or a global revision order.</p>
+      <p class="note">Memory only: at most 3 captures, 96 KiB total, 48 KiB each, including metadata. Oldest captures are pruned first. Reloading loses captures; saved live content remains. This is not an archive, an access boundary, or a global revision order.</p>
       <div id="revision-history"></div>
+      <section aria-label="Restore preview controls">
+        <p>For supported plain text, inspect a capture, preview, then confirm with “Apply restore as new edit”. Use Save locally to confirm local durability.</p>
+        <button id="revision-cancel-restore">Cancel restore preview</button>
+        <p id="revision-restore-status" role="status">Restores keep the live document and create an undoable new edit.</p>
+      </section>
+    </section>
+    <section class="comparison" aria-labelledby="compare-heading"><h2 id="compare-heading">Compare temporary captures</h2>
+      <p>Semantic differences with unknown provenance. Exact original source spelling is not retained. Comparison leaves the live document unchanged.</p>
+      <form id="revision-compare-form">
+        <label for="revision-before">Before capture</label><select id="revision-before" disabled></select>
+        <label for="revision-after">After capture</label><select id="revision-after" disabled></select>
+        <button id="revision-compare" disabled>Compare captures</button>
+      </form>
+      <p id="revision-compare-status" role="status">Capture two states to compare them.</p>
+      <div id="revision-comparison"></div>
     </section>
   </div>
 </main>

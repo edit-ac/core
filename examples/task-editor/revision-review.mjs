@@ -1,7 +1,7 @@
-import { openEditorStorage, mountEditorSurface, WebHistoryStore, HistoryReview } from '@edit-ac/web';
+import { openEditorStorage, mountEditorSurface, WebHistoryStore, HistoryReview, HistoryRestorer, prepareReview, ChangeReview } from '@edit-ac/web';
 import { localOptions } from './document.mjs';
 
-export const limits = Object.freeze({ maxRevisions: 3, maxBytes: 24 * 1024, maxRevisionBytes: 12 * 1024 });
+export const limits = Object.freeze({ maxRevisions: 3, maxBytes: 96 * 1024, maxRevisionBytes: 48 * 1024 });
 export let workspace;
 export const instances = {};
 const taskRoot = document.querySelector('.workspace');
@@ -25,7 +25,47 @@ async function mountInstance(name, root, prefix) {
   const saveStatus = element('revision-save-status');
   const captureStatus = element('revision-capture-status');
   const controls = ['revision-save', 'revision-name', 'revision-capture'].map(element);
-  let closed = false, pending = false;
+  let closed = false, pending = false, comparison, reviewGeneration = 0;
+  const beforeSelect = element('revision-before'), afterSelect = element('revision-after');
+  const compareStatus = element('revision-compare-status');
+  function clearComparison(message, state = 'ready') {
+    comparison?.destroy(); comparison = undefined;
+    status(compareStatus, message, state);
+  }
+  function compare(before = beforeSelect.value, after = afterSelect.value) {
+    if (closed) throw Error('This review is closed; reopen and capture two states');
+    clearComparison('Preparing semantic comparison…');
+    try {
+      if (!before || !after) throw Error('Select a before and after capture');
+      for (const [label, handle] of [['Before', before], ['After', after]]) {
+        const read = workspace.store.read(handle, workspace.access());
+        if (read.kind !== 'available') throw Error(`${label} capture is ${read.reason}. Capture again or select an available capture`);
+      }
+      const model = workspace.store.compare(workspace.owner.engine, before, after, workspace.access());
+      const input = { representation: 'semantic', model };
+      prepareReview(input);
+      comparison = new ChangeReview(element('revision-comparison'), input, { mode: 'history', layout: 'unified', limits: { pageSize: 100, maxValueChars: 1024 } });
+      status(compareStatus, 'Showing semantic differences. Provenance unknown / unverified. Live document unchanged.');
+      return model;
+    } catch (error) {
+      clearComparison(`Comparison unavailable: ${error.message}. Live document unchanged.`, 'error');
+      return null;
+    }
+  }
+  function refreshComparisonChoices() {
+    const list = workspace.store.list(workspace.access());
+    for (const select of [beforeSelect, afterSelect]) {
+      const selected = select.value;
+      select.replaceChildren(new Option('Select a capture', ''));
+      for (const item of list) select.add(new Option(item.label, item.handle));
+      if (selected && !list.some(item => item.handle === selected)) select.add(new Option('Unavailable capture (pruned or missing)', selected));
+      select.value = selected; select.disabled = false;
+    }
+    element('revision-compare').disabled = false;
+    if (comparison && [beforeSelect.value, afterSelect.value].some(handle => workspace.store.read(handle, workspace.access()).kind !== 'available')) {
+      clearComparison('A selected capture is unavailable (pruned). Select an available capture or capture again. Live document unchanged.', 'error');
+    }
+  }
   const listeners = [];
   function listen(target, type, handler) { target.addEventListener(type, handler); listeners.push(() => target.removeEventListener(type, handler)); }
   function status(target, message, state = 'ready') { target.textContent = message; target.dataset.state = state; }
@@ -48,7 +88,7 @@ async function mountInstance(name, root, prefix) {
       await workspace.surface.settle();
       const handle = await workspace.store.capture(workspace.owner.engine, workspace.access(), name);
       if (closed) return;
-      workspace.review.refresh(); workspace.review.inspect(handle); usage();
+      workspace.review.refresh(); workspace.review.inspect(handle); usage(); refreshComparisonChoices();
       status(captureStatus, `Captured “${name}” in memory. Older captures may have been pruned.`);
       return handle;
     } finally { pending = false; if (!closed) element('revision-capture').disabled = false; }
@@ -59,9 +99,10 @@ async function mountInstance(name, root, prefix) {
     await save();
     closed = true; root.dataset.lifecycle = 'closing';
     for (const remove of listeners.splice(0)) remove();
-    root.querySelectorAll('input,button').forEach(control => { control.disabled = true; });
+    root.querySelectorAll('input,button,select').forEach(control => { control.disabled = true; });
     status(saveStatus, 'Review closed. Reopen to recover saved live content; captures are memory only.');
-    workspace.review.destroy(); await workspace.surface.dispose();
+    reviewGeneration++;
+    clearComparison('Review closed. Reopen and capture two states to compare.'); workspace.review.destroy(); await workspace.surface.dispose();
     await workspace.owner.destroy({ policy: 'flush' });
     root.dataset.lifecycle = 'closed';
   }
@@ -75,9 +116,32 @@ async function mountInstance(name, root, prefix) {
       await surface.ready;
       const access = () => ({ scope: { identity: options.identity, moduleProfile: `revision-review-${name}-v1` } });
       const store = new WebHistoryStore(limits);
-      review = new HistoryReview(element('revision-history'), store, access, { pageSize: 3, maxValueChars: 4096 });
-      workspace = { owner, surface, review, store, access, options, save, capture, close, get closed() { return closed; }, get readonly() { return readonly; } };
       let readonly = false;
+      function createReview() {
+        const generation = ++reviewGeneration;
+        const restorer = new HistoryRestorer(store, {
+          engine: owner.engine,
+          commit: owner.commitPrepared,
+          writable: () => !closed && !readonly && generation === reviewGeneration,
+        }, access);
+        return new HistoryReview(element('revision-history'), store, access, { pageSize: 3, maxValueChars: 4096, restorer });
+      }
+      review = createReview();
+      listen(element('revision-cancel-restore'), 'click', () => {
+        // Dispose the view holding the single-use preview; keep this owner and captures.
+        workspace.review.destroy();
+        workspace.review = review = createReview();
+        status(element('revision-restore-status'), 'Restore preview canceled. Current content is unchanged; inspect a capture to preview again.');
+      });
+      const updates = owner.engine.subscribe({ type: 'updates' }, () => {
+        status(saveStatus, 'Live changes are being journaled locally. Use Save locally to confirm.');
+      });
+      listeners.push(() => updates.dispose());
+      workspace = { owner, surface, review, store, access, options, save, capture, compare, close, get closed() { return closed; }, get readonly() { return readonly; } };
+      beforeSelect.replaceChildren(); afterSelect.replaceChildren();
+      clearComparison('Capture two states to compare them.'); refreshComparisonChoices();
+      listen(element('revision-compare-form'), 'submit', event => { event.preventDefault(); compare(); });
+      for (const select of [beforeSelect, afterSelect]) listen(select, 'change', () => clearComparison('Selection changed. Choose Compare captures to inspect these states.'));
       const readOnlyControl = element('revision-readonly');
       listen(readOnlyControl, 'change', () => { readonly = readOnlyControl.checked; surface.setReadOnly(readonly); });
       listen(element('revision-save'), 'click', () => { void save().catch(error => status(saveStatus, `Save failed: ${error.message}. Keep this page open and retry.`, 'error')); });
