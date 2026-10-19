@@ -55,6 +55,7 @@ export async function reopenCases({ page, server, facts, check, output }) {
     await history.getByRole('button', { name: 'Inspect Reload restore', exact: true }).click();
     await history.getByRole('button', { name: 'Preview restore as new edit', exact: true }).click();
     await history.getByRole('button', { name: 'Apply restore as new edit', exact: true }).click();
+    await page.waitForFunction(() => document.querySelector('#revision-history').textContent.includes('Restored as a new edit'));
     await moduleCall('save'); const before = await observe(); assert.equal(before.text, expectedRestore);
     assert.equal(JSON.parse(before.journal).updates.at(-1).origin, 'editac:local:history-restore');
     await reload(); const after = await observe(); compareReopen(before, after, expectedRestore);
