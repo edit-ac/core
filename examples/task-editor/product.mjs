@@ -28,8 +28,10 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => { void close().finally(() => process.exit(0)); });
   try {
     const { site } = await prepareProductSite(output, facts);
-    server = await startFixtureServer({ fixtureDirectory: join(site, 'fixture'), coreDirectory: join(site, 'core'), webDirectory: join(site, 'web'), cacheAssets: true });
+    server = await startFixtureServer({ fixtureDirectory: join(site, 'fixture'), coreDirectory: join(site, 'core'), webDirectory: join(site, 'web'), markdownDirectory: join(site, 'markdown'), cacheAssets: true });
     facts.process = { pid: process.pid, launcher: process.execPath, workspace: root, port: server.port, purpose: facts.purpose, log: join(output, 'preview.json') };
+    facts.formatControls = `${server.url}/fixture/index.html?formats`;
+    console.log(`Local file controls: ${facts.formatControls}`);
     facts.commandAssistance = `${server.url}/fixture/index.html?assistance`;
     await writeFile(join(output, 'preview.json'), JSON.stringify(facts, null, 2));
     console.log(`Local command assistance: ${facts.commandAssistance}`);

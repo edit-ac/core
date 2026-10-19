@@ -53,7 +53,7 @@ export async function workspaceOptions(name, {profile=name, creation, readOnly=f
 export async function mountWorkspaceEditor(name, {root, status, creation, readOnly=false, recovery=[], onSave=()=>{}, onError=()=>{}, onHistory=()=>{}}) {
   const resources=await workspaceOptions(name,{creation,readOnly});
   const {options,permission}=resources;
-  let editor;
+  let editor, formats;
   try { editor=createEditor(root,options); } catch(error) { resources.dispose(); throw error; }
   let closed=false, generation=0, pending=false, lastError;
   const events = {save:[],error:[],history:[]};
@@ -68,7 +68,11 @@ export async function mountWorkspaceEditor(name, {root, status, creation, readOn
     status.textContent=pending?'Changes pending local save.':state.localCommitted?'Saved locally. Remote durability is not confirmed.':state.ready?'Ready locally. Remote durability is not confirmed.':'Opening local document…';
   };
   const unsubscribe = editor.subscribe(render);
-  try {await editor.ready;} catch(error) {report(error);unsubscribe();await editor.destroy({policy:'report'});resources.dispose();throw error;}
+  try {await editor.ready;
+    if(permission.rich && new URL(location.href).searchParams.has('formats')) {
+      const {mountTaskFormats}=await import('./formats.mjs');
+      formats=await mountTaskFormats(editor,root);
+    }} catch(error) {report(error);unsubscribe();await editor.destroy({policy:'report'});resources.dispose();throw error;}
   // The public lifecycle retains the last receipt while another update is pending.
   // Observe edits and use the public flush barrier before describing them as saved.
   const saveBarrier=async()=>{
@@ -86,7 +90,7 @@ export async function mountWorkspaceEditor(name, {root, status, creation, readOn
   render(editor.state);
   const historyListener = event => {if(event.key.toLowerCase()==='z'&&(event.metaKey||event.ctrlKey)){events.history.push(event.shiftKey?'redo':'undo');onHistory(events.history.at(-1));}};
   root.addEventListener('keydown',historyListener);
-  return {editor, options, permission, events, recovery,
+  return {editor, formats, options, permission, events, recovery,
     async save(){const receipt=await saveBarrier();events.save.push(receipt);onSave(receipt);return receipt;},
     async close(){if(closed)return;closed=true;unsubscribe();unpatch();root.removeEventListener('keydown',historyListener);let result;try{result=await editor.destroy({policy:'flush'});}catch(error){report(error);result=await editor.destroy({policy:'report'});}finally{resources.dispose();}if(result.unsaved)recovery.push(result);return result;},
   };
