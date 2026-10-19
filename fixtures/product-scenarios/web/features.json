@@ -971,7 +971,7 @@
       "oracles": "Trusted keyboard/pointer routes share projected content, one Session commit/journal update/history group; supplied captured replacement differs from caret and survives durable reopen; nested/other editor controls retain ownership; stale/readonly/permission/cancel/disposed targets reject; save preserves undo/redo and empty redo is inert.",
       "proofs": [
         {
-          "id": "wfe-3.1-c4d-commands",
+          "id": "wfe-3.1-c4o-5-commands",
           "engines": [
             "chromium",
             "firefox",
@@ -1045,7 +1045,7 @@
           ]
         }
       ],
-      "nextAction": "All 64 original portable command cases per browser proven on current installed SDK; authenticate changed inputs only. CLI/agent routes are semantic public API calls, supplied replacement and profiles are prepared; native menus/OS correction/non-US/AT observations remain deferred to43."
+      "nextAction": "All64 original CMD-01\u201306 portable cases per engine freshly proven on current installed SDK; authenticate exact changed inputs only. Native/OS/AT/CLI-process transport and later qualification predicates remain deferred."
     },
     {
       "id": "WEB-RICH-TRANSFER",
@@ -6206,6 +6206,31 @@
         {
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-4/run-5/source-pins.json",
           "sha256": "261abed536ff8bbf74d04eb9265c2edaac9af210e5893673047e1db56a7cc102"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c4o-5-commands",
+      "owner": "PRIMARY current-source command boundary",
+      "command": "EDITAC_WEB_COMMAND_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-5/run-1 node scripts/run-web-command-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-5/run-1/interaction-command-surfaces/chromium/receipt.json",
+          "sha256": "da7bef3d693ddc7853265094b9cd7964b4e79ea69f74a35ca5012f4287eab23a"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-5/run-1/interaction-command-surfaces/firefox/receipt.json",
+          "sha256": "cdf1545b989f1e6fc38c4c5d1ebd29139ac6e845edf49cc97b0ab5b5bf76b32f"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-5/run-1/interaction-command-surfaces/webkit/receipt.json",
+          "sha256": "13e2b14ca15915db3e80d60102b7d666b95dbdcae0e52426ca5e50e24237b2c2"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-5/run-1/source-pins.json",
+          "sha256": "fce915fac6358e1bf3bdec3446f79605cca08d7465916d23e3da9b4b737768bb"
         }
       ]
     }
