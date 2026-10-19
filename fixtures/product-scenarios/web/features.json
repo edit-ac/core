@@ -4070,7 +4070,7 @@
       "oracles": "Captured target/proposal review, stale/revoked/disposed denial, one semantic acceptance/history; provider transport must remain mocked.",
       "proofs": [
         {
-          "id": "wfe-3.1-c8-ai-actions",
+          "id": "wfe-3.1-c9-6-ai-actions",
           "engines": [
             "chromium"
           ],
@@ -4101,7 +4101,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c8-ai-completion",
+          "id": "wfe-3.1-c9-6-ai-completion",
           "engines": [
             "chromium"
           ],
@@ -4136,7 +4136,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c8-ai-transformations",
+          "id": "wfe-3.1-c9-6-ai-transformations",
           "engines": [
             "chromium"
           ],
@@ -4176,7 +4176,7 @@
           ]
         }
       ],
-      "nextAction": "Full original current-input prepared public behavior proven; device/native/OS/AT/provider/performance/release qualification remains separate."
+      "nextAction": "Current prepared optional AI original cases proven; retain deferred other-engine/device/AT/native/provider/performance/release predicates."
     }
   ],
   "proofs": [
@@ -11722,6 +11722,57 @@
         {
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-5/run-1/conversion/source-pins.json",
           "sha256": "402ea85c9a0e2b861294675a39bef2ac5fd794e9d1bc6e4ce79fe3a6399c057a"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-6-ai-actions",
+      "owner": "PRIMARY original prepared-only current-source public boundary",
+      "command": "EDITAC_WEB_AI_REFRESH_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-6/run-2 node scripts/run-web-ai-refresh-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-6/run-1/ai/ai-actions/receipt.json",
+          "sha256": "d9db1baea0f7a0c8d0faba18e1b7be43abe2c52293e7c0e480f146c61c2a79fc"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-6/run-2/ai/source-pins.json",
+          "sha256": "ead8d65342bba2802a701472845e8fba785be60463c210df9bb765a1cbc38822"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-6-ai-completion",
+      "owner": "PRIMARY original prepared-only current-source public boundary",
+      "command": "EDITAC_WEB_AI_REFRESH_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-6/run-2 node scripts/run-web-ai-refresh-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-6/run-2/ai/ai-completion/receipt.json",
+          "sha256": "0e6c5c04b0c1ae2efc6b17e4020f125c22ae9a70a81e6868263724be0a3ebe5d"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-6/run-2/ai/source-pins.json",
+          "sha256": "ead8d65342bba2802a701472845e8fba785be60463c210df9bb765a1cbc38822"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-6-ai-transformations",
+      "owner": "PRIMARY original prepared-only current-source public boundary",
+      "command": "EDITAC_WEB_AI_REFRESH_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-6/run-2 node scripts/run-web-ai-refresh-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-6/run-1/ai/ai-transformations/receipt.json",
+          "sha256": "cf13a23e2713f0ea9e77eb24e1422733cad82df01c416a0994c1f9eaf6f5a602"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-6/run-2/ai/source-pins.json",
+          "sha256": "ead8d65342bba2802a701472845e8fba785be60463c210df9bb765a1cbc38822"
         }
       ]
     }
