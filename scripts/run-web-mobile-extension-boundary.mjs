@@ -39,7 +39,16 @@ function run(name, program, args, environment = {}) {
   return command;
 }
 try {
-  run('build-web', 'npm', ['run', 'build', '--workspace', '@edit-ac/web']);
+  const admissionPath = process.env.EDITAC_WEB_MOBILE_ADMISSION;
+  const admission = admissionPath ? json(admissionPath) : undefined;
+  if (admission) {
+    verify(admission.sources); verify(admission.runtime);
+    for (const [name, pack] of Object.entries(admission.packages)) {
+      assert.equal(pack.manifest.name, '@edit-ac/' + name);
+      assert.equal(hash(readFileSync(pack.path)), pack.sha256);
+    }
+    execution.admission = pin(admissionPath);
+  } else run('build-web', 'npm', ['run', 'build', '--workspace', '@edit-ac/web']);
   const prior = json(join(base, 'c4o-14/runtime-source-pins.json'));
   const sources = Object.fromEntries(Object.keys(prior).map(path => [path, hash(readFileSync(path))]));
   for (const path of ['scripts/run-web-mobile-extension-boundary.mjs', 'tests/browser/mobile-extensions/assistance.spec.ts']) sources[path] = hash(readFileSync(path));
@@ -48,11 +57,12 @@ try {
   const impact = Object.keys(prior).filter(path => prior[path] !== sources[path]).map(path => ({ path, prior: prior[path], current: sources[path] }));
   save('input-impact.json', { changed: impact, originalReceipts: original.map(p => ({ path: p.path, sha256: p.sha256, engine: p.receipt.engine, cases: p.receipt.counts.executed })),
     composition: 'Six original Chromium mobile groups; full Firefox/WebKit formats supersede two original narrow cases each; all three engines formatting, mobile assistance, dictation and presenter. No overlapping dispatcher recount.' });
-  const packages = {};
-  for (const name of ['core', 'web', 'markdown']) {
-    const command = run('pack-' + name, 'npm', ['pack', '--workspace', '@edit-ac/' + name, '--json', '--pack-destination', output]);
-    const manifest = json(join(output, command.log))[0], path = join(output, manifest.filename);
-    packages[name] = { manifest, path, sha256: hash(readFileSync(path)) };
+  const packages = admission?.packages ?? {};
+  if (!admission) for (const name of ['core', 'web', 'markdown']) {
+    const directory = join(output, name); mkdirSync(directory);
+    const command = run('pack-' + name, 'npm', ['pack', '--workspace', '@edit-ac/' + name, '--json', '--pack-destination', directory]);
+    const manifest = JSON.parse(readFileSync(join(output, command.log), 'utf8'))[0];
+    const path = join(directory, manifest.filename); packages[name] = { path, manifest, sha256: hash(readFileSync(path)) };
   }
   save('packages.json', packages);
   const members = Object.fromEntries(['core', 'web', 'markdown'].flatMap(name => walk('packages/' + name + '/dist')).map(path => [path, hash(readFileSync(path))]));
