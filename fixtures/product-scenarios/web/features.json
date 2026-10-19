@@ -3619,7 +3619,7 @@
       "oracles": "Independent document identities, opposite mount order, route save/restore/Back, scoped errors/disposal and one common resource graph.",
       "proofs": [
         {
-          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-web-task-workspace",
+          "id": "wfe-3.1-c9-1-web-task-workspace",
           "engines": [
             "chromium",
             "firefox",
@@ -3637,7 +3637,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-web-react-routes",
+          "id": "wfe-3.1-c9-1-web-react-routes",
           "engines": [
             "chromium",
             "firefox",
@@ -3658,7 +3658,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-web-local-recovery",
+          "id": "wfe-3.1-c9-1-web-local-recovery",
           "engines": [
             "chromium",
             "firefox",
@@ -3680,7 +3680,7 @@
           ]
         }
       ],
-      "nextAction": "Current full original cases bound in c7-1/binding.json; qualified recovery transport return authenticated. Requalify changed inputs; alpha and later qualification remain open."
+      "nextAction": "Current full original cases bound in c9-1/binding.json; qualified recovery transport return authenticated. Requalify changed inputs; alpha and later qualification remain open."
     },
     {
       "id": "WEB-LOCAL",
@@ -3704,7 +3704,7 @@
       "oracles": "Actual IndexedDB reopen of distinct identities, denied/missing/corrupt checkpoints never reseed, failed append retains live unsaved content and deliberate isolated recovery bytes.",
       "proofs": [
         {
-          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-web-task-workspace",
+          "id": "wfe-3.1-c9-1-web-task-workspace",
           "engines": [
             "chromium",
             "firefox",
@@ -3722,7 +3722,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-web-react-routes",
+          "id": "wfe-3.1-c9-1-web-react-routes",
           "engines": [
             "chromium",
             "firefox",
@@ -3743,7 +3743,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-web-local-recovery",
+          "id": "wfe-3.1-c9-1-web-local-recovery",
           "engines": [
             "chromium",
             "firefox",
@@ -3765,7 +3765,7 @@
           ]
         }
       ],
-      "nextAction": "Current full original cases bound in c7-1/binding.json; qualified recovery transport return authenticated. Requalify changed inputs; alpha and later qualification remain open."
+      "nextAction": "Current full original cases bound in c9-1/binding.json; qualified recovery transport return authenticated. Requalify changed inputs; alpha and later qualification remain open."
     },
     {
       "id": "WEB-READONLY",
@@ -3789,7 +3789,7 @@
       "oracles": "Exact original content after denied input/commands, named identity stays readonly on reopen; sibling remains independent.",
       "proofs": [
         {
-          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-web-task-workspace",
+          "id": "wfe-3.1-c9-1-web-task-workspace",
           "engines": [
             "chromium",
             "firefox",
@@ -3807,7 +3807,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-web-react-routes",
+          "id": "wfe-3.1-c9-1-web-react-routes",
           "engines": [
             "chromium",
             "firefox",
@@ -3828,7 +3828,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-web-local-recovery",
+          "id": "wfe-3.1-c9-1-web-local-recovery",
           "engines": [
             "chromium",
             "firefox",
@@ -3850,7 +3850,7 @@
           ]
         }
       ],
-      "nextAction": "Current full original cases bound in c7-1/binding.json; qualified recovery transport return authenticated. Requalify changed inputs; alpha and later qualification remain open."
+      "nextAction": "Current full original cases bound in c9-1/binding.json; qualified recovery transport return authenticated. Requalify changed inputs; alpha and later qualification remain open."
     },
     {
       "id": "WEB-COLLABORATION",
@@ -3874,7 +3874,7 @@
       "oracles": "Real Yrs replica convergence and durable/outbox receipts across prepared transport loss/reorder/duplicate/reconnect; awareness remains transient.",
       "proofs": [
         {
-          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-collaboration-transport",
+          "id": "wfe-3.1-c9-1-collaboration-transport",
           "engines": [
             "transport"
           ],
@@ -3949,7 +3949,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-collaboration-offline",
+          "id": "wfe-3.1-c9-1-collaboration-offline",
           "engines": [
             "offline"
           ],
@@ -3961,7 +3961,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-collaboration-sdk",
+          "id": "wfe-3.1-c9-1-collaboration-sdk",
           "engines": [
             "chromium",
             "firefox",
@@ -3975,7 +3975,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-collaboration-configuration",
+          "id": "wfe-3.1-c9-1-collaboration-configuration",
           "engines": [
             "chromium",
             "firefox",
@@ -4035,7 +4035,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c7-4-adopt-wfe-3.1-c7-1-collaboration-web-collaboration",
+          "id": "wfe-3.1-c9-1-collaboration-web-collaboration",
           "engines": [
             "chromium",
             "firefox",
@@ -4046,7 +4046,7 @@
           ]
         }
       ],
-      "nextAction": "Current full original cases bound in c7-1/binding.json; qualified recovery transport return authenticated. Requalify changed inputs; alpha and later qualification remain open."
+      "nextAction": "Current full original cases bound in c9-1/binding.json; qualified recovery transport return authenticated. Requalify changed inputs; alpha and later qualification remain open."
     },
     {
       "id": "WEB-AI-OPTIONAL",
@@ -10159,6 +10159,245 @@
         {
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-filename-current/runtime-source-pins.json",
           "sha256": "fafa95a049714290dd669ae4093928d0db3ec66126f0414db39c555ef20db04c"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-1-web-task-workspace",
+      "owner": "PRIMARY current original workflow boundary",
+      "command": "node scripts/run-web-workflow-collaboration-refresh-boundary.mjs",
+      "sdkRevision": "9ac3dba845659a22fc1ba5126a3295f191bf502f",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-3/workflow/source-pins.json",
+          "sha256": "3276405a74dc0b6e6eef48ee94e1e613e44437d4e12b79f0d2c3dbd6bf76f8d4"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/runtime-source-pins.json",
+          "sha256": "d9ed82d76a62e0d1fe4aab5a8112aeb270cfeaefe59727f6162626c4fc6b7abd"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-3/workflow/web-task-workspace-chromium/receipt.json",
+          "sha256": "7512d5bf9e50833f021a782ca5618ab05cd8dbbaff23c2eff50f6cfffd55cb99",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-3/prepared"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-3/workflow/web-task-workspace-firefox/receipt.json",
+          "sha256": "ae0724a84f62142b265046645361ae112653de6fb94dbc7149a91bc289682a28",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-3/prepared"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-3/workflow/web-task-workspace-webkit/receipt.json",
+          "sha256": "6316d56df164dafee4abe9246066957fd90dd320610bee70dfbdd96ee495a1da",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-3/prepared"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-1-web-react-routes",
+      "owner": "PRIMARY current original workflow boundary",
+      "command": "node scripts/run-web-workflow-collaboration-refresh-boundary.mjs",
+      "sdkRevision": "9ac3dba845659a22fc1ba5126a3295f191bf502f",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-3/workflow/source-pins.json",
+          "sha256": "3276405a74dc0b6e6eef48ee94e1e613e44437d4e12b79f0d2c3dbd6bf76f8d4"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/runtime-source-pins.json",
+          "sha256": "d9ed82d76a62e0d1fe4aab5a8112aeb270cfeaefe59727f6162626c4fc6b7abd"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-3/workflow/web-react-routes-chromium/receipt.json",
+          "sha256": "147a62aa77b9b8b4aa9eb04b98eecad21964dace493f3bd6367518af5952025a",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-3/prepared"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-3/workflow/web-react-routes-firefox/receipt.json",
+          "sha256": "4efbd106a9c97b8db8e69be3df873a1e45dce5de0f8fe1f20667640fa5444724",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-3/prepared"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-3/workflow/web-react-routes-webkit/receipt.json",
+          "sha256": "59664d52bcde6655625bc786319ae8c8b3073198b997a5cd05f74aa5962f4245",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-3/prepared"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-1-web-local-recovery",
+      "owner": "PRIMARY current original workflow boundary",
+      "command": "node scripts/run-web-workflow-collaboration-refresh-boundary.mjs",
+      "sdkRevision": "9ac3dba845659a22fc1ba5126a3295f191bf502f",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-3/workflow/source-pins.json",
+          "sha256": "3276405a74dc0b6e6eef48ee94e1e613e44437d4e12b79f0d2c3dbd6bf76f8d4"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/runtime-source-pins.json",
+          "sha256": "d9ed82d76a62e0d1fe4aab5a8112aeb270cfeaefe59727f6162626c4fc6b7abd"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-3/workflow/web-local-recovery-chromium/receipt.json",
+          "sha256": "bb1b32c0f12f13569d008016d50ccf74aeb24b795a2c2fae5277b7b48dd4d9ad",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-3/prepared"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-3/workflow/web-local-recovery-firefox/receipt.json",
+          "sha256": "d6a31212bfb539dce0b87bcd2cfc959204b1fbd486bfc61ae3f35225c9ed20ac",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-3/prepared"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-3/workflow/web-local-recovery-webkit/receipt.json",
+          "sha256": "0cead94e0888196bb60523175ea765800f80be52c7cc0081d9db6465507b3bc2",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-3/prepared"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-1-collaboration-transport",
+      "owner": "PRIMARY current original middleware/prepared local transport boundary",
+      "command": "node scripts/run-web-workflow-collaboration-refresh-boundary.mjs",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-2/collaboration/source-pins.json",
+          "sha256": "762ef8fe1fa56d48cbfcbeb08f44111366cd7ee696badb279a7219dcd7dc49b4"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/runtime-source-pins.json",
+          "sha256": "d9ed82d76a62e0d1fe4aab5a8112aeb270cfeaefe59727f6162626c4fc6b7abd"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/bound/transport-receipt.json",
+          "sha256": "c27960edff2ae011e0d82d498023e207e7d9a2d9f64c69ebf5707bc41e61a346",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-2/collaboration"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-1-collaboration-offline",
+      "owner": "PRIMARY current original middleware/prepared local transport boundary",
+      "command": "node scripts/run-web-workflow-collaboration-refresh-boundary.mjs",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-2/collaboration/source-pins.json",
+          "sha256": "762ef8fe1fa56d48cbfcbeb08f44111366cd7ee696badb279a7219dcd7dc49b4"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/runtime-source-pins.json",
+          "sha256": "d9ed82d76a62e0d1fe4aab5a8112aeb270cfeaefe59727f6162626c4fc6b7abd"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/bound/offline-receipt.json",
+          "sha256": "525e5a4c0a2b72119688527be4e58ecf3b3b728360f1ef4b8334a98f488bf1db",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-2/collaboration"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-1-collaboration-sdk",
+      "owner": "PRIMARY current original middleware/prepared local transport boundary",
+      "command": "node scripts/run-web-workflow-collaboration-refresh-boundary.mjs",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-2/collaboration/source-pins.json",
+          "sha256": "762ef8fe1fa56d48cbfcbeb08f44111366cd7ee696badb279a7219dcd7dc49b4"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/runtime-source-pins.json",
+          "sha256": "d9ed82d76a62e0d1fe4aab5a8112aeb270cfeaefe59727f6162626c4fc6b7abd"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/bound/sdk-chromium-receipt.json",
+          "sha256": "e4cebf1b83d9d607d9cc1e1b03e620f4a858c4372689f828e58bf0f3fb3e52cb",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-2/collaboration"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/bound/sdk-firefox-receipt.json",
+          "sha256": "2718899e5e7b6b4115c3390a632ec8ed8cfa07bbfd3381aa92408505019d4f96",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-2/collaboration"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/bound/sdk-webkit-receipt.json",
+          "sha256": "bfc01cd9a67790515b57f97fc2f19d853d2fa807c110864a4f7afc35945a5d01",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-2/collaboration"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-1-collaboration-configuration",
+      "owner": "PRIMARY current original middleware/prepared local transport boundary",
+      "command": "node scripts/run-web-workflow-collaboration-refresh-boundary.mjs",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-2/collaboration/source-pins.json",
+          "sha256": "762ef8fe1fa56d48cbfcbeb08f44111366cd7ee696badb279a7219dcd7dc49b4"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/runtime-source-pins.json",
+          "sha256": "d9ed82d76a62e0d1fe4aab5a8112aeb270cfeaefe59727f6162626c4fc6b7abd"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/bound/configuration-chromium-receipt.json",
+          "sha256": "6c78cdfa13647a3ddea86e4dd6cff791911d452fe639c032e13f8782be5f882a",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-2/collaboration"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/bound/configuration-firefox-receipt.json",
+          "sha256": "368b78a474a87a0cf2772480c59b24b29663c713d9aa7b3ad20bbca6fb7968c4",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-2/collaboration"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/bound/configuration-webkit-receipt.json",
+          "sha256": "220624df90cbf46ba14888d190250ab259f2ceb1573b06c75c7fb19fda092a6e",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-2/collaboration"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c9-1-collaboration-web-collaboration",
+      "owner": "PRIMARY current original middleware/prepared local transport boundary",
+      "command": "node scripts/run-web-workflow-collaboration-refresh-boundary.mjs",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-2/collaboration/source-pins.json",
+          "sha256": "762ef8fe1fa56d48cbfcbeb08f44111366cd7ee696badb279a7219dcd7dc49b4"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/runtime-source-pins.json",
+          "sha256": "d9ed82d76a62e0d1fe4aab5a8112aeb270cfeaefe59727f6162626c4fc6b7abd"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/bound/web-collaboration-chromium-receipt.json",
+          "sha256": "6203e3ddece6ee393752477271de82cf590e6df7b85d81d1b7f3202cabb80e65",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-2/collaboration"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/bound/web-collaboration-firefox-receipt.json",
+          "sha256": "78e0117f9c880fe806737d2a0dfedc44e0a5cdfefd972a92309e158311edee57",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-2/collaboration"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/bound/web-collaboration-webkit-receipt.json",
+          "sha256": "086de4ff136a2d1fee1ffc377556b58df047201f7f5a114b28fcd7ad2ee8e425",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c9-1/run-2/collaboration"
         }
       ]
     }

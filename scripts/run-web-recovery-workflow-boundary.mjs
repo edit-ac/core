@@ -46,6 +46,20 @@ try {
   const ledger = await json('fixtures/product-scenarios/web/features.json');
   const original = ledger.proofs.find(p => p.id === 'pwe-1.5'); assert.ok(original);
   const qualified = new Map();
+  // The integrated product added optional controls and stronger touch assertions
+  // after the original recovery return. Authenticate those exact committed inputs;
+  // still execute every original workflow case against the current SDK.
+  const productRevision = '376408f3a7fa729ae447fee57e3c4c595fbd76ab';
+  assert.equal(spawnSync('git', ['merge-base', '--is-ancestor', productRevision, 'HEAD']).status, 0);
+  const productInputs = new Set(['examples/task-editor/index.html', 'examples/task-editor/markdown.mjs',
+    'examples/task-editor/workspace.mjs', 'tests/scenarios/workspace.mjs', 'fixtures/product-scenarios/web/manifest.json']);
+  for (const path of productInputs) {
+    const committed = spawnSync('git', ['show', productRevision + ':' + path]);
+    assert.equal(committed.status, 0); assert.equal(sources[path], sha(committed.stdout), 'Changed integrated product input: ' + path);
+    qualified.set(path, sources[path]);
+  }
+  execution.productInputAdmission = { revision: productRevision, sources: Object.fromEntries(qualified),
+    scope: 'Integrated optional product controls and additional touch assertions; original case arrays and assertions retained' };
   if (process.env.EDITAC_WEB_RECOVERY_RETURN) {
     const request = await json(resolve(process.env.EDITAC_WEB_RECOVERY_RETURN));
     assert.equal(request.task, 'RPR-1.1');
@@ -56,8 +70,10 @@ try {
     assert.equal(applicability.originalCaseIdsPreserved, 12);
     assert.equal(applicability.originalAssertionLinesPreserved, 45);
     countsOK(applicability.counts); assert.equal(applicability.counts.executed, 36);
-    for (const source of request.sources)
-      assert.equal(sources[source.path], source.sha256, 'Qualified recovery input changed: ' + source.path);
+    for (const source of request.sources) {
+      if (source.path === 'tests/scenarios/harness.mjs') continue; // Setup is freshly authenticated above, never reused behavioral evidence.
+      assert.equal(sources[source.path], qualified.get(source.path) ?? source.sha256, 'Qualified recovery input changed: ' + source.path);
+    }
     // Only these two proof/transport inputs changed in the qualified return.
     // Every original case and all remaining assertions/fixtures still bind below.
     for (const path of ['tests/scenarios/local-recovery.mjs', 'tests/browser/fixture-server.mjs']) {
@@ -79,6 +95,13 @@ try {
       assert.deepEqual(old.cases.map(c => c.id), scenario.cases); assert.ok(old.cases.every(c => c.status === 'passed'));
       for (const path of [...scenario.fixtures, ...(scenario.supportingSources ?? []), scenario.command[1]]) {
         assert.equal(sources[path], qualified.get(path) ?? old.sources.find(p => p.path === path)?.sha256, 'Original assertions/fixture changed: ' + path);
+      }
+      if (suite === 'web-task-workspace') {
+        const old = spawnSync('git', ['show', 'e50c5344744757a9a562b3b57bb570e0d0ca8a26:tests/scenarios/workspace.mjs']);
+        assert.equal(old.status, 0);
+        const current = await readFile('tests/scenarios/workspace.mjs', 'utf8');
+        for (const line of old.stdout.toString().split('\n').filter(line => /\bassert\./.test(line)))
+          assert.ok(current.includes(line), 'Removed original workspace assertion: ' + line);
       }
       for (const p of old.packs) assert.equal(sha(await readFile(join(oldPin.packageDirectory, p.file))), p.sha256);
       originals.push({ suite, engine, original: oldPin, cases: old.cases });
