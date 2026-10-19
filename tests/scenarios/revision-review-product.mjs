@@ -13,6 +13,7 @@ import { conflictCases } from './revision-review-conflicts.mjs';
 import { reopenCases } from './revision-review-reopen.mjs';
 import { restoreCases } from './revision-review-restore.mjs';
 import { compareCases } from './revision-review-compare.mjs';
+import { keyboardCases } from './revision-review-keyboard.mjs';
 import { captureCases } from './revision-review-capture.mjs';
 
 await requireTestNode();
@@ -77,7 +78,7 @@ try {
       browser = await ({ chromium, firefox, webkit }[engine]).connect(controller.wsEndpoint());
       browserFacts.version = browser.version(); page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
       page.setDefaultTimeout(10000); page.on('pageerror', error => errors.push(error.message));
-      await ({ capture: captureCases, scope: scopeCases, compare: compareCases, restore: restoreCases, conflicts: conflictCases, reopen: reopenCases }[group])({ page, server, facts: browserFacts, check, output: directory });
+      await ({ capture: captureCases, scope: scopeCases, compare: compareCases, restore: restoreCases, conflicts: conflictCases, reopen: reopenCases, keyboard: keyboardCases }[group])({ page, server, facts: browserFacts, check, output: directory });
       assert.deepEqual(errors, [], 'Unhandled browser errors');
     } catch (error) {
       browserFacts.failure = error.stack;

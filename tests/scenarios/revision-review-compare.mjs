@@ -89,7 +89,8 @@ export async function compareCases({ page, server, facts, check, output }) {
     await capture('Third capture'); await capture('Fourth capture');
     const stable = await observe();
     assert.match(await page.locator('#revision-compare-status').textContent(), /unavailable.*pruned/);
-    await page.locator('#revision-compare').click();
+    assert.equal(await page.locator('#revision-compare').isDisabled(), true);
+    await page.evaluate(async url => { (await import(url)).workspace.compare(); }, moduleURL);
     assert.match(await page.locator('#revision-compare-status').textContent(), /Before capture is pruned/);
     assert.equal(await host.locator('.editac-change-review').count(), 0);
     const handles = stable.captures.map(read => read.revision.handle);

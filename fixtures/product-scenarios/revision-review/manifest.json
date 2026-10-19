@@ -19,7 +19,8 @@
         "examples/task-editor/document.mjs",
         "fixtures/product-scenarios/revision-review/oracles.mjs",
         "fixtures/product-scenarios/revision-review/manifest.json",
-        "examples/task-editor/revision-review-restorer.mjs"
+        "examples/task-editor/revision-review-restorer.mjs",
+        "examples/task-editor/revision-review-controls.mjs"
       ],
       "supportingSources": [
         "examples/task-editor/revision-review-product.mjs",
@@ -29,7 +30,8 @@
         "tests/scenarios/revision-review-restore.mjs",
         "tests/scenarios/revision-review-compare.mjs",
         "tests/scenarios/revision-review-conflicts.mjs",
-        "tests/scenarios/revision-review-reopen.mjs"
+        "tests/scenarios/revision-review-reopen.mjs",
+        "tests/scenarios/revision-review-keyboard.mjs"
       ],
       "cases": [
         "installed-editable-explicit-capture",
@@ -60,7 +62,8 @@
         "examples/task-editor/document.mjs",
         "fixtures/product-scenarios/revision-review/oracles.mjs",
         "fixtures/product-scenarios/revision-review/manifest.json",
-        "examples/task-editor/revision-review-restorer.mjs"
+        "examples/task-editor/revision-review-restorer.mjs",
+        "examples/task-editor/revision-review-controls.mjs"
       ],
       "supportingSources": [
         "examples/task-editor/revision-review-product.mjs",
@@ -70,7 +73,8 @@
         "tests/scenarios/revision-review-restore.mjs",
         "tests/scenarios/revision-review-compare.mjs",
         "tests/scenarios/revision-review-conflicts.mjs",
-        "tests/scenarios/revision-review-reopen.mjs"
+        "tests/scenarios/revision-review-reopen.mjs",
+        "tests/scenarios/revision-review-keyboard.mjs"
       ],
       "cases": [
         "simultaneous-independent-identities-and-journals",
@@ -101,7 +105,8 @@
         "examples/task-editor/document.mjs",
         "fixtures/product-scenarios/revision-review/oracles.mjs",
         "fixtures/product-scenarios/revision-review/manifest.json",
-        "examples/task-editor/revision-review-restorer.mjs"
+        "examples/task-editor/revision-review-restorer.mjs",
+        "examples/task-editor/revision-review-controls.mjs"
       ],
       "supportingSources": [
         "examples/task-editor/revision-review-product.mjs",
@@ -111,7 +116,8 @@
         "tests/scenarios/revision-review-restore.mjs",
         "tests/scenarios/revision-review-compare.mjs",
         "tests/scenarios/revision-review-conflicts.mjs",
-        "tests/scenarios/revision-review-reopen.mjs"
+        "tests/scenarios/revision-review-reopen.mjs",
+        "tests/scenarios/revision-review-keyboard.mjs"
       ],
       "cases": [
         "capture-edit-independent-baseline",
@@ -142,7 +148,8 @@
         "examples/task-editor/document.mjs",
         "fixtures/product-scenarios/revision-review/oracles.mjs",
         "fixtures/product-scenarios/revision-review/manifest.json",
-        "examples/task-editor/revision-review-restorer.mjs"
+        "examples/task-editor/revision-review-restorer.mjs",
+        "examples/task-editor/revision-review-controls.mjs"
       ],
       "supportingSources": [
         "examples/task-editor/revision-review-product.mjs",
@@ -152,7 +159,8 @@
         "tests/scenarios/revision-review-restore.mjs",
         "tests/scenarios/revision-review-compare.mjs",
         "tests/scenarios/revision-review-conflicts.mjs",
-        "tests/scenarios/revision-review-reopen.mjs"
+        "tests/scenarios/revision-review-reopen.mjs",
+        "tests/scenarios/revision-review-keyboard.mjs"
       ],
       "cases": [
         "two-real-captures-text-mark-attributes-opaque",
@@ -183,7 +191,8 @@
         "examples/task-editor/document.mjs",
         "fixtures/product-scenarios/revision-review/oracles.mjs",
         "fixtures/product-scenarios/revision-review/manifest.json",
-        "examples/task-editor/revision-review-restorer.mjs"
+        "examples/task-editor/revision-review-restorer.mjs",
+        "examples/task-editor/revision-review-controls.mjs"
       ],
       "supportingSources": [
         "examples/task-editor/revision-review-product.mjs",
@@ -193,7 +202,8 @@
         "tests/scenarios/revision-review-restore.mjs",
         "tests/scenarios/revision-review-compare.mjs",
         "tests/scenarios/revision-review-conflicts.mjs",
-        "tests/scenarios/revision-review-reopen.mjs"
+        "tests/scenarios/revision-review-reopen.mjs",
+        "tests/scenarios/revision-review-keyboard.mjs"
       ],
       "cases": [
         "readonly-roundtrip-retires-preview-and-detached-confirm",
@@ -230,7 +240,8 @@
         "fixtures/product-scenarios/revision-review/oracles.mjs",
         "fixtures/product-scenarios/revision-review/manifest.json",
         "examples/task-editor/revision-review-restorer.mjs",
-        "fixtures/product-scenarios/revision-review/revision-review-faults.mjs"
+        "fixtures/product-scenarios/revision-review/revision-review-faults.mjs",
+        "examples/task-editor/revision-review-controls.mjs"
       ],
       "supportingSources": [
         "examples/task-editor/revision-review-product.mjs",
@@ -240,7 +251,8 @@
         "tests/scenarios/revision-review-restore.mjs",
         "tests/scenarios/revision-review-compare.mjs",
         "tests/scenarios/revision-review-conflicts.mjs",
-        "tests/scenarios/revision-review-reopen.mjs"
+        "tests/scenarios/revision-review-reopen.mjs",
+        "tests/scenarios/revision-review-keyboard.mjs"
       ],
       "cases": [
         "edit-full-reload-keeps-durable-current-without-reseed",
@@ -252,6 +264,54 @@
         "failed-close-retains-owner-recovery-captures-and-writable-view",
         "save-failure-isolated-from-sibling-and-does-not-claim-success",
         "repaired-storage-retry-persists-retained-edit-and-reopens-without-loss"
+      ]
+    },
+    "keyboard": {
+      "parent": "RVP-3.1",
+      "command": [
+        "node",
+        "tests/scenarios/revision-review-product.mjs"
+      ],
+      "engines": [
+        "chromium",
+        "firefox",
+        "webkit"
+      ],
+      "fixtures": [
+        "examples/task-editor/revision-review.html",
+        "examples/task-editor/revision-review.mjs",
+        "examples/task-editor/revision-review.css",
+        "examples/task-editor/document.mjs",
+        "fixtures/product-scenarios/revision-review/oracles.mjs",
+        "fixtures/product-scenarios/revision-review/manifest.json",
+        "examples/task-editor/revision-review-restorer.mjs",
+        "examples/task-editor/revision-review-controls.mjs"
+      ],
+      "supportingSources": [
+        "examples/task-editor/revision-review-product.mjs",
+        "examples/task-editor/revision-review-prepare.mjs",
+        "tests/scenarios/revision-review-capture.mjs",
+        "tests/scenarios/revision-review-scope.mjs",
+        "tests/scenarios/revision-review-restore.mjs",
+        "tests/scenarios/revision-review-compare.mjs",
+        "tests/scenarios/revision-review-conflicts.mjs",
+        "tests/scenarios/revision-review-reopen.mjs",
+        "tests/scenarios/revision-review-keyboard.mjs"
+      ],
+      "cases": [
+        "native-controls-have-visible-labels-and-focus-style",
+        "keyboard-capture-opens-details-with-preserved-selection",
+        "detail-close-returns-to-inspect-invoker",
+        "keyboard-native-select-compare-layout-close-focus",
+        "restore-preview-cancel-returns-to-preview-invoker",
+        "readonly-denies-restore-with-accurate-controls",
+        "keyboard-confirm-restore-is-one-ordinary-journaled-edit",
+        "duplicate-label-detail-return-preserves-exact-invoker",
+        "capture-close-race-drains-without-late-history-or-writes",
+        "closed-listeners-inert-and-keyboard-remount-recovers-durable-text",
+        "page-disposal-retires-reopen-and-retained-presenter-callbacks",
+        "disposal-awaits-opening-owner-and-concurrent-close",
+        "default-routes-unchanged-and-no-orphan-requests"
       ]
     }
   }
