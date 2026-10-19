@@ -393,7 +393,10 @@ export function mountEditorSurface(root: HTMLElement, engine: EngineHandle, opti
       exportMarkdown(blocks) { requireReady(); return binding.exportMarkdown(blocks); },
       get collaborationStatus() { return collaborationStatus; },
       get syncAttachment() { return attachment; },
-      async attachSync(syncOptions) { requireReady(); disconnect(); return attach(syncOptions); },
+      async attachSync(syncOptions) {
+        requireReady(); controller?.abort(); controller = undefined;
+        return attach(syncOptions);
+      },
       connectCollaboration: connect,
       disconnectCollaboration: disconnect,
       get extensionStatus() { return binding.extensionStatus; },

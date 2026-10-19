@@ -3776,9 +3776,181 @@
         }
       ],
       "oracles": "Real Yrs replica convergence and durable/outbox receipts across prepared transport loss/reorder/duplicate/reconnect; awareness remains transient.",
-      "proofs": [],
-      "nextAction": "Use the existing prepared socket pair and browser offline-collaboration dispatcher; no hosted service or external integration.",
-      "gap": "Authenticate architecture/evidence/synchronization-entry/receipt.json plus existing browser offline-collaboration/presence cases for the current SDK; default product checkpoint explicitly excludes peer reconnect."
+      "proofs": [
+        {
+          "id": "wfe-3.1-collaboration-transport",
+          "engines": [
+            "transport"
+          ],
+          "cases": [
+            "1:Rust portable anchors roundtrip through JS relative-position oracle and awareness in both directions",
+            "2:relative selections move under remote inserts and fail safely after semantic target deletion",
+            "3:stale peers expire exactly at deadline; duplicate/reordered clocks cannot resurrect or extend lifetime",
+            "4:unknown zero-clock state is ignored and same-clock null removes a known peer as in the pinned oracle",
+            "5:burst coalescing, backpressure and thrown sends retain one bounded pending state",
+            "6:host-driven renewal and clear presence use compatible clocks without idle traffic",
+            "7:invalid, surrogate-interior, wrong-lineage and wrong-source cursors fail atomically",
+            "8:malformed UTF-8/JSON, oversized, truncated, noncanonical and duplicate frames do not change peers",
+            "9:capacity includes expired tombstones; untrusted remote frames cannot remove local presence",
+            "10:replacement, expiry, invalid batch and disposal release every imported anchor",
+            "11:reentrant send cannot erase a newer queued state or undo disposal",
+            "12:awareness traffic never changes actual Rust state/history/update stream or durable journal/outbox",
+            "13:invalid options/time and oversize local presence fail without discarding valid state",
+            "14:Rust XML updates preserve semantic text and attributes in all six shuffled duplicate schedules",
+            "15:Rust delta against JS state vector completes the original JS writer",
+            "16:JS delta against Rust state vector retains both distinct writer identities and emoji marks",
+            "17:prepared socket copies Rust update frames and delivers all shuffled duplicate schedules offline",
+            "18:prepared socket bounds, explicit reorder and teardown do not require an endpoint",
+            "19:deterministic synchronization entry fixes separate update, sync, awareness and receipt profiles",
+            "20:deterministic prepared socket delivery preserves outbox until matching application receipts commit",
+            "21:deterministic checkpoint coverage retains every pending identity and retransmittable real update",
+            "22:deterministic sync events, socket delivery and state vectors cannot acknowledge updates",
+            "23:deterministic absent negotiated receipt capability reports unknown durability and retains updates",
+            "24:deterministic wrong receipt documentId cannot prune pending updates",
+            "25:deterministic wrong receipt epoch cannot prune pending updates",
+            "26:deterministic wrong receipt schema cannot prune pending updates",
+            "27:deterministic wrong receipt profile cannot prune pending updates",
+            "28:deterministic wrong receipt writerId cannot prune pending updates",
+            "29:deterministic wrong receipt sequence cannot prune pending updates",
+            "30:deterministic wrong receipt checksum cannot prune pending updates",
+            "31:deterministic wrong receipt updateId cannot prune pending updates",
+            "32:deterministic receipt acknowledgment and pruning wait for completion, not request success",
+            "33:deterministic receipt abort before-lookup retains outbox and permits retry",
+            "34:deterministic receipt abort after-write-success retains outbox and permits retry",
+            "35:deterministic quota, permission and receipt write failures propagate without pruning",
+            "36:deterministic duplicate/reordered durable receipts survive reopen and duplicate append",
+            "37:deterministic unknown receipt cannot pre-acknowledge a future journal append",
+            "38:deterministic corrupt receipt or journal fails explicitly instead of hiding pending work",
+            "39:deterministic detached pending bytes and unsupported strict durability preserve identity",
+            "40:deterministic bounded outbox pages preserve cursor identity, byte limits and receipt filtering",
+            "41:actual Chromium v2 upgrade, receipt abort boundaries, checkpoint retention and restart preserve real Rust updates",
+            "42:detached and unauthorized local edits remain recoverable; attachment preserves stable anchors and history",
+            "43:disconnect and authorized reconnect replay all local bytes through shuffled duplicate messages without echo",
+            "44:saturated prepared socket pauses bounded send replay and drops no committed local updates",
+            "45:bounded exponential retry exhaustion detaches; explicit reconnect recovers without losing edits",
+            "46:receive frame/count/byte bounds reject before mutation and require a recoverable reconnect",
+            "47:remote, restore and replay journal origins never become outbound update messages",
+            "48:generation fence prevents a delayed old outbox read from sending on a replacement attachment",
+            "49:local commit during a replay read gets a second pass and concurrent pumps share bounded work",
+            "50:transport failure and malformed frames expose errors while local recovery and history remain intact",
+            "51:offline undo and redo updates replay as local edits and preserve selective history across attachments",
+            "52:synchronous detach during a refusing send cannot schedule retries on the replacement session",
+            "53:Rust receiver reconciles reverse causal deltas and duplicates across bounded pumps without idle retry or echo",
+            "54:Rust incomplete deltas recover through a step2 handshake without duplicate revisions",
+            "55:retained incomplete deltas share receive count and byte budgets; overflow preserves offline edits",
+            "56:incomplete buffering never masks malformed binary or envelope failures",
+            "57:detach releases incomplete receive buffers and authorized reconnect recovers missing remote and retained local edits",
+            "58:frozen SYN-1.7 browser delta corpus converges at the real Rust receiver after predecessor replay",
+            "59:delete-before-insert reconciliation remains atomic and local revisions permit one bounded retry",
+            "60:remote patch observers can replace attachment during reconciliation without corrupting new queues",
+            "61:both-direction step1 and step2 match the pinned oracle and exchange concurrent same-schema edits",
+            "62:update messages use actual Rust bytes; duplicate and shuffled independent updates converge without echo",
+            "63:deletion-only step2 exchange works when state vectors are equal and repeated messages are idempotent",
+            "64:reject malformed frames and state vectors before any engine mutation",
+            "65:malformed or unsupported binary/schema updates are rejected by staged Rust admission without live changes",
+            "66:inbound and outbound byte bounds include headers; no input buffers are aliased",
+            "67:metadata must match every immutable field before adapter construction or outbound update"
+          ]
+        },
+        {
+          "id": "wfe-3.1-collaboration-offline",
+          "engines": [
+            "offline"
+          ],
+          "cases": [
+            "1:two browser processes recover acknowledged offline edits and converge with reordered duplicate Yjs messages",
+            "2:before-commit: lost relay response retains browser outbox, restart replay and duplicate receipt preserve local recovery",
+            "3:after-commit: lost relay response retains browser outbox, restart replay and duplicate receipt preserve local recovery",
+            "4:before-receipt: lost relay response retains browser outbox, restart replay and duplicate receipt preserve local recovery"
+          ]
+        },
+        {
+          "id": "wfe-3.1-collaboration-sdk",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "task-offline",
+            "atomic-chains",
+            "attach-existing-sync",
+            "attachment-lifecycle"
+          ]
+        },
+        {
+          "id": "wfe-3.1-collaboration-configuration",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "both-public-mounts-assemble-qualified-presenters",
+            "invalid-configuration-precedes-reservation-recovery-and-dom",
+            "captured-options-remain-isolated-during-local-recovery",
+            "provider-free-local-input-history-and-recovery",
+            "mixed-editors-isolate-content-authority-selection-history",
+            "format-command-policy-all-six-marks-retains-existing-content",
+            "control-shortcut-and-command-policies-are-independent",
+            "borrowed-surface-formatting-uses-the-existing-command-owner",
+            "default-platform-policy-preserves-host-and-inherited-values",
+            "spelling-and-autocorrection-cross-product-is-independent",
+            "disposal-restores-only-editor-owned-preferences",
+            "custom-checker-is-explicitly-unavailable-without-fallback",
+            "local-ready-does-not-wait-for-delayed-collaboration",
+            "denied-attachment-keeps-local-history-and-recovery",
+            "identity-and-authority-rejection-never-replace-local-replica",
+            "detach-invalidates-pending-connector-completion",
+            "out-of-order-reconnect-does-not-override-new-attachment",
+            "pending-remote-ready-cancels-on-destroy",
+            "presence-opt-ins-are-instance-scoped-and-host-driven",
+            "local-storage-reopens-the-same-document-without-a-provider",
+            "legacy-task-defaults-and-explicit-conflicts-retain-compatibility",
+            "unsupported-factory-and-borrowed-sync-fail-before-attachment",
+            "explicit-remote-ready-blocks-input-until-authorized-attachment",
+            "inspectable-presets-support-removal-addition-and-explicit-overrides",
+            "one-host-asset-override-retains-the-authenticated-engine",
+            "real-sync-reconnect-preserves-unsent-local-edits-peer-edits-and-history",
+            "direct-detach-updates-status-and-disposes-only-the-current-attachment",
+            "failed-local-recovery-releases-surface-and-reports-feature-failure",
+            "required-markdown-gates-both-mounts-and-uses-real-parser-history",
+            "command-lazy-export-does-not-delay-typing-or-enable-siblings",
+            "parser-failure-retains-source-and-explicit-retry-resumes-same-replicas",
+            "pending-parser-disposal-cancels-both-mounts-before-late-completion",
+            "facade-content-families-use-qualified-presenters-without-host-assembly",
+            "disabled-formatting-preserves-six-existing-marks-unknown-data-and-history",
+            "invalid-shipped-options-and-mutated-load-policy-fail-before-attachment",
+            "disabled-codec-performs-no-parser-initialization-or-additional-content-work",
+            "borrowed-storage-owner-sync-reconnect-remount-preserves-peer-history-and-unsent-edits",
+            "borrowed-remote-readiness-denial-and-explicit-retry-use-same-local-owner",
+            "borrowed-pending-connector-disposal-is-inert-and-host-storage-stays-editable",
+            "borrowed-storage-identity-and-commit-conflicts-fail-before-attachment",
+            "facade-reference-host-is-explicit-isolated-and-uses-existing-insertion-history",
+            "facade-slash-command-options-are-captured-once-and-apply-one-prepared-intent",
+            "facade-math-admits-existing-data-and-uses-qualified-lazy-preview-on-both-mounts",
+            "one-config-composes-markdown-image-and-table-codecs-with-their-presenters",
+            "managed-remote-gate-can-retry-denial-without-recovery-or-readonly-bypass",
+            "required-search-keeps-synchronous-mount-and-cancels-before-attachment",
+            "required-reorder-keeps-synchronous-mount-and-cancels-before-attachment",
+            "required-slash-keeps-synchronous-mount-and-cancels-before-attachment",
+            "required-references-keeps-synchronous-mount-and-cancels-before-attachment",
+            "mixed-legacy-and-managed-presenters-share-unique-ids-and-one-engine-owner"
+          ]
+        },
+        {
+          "id": "wfe-3.1-collaboration-web-collaboration",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "borrowed-atomic-replacement"
+          ]
+        }
+      ],
+      "nextAction": "Original entry/reconnect/awareness/offline cases plus public SDK/configured mounts and atomic replacement regression bound to current runtime. Host transport remains prepared/local; no hosted sync or cloud claim. Recheck changed inputs only."
     },
     {
       "id": "WEB-AI-OPTIONAL",
@@ -5625,6 +5797,117 @@
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4l-readonly/run-1/web-local-recovery-webkit/receipt.json",
           "sha256": "b8f9bc4e1313979f5cdccb29317101688f0a6ad198e0ccc7e02a8a63f738be43",
           "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4i-markdown/run-4/prepared"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-collaboration-transport",
+      "owner": "PRIMARY current collaboration boundary",
+      "command": "node scripts/run-web-collaboration-boundary.mjs (exact environment and child commands in run-7/execution.json)",
+      "sourceManifests": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4n-collaboration/run-7/source-pins.json",
+          "sha256": "a336fa9302e4b7f044cfb743cd9da2fcc35c6d576164b2ece18aae251ecc4ef4"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4n-collaboration/bound/transport-receipt.json",
+          "sha256": "206fed48219fac31cc8922013cfdc9fb5395494a4c810f80fc32caf5a233a070",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4n-collaboration/run-7"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-collaboration-offline",
+      "owner": "PRIMARY current collaboration boundary",
+      "command": "node scripts/run-web-collaboration-boundary.mjs (exact environment and child commands in run-7/execution.json)",
+      "sourceManifests": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4n-collaboration/run-7/source-pins.json",
+          "sha256": "a336fa9302e4b7f044cfb743cd9da2fcc35c6d576164b2ece18aae251ecc4ef4"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4n-collaboration/bound/offline-receipt.json",
+          "sha256": "cfd567239eab0eda99633c1f06f8e85b6d0a80f6f5024cc4ea9087bf0c1bc6be",
+          "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4n-collaboration/run-7"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-collaboration-sdk",
+      "owner": "PRIMARY current collaboration boundary",
+      "command": "node scripts/run-web-collaboration-boundary.mjs (exact environment and child commands in run-7/execution.json)",
+      "sourceManifests": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4n-collaboration/run-7/source-pins.json",
+          "sha256": "a336fa9302e4b7f044cfb743cd9da2fcc35c6d576164b2ece18aae251ecc4ef4"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4n-collaboration/run-4/sdk-chromium/receipt.json",
+          "sha256": "f8625c68a0445cbf2cddae1ac3940fb32369a8228535a29987e93a5332e8a727"
+        },
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4n-collaboration/run-6/sdk-firefox/receipt.json",
+          "sha256": "d5ad345b229c19873f349cb3d3ba5bafe17a1cf5c54a882663ff18d29ae941a0"
+        },
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4n-collaboration/run-7/sdk-webkit/receipt.json",
+          "sha256": "b2774975e34183f3d2414d9975c90922633d11727dd38a7f8f1edd45fbdff25c"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-collaboration-configuration",
+      "owner": "PRIMARY current collaboration boundary",
+      "command": "node scripts/run-web-collaboration-boundary.mjs (exact environment and child commands in run-7/execution.json)",
+      "sourceManifests": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4n-collaboration/run-7/source-pins.json",
+          "sha256": "a336fa9302e4b7f044cfb743cd9da2fcc35c6d576164b2ece18aae251ecc4ef4"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4n-collaboration/run-7/configuration-chromium/browser/receipt.json",
+          "sha256": "c3f71cb935a72d3c675f6408b6433ae1b5ed8b95373221a8ef51482cc0a0a4ce"
+        },
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4n-collaboration/run-7/configuration-firefox/browser/receipt.json",
+          "sha256": "d2f423c6d752fec9b45adeebc04012d1f209ca269c61baa41ee91e90f46516c0"
+        },
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4n-collaboration/run-7/configuration-webkit/browser/receipt.json",
+          "sha256": "5f3670e5e2643242558770916ea997372621908cbfa34463d2dbe76b44019918"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-collaboration-web-collaboration",
+      "owner": "PRIMARY current collaboration boundary",
+      "command": "node scripts/run-web-collaboration-boundary.mjs (exact environment and child commands in run-7/execution.json)",
+      "sourceManifests": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4n-collaboration/run-7/source-pins.json",
+          "sha256": "a336fa9302e4b7f044cfb743cd9da2fcc35c6d576164b2ece18aae251ecc4ef4"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4n-collaboration/run-7/web-collaboration-chromium/receipt.json",
+          "sha256": "0b21f655794a72b1851ab11398523614edc6c3408c0359d89de4173583c3a160"
+        },
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4n-collaboration/run-7/web-collaboration-firefox/receipt.json",
+          "sha256": "b9fde9045035927a08607df66930770e2f3fd5ae2356bab7b0f236bd1787d04c"
+        },
+        {
+          "path": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4n-collaboration/run-7/web-collaboration-webkit/receipt.json",
+          "sha256": "a77bf0b39d14858c6e31b16fc2d19afdfdcf64cb61e293dec9ef8c8bcc57799f"
         }
       ]
     }

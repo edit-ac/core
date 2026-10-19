@@ -52,7 +52,7 @@ function fill(value, blocks) {
 async function paste(value, host, source) {
   const n=value.read().visible.find(n=>n.kind==='block');select(host,0,n.runs.map(r=>r.text).join('').length);
   const data=new DataTransfer();data.setData('text/plain',source);
-  const event=new ClipboardEvent('paste',{bubbles:true,cancelable:true,clipboardData:data});host.dispatchEvent(event);
+  const event=window.preparedClipboardEvent('paste',data);host.dispatchEvent(event);
   await value.settle();return event.defaultPrevented;
 }
 async function close() {
