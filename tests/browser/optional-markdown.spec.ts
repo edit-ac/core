@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {browserHarness} from './browser-harness.ts';
-const {probe}=browserHarness('optional-markdown','fixtures/browser-input',{markdown:false,packages:['core','web','markdown']});
+// Parsing starts disabled, but an explicit in-test opt-in must load the same
+// installed optional package rather than falling back to checkout build output.
+const options={markdown:false,packages:['core','web','markdown'],serverOptions:{},
+ prepareConsumer:async consumer=>{options.serverOptions.markdownDirectory=consumer+'/markdown/package/dist';return 'fixtures/browser-input';}};
+const {probe}=browserHarness('optional-markdown','fixtures/browser-input',options);
 
 test('default typing and plain paste stay literal without any parser request',()=>probe('default-literal',async(page,fact)=>{
   const requests=[];page.on('request',r=>requests.push(r.url()));

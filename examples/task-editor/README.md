@@ -7,6 +7,14 @@ Rust 1.97.1, wasm-bindgen 0.2.129), run from `core/`:
 node examples/task-editor/product.mjs
 ```
 
+To enable the optional Markdown example, use the same launcher with
+`node examples/task-editor/product.mjs --markdown`, then open its `?markdown`
+link. It builds and installs the separate `@edit-ac/markdown` package and serves
+its WASM from that installed site. The query explicitly enables parsing for the
+rich task editor; the plain comment stays literal. Without the flag the launcher
+does not build or serve the optional codec. Without the query the editor does
+not fetch or activate it, even when the optional assets are available.
+
 This single command builds a committed SDK snapshot, packs and installs the actual
 local core/web/React tarballs, bundles the existing React example with pinned
 React 19.3.0, then prints localhost links for the task/comment workspace, React
