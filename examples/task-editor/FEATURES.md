@@ -49,3 +49,6 @@ The pinned product proof is PWE-1.5: 93 cases proven by 33 executions plus 60 ex
 - Cloud/document-store28 stays deferred. Local IndexedDB receipts do not confirm remote durability. Peer sync/presence and optional AI require explicit host configuration; the default local task sample enables neither hosted sync nor providers.
 - Optional conversion includes 13 browser directions with PDF export-only; native original-media conversion remains a separate owner predicate.
 - No publishing, deployment, push, external integration, credentials, paid inference or live dogfood is authorized. AI checks use prepared responses and mocked transports only, after reading the paid-inference policy.
+
+
+Current workflow/routes/local recovery/readonly and real middleware/collaboration inputs: `c9-1/binding.json` restores the original four rows on authenticated BPA/BCC/WFN SDK archives. Every original case/engine and independent oracle is retained; all original workflow93 and collaboration236 assertions execute afresh. Optional native/device/performance/provider/release and full alpha remain separate.

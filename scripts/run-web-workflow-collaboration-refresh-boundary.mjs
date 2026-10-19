@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, readFileSync, writeFileSync, openSync, closeSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, openSync, closeSync, copyFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { prepareProductSite } from '../examples/task-editor/product.mjs';
+import { loadScenario } from '../tests/scenarios/run.mjs';
+import { prepareProductHarness } from '../tests/scenarios/harness.mjs';
+import { admitImmutableSdk } from './immutable-sdk-admission.mjs';
 import { hash } from './editing-coverage.mjs';
 import { requireTestNode } from './test-toolchain.mjs';
 
@@ -16,8 +18,10 @@ const json = path => JSON.parse(readFileSync(path, 'utf8'));
 const save = (name, value) => writeFileSync(join(output, name), JSON.stringify(value, null, 2) + '\n');
 const pin = path => ({ path: resolve(path), sha256: hash(readFileSync(path)) });
 const base = resolve('../architecture/evidence/web-feature-first-20261018/wfe-3.1');
-const build = json(join(base, 'c7-2/current-build/runtime-source-pins.json'));
-const runtime = json(join(base, 'c7-2/current-build/package-runtime-pins.json'));
+const admissionPath = resolve(process.env.EDITAC_PRODUCT_SDK_ADMISSION ?? join(base, 'c6-filename-current/admission.json'));
+const admitted = admitImmutableSdk(admissionPath);
+const build = admitted.sources;
+const runtime = admitted.runtime;
 const verify = pins => {
   for (const [path, digest] of Object.entries(pins))
     assert.equal(hash(readFileSync(path)), digest, 'Changed current input: ' + path);
@@ -28,16 +32,41 @@ const landed = json('../.roadmap-coordination/requests/parallel-offline-recovery
 assert.equal(landed.task, 'RPR-1.2');
 for (const cwd of [process.cwd(), '/Users/bpstr/Github/edit-ac/core'])
   assert.equal(spawnSync('git', ['merge-base', '--is-ancestor', landed.mainCore, 'HEAD'], { cwd }).status, 0);
-const execution = { task: 'WFE-3.1-C7-1', originalParents: ['WFE-3.1-I1', 'WFE-3.1-V1'],
+const execution = { task: 'WFE-3.1-C9-1', originalParents: ['WFE-3.1-I1', 'WFE-3.1-V1'],
   started: new Date().toISOString(), commands: [], receipts: [], buildAdmission: build,
   runtimeMembers: runtime, runner: pin('scripts/run-web-workflow-collaboration-refresh-boundary.mjs'),
-  qualifiedReturn: pin(requestPath), landedReturn: landed };
+  qualifiedReturn: pin(requestPath), landedReturn: landed, sdkAdmission: admitted.receipt };
 try {
   const prepared = { output: join(output, 'prepared'), commands: [], purpose: 'Current original workflow refresh' };
   if (process.env.EDITAC_WEB_WORKFLOW_COLLABORATION_SITE) {
     execution.prepared = pin(resolve(process.env.EDITAC_WEB_WORKFLOW_COLLABORATION_SITE));
   } else {
-    await prepareProductSite(prepared.output, prepared);
+    // Compose only this boundary's original suites, with one real installed site.
+    // The full alpha checkpoint (including optional formats) remains a later gate.
+    const suites = await Promise.all(['web-task-workspace', 'web-react-routes', 'web-local-recovery'].map(id => loadScenario(id)));
+    const scenario = { packages: ['react'], command: ['node', 'tests/scenarios/product-checkpoint.mjs'],
+      fixtures: [...new Set(suites.flatMap(s => s.scenario.fixtures))],
+      supportingSources: [...new Set(suites.flatMap(s => [...(s.scenario.supportingSources ?? []), s.scenario.command[1]]))] };
+    // Use the unchanged product harness's existing package-composition entry.
+    // This receipt authenticates setup on the current source; it carries no tests.
+    const catalog = join(output, 'admitted-sdk'); mkdirSync(catalog);
+    const revision = spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout.trim();
+    for (const [path, digest] of Object.entries(build).filter(([path]) => /^(crates\/|packages\/(core|web)\/src\/)/.test(path))) {
+      const committed = spawnSync('git', ['show', revision + ':' + path]);
+      assert.equal(committed.status, 0); assert.equal(hash(committed.stdout), digest, 'Uncommitted SDK input: ' + path);
+    }
+    const packs = ['core', 'web'].map(name => {
+      const pack = admitted.packages[name], file = pack.manifest.filename;
+      copyFileSync(pack.path, join(catalog, file)); return { name, file, sha256: pack.sha256 };
+    });
+    const setup = { sourceRevision: revision, packageSourceRevision: revision, sdkAdmission: admitted.receipt,
+      scope: 'Exact current committed SDK source equality and immutable qualified archives; setup only, no behavioral receipt',
+      packs, toolchains: { node: process.versions.node, npm: '11.17.0', rust: 'rustc 1.97.1' } };
+    writeFileSync(join(catalog, 'setup.json'), JSON.stringify(setup, null, 2) + '\n');
+    process.env.EDITAC_PRODUCT_PACK_RECEIPT = join(catalog, 'setup.json');
+    await prepareProductHarness(prepared.output, prepared, scenario);
+    prepared.prepared = true;
+    writeFileSync(join(prepared.output, 'prepared.json'), JSON.stringify(prepared, null, 2) + '\n');
     execution.prepared = pin(join(prepared.output, 'prepared.json'));
   }
   for (const [name, script, env] of [
@@ -48,9 +77,28 @@ try {
     }],
     ['collaboration', 'scripts/run-web-collaboration-boundary.mjs', {
       EDITAC_WEB_COLLABORATION_OUTPUT: join(output, 'collaboration'),
-      EDITAC_COLLABORATION_REUSE: join(base, 'c4n-collaboration/run-2'),
+      EDITAC_COLLABORATION_ADMISSION: admissionPath,
     }],
   ]) {
+    if (name === 'collaboration' && process.env.EDITAC_WEB_WORKFLOW_COLLABORATION_REUSE) {
+      const priorPath = resolve(process.env.EDITAC_WEB_WORKFLOW_COLLABORATION_REUSE), prior = json(priorPath);
+      assert.equal(prior.exit, 0); verify(json(resolve(priorPath, '../source-pins.json')));
+      verify(json(resolve(priorPath, '../package-runtime-pins.json')));
+      for (const pack of json(resolve(priorPath, '../packages.json')))
+        assert.equal(pack.sha256, admitted.packages[pack.name].sha256);
+      for (const receipt of prior.receipts) {
+        assert.equal(hash(readFileSync(receipt.path)), receipt.sha256);
+        const r = json(receipt.path); verify(r.sources);
+        for (const pack of r.packs) assert.equal(hash(readFileSync(resolve(priorPath, '..', pack.file))), pack.sha256);
+      }
+      for (const command of prior.commands) {
+        assert.equal(command.exit, 0); assert.equal(command.signal, null);
+        assert.equal(hash(readFileSync(resolve(priorPath, '..', command.log))), command.sha256);
+      }
+      execution.commands.push({ program: process.execPath, args: [script], mode: 'exact-input-reuse',
+        originalExecution: pin(priorPath), exit: 0, counts: prior.counts, freshExecuted: 0, reusedExecuted: prior.counts.executed });
+      execution.receipts.push({ name, ...pin(priorPath) }); continue;
+    }
     const log = join(output, name + '.log'), fd = openSync(log, 'wx'); let result;
     try { result = spawnSync(process.execPath, [script], { env: { ...process.env, ...env }, stdio: ['ignore', fd, fd] }); }
     finally { closeSync(fd); }

@@ -5,6 +5,7 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { requireTestNode } from './test-toolchain.mjs';
 import { tapFacts } from './check-web-feature-ledger.mjs';
+import { admitImmutableSdk } from './immutable-sdk-admission.mjs';
 await requireTestNode();
 assert.ok(process.env.EDITAC_WEB_COLLABORATION_OUTPUT, 'Name a new evidence directory');
 const output = resolve(process.env.EDITAC_WEB_COLLABORATION_OUTPUT); mkdirSync(output);
@@ -18,12 +19,22 @@ const execution = { task: 'WFE-3.1-C4n', originalParents: ['WFE-3.1-I1', 'WFE-3.
 const walk = path => readdirSync(path,{withFileTypes:true}).flatMap(e=>e.isDirectory()?walk(join(path,e.name)):[join(path,e.name)]);
 try {
   const packs=[];
+  const admission = process.env.EDITAC_COLLABORATION_ADMISSION && admitImmutableSdk(process.env.EDITAC_COLLABORATION_ADMISSION);
+  if (admission) execution.sdkAdmission = admission.receipt;
   for(const name of ['core','web','markdown']) {
+    if (admission) {
+      const pack = admission.packages[name], file = join(output, pack.manifest.filename);
+      writeFileSync(file, readFileSync(pack.path), { flag: 'wx' });
+      packs.push({ name, file, sha256: pack.sha256 });
+      continue;
+    }
     const result=spawnSync('npm',['pack','--workspace','@edit-ac/'+name,'--ignore-scripts','--json','--pack-destination',output],{encoding:'utf8'});
     writeFileSync(join(output,'pack-'+name+'.log'),(result.stdout??'')+(result.stderr??''));assert.equal(result.status,0);
     const p=JSON.parse(result.stdout)[0];packs.push({name,file:resolve(output,p.filename),sha256:sha(readFileSync(join(output,p.filename)))});
   }
   save('packages.json',packs);
+  if (admission) save('immutable-packages.json', Object.fromEntries(packs.map(pack => [pack.name,
+    { ...admission.packages[pack.name], path: pack.file }])));
   const historical=json('../architecture/evidence/extension-dx/contract-20261017/generated-artifacts.json');
   const generated=historical.map(p=>{
     const pack=packs.find(v=>v.name===(p.member.includes('editac_markdown')?'markdown':'core'));
@@ -53,12 +64,13 @@ print(json.dumps(members))`],{input:JSON.stringify(packs),encoding:'utf8',maxBuf
     'tests/extension-dx/configuration-consumer','tests/extension-dx/configuration.test.mjs','tests/browser/browser-harness.ts','tests/browser/fixture-server.mjs','tests/browser/packed-cache.mjs',
     'tests/browser/sdk.spec.ts','tests/browser/offline-collaboration.spec.ts','tests/awareness.test.mjs','tests/outbox.test.mjs','tests/interop.test.mjs','tests/reconnect.test.mjs','tests/sync-protocol.test.mjs',
     'scripts/test-browser.mjs','Cargo.toml','Cargo.lock','package.json','package-lock.json','.node-version'],{encoding:'utf8'});assert.equal(listed.status,0);
-  const paths=[...new Set([...listed.stdout.trim().split('\n'),'scripts/run-web-collaboration-boundary.mjs','tests/browser/web-collaboration.spec.ts'])].filter(p=>/\.(?:rs|ts|mjs|js|json|toml|lock|html)$/.test(p)||p==='.node-version');
+  const paths=[...new Set([...listed.stdout.trim().split('\n'),'scripts/run-web-collaboration-boundary.mjs','scripts/immutable-sdk-admission.mjs','tests/browser/web-collaboration.spec.ts'])].filter(p=>/\.(?:rs|ts|mjs|js|json|toml|lock|html)$/.test(p)||p==='.node-version');
   const sources=Object.fromEntries(paths.map(p=>[p,sha(readFileSync(p))]));Object.assign(sources,members);verify(sources);save('source-pins.json',sources);
   // Reuse only unchanged lower-level execution. These suites do not import the
   // edited DOM facades, so their exact dependency closure is independently pinned.
   const lower=Object.fromEntries(Object.entries(sources).filter(([p])=>p.startsWith('crates/')||(p.startsWith('packages/core/src/')||/^packages\/core\/dist\/(?:index\.js|engine\.js|wasm\/)/.test(p))||/^packages\/web\/(?:src|dist)\/(?:sync|storage)\//.test(p)||p.startsWith('fixtures/')||p.startsWith('tests/helpers/')||p.startsWith('tests/fixtures/')||/^(?:Cargo|package)[.-]/.test(p)||/tests\/(?:browser\/)?(?:awareness|outbox|interop|reconnect|sync-protocol|offline-collaboration)\./.test(p)||p.startsWith('tests/browser/fixtures/offline-collaboration/')));
-  const prior=process.env.EDITAC_COLLABORATION_REUSE;assert.ok(prior,'Name unchanged accepted direct boundary execution');
+  const prior=process.env.EDITAC_COLLABORATION_REUSE;
+  if (prior) {
   const priorExecution=json(join(prior,'execution.json')),priorSources=json(join(prior,'source-pins.json'));
   for(const [p,h] of Object.entries(lower)) assert.equal(priorSources[p],h,'Changed direct proof input: '+p);
   for(const name of ['transport','offline']) {
@@ -67,6 +79,24 @@ print(json.dumps(members))`],{input:JSON.stringify(packs),encoding:'utf8',maxBuf
     const facts=tapFacts(raw);save(name+'-receipt.json',{...facts,sources:lower,packs,engine:name,sourcesUnchanged:true,
       evidenceMode:'exact-input direct WASM/adapters reuse; packed runtime member equality; not a fresh installed browser execution',originalLog:pin(join(prior,command.log)),originalExecution:pin(join(prior,'execution.json'))});
     execution.reusedCommands.push({name,...command,originalLog:pin(join(prior,command.log))});execution.receipts.push({name,...pin(join(output,name+'-receipt.json'))});
+  }
+  } else {
+    for (const [name, files] of [
+      ['transport', ['tests/outbox.test.mjs', 'tests/interop.test.mjs', 'tests/sync-protocol.test.mjs', 'tests/reconnect.test.mjs', 'tests/awareness.test.mjs']],
+      ['offline', ['tests/browser/offline-collaboration.spec.ts']],
+    ]) {
+      const args = ['--test', '--test-reporter=tap', ...files], log = name + '.tap', fd = openSync(join(output, log), 'wx'); let result;
+      try { result = spawnSync(process.execPath, args, { env: { ...process.env, EDITAC_EDITING_PACKS: join(output, 'immutable-packages.json'), EDITAC_OFFLINE_COLLABORATION_OUTPUT: join(output, 'offline-chromium') }, stdio: ['ignore', fd, fd] }); }
+      finally { closeSync(fd); }
+      const raw = readFileSync(join(output, log), 'utf8');
+      const command = { program: process.execPath, args, log, exit: result.status, signal: result.signal, sha256: sha(raw) };
+      execution.commands.push(command); save('execution.json', execution);
+      assert.ifError(result.error); assert.equal(result.signal, null); assert.equal(result.status, 0, 'See ' + log);
+      const facts = tapFacts(raw); command.counts = facts.counts;
+      save(name + '-receipt.json', { ...facts, sources: lower, packs, engine: name, sourcesUnchanged: true,
+        evidenceMode: 'Fresh original public WASM/adapters and real middleware/prepared local transport', originalLog: pin(join(output, log)) });
+      execution.receipts.push({ name, ...pin(join(output, name + '-receipt.json')) });
+    }
   }
   for(const engine of ['chromium','firefox','webkit']) for(const suite of ['sdk','configuration','web-collaboration']) {
     const name=suite+'-'+engine,dir=join(output,name),log=name+'.tap';
@@ -85,7 +115,7 @@ print(json.dumps(members))`],{input:JSON.stringify(packs),encoding:'utf8',maxBuf
     if(reusedBrowser)continue;
     const fd=openSync(join(output,log),'wx');let result;
     const file=suite==='configuration'?'tests/extension-dx/configuration.test.mjs':'tests/browser/'+suite+'.spec.ts';
-    const env={...process.env,[`EDITAC_${suite.toUpperCase().replaceAll('-','_')}_OUTPUT`]:dir,[`EDITAC_${suite.toUpperCase().replaceAll('-','_')}_BROWSER`]:engine,EDITAC_EXTENSION_DX_OUTPUT:dir,EDITAC_CONFIGURATION_RUNTIME_PINS:join(output,'current-generated-artifacts.json')};
+    const env={...process.env,...(admission ? { EDITAC_EDITING_PACKS: join(output, 'immutable-packages.json') } : {}),[`EDITAC_${suite.toUpperCase().replaceAll('-','_')}_OUTPUT`]:dir,[`EDITAC_${suite.toUpperCase().replaceAll('-','_')}_BROWSER`]:engine,EDITAC_EXTENSION_DX_OUTPUT:dir,EDITAC_CONFIGURATION_RUNTIME_PINS:join(output,'current-generated-artifacts.json')};
     const args=['--test','--test-reporter=tap',file];
     try { result=spawnSync(process.execPath,args,{env,stdio:['ignore',fd,fd]}); } finally {closeSync(fd);}
     const command={program:process.execPath,args,log,exit:result.status,signal:result.signal,...(result.error?{error:result.error.message}:{}),sha256:sha(readFileSync(join(output,log)))};
