@@ -62,6 +62,7 @@ suites.accessibility = ['tests/browser/accessibility.spec.ts'];
 suites.example = ['tests/browser/web-example.test.mjs'];
 suites.review = ['tests/browser/review.spec.ts'];
 suites['review-concurrent'] = ['tests/browser/review-concurrent.spec.ts'];
+suites['capture-compare'] = ['tests/browser/capture-compare.spec.ts'];
 suites['history-review'] = ['tests/browser/history-review.spec.ts'];
 suites['editing-presenters'] = ['tests/browser/editing-presenters.spec.ts'];
 suites['editing-lifetime'] = ['tests/browser/editing-lifetime.spec.ts'];
