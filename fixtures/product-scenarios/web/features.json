@@ -1439,7 +1439,7 @@
       "oracles": "Stable descriptor/source and marked fallback survive copy/history and durable reopen; host-only image/blob lifecycle, reauthorization, cancellation, retirement and late/disposed ownership retain data and never auto-activate files/embeds.",
       "proofs": [
         {
-          "id": "wfe-3.1-c4c-inline-media",
+          "id": "wfe-3.1-c4o-4-inline-media",
           "engines": [
             "chromium",
             "firefox",
@@ -1556,7 +1556,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c2d-rich-transfer",
+          "id": "wfe-3.1-c4o-4-inline-media",
           "engines": [
             "chromium",
             "firefox",
@@ -1579,7 +1579,7 @@
           ]
         }
       ],
-      "nextAction": "Repair or authenticate the exact changed owner inputs reported by the ledger, then reuse the existing named dispatcher. No unchanged failed-check retry."
+      "nextAction": "All original image/file/embed cases and descriptor/Session/SQLite cases proven on current installed SDK; All13 required marked-caption/reference cases retain their original mapping through the full original rich/mixed-formatting dispatcher; other WEB-RICH-TRANSFER criteria remain separate. Later native/device/performance qualifications remain deferred."
     },
     {
       "id": "WEB-SLASH",
@@ -6133,6 +6133,79 @@
         {
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-3/run-1/source-pins.json",
           "sha256": "a528fd9aa8459f67b23bc7e73280f0fa87bd351ee8ad3e842826f65c2cdafedd"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c4o-4-inline-media",
+      "owner": "PRIMARY current-source inline-media boundary; PARALLEL presenter implementation unchanged",
+      "command": "node scripts/run-web-inline-media-boundary.mjs (original RCH-1.11\u20131.15 cases)",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-4/run-5/extension-formatting/chromium/mixed/receipt.json",
+          "sha256": "55e6f2ba6937495c5e8a9123c6c660e41539ddf646d610c2e5e323353b18ccb5"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-4/run-5/extension-formatting/chromium/receipt.json",
+          "sha256": "0c22cbf62ea2a6f6b321fdef82e80fa85bcde0ebf708914bc6dca91b4aed6c68"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-4/run-5/extension-formatting/firefox/mixed/receipt.json",
+          "sha256": "1cd1484b8e66749a34aff31b754dac026d5d7013cbdf54bad8119793c588c914"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-4/run-5/extension-formatting/firefox/receipt.json",
+          "sha256": "fa10ce01f0cb18724be68f4693fdc3f55f864351fe9443c94f0f4be6f80d960b"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-4/run-5/extension-formatting/webkit/mixed/receipt.json",
+          "sha256": "0f720e6623da53cc314e39041f963001303b7812cda69bd688bd46d6acb0a666"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-4/run-5/extension-formatting/webkit/receipt.json",
+          "sha256": "c37fae08d41a4466c959599f1c9aa58a29699ad60cb0e8af43b920736ee27c67"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-4/run-2/attachment-actions/chromium/receipt.json",
+          "sha256": "fafe48f2b80f5133fbe404b2d640964335b530412064769529781dbd12ad87c7"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-4/run-2/attachment-actions/firefox/receipt.json",
+          "sha256": "f2dcaddd4ceaf15d4ee1ad78910b815d2c2f352aa814ae1702ec8144cce00246"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-4/run-2/attachment-actions/webkit/receipt.json",
+          "sha256": "44b93cda7630e5386ddfac9a5453796511006d79ddb50e5cb72ded8648951b14"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-4/run-2/image-lifecycle/chromium/receipt.json",
+          "sha256": "f789fe164cefb71713a25fa91a26a579ac3570d0c565174d0c8756c0ace21696"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-4/run-2/image-lifecycle/firefox/receipt.json",
+          "sha256": "f49ba1b45bd6d1773312dd77838f1beb144b3add09a879431416bd1c42990e7e"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-4/run-2/image-lifecycle/webkit/receipt.json",
+          "sha256": "7646f0d8021aba6f4fffd5a3cb90262dcb967f61b78f1b51d7591a9fb8fa594c"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-4/run-1/controlled-embeds/chromium/receipt.json",
+          "sha256": "2f4c3313da52325af7c25237d48814be8c6471c829792eca69bebdf591e83aa3"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-4/run-1/controlled-embeds/firefox/receipt.json",
+          "sha256": "54fad891a4facd378aeff384f36ac3cb3937a58a71ee21cf441afd02de4e8c80"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-4/run-1/controlled-embeds/webkit/receipt.json",
+          "sha256": "c709781f93181e4fff6b458644e7819db5519464eb6db2a8b9578ba816a9f01e"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-4/run-5/source-pins.json",
+          "sha256": "261abed536ff8bbf74d04eb9265c2edaac9af210e5893673047e1db56a7cc102"
         }
       ]
     }
