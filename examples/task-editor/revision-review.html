@@ -27,6 +27,11 @@
       <p id="revision-usage"></p>
       <p class="note">Memory only: at most 3 captures, 96 KiB total, 48 KiB each, including metadata. Oldest captures are pruned first. Reloading loses captures; saved live content remains. This is not an archive, an access boundary, or a global revision order.</p>
       <div id="revision-history"></div>
+      <section aria-label="Restore preview controls">
+        <p>For supported plain text, inspect a capture, preview, then confirm with “Apply restore as new edit”. Use Save locally to confirm local durability.</p>
+        <button id="revision-cancel-restore">Cancel restore preview</button>
+        <p id="revision-restore-status" role="status">Restores keep the live document and create an undoable new edit.</p>
+      </section>
     </section>
     <section class="comparison" aria-labelledby="compare-heading"><h2 id="compare-heading">Compare temporary captures</h2>
       <p>Semantic differences with unknown provenance. Exact original source spelling is not retained. Comparison leaves the live document unchanged.</p>
