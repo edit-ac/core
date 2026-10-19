@@ -31,10 +31,15 @@ if (fromCase) {
   assert.equal(group, 'conflicts', 'Only independent conflict fixtures support a bounded repair suffix');
   assert.ok(scenario.cases.includes(fromCase), 'Unknown repair suffix');
 }
-const selectedCases = scenario.cases.slice(fromCase ? scenario.cases.indexOf(fromCase) : 0);
+const throughCase = process.env.EDITAC_REVISION_REOPEN_THROUGH;
+if (throughCase) {
+  assert.equal(group, 'reopen', 'Prefix repair selection is limited to reopen');
+  assert.ok(scenario.cases.includes(throughCase), 'Unknown reopen prefix');
+}
+const selectedCases = scenario.cases.slice(fromCase ? scenario.cases.indexOf(fromCase) : 0, throughCase ? scenario.cases.indexOf(throughCase) + 1 : undefined);
 const output = resolve(process.env.EDITAC_REVISION_OUTPUT ?? join(root, '../architecture/evidence/revision-review-product-20261019', scenario.parent.toLowerCase(), new Date().toISOString().replace(/[:.]/g, '-')));
 await mkdir(output, { recursive: true });
-const facts = { selection: { engines: selectedEngines, notSelectedEngines: scenario.engines.filter(engine => !selectedEngines.includes(engine)), fromCase: fromCase ?? null, selectedCases, notSelected: scenario.cases.filter(id => !selectedCases.includes(id)), scope: 'Unselected cases are not executed and supply no passing evidence from this receipt' }, output, parent: scenario.parent, group, command: ['node', 'tests/scenarios/revision-review-product.mjs', group], scope: manifest.scope, commands: [], cases: [], processes: [], browsers: [] };
+const facts = { selection: { throughCase: throughCase ?? null, engines: selectedEngines, notSelectedEngines: scenario.engines.filter(engine => !selectedEngines.includes(engine)), fromCase: fromCase ?? null, selectedCases, notSelected: scenario.cases.filter(id => !selectedCases.includes(id)), scope: 'Unselected cases are not executed and supply no passing evidence from this receipt' }, output, parent: scenario.parent, group, command: ['node', 'tests/scenarios/revision-review-product.mjs', group], scope: manifest.scope, commands: [], cases: [], processes: [], browsers: [] };
 const git = (...args) => {
   const result = spawnSync('git', args, { cwd: root, encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr); return result.stdout;
