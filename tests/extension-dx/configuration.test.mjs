@@ -17,7 +17,7 @@ const { probe } = browserHarness('configuration', fixtureDirectory, {
     const packs = ['core','web','markdown'].map(name => join(consumer, name, facts.packs.find(p => p.name === name).file));
     await writeFile(join(consumer,'package.json'), JSON.stringify({ private:true, type:'module' }));
     await run('npm', ['install','--prefix',consumer,'--offline','--ignore-scripts','--no-audit','--no-fund',...packs], 'install.log');
-    const pins = JSON.parse(await readFile('../architecture/evidence/extension-dx/contract-20261017/generated-artifacts.json','utf8'));
+    const pins = JSON.parse(await readFile(process.env.EDITAC_CONFIGURATION_RUNTIME_PINS ?? '../architecture/evidence/extension-dx/contract-20261017/generated-artifacts.json','utf8'));
     facts.authenticatedRuntime = [];
     for (const pin of pins) {
       const extraction = spawnSync('tar',['-xOf',pin.pack,pin.member],{maxBuffer:16*1024*1024});

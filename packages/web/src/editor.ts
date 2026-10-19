@@ -323,7 +323,9 @@ export class BrowserEditor {
   /** Host drives receive/pump on transport events and retry deadlines. Sending
    * frames establishes no durable remote-save claim. Attachment never restores a replica. */
   async attachSync(options: AttachSyncOptions): Promise<SyncAttachment> {
-    this.disconnectCollaboration();
+    // Cancel pending configured work, but retain the active attachment until
+    // the replacement has passed identity/transport admission.
+    this.#collaborationController?.abort(); this.#collaborationController = undefined;
     return this.#attachSync(options);
   }
   async #attachSync(options: AttachSyncOptions, localGate = false): Promise<SyncAttachment> {
