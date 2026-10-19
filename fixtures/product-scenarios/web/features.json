@@ -3108,23 +3108,28 @@
       "oracles": "Independent document identities, opposite mount order, route save/restore/Back, scoped errors/disposal and one common resource graph.",
       "proofs": [
         {
-          "id": "pwe-1.5",
+          "id": "wfe-3.1-routes",
           "engines": [
             "chromium",
             "firefox",
             "webkit"
           ],
           "cases": [
+            "dispatcher-rejects-invalid-inputs",
             "mixed-task-first",
             "mixed-comment-first",
             "equal-task-first",
             "equal-comment-first",
             "strictmode-route-restore",
+            "readonly-authority",
+            "sibling-survives-disposal",
+            "dispose-during-loading",
+            "scoped-recovery-error",
             "installed-common-resources"
           ]
         }
       ],
-      "nextAction": "Repair or authenticate the exact changed owner inputs reported by the ledger, then reuse the existing named dispatcher. No unchanged failed-check retry."
+      "nextAction": "Full original installed-SDK route/React cases proven across three browsers; recheck changed owning inputs only. Full alpha and later qualification remain separate."
     },
     {
       "id": "WEB-LOCAL",
@@ -4519,6 +4524,35 @@
         {
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4g-editing/run-2/spellcheck/webkit/browser/receipt.json",
           "sha256": "fe35a3c461763c7a73089cdcc0141bff2a69056adf349216c56b99d2a38e3d2f"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-routes",
+      "owner": "PRIMARY current installed product route proof",
+      "command": "EDITAC_WEB_ROUTE_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4h-routes/run-2 node scripts/run-web-route-boundary.mjs",
+      "sdkRevision": "b759288410337d754928ec1ee034c7bde35c087a",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4h-routes/run-2/source-pins.json",
+          "sha256": "9fedb99f9820b5f53a9c3d925bba4cf3218f591ad21bd67a1345e6e25a36aa10"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4h-routes/run-2/chromium/receipt.json",
+          "sha256": "e9019fa75b5dc45494aa916a2edb6180e061a6ceeb8e34a9b41b935edfcda985",
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4h-routes/run-2/prepared"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4h-routes/run-2/firefox/receipt.json",
+          "sha256": "9d1708cecb1d01776e66d31ca6604ad967001de49948fd6ae3e891bc6bb695ad",
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4h-routes/run-2/prepared"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4h-routes/run-2/webkit/receipt.json",
+          "sha256": "b2f4f871ee63c3a3874a1cb891d32e7354ee08e40cff71f41d0d67b4309c2921",
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4h-routes/run-2/prepared"
         }
       ]
     }
