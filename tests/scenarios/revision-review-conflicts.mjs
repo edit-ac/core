@@ -169,7 +169,7 @@ export async function conflictCases({ page, server, facts, check, output }) {
       finally { w.owner.engine.releaseAnchor(anchor); w.owner.engine.releaseAnchor(focus); }
       await w.save();
     }, { current });
-    const rich = await observe(); assert.ok(rich.snapshot.visible.some(n => n.runs.some(r => r.marks.length)));
+    const rich = await observe(); assert.ok(rich.snapshot.visible.some(n => n.runs.some(r => Object.hasOwn(r.attributes, 'bold'))));
     await preview(); await context('unsupported', rich.snapshot, rich.snapshot, baseline.snapshot); await unchanged(rich);
     assert.equal(await button('Apply restore as new edit').count(), 0);
   });
