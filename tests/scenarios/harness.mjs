@@ -45,9 +45,9 @@ export async function prepareProductHarness(output, facts, scenario) {
     await run('git', ['diff', '--exit-code', packageRevision, facts.sourceRevision, '--', ...sdkPathspec], root, 'reuse-sdk-committed-inputs');
     facts.packageSourceRevision = packageRevision;
     assert.equal(prior.toolchains.node, process.versions.node);
-    assert.deepEqual(prior.packs.map(pack => pack.name), ['core', 'web']);
+    assert.deepEqual(prior.packs.filter(pack=>['core','web'].includes(pack.name)).map(pack=>pack.name),['core','web']);
     facts.toolchains = prior.toolchains;
-    facts.packs = prior.packs;
+    facts.packs = prior.packs.filter(pack=>['core','web'].includes(pack.name));
     facts.reusedPackageReceipt = { path: resolve(reusePath), sha256: sha(bytes), scope: 'SDK build/install inputs only; no failed browser case reused' };
     for (const pack of facts.packs) {
       const path = resolve(reusePath, '..', pack.file);
@@ -87,6 +87,27 @@ export async function prepareProductHarness(output, facts, scenario) {
     await run('npm',['install','--offline','--ignore-scripts','--no-audit','--no-fund'],consumer,'react-consumer-install');
     for(const name of ['core','web','react']) assert.equal(await realpath(join(consumer,'node_modules/@edit-ac',name)),join(consumer,'node_modules/@edit-ac',name));
   }
+  if(scenario.packages?.includes('formats')) {
+    if(reusePath) {
+      const prior=JSON.parse(await readFile(resolve(reusePath)));
+      for(const name of ['markdown','formats']) {
+        const pack=prior.packs.find(p=>p.name===name);assert.ok(pack,'Missing immutable optional package '+name);
+        const path=resolve(reusePath,'..',pack.file);assert.equal(sha(await readFile(path)),pack.sha256,'Optional package changed');
+        await cp(path,join(output,pack.file));facts.packs.push(pack);
+      }
+    } else {
+    await run(process.execPath,['scripts/build-wasm.mjs','--markdown'],build,'build-markdown-wasm',{CARGO_TARGET_DIR:join(build,'target')});
+    for(const name of ['markdown','formats']) {
+      await run(name==='formats'?process.execPath:'npm',name==='formats'?['scripts/build-formats.mjs']:['run','build','--workspace=@edit-ac/'+name],build,'build-'+name,{CARGO_TARGET_DIR:join(build,'target')});
+      const [pack]=JSON.parse(await run('npm',['pack',...(name==='formats'?['./packages/formats']:['--workspace=@edit-ac/'+name]),'--pack-destination='+output,'--json'],build,'pack-'+name));
+      facts.packs.push({name,file:pack.filename,sha256:sha(await readFile(join(output,pack.filename)))});
+    }
+    }
+    const installed=JSON.parse(await readFile(join(consumer,'package.json')));
+    await writeFile(join(consumer,'package.json'),JSON.stringify({...installed,dependencies:{...installed.dependencies,...Object.fromEntries(facts.packs.map(p=>['@edit-ac/'+p.name,'file:'+join(output,p.file)]))}}));
+    await run('npm',['install','--offline','--ignore-scripts','--no-audit','--no-fund'],consumer,'optional-consumer-install');
+    for(const name of ['markdown','formats']) assert.equal(await realpath(join(consumer,'node_modules/@edit-ac',name)),join(consumer,'node_modules/@edit-ac',name));
+  }
   const site = join(output, 'site'); await mkdir(site);
   facts.sources = [];
   for (const path of [...scenario.fixtures, ...(scenario.supportingSources??[]), 'fixtures/product-scenarios/web/manifest.json', 'tests/scenarios/run.mjs', 'tests/scenarios/harness.mjs', scenario.command[1], 'tests/browser/fixture-server.mjs']) {
@@ -94,9 +115,17 @@ export async function prepareProductHarness(output, facts, scenario) {
     if (scenario.fixtures.includes(path)) { await mkdir(join(site, 'fixture'), { recursive: true }); await writeFile(join(site, 'fixture', path.split('/').at(-1)), bytes); }
   }
   for (const pack of facts.packs) await cp(join(consumer, 'node_modules/@edit-ac', pack.name, 'dist'), join(site, pack.name), { recursive: true });
+  if(scenario.packages?.includes('formats')) {
+    const destination=join(site,'fixture','installed-formats');
+    await cp(join(consumer,'node_modules/@edit-ac/formats'),destination,{recursive:true});
+    const metadataSha256=sha(await readFile(join(destination,'capabilities.json')));
+    const pin={metadataSha256,provenance:'Installed @edit-ac/formats '+facts.packs.find(p=>p.name==='formats').sha256+' source '+(facts.packageSourceRevision??facts.sourceRevision)};
+    await writeFile(join(destination,'pin.mjs'),'export const metadataSha256='+JSON.stringify(pin.metadataSha256)+';\nexport const provenance='+JSON.stringify(pin.provenance)+';\n');
+    facts.installedFormats=pin;
+  }
   if(scenario.packages?.includes('react')) {
     const source=join(consumer,'product');await cp(join(site,'fixture'),source,{recursive:true});
-    await run(process.execPath,[join(consumer,'node_modules/esbuild/bin/esbuild'),'product/react.mjs','product/react-lifecycle.mjs','--bundle','--format=esm','--splitting','--outdir='+join(site,'fixture'),'--entry-names=[name]-built','--out-extension:.js=.mjs','--chunk-names=chunks/[name]-[hash]','--external:@edit-ac/markdown','--external:@edit-ac/markdown/web','--metafile='+join(output,'react-graph.json')],consumer,'bundle-react');
+    await run(process.execPath,[join(consumer,'node_modules/esbuild/bin/esbuild'),'product/react.mjs','product/react-lifecycle.mjs','--bundle','--format=esm','--splitting','--outdir='+join(site,'fixture'),'--entry-names=[name]-built','--out-extension:.js=.mjs','--chunk-names=chunks/[name]-[hash]','--external:@edit-ac/markdown','--external:@edit-ac/markdown/web','--external:@edit-ac/web/formats','--external:/fixture/installed-formats/*','--metafile='+join(output,'react-graph.json')],consumer,'bundle-react');
     facts.reactGraphSha256=sha(await readFile(join(output,'react-graph.json')));
     facts.sources.push({path:'packages/react/src/index.ts',sha256:sha(await readFile(join(build,'packages/react/src/index.ts')))});
   }

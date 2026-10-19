@@ -51,7 +51,7 @@ try {
   controller=await browserType.launchServer({headless:true});
   facts.processes.push({pid:controller.process().pid,launcher:controller.process().spawnfile,workspace:root,purpose:'PWE-1.2 '+engine,log:join(output,'receipt.json')});
   browser=await browserType.connect(controller.wsEndpoint());facts.browserVersion=browser.version();
-  const page=activePage=await browser.newPage(), errors=[];page.setDefaultTimeout(8000);page.on('pageerror',e=>errors.push(e.message));
+  const page=activePage=await browser.newPage({hasTouch:true}), errors=[];page.setDefaultTimeout(8000);page.on('pageerror',e=>errors.push(e.message));
   const ready=async(target=page,suffix='')=>{await target.goto(server.url+suffix);await target.evaluate(async()=>{await (await import('/fixture/editor.mjs')).ready;});};
   const select=async(selector,all=false)=>{await page.locator(selector+' [data-node-id]').first().click();await page.keyboard.press(all?'Meta+a':'End');};
   const settle=async()=>page.evaluate(async()=>{const m=await import('/fixture/editor.mjs');await Promise.all([m.task.editor.settle(),m.comment.editor.settle()]);});
@@ -96,6 +96,30 @@ try {
       }
       if(label==='Task table'){
         assert.ok(await page.locator('#editor [data-content-module="table"]').count());
+        // Installed product touch controls must reach the existing semantic
+        // owner, including history and permission changes, on every engine.
+        const tableState=()=>page.evaluate(async()=>{
+          const {task}=await import('/fixture/editor.mjs');
+          return task.editor.read().visible.find(n=>n.blockAttributes?.[0]==='module:editac.table');
+        });
+        const originalTable=await tableState();
+        await page.setViewportSize({width:390,height:844});
+        const selectCell=page.getByRole('button',{name:'Select cell row 2 column 1',exact:true});
+        const insertRow=page.getByRole('button',{name:'Insert row after',exact:true});
+        for(const control of [selectCell,insertRow]){
+          const bounds=await control.boundingBox();assert.ok(bounds&&bounds.width>=44&&bounds.height>=44);
+        }
+        await selectCell.tap();await insertRow.tap();await settle();
+        assert.equal((await tableState()).blockAttributes[2].rows.length,3);
+        await select('#editor');await page.keyboard.press('Meta+z');await settle();
+        assert.deepEqual(await tableState(),originalTable);
+        await page.evaluate(async()=>(await import('/fixture/editor.mjs')).task.editor.setReadOnly(true));
+        const deniedBefore=await page.evaluate(async()=>(await import('/fixture/editor.mjs')).task.editor.read());
+        assert.equal(await insertRow.isDisabled(),true);
+        await selectCell.tap();await settle();
+        assert.deepEqual(await page.evaluate(async()=>(await import('/fixture/editor.mjs')).task.editor.read()),deniedBefore);
+        await page.evaluate(async()=>(await import('/fixture/editor.mjs')).task.editor.setReadOnly(false));
+        await page.setViewportSize({width:1280,height:720});
         const cell=page.getByRole('textbox',{name:'Table row 2 column 1',exact:true});await cell.fill('Edited detail');await select('#editor');await settle();
         assert.ok(await page.evaluate(async()=>JSON.stringify((await import('/fixture/editor.mjs')).editor.read()).includes('Edited detail')));
         await select('#editor');await page.keyboard.press('Meta+z');await settle();

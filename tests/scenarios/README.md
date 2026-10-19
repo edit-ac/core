@@ -47,6 +47,22 @@ No remote service, credentials or paid provider is involved.
 Integrated product checkpoint: `node tests/scenarios/run.mjs web-product-checkpoint`.
 It authenticates one installed core/web/React site, then executes the existing
 workspace, React/routes and recovery cases in all three installed Playwright
-engines (93 required cases). Every child receipt and screenshot is kept under
+engines (129 required cases). Every child receipt and screenshot is kept under
 PWE-1.5. Missing runtimes or cases remain failures. Launch the same site manually
 with `node examples/task-editor/product.mjs`; see its README for steps and limits.
+
+Optional task command assistance: `node tests/scenarios/run.mjs web-optional-assistance`.
+The six installed SDK/WASM/IndexedDB cases cover disabled default, formatting and
+undo/redo, plain-comment isolation, durable reopen, revoked permission, disposal
+and narrow control geometry. The product checkpoint requires this group in all
+three engines. No transcript transport, provider or capture permission is used.
+
+Optional task file controls: `node tests/scenarios/run.mjs web-optional-formats`.
+The installed core/web/Markdown/converter packages run through real WASM and
+IndexedDB. Six grouped cases cover opt-in isolation, text/Markdown imports and
+exports, one-step history and reopen, installed RTF/DOCX/ODT/EPUB/PDF/CSV/TSV
+actions, cancellation in the actual worker bootstrap, original-file recovery,
+malformed input, media admission denial, readonly revocation and disposal.
+Exported ZIP/XML and PDF files are inspected independently. Set
+`EDITAC_PRODUCT_PDF_PYTHON` to Python with pypdf 6.1.1 and PyMuPDF 1.26.5.
+The combined checkpoint requires all six groups in each of three engines.
