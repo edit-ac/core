@@ -3,6 +3,7 @@ import { mkdirSync, openSync, closeSync, readFileSync, writeFileSync } from 'nod
 import { resolve, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { hash, tapCounts, walk } from './editing-coverage.mjs';
+import { admitImmutableSdk } from './immutable-sdk-admission.mjs';
 import { requireTestNode } from './test-toolchain.mjs';
 
 // One current SDK admission; original behavioral dispatchers and assertions stay intact.
@@ -12,10 +13,10 @@ const output = resolve(process.env.EDITAC_WEB_COMMAND_REFERENCE_OUTPUT);
 mkdirSync(output);
 const json = path => JSON.parse(readFileSync(path, 'utf8'));
 const save = (name, value) => writeFileSync(join(output, name), JSON.stringify(value, null, 2) + '\n');
-const current = resolve(process.env.EDITAC_WEB_COMMAND_REFERENCE_BUILD ??
-  '../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-1');
-const sources = json(join(current, 'runtime-source-pins.json'));
-const members = json(join(current, 'package-runtime-pins.json'));
+const admissionPath = resolve(process.env.EDITAC_PRODUCT_SDK_ADMISSION ??
+  '../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-filename-current/admission.json');
+const admitted = admitImmutableSdk(admissionPath);
+const sources = admitted.sources, members = admitted.runtime;
 const verify = pins => {
   assert.ok(Object.keys(pins).length);
   for (const [path, expected] of Object.entries(pins))
@@ -25,10 +26,10 @@ verify(sources); verify(members);
 const admission = join(output, 'admission'); mkdirSync(admission);
 writeFileSync(join(admission, 'runtime-source-pins.json'), JSON.stringify(sources, null, 2) + '\n');
 writeFileSync(join(admission, 'package-runtime-pins.json'), JSON.stringify(members, null, 2) + '\n');
-save('build-admission.json', { current, sources, members, runner: {
+save('build-admission.json', { sdkAdmission: admitted.receipt, sources, members, runner: {
   path: 'scripts/run-web-command-reference-refresh-boundary.mjs',
   sha256: hash(readFileSync('scripts/run-web-command-reference-refresh-boundary.mjs')) } });
-const execution = { task: 'WFE-3.1-C7-3', originalParents: ['WFE-3.1-I1', 'WFE-3.1-V1'],
+const execution = { task: 'WFE-3.1-C9-3', originalParents: ['WFE-3.1-I1', 'WFE-3.1-V1'],
   started: new Date().toISOString(), commands: [], receipts: [], failures: [] };
 function run(name, args, env) {
   const log = name + '.log', fd = openSync(join(output, log), 'wx'); let result;
