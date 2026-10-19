@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process';
 import { prepareShell, root, sha } from './setup.mjs';
 import { connectOwner, startBridgeServer } from './bridge.mjs';
 export const defaultOwnerReceipt = resolve(root,'../architecture/evidence/host-agent-product-20261019/host-workspace/D24X-1.2/build/owner.json');
-export async function prepareBridge(output, facts, receipt) {
+export async function prepareBridge(output, facts, receipt, configuration = {}) {
   const pin = JSON.parse(await readFile(process.env.EDITAC_HOST_PRODUCT_OWNER_RECEIPT ?? defaultOwnerReceipt));
   assert.equal(sha(await readFile(pin.executable)),pin.sha256);
   for (const input of pin.sources) {
@@ -14,12 +14,14 @@ export async function prepareBridge(output, facts, receipt) {
   }
   let owner;
   try {
-    const server = await prepareShell(output,facts,receipt,{ sources:['examples/host-agent-product/bridge.mjs','examples/host-agent-product/bridge-setup.mjs','examples/host-agent-product/bridge-workspace.mjs','tests/scenarios/host-agent-product-bridge.mjs'],
+    const server = await prepareShell(output,facts,receipt,{ sources:[...(configuration.sources ?? []),'examples/host-agent-product/bridge.mjs','examples/host-agent-product/bridge-setup.mjs','examples/host-agent-product/bridge-workspace.mjs','tests/scenarios/host-agent-product-bridge.mjs'],
       serverFactory:async options => {
         const html = await readFile(join(options.fixtureDirectory,'index.html'),'utf8');
-        await writeFile(join(options.fixtureDirectory,'index.html'),html.replace('/fixture/workspace.mjs','/fixture/bridge-workspace.mjs'));
+        await writeFile(join(options.fixtureDirectory,'index.html'),html.replace('/fixture/workspace.mjs',`/fixture/${configuration.workspace ?? 'bridge-workspace.mjs'}`));
         await cp(join(root,'examples/host-agent-product/bridge-workspace.mjs'),join(options.fixtureDirectory,'bridge-workspace.mjs'));
-        owner = await connectOwner({ executable:pin.executable, database:join(output,'host.sqlite3'),sdk:options.webDirectory,facts });
+        if (configuration.capabilities) await cp(join(root,'examples/host-agent-product/probes.mjs'),join(options.fixtureDirectory,'probes.mjs'));
+        if (configuration.workspace) await cp(join(root,'examples/host-agent-product',configuration.workspace),join(options.fixtureDirectory,configuration.workspace));
+        owner = await connectOwner({ executable:pin.executable, database:join(output,'host.sqlite3'),sdk:options.webDirectory,facts,capabilities:configuration.capabilities === true,read:configuration.read === true });
         return startBridgeServer(options,owner,facts);
       } });
     facts.inputs.nativeBinary = pin;
