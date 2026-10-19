@@ -3,6 +3,7 @@ import { mkdirSync, openSync, closeSync, readFileSync, writeFileSync } from 'nod
 import { resolve, join, dirname } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { hash, tapCounts, walk } from './editing-coverage.mjs';
+import { admitImmutableSdk } from './immutable-sdk-admission.mjs';
 import { requireTestNode } from './test-toolchain.mjs';
 
 // Compose the original mobile controls and qualified assistance on one installed
@@ -39,31 +40,20 @@ function run(name, program, args, environment = {}) {
   return command;
 }
 try {
-  const admissionPath = process.env.EDITAC_WEB_MOBILE_ADMISSION;
-  const admission = admissionPath ? json(admissionPath) : undefined;
-  if (admission) {
-    verify(admission.sources); verify(admission.runtime);
-    for (const [name, pack] of Object.entries(admission.packages)) {
-      assert.equal(pack.manifest.name, '@edit-ac/' + name);
-      assert.equal(hash(readFileSync(pack.path)), pack.sha256);
-    }
-    execution.admission = pin(admissionPath);
-  } else run('build-web', 'npm', ['run', 'build', '--workspace', '@edit-ac/web']);
+  const admissionPath = process.env.EDITAC_PRODUCT_SDK_ADMISSION ?? process.env.EDITAC_WEB_MOBILE_ADMISSION;
+  assert.ok(admissionPath, 'Name the current immutable SDK admission; historical/build defaults are not proof');
+  const admission = admitImmutableSdk(admissionPath);
+  execution.admission = admission.receipt;
   const prior = json(join(base, 'c4o-14/runtime-source-pins.json'));
-  const sources = Object.fromEntries(Object.keys(prior).map(path => [path, hash(readFileSync(path))]));
+  const sources = { ...admission.sources, ...Object.fromEntries(Object.keys(prior).map(path => [path, hash(readFileSync(path))])) };
+  for (const path of ['scripts/immutable-sdk-admission.mjs', 'tests/assistive-input-contract.test.mjs', 'fixtures/extensions/assistive-input/contract-v1.json']) sources[path] = hash(readFileSync(path));
   for (const path of ['scripts/run-web-mobile-extension-boundary.mjs', 'tests/browser/mobile-extensions/assistance.spec.ts']) sources[path] = hash(readFileSync(path));
   for (const old of original) for (const path of Object.keys(old.receipt.sources)) sources[path] = hash(readFileSync(path));
   for (const path of [...walk('packages/web/src'), ...walk('packages/core/src'), ...walk('packages/markdown/src')]) sources[path] = hash(readFileSync(path));
   const impact = Object.keys(prior).filter(path => prior[path] !== sources[path]).map(path => ({ path, prior: prior[path], current: sources[path] }));
   save('input-impact.json', { changed: impact, originalReceipts: original.map(p => ({ path: p.path, sha256: p.sha256, engine: p.receipt.engine, cases: p.receipt.counts.executed })),
     composition: 'Six original Chromium mobile groups; full Firefox/WebKit formats supersede two original narrow cases each; all three engines formatting, mobile assistance, dictation and presenter. No overlapping dispatcher recount.' });
-  const packages = admission?.packages ?? {};
-  if (!admission) for (const name of ['core', 'web', 'markdown']) {
-    const directory = join(output, name); mkdirSync(directory);
-    const command = run('pack-' + name, 'npm', ['pack', '--workspace', '@edit-ac/' + name, '--json', '--pack-destination', directory]);
-    const manifest = JSON.parse(readFileSync(join(output, command.log), 'utf8'))[0];
-    const path = join(directory, manifest.filename); packages[name] = { path, manifest, sha256: hash(readFileSync(path)) };
-  }
+  const packages = admission.packages;
   save('packages.json', packages);
   const members = Object.fromEntries(['core', 'web', 'markdown'].flatMap(name => walk('packages/' + name + '/dist')).map(path => [path, hash(readFileSync(path))]));
   Object.assign(sources, members); save('source-pins.json', sources); save('package-runtime-pins.json', members);
@@ -108,6 +98,13 @@ try {
   const total = key => execution.receipts.reduce((sum, r) => { for (const [k, v] of Object.entries(r[key])) sum[k] = (sum[k] ?? 0) + v; return sum; }, {});
   execution.counts = total('counts'); countsOK(execution.counts);
   execution.dispatcherCounts = total('dispatcherCounts'); countsOK(execution.dispatcherCounts);
+  assert.equal(execution.counts.executed, 1406, 'Full original browser composition');
+  const contract = run('assistive-contract', process.execPath, ['--test', '--test-reporter=tap', 'tests/assistive-input-contract.test.mjs']);
+  contract.counts = tapCounts(readFileSync(join(output, contract.log), 'utf8')); countsOK(contract.counts);
+  assert.equal(contract.counts.executed, 67, 'Original portable assistance contract');
+  execution.contract = contract;
+  execution.acceptedUniqueAssertions = Object.fromEntries(['executed', 'passed', 'failed', 'skipped', 'cancelled', 'todo'].map(key => [key, (execution.counts[key] ?? 0) + (contract.counts[key] ?? 0)]));
+  countsOK(execution.acceptedUniqueAssertions); assert.equal(execution.acceptedUniqueAssertions.executed, 1473);
   verify(sources); verify(members); execution.sourcesUnchanged = true; execution.exit = 0;
 } catch (error) { execution.failure = error.stack; execution.exit = 1; process.exitCode = 1; }
 finally { execution.finished = new Date().toISOString(); save('execution.json', execution);
