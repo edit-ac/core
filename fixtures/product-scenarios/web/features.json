@@ -2976,7 +2976,7 @@
       "oracles": "Captured touch-format target, clipboard original formats and stale gesture invalidation through public host adapters. Qualified mobile assistance: captured selection, exactly one semantic/history/journal mutation, undo/redo/reopen, hostile late-result fencing, 44px controls, narrow keyboard recovery, zero permission/capture/external requests and released resources.",
       "proofs": [
         {
-          "id": "wfe-3.1-c6-mobile",
+          "id": "wfe-3.1-c6-portable-refresh",
           "engines": [
             "chromium"
           ],
@@ -3360,7 +3360,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c6-mobile",
+          "id": "wfe-3.1-c6-portable-refresh",
           "engines": [
             "chromium",
             "firefox",
@@ -3544,7 +3544,6 @@
         {
           "id": "wex-2.2",
           "engines": [
-            "firefox",
             "webkit"
           ],
           "cases": [
@@ -3583,6 +3582,16 @@
             "fallback-permissionDenied",
             "fallback-noStop",
             "pending-start"
+          ]
+        },
+        {
+          "id": "wfe-3.1-c6-portable-refresh",
+          "engines": [
+            "firefox"
+          ],
+          "cases": [
+            "WEX-2.2-narrow-260",
+            "WEX-2.2-narrow-195"
           ]
         }
       ],
@@ -9992,6 +10001,59 @@
         {
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6a-refresh/run-3/source-pins.json",
           "sha256": "1fde36e77b07b2c977ad1faa0b7a7ac5dad81bc0dab89c9454a1a272d76d7eaa"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c6-portable-refresh",
+      "owner": "PRIMARY exact admitted portable public SDK composition",
+      "command": "EDITAC_WEB_MOBILE_PORTABLE_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-portable-refresh/run-1 node scripts/run-web-mobile-portable-refresh-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-mobile/run-1/chromium/capabilities/receipt.json",
+          "sha256": "26b8f00c929fa67703726c05ed5d4dac81dbc7b42794870bccabc43d50d03fcb"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-mobile/run-1/chromium/menus/receipt.json",
+          "sha256": "be363533c2c85ed3fa0de28eb12ed10a37060feba64776be40d6843698bfe94e"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-mobile/run-1/chromium/content-controls/receipt.json",
+          "sha256": "38fbdb5ad58ee5de15624c6cc64a3e1aa17df1d3c625a5d14ae3c21c599aba88"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-mobile/run-1/chromium/gestures/receipt.json",
+          "sha256": "b022f5a8336df53f7c59d4c7ca20c0b6aa17ccc6ce8d8696f2bcdb8e8d80d47d"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-mobile/run-1/chromium/assets/receipt.json",
+          "sha256": "ab7e937fb723bd6253ca5d071e431f2e6e9b5cfd6f5001ee6b0d8c8192355277"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-mobile/run-1/chromium/formats/receipt.json",
+          "sha256": "5ac9bf7bcc097ab6867fcff23b3655291e3d77d2411078448a948f7941f141dc"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-mobile/run-1/firefox/formats/receipt.json",
+          "sha256": "798958fc38176cc3189344fc8111b0c815c44101df94e712a93ccacfcadf82d4"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-portable-refresh/run-1/chromium/receipt.json",
+          "sha256": "b7af8b6a1656c62bc4ddd6f95a5409ab4b2fb8a42ff8494be0309d8682043aa2"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-portable-refresh/run-1/firefox/receipt.json",
+          "sha256": "3ad6eecc6806e077ac315e536d1d4ae4d61f185dd9f1b661751e3b593b10814b"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-portable-refresh/run-1/webkit/receipt.json",
+          "sha256": "e02125c932e281066264b224e7f5b2c0d9d7b056e85bf50257f2fd1f51aa21fa"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-portable-refresh/run-1/source-pins.json",
+          "sha256": "55c85f7c5e241d194b684e1740a6f66edf41d82e39e9084c3e688ac3d38fb6a9"
         }
       ]
     }
