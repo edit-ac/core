@@ -1905,3 +1905,84 @@ fn rgs_clipboard_cut_fast_path_restores_entry_range_between_typing_groups() {
         }
     }
 }
+
+#[test]
+fn full_text_limit_repeated_overwrites_keep_selective_undo_admission_exact() {
+    for stable in [false, true] {
+        let seed = if stable { m::seed() } else { v4::seed() };
+        {
+            let mut txn = seed.transact_mut_with("full-limit-fixture");
+            let texts = txn.get_map("registry-texts").unwrap();
+            let entries: Vec<_> = texts.iter(&txn).map(|(_, x)| x).collect();
+            assert_eq!(entries.len(), 4);
+            for entry in entries {
+                let Out::YXmlText(text) = entry else { panic!() };
+                let len = text.len(&txn);
+                text.remove_range(&mut txn, 0, len);
+                text.insert(&mut txn, 0, &"x".repeat(262144));
+            }
+        }
+        let id = if stable {
+            identity()
+        } else {
+            DocumentIdentity::v4(&identity().document_id, &identity().epoch).unwrap()
+        };
+        let mut d = Document::restore(
+            &id,
+            &InitializedCheckpoint {
+                identity: id.clone(),
+                initialized: true,
+                writer_id: 11,
+                bytes: m::bytes(&seed),
+            },
+            &[],
+        )
+        .unwrap();
+        d.enable_history(HistoryConfig::default()).unwrap();
+        let before = d.snapshot().unwrap().visible;
+        for replacement in "abcdefghijkl".chars() {
+            replace(&mut d, A, 13, 14, &replacement.to_string());
+        }
+        let after = d.snapshot().unwrap().visible;
+        assert_eq!(d.history_state().undo_groups, 12);
+        for _ in 0..2 {
+            for expected in "kjihgfedcbax".chars() {
+                d.undo().unwrap().unwrap();
+                assert_eq!(text(&d, A).as_bytes()[13], expected as u8);
+                assert_eq!(
+                    d.snapshot()
+                        .unwrap()
+                        .visible
+                        .iter()
+                        .flat_map(|n| &n.runs)
+                        .map(|r| r.text.len())
+                        .sum::<usize>(),
+                    1048576
+                );
+            }
+            assert_eq!(d.snapshot().unwrap().visible, before);
+            for expected in "abcdefghijkl".chars() {
+                d.redo().unwrap().unwrap();
+                assert_eq!(text(&d, A).as_bytes()[13], expected as u8);
+            }
+            assert_eq!(d.snapshot().unwrap().visible, after);
+        }
+        // Resource admission remains enforced and rejected edits are silent.
+        let unchanged = (d.checkpoint().bytes, d.revision(), d.history_state());
+        let at = d.anchor(A, U(0), Bias::Right).unwrap();
+        assert!(
+            d.prepare_text(
+                &TextCommand::Insert {
+                    at,
+                    text: "!".into()
+                },
+                &origin()
+            )
+            .is_err()
+        );
+        assert_eq!(
+            unchanged,
+            (d.checkpoint().bytes, d.revision(), d.history_state())
+        );
+    }
+}
