@@ -18,7 +18,7 @@ export async function integratedCases({ page, server, facts, check, output }) {
   const semantic = ({ changedNodes, touchedRanges, ...snapshot }) => snapshot;
   const stable = s => ({ snapshot: semantic(s.snapshot), checkpoint: s.checkpoint, journal: s.journal, history: s.history });
   const durable = ({ identity, visible, recovery, retainedStructure }) => ({ identity, visible, recovery, retainedStructure });
-  const structure = s => ({ identity: s.identity, retainedStructure: s.retainedStructure,
+  const structure = s => ({ identity: s.identity, sources: Object.fromEntries(Object.entries(s.retainedStructure.sources).map(([id, value]) => [id, value.identity])),
     nodes: s.visible.map(({ id, parent, kind, blockAttributes, editor, spans }) => ({ id, parent, kind, blockAttributes, editor,
       spans: spans.map(({ source, identity }) => ({ source, identity })) })) });
   const edit = async text => {
