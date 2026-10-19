@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process';
 import { hash, tapCounts, walk } from './editing-coverage.mjs';
 
 // One canonical command composes INT-1.9 with the WEX-1.2 catalog consumer.
-// Preserve the reviewed assertions and use the current authenticated SDK bytes.
+// Preserve reviewed assertions, authenticate current runtime bytes, and freshly pack the SDK.
 assert.equal(process.version, 'v24.19.0');
 assert.equal(spawnSync('npm', ['--version'], { encoding: 'utf8' }).stdout.trim(), '11.17.0');
 assert.ok(process.env.EDITAC_WEB_SLASH_OUTPUT, 'Name a new evidence directory');
@@ -17,7 +17,7 @@ const verifyPins = pins => {
   assert.ok(Object.keys(pins).length > 0);
   for (const [path, expected] of Object.entries(pins)) assert.equal(hash(readFileSync(path)), expected, `Changed input: ${path}`);
 };
-const prior = resolve('../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2c-tables');
+const prior = resolve(process.env.EDITAC_WEB_SLASH_BUILD ?? '../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-5');
 const original = resolve('../architecture/evidence/web-feature-first-20261018/wex-1.2/run-1');
 const runtime = json(join(prior, 'runtime-source-pins.json'));
 const members = json(join(prior, 'package-runtime-pins.json'));
@@ -33,10 +33,18 @@ const paths = [...Object.keys(runtime), ...assertions, 'scripts/run-web-slash-bo
   'tests/browser/editing-packed-cache.mjs', 'scripts/test-browser.mjs', 'scripts/test-interactions.mjs'];
 const sourcePins = () => Object.fromEntries([...new Set(paths)].sort().map(path => [path, hash(readFileSync(path))]));
 const sources = sourcePins(); save('source-pins.json', sources);
-const packages = json(join(prior, 'run-1/packages.json'));
-for (const pack of Object.values(packages)) assert.equal(hash(readFileSync(pack.path)), pack.sha256);
+const packages = {};
+for (const name of ['core', 'web', 'markdown']) {
+  const packed = spawnSync('npm', ['pack', '--workspace', `@edit-ac/${name}`, '--json', '--pack-destination', output], { encoding: 'utf8' });
+  writeFileSync(join(output, `pack-${name}.log`), (packed.stdout ?? '') + (packed.stderr ?? ''));
+  assert.equal(packed.status, 0, `Pack ${name}`); assert.equal(packed.error, undefined);
+  const [manifest] = JSON.parse(packed.stdout), path = join(output, manifest.filename);
+  packages[name] = { path, manifest, sha256: hash(readFileSync(path)) };
+}
+verifyPins(members);
 save('packages.json', packages);
-const execution = { task: 'WFE-3.1-C4e-SLASH', originalParents: ['WFE-3.1-I1', 'WFE-3.1-V1'],
+const execution = { task: 'WFE-3.1-C4e-REFRESH', originalParents: ['WFE-3.1-I1', 'WFE-3.1-V1'],
+  buildAdmission: { path: prior, sourcePins: Object.keys(runtime).length, runtimeMembers: Object.keys(members).length },
   node: process.version, npm: '11.17.0', started: new Date().toISOString(), commands: [] };
 const log = 'slash-context.log';
 const fd = openSync(join(output, log), 'wx');
