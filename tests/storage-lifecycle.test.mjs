@@ -138,7 +138,15 @@ for (const policy of ['continue', 'reject']) {
       if (policy === 'reject') assert.throws(() => edit(f, 'B'), /Host policy rejects/);
       await assert.rejects(f.lifecycle.flush({ target: 'local' }), e => e === error);
       const count = f.db.transactions.length; await tick(); assert.equal(f.db.transactions.length, count);
+      // A host may join a retry from a pending-state observer. Joining must
+      // not recursively emit another unchanged state or create more attempts.
+      let joined, notifications = 0;
+      const unsubscribe = f.lifecycle.subscribe(state => {
+        notifications++;
+        if (state.phase === 'pending') joined = f.lifecycle.flush({ target: 'local', retryFailed: true });
+      });
       const retry = f.lifecycle.flush({ target: 'local', retryFailed: true });
+      assert.equal(notifications, 1); unsubscribe();
       const shared = f.lifecycle.flush({ target: 'local', retryFailed: true });
       const retried = await staged(f);
       assert.equal(f.db.transactions.length, count + 1);
@@ -150,7 +158,7 @@ for (const policy of ['continue', 'reject']) {
       if (policy === 'reject') assert.throws(() => edit(f, 'B'), /Host policy rejects/);
       let later;
       if (policy === 'continue') { edit(f, 'B'); later = await staged(f); }
-      retried.complete(); await Promise.all([retry, shared]);
+      retried.complete(); await Promise.all([retry, shared, joined]);
       assert.equal(committed.length, 1);
       assert.deepEqual(committed[0].update, recovery.unsavedUpdates[0]);
       assert.equal(committed[0].receipt.updateId, original.entry.updateId);
