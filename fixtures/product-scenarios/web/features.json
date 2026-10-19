@@ -2851,7 +2851,7 @@
       "oracles": "Prepared host packets through actual Session/WASM/IndexedDB, exact UTF-16 text, capture invalidation, permission/cancel/recovery and independent presenter ownership.",
       "proofs": [
         {
-          "id": "wfe-3.1-c4o-11-assistive-dictation",
+          "id": "wfe-3.1-c6-assistive-dictation",
           "engines": [
             "chromium",
             "firefox",
@@ -2916,7 +2916,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-c4o-11-assistive-presenter",
+          "id": "wfe-3.1-c6-assistive-presenter",
           "engines": [
             "chromium",
             "firefox",
@@ -2942,7 +2942,7 @@
           ]
         }
       ],
-      "nextAction": "Full original WFE-2.1 baseline assistance lifecycle and presenter proof bound to current installed SDK/WASM/IndexedDB. Separate MWX-1.7/PARALLEL WEX-2.3 mobile-extension return and original native/device/OS/AT/performance/release predicates remain deferred."
+      "nextAction": "All71 original dictation/presenter cases per engine freshly prove current WEX-2.3 union. Original shared protocol contract evidence remains historical; device/native/OS/AT/provider/performance/release qualification is separate."
     },
     {
       "id": "WEB-MOBILE-EXTENSIONS",
@@ -2966,12 +2966,17 @@
           "package": "@edit-ac/web",
           "path": "packages/web/src/index.ts",
           "symbol": "Tables"
+        },
+        {
+          "package": "@edit-ac/web/modules",
+          "path": "packages/web/src/modules/index.ts",
+          "symbol": "assistiveInput"
         }
       ],
-      "oracles": "Captured touch-format target, clipboard original formats and stale gesture invalidation through public host adapters.",
+      "oracles": "Captured touch-format target, clipboard original formats and stale gesture invalidation through public host adapters. Qualified mobile assistance: captured selection, exactly one semantic/history/journal mutation, undo/redo/reopen, hostile late-result fencing, 44px controls, narrow keyboard recovery, zero permission/capture/external requests and released resources.",
       "proofs": [
         {
-          "id": "wex-2.2",
+          "id": "wfe-3.1-c6-mobile",
           "engines": [
             "chromium"
           ],
@@ -3355,7 +3360,7 @@
           ]
         },
         {
-          "id": "wex-2.2",
+          "id": "wfe-3.1-c6-mobile",
           "engines": [
             "chromium",
             "firefox",
@@ -3546,10 +3551,43 @@
             "WEX-2.2-narrow-260",
             "WEX-2.2-narrow-195"
           ]
+        },
+        {
+          "id": "wfe-3.1-c6-assistance",
+          "engines": [
+            "chromium",
+            "firefox",
+            "webkit"
+          ],
+          "cases": [
+            "narrow-260",
+            "narrow-195",
+            "keyboard-command",
+            "stop-final-durable",
+            "fence-cancel",
+            "fence-readonly",
+            "fence-permission",
+            "fence-dispose",
+            "fence-registration",
+            "fence-foreign-focus",
+            "fence-escape",
+            "fence-hidden",
+            "failure-permission-denied",
+            "failure-unavailable",
+            "failure-disconnected",
+            "failure-reject",
+            "failure-deleted-target",
+            "fallback-absent",
+            "fallback-disabled",
+            "fallback-noHost",
+            "fallback-permissionDenied",
+            "fallback-noStop",
+            "pending-start"
+          ]
         }
       ],
-      "nextAction": "WEX-2.2 portable return is integrated with exact source/package/case applicability. Consume the separate WEX-2.3 assistance return for MWX-1.7 when ready; preserve later qualification predicates.",
-      "gap": "MWX-1.7 assistance is a separate WEX-2.3 return; C5 proves MWX-1.1\u20131.6 and MWX-1.9 portable controls, not assistance or MWX-1.8 device/overhead qualification."
+      "nextAction": "WEX-2.3 touch/assistance is current and verified; complete the exact WebKit filename owner repair and remaining source-compatible narrow binding before C6 closure. Preserve all original cases and MWX-1.8 qualifications.",
+      "gap": "C6 remains open: full WebKit formats has five canonical-Unicode download-name assertion failures. Both original narrow cases pass within that failed receipt, which is not accepted as a complete success. Qualified PARALLEL repair/contract return required; original narrow binding remains unchanged and source-incompatible."
     },
     {
       "id": "WEB-ROUTES",
@@ -7283,6 +7321,134 @@
         {
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-14/run-1/source-pins.json",
           "sha256": "502d62ff20b02821e81b9531f273b4b3b55a86f0c7764311e1566da1a9e895fd"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c6-mobile",
+      "owner": "PRIMARY current portable installed union; qualified PARALLEL WEX-2.3 presenter",
+      "command": "EDITAC_WEB_MOBILE_EXTENSION_OUTPUT=.../c6-mobile/run-1 node scripts/run-web-mobile-extension-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-mobile/run-1/chromium/capabilities/receipt.json",
+          "sha256": "26b8f00c929fa67703726c05ed5d4dac81dbc7b42794870bccabc43d50d03fcb"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-mobile/run-1/chromium/menus/receipt.json",
+          "sha256": "be363533c2c85ed3fa0de28eb12ed10a37060feba64776be40d6843698bfe94e"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-mobile/run-1/chromium/content-controls/receipt.json",
+          "sha256": "38fbdb5ad58ee5de15624c6cc64a3e1aa17df1d3c625a5d14ae3c21c599aba88"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-mobile/run-1/chromium/gestures/receipt.json",
+          "sha256": "b022f5a8336df53f7c59d4c7ca20c0b6aa17ccc6ce8d8696f2bcdb8e8d80d47d"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-mobile/run-1/chromium/assets/receipt.json",
+          "sha256": "ab7e937fb723bd6253ca5d071e431f2e6e9b5cfd6f5001ee6b0d8c8192355277"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-mobile/run-1/chromium/formats/receipt.json",
+          "sha256": "5ac9bf7bcc097ab6867fcff23b3655291e3d77d2411078448a948f7941f141dc"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-mobile/run-1/firefox/formats/receipt.json",
+          "sha256": "798958fc38176cc3189344fc8111b0c815c44101df94e712a93ccacfcadf82d4"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-mobile/run-1/chromium/mobile-extension-formatting/receipt.json",
+          "sha256": "e1a4c40b8370202bcc58eab3f80e47df190ca5c152a675410e3ec0cf8a52ddb4"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-mobile/run-1/firefox/mobile-extension-formatting/receipt.json",
+          "sha256": "391dda1b4f1acd367285d5731d65c6334141b6e0e5c48c7e37fd41a1c26717a1"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-mobile/run-1/webkit/mobile-extension-formatting/receipt.json",
+          "sha256": "79b97a3ac9bfbad3c388db458bd450e55a5216518f5117f99e6645b71acf86c8"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-mobile/run-1/source-pins.json",
+          "sha256": "b02ca33205542256ef2e7672cc0b2d76813316d5d927d3c48dde4d16ac028092"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c6-assistance",
+      "owner": "PRIMARY current portable installed union; qualified PARALLEL WEX-2.3 presenter",
+      "command": "EDITAC_WEB_MOBILE_EXTENSION_OUTPUT=.../c6-mobile/run-1 node scripts/run-web-mobile-extension-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-mobile/run-1/chromium/assistance/receipt.json",
+          "sha256": "535211c59b289bcac1431d60bec6f19945781f4336c31515f46f8eebfa0d53ed"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-mobile/run-1/firefox/assistance/receipt.json",
+          "sha256": "1aaa8991080f5e727aedad9f9f58e8861ce6391905865e6e78a822f24de4ca2f"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-mobile/run-1/webkit/assistance/receipt.json",
+          "sha256": "bb22cda44c0cf0c8e89aa5e904590e8a6275649040fa758380b7f0e08b7b5194"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-mobile/run-1/source-pins.json",
+          "sha256": "b02ca33205542256ef2e7672cc0b2d76813316d5d927d3c48dde4d16ac028092"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c6-assistive-dictation",
+      "owner": "PRIMARY current portable installed union; qualified PARALLEL WEX-2.3 presenter",
+      "command": "EDITAC_WEB_MOBILE_EXTENSION_OUTPUT=.../c6-mobile/run-1 node scripts/run-web-mobile-extension-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-mobile/run-1/chromium/assistive-dictation/receipt.json",
+          "sha256": "173376caa92ccaf97a2b1af2eb9d6ca0992ee5d001572b93c6ba8f5b28f45953"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-mobile/run-1/firefox/assistive-dictation/receipt.json",
+          "sha256": "74824302b2c30e00c395163392fe410fc67812cea0594c7baec979598a12cbc6"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-mobile/run-1/webkit/assistive-dictation/receipt.json",
+          "sha256": "9493a87cb5fb42955da1aed3a59f99fc94fb5f25bb8385872108b88623ef3418"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-mobile/run-1/source-pins.json",
+          "sha256": "b02ca33205542256ef2e7672cc0b2d76813316d5d927d3c48dde4d16ac028092"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c6-assistive-presenter",
+      "owner": "PRIMARY current portable installed union; qualified PARALLEL WEX-2.3 presenter",
+      "command": "EDITAC_WEB_MOBILE_EXTENSION_OUTPUT=.../c6-mobile/run-1 node scripts/run-web-mobile-extension-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-mobile/run-1/chromium/assistive-presenter/receipt.json",
+          "sha256": "71e8ca5215b7deb81a5153ed5a7da9a084005546f485a8a716d128ccf7ee360d"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-mobile/run-1/firefox/assistive-presenter/receipt.json",
+          "sha256": "71a18ca782ee361313427270b6fe0996fe63afa6666963228691d094ae36036a"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-mobile/run-1/webkit/assistive-presenter/receipt.json",
+          "sha256": "87cee701a95137693d73cbab1b3c890724b38e2280e73533ff0d7da303452249"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-mobile/run-1/source-pins.json",
+          "sha256": "b02ca33205542256ef2e7672cc0b2d76813316d5d927d3c48dde4d16ac028092"
         }
       ]
     }
