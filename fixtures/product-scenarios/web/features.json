@@ -1929,7 +1929,7 @@
       "oracles": "Expected literal search matches/replacement, source-preserving code edits and UTF-16 highlight spans; history/readonly/cancel.",
       "proofs": [
         {
-          "id": "wfe-3.1-c4o-2-search-code",
+          "id": "wfe-3.1-c7-2-search-code",
           "engines": [
             "chromium",
             "firefox",
@@ -2011,7 +2011,7 @@
           ]
         }
       ],
-      "nextAction": "Original literal document search/replacement, source-preserving code commands/autopair and real-worker highlight behavior proven through current installed SDK in three browsers. Recheck only changed source/package/oracle inputs; native/device/performance remain deferred."
+      "nextAction": "All original cases restored against current installed SDK. Requalify changed source/package inputs; later native/device/performance/release predicates remain separate."
     },
     {
       "id": "WEB-MATH-REORDER",
@@ -2035,7 +2035,7 @@
       "oracles": "Source-preserving math fallback and one semantic reorder, no mutation for stale/readonly/cancelled gestures.",
       "proofs": [
         {
-          "id": "wfe-3.1-c4o-3-math-reorder",
+          "id": "wfe-3.1-c7-2-math-reorder",
           "engines": [
             "chromium",
             "firefox",
@@ -2106,7 +2106,7 @@
           ]
         }
       ],
-      "nextAction": "All original math safety/lazy/fallback and semantic keyboard/pointer reorder/history/selection/cancel/disposal cases proven with the current installed SDK; rerun only for changed inputs. Later qualification stays deferred."
+      "nextAction": "All original cases restored against current installed SDK. Requalify changed source/package inputs; later native/device/performance/release predicates remain separate."
     },
     {
       "id": "WEB-MARKDOWN",
@@ -7556,6 +7556,104 @@
         {
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4p-ai/run-2/source-pins.json",
           "sha256": "e3b544aaa945012c92b865abb3e9321e7351f21df4ec0318c234e710257da75d"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c7-2-search-code",
+      "owner": "PRIMARY current installed original boundary",
+      "command": "node scripts/run-web-search-math-refresh-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/search-code/code-commands/chromium/receipt.json",
+          "sha256": "c5bc6e6a472b1fe5ea4cf8c3560d181d2f74ab3979d61a88313d6a30f4b807e8"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/search-code/code-commands/firefox/receipt.json",
+          "sha256": "6bd58ed3b0e58b335470a22bb87cc8bc697917da23d96a74570926141c0fb6b4"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/search-code/code-commands/webkit/receipt.json",
+          "sha256": "3d3ae35500313a4b7c40ca0afdedd5bc715168f71bb5ea9963e9871f18131506"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/search-code/code-highlight/chromium/receipt.json",
+          "sha256": "50e53da9ce7ad1e13985173d9ad5443c56b14fdb7a178fb122291b2926c35ed3"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/search-code/code-highlight/firefox/receipt.json",
+          "sha256": "65287030038764ff7ea838c22aab29718737a9dcb9bc18004193295eea3a9bd1"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/search-code/code-highlight/webkit/receipt.json",
+          "sha256": "241ef11fe0500c0aa3dc1e8617dab5176a87425693290c6c0d7e99a0f74d5c27"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/search-code/document-search/chromium/receipt.json",
+          "sha256": "3f84c2755b87ed756b22cfb0024da0c7806fed4ac4c0a27257812f50b5292c35"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/search-code/document-search/firefox/receipt.json",
+          "sha256": "3343c72fb89f3862547980e68b48b90136d4456bb5af796166bb1eb5c6eff268"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/search-code/document-search/webkit/receipt.json",
+          "sha256": "fd46a9b85c63904dd4f45fc8573745b1bd448208aa32be8f4e4d9ea6aaa17abd"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/search-code/source-pins.json",
+          "sha256": "c187f45eb7666e7e9473ce878d5413d33513de731cfb8ab9d5c6fa52869fe180"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c7-2-math-reorder",
+      "owner": "PRIMARY current installed original boundary",
+      "command": "node scripts/run-web-search-math-refresh-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/math-reorder/math/chromium/receipt.json",
+          "sha256": "dd23c8601821fc2009a8c396ab1729b0cda538d9c1a822dfe1350789b569452a"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/math-reorder/math/firefox/receipt.json",
+          "sha256": "6b16daed8b0356d8eefadbff8a4daee15e7547b64310e8359870f87c68e4ca30"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/math-reorder/math/webkit/receipt.json",
+          "sha256": "21418e5a38cc53f734097f4eae2acf230eaedd01054fbf704d84e971d2cad44c"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/math-reorder/reorder/chromium/receipt.json",
+          "sha256": "7db01ea6c4223098a14acf39c125d77a0eed7e4797cc4e262fbeb4fdd89a3305"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/math-reorder/reorder/firefox/receipt.json",
+          "sha256": "bbaf472c816f8ef045bc80db68ede396db741f436e7b6f16f930cd0040ff7ecf"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/math-reorder/reorder/webkit/receipt.json",
+          "sha256": "7958769d487966c6b82c79708fd0492b0165093c5f7101be1a46f906568a46c0"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/math-reorder/reorder-pointer/chromium/receipt.json",
+          "sha256": "5e24a056d8968ace758dcccb365ce4fcf83843b5d7822f8e7f1930e62cb57423"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/math-reorder/reorder-pointer/firefox/receipt.json",
+          "sha256": "c98d439634260e9cd8824e3a74e293de605a1a439d032b3723ac82af43d44ff7"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/math-reorder/reorder-pointer/webkit/receipt.json",
+          "sha256": "43d7e1f92a4acdc290fbdee8f87a6817b567723dca41f3cdc82f549d3590e8d5"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c7-2/run-2/math-reorder/source-pins.json",
+          "sha256": "c187f45eb7666e7e9473ce878d5413d33513de731cfb8ab9d5c6fa52869fe180"
         }
       ]
     }
