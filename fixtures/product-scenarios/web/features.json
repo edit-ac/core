@@ -1919,7 +1919,7 @@
       "oracles": "Expected literal search matches/replacement, source-preserving code edits and UTF-16 highlight spans; history/readonly/cancel.",
       "proofs": [
         {
-          "id": "wfe-3.1-c4-search-code",
+          "id": "wfe-3.1-c4o-2-search-code",
           "engines": [
             "chromium",
             "firefox",
@@ -6035,6 +6035,55 @@
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-1/run-1/web-local-recovery-webkit/receipt.json",
           "sha256": "4ae2c8498d1e00a302f7534639f48e9aa7ae9bde3b137f15c2e994860dc45ea3",
           "packageDirectory": "/Users/bpstr/Github/edit-ac-shared-features-20261016/architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-1/prepared-2"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c4o-2-search-code",
+      "owner": "PRIMARY current-source search/code boundary",
+      "command": "node scripts/run-web-search-code-boundary.mjs (original search/code contracts and three installed-package browser families)",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-2/run-1/code-commands/chromium/receipt.json",
+          "sha256": "7a4b535539dc7ea3b60aaa440eb6aa95b7d1d4b78f324cac42701c4190e904b1"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-2/run-1/code-commands/firefox/receipt.json",
+          "sha256": "138bd809aad407c570a0ab3e52cd1f61d0d093d99fd1aadcfcad904c74401357"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-2/run-1/code-commands/webkit/receipt.json",
+          "sha256": "aeec26930a08b1feadd83529c154289d09ac871cbf39bcd5adbf88076ed6e063"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-2/run-1/code-highlight/chromium/receipt.json",
+          "sha256": "2e50ca2f174934165030f3b65bd1190e687a1899cd344c7bf0bfe11f90fe8180"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-2/run-1/code-highlight/firefox/receipt.json",
+          "sha256": "e599eb745e2178d1df5c025667e5bc965bdd6093223051837163552cac14a2b5"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-2/run-1/code-highlight/webkit/receipt.json",
+          "sha256": "723fc343861f296dc16025c5ac414e0775396b847f4fcc9b86ccc211b5f66127"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-2/run-1/document-search/chromium/receipt.json",
+          "sha256": "a8834d222460ee8033ff2e88111e71671ae603cfb15df5e2cfda92b7e7f74ca8"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-2/run-1/document-search/firefox/receipt.json",
+          "sha256": "4a3174d28ce67fc6743090b9aa089f15e5217f33aafe21ae186e02db64c007c3"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-2/run-1/document-search/webkit/receipt.json",
+          "sha256": "d49c28100b2c0035540e6b826da2f81b2444eb782a4d056a961ebfdab2fbd8fa"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-2/run-1/source-pins.json",
+          "sha256": "dca90283e2bcd822035e2c896bc67a5868b1f41a274162384471af9204e5f92a"
         }
       ]
     }
