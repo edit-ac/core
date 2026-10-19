@@ -3,12 +3,15 @@ import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { chromium, firefox, webkit } from 'playwright';
 import { prepareShell, root, defaultReceipt } from '../../examples/host-agent-product/setup.mjs';
-import { modelCases, browserCases } from './host-agent-product-shell.mjs';
+import * as shellCases from './host-agent-product-shell.mjs';
+import * as bridgeCases from './host-agent-product-bridge.mjs';
+import { prepareBridge } from '../../examples/host-agent-product/bridge-setup.mjs';
 const manifest = JSON.parse(await readFile(join(root,'fixtures/product-scenarios/host-agent-product/manifest.json')));
 const group = process.argv[2];
 assert.equal(process.argv.length, 3, 'Expected exactly one group');
 assert.ok(Object.hasOwn(manifest.groups, group), 'Unknown group');
 const selection = manifest.groups[group];
+const { modelCases, browserCases } = group === 'bridge' ? bridgeCases : shellCases;
 assert.ok(selection.modelCases.length && selection.browserCases.length && selection.engines.length, 'Zero-case selection');
 const output = resolve(process.env.EDITAC_HOST_PRODUCT_OUTPUT ?? join(root,'../architecture/evidence/host-agent-product-20261019/host-workspace',selection.parent,`shell-${Date.now()}`));
 await mkdir(output, { recursive: true });
@@ -20,9 +23,9 @@ const checker = (engine, expected) => { let index = 0; return async (id, action)
   catch (error) { facts.cases.push({ engine, id, status: 'failed', error: error.stack }); }
 }; };
 try {
-  server = await prepareShell(output, facts, process.env.EDITAC_HOST_PRODUCT_SDK_RECEIPT ?? defaultReceipt);
+  server = await (group === 'bridge' ? prepareBridge : prepareShell)(output, facts, process.env.EDITAC_HOST_PRODUCT_SDK_RECEIPT ?? defaultReceipt);
   facts.processes.push({ pid: process.pid, launcher: process.execPath, workspace: root, port: server.port, purpose: 'Shell loopback fixture server', log: join(output,'receipt.json') });
-  await modelCases(checker('node', selection.modelCases));
+  await modelCases(checker('node', selection.modelCases), { server, facts, output });
   const fixture = JSON.parse(await readFile(join(root,'fixtures/product-scenarios/host-agent-product/shell.json')));
   for (const engine of selection.engines) {
     let browser, controller; const detail = { engine }; facts.browsers.push(detail);

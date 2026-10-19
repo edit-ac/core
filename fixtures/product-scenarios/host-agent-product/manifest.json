@@ -1,12 +1,52 @@
 {
   "version": 1,
-  "scope": "Prepared local browser consumer shell only; no actual Session connection, durable apply, live AI or aggregate qualification",
+  "scope": "Prepared local browser consumer; real Session/SQLite observation bridge; no live AI or aggregate qualification",
   "groups": {
     "shell": {
       "parent": "D24X-1.1",
-      "engines": ["chromium", "firefox", "webkit"],
-      "modelCases": ["retention", "text-bound", "detached-snapshot", "invalid-input", "clear"],
-      "browserCases": ["regions-and-identity", "inert-prose", "unavailable-public-facade", "bounded-transcript", "keyboard-and-clear", "independent-no-mutation"]
+      "engines": [
+        "chromium",
+        "firefox",
+        "webkit"
+      ],
+      "modelCases": [
+        "retention",
+        "text-bound",
+        "detached-snapshot",
+        "invalid-input",
+        "clear"
+      ],
+      "browserCases": [
+        "regions-and-identity",
+        "inert-prose",
+        "unavailable-public-facade",
+        "bounded-transcript",
+        "keyboard-and-clear",
+        "independent-no-mutation"
+      ]
+    },
+    "bridge": {
+      "parent": "D24X-1.2",
+      "engines": [
+        "chromium",
+        "firefox",
+        "webkit"
+      ],
+      "modelCases": [
+        "actual-owner",
+        "registered-facade",
+        "transport-admission",
+        "cancelled-response",
+        "bounded-messages",
+        "fixed-endpoints",
+        "independent-state"
+      ],
+      "browserCases": [
+        "connected-observation",
+        "cancel-and-resume",
+        "scope-and-inert-content",
+        "actual-wasm-peer-unchanged"
+      ]
     }
   }
 }
