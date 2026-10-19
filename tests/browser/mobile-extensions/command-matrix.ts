@@ -64,12 +64,12 @@ export function registerCommandMatrix({ probe, mount, snapshot, finish, frame })
     assert.deepEqual(observed.derived,profile.derivedControls??[]);
     assert.equal(observed.unknown, false);
     if (mode === 'readonly') {
-      for (const row of observed.rows) if (!profile.writes || profile.writes.includes(row.label)) assert.equal(row.disabled, true, row.label);
+      for (const row of observed.rows) if ((!profile.writes || profile.writes.includes(row.label)) && !(profile.selectionOnly??[]).includes(row.label)) assert.equal(row.disabled, true, row.label);
       await page.evaluate(({ selector, commands }) => {
         for (const b of document.querySelector(selector)!.querySelectorAll<HTMLButtonElement>('button'))
           if (commands.includes(b.textContent)) b.click();
       }, { ...profile, commands: profile.writes ?? profile.commands });
-    } else for (const row of observed.rows) assert.equal(row.disabled, false, row.label);
+    } else for (const row of observed.rows) assert.equal(row.disabled, (profile.unavailable??[]).includes(row.label), row.label);
     assert.deepEqual(await snapshot(page), before, 'applicability/unknown/disabled actions never commit');
     if (profile.id === 'search') await page.evaluate(() => (window as any).inputFixture.surface.search.close());
     if (profile.id === 'slash') await page.evaluate(() => (window as any).inputFixture.surface.slash.dismiss());

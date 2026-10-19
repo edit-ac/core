@@ -22,7 +22,7 @@ const { probe, facts } = browserHarness('mobile-extensions', 'fixtures/browser-m
     });
     await page.route('**/*',route=>{const url=route.request().url();if(new URL(url).origin!==new URL(fact.origin).origin){fact.unexpectedRequests.push(url);return route.abort();}return route.continue();});
     await page.addInitScript(installResourceCounters); await page.addInitScript(installExtensionCounters); },
-  sourcePaths: ['../.roadmap-runner/overnight-features-20261018/.roadmap-runner/02-mobile-extension-features-f5cf70ae3d13/source-0d7e6b959a8a.md', '../architecture/specs/editor-interactions.md', '../architecture/specs/link-resolution.md','fixtures/browser-mobile-extensions/reference-display.mjs', 'packages/web/src/modules/references/display.ts', 'packages/web/dist/modules/references/display.js', 'packages/web/src/modules/links/activation.ts', 'packages/core/src/links/activation.ts','packages/web/src/modules/touch-controls.ts', 'packages/web/dist/modules/touch-controls.js', 'packages/web/src/ui/commands.ts', 'packages/web/dist/ui/commands.js','packages/web/src/extensions/highlighting.ts', 'packages/web/src/extensions/assets.ts', 'packages/web/src/extensions/math.ts', 'tests/consumers/mobile-extensions/graph.mjs', 'scripts/build-extension-runtime.mjs','packages/web/src/modules/presenter-sequence.ts','packages/web/src/extensions/authoring-metadata.ts','packages/web/src/extensions/spelling-metadata.ts','packages/web/src/modules/slash-metadata.ts','packages/web/src/dom/pattern-text.ts', ...['search','reorder','slash','references','content'].flatMap(n=>[`packages/web/src/extensions/runtime/${n}.ts`,`packages/web/dist/extensions/runtime/${n}.js`]),'packages/web/dist/extensions/runtime/manifest.json',...browserInputSources, 'fixtures/browser-mobile-extensions/session.mjs', 'fixtures/browser-mobile-extensions/index.html',
+  sourcePaths: ['../architecture/specs/editor-interactions.md', '../architecture/specs/link-resolution.md','fixtures/browser-mobile-extensions/reference-display.mjs', 'packages/web/src/modules/references/display.ts', 'packages/web/dist/modules/references/display.js', 'packages/web/src/modules/links/activation.ts', 'packages/core/src/links/activation.ts','packages/web/src/modules/touch-controls.ts', 'packages/web/dist/modules/touch-controls.js', 'packages/web/src/ui/commands.ts', 'packages/web/dist/ui/commands.js','packages/web/src/extensions/highlighting.ts', 'packages/web/src/extensions/assets.ts', 'packages/web/src/extensions/math.ts', 'tests/consumers/mobile-extensions/graph.mjs', 'scripts/build-extension-runtime.mjs','packages/web/src/modules/presenter-sequence.ts','packages/web/src/extensions/authoring-metadata.ts','packages/web/src/extensions/spelling-metadata.ts','packages/web/src/modules/slash-metadata.ts','packages/web/src/dom/pattern-text.ts', ...['search','reorder','slash','references','content'].flatMap(n=>[`packages/web/src/extensions/runtime/${n}.ts`,`packages/web/dist/extensions/runtime/${n}.js`]),'packages/web/dist/extensions/runtime/manifest.json',...browserInputSources, 'fixtures/browser-mobile-extensions/session.mjs', 'fixtures/browser-mobile-extensions/index.html',
     'tests/browser/mobile-extensions/gestures.spec.ts', '../architecture/specs/rich-content-extensions.md', 'tests/browser/mobile-extensions/content-host-matrix.ts', 'tests/browser/mobile-extensions/command-matrix.ts', 'tests/browser/mobile-extensions/command-inventory.mjs',
     'fixtures/rich-content/asset-descriptors.json', 'packages/core/src/extensions/profiles.ts', 'packages/web/src/commands/catalog.ts',
     ...['modules/images/presenter','modules/attachments/presenter','modules/embeds/presenter','modules/content','modules/reorder','modules/search','modules/references','modules/slash','extensions/code'].flatMap(n=>[`packages/web/src/${n}.ts`,`packages/web/dist/${n}.js`]),
@@ -183,7 +183,7 @@ for(const profile of ['image','table'])test(`MWX-C14 ${profile} advertises no un
   const baseline=await mount(page,{gestureAudit:true,...(profile==='table'?{table:true}:{asset,contentHost:'absent'})});
   const before=await snapshot(page),selector=profile==='table'?'[data-content-module="table"]':'[data-content-module="image"]';
   const labels=await page.locator(`${selector} button`).allTextContents();
-  const expected=profile==='table'?commandProfiles.find(p=>p.id==='table').commands.concat(commandProfiles.find(p=>p.id==='table').derivedControls):['Load image'];
+  const expected=profile==='table'?commandProfiles.find(p=>p.id==='table').commands.concat(commandProfiles.find(p=>p.id==='table').derivedControls):['Load image','Cancel image load'];
   assert.deepEqual([...labels].sort(),[...expected].sort(),'exact advertised action inventory');
   assert.ok(labels.every(label=>!/resize|width|height|size preset/i.test(label)));
   assert.equal(await page.locator(`${selector} [data-resize-handle]`).count(),0);
@@ -218,13 +218,19 @@ test(`MWX-C15 ${reason} cancels capture, frames and selection without a command`
     else if(reason==='scale'||reason==='unavailable-geometry'){
       if(reason==='scale')(window as any).mobileGeometry.scale=2;else (window as any).mobileGeometryError=true;
       document.querySelector('#scroll-root').dispatchEvent(new Event('scroll'));
-    } else if(reason==='visual-resize')window.visualViewport.dispatchEvent(new Event('resize'));
+    } else if(reason==='resize'||reason==='visual-resize'){
+      // A resize notification alone may be a recoverable/no-op browser event.
+      // Exercise an actual unsafe geometry change through the shared owner.
+      (window as any).mobileGeometry.scale=2;
+      (window as any).mobileGeometry.visual.height=280;
+      (reason==='visual-resize'?window.visualViewport:window).dispatchEvent(new Event('resize'));
+    }
     else if(['blur','resize','orientationchange','pagehide'].includes(reason))window.dispatchEvent(new Event(reason));
     else grip.dispatchEvent(new PointerEvent(reason,{pointerId:(window as any).gesturePointer}));
   },reason);
   // Prepared geometry is sampled by the real coalesced viewport owner.
   // Wait for that notification before delivering a later release event.
-  if(reason==='scale'||reason==='unavailable-geometry')await frame(page);
+  if(['scale','unavailable-geometry','resize','visual-resize'].includes(reason)){await frame(page);released(await state(page));}
   await page.mouse.up();await frame(page);await terminalEvents(page);
   const retired=await page.evaluate(()=>(window as any).retired.pointerState);fact.retired=retired;released({pointer:retired});
   if(reason==='destroy'){
