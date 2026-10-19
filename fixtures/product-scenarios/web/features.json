@@ -4060,9 +4060,91 @@
         }
       ],
       "oracles": "Captured target/proposal review, stale/revoked/disposed denial, one semantic acceptance/history; provider transport must remain mocked.",
-      "proofs": [],
-      "nextAction": "Read paid-inference policy before changing/running AI tests; use existing deterministic prepared transports only; no paid calls or live dogfood.",
-      "gap": "Locate exact original RCH-2 prepared-browser case receipt and source applicability; default product and generic COMPLETE names do not prove optional AI behavior."
+      "proofs": [
+        {
+          "id": "wfe-3.1-c4p-ai",
+          "engines": [
+            "chromium"
+          ],
+          "cases": [
+            "answer",
+            "selection-storage",
+            "empty",
+            "caret",
+            "block",
+            "continue",
+            "unicode",
+            "stop",
+            "regenerate-cap",
+            "reject",
+            "remote",
+            "document-scope",
+            "inert-format",
+            "failure",
+            "lifecycle",
+            "keyboard-mechanics",
+            "touch-mechanics",
+            "accessibility-semantics",
+            "unavailable",
+            "context-limit",
+            "keyboard-accept",
+            "missing-selection",
+            "touch-lifecycle",
+            "disabled",
+            "debounce",
+            "ephemeral",
+            "keyboard",
+            "touch",
+            "keymap",
+            "escape",
+            "composition",
+            "selection",
+            "invalidation",
+            "supersede",
+            "quota",
+            "atom",
+            "remote-undo",
+            "code",
+            "output-cap",
+            "disable-permission",
+            "module-atom",
+            "table-tab",
+            "code-tab",
+            "pending-blur",
+            "pending-dispose",
+            "pending-caret",
+            "pending-remote",
+            "spelling-grammar",
+            "rephrase",
+            "simplify",
+            "shorten",
+            "extend",
+            "tone",
+            "summarize",
+            "key-points",
+            "translate",
+            "language-0",
+            "language-21",
+            "language-65",
+            "multi-block",
+            "marks",
+            "adjacent-marks",
+            "mixed",
+            "unrelated-atom",
+            "rich",
+            "unsafe",
+            "read-only",
+            "policy",
+            "stale",
+            "controls",
+            "late",
+            "invalid-controls",
+            "unsafe-atom-output",
+            "inline-code"
+          ]
+        }
+      ],
+      "nextAction": "Original supported Chromium optional AI public behavior proven with prepared transports/models; no providers or default-sample activation. Other engines, OS AT/native/performance and full RCH-2.6 qualification remain separate and unchecked."
     }
   ],
   "proofs": [
@@ -7449,6 +7531,31 @@
         {
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c6-mobile/run-1/source-pins.json",
           "sha256": "b02ca33205542256ef2e7672cc0b2d76813316d5d927d3c48dde4d16ac028092"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c4p-ai",
+      "owner": "PRIMARY current installed proof; existing PARALLEL optional AI APIs unchanged",
+      "command": "EDITAC_WEB_AI_OUTPUT=.../c4p-ai/run-2 EDITAC_WEB_AI_RESUME=.../c4p-ai/run-1 node scripts/run-web-ai-boundary.mjs",
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4p-ai/run-1/ai-actions/receipt.json",
+          "sha256": "05993cea64419ac284c3845f2ffac5cffd0027cf60d8d1a721f987465cc16c6e"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4p-ai/run-2/ai-completion/receipt.json",
+          "sha256": "0401326401c6556d1c26843e0ac6f11dec229b0c6a99a9f0f66d64d32c9e132a"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4p-ai/run-1/ai-transformations/receipt.json",
+          "sha256": "5e5d8e27c9699d44bd36f4fc17a49831f20606843b794557b7dc4dbc68d0fd3f"
+        }
+      ],
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4p-ai/run-2/source-pins.json",
+          "sha256": "e3b544aaa945012c92b865abb3e9321e7351f21df4ec0318c234e710257da75d"
         }
       ]
     }
