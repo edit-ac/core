@@ -172,6 +172,33 @@
         "human-edit-invalidates-real-revision-without-overwrite",
         "late-capture-scope-fence-and-policy-release"
       ]
+    },
+    "upload": {
+      "parent": "D24X-2.2",
+      "engines": [
+        "chromium",
+        "firefox",
+        "webkit"
+      ],
+      "modelCases": [
+        "utf8-framing-and-bounds",
+        "partial-and-order-errors-never-prepare",
+        "byte-and-unicode-errors-never-prepare",
+        "chunk-and-complete-checksum-errors",
+        "expiry-scope-and-current-authority",
+        "only-complete-candidate-reaches-real-owner",
+        "empty-complete-candidate-and-cancel",
+        "independent-session-sqlite-and-identity"
+      ],
+      "browserCases": [
+        "explicit-local-input-and-partial-progress",
+        "visible-order-checksum-and-byte-errors",
+        "visible-expiry-and-fresh-capture",
+        "complete-owner-prepare-and-inert-url-content",
+        "bounded-input-keyboard-and-unknown-state",
+        "baseline-release-discards-pending-upload",
+        "independent-browser-owner-journal-history"
+      ]
     }
   }
 }

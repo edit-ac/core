@@ -11,15 +11,17 @@ for(const args of [[],['unknown'],['workspace','extra']]){
  facts.cases.push({id:'reject-selection-'+JSON.stringify(args),pass:result.status!==0,exit:result.status});
  assert.notEqual(result.status,0);
 }
+const mode=process.argv[3] ?? '--workspace';assert.ok(['--workspace','--upload'].includes(mode));
+const entry=mode==='--upload'?'upload-workspace.mjs':'installed-workspace.mjs';
 let child,preview,url;
 try{
- child=spawn(process.execPath,['examples/host-agent-product/launch.mjs','--workspace'],{cwd:root,env:{PATH:process.env.PATH},stdio:['ignore','pipe','pipe']});
+ child=spawn(process.execPath,['examples/host-agent-product/launch.mjs',mode],{cwd:root,env:{PATH:process.env.PATH},stdio:['ignore','pipe','pipe']});
  facts.pid=child.pid;let stdout='',stderr='';child.stderr.on('data',b=>stderr+=b);
  await new Promise((done,fail)=>{const timer=setTimeout(()=>fail(Error('Launcher startup timeout: '+stderr)),30000);child.once('exit',code=>{clearTimeout(timer);fail(Error('Launcher exited '+code+': '+stderr));});child.stdout.on('data',b=>{stdout+=b;const match=stdout.match(/(http:\/\/127\.0\.0\.1:\d+)[\s\S]*Evidence: (.+)/);if(match){url=match[1];preview=match[2].trim();clearTimeout(timer);done();}});});
  assert.equal(new URL(url).hostname,'127.0.0.1');
- const page=await fetch(url);assert.equal(page.status,200);assert.match(await page.text(),/installed-workspace.mjs/);
- const module=await fetch(url+'/fixture/installed-workspace.mjs');assert.equal(module.status,200);
- facts.url=url;facts.preview=preview;facts.cases.push({id:'documented-workspace-launch',pass:true});
+ const page=await fetch(url);assert.equal(page.status,200);assert.ok((await page.text()).includes(entry));
+ const module=await fetch(url+'/fixture/'+entry);assert.equal(module.status,200);
+ facts.url=url;facts.preview=preview;facts.cases.push({id:'documented-'+mode.slice(2)+'-launch',pass:true});
 }catch(error){facts.failure=error.stack;process.exitCode=1;}
 finally{
  if(child&&child.exitCode===null){child.kill('SIGTERM');await new Promise((done,fail)=>{const timer=setTimeout(()=>fail(Error('Launcher teardown timeout')),10000);child.once('exit',()=>{clearTimeout(timer);done();});});}

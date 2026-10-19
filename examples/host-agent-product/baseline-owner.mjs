@@ -1,6 +1,6 @@
 // Consumer lifetime fencing around the public retained-baseline owner, never a
 // source reconciler or durable mutation store. Only Session prepares semantics.
-export function baselineOwner({ createHostPrepare, send, available, access, onCapture = () => {}, now = Date.now }) {
+export function baselineOwner({ createHostPrepare, send, available, access, onCapture = () => {}, now = Date.now, onPrepare = () => {} }) {
   let api, generation = 0, offset = 0, closed = false, retained, releaseError;
   const releases = new Set();
   const release = target => {
@@ -10,9 +10,9 @@ export function baselineOwner({ createHostPrepare, send, available, access, onCa
   const make = () => createHostPrepare({
     available: a => !closed && available(a),
     async capture() { const value = await send({ op:'capture' }); onCapture(value.target); return value; },
-    prepare: (target,candidate,a) => send({ op:'prepare_markdown',target,candidate,access:a }),
+    prepare: (target,candidate,a) => { onPrepare(); return send({ op:'prepare_markdown',target,candidate,access:a }); },
     release,
-  }, { limits:{ maxSourceBytes:16384,maxBaselines:8 }, now:() => now()+offset });
+  }, { limits:{ maxSourceBytes:16384,maxBaselines:8,maxCandidateBytes:4096,maxChunkBytes:1024,maxChunks:8,maxUploads:4 }, now:() => now()+offset });
   api = make();
   // Reset synchronously changes the generation; old async results stay old.
   async function reset(final = false) {
@@ -32,6 +32,31 @@ export function baselineOwner({ createHostPrepare, send, available, access, onCa
   }]));
   return {
     services, reset,
+    async upload(input) {
+      const a = access(), current = api, version = generation;
+      if (!a || !available(a) || a.readOnly || !a.permissions.includes('prepare')) return {status:'rejected',code:'denied'};
+      if (closed || input.generation !== version) return {status:'rejected',code:'expired'};
+      const keys = Object.keys(input).sort().join(',');
+      try {
+        let result;
+        if (input.action === 'upload-begin' && keys === 'action,baseline,checksum,generation,totalBytes') {
+          const checked = await this.check(input.baseline);
+          if (checked.status !== 'valid') return checked;
+          if (version !== generation) return {status:'rejected',code:'expired'};
+          result = await current.beginUpload(a,{expectedRevision:input.baseline.revision,sourceHash:input.baseline.sourceHash,totalBytes:input.totalBytes,checksum:input.checksum});
+          result = {status:'uploading',...result,limits:{maxCandidateBytes:4096,maxChunkBytes:1024,maxChunks:8}};
+        } else if (input.action === 'upload-chunk' && keys === 'action,checksum,generation,index,text,uploadId') {
+          result = {status:'partial',...await current.appendChunk(a,input.uploadId,input.index,input.text,input.checksum)};
+        } else if (input.action === 'upload-finish' && keys === 'action,generation,uploadId') {
+          result = await current.finishUpload(a,input.uploadId);
+        } else if (input.action === 'upload-cancel' && keys === 'action,generation,uploadId') {
+          await current.cancelUpload(a,input.uploadId); result = {status:'cancelled'};
+        } else return {status:'rejected',code:'invalid'};
+        return version === generation && !closed ? result : {status:'rejected',code:'expired'};
+      } catch (error) {
+        return {status:'rejected',code:['denied','limit','invalid','expired','mismatch','incomplete','unavailable'].includes(error.code) ? error.code : 'unknown'};
+      }
+    },
     get generation() { return generation; },
     // Explicit prepared clock injection. No real owner result is substituted.
     expire() { offset += 300001; },

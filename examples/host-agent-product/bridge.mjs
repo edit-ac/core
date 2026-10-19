@@ -65,12 +65,12 @@ export async function connectOwner({ executable, database, sdk, facts, capabilit
     prepare() { throw Error('Preparation unavailable'); },
     release(target) { void send({ op:'release',target }).catch(() => {}); },
   }, { limits:{ maxSourceBytes:16384,maxBaselines:8 } }) : null;
-  const lifecycle = baseline ? baselineOwner({createHostPrepare,send,available,onCapture:target=>{ facts.baselineTargets ??= []; facts.baselineTargets.push(target); if(facts.baselineTargets.length>32)facts.baselineTargets.shift(); },access:()=>currentAccess(context,DOCUMENT)}) : null;
+  const lifecycle = baseline ? baselineOwner({createHostPrepare,send,available,onPrepare:()=>{facts.uploadPrepareCalls=(facts.uploadPrepareCalls ?? 0)+1;},onCapture:target=>{ facts.baselineTargets ??= []; facts.baselineTargets.push(target); if(facts.baselineTargets.length>32)facts.baselineTargets.shift(); },access:()=>currentAccess(context,DOCUMENT)}) : null;
   const host = createHostAgent({ authorize: currentAccess,
     services: { ...(lifecycle ? lifecycle.services : markdown ? {read:markdown.services.read} : {}), observe: createHostObserve({ available: a => !dead && mode !== 'unavailable' && a.documentId === DOCUMENT && a.actorId === access.actorId && a.epoch === EPOCH,
       revision: async a => (await send({ op:'observe', access:a })).revision }) } });
   let tools; registerHostAgent({ registerToolProvider(p) { tools = p; } }, host);
-  return { send, host, context, tools, database, lifecycle,
+  return { send, host, context, tools, database, lifecycle, get prepareCount() { return facts.uploadPrepareCalls ?? 0; },
     ...(lifecycle ? { async baseline(input) {
       if (!input || Array.isArray(input)) throw Error('Invalid baseline action');
       if (input.action === 'capture' && Object.keys(input).length === 2) {
@@ -82,6 +82,7 @@ export async function connectOwner({ executable, database, sdk, facts, capabilit
           ? {status:'captured',baseline:{...result.data,actorId:a.actorId,documentId:a.documentId,epoch:a.epoch,generation}}
           : {status:'rejected',code:result.data?.code ?? result.code ?? 'expired'};
       }
+      if (typeof input.action === 'string' && input.action.startsWith('upload-')) return lifecycle.upload(input);
       if (input.action === 'check' && Object.keys(input).length === 2) return lifecycle.check(input.baseline);
       if (input.action === 'release' && Object.keys(input).length === 1) { await lifecycle.reset(); return {status:'released',generation:lifecycle.generation}; }
       if (input.action === 'expire' && Object.keys(input).length === 1) { lifecycle.expire(); return {status:'expired'}; }
