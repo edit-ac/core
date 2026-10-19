@@ -55,7 +55,7 @@ export async function reopenCases({ page, server, facts, check, output }) {
     await history.getByRole('button', { name: 'Inspect Reload restore', exact: true }).click();
     await history.getByRole('button', { name: 'Preview restore as new edit', exact: true }).click();
     await history.getByRole('button', { name: 'Apply restore as new edit', exact: true }).click();
-    await page.waitForFunction(() => document.querySelector('#revision-history').textContent.includes('Restored as a new edit'));
+    await page.waitForFunction(() => document.querySelector('#revision-restore-status').textContent.includes('Restore applied as a new edit'));
     await moduleCall('save'); const before = await observe(); assert.equal(before.text, expectedRestore);
     const existingUpdates = new Set(JSON.parse(preRestore.journal).updates.map(update => update.updateId));
     const acceptedUpdates = JSON.parse(before.journal).updates.filter(update => !existingUpdates.has(update.updateId));
@@ -140,6 +140,20 @@ export async function reopenCases({ page, server, facts, check, output }) {
     // A rejected retained promise is not successful retry, even though recovery export is intact.
     assert.equal(result.saved, true, `Public owner retry did not persist retained updates: ${result.error}`);
     assert.ok(after.journalUpdates > failed.journalUpdates); assert.equal(after.text, unsavedText);
+    assert.deepEqual(after.snapshot, failed.snapshot); assert.equal(after.checkpoint, failed.checkpoint);
+    const normalize = record => ({ identity: record.identity, writerId: record.writerId, sequence: record.sequence,
+      origin: record.origin, bytes: record.bytes.data ?? record.bytes.bytes });
+    const expected = [...JSON.parse(failed.journal).updates, ...failedRecovery.unsavedUpdates].map(normalize);
+    const actual = JSON.parse(after.journal).updates.map(normalize);
+    const key = record => `${record.identity.documentId}:${record.identity.epoch}:${record.writerId}:${record.sequence}`;
+    assert.equal(new Set(actual.map(key)).size, actual.length, 'Retry cannot duplicate captured journal identities');
+    const sort = records => records.sort((a, b) => key(a).localeCompare(key(b)));
+    assert.deepEqual(sort(actual), sort(expected), 'Every retained failed update persists with its original identity/origin/bytes');
+    assert.deepEqual((await recovery()).unsavedUpdates, []);
+    assert.equal(await page.evaluate(async url => (await import(url)).workspace.owner === window.failedOwner, moduleURL), true);
+    await page.locator('#revision-save').click();
+    await page.waitForFunction(() => document.querySelector('#revision-save-status').textContent.startsWith('Live document saved'));
+    assert.equal((await observe()).journal, after.journal, 'Repeated explicit Save does not append duplicates');
     await reload(); const reopened = await observe(); compareReopen(after, reopened, unsavedText);
     assert.equal((await observe('comment')).text, sibling.text); facts.oracles.storageRetry.reopened = reopened;
     await page.evaluate(async url => { await (await import(url)).close(); }, moduleURL);

@@ -67,7 +67,7 @@ export async function restoreCases({ page, server, facts, check, output }) {
     await button('Inspect Supported text').click(); await button('Preview restore as new edit').click();
     assert.deepEqual(stable(await observe()), stable(before));
     await button('Apply restore as new edit').click();
-    assert.match(await history.innerText(), /Restored as a new edit/);
+    assert.match(await page.locator('#revision-restore-status').innerText(), /Restore applied as a new edit/);
     await call('save'); restored = await observe();
     assert.equal(restored.text, original); assert.deepEqual(identities(restored.snapshot), identities(before.snapshot));
     assert.equal(restored.snapshot.revision, before.snapshot.revision + 1);

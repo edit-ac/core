@@ -31,7 +31,8 @@
       <div id="revision-history"></div>
       <section aria-label="Restore preview controls">
         <p>For supported plain text, inspect a capture, preview, then confirm with “Apply restore as new edit”. Use Save locally to confirm local durability.</p>
-        <button id="revision-cancel-restore">Cancel restore preview</button>
+        <button id="revision-close-detail" hidden>Close capture details</button>
+        <button id="revision-cancel-restore" disabled>Cancel restore preview</button>
         <pre id="revision-restore-recovery" aria-label="Restore recovery context"></pre>
         <p id="revision-restore-status" role="status">Restores keep the live document and create an undoable new edit.</p>
       </section>
@@ -44,6 +45,7 @@
         <button id="revision-compare" disabled>Compare captures</button>
       </form>
       <p id="revision-compare-status" role="status">Capture two states to compare them.</p>
+      <button id="revision-close-compare" hidden>Close comparison</button>
       <div id="revision-comparison"></div>
     </section>
   </div>
