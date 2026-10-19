@@ -714,23 +714,92 @@
       "oracles": "Bounded filtered catalog, keyboard/pointer/touch activation, local history/reopen, preserved errors and cancellation.",
       "proofs": [
         {
-          "id": "wex-1.2",
+          "id": "wfe-3.1-slash",
           "engines": [
             "chromium",
             "firefox",
             "webkit"
           ],
           "cases": [
+            "eligible",
+            "excluded-word",
+            "excluded-https",
+            "excluded-path",
+            "excluded-",
+            "boundary-selection",
+            "provenance",
+            "context",
+            "keyboard-history",
+            "pointer-focus",
+            "composite-explicit",
+            "escape-backspace",
+            "empty-dispatch",
+            "cancellation",
+            "ime-priority",
+            "async-stale",
+            "async-teardown",
+            "editor-command",
+            "bounds-paste",
+            "invalid-command",
+            "focused-item",
+            "focused-editing",
+            "keyboard-explicit",
+            "literal",
+            "list-focus-escape",
+            "SLH-03-active-ArrowDown",
+            "SLH-03-active-ArrowUp",
+            "SLH-03-active-Home",
+            "SLH-03-active-End",
+            "SLH-03-empty-NoMatch",
+            "SLH-03-empty-Blocked",
+            "SLH-07-parity-pointer",
+            "SLH-07-parity-internal-focus",
+            "SLH-07-parity-keyboard",
+            "SLH-04-tab-Tab-root",
+            "SLH-04-tab-Tab-menu",
+            "SLH-04-tab-Shift+Tab-root",
+            "SLH-04-tab-Shift+Tab-menu",
+            "SLH-05-cancel-caret",
+            "SLH-05-cancel-selection",
+            "SLH-05-cancel-blur",
+            "SLH-05-cancel-readonly",
+            "SLH-05-cancel-trigger-delete",
+            "SLH-06-remote-trigger",
+            "SLH-06-reorder-old-first",
+            "SLH-06-reorder-new-first",
+            "SLH-06-host-reject",
+            "SLH-06-result-selection",
+            "SLH-06-local-boundary",
+            "SLH-07-surroundings-Al",
+            "SLH-07-surroundings-Code",
+            "SLH-02-composition-text",
+            "SLH-02-composing-key",
             "catalog-bound",
+            "filter-keyword",
             "activation-pointer",
             "activation-touch",
             "activation-keyboard",
+            "touch-explicit",
+            "preserve-error",
             "preserve-cancel",
-            "preserve-readonly"
+            "preserve-readonly",
+            "accessible-catalog",
+            "close-Enter",
+            "close-Space",
+            "close-pointer",
+            "close-touch",
+            "empty-close-absent",
+            "empty-close-Blocked",
+            "focused-space",
+            "nested-input",
+            "nested-textarea",
+            "nested-select",
+            "nested-button",
+            "nested-editable"
           ]
         }
       ],
-      "nextAction": "Repair or authenticate the exact changed owner inputs reported by the ledger, then reuse the existing named dispatcher. No unchanged failed-check retry."
+      "nextAction": "Retain exact-source full INT-1.9 SLH-01\u201307 and WEX-1.2 catalog/activation/cancellation proof; actual AT/device/performance predicates remain deferred."
     },
     {
       "id": "WEB-REFERENCES",
@@ -3126,6 +3195,43 @@
         {
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4d-commands/run-1/interaction-command-surfaces/webkit/receipt.json",
           "sha256": "02974f9e556a52aa355693f919915e0ba25258415a76ac92b80cb2816ce84273"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-slash",
+      "owner": "PRIMARY",
+      "command": "EDITAC_WEB_SLASH_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4e-slash/run-1 node scripts/run-web-slash-boundary.mjs",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4e-slash/run-1/source-pins.json",
+          "sha256": "b9c9e06a07bd3c6b93b0b7c242ecfc8b193bd46b93dc532f2e0b4fa6faa3cbfd"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4e-slash/run-1/slash-context/chromium/baseline/receipt.json",
+          "sha256": "d0bec6174f0042ed0ac0a90174c2ad5b60ef98b21531dfc130de8c20a758f18a"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4e-slash/run-1/slash-context/chromium/receipt.json",
+          "sha256": "fbc232272693bfcc65eb88f32cfbb073c123eed55d06db312559b685bbdf8f3b"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4e-slash/run-1/slash-context/firefox/baseline/receipt.json",
+          "sha256": "d203a226c4d1c242a1f6b375c5e8a41b86e1beecd71e65dafaf520d6e3c88299"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4e-slash/run-1/slash-context/firefox/receipt.json",
+          "sha256": "0cbf767112a4124349550616b45310d9913d94b1cd81f031fda07b3176eaaea5"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4e-slash/run-1/slash-context/webkit/baseline/receipt.json",
+          "sha256": "2bb01445b1b0116f7f9ae6ea08aa67b523576b1cb7bc9eb0a53dd004252ad3e0"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4e-slash/run-1/slash-context/webkit/receipt.json",
+          "sha256": "3acdd03a5b4ba1e7ac832eb31d490497c5421ed8ad53a40873152d6b8d2dec6c"
         }
       ]
     }
