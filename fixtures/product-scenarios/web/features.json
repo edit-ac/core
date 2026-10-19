@@ -2130,7 +2130,7 @@
       "oracles": "Declared opt-in parser and literal disabled fallback, exact source preservation, isolated registration disposal.",
       "proofs": [
         {
-          "id": "wfe-3.1-markdown-optional-markdown",
+          "id": "wfe-3.1-c4o-9-optional-markdown",
           "engines": [
             "chromium",
             "firefox",
@@ -2146,7 +2146,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-markdown-markdown-paste",
+          "id": "wfe-3.1-c4o-9-markdown-paste",
           "engines": [
             "chromium",
             "firefox",
@@ -2163,7 +2163,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-markdown-markdown-extensions",
+          "id": "wfe-3.1-c4o-9-markdown-extensions",
           "engines": [
             "chromium",
             "firefox",
@@ -2179,7 +2179,7 @@
           ]
         },
         {
-          "id": "wfe-3.1-markdown-web-markdown",
+          "id": "wfe-3.1-c4o-9-web-markdown",
           "engines": [
             "chromium",
             "firefox",
@@ -2194,7 +2194,7 @@
           ]
         }
       ],
-      "nextAction": "Full original optional parser/source/disposal cases and installed ?markdown product proof authenticated; preserve later qualification and separate optional-format recovery predicates."
+      "nextAction": "All original72 Markdown checks and33 route regressions freshly pass on current installed SDK; preserve later qualification and separate format recovery predicates."
     },
     {
       "id": "WEB-CONVERSION",
@@ -6545,6 +6545,113 @@
         {
           "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-8/run-1/source-pins.json",
           "sha256": "c65c2d95ac14b23322f8979f6067061568d0a65e9f11ca12c78d97f44a3bf16a"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c4o-9-optional-markdown",
+      "owner": "PRIMARY current installed optional Markdown composition; codec ownership unchanged",
+      "command": "EDITAC_WEB_MARKDOWN_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-9/run-1 node scripts/run-web-markdown-boundary.mjs",
+      "sdkRevision": "b524baa0135a5719a344b673a0940f23c531f33e",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-9/run-1/source-pins.json",
+          "sha256": "0381d0ff4b0ee72bc01b327ae0d5ce947bd3c03e7320fafa430eddf2fba4428e"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-9/run-1/optional-markdown/chromium/receipt.json",
+          "sha256": "746d9589c534c6f95e4ccd9405653586b2076457a1e3ca334ecc998bd03264a3"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-9/run-1/optional-markdown/firefox/receipt.json",
+          "sha256": "94bb4c6648cb6bdd877b40e886ce4ce879efd0bc9ca2bb9814b67247d399db55"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-9/run-1/optional-markdown/webkit/receipt.json",
+          "sha256": "5e48a4cd5057fd3d2f532c43a977154f79466c783ad2e8a641909448b7e72c24"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c4o-9-markdown-paste",
+      "owner": "PRIMARY current installed optional Markdown composition; codec ownership unchanged",
+      "command": "EDITAC_WEB_MARKDOWN_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-9/run-1 node scripts/run-web-markdown-boundary.mjs",
+      "sdkRevision": "b524baa0135a5719a344b673a0940f23c531f33e",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-9/run-1/source-pins.json",
+          "sha256": "0381d0ff4b0ee72bc01b327ae0d5ce947bd3c03e7320fafa430eddf2fba4428e"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-9/run-1/markdown-paste/chromium/receipt.json",
+          "sha256": "ac856db1b4d4d1213f7fc27a10c79a2ec653fb4fbc573f0ac80d288272bca092"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-9/run-1/markdown-paste/firefox/receipt.json",
+          "sha256": "46e2410edfc95ddaf3faf114dfde015e22fdc7d87e08079d380746b26f4f05f6"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-9/run-1/markdown-paste/webkit/receipt.json",
+          "sha256": "de7bb655cd822299e3dcdf46c20a360afb2e2a3baef49d3934861202f2f5db25"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c4o-9-markdown-extensions",
+      "owner": "PRIMARY current installed optional Markdown composition; codec ownership unchanged",
+      "command": "EDITAC_WEB_MARKDOWN_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-9/run-1 node scripts/run-web-markdown-boundary.mjs",
+      "sdkRevision": "b524baa0135a5719a344b673a0940f23c531f33e",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-9/run-1/source-pins.json",
+          "sha256": "0381d0ff4b0ee72bc01b327ae0d5ce947bd3c03e7320fafa430eddf2fba4428e"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-9/run-1/markdown-extensions/chromium/receipt.json",
+          "sha256": "df76cd7b4e0aa33c203d72d102237ae1dd0cbc2e8e379a3207aaeb7710fd0d95"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-9/run-1/markdown-extensions/firefox/receipt.json",
+          "sha256": "885ecea63f4b9aca48efecdb4eb4447f797383bb37f2edada3ce172d814bc1f0"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-9/run-1/markdown-extensions/webkit/receipt.json",
+          "sha256": "069feed064c07168cdcd817b8eb5a78ad982c4d6a0ead7cbdbafc11449502ff7"
+        }
+      ]
+    },
+    {
+      "id": "wfe-3.1-c4o-9-web-markdown",
+      "owner": "PRIMARY current installed optional Markdown composition; codec ownership unchanged",
+      "command": "EDITAC_WEB_MARKDOWN_OUTPUT=../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-9/run-1 node scripts/run-web-markdown-boundary.mjs",
+      "sdkRevision": "b524baa0135a5719a344b673a0940f23c531f33e",
+      "sourceManifests": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-9/run-1/source-pins.json",
+          "sha256": "0381d0ff4b0ee72bc01b327ae0d5ce947bd3c03e7320fafa430eddf2fba4428e"
+        }
+      ],
+      "receipts": [
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-9/run-1/product-chromium/receipt.json",
+          "sha256": "7c57da34cf0d65864363f753abafa2a2bef4bd637c964e2faf76f5752a9bd3fc",
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-9/run-1/prepared"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-9/run-1/product-firefox/receipt.json",
+          "sha256": "1ce296cdf9672ce82d817c7d7d5bba0c09c207cc5391132b37c2181e6466b9cb",
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-9/run-1/prepared"
+        },
+        {
+          "path": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-9/run-1/product-webkit/receipt.json",
+          "sha256": "27d816ecd8b8ef1ad28ef65fa48c94807580d62a2b8c6a4ccac2adbe5da010f0",
+          "packageDirectory": "../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-9/run-1/prepared"
         }
       ]
     }

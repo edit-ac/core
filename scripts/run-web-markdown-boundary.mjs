@@ -16,12 +16,16 @@ const suites = ['optional-markdown', 'markdown-paste', 'markdown-extensions'];
 const expected = { 'optional-markdown': 6, 'markdown-paste': 7, 'markdown-extensions': 6 };
 const execution = { task: 'WFE-3.1-C4i', originalParents: ['WFE-3.1-I1', 'WFE-3.1-V1'],
   node: process.version, started: new Date().toISOString(), commands: [], receipts: [], failures: [] };
-const runtime = await json('../architecture/evidence/web-feature-first-20261018/wfe-3.1/c2c-tables/runtime-source-pins.json');
+const current = resolve(process.env.EDITAC_WEB_MARKDOWN_BUILD ?? '../architecture/evidence/web-feature-first-20261018/wfe-3.1/c4o-8');
+const runtime = await json(join(current, 'runtime-source-pins.json'));
+const runtimeMembers = await json(join(current, 'package-runtime-pins.json'));
 const priorOutput = process.env.EDITAC_WEB_MARKDOWN_RESUME && resolve(process.env.EDITAC_WEB_MARKDOWN_RESUME);
 const prior = priorOutput && await json(join(priorOutput, 'execution.json'));
 const priorSources = priorOutput && await json(join(priorOutput, 'source-pins.json'));
 try {
   for (const [path, hash] of Object.entries(runtime)) assert.equal(sha(await readFile(path)), hash, 'Changed SDK source: ' + path);
+  for (const [path, hash] of Object.entries(runtimeMembers)) assert.equal(sha(await readFile(path)), hash, 'Changed SDK package member: ' + path);
+  execution.runtimeAdmission = { directory: current, sources: Object.keys(runtime).length, members: Object.keys(runtimeMembers).length };
   let prepared;
   if (process.env.EDITAC_PRODUCT_SITE_RECEIPT) {
     const path = resolve(process.env.EDITAC_PRODUCT_SITE_RECEIPT); prepared = await json(path);
