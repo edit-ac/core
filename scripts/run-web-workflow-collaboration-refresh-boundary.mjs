@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, writeFileSync, openSync, closeSync, copyFileSync } from 'node:fs';
-import { resolve, join } from 'node:path';
+import { resolve, join, dirname } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { loadScenario } from '../tests/scenarios/run.mjs';
 import { prepareProductHarness } from '../tests/scenarios/harness.mjs';
@@ -11,6 +11,10 @@ import { requireTestNode } from './test-toolchain.mjs';
 // One installed product site and the original real-middleware collaboration
 // boundary. Admission composes existing behavioral oracles, never replaces them.
 await requireTestNode();
+// Rust/JS transport interoperability invokes cargo; fail before installing the
+// product or executing browsers when the child process cannot resolve it.
+const cargo = spawnSync('cargo', ['--version'], { encoding: 'utf8' });
+assert.ifError(cargo.error); assert.equal(cargo.status, 0, cargo.stderr);
 assert.ok(process.env.EDITAC_WEB_WORKFLOW_COLLABORATION_OUTPUT, 'Name a new evidence directory');
 const output = resolve(process.env.EDITAC_WEB_WORKFLOW_COLLABORATION_OUTPUT);
 mkdirSync(output);
@@ -18,7 +22,7 @@ const json = path => JSON.parse(readFileSync(path, 'utf8'));
 const save = (name, value) => writeFileSync(join(output, name), JSON.stringify(value, null, 2) + '\n');
 const pin = path => ({ path: resolve(path), sha256: hash(readFileSync(path)) });
 const base = resolve('../architecture/evidence/web-feature-first-20261018/wfe-3.1');
-const admissionPath = resolve(process.env.EDITAC_PRODUCT_SDK_ADMISSION ?? join(base, 'c6-filename-current/admission.json'));
+const admissionPath = resolve(process.env.EDITAC_PRODUCT_SDK_ADMISSION ?? join(base, 'c9-4/admission.json'));
 const admitted = admitImmutableSdk(admissionPath);
 const build = admitted.sources;
 const runtime = admitted.runtime;
@@ -33,10 +37,45 @@ assert.equal(landed.task, 'RPR-1.2');
 for (const cwd of [process.cwd(), '/Users/bpstr/Github/edit-ac/core'])
   assert.equal(spawnSync('git', ['merge-base', '--is-ancestor', landed.mainCore, 'HEAD'], { cwd }).status, 0);
 const execution = { task: 'WFE-3.1-C9-1', originalParents: ['WFE-3.1-I1', 'WFE-3.1-V1'],
-  started: new Date().toISOString(), commands: [], receipts: [], buildAdmission: build,
+  started: new Date().toISOString(), cargo: cargo.stdout.trim(), commands: [], receipts: [], buildAdmission: build,
   runtimeMembers: runtime, runner: pin('scripts/run-web-workflow-collaboration-refresh-boundary.mjs'),
   qualifiedReturn: pin(requestPath), landedReturn: landed, sdkAdmission: admitted.receipt };
 try {
+  // Consume the qualified consumer return without treating its narrower product
+  // cases as this boundary's original workflow/collaboration acceptance.
+  const returnPath = resolve('../.roadmap-coordination/requests/revision-review-rvp-3.2-product-handoff-20261019.json');
+  const returned = json(returnPath);
+  assert.equal(returned.task, 'RVP-3.2');
+  for (const name of ['delivery', 'handoff'])
+    assert.equal(hash(readFileSync(returned[name])), returned[name + 'Sha256'], 'Changed qualified return: ' + name);
+  const delivery = json(returned.delivery), directory = dirname(returned.delivery);
+  assert.equal(delivery.parent, 'RVP-3.2'); assert.equal(delivery.state, 'complete');
+  assert.equal(delivery.main.coreCommit, returned.coreMain);
+  for (const cwd of [process.cwd(), '/Users/bpstr/Github/edit-ac/core']) {
+    assert.equal(spawnSync('git', ['merge-base', '--is-ancestor', returned.coreMain, 'HEAD'], { cwd }).status, 0);
+    for (const source of delivery.pins.core)
+      assert.equal(hash(readFileSync(join(cwd, source.path))), source.sha256, 'Changed returned consumer input: ' + source.path);
+  }
+  const evidencePins = [delivery.installed, delivery.ownerInputs, ...delivery.groups];
+  for (const receipt of evidencePins)
+    assert.equal(hash(readFileSync(join(directory, receipt.path))), receipt.sha256, 'Changed returned receipt: ' + receipt.path);
+  const owner = json(join(directory, delivery.ownerInputs.path));
+  for (const [name, pack] of Object.entries(owner.archives))
+    assert.equal(pack.sha256, admitted.packages[name].sha256, 'Consumer/owner SDK archives differ: ' + name);
+  let consumerAssertions = 0;
+  for (const group of delivery.groups) {
+    const receipt = json(join(directory, group.path));
+    assert.equal(receipt.exit, 0); assert.ok(receipt.counts.executed > 0);
+    assert.equal(receipt.counts.executed, receipt.counts.passed);
+    for (const key of ['failed', 'skipped', 'cancelled', 'todo']) assert.equal(receipt.counts[key] ?? 0, 0);
+    consumerAssertions += receipt.counts.executed;
+  }
+  assert.equal(consumerAssertions, returned.guard.counts.executed);
+  execution.qualifiedConsumerReturn = { ...pin(returnPath), delivery: pin(returned.delivery),
+    sourcePinsMatched: delivery.pins.core.length, archiveFamiliesMatched: Object.keys(owner.archives),
+    consumerAssertionsAuthenticated: consumerAssertions,
+    scope: 'Qualified return prerequisite only; original workflow/collaboration assertions execute below' };
+  save('qualified-consumer-return.json', execution.qualifiedConsumerReturn);
   const prepared = { output: join(output, 'prepared'), commands: [], purpose: 'Current original workflow refresh' };
   if (process.env.EDITAC_WEB_WORKFLOW_COLLABORATION_SITE) {
     execution.prepared = pin(resolve(process.env.EDITAC_WEB_WORKFLOW_COLLABORATION_SITE));

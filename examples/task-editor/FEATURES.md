@@ -51,4 +51,5 @@ The pinned product proof is PWE-1.5: 93 cases proven by 33 executions plus 60 ex
 - No publishing, deployment, push, external integration, credentials, paid inference or live dogfood is authorized. AI checks use prepared responses and mocked transports only, after reading the paid-inference policy.
 
 
-Current workflow/routes/local recovery/readonly and real middleware/collaboration inputs: `c9-1/binding.json` restores the original four rows on authenticated BPA/BCC/WFN SDK archives. Every original case/engine and independent oracle is retained; all original workflow93 and collaboration236 assertions execute afresh. Optional native/device/performance/provider/release and full alpha remain separate.
+
+Current workflow/routes/local recovery/readonly and real middleware/collaboration inputs: `c9-1-current/binding.json` restores the original four rows on authenticated current C10 SDK archives and qualified RVP-3.2 consumer return. Every original case/engine and independent oracle is retained; all original workflow93 and collaboration236 assertions execute afresh. Optional native/device/performance/provider/release and full alpha remain separate.
