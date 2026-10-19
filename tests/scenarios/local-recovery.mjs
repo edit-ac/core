@@ -80,7 +80,14 @@ try {
     await page.waitForFunction(()=>document.querySelector('#offline-message').dataset.state==='ready');
     await page.waitForFunction(()=>!!navigator.serviceWorker.controller);
     const before=[await text(page),await text(page,'comment')];
-    facts.shellPreparation=JSON.parse(await page.locator('#offline-message').getAttribute('data-shell'));
+    facts.shellPreparation=await page.evaluate(async()=>{
+      const registration=await navigator.serviceWorker.getRegistration();
+      const cache=await caches.open('task-editor-shell-v2');
+      return {controller:navigator.serviceWorker.controller.scriptURL,activeState:registration.active.state,
+        cachedUrls:(await cache.keys()).map(request=>request.url)};
+    });
+    assert.equal(facts.shellPreparation.activeState,'activated');
+    assert.ok(facts.shellPreparation.cachedUrls.includes(server.url+'/fixture/index.html'));
     // Browser offline emulation does not cover Firefox's worker update channel.
     // Close the actual transport before taking the unchanged listener baseline.
     await server.suspendTransport();
