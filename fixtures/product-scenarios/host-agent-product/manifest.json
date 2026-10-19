@@ -73,6 +73,32 @@
         "unknown-transport-clears-stale-inventory",
         "actual-owner-wasm-history-unchanged"
       ]
+    },
+    "read": {
+      "parent": "D24X-1.4",
+      "engines": [
+        "chromium",
+        "firefox",
+        "webkit"
+      ],
+      "modelCases": [
+        "actual-scoped-read",
+        "detached-repeat-and-revision",
+        "authorization-and-cross-document",
+        "readonly-unavailable-private-errors",
+        "transport-and-fixed-boundaries",
+        "independent-session-sqlite-identity"
+      ],
+      "browserCases": [
+        "exact-visible-export",
+        "explicit-authorized-copy",
+        "policy-and-private-payload-clear",
+        "transport-unknown-and-recovery",
+        "inert-bounded-keyboard-and-clear",
+        "reject-oversized-detached-payload",
+        "independent-owner-peer-history",
+        "current-revision-after-real-human-update"
+      ]
     }
   }
 }

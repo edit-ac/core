@@ -21,7 +21,7 @@ export async function prepareBridge(output, facts, receipt, configuration = {}) 
         await cp(join(root,'examples/host-agent-product/bridge-workspace.mjs'),join(options.fixtureDirectory,'bridge-workspace.mjs'));
         if (configuration.capabilities) await cp(join(root,'examples/host-agent-product/probes.mjs'),join(options.fixtureDirectory,'probes.mjs'));
         if (configuration.workspace) await cp(join(root,'examples/host-agent-product',configuration.workspace),join(options.fixtureDirectory,configuration.workspace));
-        owner = await connectOwner({ executable:pin.executable, database:join(output,'host.sqlite3'),sdk:options.webDirectory,facts,capabilities:configuration.capabilities === true });
+        owner = await connectOwner({ executable:pin.executable, database:join(output,'host.sqlite3'),sdk:options.webDirectory,facts,capabilities:configuration.capabilities === true,read:configuration.read === true });
         return startBridgeServer(options,owner,facts);
       } });
     facts.inputs.nativeBinary = pin;

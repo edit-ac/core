@@ -11,9 +11,9 @@ export const EPOCH = '23456789-2345-4345-8345-23456789abcd';
 export const LIMITS = Object.freeze({ message: 8192, response: 1048576, pending: 8, timeout: 5000 });
 
 // Fixed executable + argument vector. No caller-supplied command, operation or path.
-export async function connectOwner({ executable, database, sdk, facts, capabilities = false }) {
+export async function connectOwner({ executable, database, sdk, facts, capabilities = false, read = false }) {
   const sdkURL = pathToFileURL(join(sdk, 'host/index.js')).href;
-  const { createHostAgent, createHostObserve } = await import(sdkURL);
+  const { createHostAgent, createHostObserve, createHostMarkdown } = await import(sdkURL);
   // Preserve the existing registration module verbatim, resolving its one bare import
   // to the authenticated installed public SDK instead of the lane's node_modules.
   const registerSource = await readFile(join(root,'examples/host-mcp/register.mjs'), 'utf8');
@@ -51,14 +51,27 @@ export async function connectOwner({ executable, database, sdk, facts, capabilit
   const access = { actorId:'agent-a', documentId:DOCUMENT, epoch:EPOCH, permissions:['read','observe'], readOnly:true };
   const currentAccess = (c,id) => c === context && id === DOCUMENT && !dead && mode !== 'revoked'
     ? { ...access, permissions: mode === 'readonly' ? ['read','observe','prepare','apply','receipt'] : mode === 'no-read' ? ['observe'] : access.permissions } : null;
+  const available = a => !dead && mode !== 'unavailable' && mode !== 'revoked' && mode !== 'no-read'
+    && a.documentId === DOCUMENT && a.actorId === access.actorId && a.epoch === EPOCH && a.permissions.includes('read');
+  const markdown = read ? createHostMarkdown({
+    available,
+    async capture(a) {
+      if (!available(a)) throw Error('Read unavailable');
+      // Prepared fault only; never substitutes for an accepted owner capture.
+      if (mode === 'private-error') throw Error('PRIVATE_OWNER_DETAIL: base\n\nother\n');
+      return send({ op:'capture' });
+    },
+    prepare() { throw Error('Preparation unavailable'); },
+    release(target) { void send({ op:'release',target }).catch(() => {}); },
+  }, { limits:{ maxSourceBytes:16384,maxBaselines:8 } }) : null;
   const host = createHostAgent({ authorize: currentAccess,
-    services: { observe: createHostObserve({ available: a => !dead && mode !== 'unavailable' && a.documentId === DOCUMENT && a.actorId === access.actorId && a.epoch === EPOCH,
+    services: { ...(markdown ? {read:markdown.services.read} : {}), observe: createHostObserve({ available: a => !dead && mode !== 'unavailable' && a.documentId === DOCUMENT && a.actorId === access.actorId && a.epoch === EPOCH,
       revision: async a => (await send({ op:'observe', access:a })).revision }) } });
   let tools; registerHostAgent({ registerToolProvider(p) { tools = p; } }, host);
   return { send, host, context, tools, database,
     ...(capabilities ? {
       configure(value) {
-        if (!['authorized','readonly','revoked','no-read','unavailable'].includes(value)) throw Error('Unknown prepared policy');
+        if (!['authorized','readonly','revoked','no-read','unavailable',...(read ? ['private-error'] : [])].includes(value)) throw Error('Unknown prepared policy');
         mode = value;
       },
       async inventory() {
@@ -69,6 +82,7 @@ export async function connectOwner({ executable, database, sdk, facts, capabilit
       probe(operation,input) { return tools.call(`editac_v1_${operation}`,input,context); },
     } : {}), async close() {
     if (!facts.owner.closed) {
+      if (markdown) await markdown.dispose();
       child.stdin.end(); const timer = setTimeout(() => child.kill('SIGTERM'), 1000);
       await exit; clearTimeout(timer);
     }
