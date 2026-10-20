@@ -19,3 +19,6 @@
 
 /examples/task-editor/react-built.mjs
 /examples/task-editor/wasm/
+
+# Disposable validation output; retain delivery receipts in architecture.
+/.artifacts/

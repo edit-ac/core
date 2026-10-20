@@ -1,0 +1,27 @@
+{
+  "name": "editac-editor-comparisons",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bench": "node run.mjs",
+    "test": "node --test contract.test.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12",
+    "playwright": "1.64.0"
+  },
+  "dependencies": {
+    "@tiptap/core": "3.32.0",
+    "@tiptap/starter-kit": "3.32.0",
+    "@tiptap/extension-collaboration": "3.32.0",
+    "@lexical/rich-text": "0.52.0",
+    "@lexical/history": "0.52.0",
+    "@lexical/list": "0.52.0",
+    "@lexical/link": "0.52.0",
+    "@lexical/code": "0.52.0",
+    "@lexical/yjs": "0.52.0",
+    "lexical": "0.52.0",
+    "yjs": "13.6.33",
+    "y-indexeddb": "9.0.12"
+  }
+}

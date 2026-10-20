@@ -51,6 +51,25 @@ browser tests/builds idle when recording a comparison baseline.
 
 ## Comparing changes
 
+For **comparisons with other editors**, use the separate local harness:
+
+```sh
+nvm use
+npm --prefix benchmarks/comparison ci --ignore-scripts
+npm --prefix benchmarks/comparison test
+npm --prefix benchmarks/comparison run bench -- --quick --fixtures task
+npm --prefix benchmarks/comparison run bench -- --quick --fixtures task,long
+```
+
+See [comparison setup and methodology](comparison/README.md) and the
+[profile manifest](manifest.json). This harness pins Tiptap and Lexical, measures
+durability-enabled and edit-only profiles separately, and includes a limited
+plain-contenteditable reference. It has no CI job. It archives committed `HEAD`
+into a private build directory before building; active SDK working-tree changes
+and other tasks' build outputs are excluded. Early results are diagnostic and do
+not complete the browser release gate. The existing `bench` command below still
+compares edit.ac revisions with each other.
+
 ```sh
 npm run bench -- --save-baseline benchmarks/baseline.local.json
 # After adding/changing a feature:

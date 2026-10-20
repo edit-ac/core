@@ -792,6 +792,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "editac-document-store"
+version = "0.0.0"
+dependencies = [
+ "editac-core",
+ "editac-session",
+ "rusqlite",
+]
+
+[[package]]
 name = "editac-ffi"
 version = "0.0.0"
 dependencies = [

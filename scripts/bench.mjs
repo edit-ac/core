@@ -46,7 +46,7 @@ const result = { version: 1, bundleVersion: 1, mode: flags.quick ? 'quick' : 'fu
     textBytes: Buffer.byteLength(fixtureText(fixture(name))), textHash: hash(fixtureText(fixture(name))),
     semanticHash: hash(JSON.stringify(expectedSemantics(fixture(name)))),
     sha256: hash(Buffer.from(JSON.stringify(fixture(name)))) })),
-  deferred: { reactWrapper: 'Scaffold only', comparisonEditors: 'Pinned Tiptap/Lexical runs not implemented', tables: 'Not in this fixture version', virtualization: 'No viewport virtualization scenario' },
+  deferred: { reactWrapper: 'Scaffold only', comparisonEditors: 'Separate local runner: benchmarks/comparison/run.mjs; diagnostic pinned profiles', tables: 'Not in this fixture version', virtualization: 'No viewport virtualization scenario' },
   plan: { runs: profile.runs, warmups: profile.warmups, samples: profile.samples, metrics: flags.presets.flatMap(preset => metricNames(flags.fixtures).map(name => metricKey(name, preset))), sampleCounts: {} } };
 for (const key of result.plan.metrics) {
   const name = key.replace(/@(baseline|task)$/, '');
@@ -64,7 +64,7 @@ result.metadata.osRelease = (await import('node:os')).release();
 const observationIndexes = new Set([
   'baseline', 'gesture', 'service', 'workload', 'lifecycle', 'loading', 'native-input',
 ].map(name => `benchmarks/profiles/${name}-evidence.json`));
-const sourceFiles = spawnSync('git', ['ls-files', 'crates', 'packages', 'scripts', 'benchmarks', 'fixtures/schema-v5'], { encoding: 'utf8' });
+const sourceFiles = spawnSync('git', ['ls-files', 'crates', 'packages', 'scripts', 'benchmarks'], { encoding: 'utf8' });
 if (sourceFiles.status !== 0) throw Error('Cannot inventory benchmark sources');
 result.sourceInputs = {};
 for (const file of [...new Set([...sourceFiles.stdout.trim().split('\n'), ...Object.keys(result.profileInputs)])].filter(file => /\.(rs|toml|ts|mjs|json|css)$/.test(file) && !/\/(dist|generated)\//.test(file)
@@ -189,106 +189,99 @@ try {
       nativeSeeds[name] = frozen;
     }
   }
-  if (flags.prepareOnly) {
-    result.status = 'prepared';
-    result.preparation = { scope: result.metadata.seedProducer.scope, qualification: 'unqualified',
-      counts: { executed: Object.keys(nativeSeeds).length, passed: Object.keys(nativeSeeds).length, failed: 0, skipped: 0 } };
-    result.comparison = 'Prepared native seeds only; every browser scenario remains unexecuted. Not performance or platform evidence.';
-  } else {
-    for (const file of ['client.mjs', 'fixtures.mjs', 'presets.mjs', 'attribution.mjs']) await copyFile(join(output, 'harness', file), join(temporary, file));
-    await writeFile(join(temporary, 'index.html'), '<!doctype html><meta charset="utf-8"><title>edit.ac benchmarks</title><style>#editor{max-width:900px;font:16px/1.5 sans-serif;white-space:pre-wrap}body{margin:24px}</style><div id="editor"></div>');
-    server = await startFixtureServer({ fixtureDirectory: temporary });
-    result.metadata.server = { pid: process.pid, port: server.port, workspace: root, purpose: 'benchmarks', log: output };
-    controller = await chromium.launchServer({ headless: true });
-    result.metadata.browserProcess = { pid: controller.process().pid, launcher: controller.process().spawnfile, workspace: root, purpose: 'benchmarks', log: output };
-    browser = await chromium.connect(controller.wsEndpoint()); result.metadata.browser = browser.version();
-    result.signature = { attribution: flags.fitness ? attributionVersion : null, fixtureVersion, mode: result.mode, fixtures: flags.fixtures, runs: profile.runs, samples: profile.samples,
-      fixtureHashes: result.fixtures.map(document => document.sha256),
-      harnessHash: hash(await readFile(join(output, 'harness/client.mjs'))), warmups: profile.warmups,
-      operationSamples: profile.operationSamples, memoryEdits: profile.memoryEdits, mountCycles: profile.mountCycles,
-      formatSamples: profile.formatSamples,
-      interKeyDelayMs: profile.interKeyDelayMs, platform: platform(), arch: arch(), nodeMajor: process.versions.node.split('.')[0],
-      browser: result.metadata.browser, runnerClass: result.metadata.runnerClass,
-      hardware: result.metadata.runnerClass === 'local' ? `${result.metadata.cpu}/${result.metadata.cores}` : `${result.metadata.runnerClass}/${result.metadata.cores} cores/${Math.round(totalmem() / 2 ** 30)} GiB`,
-      viewport: { width: 1280, height: 800 }, orderPolicy: 'fixture-iteration-preset-fixed-v1', fitness: profile.fitness, replay: 'ascii-overwrite-delete-restore-v1', presets: flags.presets.map(name => presets[name]), endpoint: profile.fitness ? 'dispatch-layout-two-animation-frames-v1' : 'dispatch-dom-layout-v1' };
-    for (const name of flags.fixtures) {
-      let frozen = nativeSeeds[name];
-      let retained = false;
-      for (let iteration = 0; iteration < profile.warmups + profile.runs; iteration++) {
-        for (const preset of flags.presets) {
-        if (interrupted) throw Error('Benchmark interrupted');
-        console.log(`${name}/${preset}: ${iteration < profile.warmups ? 'warmup' : 'measured'} ${iteration + 1}/${profile.warmups + profile.runs}`);
-        const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, serviceWorkers: 'block' });
-        const item = { fixture: name, preset, iteration, measured: iteration >= profile.warmups, metrics: {}, errors: [] };
-        result.cases.push(item);
-        try {
-          const page = await context.newPage(); page.setDefaultTimeout(120000);
-          page.on('console', message => { if (message.type() === 'info' && message.text().startsWith('editac-benchmark-phase ')) {
-            console.log(message.text()); (item.phases ??= []).push({ phase: message.text(), timestamp: new Date().toISOString() });
-          } });
-          await page.exposeFunction('benchmarkCheckpoint', async observation => { Object.assign(item, observation); item.partial = true; await writeFile(join(output, 'raw.json'), JSON.stringify(result, null, 2)); });
-          page.on('pageerror', error => item.errors.push(error.message));
-          const origin = new URL(server.url).origin;
-          await context.route('**/*', route => new URL(route.request().url()).origin === origin ? route.continue() : route.abort());
-          const cdp = await context.newCDPSession(page);
-          await page.exposeFunction('benchmarkHeap', async () => { await cdp.send('HeapProfiler.collectGarbage'); return cdp.send('Runtime.getHeapUsage'); });
-          await page.goto(server.url);
-          await page.addScriptTag({ type: 'module', content: 'import * as benchmark from "/fixture/client.mjs"; window.benchmark = benchmark;' });
-          await page.waitForFunction(() => !!window.benchmark);
-          const prepared = await bounded(page.evaluate(({ name, frozen }) => window.benchmark.prepareFixture(name, frozen), { name, frozen }), 300000, 'Checkpoint preparation exceeded 5 minutes');
-          if (!retained) {
-            frozen = prepared.frozen;
-            retained = true;
-            const bytes = Buffer.from(frozen.checkpoint.bytes);
-            const definition = result.fixtures.find(f => f.name === name);
-            definition.crdt = { bytes: bytes.length, sha256: hash(bytes), envelopeHash: hash(JSON.stringify(frozen)),
-              file: `fixtures/${name}.crdt.bin`, envelope: `fixtures/${name}.checkpoint.json`, scope: 'One initial checkpoint shared across all presets/runs; random runtime IDs retained' };
-            await writeFile(join(output, definition.crdt.file), bytes);
-            await writeFile(join(output, definition.crdt.envelope), JSON.stringify(frozen));
-            const semantic = JSON.stringify(expectedSemantics(fixture(name)));
-            await writeFile(join(output, 'fixtures', `${name}.semantic.json`), semantic);
-            if (fixture(name).generator) {
-              const committed = JSON.parse(await readFile(`benchmarks/expected/${name}.json`));
-              if (JSON.stringify(committed) !== semantic) throw Error('Committed expected semantic snapshot drift');
-            }
+  for (const file of ['client.mjs', 'fixtures.mjs', 'presets.mjs', 'attribution.mjs']) await copyFile(join(output, 'harness', file), join(temporary, file));
+  await writeFile(join(temporary, 'index.html'), '<!doctype html><meta charset="utf-8"><title>edit.ac benchmarks</title><style>#editor{max-width:900px;font:16px/1.5 sans-serif;white-space:pre-wrap}body{margin:24px}</style><div id="editor"></div>');
+  server = await startFixtureServer({ fixtureDirectory: temporary });
+  result.metadata.server = { pid: process.pid, port: server.port, workspace: root, purpose: 'benchmarks', log: output };
+  controller = await chromium.launchServer({ headless: true });
+  result.metadata.browserProcess = { pid: controller.process().pid, launcher: controller.process().spawnfile, workspace: root, purpose: 'benchmarks', log: output };
+  browser = await chromium.connect(controller.wsEndpoint()); result.metadata.browser = browser.version();
+  result.signature = { attribution: flags.fitness ? attributionVersion : null, fixtureVersion, mode: result.mode, fixtures: flags.fixtures, runs: profile.runs, samples: profile.samples,
+    fixtureHashes: result.fixtures.map(document => document.sha256),
+    harnessHash: hash(await readFile(join(output, 'harness/client.mjs'))), warmups: profile.warmups,
+    operationSamples: profile.operationSamples, memoryEdits: profile.memoryEdits, mountCycles: profile.mountCycles,
+    formatSamples: profile.formatSamples,
+    interKeyDelayMs: profile.interKeyDelayMs, platform: platform(), arch: arch(), nodeMajor: process.versions.node.split('.')[0],
+    browser: result.metadata.browser, runnerClass: result.metadata.runnerClass,
+    hardware: result.metadata.runnerClass === 'local' ? `${result.metadata.cpu}/${result.metadata.cores}` : `${result.metadata.runnerClass}/${result.metadata.cores} cores/${Math.round(totalmem() / 2 ** 30)} GiB`,
+    viewport: { width: 1280, height: 800 }, orderPolicy: 'fixture-iteration-preset-fixed-v1', fitness: profile.fitness, replay: 'ascii-overwrite-delete-restore-v1', presets: flags.presets.map(name => presets[name]), endpoint: profile.fitness ? 'dispatch-layout-two-animation-frames-v1' : 'dispatch-dom-layout-v1' };
+  for (const name of flags.fixtures) {
+    let frozen = nativeSeeds[name];
+    let retained = false;
+    for (let iteration = 0; iteration < profile.warmups + profile.runs; iteration++) {
+      for (const preset of flags.presets) {
+      if (interrupted) throw Error('Benchmark interrupted');
+      console.log(`${name}/${preset}: ${iteration < profile.warmups ? 'warmup' : 'measured'} ${iteration + 1}/${profile.warmups + profile.runs}`);
+      const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, serviceWorkers: 'block' });
+      const item = { fixture: name, preset, iteration, measured: iteration >= profile.warmups, metrics: {}, errors: [] };
+      result.cases.push(item);
+      try {
+        const page = await context.newPage(); page.setDefaultTimeout(120000);
+        page.on('console', message => { if (message.type() === 'info' && message.text().startsWith('editac-benchmark-phase ')) {
+          console.log(message.text()); (item.phases ??= []).push({ phase: message.text(), timestamp: new Date().toISOString() });
+        } });
+        await page.exposeFunction('benchmarkCheckpoint', async observation => { Object.assign(item, observation); item.partial = true; await writeFile(join(output, 'raw.json'), JSON.stringify(result, null, 2)); });
+        page.on('pageerror', error => item.errors.push(error.message));
+        const origin = new URL(server.url).origin;
+        await context.route('**/*', route => new URL(route.request().url()).origin === origin ? route.continue() : route.abort());
+        const cdp = await context.newCDPSession(page);
+        await page.exposeFunction('benchmarkHeap', async () => { await cdp.send('HeapProfiler.collectGarbage'); return cdp.send('Runtime.getHeapUsage'); });
+        await page.goto(server.url);
+        await page.addScriptTag({ type: 'module', content: 'import * as benchmark from "/fixture/client.mjs"; window.benchmark = benchmark;' });
+        await page.waitForFunction(() => !!window.benchmark);
+        const prepared = await bounded(page.evaluate(({ name, frozen }) => window.benchmark.prepareFixture(name, frozen), { name, frozen }), 300000, 'Checkpoint preparation exceeded 5 minutes');
+        if (!retained) {
+          frozen = prepared.frozen;
+          retained = true;
+          const bytes = Buffer.from(frozen.checkpoint.bytes);
+          const definition = result.fixtures.find(f => f.name === name);
+          definition.crdt = { bytes: bytes.length, sha256: hash(bytes), envelopeHash: hash(JSON.stringify(frozen)),
+            file: `fixtures/${name}.crdt.bin`, envelope: `fixtures/${name}.checkpoint.json`, scope: 'One initial checkpoint shared across all presets/runs; random runtime IDs retained' };
+          await writeFile(join(output, definition.crdt.file), bytes);
+          await writeFile(join(output, definition.crdt.envelope), JSON.stringify(frozen));
+          const semantic = JSON.stringify(expectedSemantics(fixture(name)));
+          await writeFile(join(output, 'fixtures', `${name}.semantic.json`), semantic);
+          if (fixture(name).generator) {
+            const committed = JSON.parse(await readFile(`benchmarks/expected/${name}.json`));
+            if (JSON.stringify(committed) !== semantic) throw Error('Committed expected semantic snapshot drift');
           }
-          item.fixtureIdentity = { fixtureHash: result.fixtures.find(f => f.name === name).sha256,
-            semanticHash: result.fixtures.find(f => f.name === name).semanticHash,
-            crdtHash: result.fixtures.find(f => f.name === name).crdt.sha256, textBytes: result.fixtures.find(f => f.name === name).textBytes };
-          delete prepared.frozen;
-          // Preserve the prepared IndexedDB checkpoint while dropping the JS realm
-          // and initialized runtime, so cold editable includes actual asset loading.
-          await page.reload();
-          await page.addScriptTag({ type: 'module', content: 'import * as benchmark from "/fixture/client.mjs"; window.benchmark = benchmark;' });
-          await page.waitForFunction(() => !!window.benchmark);
-          const observation = await bounded(page.evaluate(({ name, config, prepared }) => window.benchmark.runScenario(name, config, prepared),
-            { name, config: { ...profile, preset, measureMemory: name === 'large' && iteration === profile.warmups + profile.runs - 1 }, prepared }), 600000, 'Benchmark scenario exceeded 10 minutes');
-          observation.metrics = Object.fromEntries(Object.entries(observation.metrics).map(([key, value]) => [metricKey(key, preset), value]));
-          Object.assign(item, observation);
-          item.partial = false;
-          if (item.correctness !== 'passed') throw Error(item.failure ?? 'Scenario correctness failed');
-          if (item.errors.length) throw Error(item.errors.join('; '));
-        } catch (error) { item.errors.push(error.message); result.errors.push(`${name} iteration ${iteration + 1}: ${error.message}`); }
-        finally { await context.close(); await writeFile(join(output, 'raw.json'), JSON.stringify(result, null, 2)); }
-        // A failed warmup/scenario is durable failure evidence. Do not spend another
-        // scenario on the same unchanged implementation; close owned resources now.
-        if (item.errors.length) throw Error(`Stopped after failed ${name}/${preset} scenario; remaining scenarios not executed`);
         }
+        item.fixtureIdentity = { fixtureHash: result.fixtures.find(f => f.name === name).sha256,
+          semanticHash: result.fixtures.find(f => f.name === name).semanticHash,
+          crdtHash: result.fixtures.find(f => f.name === name).crdt.sha256, textBytes: result.fixtures.find(f => f.name === name).textBytes };
+        delete prepared.frozen;
+        // Preserve the prepared IndexedDB checkpoint while dropping the JS realm
+        // and initialized runtime, so cold editable includes actual asset loading.
+        await page.reload();
+        await page.addScriptTag({ type: 'module', content: 'import * as benchmark from "/fixture/client.mjs"; window.benchmark = benchmark;' });
+        await page.waitForFunction(() => !!window.benchmark);
+        const observation = await bounded(page.evaluate(({ name, config, prepared }) => window.benchmark.runScenario(name, config, prepared),
+          { name, config: { ...profile, preset, measureMemory: name === 'large' && iteration === profile.warmups + profile.runs - 1 }, prepared }), 600000, 'Benchmark scenario exceeded 10 minutes');
+        observation.metrics = Object.fromEntries(Object.entries(observation.metrics).map(([key, value]) => [metricKey(key, preset), value]));
+        Object.assign(item, observation);
+        item.partial = false;
+        if (item.correctness !== 'passed') throw Error(item.failure ?? 'Scenario correctness failed');
+        if (item.errors.length) throw Error(item.errors.join('; '));
+      } catch (error) { item.errors.push(error.message); result.errors.push(`${name} iteration ${iteration + 1}: ${error.message}`); }
+      finally { await context.close(); await writeFile(join(output, 'raw.json'), JSON.stringify(result, null, 2)); }
+      // A failed warmup/scenario is durable failure evidence. Do not spend another
+      // scenario on the same unchanged implementation; close owned resources now.
+      if (item.errors.length) throw Error(`Stopped after failed ${name}/${preset} scenario; remaining scenarios not executed`);
       }
     }
-    let baseline;
-    if (flags.baseline) {
-      baseline = JSON.parse(await readFile(resolve(flags.baseline), 'utf8'));
-      if (baseline.version !== 1 || baseline.mode !== 'full' || baseline.errors?.length || !baseline.metrics || !baseline.bundles || !baseline.signature) throw Error('Invalid or incomplete baseline');
-      result.metadata.baseline = resolve(flags.baseline);
-    }
-    Object.assign(result, aggregate(result, config, baseline));
-    result.status = result.findings.some(item => item.severity === 'hard') || flags.enforce && result.findings.length ? 'failed'
-      : result.findings.length ? 'warning' : flags.quick ? 'diagnostic' : 'passed';
-    result.metadata.regressionGate = process.env.EDITAC_REGRESSION_GATE ?? 'not run by this command';
-    if (process.env.EDITAC_REGRESSION_GATE && process.env.EDITAC_REGRESSION_GATE !== 'success') {
-      result.status = 'failed'; result.findings.push({ name: 'functional-regression-gate', severity: 'hard', value: 1, limit: 0 });
-    }
+  }
+  let baseline;
+  if (flags.baseline) {
+    baseline = JSON.parse(await readFile(resolve(flags.baseline), 'utf8'));
+    if (baseline.version !== 1 || baseline.mode !== 'full' || baseline.errors?.length || !baseline.metrics || !baseline.bundles || !baseline.signature) throw Error('Invalid or incomplete baseline');
+    result.metadata.baseline = resolve(flags.baseline);
+  }
+  Object.assign(result, aggregate(result, config, baseline));
+  result.status = result.findings.some(item => item.severity === 'hard') || flags.enforce && result.findings.length ? 'failed'
+    : result.findings.length ? 'warning' : flags.quick ? 'diagnostic' : 'passed';
+  result.metadata.regressionGate = process.env.EDITAC_REGRESSION_GATE ?? 'not run by this command';
+  if (process.env.EDITAC_REGRESSION_GATE && process.env.EDITAC_REGRESSION_GATE !== 'success') {
+    result.status = 'failed'; result.findings.push({ name: 'functional-regression-gate', severity: 'hard', value: 1, limit: 0 });
   }
 } catch (error) { result.status = 'failed'; result.errors.push(error.stack ?? error.message); }
 finally {
@@ -319,7 +312,7 @@ finally {
   }
   if (result.metadata.seedProducer) result.artifactInputs['harness/fitness-seed'] = result.metadata.seedProducer.sha256;
   for (const definition of result.fixtures) {
-    for (const file of [...(flags.prepareOnly ? [] : [definition.crdt?.file, definition.crdt?.envelope, `fixtures/${definition.name}.semantic.json`]), ...(fixture(definition.name).generator ? [`fixtures/${definition.name}.native-checkpoint.json`, `fixtures/${definition.name}.native-snapshot.json`, `seed-${definition.name}.log`, ...(flags.seedDirectory ? [`fixtures/${definition.name}.seed-reuse.json`] : [])] : [])].filter(Boolean)) {
+    for (const file of [definition.crdt?.file, definition.crdt?.envelope, `fixtures/${definition.name}.semantic.json`, ...(fixture(definition.name).generator ? [`fixtures/${definition.name}.native-checkpoint.json`, `fixtures/${definition.name}.native-snapshot.json`, `seed-${definition.name}.log`, ...(flags.seedDirectory ? [`fixtures/${definition.name}.seed-reuse.json`] : [])] : [])].filter(Boolean)) {
       try { result.artifactInputs[file] = hash(await readFile(join(output, file))); }
       catch (error) { result.errors.push(`Missing fixture artifact ${file}: ${error.message}`); result.status = 'failed'; }
     }

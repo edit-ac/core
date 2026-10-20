@@ -1,3 +1,6 @@
 # Preserve exact third-party notice payloads, including upstream line endings.
 licenses/notices/*.txt -text -whitespace
 licenses/upstream/* -text -whitespace
+
+# Historical patch payloads retain their original context whitespace.
+maintenance/worktree-recovery-20261020/*.patch -whitespace

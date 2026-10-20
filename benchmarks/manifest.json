@@ -1,0 +1,30 @@
+{
+  "version": 3,
+  "purpose": "Local diagnostic editor comparisons; no CI or release qualification",
+  "editacSource": "Committed revision captured with git archive; active working-tree changes excluded",
+  "corpus": {"version": 2, "seed": "comparison-v2", "task": {"blocks": 20, "textBytes": 10240}, "long": {"blocks": 2000, "textBytes": 1048576}},
+  "profiles": [
+    {"id": "editac-task", "group": "durable", "editor": "edit.ac", "durability": "CheckpointStorage and local write journal", "collaboration": "Yrs engine and SDK synchronization included; reconnect not measured", "differences": ["Committed Task profile may include Markdown; pending SDK work is excluded", "Crash-consistent journal and collaboration protocol differ from Yjs IndexedDB", "No minimal profile without durability is exposed"]},
+    {"id": "tiptap-yjs", "group": "durable", "editor": "Tiptap", "durability": "y-indexeddb", "collaboration": "Yjs Collaboration extension, local state-vector roundtrip", "differences": ["No edit.ac writer-lease/checkpoint/outbox protocol; Markdown codec not enabled; review UI is not enabled in any comparison profile"]},
+    {"id": "lexical-yjs", "group": "durable", "editor": "Lexical", "durability": "y-indexeddb", "collaboration": "Official V1 Yjs binding, local state-vector roundtrip", "differences": ["No edit.ac writer-lease/checkpoint/outbox protocol; Markdown codec not enabled; review UI is not enabled in any comparison profile"]},
+    {"id": "tiptap-minimal", "group": "minimal", "editor": "Tiptap", "durability": "disabled", "collaboration": "disabled", "differences": ["Edit-only profile; cannot be used as a feature-equivalent comparison to editac-task"]},
+    {"id": "lexical-minimal", "group": "minimal", "editor": "Lexical", "durability": "disabled", "collaboration": "disabled", "differences": ["Edit-only profile; cannot be used as a feature-equivalent comparison to editac-task"]},
+    {"id": "contenteditable-reference", "group": "reference", "editor": "Browser contenteditable", "durability": "none", "collaboration": "none", "differences": ["Limited text/DOM reference; no editor schema, history, safety or collaboration guarantees"]}
+  ],
+  "sharedSchema": ["paragraph", "heading level 2", "code block", "unordered list", "bold", "italic"],
+  "rendering": "Vanilla DOM, no React, no syntax highlighting, no virtualization, same essential stylesheet and viewport",
+  "transport": "Loopback HTTP, no throttling, no remote service/provider, cache disabled for cold reload",
+  "quick": {"warmups": 1, "runs": 3, "operationSamples": 5},
+  "full": {"warmups": 2, "runs": 5, "operationSamples": 20},
+  "order": "Rotate profile order by run; serial pages; all fixtures and profiles in every discarded warmup",
+  "timingEndpoint": "Public command invocation through committed DOM/layout; edit.ac insert/delete use the dedicated text route by default (the editor route is separately selectable for historical comparisons); excludes selection setup and validation; not compositor paint or native input latency",
+  "notYetMeasured": ["physical phone and IME", "HTML/Markdown paste", "formatting and undo/redo latency", "reconnect", "remote bursts/backpressure", "aged/adversarial/multi-editor", "memory plateau", "first viewport paint", "native input-to-visible latency"],
+  "sources": [
+    "https://tiptap.dev/docs/guides/performance",
+    "https://tiptap.dev/docs/editor/extensions/functionality/collaboration",
+    "https://lexical.dev/docs/concepts/editor-state",
+    "https://lexical.dev/docs/collaboration/react",
+    "https://github.com/facebook/lexical/tree/main/packages/lexical-yjs",
+    "https://docs.yjs.dev/ecosystem/database-provider/y-indexeddb"
+  ]
+}
