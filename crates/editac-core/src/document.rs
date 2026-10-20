@@ -4,6 +4,10 @@
 //! creation only for a new lineage and persist the resulting checkpoint atomically;
 //! an empty state vector is never evidence that an existing document is new.
 use std::collections::{HashMap, HashSet};
+use std::sync::{
+    Arc,
+    atomic::{AtomicU64, Ordering},
+};
 use std::sync::{Mutex, OnceLock};
 use yrs::encoding::read::{Cursor, Read};
 use yrs::updates::{
@@ -346,6 +350,7 @@ impl Drop for WriterLease {
 #[derive(Debug)]
 pub struct Document {
     pub(crate) doc: Doc,
+    pub(crate) admission_clock: Arc<AtomicU64>,
     projection: crate::projection::ProjectionIndex,
     identity: DocumentIdentity,
     _writer: WriterLease,
@@ -356,6 +361,26 @@ pub struct Document {
     pub(crate) patches: crate::patches::PatchState,
 }
 impl Document {
+    // Observe actual integrated insertions/deletions, not read-only transactions
+    // or duplicate replay. Identity + the live writer lease bind this witness to
+    // one replica. Saturation permanently rejects admission rather than wrapping.
+    fn admission_clock(doc: &Doc) -> Arc<AtomicU64> {
+        let clock = Arc::new(AtomicU64::new(0));
+        let observed = clock.clone();
+        doc.observe_after_transaction("editac:prepared-editor-admission", move |txn| {
+            if !txn.insert_set().is_empty() || !txn.delete_set().is_empty() {
+                let _ = observed.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| {
+                    Some(n.saturating_add(1))
+                });
+            }
+        })
+        .expect("new document has no active mutable transaction");
+        clock
+    }
+    pub(crate) fn editor_admission_clock(&self) -> Option<u64> {
+        let clock = self.admission_clock.load(Ordering::Relaxed);
+        (clock != u64::MAX).then_some(clock)
+    }
     pub fn create(
         mut permit: CreationPermit,
         nodes: &[InitialNode],
@@ -449,6 +474,7 @@ impl Document {
         created.insert(key, true);
         permit.committed = true;
         Ok(Self {
+            admission_clock: Self::admission_clock(&doc),
             projection: crate::projection::ProjectionIndex::with_identity(&doc, &permit.identity),
             doc,
             identity: permit.identity.clone(),
@@ -556,6 +582,7 @@ impl Document {
             .map_err(|_| DocumentError::WriterUnavailable)?
             .insert((expected.document_id.clone(), expected.epoch.clone()), true);
         Ok(Self {
+            admission_clock: Self::admission_clock(&doc),
             projection: crate::projection::ProjectionIndex::with_identity(&doc, expected),
             doc,
             identity: expected.clone(),

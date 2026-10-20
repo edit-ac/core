@@ -29,9 +29,16 @@ pub struct Fixture {
     pub directory: PathBuf,
     pub options: NativeSessionOptions,
     pub expected: Value,
+    pub initial_expected: Value,
 }
 impl Fixture {
     pub fn new() -> Self {
+        Self::with_large_projection(false)
+    }
+    pub fn large() -> Self {
+        Self::with_large_projection(true)
+    }
+    fn with_large_projection(large: bool) -> Self {
         static NEXT: AtomicU64 = AtomicU64::new(1);
         let n = NEXT.fetch_add(1, Ordering::Relaxed);
         let root = std::env::var_os("EDITAC_NATIVE_SESSION_EVIDENCE")
@@ -47,12 +54,19 @@ impl Fixture {
             permission_expires_at: None,
         };
         let identity = DocumentIdentity::v5(&options.document_id, &options.epoch).unwrap();
+        let mut seeds = vec![InitialNode {
+            kind: "block".into(),
+            text: String::new(),
+        }];
+        if large {
+            seeds.extend((0..1999).map(|_| InitialNode {
+                kind: "block".into(),
+                text: "x\"🦀".repeat(80),
+            }));
+        }
         let mut doc = Document::create(
             CreationPermit::authorize_new(identity.clone()).unwrap(),
-            &[InitialNode {
-                kind: "block".into(),
-                text: String::new(),
-            }],
+            &seeds,
         )
         .unwrap();
         let id = doc.snapshot().unwrap().visible[0].id.clone();
@@ -96,7 +110,9 @@ impl Fixture {
             )
             .unwrap();
         doc.commit_editor(prepared).unwrap();
-        let expected = projection_snapshot(&doc).unwrap();
+        let restored = Document::restore(&identity, &doc.checkpoint(), &[]).unwrap();
+        let initial_expected = projection_snapshot(&restored).unwrap();
+        let expected = projection_snapshot(&restored).unwrap();
         let store =
             NativeStore::create_new(&options.path, identity, StoreLimits::default()).unwrap();
         store
@@ -106,6 +122,7 @@ impl Fixture {
             directory,
             options,
             expected,
+            initial_expected,
         }
     }
     pub fn open(&self) -> Arc<NativeSession> {

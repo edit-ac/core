@@ -1031,6 +1031,12 @@ public protocol NativeSessionProtocol: AnyObject, Sendable {
     func richSnapshot() throws  -> NativeSessionProjection
     
     /**
+     * Read a bounded byte window of the exact authoritative rich JSON.
+     * Only successful completion acknowledges the snapshot's patch sequence.
+     */
+    func richSnapshotChunk(expectedRevision: Data, offsetBytes: UInt64) throws  -> NativeSessionProjectionChunk
+    
+    /**
      * Trusted host opt-in for bounded inert image/reference edits. This grants
      * neither write permission nor network/resolver authority, and is not stored.
      */
@@ -1529,6 +1535,21 @@ open func richSnapshot()throws  -> NativeSessionProjection  {
         uniffiCallStatus in
     uniffi_editac_ffi_fn_method_nativesession_rich_snapshot(
             self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Read a bounded byte window of the exact authoritative rich JSON.
+     * Only successful completion acknowledges the snapshot's patch sequence.
+     */
+open func richSnapshotChunk(expectedRevision: Data, offsetBytes: UInt64)throws  -> NativeSessionProjectionChunk  {
+    return try  FfiConverterTypeNativeSessionProjectionChunk_lift(try rustCallWithError(FfiConverterTypeNativeSessionError_lift) {
+        uniffiCallStatus in
+    uniffi_editac_ffi_fn_method_nativesession_rich_snapshot_chunk(
+            self.uniffiCloneHandle(),
+        FfiConverterData.lower(expectedRevision),
+        FfiConverterUInt64.lower(offsetBytes),uniffiCallStatus
     )
 })
 }
@@ -3844,6 +3865,79 @@ public func FfiConverterTypeNativeSessionProjection_lift(_ buf: RustBuffer) thro
 #endif
 public func FfiConverterTypeNativeSessionProjection_lower(_ value: NativeSessionProjection) -> RustBuffer {
     return FfiConverterTypeNativeSessionProjection.lower(value)
+}
+
+
+/**
+ * Contiguous bytes of the ordinary rich snapshot; decode only after completion.
+ */
+public struct NativeSessionProjectionChunk: Equatable, Hashable {
+    public var revision: Data
+    public var sequence: UInt64
+    public var offsetBytes: UInt64
+    public var totalBytes: UInt64
+    public var bytes: Data
+    public var complete: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(revision: Data, sequence: UInt64, offsetBytes: UInt64, totalBytes: UInt64, bytes: Data, complete: Bool) {
+        self.revision = revision
+        self.sequence = sequence
+        self.offsetBytes = offsetBytes
+        self.totalBytes = totalBytes
+        self.bytes = bytes
+        self.complete = complete
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NativeSessionProjectionChunk: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeSessionProjectionChunk: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeSessionProjectionChunk {
+        return
+            try NativeSessionProjectionChunk(
+                revision: FfiConverterData.read(from: &buf), 
+                sequence: FfiConverterUInt64.read(from: &buf), 
+                offsetBytes: FfiConverterUInt64.read(from: &buf), 
+                totalBytes: FfiConverterUInt64.read(from: &buf), 
+                bytes: FfiConverterData.read(from: &buf), 
+                complete: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NativeSessionProjectionChunk, into buf: inout [UInt8]) {
+        FfiConverterData.write(value.revision, into: &buf)
+        FfiConverterUInt64.write(value.sequence, into: &buf)
+        FfiConverterUInt64.write(value.offsetBytes, into: &buf)
+        FfiConverterUInt64.write(value.totalBytes, into: &buf)
+        FfiConverterData.write(value.bytes, into: &buf)
+        FfiConverterBool.write(value.complete, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeSessionProjectionChunk_lift(_ buf: RustBuffer) throws -> NativeSessionProjectionChunk {
+    return try FfiConverterTypeNativeSessionProjectionChunk.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeSessionProjectionChunk_lower(_ value: NativeSessionProjectionChunk) -> RustBuffer {
+    return FfiConverterTypeNativeSessionProjectionChunk.lower(value)
 }
 
 
@@ -6406,6 +6500,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_editac_ffi_checksum_method_nativesession_rich_snapshot() != 43350) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_editac_ffi_checksum_method_nativesession_rich_snapshot_chunk() != 20828) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_editac_ffi_checksum_method_nativesession_set_atomic_content_policy() != 12956) {

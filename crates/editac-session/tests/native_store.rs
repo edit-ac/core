@@ -582,3 +582,78 @@ fn corrupt_journal_or_receipt_membership_never_silently_omits_bytes() {
     corrupt(&f, |v| v["receipted"][0]["sequence"] = serde_json::json!(2));
     assert_eq!(f.store.pending(&identity()), Err(PortError::Integrity));
 }
+
+#[test]
+fn verified_write_reuse_admits_actual_cross_connection_body_and_receipts() {
+    let f = Fixture::new(StoreLimits::default());
+    f.boot();
+    let e = update();
+    f.store.claim_writer(e.id().writer).unwrap();
+    let other = f.reopen();
+    // The first handle has an empty journal cached; the second commits the edit.
+    other.append(e.clone()).unwrap();
+    f.store
+        .accept_receipt(ReceiptCapability::DurableV1, receipt(&e))
+        .unwrap();
+    assert!(f.store.pending(&identity()).unwrap().is_empty());
+    // The second handle's older cache must not resurrect acknowledged membership.
+    other.append(e.clone()).unwrap();
+    let recovered = f.store.recover(&identity()).unwrap();
+    assert_eq!(recovered.journal, vec![e.clone()]);
+    assert!(recovered.pending.is_empty());
+    f.store
+        .publish(
+            1,
+            CheckpointRecord::new(restore(&f.store).checkpoint(), vec![e.id().clone()]).unwrap(),
+        )
+        .unwrap();
+    assert_eq!(other.generation(&identity()).unwrap(), 2);
+    assert!(other.pending(&identity()).unwrap().is_empty());
+    assert_eq!(text(&restore(&other)), "port 😀");
+}
+
+#[test]
+fn verified_write_reuse_rechecks_sql_writer_reservations_even_for_identical_body() {
+    let f = Fixture::new(StoreLimits::default());
+    f.boot();
+    let e = update();
+    f.append(e.clone()).unwrap();
+    let sql = rusqlite::Connection::open(f.store.path()).unwrap();
+    sql.execute("DELETE FROM writers WHERE writer=?1", [e.id().writer])
+        .unwrap();
+    assert_eq!(f.store.append(e), Err(PortError::Integrity));
+    assert!(matches!(
+        f.store.recover(&identity()),
+        Err(PortError::Integrity)
+    ));
+}
+
+#[test]
+fn verified_write_reuse_same_handle_retry_preserves_each_atomic_fault_boundary() {
+    for boundary in [
+        FaultBoundary::BeforeWrite,
+        FaultBoundary::BeforeCommit,
+        FaultBoundary::AfterCommit,
+    ] {
+        let f = Fixture::new(StoreLimits::default());
+        f.boot();
+        let e = update();
+        f.store.claim_writer(e.id().writer).unwrap();
+        f.store
+            .inject_once(InjectedFault {
+                boundary,
+                error: PortError::Quota,
+            })
+            .unwrap();
+        let error = if boundary == FaultBoundary::AfterCommit {
+            PortError::CommitUnknown
+        } else {
+            PortError::Quota
+        };
+        assert_eq!(f.store.append(e.clone()), Err(error));
+        assert_eq!(f.store.append(e.clone()).unwrap().update, *e.id());
+        assert_eq!(f.store.pending(&identity()).unwrap(), vec![e.clone()]);
+        assert_eq!(f.reopen().pending(&identity()).unwrap(), vec![e]);
+        assert_eq!(text(&restore(&f.store)), "port 😀");
+    }
+}

@@ -753,6 +753,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_rich_snapshot(
     ): Int
+    external fun uniffi_editac_ffi_checksum_method_nativesession_rich_snapshot_chunk(
+    ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_set_atomic_content_policy(
     ): Int
     external fun uniffi_editac_ffi_checksum_method_nativesession_set_extension_policy(
@@ -940,6 +942,8 @@ internal object UniffiLib {
     external fun uniffi_editac_ffi_fn_method_nativesession_resolve_anchor(`ptr`: Long,`token`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     external fun uniffi_editac_ffi_fn_method_nativesession_rich_snapshot(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_editac_ffi_fn_method_nativesession_rich_snapshot_chunk(`ptr`: Long,`expectedRevision`: RustBuffer.ByValue,`offsetBytes`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     external fun uniffi_editac_ffi_fn_method_nativesession_set_atomic_content_policy(`ptr`: Long,`images`: Byte,`references`: Byte,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
@@ -1245,6 +1249,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_editac_ffi_checksum_method_nativesession_rich_snapshot() and 0xFFFF) != 43350) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_editac_ffi_checksum_method_nativesession_rich_snapshot_chunk() and 0xFFFF) != 20828) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_editac_ffi_checksum_method_nativesession_set_atomic_content_policy() and 0xFFFF) != 12956) {
@@ -2424,6 +2431,12 @@ public interface NativeSessionInterface {
     fun `richSnapshot`(): NativeSessionProjection
     
     /**
+     * Read a bounded byte window of the exact authoritative rich JSON.
+     * Only successful completion acknowledges the snapshot's patch sequence.
+     */
+    fun `richSnapshotChunk`(`expectedRevision`: kotlin.ByteArray, `offsetBytes`: kotlin.ULong): NativeSessionProjectionChunk
+    
+    /**
      * Trusted host opt-in for bounded inert image/reference edits. This grants
      * neither write permission nor network/resolver authority, and is not stored.
      */
@@ -3029,6 +3042,26 @@ open class NativeSession: Disposable, AutoCloseable, NativeSessionInterface
     UniffiLib.uniffi_editac_ffi_fn_method_nativesession_rich_snapshot(
         it,
         _status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Read a bounded byte window of the exact authoritative rich JSON.
+     * Only successful completion acknowledges the snapshot's patch sequence.
+     */
+    @Throws(NativeSessionException::class)override fun `richSnapshotChunk`(`expectedRevision`: kotlin.ByteArray, `offsetBytes`: kotlin.ULong): NativeSessionProjectionChunk {
+            return FfiConverterTypeNativeSessionProjectionChunk.lift(
+    callWithHandle {
+    uniffiRustCallWithError(NativeSessionException) { _status ->
+    UniffiLib.uniffi_editac_ffi_fn_method_nativesession_rich_snapshot_chunk(
+        it,
+        
+        FfiConverterByteArray.lower(`expectedRevision`),
+        FfiConverterULong.lower(`offsetBytes`),_status)
 }
     }
     )
@@ -5445,6 +5478,67 @@ public object FfiConverterTypeNativeSessionProjection: FfiConverterRustBuffer<Na
             FfiConverterByteArray.write(value.`revision`, buf)
             FfiConverterULong.write(value.`sequence`, buf)
             FfiConverterString.write(value.`snapshotJson`, buf)
+    }
+}
+
+
+
+/**
+ * Contiguous bytes of the ordinary rich snapshot; decode only after completion.
+ */
+data class NativeSessionProjectionChunk (
+    var `revision`: kotlin.ByteArray
+    , 
+    var `sequence`: kotlin.ULong
+    , 
+    var `offsetBytes`: kotlin.ULong
+    , 
+    var `totalBytes`: kotlin.ULong
+    , 
+    var `bytes`: kotlin.ByteArray
+    , 
+    var `complete`: kotlin.Boolean
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeSessionProjectionChunk: FfiConverterRustBuffer<NativeSessionProjectionChunk> {
+    override fun read(buf: ByteBuffer): NativeSessionProjectionChunk {
+        return NativeSessionProjectionChunk(
+            FfiConverterByteArray.read(buf),
+            FfiConverterULong.read(buf),
+            FfiConverterULong.read(buf),
+            FfiConverterULong.read(buf),
+            FfiConverterByteArray.read(buf),
+            FfiConverterBoolean.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: NativeSessionProjectionChunk) = (
+            FfiConverterByteArray.allocationSize(value.`revision`) +
+            FfiConverterULong.allocationSize(value.`sequence`) +
+            FfiConverterULong.allocationSize(value.`offsetBytes`) +
+            FfiConverterULong.allocationSize(value.`totalBytes`) +
+            FfiConverterByteArray.allocationSize(value.`bytes`) +
+            FfiConverterBoolean.allocationSize(value.`complete`)
+    )
+
+    override fun write(value: NativeSessionProjectionChunk, buf: ByteBuffer) {
+            FfiConverterByteArray.write(value.`revision`, buf)
+            FfiConverterULong.write(value.`sequence`, buf)
+            FfiConverterULong.write(value.`offsetBytes`, buf)
+            FfiConverterULong.write(value.`totalBytes`, buf)
+            FfiConverterByteArray.write(value.`bytes`, buf)
+            FfiConverterBoolean.write(value.`complete`, buf)
     }
 }
 

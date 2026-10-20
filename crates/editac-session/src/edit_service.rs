@@ -355,21 +355,11 @@ impl<S: SessionStore> EditService<S> {
             }
         }
         self.requirements(requirements)?;
-        let plan = self
+        let (plan, preview) = self
             .session
             .document()
-            .prepare_editor_with_registry(commands, origin, &self.registry)
+            .prepare_editor_with_registry_and_preview(commands, origin, &self.registry)
             .map_err(ServiceError::Engine)?;
-        let mut replica = self.replica()?;
-        let preview_plan = replica
-            .prepare_editor_with_registry(commands, origin, &self.registry)
-            .map_err(ServiceError::Engine)?;
-        replica
-            .commit_editor(preview_plan)
-            .map_err(ServiceError::Engine)?;
-        let preview = replica
-            .snapshot()
-            .map_err(|e| ServiceError::Engine(EditorError::Text(e.into())))?;
         for node in &preview.visible {
             for run in &node.runs {
                 self.registry

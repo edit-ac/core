@@ -201,7 +201,8 @@ pub struct PreparedEditorEdit {
     identity: DocumentIdentity,
     writer: u32,
     revision: u64,
-    baseline: Vec<u8>,
+    // Same-replica change witness includes deletion-only transactions.
+    baseline: u64,
     update: Vec<u8>,
     origin: TextOrigin,
     next_operation: u32,
@@ -345,7 +346,9 @@ impl Document {
             identity: self.identity().clone(),
             writer: self.writer_id(),
             revision: self.revision(),
-            baseline: baseline.bytes,
+            baseline: self
+                .editor_admission_clock()
+                .ok_or(EditorError::ResourceLimit)?,
             update: stage
                 .update_v1(&self.state_vector_v1())
                 .map_err(EditorError::Admission)?,
@@ -1015,7 +1018,9 @@ impl Document {
             identity: self.identity().clone(),
             writer: self.writer_id(),
             revision: self.revision(),
-            baseline: baseline.bytes,
+            baseline: self
+                .editor_admission_clock()
+                .ok_or(EditorError::ResourceLimit)?,
             update,
             origin: origin.clone(),
             next_operation: self.next_structure_counter,
@@ -1516,7 +1521,9 @@ impl Document {
             identity: self.identity().clone(),
             writer: self.writer_id(),
             revision: self.revision(),
-            baseline: baseline.bytes,
+            baseline: self
+                .editor_admission_clock()
+                .ok_or(EditorError::ResourceLimit)?,
             update: stage
                 .update_v1(&self.state_vector_v1())
                 .map_err(EditorError::Admission)?,
@@ -1569,6 +1576,19 @@ impl Document {
         origin: &TextOrigin,
         registry: &crate::modules::registry::FrozenRegistry,
     ) -> Result<PreparedEditorEdit, EditorError> {
+        self.prepare_editor_with_registry_and_preview(commands, origin, registry)
+            .map(|(plan, _)| plan)
+    }
+    /// Return the exact admitted disposable-stage projection alongside its plan.
+    /// This reuses the mandatory final hierarchy qualification: it does not prepare
+    /// or commit the commands a second time and never observes/mutates live state.
+    /// Snapshot refresh metadata describes the disposable preview, not live work.
+    pub fn prepare_editor_with_registry_and_preview(
+        &self,
+        commands: &[EditorCommand],
+        origin: &TextOrigin,
+        registry: &crate::modules::registry::FrozenRegistry,
+    ) -> Result<(PreparedEditorEdit, crate::projection::Snapshot), EditorError> {
         if !self.identity().has_editor() {
             return Err(EditorError::UnsupportedProfile);
         }
@@ -1588,7 +1608,11 @@ impl Document {
         let mut result_owner = None;
         let mut pending: VecDeque<_> = commands.to_vec().into();
         let mut expanded = 0usize;
+        let mut validated_view = None;
         while let Some(c) = pending.pop_front() {
+            // Some command branches expand or finish with `continue`. Never
+            // retain an earlier command's view across a possible stage mutation.
+            validated_view = None;
             expanded += 1;
             if expanded > 16384 {
                 return Err(EditorError::ResourceLimit);
@@ -1710,7 +1734,15 @@ impl Document {
                     to,
                     text,
                 } => {
-                    let d = self.virtual_document(&stage)?;
+                    // Like anchored Text, the first offset edit sees the exact live
+                    // state. Later edits must resolve against preceding staged edits.
+                    let staged;
+                    let d = if expanded == 1 {
+                        self
+                    } else {
+                        staged = self.virtual_document(&stage)?;
+                        &staged
+                    };
                     let selection = d
                         .selection(
                             (owner, *from, crate::anchors::Bias::Right),
@@ -2478,9 +2510,17 @@ impl Document {
                     );
                 }
             }
-            crate::editor::view(&stage, stable).map_err(error)?;
+            // Keep the last admission result while the disposable stage is unchanged.
+            // Every command still validates its intermediate state before the next one.
+            let view = crate::editor::view(&stage, stable).map_err(error)?;
+            if pending.is_empty() {
+                validated_view = Some(view);
+            }
         }
-        let view = crate::editor::view(&stage, stable).map_err(error)?;
+        let view = match validated_view {
+            Some(view) => view,
+            None => crate::editor::view(&stage, stable).map_err(error)?,
+        };
         if let Some(last) = last_separator {
             if !view.owners.iter().any(|o| {
                 !o.deleted
@@ -2527,9 +2567,11 @@ impl Document {
                 let op = format!("o:{}:{counter}", self.writer_id());
                 counter = counter.checked_add(1).ok_or(EditorError::ResourceLimit)?;
                 crate::editor::place(&stage, stable, &op, &id, parent, before).map_err(error)?;
+                // Synthesizing the required editable fallback changed the stage;
+                // it must pass admission just like an explicit command.
+                crate::editor::view(&stage, stable).map_err(error)?;
             }
         }
-        crate::editor::view(&stage, stable).map_err(error)?;
         let hierarchy = crate::projection::ProjectionIndex::with_identity(&stage, self.identity())
             .read()
             .map_err(|_| EditorError::InvalidCommand)?;
@@ -2572,18 +2614,23 @@ impl Document {
             return Err(EditorError::ResourceLimit);
         }
         let update = stage.transact().encode_state_as_update_v1(&sv);
-        Ok(PreparedEditorEdit {
-            identity: self.identity().clone(),
-            writer: self.writer_id(),
-            revision: self.revision(),
-            baseline,
-            update,
-            origin: origin.clone(),
-            next_operation: counter,
-            result_caret,
-            result_selection,
-            entry_selection,
-        })
+        Ok((
+            PreparedEditorEdit {
+                identity: self.identity().clone(),
+                writer: self.writer_id(),
+                revision: self.revision(),
+                baseline: self
+                    .editor_admission_clock()
+                    .ok_or(EditorError::ResourceLimit)?,
+                update,
+                origin: origin.clone(),
+                next_operation: counter,
+                result_caret,
+                result_selection,
+                entry_selection,
+            },
+            hierarchy,
+        ))
     }
     fn virtual_document(&self, stage: &yrs::Doc) -> Result<Document, EditorError> {
         Document::restore(
@@ -2598,32 +2645,39 @@ impl Document {
         )
         .map_err(EditorError::Admission)
     }
-    /// Read-only admission for a host that must durably store the exact update
-    /// before committing this same plan. The host must serialize live admission
-    /// until commit/abort; this is neither a commit nor a second history owner.
-    pub fn preview_editor(&self, plan: &PreparedEditorEdit) -> Result<ReplayUpdate, EditorError> {
+    // Preserve exact same-replica state, including deletion-only mutations,
+    // without serializing the document payload. Decode only after admission.
+    fn admit_editor(&self, plan: &PreparedEditorEdit) -> Result<yrs::Update, EditorError> {
         if self.identity() != &plan.identity || self.writer_id() != plan.writer {
             return Err(EditorError::Text(TextError::WrongReplica));
         }
-        if self.revision() != plan.revision || self.checkpoint().bytes != plan.baseline {
+        let current = self
+            .editor_admission_clock()
+            .ok_or(EditorError::ResourceLimit)?;
+        if self.revision() != plan.revision || current != plan.baseline {
             return Err(EditorError::Text(TextError::StalePlan));
         }
         self.revision()
             .checked_add(1)
             .ok_or(EditorError::ResourceLimit)?;
-        crate::ownership::decode(&plan.update).map_err(error)?;
+        crate::ownership::decode(&plan.update).map_err(error)
+    }
+    /// Read-only admission for a host that must durably store the exact update
+    /// before committing this same plan. The host must serialize live admission
+    /// until commit/abort; this is neither a commit nor a second history owner.
+    pub fn preview_editor(&self, plan: &PreparedEditorEdit) -> Result<ReplayUpdate, EditorError> {
+        self.admit_editor(plan)?;
         Ok(ReplayUpdate {
             identity: self.identity().clone(),
             bytes: plan.update.clone(),
         })
     }
     pub fn commit_editor(&mut self, plan: PreparedEditorEdit) -> Result<EditorCommit, EditorError> {
-        self.preview_editor(&plan)?;
+        let update = self.admit_editor(&plan)?;
         let revision = self
             .revision()
             .checked_add(1)
             .ok_or(EditorError::ResourceLimit)?;
-        let update = crate::ownership::decode(&plan.update).map_err(error)?;
         if update.is_empty() {
             return Ok(EditorCommit {
                 result_caret: plan.result_caret,
@@ -2684,79 +2738,121 @@ mod transaction_tests {
     use crate::document::{CreationPermit, InitialNode};
     use std::sync::{Arc, Mutex};
     use yrs::Origin;
+    fn admission_fixture(stable: bool) -> (Document, String) {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static NEXT: AtomicU64 = AtomicU64::new(1);
+        let n = NEXT.fetch_add(1, Ordering::Relaxed);
+        let document_id = format!("aeed0000-0000-4000-8000-{n:012x}");
+        let epoch = "beed0000-0000-4000-8000-000000000001";
+        let identity = if stable {
+            DocumentIdentity::v5(document_id, epoch)
+        } else {
+            DocumentIdentity::v4(document_id, epoch)
+        }
+        .unwrap();
+        let d = Document::create(
+            CreationPermit::authorize_new(identity).unwrap(),
+            &[InitialNode {
+                kind: "block".into(),
+                text: "A😀e\u{301}Z".into(),
+            }],
+        )
+        .unwrap();
+        let id = d.snapshot().unwrap().visible[0].id.clone();
+        (d, id)
+    }
+
     #[test]
-    fn initial_text_reuses_read_only_plan_but_later_text_observes_staged_state() {
-        use crate::{
-            Utf16Offset,
-            anchors::{Bias, Selection},
-            commands::text::TextCommand,
-        };
+    fn editor_admission_rejects_clock_and_deletion_changes_even_without_local_revision() {
+        use yrs::Text;
         for stable in [false, true] {
-            let document_id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa68";
-            let epoch = if stable {
-                "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb69"
-            } else {
-                "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb68"
-            };
-            let identity = if stable {
-                DocumentIdentity::v5(document_id, epoch)
-            } else {
-                DocumentIdentity::v4(document_id, epoch)
+            for deleting in [false, true] {
+                let (mut d, id) = admission_fixture(stable);
+                let plan = d
+                    .prepare_editor(
+                        &[EditorCommand::ReplaceAt {
+                            owner: id,
+                            from: crate::Utf16Offset(0),
+                            to: crate::Utf16Offset(1),
+                            text: "B".into(),
+                        }],
+                        &TextOrigin::new("admission-stale").unwrap(),
+                    )
+                    .unwrap();
+                let source = d.snapshot().unwrap().visible[0].spans[0].source.clone();
+                let text = m::text(&d.doc, &source);
+                let vector = d.state_vector_v1();
+                let revision = d.revision();
+                // Exercise the exact checkpoint-state guard independently of the
+                // local revision guard. Public mutations also advance revision.
+                {
+                    let mut txn = d.doc.transact_mut_with("admission-stale-probe");
+                    if deleting {
+                        text.remove_range(&mut txn, 0, 1);
+                    } else {
+                        text.insert(&mut txn, 0, "X");
+                    }
+                }
+                assert_eq!(d.revision(), revision);
+                assert_eq!(d.state_vector_v1() == vector, deleting);
+                let before = d.checkpoint().bytes;
+                assert!(matches!(
+                    d.preview_editor(&plan),
+                    Err(EditorError::Text(TextError::StalePlan))
+                ));
+                assert!(matches!(
+                    d.commit_editor(plan),
+                    Err(EditorError::Text(TextError::StalePlan))
+                ));
+                assert_eq!(d.checkpoint().bytes, before, "rejection is silent");
+                assert!(d.last_patch().is_none());
             }
-            .unwrap();
-            let mut d = Document::create(
-                CreationPermit::authorize_new(identity).unwrap(),
-                &[InitialNode {
-                    kind: "block".into(),
-                    text: "A😀e\u{301}Z".into(),
-                }],
-            )
-            .unwrap();
-            let id = d.snapshot().unwrap().visible[0].id.clone();
-            let at = d.anchor(&id, Utf16Offset(0), Bias::Right).unwrap();
-            let a = d.anchor(&id, Utf16Offset(1), Bias::Right).unwrap();
-            let b = d.anchor(&id, Utf16Offset(3), Bias::Left).unwrap();
-            let replace = EditorCommand::Text(TextCommand::Replace {
-                selection: Selection {
-                    anchor: a,
-                    focus: b,
-                },
-                text: "é".into(),
-            });
-            let noop = EditorCommand::Text(TextCommand::Insert {
-                at,
-                text: "".into(),
-            });
-            let origin = TextOrigin::new("initial-text-equivalence").unwrap();
+        }
+    }
+
+    #[test]
+    fn editor_admission_preview_keeps_exact_owned_bytes_and_commit_notifies_once() {
+        for stable in [false, true] {
+            let (mut d, id) = admission_fixture(stable);
             d.enable_history(crate::history::HistoryConfig::default())
                 .unwrap();
+            let observed = Arc::new(Mutex::new(vec![]));
+            let sink = observed.clone();
+            let _subscription = d
+                .subscribe(crate::patches::PatchScope::All, move |_, p| {
+                    sink.lock()
+                        .unwrap()
+                        .push(p.update.as_ref().unwrap().bytes.clone());
+                    Ok(())
+                })
+                .unwrap();
+            let plan = d
+                .prepare_editor(
+                    &[EditorCommand::ReplaceAt {
+                        owner: id,
+                        from: crate::Utf16Offset(1),
+                        to: crate::Utf16Offset(3),
+                        text: "é".into(),
+                    }],
+                    &TextOrigin::new("admission-preview").unwrap(),
+                )
+                .unwrap();
             let before = d.checkpoint().bytes;
-            let fast = d.prepare_editor(&[replace.clone()], &origin).unwrap();
-            // A preceding no-op exercises the full staged restore path with the
-            // same bytes. The encoded semantic update must be byte-identical.
-            let staged = d.prepare_editor(&[noop, replace.clone()], &origin).unwrap();
-            assert_eq!(fast.update, staged.update);
-            assert_eq!(d.checkpoint().bytes, before, "preparation is silent");
-            let invalid = [
-                replace,
-                EditorCommand::Block {
-                    target: "missing".into(),
-                    tuple: m::arr(vec![Any::from("paragraph")]),
-                },
-            ];
-            assert!(d.prepare_editor(&invalid, &origin).is_err());
-            assert_eq!(d.checkpoint().bytes, before, "later rejection is atomic");
-            d.commit_editor(fast).unwrap();
-            assert!(matches!(
-                d.commit_editor(staged),
-                Err(EditorError::Text(TextError::StalePlan))
-            ));
-            let text: String = d.snapshot().unwrap().visible[0]
-                .runs
-                .iter()
-                .map(|r| r.text.as_str())
-                .collect();
-            assert_eq!(text, "Aée\u{301}Z");
+            let witness = d.editor_admission_clock();
+            drop(d.doc.transact_mut_with("admission-empty"));
+            m::apply(&d.doc, &before).unwrap();
+            assert_eq!(
+                d.editor_admission_clock(),
+                witness,
+                "empty and duplicate replay are unchanged"
+            );
+            let preview = d.preview_editor(&plan).unwrap();
+            assert_eq!(preview.bytes, d.preview_editor(&plan).unwrap().bytes);
+            assert_eq!(d.checkpoint().bytes, before);
+            assert!(observed.lock().unwrap().is_empty());
+            let commit = d.commit_editor(plan).unwrap();
+            assert_eq!(preview.bytes, commit.update.bytes);
+            assert_eq!(*observed.lock().unwrap(), vec![commit.update.bytes.clone()]);
             d.undo().unwrap();
             let text: String = d.snapshot().unwrap().visible[0]
                 .runs
@@ -2771,6 +2867,205 @@ mod transaction_tests {
                 .map(|r| r.text.as_str())
                 .collect();
             assert_eq!(text, "Aée\u{301}Z");
+        }
+    }
+
+    #[test]
+    fn editor_admission_malformed_update_is_silent_in_preview_and_commit() {
+        for stable in [false, true] {
+            let (mut d, id) = admission_fixture(stable);
+            let mut plan = d
+                .prepare_editor(
+                    &[EditorCommand::ReplaceAt {
+                        owner: id,
+                        from: crate::Utf16Offset(0),
+                        to: crate::Utf16Offset(1),
+                        text: "B".into(),
+                    }],
+                    &TextOrigin::new("admission-corrupt").unwrap(),
+                )
+                .unwrap();
+            plan.update = vec![255];
+            let before = d.checkpoint().bytes;
+            let revision = d.revision();
+            assert!(d.preview_editor(&plan).is_err());
+            assert!(d.commit_editor(plan).is_err());
+            assert_eq!(d.checkpoint().bytes, before);
+            assert_eq!(d.revision(), revision);
+            assert!(d.last_patch().is_none());
+        }
+    }
+
+    #[test]
+    fn editor_admission_witness_exhaustion_never_wraps_or_mutates() {
+        use std::sync::atomic::Ordering;
+        for stable in [false, true] {
+            let (mut d, id) = admission_fixture(stable);
+            let command = EditorCommand::ReplaceAt {
+                owner: id,
+                from: crate::Utf16Offset(0),
+                to: crate::Utf16Offset(1),
+                text: "B".into(),
+            };
+            let origin = TextOrigin::new("admission-exhaustion").unwrap();
+            let plan = d.prepare_editor(&[command.clone()], &origin).unwrap();
+            let before = d.checkpoint().bytes;
+            d.admission_clock.store(u64::MAX, Ordering::Relaxed);
+            assert!(matches!(
+                d.preview_editor(&plan),
+                Err(EditorError::ResourceLimit)
+            ));
+            assert!(matches!(
+                d.commit_editor(plan),
+                Err(EditorError::ResourceLimit)
+            ));
+            assert!(matches!(
+                d.prepare_editor(&[command], &origin),
+                Err(EditorError::ResourceLimit)
+            ));
+            assert_eq!(d.checkpoint().bytes, before);
+            assert!(d.last_patch().is_none());
+        }
+    }
+
+    #[test]
+    fn editor_admission_witness_duplicate_deletion_replay_keeps_exact_plan_valid() {
+        for stable in [false, true] {
+            let (mut d, id) = admission_fixture(stable);
+            let origin = TextOrigin::new("admission-duplicate-delete").unwrap();
+            let delete = d
+                .prepare_editor(
+                    &[EditorCommand::ReplaceAt {
+                        owner: id.clone(),
+                        from: crate::Utf16Offset(0),
+                        to: crate::Utf16Offset(1),
+                        text: "".into(),
+                    }],
+                    &origin,
+                )
+                .unwrap();
+            d.commit_editor(delete).unwrap();
+            let plan = d
+                .prepare_editor(
+                    &[EditorCommand::ReplaceAt {
+                        owner: id,
+                        from: crate::Utf16Offset(0),
+                        to: crate::Utf16Offset(0),
+                        text: "B".into(),
+                    }],
+                    &origin,
+                )
+                .unwrap();
+            let before = d.checkpoint().bytes;
+            let witness = d.editor_admission_clock();
+            let revision = d.revision();
+            m::apply(&d.doc, &before).unwrap();
+            assert_eq!(d.editor_admission_clock(), witness);
+            assert_eq!(d.revision(), revision);
+            assert_eq!(d.checkpoint().bytes, before);
+            let preview = d.preview_editor(&plan).unwrap();
+            assert_eq!(d.commit_editor(plan).unwrap().update.bytes, preview.bytes);
+        }
+    }
+    #[test]
+    fn initial_text_and_offsets_reuse_read_only_plan_but_later_edits_observe_stage() {
+        use crate::{
+            Utf16Offset,
+            anchors::{Bias, Selection},
+            commands::text::TextCommand,
+        };
+        for stable in [false, true] {
+            for offsets in [false, true] {
+                let document_id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa68";
+                let epoch = match (stable, offsets) {
+                    (false, false) => "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb68",
+                    (true, false) => "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb69",
+                    (false, true) => "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb70",
+                    (true, true) => "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb71",
+                };
+                let identity = if stable {
+                    DocumentIdentity::v5(document_id, epoch)
+                } else {
+                    DocumentIdentity::v4(document_id, epoch)
+                }
+                .unwrap();
+                let mut d = Document::create(
+                    CreationPermit::authorize_new(identity).unwrap(),
+                    &[InitialNode {
+                        kind: "block".into(),
+                        text: "A😀e\u{301}Z".into(),
+                    }],
+                )
+                .unwrap();
+                let id = d.snapshot().unwrap().visible[0].id.clone();
+                let at = d.anchor(&id, Utf16Offset(0), Bias::Right).unwrap();
+                let a = d.anchor(&id, Utf16Offset(1), Bias::Right).unwrap();
+                let b = d.anchor(&id, Utf16Offset(3), Bias::Left).unwrap();
+                let replace = if offsets {
+                    EditorCommand::ReplaceAt {
+                        owner: id.clone(),
+                        from: Utf16Offset(1),
+                        to: Utf16Offset(3),
+                        text: "é".into(),
+                    }
+                } else {
+                    EditorCommand::Text(TextCommand::Replace {
+                        selection: Selection {
+                            anchor: a,
+                            focus: b,
+                        },
+                        text: "é".into(),
+                    })
+                };
+                let noop = EditorCommand::Text(TextCommand::Insert {
+                    at,
+                    text: "".into(),
+                });
+                let origin = TextOrigin::new("initial-text-equivalence").unwrap();
+                d.enable_history(crate::history::HistoryConfig::default())
+                    .unwrap();
+                let before = d.checkpoint().bytes;
+                let fast = d.prepare_editor(&[replace.clone()], &origin).unwrap();
+                // A preceding no-op exercises the full staged restore path with the
+                // same bytes. The encoded semantic update must be byte-identical.
+                let staged = d.prepare_editor(&[noop, replace.clone()], &origin).unwrap();
+                assert_eq!(fast.update, staged.update);
+                assert_eq!(d.checkpoint().bytes, before, "preparation is silent");
+                let invalid = [
+                    replace,
+                    EditorCommand::Block {
+                        target: "missing".into(),
+                        tuple: m::arr(vec![Any::from("paragraph")]),
+                    },
+                ];
+                assert!(d.prepare_editor(&invalid, &origin).is_err());
+                assert_eq!(d.checkpoint().bytes, before, "later rejection is atomic");
+                d.commit_editor(fast).unwrap();
+                assert!(matches!(
+                    d.commit_editor(staged),
+                    Err(EditorError::Text(TextError::StalePlan))
+                ));
+                let text: String = d.snapshot().unwrap().visible[0]
+                    .runs
+                    .iter()
+                    .map(|r| r.text.as_str())
+                    .collect();
+                assert_eq!(text, "Aée\u{301}Z");
+                d.undo().unwrap();
+                let text: String = d.snapshot().unwrap().visible[0]
+                    .runs
+                    .iter()
+                    .map(|r| r.text.as_str())
+                    .collect();
+                assert_eq!(text, "A😀e\u{301}Z");
+                d.redo().unwrap();
+                let text: String = d.snapshot().unwrap().visible[0]
+                    .runs
+                    .iter()
+                    .map(|r| r.text.as_str())
+                    .collect();
+                assert_eq!(text, "Aée\u{301}Z");
+            }
         }
     }
     #[test]

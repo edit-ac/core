@@ -441,6 +441,15 @@ impl Document {
         }
         crate::editor_mapping::apply(&stage, &self.checkpoint().bytes)
             .map_err(|_| HistoryError::ResourceLimit)?;
+        // Wire updates omit Yrs local redone pointers. Preserve them before
+        // copying the stack, otherwise a later undo can restore a second copy
+        // while failing to delete the previously restored insertion.
+        if !stage
+            .transact_mut_with("history:local-metadata")
+            .copy_local_redone_from(&self.doc.transact())
+        {
+            return Err(HistoryError::ConcurrentConflict);
+        }
         let mut probe = manager(
             &stage,
             &g.sources,

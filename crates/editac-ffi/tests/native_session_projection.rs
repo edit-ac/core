@@ -52,6 +52,210 @@ fn actual_rich_snapshot_preserves_shared_runs_spans_bidi_and_attachment_tuple() 
     );
     assert_eq!(Some(rich.revision), s.read(0).unwrap().revision);
 }
+
+fn assert_wire_eq(actual: &Value, expected: &Value) {
+    if actual != expected {
+        let directory = std::env::var_os("EDITAC_NATIVE_SESSION_EVIDENCE")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(std::env::temp_dir);
+        std::fs::write(directory.join("chunk-actual.json"), actual.to_string()).unwrap();
+        std::fs::write(directory.join("chunk-expected.json"), expected.to_string()).unwrap();
+        let changed: Vec<_> = expected
+            .as_object()
+            .unwrap()
+            .keys()
+            .filter(|key| actual[*key] != expected[*key])
+            .collect();
+        panic!("complete wire differs at {changed:?}; retained chunk-actual/expected.json");
+    }
+}
+
+fn chunked(s: &NativeSession) -> (Vec<u8>, u64, usize) {
+    let revision = s.read(0).unwrap().revision.unwrap();
+    let mut bytes = vec![];
+    let mut count = 0;
+    loop {
+        let chunk = s
+            .rich_snapshot_chunk(revision.clone(), bytes.len() as u64)
+            .unwrap();
+        assert_eq!(chunk.revision, revision);
+        assert_eq!(chunk.offset_bytes, bytes.len() as u64);
+        assert!(!chunk.bytes.is_empty() && chunk.bytes.len() <= 2 * 1024 * 1024);
+        bytes.extend_from_slice(&chunk.bytes);
+        count += 1;
+        if chunk.complete {
+            assert_eq!(chunk.total_bytes, bytes.len() as u64);
+            return (bytes, chunk.sequence, count);
+        }
+        assert!(bytes.len() < chunk.total_bytes as usize);
+    }
+}
+
+#[test]
+fn single_chunk_is_exact_legacy_wire_and_invalid_reads_preserve_pending_patch() {
+    let f = Fixture::new();
+    let s = f.open();
+    let before = s.rich_snapshot().unwrap();
+    assert!(matches!(
+        s.rich_snapshot_chunk(vec![], 0),
+        Err(NativeSessionError::Revision {
+            reason: NativeRevisionFailure::InvalidToken,
+            ..
+        })
+    ));
+    let node = s.read(0).unwrap().nodes[0].id.clone();
+    commit(&s, &node, 0, 0, "x");
+    let revision = s.read(0).unwrap().revision.unwrap();
+    assert!(matches!(
+        s.rich_snapshot_chunk(revision, 1),
+        Err(NativeSessionError::InvalidProjectionCursor)
+    ));
+    assert_eq!(
+        s.take_rich_patches(before.sequence)
+            .unwrap()
+            .patches_json
+            .len(),
+        1
+    );
+    let checkpoint = s.recovery_export().unwrap().checkpoint.bytes;
+    let legacy = s.rich_snapshot().unwrap();
+    let (bytes, sequence, chunks) = chunked(&s);
+    assert_eq!(bytes, legacy.snapshot_json.as_bytes());
+    assert_eq!(sequence, legacy.sequence);
+    assert_eq!(chunks, 1);
+    assert_eq!(s.recovery_export().unwrap().checkpoint.bytes, checkpoint);
+}
+
+#[test]
+fn full_large_rich_wire_chunks_preserve_every_field_and_acknowledge_only_at_end() {
+    let f = Fixture::large();
+    let s = f.open();
+    let revision = s.history_state(0).unwrap().revision.unwrap();
+    let first = s.rich_snapshot_chunk(revision.clone(), 0).unwrap();
+    assert!(!first.complete);
+    assert_eq!(first.bytes.len(), 2 * 1024 * 1024);
+    assert!(matches!(
+        s.take_rich_patches(first.sequence),
+        Err(NativeSessionError::ProjectionResyncRequired)
+    ));
+    for offset in [1, u64::MAX, first.bytes.len() as u64 - 1] {
+        assert!(matches!(
+            s.rich_snapshot_chunk(revision.clone(), offset),
+            Err(NativeSessionError::InvalidProjectionCursor)
+        ));
+    }
+    let alias = s.clone();
+    let _ = alias.read(0).unwrap();
+    assert!(matches!(
+        alias.rich_snapshot(),
+        Err(NativeSessionError::ResourceLimit)
+    ));
+    let mut bytes = first.bytes;
+    loop {
+        let chunk = alias
+            .rich_snapshot_chunk(revision.clone(), bytes.len() as u64)
+            .unwrap();
+        assert_eq!(chunk.sequence, first.sequence);
+        assert_eq!(chunk.revision, revision);
+        assert!(chunk.bytes.len() <= 2 * 1024 * 1024);
+        bytes.extend_from_slice(&chunk.bytes);
+        if chunk.complete {
+            assert_eq!(bytes.len() as u64, chunk.total_bytes);
+            break;
+        }
+        assert!(matches!(
+            s.take_rich_patches(chunk.sequence),
+            Err(NativeSessionError::ProjectionResyncRequired)
+        ));
+    }
+    assert_wire_eq(
+        &serde_json::from_slice::<Value>(&bytes).unwrap(),
+        &f.initial_expected,
+    );
+    assert!(
+        s.take_rich_patches(first.sequence)
+            .unwrap()
+            .patches_json
+            .is_empty()
+    );
+    let node = s.read(0).unwrap().nodes[0].id.clone();
+    commit(&s, &node, 0, 0, "persisted");
+    let patch = s.take_rich_patches(first.sequence).unwrap();
+    assert_eq!(patch.patches_json.len(), 1);
+    let (latest, _, _) = chunked(&s);
+    s.dispose().unwrap();
+    assert!(matches!(
+        alias.rich_snapshot_chunk(revision, 0),
+        Err(NativeSessionError::Disposed)
+    ));
+    assert_wire_eq(
+        &serde_json::from_slice::<Value>(&bytes).unwrap(),
+        &f.initial_expected,
+    );
+    let reopened = f.open();
+    assert_eq!(
+        serde_json::from_slice::<Value>(&chunked(&reopened).0).unwrap()["visible"],
+        serde_json::from_slice::<Value>(&latest).unwrap()["visible"]
+    );
+}
+
+#[test]
+fn partial_chunk_revision_fences_commit_history_restart_and_failed_legacy_read() {
+    let f = Fixture::large();
+    let s = f.open();
+    let revision = s.read(0).unwrap().revision.unwrap();
+    let first = s.rich_snapshot_chunk(revision.clone(), 0).unwrap();
+    let node = s.read(0).unwrap().nodes[0].id.clone();
+    commit(&s, &node, 0, 0, "x");
+    assert!(matches!(
+        s.rich_snapshot_chunk(revision, first.bytes.len() as u64),
+        Err(NativeSessionError::Revision {
+            reason: NativeRevisionFailure::Stale,
+            ..
+        })
+    ));
+    let current = s.read(0).unwrap().revision.unwrap();
+    assert!(matches!(
+        s.rich_snapshot_chunk(current.clone(), first.bytes.len() as u64),
+        Err(NativeSessionError::InvalidProjectionCursor)
+    ));
+    let restarted = s.rich_snapshot_chunk(current.clone(), 0).unwrap();
+    assert!(matches!(
+        s.rich_snapshot(),
+        Err(NativeSessionError::ResourceLimit)
+    ));
+    let mut offset = restarted.bytes.len() as u64;
+    loop {
+        let next = s.rich_snapshot_chunk(current.clone(), offset).unwrap();
+        offset += next.bytes.len() as u64;
+        if next.complete {
+            break;
+        }
+    }
+    assert!(
+        s.take_rich_patches(restarted.sequence)
+            .unwrap()
+            .patches_json
+            .is_empty()
+    );
+    let partial = s.rich_snapshot_chunk(current.clone(), 0).unwrap();
+    s.undo(current.clone(), 0).unwrap().unwrap();
+    assert!(matches!(
+        s.rich_snapshot_chunk(current, partial.bytes.len() as u64),
+        Err(NativeSessionError::Revision {
+            reason: NativeRevisionFailure::Stale,
+            ..
+        })
+    ));
+    assert_eq!(
+        s.take_rich_patches(restarted.sequence)
+            .unwrap()
+            .patches_json
+            .len(),
+        1
+    );
+    chunked(&s);
+}
 #[test]
 fn ordered_incremental_ranges_keep_other_rich_nodes_and_identity() {
     let f = Fixture::new();
@@ -157,6 +361,22 @@ fn bounded_queue_requires_snapshot_resync_without_losing_committed_state() {
         s.take_rich_patches(before.sequence),
         Err(NativeSessionError::ProjectionResyncRequired)
     ));
+    let (bytes, sequence, _) = chunked(&s);
+    assert_eq!(
+        serde_json::from_slice::<Value>(&bytes).unwrap()["visible"][0]["runs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|run| run["text"].as_str().unwrap())
+            .collect::<String>(),
+        s.read(0).unwrap().nodes[0].text
+    );
+    assert!(
+        s.take_rich_patches(sequence)
+            .unwrap()
+            .patches_json
+            .is_empty()
+    );
     let resync = s.rich_snapshot().unwrap();
     assert!(resync.sequence > before.sequence);
     assert!(
