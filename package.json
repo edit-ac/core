@@ -26,7 +26,7 @@
     "check:browser-baseline": "npm run build:wasm && npm run build && node --test tests/browser/baseline-runner.test.mjs && npm run test:browser -- baseline",
     "typecheck": "npm run typecheck --workspaces",
     "check:rust": "cargo fmt --all -- --check && cargo check --workspace --all-targets --locked --offline && node scripts/test-rust.mjs",
-    "check:packages": "npm run typecheck && npm run build && node scripts/check-package-exports.mjs && node --test tests/sdk-prerequisites.test.mjs",
+    "check:packages": "npm run build && npm run typecheck && node scripts/check-package-exports.mjs && node --test tests/sdk-prerequisites.test.mjs",
     "check:protocol": "cargo check -p editac-wasm --target wasm32-unknown-unknown --locked --offline && node --test tests/protocol-toolchain.test.mjs",
     "check:interop": "node --test tests/interop.test.mjs",
     "check:fixtures": "node --test tests/fixtures.test.mjs",
