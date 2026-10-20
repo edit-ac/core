@@ -1,0 +1,1 @@
+var e=`/fixture/_astro/editac_markdown_wasm_bg.p8HLyClf.wasm`;export{e as default};
