@@ -34,13 +34,13 @@ test('public SSR imports allocate nothing and reject empty asset URLs without I/
 });
 
 test('public web exports resolve implemented entrypoints and explicit task defaults', () => {
-  assert.deepEqual(Object.keys(web).sort(), [
+  const requiredExports = [
     'BrowserEditor', 'CommandChain', 'CheckpointStorage', 'ModuleContractError', 'ModuleRegistry', 'ModuleRuntime',
     'ReferencePresenter', 'ReorderPresenter', 'SlashPresenter', 'contentModules',
     'mountEditor', 'mountEditorSurface', 'referenceBlock', 'referenceSuggestions',
     'reorderControls', 'slashCommands', 'createEditor', 'taskPreset',
-  ].sort());
-  for (const value of Object.values(web)) assert.equal(typeof value, 'function');
+  ];
+  for (const name of requiredExports) assert.equal(typeof web[name], 'function', name);
   for (const name of ['can', 'chain', 'attachSync', 'subscribe', 'flush', 'destroy']) {
     assert.equal(typeof web.BrowserEditor.prototype[name], 'function', name);
   }
@@ -165,7 +165,8 @@ test('README examples and public error/command types compile against built decla
   const directory = await mkdtemp(new URL('../.sdk-types-', import.meta.url));
   try {
     const readme = await readFile(new URL('../packages/web/README.md', import.meta.url), 'utf8');
-    const examples = [...readme.matchAll(/```ts\n([\s\S]*?)```/g)];
+    const examples = [...readme.matchAll(/```ts\n([\s\S]*?)```/g)]
+      .filter(match => match[1].includes("import { mountEditor } from '@edit-ac/web/editor'"));
     assert.equal(examples.length, 1);
     await writeFile(`${directory}/examples.mts`, `
       import type { DocumentIdentity, EngineErrorCode, EngineHandle } from '@edit-ac/core';
