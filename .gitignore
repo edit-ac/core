@@ -56,3 +56,5 @@
 !/tests/native/*-proof/**/*.yaml
 !/tests/native/*-proof/**/*.yml
 !/tests/native/*-proof/**/*.plist
+
+/benchmarks/profiles/*-evidence.json
