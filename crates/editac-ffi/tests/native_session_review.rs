@@ -496,6 +496,9 @@ fn fifo_byte_limits_and_failed_capture_preserve_existing_revision() {
     s.dispose().unwrap();
 }
 fn text_model(input: bool) -> Vec<u8> {
+    text_model_from_sources(input, b"old\n", "new 🦀\n".as_bytes())
+}
+fn text_model_from_sources(input: bool, before: &[u8], after: &[u8]) -> Vec<u8> {
     let mut token = [0; 65];
     token[0] = 1;
     let scope = RevisionScope {
@@ -513,14 +516,10 @@ fn text_model(input: bool) -> Vec<u8> {
         )
         .unwrap()
     };
-    let wire = TextPatch::between(
-        &make(b"old\n"),
-        &make("new 🦀\n".as_bytes()),
-        PatchLimits::default(),
-    )
-    .unwrap()
-    .encode(PatchLimits::default())
-    .unwrap();
+    let wire = TextPatch::between(&make(before), &make(after), PatchLimits::default())
+        .unwrap()
+        .encode(PatchLimits::default())
+        .unwrap();
     ChangeModel::new(if input {
         ChangeInput::ProjectedMarkdown {
             wire,
@@ -533,6 +532,118 @@ fn text_model(input: bool) -> Vec<u8> {
     .unwrap()
     .encode(MAX_BYTES)
     .unwrap()
+}
+#[test]
+fn native_value_oracle_preserves_crlf_hashes_profiles_and_missing_final_newline() {
+    let f = Fixture::new();
+    let s = f.create();
+    let live = s.read(0).unwrap();
+    let checkpoint = s.recovery_export().unwrap().checkpoint.bytes;
+    let history = s.history_state(0).unwrap();
+    let disk = std::fs::read(&f.options.path).unwrap();
+    for projected in [false, true] {
+        let bytes = text_model_from_sources(projected, "A🦀B\r\n".as_bytes(), b"AxyB");
+        let owned = s.validate_change_model(bytes.clone(), LIMIT).unwrap();
+        assert_eq!(owned.json, bytes);
+        assert_eq!(owned.attribution, "unknown");
+        let value: Value = serde_json::from_slice(&owned.json).unwrap();
+        assert_eq!(value["version"], "editac-change-model-v1");
+        assert_eq!(
+            value["input"]["representation"],
+            if projected {
+                "projected-markdown"
+            } else {
+                "exact-source"
+            }
+        );
+        if projected {
+            assert_eq!(value["input"]["serializer"], "serializer-v1");
+            assert_eq!(value["input"]["dialect"], "commonmark");
+        }
+        // Read the public wire directly, without a shared decoder as the oracle.
+        let wire = value["input"]["wire"].as_str().unwrap();
+        let metadata: Value = serde_json::from_str(
+            wire.lines()
+                .next()
+                .unwrap()
+                .strip_prefix("# editac-exact-patch-v1 ")
+                .unwrap(),
+        )
+        .unwrap();
+        // Independent SHA-256 constants for the literal UTF-8 inputs above.
+        assert_eq!(
+            metadata["before_hash"],
+            "e37245452c37c83c4656f948cb31f2c44fc98eea9659241d62ecd879fc8c02bd"
+        );
+        assert_eq!(
+            metadata["after_hash"],
+            "5083d1c94af28f35e4c65e63923af955467eb3b54d715c6b35e6210318f01231"
+        );
+        assert_eq!(metadata["before_bytes"], 8);
+        assert_eq!(metadata["after_bytes"], 4);
+        assert_eq!(metadata["before_final_newline"], true);
+        assert_eq!(metadata["after_final_newline"], false);
+        assert!(wire.ends_with("@@ -1,1 +1,1 @@\n-A🦀B\r\n+AxyB\n\\ No newline at end of file\n"));
+        for (field, replacement) in [
+            ("representation", Value::from("future")),
+            (
+                "unexpected",
+                Value::from("private source must not enter diagnostics"),
+            ),
+        ] {
+            let mut bad = value.clone();
+            bad["input"][field] = replacement;
+            let error = s
+                .validate_change_model(serde_json::to_vec(&bad).unwrap(), LIMIT)
+                .unwrap_err();
+            assert!(matches!(
+                error,
+                NativeSessionError::ReviewInput {
+                    reason: NativeReviewFailure::Invalid
+                }
+            ));
+            assert_eq!(error.to_string(), "review input: Invalid");
+        }
+    }
+    assert_eq!(s.read(0).unwrap().revision, live.revision);
+    assert_eq!(s.read(0).unwrap().nodes[0].text, "A🦀B");
+    assert_eq!(s.recovery_export().unwrap().checkpoint.bytes, checkpoint);
+    assert_eq!(s.history_state(0).unwrap(), history);
+    assert!(s.pending_updates().unwrap().is_empty());
+    assert_eq!(std::fs::read(&f.options.path).unwrap(), disk);
+    s.dispose().unwrap();
+}
+#[test]
+fn native_semantic_value_oracle_keeps_utf16_source_spans_and_owned_payloads() {
+    let f = Fixture::new();
+    let s = f.create();
+    let node_id = s.read(0).unwrap().nodes[0].id.clone();
+    let before = capture(&s, "before", None);
+    edit(&s, "xy");
+    let after = capture(&s, "after", None);
+    let owned = model(&s, before, after);
+    let validated = s.validate_change_model(owned.json.clone(), LIMIT).unwrap();
+    assert_eq!(validated.json, owned.json);
+    assert_eq!(
+        validated.representation,
+        NativeReviewRepresentation::Semantic
+    );
+    s.dispose().unwrap();
+    let value: Value = serde_json::from_slice(&validated.json).unwrap();
+    let changes = value["input"]["model"]["changes"].as_array().unwrap();
+    assert_eq!(changes.len(), 1);
+    for (side, text) in [("before", "A🦀B"), ("after", "AxyB")] {
+        let node = &changes[0][side];
+        assert_eq!(node["id"], node_id);
+        assert_eq!(node["runs"][0]["text"], text);
+        let spans = node["spans"].as_array().unwrap();
+        assert_eq!(spans.len(), 1);
+        assert_eq!(spans[0]["start"], 0);
+        assert_eq!(spans[0]["end"], 4); // Emoji occupies two UTF-16 units, four UTF-8 bytes.
+        assert!(!spans[0]["source"].as_str().unwrap().is_empty());
+        assert!(!spans[0]["identity"].as_str().unwrap().is_empty());
+    }
+    assert_eq!(value["input"]["model"]["attribution"], "unknown");
 }
 #[test]
 fn portable_exact_and_projected_validation_preserves_wire_profiles_and_rejects_limits_and_corruption()
