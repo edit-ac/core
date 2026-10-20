@@ -46,7 +46,7 @@ const result = { version: 1, bundleVersion: 1, mode: flags.quick ? 'quick' : 'fu
     textBytes: Buffer.byteLength(fixtureText(fixture(name))), textHash: hash(fixtureText(fixture(name))),
     semanticHash: hash(JSON.stringify(expectedSemantics(fixture(name)))),
     sha256: hash(Buffer.from(JSON.stringify(fixture(name)))) })),
-  deferred: { reactWrapper: 'Scaffold only', comparisonEditors: 'Pinned Tiptap/Lexical runs not implemented', tables: 'Not in this fixture version', virtualization: 'No viewport virtualization scenario' },
+  deferred: { reactWrapper: 'Scaffold only', comparisonEditors: 'Separate local runner: benchmarks/comparison/run.mjs; diagnostic pinned profiles', tables: 'Not in this fixture version', virtualization: 'No viewport virtualization scenario' },
   plan: { runs: profile.runs, warmups: profile.warmups, samples: profile.samples, metrics: flags.presets.flatMap(preset => metricNames(flags.fixtures).map(name => metricKey(name, preset))), sampleCounts: {} } };
 for (const key of result.plan.metrics) {
   const name = key.replace(/@(baseline|task)$/, '');
