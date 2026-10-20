@@ -41,3 +41,7 @@ See `native/ios/probe/README.md` for qualified versions, build/link commands,
 case inventory, lifecycle rules and observed copy-count scope. The script reuses
 hash-qualified NAT-1.2 artifacts, records nonzero case counts and exact commands,
 and removes its temporary executables. It does not qualify UIKit or device input.
+
+## Temporary native qualification output
+
+Ordinary native budget unit checks use prepared inputs. To inspect a freshly generated native run, explicitly provide its index with `EDITAC_NATIVE_EVIDENCE_INDEX=/absolute/path/to/index.json node --test tests/architecture/budgets/native-input.test.mjs`. This validates the supplied runtime record; ordinary unit checks make no native runtime qualification claim. Keep the index and run files local only while diagnosing the run, then remove them. Never commit runtime output, screenshots or execution inventories.

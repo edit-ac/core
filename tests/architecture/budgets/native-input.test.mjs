@@ -26,10 +26,13 @@ for(const [name,mutate,reason] of [
   const samples=structuredClone(windowSamples),resources=structuredClone(windowResources);
   mutate(samples,resources);assert.throws(()=>inspectNativeEditWindows(samples,resources),reason);
 });
+// Runtime qualification is a separate, explicit check of a freshly produced index.
+// Ordinary unit runs never load cached native execution or screenshots.
+if (process.env.EDITAC_NATIVE_EVIDENCE_INDEX) {
 const root = fileURLToPath(new URL('../../../',import.meta.url));
 const read = p => readFile(resolve(root,p));
 const profileBytes = await read('benchmarks/profiles/native-input-v1.json'), profile = JSON.parse(profileBytes);
-const index = JSON.parse(await read('benchmarks/profiles/native-input-evidence.json'));
+const index = JSON.parse(await readFile(resolve(process.env.EDITAC_NATIVE_EVIDENCE_INDEX)));
 assert.match(index.directory,/^architecture-results\/fit-1\.8-[a-z0-9/-]+$/); assert(!index.directory.includes('..'));
 const bytes = await read(index.directory+'/receipt.json'), receipt = JSON.parse(bytes);
 const result = JSON.parse(await read(index.directory+'/native-result.json'));
@@ -268,4 +271,5 @@ for (const name of ['Task','Long']) {
       rejectedControls.push({family:name,name:label,reason:error.message.slice(0,512)}); return true;
     });
   });
+}
 }
