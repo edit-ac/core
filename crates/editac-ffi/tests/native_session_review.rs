@@ -98,6 +98,192 @@ fn model(s: &NativeSession, a: NativeReviewRevision, b: NativeReviewRevision) ->
         other => panic!("unexpected {other:?}"),
     }
 }
+
+#[derive(Debug, PartialEq, Eq)]
+struct InspectionState {
+    revision: Option<Vec<u8>>,
+    nodes: Vec<(String, String)>,
+    identity: String,
+    checkpoint: Vec<u8>,
+    history: NativeSessionHistory,
+    pending: Vec<(u32, u64, Vec<u8>, Vec<u8>)>,
+    files: Vec<(std::ffi::OsString, Vec<u8>)>,
+}
+fn inspection_state(s: &NativeSession, f: &Fixture) -> InspectionState {
+    let live = s.read(0).unwrap();
+    let export = s.recovery_export().unwrap();
+    let mut files: Vec<_> = std::fs::read_dir(&f.dir)
+        .unwrap()
+        .map(|entry| {
+            let entry = entry.unwrap();
+            (entry.file_name(), std::fs::read(entry.path()).unwrap())
+        })
+        .collect();
+    files.sort_by(|a, b| a.0.cmp(&b.0));
+    InspectionState {
+        revision: live.revision,
+        nodes: live.nodes.into_iter().map(|n| (n.id, n.text)).collect(),
+        identity: export.checkpoint.metadata_json,
+        checkpoint: export.checkpoint.bytes,
+        history: s.history_state(0).unwrap(),
+        pending: s
+            .pending_updates()
+            .unwrap()
+            .into_iter()
+            .map(|p| (p.writer, p.sequence, p.checksum, p.bytes))
+            .collect(),
+        files,
+    }
+}
+fn semantic_read_oracle(bytes: &[u8], node: &str, text: &str) {
+    // Literal wire prefix/content/UTF16 expectations, independent of capture_projection.
+    let json = bytes.strip_prefix(b"editac-semantic-json-v1\n").unwrap();
+    let value: Value = serde_json::from_slice(json).unwrap();
+    assert_eq!(value["visible"].as_array().unwrap().len(), 1);
+    assert_eq!(value["visible"][0]["id"], node);
+    assert_eq!(value["visible"][0]["runs"][0]["text"], text);
+    assert_eq!(value["visible"][0]["spans"][0]["start"], 0);
+    assert_eq!(value["visible"][0]["spans"][0]["end"], 4);
+    assert_eq!(value["recovery"], serde_json::json!([]));
+}
+
+#[test]
+fn capture_read_binds_sqlite_identity_and_owned_bytes_across_disposal_and_reopen() {
+    let f = Fixture::new();
+    let s = f.create();
+    let initial = inspection_state(&s, &f);
+    let first = capture(&s, "original 🦀", None);
+    let original = read(&s, first.clone());
+    let identity: Value = serde_json::from_str(&initial.identity).unwrap();
+    assert_eq!(first.document_id, f.options.document_id);
+    assert_eq!(first.epoch, f.options.epoch);
+    assert_eq!(
+        first.schema,
+        identity["identity"]["schema"].as_str().unwrap()
+    );
+    assert_eq!(
+        first.module_profile,
+        identity["identity"]["profile"].as_str().unwrap()
+    );
+    assert_eq!(Some(first.observed_revision.clone()), initial.revision);
+    assert_eq!(first.representation, NativeReviewRepresentation::Semantic);
+    assert_eq!(first.hash.len(), 32);
+    semantic_read_oracle(&original, &initial.nodes[0].0, "A🦀B");
+    assert_eq!(inspection_state(&s, &f), initial);
+
+    edit(&s, "xy");
+    s.set_permission(false, Some(0)).unwrap();
+    let edited = inspection_state(&s, &f);
+    assert_eq!(edited.pending.len(), 1);
+    assert_eq!(edited.history.undo_groups, 1);
+    let second = capture(&s, "edited", None);
+    assert_ne!(first.observed_revision, second.observed_revision);
+    assert_ne!(first.hash, second.hash);
+    assert_eq!(Some(second.observed_revision.clone()), edited.revision);
+    let current = read(&s, second.clone());
+    semantic_read_oracle(&current, &initial.nodes[0].0, "AxyB");
+    assert_eq!(read(&s, first.clone()), original);
+    assert_eq!(inspection_state(&s, &f), edited);
+    s.dispose().unwrap();
+
+    let reopened = NativeSession::open(f.options.clone()).unwrap();
+    let reopened_state = inspection_state(&reopened, &f);
+    assert_eq!(reopened_state.nodes, edited.nodes);
+    // A reopen owns a fresh writer; document scope persists independently of it.
+    let reopened_metadata: Value = serde_json::from_str(&reopened_state.identity).unwrap();
+    let edited_metadata: Value = serde_json::from_str(&edited.identity).unwrap();
+    assert_eq!(reopened_metadata["identity"], edited_metadata["identity"]);
+    assert_eq!(reopened_metadata["initialized"], true);
+    assert_eq!(reopened_state.pending, edited.pending);
+    unavailable(&reopened, first, NativeReviewUnavailable::Missing);
+    unavailable(&reopened, second.clone(), NativeReviewUnavailable::Missing);
+    let fresh = capture(&reopened, "reopened", None);
+    assert_ne!(fresh.key, second.key);
+    assert_eq!(fresh.hash, second.hash);
+    assert_eq!(
+        Some(fresh.observed_revision.clone()),
+        reopened_state.revision
+    );
+    assert_eq!(read(&reopened, fresh), current);
+    assert_eq!(inspection_state(&reopened, &f), reopened_state);
+    reopened.dispose().unwrap();
+    semantic_read_oracle(&original, &initial.nodes[0].0, "A🦀B");
+    semantic_read_oracle(&current, &initial.nodes[0].0, "AxyB");
+}
+
+#[test]
+fn capture_read_key_count_and_byte_lifetimes_preserve_actual_session_and_sqlite() {
+    let f = Fixture::new();
+    let s = f.create();
+    edit(&s, "xy");
+    s.set_permission(false, Some(0)).unwrap();
+    let baseline = inspection_state(&s, &f);
+    s.set_review_retention(2, 32 * 1024 * 1024).unwrap();
+    let locked = capture(&s, "duplicate label", Some("key-v1"));
+    for key in [None, Some("key-v2".into())] {
+        assert!(matches!(
+            s.read_review_revision(locked.clone(), key).unwrap(),
+            NativeReviewRead::Unavailable {
+                reason: NativeReviewUnavailable::KeyUnavailable
+            }
+        ));
+    }
+    let detached = match s
+        .read_review_revision(locked.clone(), Some("key-v1".into()))
+        .unwrap()
+    {
+        NativeReviewRead::Available { name, bytes } => {
+            assert_eq!(name, "duplicate label");
+            bytes
+        }
+        other => panic!("unexpected {other:?}"),
+    };
+    semantic_read_oracle(&detached, &baseline.nodes[0].0, "AxyB");
+    let second = capture(&s, "duplicate label", None);
+    assert_ne!(locked.key, second.key);
+    let mut caller_copy = read(&s, second.clone());
+    caller_copy.fill(0);
+    assert_eq!(read(&s, second.clone()), detached);
+    assert!(matches!(
+        s.capture_review_revision(baseline.revision.clone().unwrap(), "x".repeat(1025), None),
+        Err(NativeSessionError::ReviewInput {
+            reason: NativeReviewFailure::Invalid
+        })
+    ));
+    assert!(matches!(
+        s.read_review_revision(locked.clone(), Some("key-v1".into()))
+            .unwrap(),
+        NativeReviewRead::Available { .. }
+    ));
+    let third = capture(&s, "third", None);
+    assert!(matches!(
+        s.read_review_revision(locked, Some("key-v1".into()))
+            .unwrap(),
+        NativeReviewRead::Unavailable {
+            reason: NativeReviewUnavailable::Pruned
+        }
+    ));
+    assert_eq!(read(&s, second.clone()), detached);
+    assert_eq!(read(&s, third.clone()), detached);
+    // Payload alone cannot fit: the existing shared owner accounts retained metadata too.
+    s.set_review_retention(2, detached.len() as u64).unwrap();
+    unavailable(&s, second, NativeReviewUnavailable::Pruned);
+    unavailable(&s, third, NativeReviewUnavailable::Pruned);
+    assert!(matches!(
+        s.capture_review_revision(
+            baseline.revision.clone().unwrap(),
+            "over byte cap".into(),
+            None
+        ),
+        Err(NativeSessionError::ResourceLimit)
+    ));
+    s.set_review_retention(1, 32 * 1024 * 1024).unwrap();
+    let fresh = capture(&s, "fresh", None);
+    assert_eq!(read(&s, fresh), detached);
+    assert_eq!(inspection_state(&s, &f), baseline);
+    s.dispose().unwrap();
+    semantic_read_oracle(&detached, &baseline.nodes[0].0, "AxyB");
+}
 #[test]
 fn sqlite_capture_compare_is_immutable_and_preserves_live_history_journal_and_projection_queue() {
     let f = Fixture::new();
