@@ -1,3 +1,9 @@
+import * as cancelCases from './host-agent-product-proposal-cancel.mjs';
+import { prepareProposalCancel } from '../../examples/host-agent-product/proposal-cancel-setup.mjs';
+import * as uploadCases from './host-agent-product-upload.mjs';
+import { prepareUpload } from '../../examples/host-agent-product/upload-setup.mjs';
+import * as baselineCases from './host-agent-product-baseline.mjs';
+import { prepareBaseline } from '../../examples/host-agent-product/baseline-setup.mjs';
 import * as workspaceCases from './host-agent-product-workspace.mjs';
 import { prepareWorkspace } from '../../examples/host-agent-product/installed-setup.mjs';
 import assert from 'node:assert/strict';
@@ -23,7 +29,7 @@ const only = process.env.EDITAC_HOST_PRODUCT_ONLY;
 assert.ok(only === undefined || only === 'browser', 'Unknown case subset');
 assert.ok(completeSelection.modelCases.length && completeSelection.browserCases.length && completeSelection.engines.length, 'Zero-case selection');
 const selection = { ...completeSelection, modelCases:only === 'browser' ? [] : completeSelection.modelCases };
-const { modelCases, browserCases } = group === 'workspace' ? workspaceCases : group === 'human' ? humanCases : group === 'read' ? readCases : group === 'capabilities' ? capabilitiesCases : group === 'bridge' ? bridgeCases : shellCases;
+const { modelCases, browserCases } = group === 'proposal-cancel' ? cancelCases : group === 'upload' ? uploadCases : group === 'baseline' ? baselineCases : group === 'workspace' ? workspaceCases : group === 'human' ? humanCases : group === 'read' ? readCases : group === 'capabilities' ? capabilitiesCases : group === 'bridge' ? bridgeCases : shellCases;
 assert.ok(selection.modelCases.length + selection.browserCases.length * selection.engines.length > 0,'Zero-case selection');
 const output = resolve(process.env.EDITAC_HOST_PRODUCT_OUTPUT ?? join(root,'../architecture/evidence/host-agent-product-20261019/host-workspace',selection.parent,`shell-${Date.now()}`));
 await mkdir(output, { recursive: true });
@@ -35,7 +41,7 @@ const checker = (engine, expected) => { let index = 0; return async (id, action)
   catch (error) { facts.cases.push({ engine, id, status: 'failed', error: error.stack }); }
 }; };
 try {
-  server = await (group === 'workspace' ? prepareWorkspace : group === 'human' ? prepareHuman : group === 'read' ? prepareRead : group === 'capabilities' ? prepareCapabilities : group === 'bridge' ? prepareBridge : prepareShell)(output, facts, process.env.EDITAC_HOST_PRODUCT_SDK_RECEIPT ?? defaultReceipt);
+  server = await (group === 'proposal-cancel' ? prepareProposalCancel : group === 'upload' ? prepareUpload : group === 'baseline' ? prepareBaseline : group === 'workspace' ? prepareWorkspace : group === 'human' ? prepareHuman : group === 'read' ? prepareRead : group === 'capabilities' ? prepareCapabilities : group === 'bridge' ? prepareBridge : prepareShell)(output, facts, process.env.EDITAC_HOST_PRODUCT_SDK_RECEIPT ?? defaultReceipt);
   facts.processes.push({ pid: process.pid, launcher: process.execPath, workspace: root, port: server.port, purpose: 'Shell loopback fixture server', log: join(output,'receipt.json') });
   if (selection.modelCases.length) await modelCases(checker('node', selection.modelCases), { server, facts, output });
   const fixture = JSON.parse(await readFile(join(root,'fixtures/product-scenarios/host-agent-product/shell.json')));
@@ -48,7 +54,7 @@ try {
       browser = await ({ chromium, firefox, webkit }[engine]).connect(controller.wsEndpoint());
       detail.version = browser.version();
       const page = await browser.newPage({ viewport: { width:1280, height:900 } }); page.setDefaultTimeout(10000);
-      await browserCases({ page, server, check: checker(engine, selection.browserCases), fixture, facts: detail });
+      await browserCases({ page, server, check: checker(engine, selection.browserCases), fixture, facts: detail, output });
       await page.screenshot({ path: join(output, `${engine}.png`), fullPage: true });
     } catch (error) { detail.failure = error.stack; facts.cases.push({ engine, id: 'setup-or-teardown', status:'failed', error:error.stack }); }
     finally { try { if (browser) await browser.close(); } finally { if (controller) await controller.close(); detail.closed = true; } }

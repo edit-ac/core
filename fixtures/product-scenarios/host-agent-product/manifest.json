@@ -148,6 +148,84 @@
         "workspace-discover-edit-read",
         "workspace-unavailable-controls"
       ]
+    },
+    "baseline": {
+      "parent": "D24X-2.1",
+      "engines": [
+        "chromium",
+        "firefox",
+        "webkit"
+      ],
+      "modelCases": [
+        "real-owner-retention-and-public-prepare",
+        "foreign-and-forged-metadata-nonmutating",
+        "expiry-releases-real-target",
+        "release-and-policy-scope-fencing",
+        "actual-session-sqlite-identity-unchanged"
+      ],
+      "browserCases": [
+        "visible-exact-baseline-and-owner-binding",
+        "foreign-metadata-real-boundary-and-inert-source",
+        "prepared-expiry-and-real-owner-release",
+        "keyboard-release-scope-and-close",
+        "independent-history-storage-before-human-edit",
+        "human-edit-invalidates-real-revision-without-overwrite",
+        "late-capture-scope-fence-and-policy-release"
+      ]
+    },
+    "upload": {
+      "parent": "D24X-2.2",
+      "engines": [
+        "chromium",
+        "firefox",
+        "webkit"
+      ],
+      "modelCases": [
+        "utf8-framing-and-bounds",
+        "partial-and-order-errors-never-prepare",
+        "byte-and-unicode-errors-never-prepare",
+        "chunk-and-complete-checksum-errors",
+        "expiry-scope-and-current-authority",
+        "only-complete-candidate-reaches-real-owner",
+        "empty-complete-candidate-and-cancel",
+        "independent-session-sqlite-and-identity"
+      ],
+      "browserCases": [
+        "explicit-local-input-and-partial-progress",
+        "visible-order-checksum-and-byte-errors",
+        "visible-expiry-and-fresh-capture",
+        "complete-owner-prepare-and-inert-url-content",
+        "bounded-input-keyboard-and-unknown-state",
+        "baseline-release-discards-pending-upload",
+        "independent-browser-owner-journal-history"
+      ]
+    },
+    "proposal-cancel": {
+      "parent": "D24X-2.5",
+      "engines": [
+        "chromium",
+        "firefox",
+        "webkit"
+      ],
+      "modelCases": [
+        "cancel-releases-bounded-upload-and-baseline",
+        "late-read-withheld-new-generation-retained",
+        "late-real-prepare-withheld-and-target-released",
+        "close-fences-late-read-and-denies-future-work",
+        "independent-session-sqlite-identity-nonmutation"
+      ],
+      "browserCases": [
+        "keyboard-cancel-clears-partial-and-releases-owner",
+        "scope-switch-and-close-clear-prepared-views",
+        "late-read-cannot-replace-newer-capture",
+        "late-prepare-cannot-replace-newer-scope",
+        "close-during-real-prepare-withholds-result",
+        "cancel-pending-begin-releases-admitted-upload",
+        "expiry-clears-prepared-presentation",
+        "independent-owner-browser-history-journal-unchanged",
+        "cancel-preserves-independent-human-edit",
+        "page-exit-releases-retained-target"
+      ]
     }
   }
 }
