@@ -1,0 +1,153 @@
+{
+  "version": 1,
+  "scope": "Prepared local browser consumer; real Session/SQLite observation bridge; no live AI or aggregate qualification",
+  "groups": {
+    "shell": {
+      "parent": "D24X-1.1",
+      "engines": [
+        "chromium",
+        "firefox",
+        "webkit"
+      ],
+      "modelCases": [
+        "retention",
+        "text-bound",
+        "detached-snapshot",
+        "invalid-input",
+        "clear"
+      ],
+      "browserCases": [
+        "regions-and-identity",
+        "inert-prose",
+        "unavailable-public-facade",
+        "bounded-transcript",
+        "keyboard-and-clear",
+        "independent-no-mutation"
+      ]
+    },
+    "bridge": {
+      "parent": "D24X-1.2",
+      "engines": [
+        "chromium",
+        "firefox",
+        "webkit"
+      ],
+      "modelCases": [
+        "actual-owner",
+        "registered-facade",
+        "transport-admission",
+        "cancelled-response",
+        "bounded-messages",
+        "fixed-endpoints",
+        "independent-state"
+      ],
+      "browserCases": [
+        "connected-observation",
+        "cancel-and-resume",
+        "scope-and-inert-content",
+        "actual-wasm-peer-unchanged"
+      ]
+    },
+    "capabilities": {
+      "parent": "D24X-1.3",
+      "engines": [
+        "chromium",
+        "firefox",
+        "webkit"
+      ],
+      "modelCases": [
+        "live-registered-inventory",
+        "missing-services-and-unknown",
+        "stale-list-revoked-at-execution",
+        "permission-and-service-rechecked",
+        "scope-and-untrusted-arguments",
+        "fixture-transport-admission",
+        "independent-session-journal-identity"
+      ],
+      "browserCases": [
+        "visible-live-scope-and-tools",
+        "readonly-and-missing-outcomes",
+        "stale-inventory-revocation",
+        "permission-unavailability-and-recovery",
+        "inert-prose-and-keyboard",
+        "unknown-transport-clears-stale-inventory",
+        "actual-owner-wasm-history-unchanged"
+      ]
+    },
+    "read": {
+      "parent": "D24X-1.4",
+      "engines": [
+        "chromium",
+        "firefox",
+        "webkit"
+      ],
+      "modelCases": [
+        "actual-scoped-read",
+        "detached-repeat-and-revision",
+        "authorization-and-cross-document",
+        "readonly-unavailable-private-errors",
+        "transport-and-fixed-boundaries",
+        "independent-session-sqlite-identity"
+      ],
+      "browserCases": [
+        "exact-visible-export",
+        "explicit-authorized-copy",
+        "policy-and-private-payload-clear",
+        "transport-unknown-and-recovery",
+        "inert-bounded-keyboard-and-clear",
+        "reject-oversized-detached-payload",
+        "independent-owner-peer-history",
+        "current-revision-after-real-human-update"
+      ]
+    },
+    "human": {
+      "parent": "D24X-1.5",
+      "engines": [
+        "chromium",
+        "firefox",
+        "webkit"
+      ],
+      "modelCases": [
+        "separate-authenticated-channel",
+        "scope-and-fixed-channel-admission",
+        "independent-owner-journal-unchanged"
+      ],
+      "browserCases": [
+        "mounted-real-identity-storage",
+        "keyboard-and-separate-human-publish",
+        "actual-shared-update-and-own-history",
+        "local-storage-reopen",
+        "scope-switch-disposal-no-cross-document",
+        "denied-channel-clears-editor-and-recovers",
+        "read-tools-see-same-owner-without-human-remount",
+        "final-disposal-and-durable-owner-oracles"
+      ]
+    },
+    "workspace": {
+      "parent": "D24X-1.6",
+      "engines": [
+        "chromium",
+        "firefox",
+        "webkit"
+      ],
+      "modelCases": [
+        "separate-authenticated-channel",
+        "scope-and-fixed-channel-admission",
+        "independent-owner-journal-unchanged",
+        "composed-current-services"
+      ],
+      "browserCases": [
+        "mounted-real-identity-storage",
+        "keyboard-and-separate-human-publish",
+        "actual-shared-update-and-own-history",
+        "local-storage-reopen",
+        "scope-switch-disposal-no-cross-document",
+        "denied-channel-clears-editor-and-recovers",
+        "read-tools-see-same-owner-without-human-remount",
+        "final-disposal-and-durable-owner-oracles",
+        "workspace-discover-edit-read",
+        "workspace-unavailable-controls"
+      ]
+    }
+  }
+}
