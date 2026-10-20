@@ -49,3 +49,10 @@
 !/tests/native/*-proof/**/*.ts
 !/tests/native/*-proof/**/*.tsx
 /benchmarks/baselines/
+
+!/tests/native/*-proof/**/*.lock
+!/tests/native/*-proof/**/*.modulemap
+!/tests/native/*-proof/**/*.xcconfig
+!/tests/native/*-proof/**/*.yaml
+!/tests/native/*-proof/**/*.yml
+!/tests/native/*-proof/**/*.plist
