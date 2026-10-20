@@ -6,6 +6,9 @@ mod assets;
 #[path = "../../editac-wasm/src/bridge.rs"]
 #[allow(dead_code)]
 mod bridge;
+#[path = "../../editac-wasm/src/comparison.rs"]
+#[allow(dead_code)]
+mod comparison;
 
 mod session_commands;
 pub use session_commands::*;
